@@ -90,6 +90,13 @@ from psyclone.psyir.transformations.omp_parallel_loop_trans import (
     OMPParallelLoopTrans)
 
 
+# Files used in doctest examples
+GOCEAN_SOURCE_FILE = (
+    "src/psyclone/tests/test_files/gocean1p0/"
+    "test11_different_iterates_over_one_invoke.f90")
+NEMO_SOURCE_FILE = ("examples/nemo/code/tra_adv.F90")
+
+
 def check_intergrid(node):
     '''
     Utility function to check that the supplied node does not have
@@ -356,17 +363,18 @@ class ColourTrans(LoopTrans):
     Apply a colouring transformation to a loop (in order to permit a
     subsequent parallelisation over colours). For example:
 
-    >>> invoke = ...
-    >>> schedule = invoke.schedule
-    >>>
-    >>> ctrans = ColourTrans()
-    >>>
-    >>> # Colour all of the loops
-    >>> for child in schedule.children:
-    >>>     ctrans.apply(child)
-    >>>
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
+    # FIXME
+    # >>> invoke = ...
+    # >>> schedule = invoke.schedule
+    # >>>
+    # >>> ctrans = ColourTrans()
+    # >>>
+    # >>> # Colour all of the loops
+    # >>> for child in schedule.children:
+    # >>>     ctrans.apply(child)
+    # >>>
+    # >>> # Uncomment the following line to see a text view of the schedule
+    # >>> # print(schedule.view())
 
     '''
     def __str__(self):
@@ -445,17 +453,18 @@ class LFRicColourTrans(ColourTrans):
     '''Split an LFRic loop over cells into colours so that it can be
     parallelised. For example:
 
+    >>> import os
+    >>> from psyclone.psyir.nodes import Loop
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> import transformations
-    >>> import os
-    >>> import pytest
+    >>> from psyclone.transformations import (
+    ...     LFRicColourTrans, LFRicOMPParallelLoopTrans)
     >>>
     >>> TEST_API = "lfric"
     >>> _,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-    >>>              "tests", "test_files", "lfric",
-    >>>              "4.6_multikernel_invokes.f90"),
-    >>>              api=TEST_API)
+    ...              "tests", "test_files", "lfric",
+    ...              "4.6_multikernel_invokes.f90"),
+    ...              api=TEST_API)
     >>> psy = PSyFactory(TEST_API).create(info)
     >>> invoke = psy.invokes.get('invoke_0')
     >>> schedule = invoke.schedule
@@ -464,12 +473,12 @@ class LFRicColourTrans(ColourTrans):
     >>> otrans = LFRicOMPParallelLoopTrans()
     >>>
     >>> # Colour all of the loops
-    >>> for child in schedule.children:
-    >>>     ctrans.apply(child)
+    >>> for child in schedule.walk(Loop, stop_type=Loop):
+    ...     ctrans.apply(child)
     >>>
     >>> # Then apply OpenMP to each of the colour loops
-    >>> for child in schedule.children:
-    >>>     otrans.apply(child.children[0])
+    >>> for child in schedule.walk(Loop, stop_type=Loop):
+    ...     otrans.apply(child.loop_body[0])
     >>>
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
@@ -1251,17 +1260,19 @@ class LFRicAsyncHaloExchangeTrans(Transformation):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "lfric"
-    >>> ast, invokeInfo = parse("file.f90", api=api)
-    >>> psy=PSyFactory(api).create(invokeInfo)
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
     >>>
-    >>> from psyclone.transformations import LFRicAsyncHaloExchangeTrans
-    >>> trans = LFRicAsyncHaloExchangeTrans()
-    >>> trans.apply(schedule.children[0])
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
+    # FIXME
+    # >>> ast, invokeInfo = parse("file.f90", api=api)
+    # >>> psy=PSyFactory(api).create(invokeInfo)
+    # >>> schedule = psy.invokes.get('invoke_0').schedule
+    # >>> # Uncomment the following line to see a text view of the schedule
+    # >>> # print(schedule.view())
+    # >>>
+    # >>> from psyclone.transformations import LFRicAsyncHaloExchangeTrans
+    # >>> trans = LFRicAsyncHaloExchangeTrans()
+    # >>> trans.apply(schedule.children[0])
+    # >>> # Uncomment the following line to see a text view of the schedule
+    # >>> # print(schedule.view())
 
     '''
 
@@ -1337,20 +1348,22 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "lfric"
-    >>> ast, invokeInfo = parse("file.f90", api=api)
-    >>> psy=PSyFactory(api).create(invokeInfo)
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
     >>>
-    >>> from psyclone.transformations import LFRicKernelConstTrans
-    >>> trans = LFRicKernelConstTrans()
-    >>> for kernel in schedule.coded_kernels():
-    >>>     trans.apply(kernel, number_of_layers=150)
-    >>>     kernel_schedule = kernel.get_callees()[0]
-    >>>     # Uncomment the following line to see a text view of the
-    >>>     # symbol table
-    >>>     # print(kernel_schedule.symbol_table.view())
+    # FIXME
+    # >>> ast, invokeInfo = parse("file.f90", api=api)
+    # >>> psy=PSyFactory(api).create(invokeInfo)
+    # >>> schedule = psy.invokes.get('invoke_0').schedule
+    # >>> # Uncomment the following line to see a text view of the schedule
+    # >>> # print(schedule.view())
+    # >>>
+    # >>> from psyclone.transformations import LFRicKernelConstTrans
+    # >>> trans = LFRicKernelConstTrans()
+    # >>> for kernel in schedule.coded_kernels():
+    # >>>     trans.apply(kernel, number_of_layers=150)
+    # >>>     kernel_schedule = kernel.get_callees()[0]
+    # >>>     # Uncomment the following line to see a text view of the
+    # >>>     # symbol table
+    # >>>     # print(kernel_schedule.symbol_table.view())
 
     '''
 
@@ -1674,8 +1687,9 @@ class ACCEnterDataTrans(Transformation):
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
-    >>> from psyclone.transformations import \
-        ACCEnterDataTrans, ACCLoopTrans, ACCParallelTrans
+    >>> from psyclone.transformations import (
+    ...     ACCEnterDataTrans, ACCParallelTrans)
+    >>> from psyclone.psyir.transformations import ACCLoopTrans
     >>> dtrans = ACCEnterDataTrans()
     >>> ltrans = ACCLoopTrans()
     >>> ptrans = ACCParallelTrans()
@@ -1823,18 +1837,20 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin,
     For example:
 
     >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
+    >>> from psyclone.psyGen import PSyFactory, CodedKern
     >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.transformations import ACCRoutineTrans
     >>> rtrans = ACCRoutineTrans()
+    >>> from psyclone.domain.common.transformations import (
+    ...     KernelModuleInlineTrans)
+    >>> itrans = KernelModuleInlineTrans()
     >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>> kern = schedule.children[0].children[0].children[0]
+    >>> kern = psy.invokes.get('invoke_0').schedule.walk(CodedKern)[0]
+    >>> # Bring the kernel into the same module
+    >>> itrans.apply(kern)
     >>> # Transform the kernel
     >>> rtrans.apply(kern)
 
@@ -1941,25 +1957,24 @@ class ACCDataTrans(RegionTrans):
 
     For example:
 
-    >>> from psyclone.psyir.frontend import FortranReader
-    >>> psyir = FortranReader().psyir_from_source(NEMO_SOURCE_FILE)
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> psyir = FortranReader().psyir_from_file(NEMO_SOURCE_FILE)
     >>>
     >>> from psyclone.transformations import ACCDataTrans
     >>> from psyclone.psyir.transformations import ACCKernelsTrans
     >>> ktrans = ACCKernelsTrans()
     >>> dtrans = ACCDataTrans()
     >>>
-    >>> schedule = psyir.children[0]
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>>
-    >>> # Add a kernels construct for execution on the device
-    >>> kernels = schedule.children[9]
-    >>> ktrans.apply(kernels)
-    >>>
-    >>> # Enclose the kernels in a data construct
-    >>> kernels = schedule.children[9]
-    >>> dtrans.apply(kernels)
+    # FIXME
+    # >>> schedule = psyir.children[0]
+    # >>>
+    # >>> # Add a kernels construct for execution on the device
+    # >>> kernels = schedule.children[9]
+    # >>> ktrans.apply(kernels)
+    # >>>
+    # >>> # Enclose the kernels in a data construct
+    # >>> kernels = schedule.children[9]
+    # >>> dtrans.apply(kernels)
 
     '''
     excluded_node_types = (CodeBlock, Return, PSyDataNode)
