@@ -376,7 +376,6 @@ def test_apply_force_private(fortran_reader):
                 loop,
                 ignore_dependencies_for=["array_l"],
                 nowait=True)
-
     # Apply maximum transformation to code
     mtrans = MaxParTrans()
     routine = psyir.walk(Routine)
