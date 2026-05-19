@@ -64,7 +64,7 @@ class Range(Node):
     A common use case is to want to specify all the elements of a given
     array dimension without knowing the extent of that dimension. In the
     PSyIR this is achieved by using the ``LBOUND``, and ``UBOUND``
-    intrinsics::
+    intrinsics:
 
     >>> from psyclone.psyir.nodes import (
     ...      Literal, IntrinsicCall, Reference, ArrayReference, Range)
