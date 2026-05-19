@@ -143,13 +143,14 @@ def test_apply(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_nested_sums_error_case(fortran_reader, fortran_writer):
+def test_nested_sums_error_cases(fortran_reader):
     '''Test that the transformation fails correctly if we have nested sums
     as the reference can't be converted to an arrayreference as the reference
     is inside a non-elemental function.'''
     code = """subroutine sum_test()
     integer :: n, m
     real , dimension(:, :) :: array
+    real :: result
 
     result = sum(sum(array, dim=2)) * array(n,m)
     end subroutine"""
@@ -161,16 +162,38 @@ def test_nested_sums_error_case(fortran_reader, fortran_writer):
     assert ("Can't apply Sum2LoopTrans to SUM(SUM(array, 2)) due "
             "to no ArrayReference nodes present." in str(err.value))
 
-    # code = """subroutine sum_test()
-    # integer :: n, m
-    # real, dimension(:, :) :: array
-    # result = sum(sum(array  + array(:,:), dim=2))
-    # end subroutine"""
-    # psyir = fortran_reader.psyir_from_source(code)
-    # intrinsic_node = psyir.children[0].children[0].rhs
-    # trans = Sum2LoopTrans()
-    # with pytest.raises(TransformationError) as err:
-    #     trans.apply(intrinsic_node)
-    # print(fortran_writer(psyir))
-    # print(err.value)
-    # assert False
+    code = """subroutine sum_test()
+    integer :: n, m
+    real, dimension(:, :) :: array
+    real :: result
+
+    result = sum(sum(array  + array(:,:), dim=2))
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    intrinsic_node = psyir.children[0].children[0].rhs
+    trans = Sum2LoopTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.apply(intrinsic_node)
+    assert ("Transformation Error: ArrayAssignment2LoopsTrans does not "
+            "support statements containing dependencies that would generate "
+            "loop-carried dependencies when naively converting them to a "
+            "loop, but found" in str(err.value))
+
+    code = """subroutine sum_test()
+    integer :: n, m
+    real, dimension(:, :) :: array
+    integer, dimension(1) :: dimensions
+    real :: result
+    result = sum(sum(array, dim=dimensions(2)))
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    intrinsic_node = psyir.children[0].children[0].rhs
+    trans = Sum2LoopTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.apply(intrinsic_node)
+    assert ("Transformation Error: Error in ArrayAssignment2LoopsTrans "
+            "transformation. The LHS of the supplied Assignment node "
+            "should contain an array accessor with at least one of its "
+            "dimensions being a Range, but none were found in "
+            "'dimensions(2) = SUM(array, dimensions(2))"
+            in str(err.value))
