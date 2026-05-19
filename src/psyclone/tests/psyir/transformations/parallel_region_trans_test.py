@@ -47,8 +47,8 @@ Module containing tests for the parallel region transformation class.
 import pytest
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
-from psyclone.psyir.nodes import CodeBlock
-from psyclone.psyir.nodes import (Literal, Loop)
+from psyclone.psyir.nodes import (OMPParallelDirective, Routine)
+from psyclone.psyir.nodes import (CodeBlock, Literal, Loop)
 from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.psyir.symbols import (DataSymbol, INTEGER_TYPE)
 
@@ -69,3 +69,31 @@ def test_parallelregion_refuse_codeblock():
         otrans.validate([parent])
     assert ("Nodes of type 'CodeBlock' cannot be enclosed by a "
             "OMPParallelTrans transformation" in str(err.value))
+
+
+def test_sym_tab_exception(fortran_reader):
+    '''Check exception handling of _check_symbol_table_vars. We use
+       OMPParallelTrans as ParallelRegionTrans is abstract. '''
+    code = """subroutine x
+    integer :: i, outside_var
+    integer :: array_i(4)
+    outside_var = 2
+    do i = 1, 4
+        array_i(i) = 1 + 2
+    end do
+    end subroutine x
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    otrans = OMPParallelTrans()
+    nodes = []
+    ### debug ###
+    nodes = psyir.walk(Routine)[0].children[:]
+    
+    ### debug ###
+    # for loop in psyir.walk(Loop):
+    #     nodes.append(loop)
+    otrans.apply(nodes, force_private=["outside_var"])
+    
+    print(psyir.view())
+    assert len(psyir.walk(OMPParallelDirective)) == 2
+

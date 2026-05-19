@@ -148,12 +148,8 @@ class OMPParallelTrans(ParallelRegionTrans):
         # table of the ancestor RegionDirective to the nodes which have just
         # had a region spanned over.
         if force_private:
-            new_region_directive = None
-            try:
-                new_region_directive = nodes[0].ancestor(RegionDirective)
-            except TypeError as err:
-                logging.warning(
-                    "Could not find an OMPParallelTrans ancestor as %", err)
+            new_region_directive = nodes[0].ancestor(RegionDirective)
+            print(f"new_region_directive: {new_region_directive}")
             if new_region_directive:
                 new_region_directive.explicitly_private_symbols.update(
                     super()._check_symbol_table_vars(
