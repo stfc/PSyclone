@@ -98,7 +98,8 @@ class ParallelRegionTrans(RegionTrans, ABC):
                     symbol_name.lower())
             except KeyError as err:
                 # This is not an error, but we will log the missed string
-                logging.warning(
+                logger = logging.getLogger(__name__)
+                logger.warning(
                     "%s has been provided with the '%s' symbol name in "
                     "the 'force_private' option, but there is no such "
                     "symbol in this scope.", err, symbol_name)
