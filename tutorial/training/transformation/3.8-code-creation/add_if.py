@@ -45,7 +45,7 @@ import os
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.transformations import OMPParallelLoopTrans
-from psyclone.psyir.symbols import ScalarType.integer_type()
+from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.nodes import (BinaryOperation, FileContainer, IfBlock,
                                   Literal, Loop, Routine, Schedule)
 
