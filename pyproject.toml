@@ -118,6 +118,9 @@ exclude = ["psyclone.tests", "psyclone.tests.*"]
 [tool.setuptools.dynamic]
 version = { attr = "psyclone.version.__VERSION__" }
 
+[tool.setuptools.package-data]
+psyclone = ["*.f90"]
+
 [tool.pytest.ini_options]
 xfail_strict = true
 addopts = "--ignore=external -p no:pep8"
