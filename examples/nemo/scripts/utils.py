@@ -221,9 +221,6 @@ def normalise_loops(
                 Reference2ArrayRangeTrans().apply(reference)
             except TransformationError:
                 pass
-            except Exception as err:
-                print(reference, reference.parent.parent.debug_string())
-                raise err
 
     if loopify_array_intrinsics:
         for intr in schedule.walk(IntrinsicCall):
@@ -279,10 +276,8 @@ def normalise_loops(
                 except TransformationError:
                     pass
 
-    # TODO #3412: This is currently limited to iom_put, we want to expand it
-    # throughout the code
     if hoist_argument_expressions:
-        iom_put_argument_to_temporary(schedule.walk(Call))
+        hoist_arguments_to_temporaries(schedule.walk(Call))
         normalise_loops(
             schedule,
             hoist_local_arrays=hoist_local_arrays,
@@ -555,9 +550,9 @@ def add_profiling(children: Union[List[Node], Schedule]):
         MaximalProfilingOutsideDirectivesTrans().apply(children)
 
 
-def iom_put_argument_to_temporary(calls: list[Call]):
-    '''Extracts the second argument of all iom_put calls and puts them
-     in a temporary if they are an Operation with an array datatype.
+def hoist_arguments_to_temporaries(calls: list[Call]):
+    '''Extracts the arguments of all calls and puts them
+     in a temporary result if they are an Operation with an array datatype.
 
     :param calls: The list of calls in a subroutine whose arguments
         may be moved into temporary storage to allow additional potential
@@ -565,9 +560,10 @@ def iom_put_argument_to_temporary(calls: list[Call]):
 
      '''
     for call in calls:
-        # if call.symbol.name == "iom_put":
         for arg in call.arguments:
             dtype = arg.datatype
+            # Only extract expressions that can potentially be loopfied,
+            # i.e. operations over arrays.
             if (isinstance(dtype, ArrayType) and
                 (isinstance(arg, Operation) or
                     isinstance(arg, IntrinsicCall))):

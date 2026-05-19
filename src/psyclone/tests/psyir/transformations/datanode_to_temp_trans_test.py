@@ -326,7 +326,7 @@ def test_datanodetotemptrans_apply(fortran_reader, fortran_writer, tmp_path):
     loop = psyir.walk(Loop)[0].detach()
     assign = loop.walk(Assignment)[0]
     dtrans.apply(assign.rhs)
-    assert assign.scope.symbol_table.lookup("tmp") is not None
+    assert "tmp" in assign.scope.symbol_table
     out = fortran_writer(loop)
     assert """do i = 1, 100, 1
   tmp = b + c

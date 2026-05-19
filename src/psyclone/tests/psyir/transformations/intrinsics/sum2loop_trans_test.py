@@ -143,9 +143,10 @@ def test_apply(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_nemo5_transerror_case(fortran_reader):
+def test_nested_sums_error_case(fortran_reader, fortran_writer):
     '''Test that the transformation fails correctly if we have nested sums
-    as the reference can't be converted to an arrayreference.'''
+    as the reference can't be converted to an arrayreference as the reference
+    is inside a non-elemental function.'''
     code = """subroutine sum_test()
     integer :: n, m
     real , dimension(:, :) :: array
@@ -159,3 +160,17 @@ def test_nemo5_transerror_case(fortran_reader):
         trans.apply(intrinsic_node)
     assert ("Can't apply Sum2LoopTrans to SUM(SUM(array, 2)) due "
             "to no ArrayReference nodes present." in str(err.value))
+
+    #code = """subroutine sum_test()
+    #integer :: n, m
+    #real, dimension(:, :) :: array
+    #result = sum(sum(array  + array(:,:), dim=2))
+    #end subroutine"""
+    #psyir = fortran_reader.psyir_from_source(code)
+    #intrinsic_node = psyir.children[0].children[0].rhs
+    #trans = Sum2LoopTrans()
+    #with pytest.raises(TransformationError) as err:
+    #    trans.apply(intrinsic_node)
+    #print(fortran_writer(psyir))
+    #print(err.value)
+    #assert False
