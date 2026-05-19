@@ -161,16 +161,16 @@ def test_nested_sums_error_case(fortran_reader, fortran_writer):
     assert ("Can't apply Sum2LoopTrans to SUM(SUM(array, 2)) due "
             "to no ArrayReference nodes present." in str(err.value))
 
-    #code = """subroutine sum_test()
-    #integer :: n, m
-    #real, dimension(:, :) :: array
-    #result = sum(sum(array  + array(:,:), dim=2))
-    #end subroutine"""
-    #psyir = fortran_reader.psyir_from_source(code)
-    #intrinsic_node = psyir.children[0].children[0].rhs
-    #trans = Sum2LoopTrans()
-    #with pytest.raises(TransformationError) as err:
-    #    trans.apply(intrinsic_node)
-    #print(fortran_writer(psyir))
-    #print(err.value)
-    #assert False
+    # code = """subroutine sum_test()
+    # integer :: n, m
+    # real, dimension(:, :) :: array
+    # result = sum(sum(array  + array(:,:), dim=2))
+    # end subroutine"""
+    # psyir = fortran_reader.psyir_from_source(code)
+    # intrinsic_node = psyir.children[0].children[0].rhs
+    # trans = Sum2LoopTrans()
+    # with pytest.raises(TransformationError) as err:
+    #     trans.apply(intrinsic_node)
+    # print(fortran_writer(psyir))
+    # print(err.value)
+    # assert False
