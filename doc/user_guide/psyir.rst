@@ -625,7 +625,7 @@ A more complicated access involving arrays of structures such as
 
 .. code-block:: python
 
-  from psyclone.psyir.symbols import ScalarType.integer_type()
+  from psyclone.psyir.symbols import ScalarType
   from psyclone.psyir.nodes import StructureReference, Reference, Literal
   idx_sym = symbol_table.lookup("idx")
   fld_sym = symbol_table.lookup("field1")

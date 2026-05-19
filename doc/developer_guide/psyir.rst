@@ -167,7 +167,7 @@ node can be integrated and used in the PSyIR tree:
 ::
 
     >>> from psyclone.psyir.nodes import Literal, Schedule
-    >>> from psyclone.psyir.symbols import ScalarType.integer_type()
+    >>> from psyclone.psyir.symbols import ScalarType
     >>> from code_snippets.newnode import MyNode
     >>> mynode = MyNode(children=[Literal("1", ScalarType.integer_type())])
     >>> mynode.children.append(Literal("2", ScalarType.integer_type()))
