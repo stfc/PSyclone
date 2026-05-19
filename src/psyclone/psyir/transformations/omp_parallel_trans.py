@@ -150,9 +150,9 @@ class OMPParallelTrans(ParallelRegionTrans):
         if force_private:
             new_region_directive = nodes[0].ancestor(RegionDirective)
             if new_region_directive:
-                region_set = set(super()._check_symbol_table_vars(
+                region_set = super()._check_symbol_table_vars(
                         new_region_directive,
-                        force_private))
+                        force_private)
                 if region_set:
                     new_region_directive.explicitly_private_symbols.update(
                         region_set)

@@ -68,5 +68,3 @@ def test_parallelregion_refuse_codeblock():
         otrans.validate([parent])
     assert ("Nodes of type 'CodeBlock' cannot be enclosed by a "
             "OMPParallelTrans transformation" in str(err.value))
-
-
