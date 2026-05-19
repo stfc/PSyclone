@@ -76,6 +76,8 @@ dependencies = [
 
 [project.optional-dependencies]
 doc = [
+    # Have to pin Sphinx to a pre-9.0 version because of
+    # https://github.com/sphinx-doc/sphinx/issues/14223
     "sphinx<=8.3",
     "sphinxcontrib.bibtex",
     "sphinx_design",
