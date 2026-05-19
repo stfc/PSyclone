@@ -94,7 +94,8 @@ class ParallelRegionTrans(RegionTrans, ABC):
         for symbol_name in force_private:
             sym = None
             try:
-                sym = region_node.scope.symbol_table.lookup(symbol_name.lower())
+                sym = region_node.scope.symbol_table.lookup(
+                    symbol_name.lower())
             except KeyError as err:
                 # This is not an error, but we will log the missed string
                 logging.warning(
