@@ -39,7 +39,7 @@
 #          M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean Kuntzmann
 #          J. Dendy, Met Office
 '''This module provides the OMPParallelTrans transformation.'''
-import logging
+
 from collections.abc import Iterable
 from psyclone import psyGen
 from psyclone.psyir.nodes import (
