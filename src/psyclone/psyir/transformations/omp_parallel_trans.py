@@ -49,7 +49,7 @@ from psyclone.psyir.nodes import (
     OMPParallelDirective,
     OMPDirective,
     Return,
-    RegionDirective
+    RegionDirective,
 )
 from psyclone.psyir.transformations.parallel_region_trans import (
     ParallelRegionTrans)
@@ -149,12 +149,13 @@ class OMPParallelTrans(ParallelRegionTrans):
         # had a region spanned over.
         if force_private:
             new_region_directive = nodes[0].ancestor(RegionDirective)
-            print(f"new_region_directive: {new_region_directive}")
             if new_region_directive:
-                new_region_directive.explicitly_private_symbols.update(
-                    super()._check_symbol_table_vars(
+                region_set = set(super()._check_symbol_table_vars(
                         new_region_directive,
                         force_private))
+                if region_set:
+                    new_region_directive.explicitly_private_symbols.update(
+                        region_set)
 
 
 __all__ = ["OMPParallelTrans"]
