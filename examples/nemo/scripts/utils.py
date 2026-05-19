@@ -499,6 +499,7 @@ def add_profiling(children: Union[List[Node], Schedule]):
         # (which would create unclosed hooks).
         _allowed_contiguous_statements = (Assignment, Call, CodeBlock)
         _transformation = ProfileTrans
+        _SUB_TRANSFORMATIONS = [ProfileTrans]
 
         def _satisfies_minimum_region_rules(self, region: list[Node]) -> bool:
             '''Returns whether the provided node list satisfies the
