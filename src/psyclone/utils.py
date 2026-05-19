@@ -88,12 +88,31 @@ def stringify_annotation(annotation) -> str:
     return str(annotation)
 
 
-def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
+def transformation_documentation_wrapper(*args, inherit=True,
+                                         add_subtransformations: bool = True,
+                                         **kwargs):
     '''
     Updates the apply and validate methods' docstrings for the supplied cls,
-    according to the value of inherit.
+    according to the value of inherit. args is either a length 1 set argument
+    containing the class to be wrapper, or a length 0 argument set if
+    options are specified on the transformation_docstring_wrapper that is
+    handled by python. This works due to:
 
-    :param Class cls: The class whose docstrings are to be updated.
+    >>> @transformation_documentation_wrapper(inherit=True)
+    >>> class myclass():
+    >>>     pass
+
+    essentially being:
+
+    >>> transformation_documentation_wrapper(inherit=True)(myclass)
+
+    whilst the decorator without any argument is simply:
+
+    >>> transformation_documentation_wrapper(myclass)
+
+    We use this to vary the behaviour of the wrapper slightly depending on
+    whether any arguments are present.
+
     :param inherit: whether to inherit argument docstrings from cls' parent's
                     apply method. If the provided argument is a list, instead
                     the docstrings are updated from each class included in
@@ -102,6 +121,8 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                     Transformation's validate docstring from its own
                     apply docstring.
     :type inherit: Union[list[Class], bool]
+    :param add_subtransformations: Whether to add parameter docstrings from
+        sub transformations used by this Transformation.
     '''
     # List of argument doctrings to never inherit.
     _uninheritable_args = ["options"]
@@ -125,7 +146,7 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
         func_data.merge(added_parameters, replace_args=False)
         func.__doc__ = func_data.gen_docstring(function=func)
 
-    def wrapper():
+    def wrapper(cls):
         '''
         The wrapping function of the decorator.
 
@@ -141,7 +162,8 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
         if isinstance(inherit, list):
             added_parameters = DocstringData(
                 desc=None, arguments=OrderedDict(),
-                raises=[], returns=None)
+                raises=[], returns=None,
+                sub_arguments=OrderedDict())
             for superclass in inherit:
                 inherited_params = \
                     DocstringData.create_from_object(superclass.apply)
@@ -153,16 +175,33 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                  )
         else:
             added_parameters = None
+        if add_subtransformations and len(cls._SUB_TRANSFORMATIONS > 0):
+            if added_parameters = None:
+                added_parameters = DocstringData(
+                    desc=None, arguments=OrderedDict(),
+                    raises=[], returns=None,
+                    sub_arguments=OrderedDict())
+            for trans in cls.SUB_TRANSFORMATION:
+                inherited_params = \
+                    DocstringData.create_from_object(trans.apply)
+                added_parameters.add_subarguments(trans.__name__,
+                                                  inherited_params)
+
+
         if added_parameters is not None:
             # Remove any arguments we don't want to inherit.
             for arg in list(added_parameters.arguments.keys()):
                 if arg in _uninheritable_args:
                     del added_parameters.arguments[arg]
             update_func_docstring(cls.apply, added_parameters)
+
         # Update the validate docstring
         added_parameters = DocstringData.create_from_object(cls.apply)
         if added_parameters is not None:
             update_func_docstring(cls.validate, added_parameters)
 
         return cls
-    return wrapper(*args, **kwargs)
+    if len(args) > 0:
+        return wrapper(*args)
+    else:
+        return wrapper

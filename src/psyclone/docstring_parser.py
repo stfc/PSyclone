@@ -171,6 +171,7 @@ class DocstringData():
     arguments: OrderedDict
     raises: list
     returns: ReturnsData
+    sub_arguments: OrderedDict[str, OrderedDict]
 
     def add_data(self, docstring_element:
                  Union[ArgumentData, RaisesData, ReturnsData, str]) -> None:
@@ -199,6 +200,31 @@ class DocstringData():
                 f" :raise, :param, :returns, :type, or :rtype but found "
                 f"'{docstring_element}'."
             )
+
+    def add_subarguments(self, cls_name: str, other_data: DocstringData,
+                         replace_args: bool = False):
+        '''Add the other DocstringData's arguments as sub arguments to be
+        referenced via cls_name.
+
+        :param cls_name: The class name to use for the sub arguments.
+        :param other_data: The DocstringData object whose arguments to add
+            as sub arguments for this object.
+        :param replace_args: whether to replace duplicate sub arguments if
+            found.
+        '''
+        # If the class isn't already in the sub arguments list, we just
+        # add a copy of the other data's argument dicts to the sub_arguments.
+        if cls_name not in self.sub_arguments:
+            self.sub_arguments[cls_name] = other_data.arguments.copy()
+            return
+        # Otherwise we need to add them manually.
+        for arg in other_data.arguments:
+            # If the arg is already present and we're not overwriting then
+            # skip.
+            if (arg in self.sub_arguments[cls_name].keys() and
+                    not replace_args):
+                continue
+            self.sub_arguments[cls_name][arg] = other_data.arguments[arg]
 
     def merge(self, other_data, replace_desc: bool = False,
               replace_args: bool = False, replace_returns: bool = False):
@@ -238,6 +264,22 @@ class DocstringData():
         if ((self.returns is None or replace_returns)
                 and other_data.returns is not None):
             self.returns = other_data.returns
+
+        # Merge the sub_arguments.
+        for subarg in other_data.sub_arguments:
+            # If the sub argument isn't in our own sub arguments, make a copy
+            # of the sub argument.
+            if subarg not in self.sub_arguments.keys():
+                self.sub_arguments[subarg] = other_data.sub_arguments[subarg].copy()
+            else:
+                # Otherwise we merge the sub arguments in the same fashion we
+                # merge the arguments.
+                for arg in other_data.sub_arguments[subarg]:
+                    if (arg in self.sub_arguments[subarg].keys()
+                            and not replace_args):
+                        continue
+                    self.sub_arguments[subarg][arg] = \
+                        other_data.sub_arguments[subarg][arg]
 
     def gen_docstring(
             self, indentation: str = "    ",
@@ -375,7 +417,7 @@ class DocstringData():
         rtype = None
         docstring_data = DocstringData(
             desc="", arguments=OrderedDict(), raises=[],
-            returns=None
+            returns=None, sub_arguments=OrderedDict()
         )
 
         docstring_data.add_data(desc_chunk)

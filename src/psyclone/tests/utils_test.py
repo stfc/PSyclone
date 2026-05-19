@@ -99,7 +99,8 @@ def test_transformation_doc_wrapper_non_transformation():
 def test_transformation_doc_wrapper_single_inheritance():
     '''Test the transformation_doc_wrapper.'''
 
-    # Create a base transformation class
+    # Createa base transformation class
+    @transformation_documentation_wrapper(inherit=False)
     class BaseTrans(Transformation):
 
         def validate(self, node, opt1, opt2, **kwargs):
@@ -116,6 +117,7 @@ def test_transformation_doc_wrapper_single_inheritance():
             :type opt2: opt2 type.
             '''
 
+    @transformation_documentation_wrapper(inherit=False)
     class InheritingTrans(BaseTrans):
 
         def validate(self, node, opt3, **kwargs):
@@ -130,18 +132,11 @@ def test_transformation_doc_wrapper_single_inheritance():
             :param opt3: opt3 docstring.
             '''
 
-    assert "opt2" not in BaseTrans.validate.__doc__
-
-    transformation_documentation_wrapper(BaseTrans, inherit=False)
-
     assert ":param bool opt1: opt1 docstring." in BaseTrans.validate.__doc__
     assert ":param opt2: opt2 docstring." in BaseTrans.validate.__doc__
     assert ":type opt2: opt2 type." in BaseTrans.validate.__doc__
 
-    assert "opt2" not in InheritingTrans.apply.__doc__
-    assert "opt3" not in InheritingTrans.validate.__doc__
-    transformation_documentation_wrapper(InheritingTrans, inherit=False)
-
+    # Test that the option worked correctly.
     assert (":param int opt3: opt3 docstring." in
             InheritingTrans.validate.__doc__)
 
