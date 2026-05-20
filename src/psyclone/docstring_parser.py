@@ -228,7 +228,6 @@ class DocstringData():
             # access.
             first_arg = list(self.sub_arguments[cls_name].keys())[0]
             self.sub_arguments[cls_name].pop(first_arg, None)
-            print(self.sub_arguments[cls_name])
             return
         # Otherwise we need to add them manually.
         for arg in other_data.arguments[1:]:

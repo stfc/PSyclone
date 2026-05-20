@@ -126,7 +126,7 @@ def transformation_documentation_wrapper(*args, inherit=True,
         sub transformations used by this Transformation.
     '''
     # List of argument doctrings to never inherit.
-    _uninheritable_args = ["options"]
+    _uninheritable_args = ["options", "nodes", "node_list", "node"]
 
     def update_func_docstring(func, added_parameters: "DocstringData") -> None:
         '''
@@ -187,7 +187,6 @@ def transformation_documentation_wrapper(*args, inherit=True,
                     DocstringData.create_from_object(trans.apply)
                 added_parameters.add_subarguments(trans.__name__,
                                                   inherited_params)
-                print("?")
 
 
         if added_parameters is not None:
@@ -195,6 +194,10 @@ def transformation_documentation_wrapper(*args, inherit=True,
             for arg in list(added_parameters.arguments.keys()):
                 if arg in _uninheritable_args:
                     del added_parameters.arguments[arg]
+            for trans in cls._SUB_TRANSFORMATIONS:
+                for arg in added_parameters.sub_arguments[trans.__name__]:
+                    if arg in _uninheritable_args:
+                        del added_parameters.sub_arguments[trans.__name__][arg]
             update_func_docstring(cls.apply, added_parameters)
 
         # Update the validate docstring
