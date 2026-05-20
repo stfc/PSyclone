@@ -144,9 +144,8 @@ class OMPParallelTrans(ParallelRegionTrans):
         # TODO #2668: Remove options.
         super().apply(nodes, options, **kwargs)
 
-        # Privatise the provided variables if they are found within the symbol
-        # table of the ancestor RegionDirective to the nodes which have just
-        # had a region spanned over.
+        # Privatise the provided variables for the new RegionDirective, if they
+        # are found within the symbol table of the ancestor Routine.
         if force_private:
             new_region_directive = nodes[0].ancestor(RegionDirective)
             if new_region_directive:
