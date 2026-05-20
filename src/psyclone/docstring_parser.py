@@ -281,7 +281,8 @@ class DocstringData():
             # If the sub argument isn't in our own sub arguments, make a copy
             # of the sub argument.
             if subarg not in self.sub_arguments.keys():
-                self.sub_arguments[subarg] = other_data.sub_arguments[subarg].copy()
+                self.sub_arguments[subarg] = \
+                    other_data.sub_arguments[subarg].copy()
             else:
                 # Otherwise we merge the sub arguments in the same fashion we
                 # merge the arguments.
@@ -382,7 +383,6 @@ class DocstringData():
                 returnstring = indentation + returnstring + os.linesep
         else:
             returnstring = ""
-
 
         docstring = description
         docstring += os.linesep.join(argstrings)

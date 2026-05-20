@@ -188,7 +188,6 @@ def transformation_documentation_wrapper(*args, inherit=True,
                 added_parameters.add_subarguments(trans.__name__,
                                                   inherited_params)
 
-
         if added_parameters is not None:
             # Remove any arguments we don't want to inherit.
             for arg in list(added_parameters.arguments.keys()):
