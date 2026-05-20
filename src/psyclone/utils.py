@@ -37,6 +37,7 @@
 
 '''This module provides generic utility functions.'''
 
+
 from collections import OrderedDict
 import sys
 from psyclone.errors import InternalError
@@ -127,7 +128,7 @@ def transformation_documentation_wrapper(*args, inherit=True,
     # List of argument doctrings to never inherit.
     _uninheritable_args = ["options"]
 
-    def update_func_docstring(func, added_parameters: DocstringData) -> None:
+    def update_func_docstring(func, added_parameters: "DocstringData") -> None:
         '''
         Adds the docstrings specified in added_parameters to the
         docstring of func.
@@ -175,17 +176,18 @@ def transformation_documentation_wrapper(*args, inherit=True,
                  )
         else:
             added_parameters = None
-        if add_subtransformations and len(cls._SUB_TRANSFORMATIONS > 0):
-            if added_parameters = None:
+        if add_subtransformations and len(cls._SUB_TRANSFORMATIONS) > 0:
+            if added_parameters is None:
                 added_parameters = DocstringData(
                     desc=None, arguments=OrderedDict(),
                     raises=[], returns=None,
                     sub_arguments=OrderedDict())
-            for trans in cls.SUB_TRANSFORMATION:
+            for trans in cls._SUB_TRANSFORMATIONS:
                 inherited_params = \
                     DocstringData.create_from_object(trans.apply)
                 added_parameters.add_subarguments(trans.__name__,
                                                   inherited_params)
+                print("?")
 
 
         if added_parameters is not None:
