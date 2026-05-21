@@ -43,6 +43,7 @@ import pytest
 from psyclone.core import Signature
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir import symbols, nodes
+from psyclone.psyir.symbols.datatypes import ArrayType, ScalarType
 from psyclone.tests.utilities import check_links
 
 
@@ -240,7 +241,7 @@ def test_struct_ref_semantic_nav():
             "found: ['broken']" in str(err.value))
 
 
-def test_struct_ref_datatype():
+def test_struct_ref_datatype(fortran_reader):
     '''Test the datatype() method of StructureReference.'''
     atype = symbols.ArrayType(symbols.REAL_TYPE, [10, 8])
     rtype = symbols.StructureType.create([
@@ -326,6 +327,25 @@ def test_struct_ref_datatype():
     sref = nodes.StructureReference.\
         create(ssym, ["nx"], overwrite_datatype=symbols.REAL_TYPE)
     assert sref.datatype == symbols.REAL_TYPE
+
+    # Test that the structuretype datatype for this case does not contain
+    # multiply nested array types.
+    code = (
+        "subroutine test(n,m)\n"
+        "  integer :: n, m\n"
+        "  type :: array_type\n"
+        "      real :: array(10,10)\n"
+        "  end type\n"
+        "  type(array_type) :: ref\n"
+        "  real :: result\n"
+        "  integer :: dimension\n"
+        "  result = maxval(ref%array)\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    node = psyir.walk(nodes.StructureReference)[0]
+    assert isinstance(node.datatype, ArrayType)
+    assert isinstance(node.datatype.elemental_type, ScalarType)
+    assert node.datatype.elemental_type.intrinsic == ScalarType.Intrinsic.REAL
 
 
 def test_structure_reference_unresolved_type():
