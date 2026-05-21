@@ -224,13 +224,9 @@ class DocstringData():
         # add a copy of the other data's argument dicts to the sub_arguments.
         if cls_name not in self.sub_arguments:
             self.sub_arguments[cls_name] = other_data.arguments.copy()
-            # Remove the first argument, which is always the node or nodes
-            # access.
-            first_arg = list(self.sub_arguments[cls_name].keys())[0]
-            self.sub_arguments[cls_name].pop(first_arg, None)
             return
         # Otherwise we need to add them manually.
-        for arg in other_data.arguments[1:]:
+        for arg in other_data.arguments:
             # If the arg is already present and we're not overwriting then
             # skip.
             if (arg in self.sub_arguments[cls_name].keys() and

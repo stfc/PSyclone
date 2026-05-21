@@ -623,3 +623,68 @@ def test_no_sphinx():
         assert isinstance(data, ArgumentData)
         assert (data.datatype ==
                 "<class 'psyclone.docstring_parser.DocstringData'>")
+
+
+def test_subarguments():
+    '''
+    Test that we can add sub arguments to a docstring data as expected.
+    '''
+
+    def docstringobj(arg1: int):
+        '''
+        description.
+
+        :param arg1: my param
+        '''
+        pass
+
+    def subobject(arg1: int, arg2: int):
+        '''
+        subobject description
+
+        :param arg1: sub param
+        :param arg2: arg2
+        '''
+        pass
+
+    def subobject2(arg3: int, arg2: int):
+        '''
+        subobject2 description
+
+        :param arg2: subobj2 arg2
+        :param arg3: arg3
+        '''
+
+    doc1 = DocstringData.create_from_object(docstringobj)
+
+    # Should have no sub arguments
+    assert doc1.sub_arguments == {}
+
+    doc2 = DocstringData.create_from_object(subobject)
+    assert "arg1" in doc2.arguments
+    assert "arg2" in doc2.arguments
+    assert len(doc2.arguments) == 2
+
+    # Add doc2 as subarguments to doc1
+    doc1.add_subarguments("subobject", doc2, replace_args=False)
+
+    # Should only have arg2 in the sub arguments
+    assert len(doc1.sub_arguments["subobject"]) == 2
+    assert doc1.sub_arguments["subobject"]["arg1"].desc == "sub param"
+    assert doc1.sub_arguments["subobject"]["arg2"].desc == "arg2"
+
+    doc3 = DocstringData.create_from_object(subobject2)
+    # Add doc3 also as subobject to doc1 without replace_args
+    doc1.add_subarguments("subobject", doc3, replace_args=False)
+    assert len(doc1.sub_arguments["subobject"]) == 3
+    assert doc1.sub_arguments["subobject"]["arg1"].desc == "sub param"
+    assert doc1.sub_arguments["subobject"]["arg2"].desc == "arg2"
+    assert doc1.sub_arguments["subobject"]["arg3"].desc == "arg3"
+
+    # Add doc 3 as a subojbject with replace_args
+    # Add doc3 also as subobject to doc1 without replace_args
+    doc1.add_subarguments("subobject", doc3, replace_args=True)
+    assert len(doc1.sub_arguments["subobject"]) == 3
+    assert doc1.sub_arguments["subobject"]["arg1"].desc == "sub param"
+    assert doc1.sub_arguments["subobject"]["arg2"].desc == "subobj2 arg2"
+    assert doc1.sub_arguments["subobject"]["arg3"].desc == "arg3"
