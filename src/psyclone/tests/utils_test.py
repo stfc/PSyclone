@@ -367,11 +367,12 @@ def test_transformation_doc_wrapper_subtrans():
             Sub validate docstring
             '''
 
-        def apply(self, node, opt3: int = 1, **kwargs):
+        def apply(self, node, opt3=1, **kwargs):
             '''
             Sub apply docstring
 
             :param opt3: opt3 docstring.
+            :type opt3: int
             '''
 
     class SubTrans2(Transformation):
@@ -407,7 +408,6 @@ def test_transformation_doc_wrapper_subtrans():
             :param opt2: opt2 docstring.
             :type opt2: opt2 type.
             '''
-            pass
 
     # With add_subtransformations=False we shouldn't get any of the SubTrans
     # arguments.
@@ -432,7 +432,6 @@ def test_transformation_doc_wrapper_subtrans():
             :param opt2: opt2 docstring.
             :type opt2: opt2 type.
             '''
-            pass
 
     # Disable some flake8 for this string, as empty lines in output
     # contain whitespace.
@@ -442,7 +441,42 @@ def test_transformation_doc_wrapper_subtrans():
     :param opt1: opt1 docstring.
     :param opt2: opt2 docstring.
     :type opt2: opt2 type.
-    :param int opt3: (Option used for SubTrans1) opt3 docstring.
+    :param opt3: (Option used for SubTrans1) opt3 docstring.
+    :type opt3: int
+    :param int opt3: (Option used for SubTrans2) opt3 docstring.\
+"""  # noqa: W293
+    assert correct in BaseTrans.apply.__doc__
+
+    # Test behaviour still is consistant with inherit=False
+    @transformation_documentation_wrapper(inherit=False)
+    class BaseTrans(Transformation):
+        _SUB_TRANSFORMATIONS = [SubTrans1, SubTrans2]
+
+        def validate(self, node, **kwargs):
+            '''
+            Super validate docstring
+            '''
+
+        def apply(self, node, opt1: bool = False, opt2=None,
+                  **kwargs):
+            '''
+            Super apply docstring
+
+            :param opt1: opt1 docstring.
+            :param opt2: opt2 docstring.
+            :type opt2: opt2 type.
+            '''
+
+    # Disable some flake8 for this string, as empty lines in output
+    # contain whitespace.
+    correct = """Super apply docstring
+    
+    
+    :param opt1: opt1 docstring.
+    :param opt2: opt2 docstring.
+    :type opt2: opt2 type.
+    :param opt3: (Option used for SubTrans1) opt3 docstring.
+    :type opt3: int
     :param int opt3: (Option used for SubTrans2) opt3 docstring.\
 """  # noqa: W293
     assert correct in BaseTrans.apply.__doc__

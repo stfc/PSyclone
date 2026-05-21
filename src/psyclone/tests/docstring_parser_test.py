@@ -636,7 +636,6 @@ def test_subarguments():
 
         :param arg1: my param
         '''
-        pass
 
     def subobject(arg1: int, arg2: int):
         '''
@@ -645,14 +644,14 @@ def test_subarguments():
         :param arg1: sub param
         :param arg2: arg2
         '''
-        pass
 
-    def subobject2(arg3: int, arg2: int):
+    def subobject2(arg3, arg2: int):
         '''
         subobject2 description
 
         :param arg2: subobj2 arg2
         :param arg3: arg3
+        :type arg3: int
         '''
 
     doc1 = DocstringData.create_from_object(docstringobj)
