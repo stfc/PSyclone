@@ -87,7 +87,6 @@ doc = [
 ]
 test = [
     "flake8",
-    "flake8-pyproject",
     "pylint",
     "pytest-cov",
     "pytest-xdist",
@@ -121,27 +120,8 @@ exclude = ["psyclone.tests", "psyclone.tests.*"]
 version = { attr = "psyclone.version.__VERSION__" }
 
 [tool.pytest.ini_options]
+# Ensure that any XPASS ("unexpectedly passing") results are reported
+# as failures in the test suite.
 xfail_strict = true
 addopts = "--ignore=external -p no:pep8"
 filterwarnings = ["ignore::DeprecationWarning"]
-
-[tool.flake8]
-# Ignore E266 too many leading '#' for block comment since we use those for
-# Doxygen markup.
-extend-ignore = "E266"
-# List of files and directories to exclude. Note we also ignore specific
-# errors on specific lines with # noqa: <error> in a few other files.
-exclude = [
-    ".git",
-    "__pycache__",
-    "conf.py",
-    "__init__.py",
-    "tutorial/practicals/LFRic/single_node/1_openmp/omp_script.py",
-    "tutorial/practicals/LFRic/single_node/2_openacc/acc_parallel.py",
-    "tutorial/practicals/generic/2_profiling/profile_trans.py",
-    "tutorial/practicals/generic/3_openmp/omp_trans.py",
-    "tutorial/practicals/generic/4_openacc/kernels_trans.py",
-    "examples/nemo/eg4/dawn_script.py",
-    "external",
-    "build"
-]
