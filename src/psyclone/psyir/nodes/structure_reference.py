@@ -366,6 +366,8 @@ class StructureReference(StructureAccessorMixin, Reference):
                 shape = cursor_shape
 
         if shape:
+            if isinstance(cursor_type, ArrayType):
+                return ArrayType(cursor_type.elemental_type, shape)
             return ArrayType(cursor_type, shape)
 
         # We must have a scalar.
