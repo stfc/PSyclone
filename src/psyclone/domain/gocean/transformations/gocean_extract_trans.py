@@ -49,14 +49,9 @@ class GOceanExtractTrans(ExtractTrans):
     ''' GOcean1.0 API application of ExtractTrans transformation
     to extract code into a stand-alone program. For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>>
-    >>> API = "gocean"
-    >>> FILENAME = "examples/gocean/eg1/shallow_alg.f90"
-    >>> ast, invoke_info = parse(FILENAME, api=API)
-    >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "shallow/shallow_alg.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>>
     >>> from psyclone.domain.gocean.transformations import GOceanExtractTrans
     >>> etrans = GOceanExtractTrans()

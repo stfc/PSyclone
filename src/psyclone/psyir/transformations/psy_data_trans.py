@@ -57,23 +57,19 @@ class PSyDataTrans(RegionTrans):
     >>> api = "gocean"
 
     # FIXME: What file?
-    # >>> ast, invoke_info = parse(SOURCE_FILE, api=api)
-    # >>> psy = PSyFactory(api).create(invoke_info)
-    # >>>
-    # >>> from psyclone.psyir.transformations import PSyDataTrans
-    # >>> data_trans = PSyDataTrans()
-    # >>>
-    # >>> schedule = psy.invokes.get('invoke_0').schedule
-    # >>> # Uncomment the following line to see a text view of the schedule
-    # >>> # print(schedule.view())
-    # >>>
-    # >>> # Enclose all children within a single PSyData region
-    # >>> data_trans.apply(schedule.children)
-    # >>> # Uncomment the following line to see a text view of the schedule
-    # >>> # print(schedule.view())
-    # >>> # Or to use custom region name:
-    # >>> data_trans.apply(schedule.children,
-    # ...                  {"region_name": ("module","region")})
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "test11_different_iterates_over_one_invoke.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
+    >>> from psyclone.psyir.transformations import PSyDataTrans
+    >>> data_trans = PSyDataTrans()
+    >>>
+    >>> # Enclose all children within a single PSyData region
+    >>> data_trans.apply(schedule.children)
+    >>> # Uncomment the following line to see a text view of the schedule
+    >>> # print(schedule.view())
+    >>> # Or to use custom region name:
+    >>> data_trans.apply(schedule.children,
+    ...                  {"region_name": ("module","region")})
 
     :param node_class: The Node class of which an instance will be inserted \
         into the tree (defaults to PSyDataNode).

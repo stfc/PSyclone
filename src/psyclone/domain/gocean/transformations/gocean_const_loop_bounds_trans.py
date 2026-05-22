@@ -70,15 +70,9 @@ class GOConstLoopBoundsTrans(Transformation):
     In practice, the application of the constant loop bounds transformation
     looks something like, e.g.:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> import os
-    >>> TEST_API = "gocean"
-    >>> filename = "src/psyclone/tests/test_files/gocean1p0/single_invoke.f90"
-    >>> _, info = parse(filename, api=TEST_API)
-    >>> psy = PSyFactory(TEST_API).create(info)
-    >>> invoke = psy.invokes.get('invoke_0_compute_cu')
-    >>> schedule = invoke.schedule
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "single_invoke.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>>
     >>> from psyclone.domain.gocean.transformations import \
     GOConstLoopBoundsTrans

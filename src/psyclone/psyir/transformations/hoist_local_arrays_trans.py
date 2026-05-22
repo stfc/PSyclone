@@ -61,7 +61,7 @@ class HoistLocalArraysTrans(Transformation):
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
-    >>> from psyclone.psyir.nodes import Assignment
+    >>> from psyclone.psyir.nodes import Assignment, Routine
     >>> from psyclone.psyir.transformations import HoistLocalArraysTrans
     >>> code = ("module test_mod\\n"
     ...         "contains\\n"

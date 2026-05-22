@@ -450,21 +450,13 @@ class LFRicColourTrans(ColourTrans):
     '''Split an LFRic loop over cells into colours so that it can be
     parallelised. For example:
 
-    >>> import os
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "4.6_multikernel_invokes.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="lfric")
+    >>>
     >>> from psyclone.psyir.nodes import Loop
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
     >>> from psyclone.transformations import (
     ...     LFRicColourTrans, LFRicOMPParallelLoopTrans)
-    >>>
-    >>> TEST_API = "lfric"
-    >>> _,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-    ...              "tests", "test_files", "lfric",
-    ...              "4.6_multikernel_invokes.f90"),
-    ...              api=TEST_API)
-    >>> psy = PSyFactory(TEST_API).create(info)
-    >>> invoke = psy.invokes.get('invoke_0')
-    >>> schedule = invoke.schedule
     >>>
     >>> ctrans = LFRicColourTrans()
     >>> otrans = LFRicOMPParallelLoopTrans()
@@ -476,9 +468,6 @@ class LFRicColourTrans(ColourTrans):
     >>> # Then apply OpenMP to each of the colour loops
     >>> for child in schedule.walk(Loop, stop_type=Loop):
     ...     otrans.apply(child.loop_body[0])
-    >>>
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
 
     Colouring in the LFRic API is subject to the following rules:
 

@@ -68,6 +68,10 @@ class GOOpenCLTrans(Transformation):
     >>> filename = "shallow/shallow_alg.f90"
     >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>>
+    >>> from psyclone.domain.gocean.transformations import (
+    ...     GOMoveIterationBoundariesInsideKernelTrans,
+    ...     GOOpenCLTrans)
+    >>> move_trans = GOMoveIterationBoundariesInsideKernelTrans()
     >>> ocl_trans = GOOpenCLTrans()
 
     # FIXME: Needs GOMoveIterationBoundariesInsideKernelTrans

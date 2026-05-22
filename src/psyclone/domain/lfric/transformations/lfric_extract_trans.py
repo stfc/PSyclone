@@ -49,23 +49,6 @@ class LFRicExtractTrans(ExtractTrans):
     ''' LFRic API application of ExtractTrans transformation
     to extract code into a stand-alone program. For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>>
-    >>> API = "lfric"
-
-    # FIXME: Which solver_mod.x90 file?
-    # >>> FILENAME = "solver_mod.x90"
-    # >>> ast, invoke_info = parse(FILENAME, api=API)
-    # >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    # >>> schedule = psy.invokes.get('invoke_0').schedule
-    # >>>
-    # >>> from psyclone.domain.lfric.transformations import LFRicExtractTrans
-    # >>> etrans = LFRicExtractTrans()
-    # >>>
-    # >>> # Apply LFRicExtractTrans transformation to selected Nodes
-    # >>> etrans.apply(schedule.children[0:3])
-
     '''
 
     def __init__(self):

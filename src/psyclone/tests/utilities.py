@@ -603,7 +603,7 @@ def get_invoke(algfile: str,
 def get_psylayer_schedule(
     algfile: str,
     api: str,
-    invoke_name: str = "invoke_0",
+    invoke_name: str = "",
     dist_mem: bool = False
 ) -> Node:
     '''
@@ -628,7 +628,10 @@ def get_psylayer_schedule(
 
     _, info = parse(filepath, api=api)
     psy = PSyFactory(api, distributed_memory=dist_mem).create(info)
-    return psy.invokes.get(invoke_name).schedule
+    if invoke_name:
+        return psy.invokes.get(invoke_name).schedule
+    else:
+        return psy.invokes.invoke_list[0].schedule
 
 
 # =============================================================================

@@ -71,6 +71,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.symbols import ScalarType
+    >>> from psyclone.psyir.nodes import Routine
     >>> from psyclone.psyir.transformations import (
     ... ReplaceReferenceByLiteralTrans)
     >>> source = """program test

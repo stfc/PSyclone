@@ -115,34 +115,6 @@ However, it also provides methods (``get_used_module_names``,
 ``get_used_symbols_from_modules``) for interrogating the parse tree which
 can be useful if it is not possible to represent this in PSyIR.
 
-An example usage of the ``ModuleManager`` and ``ModuleInfo`` objects,
-which prints the filenames of all modules used in ``tl_testkern_mod``:
-
-.. testcode ::
-
-    mod_manager = ModuleManager.get()
-    # Add the path to the PSyclone LFRic example codes:
-    mod_manager.add_search_path("../src/psyclone/tests/test_files/"
-                                "lfric")
-
-    testkern_info = mod_manager.get_module_info("tl_testkern_mod")
-
-    used_mods = testkern_info.get_used_module_names()
-    # Sort the modules so we get a reproducible output ordering
-    used_mods_list = sorted(list(used_mods))
-    for module_name in used_mods_list:
-        mod_info = mod_manager.get_module_info(module_name)
-        print("Module:", module_name, os.path.basename(mod_info.filename))
-
-.. testoutput::
-
-    Module: argument_mod argument_mod.f90
-    Module: constants_mod constants_mod.f90
-    Module: fs_continuity_mod fs_continuity_mod.f90
-    Module: kernel_mod kernel_mod.f90
-
-
-
 FileInfo
 ========
 
