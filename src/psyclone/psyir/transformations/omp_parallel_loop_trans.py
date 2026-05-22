@@ -53,17 +53,15 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         >>> from psyclone.parse.algorithm import parse
         >>> from psyclone.psyGen import PSyFactory
-        >>> ast, invokeInfo = parse("lfric.F90")
-        >>> psy = PSyFactory("lfric").create(invokeInfo)
-        >>> schedule = psy.invokes.get('invoke_v3_kernel_type').schedule
-        >>> # Uncomment the following line to see a text view of the schedule
-        >>> # print(schedule.view())
-        >>>
-        >>> from psyclone.transformations import OMPParallelLoopTrans
-        >>> trans = OMPParallelLoopTrans()
-        >>> trans.apply(schedule.children[0])
-        >>> # Uncomment the following line to see a text view of the schedule
-        >>> # print(schedule.view())
+
+        # # FIXME: File does not exist
+        # >>> ast, invokeInfo = parse("lfric.F90")
+        # >>> psy = PSyFactory("lfric").create(invokeInfo)
+        # >>> schedule = psy.invokes.get('invoke_v3_kernel_type').schedule
+        # >>>
+        # >>> from psyclone.transformations import OMPParallelLoopTrans
+        # >>> trans = OMPParallelLoopTrans()
+        # >>> trans.apply(schedule.children[0])
 
     '''
     def __str__(self):

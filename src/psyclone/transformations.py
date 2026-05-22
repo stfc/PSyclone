@@ -1965,16 +1965,15 @@ class ACCDataTrans(RegionTrans):
     >>> ktrans = ACCKernelsTrans()
     >>> dtrans = ACCDataTrans()
     >>>
-    # FIXME
-    # >>> schedule = psyir.children[0]
-    # >>>
-    # >>> # Add a kernels construct for execution on the device
-    # >>> kernels = schedule.children[9]
-    # >>> ktrans.apply(kernels)
-    # >>>
-    # >>> # Enclose the kernels in a data construct
-    # >>> kernels = schedule.children[9]
-    # >>> dtrans.apply(kernels)
+    >>> schedule = psyir.children[0]
+    >>>
+    >>> # Add a kernels construct for execution on the device
+    >>> kernels = schedule.children[26]
+    >>> ktrans.apply(kernels)
+    >>>
+    >>> # Enclose the kernels in a data construct
+    >>> kernels = schedule.children[26]
+    >>> dtrans.apply(kernels)
 
     '''
     excluded_node_types = (CodeBlock, Return, PSyDataNode)

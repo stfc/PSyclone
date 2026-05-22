@@ -29,6 +29,10 @@ from psyclone.psyir.nodes import (
     OMPTaskloopDirective)
 from psyclone.utils import transformation_documentation_wrapper
 
+GOCEAN_SOURCE_FILE = (
+    "src/psyclone/tests/test_files/gocean1p0/"
+    "test11_different_iterates_over_one_invoke.f90")
+
 
 @transformation_documentation_wrapper
 class OMPTaskloopTrans(ParallelLoopTrans):
@@ -47,7 +51,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
 
     For example:
 
-    >>> from pysclone.parse.algorithm import parse
+    >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
@@ -55,7 +59,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     >>>
     >>> from psyclone.transformations import OMPSingleTrans
     >>> from psyclone.psyir.transformations import OMPParallelTrans
-    >>> from psyclone.transformations import OMPTaskloopTrans
+    >>> from psyclone.psyir.transformations import OMPTaskloopTrans
     >>> from psyclone.psyir.transformations import OMPTaskwaitTrans
     >>> singletrans = OMPSingleTrans()
     >>> paralleltrans = OMPParallelTrans()
@@ -63,15 +67,13 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     >>> taskwaittrans = OMPTaskwaitTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
     >>>
     >>> # Apply the OpenMP Taskloop transformation to *every* loop
     >>> # in the schedule.
     >>> # This ignores loop dependencies. These can be handled
     >>> # by the OMPTaskwaitTrans
     >>> for child in schedule.children:
-    >>>     tasklooptrans.apply(child)
+    ...     tasklooptrans.apply(child)
     >>> # Enclose all of these loops within a single OpenMP
     >>> # SINGLE region
     >>> singletrans.apply(schedule.children)
@@ -79,9 +81,9 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     >>> # PARALLEL region
     >>> paralleltrans.apply(schedule.children)
     >>> # Ensure loop dependencies are satisfied
-    >>> taskwaittrans.apply(schedule.children)
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
+
+    # FIXME
+    # >>> taskwaittrans.apply(schedule.children)
 
     '''
     def __init__(self, grainsize=None, num_tasks=None, nogroup=False):

@@ -55,23 +55,25 @@ class PSyDataTrans(RegionTrans):
     >>> from psyclone.parse.utils import ParseError
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean"
-    >>> ast, invoke_info = parse(SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invoke_info)
-    >>>
-    >>> from psyclone.psyir.transformations import PSyDataTrans
-    >>> data_trans = PSyDataTrans()
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>>
-    >>> # Enclose all children within a single PSyData region
-    >>> data_trans.apply(schedule.children)
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>> # Or to use custom region name:
-    >>> data_trans.apply(schedule.children,
-    ...                  {"region_name": ("module","region")})
+
+    # FIXME: What file?
+    # >>> ast, invoke_info = parse(SOURCE_FILE, api=api)
+    # >>> psy = PSyFactory(api).create(invoke_info)
+    # >>>
+    # >>> from psyclone.psyir.transformations import PSyDataTrans
+    # >>> data_trans = PSyDataTrans()
+    # >>>
+    # >>> schedule = psy.invokes.get('invoke_0').schedule
+    # >>> # Uncomment the following line to see a text view of the schedule
+    # >>> # print(schedule.view())
+    # >>>
+    # >>> # Enclose all children within a single PSyData region
+    # >>> data_trans.apply(schedule.children)
+    # >>> # Uncomment the following line to see a text view of the schedule
+    # >>> # print(schedule.view())
+    # >>> # Or to use custom region name:
+    # >>> data_trans.apply(schedule.children,
+    # ...                  {"region_name": ("module","region")})
 
     :param node_class: The Node class of which an instance will be inserted \
         into the tree (defaults to PSyDataNode).

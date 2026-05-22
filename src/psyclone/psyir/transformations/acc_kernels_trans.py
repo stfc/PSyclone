@@ -58,6 +58,7 @@ from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 from psyclone.utils import transformation_documentation_wrapper
 
+NEMO_SOURCE_FILE = ("examples/nemo/code/tra_adv.F90")
 
 @transformation_documentation_wrapper
 class ACCKernelsTrans(RegionTrans):
@@ -67,16 +68,14 @@ class ACCKernelsTrans(RegionTrans):
 
     For example:
 
-    >>> from psyclone.psyir.frontend import FortranReader
-    >>> psyir = FortranReader().psyir_from_source(NEMO_SOURCE_FILE)
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> psyir = FortranReader().psyir_from_file(NEMO_SOURCE_FILE)
     >>>
     >>> from psyclone.psyir.transformations import ACCKernelsTrans
     >>> ktrans = ACCKernelsTrans()
     >>>
     >>> schedule = psyir.children[0]
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>> kernels = schedule.children[9]
+    >>> kernels = schedule.children[26]
     >>> # Transform the kernel
     >>> ktrans.apply(kernels)
 

@@ -44,6 +44,10 @@ from psyclone.psyir.transformations.parallel_loop_trans import (
     ParallelLoopTrans)
 from psyclone.psyir.nodes import (ACCLoopDirective, PSyDataNode)
 
+GOCEAN_SOURCE_FILE = (
+    "src/psyclone/tests/test_files/gocean1p0/"
+    "test11_different_iterates_over_one_invoke.f90")
+
 
 class ACCLoopTrans(ParallelLoopTrans):
     '''
@@ -66,8 +70,6 @@ class ACCLoopTrans(ParallelLoopTrans):
     >>> rtrans = ACCParallelTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
     >>>
     >>> # Apply the OpenACC Loop transformation to *every* loop in the schedule
     >>> for child in schedule.children[:]:

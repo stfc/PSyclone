@@ -53,18 +53,17 @@ class ProfileTrans(PSyDataTrans):
     >>> from psyclone.psyGen import PSyFactory, GenerationError
     >>> from psyclone.psyir.transformations import ProfileTrans
     >>> api = "gocean"
-    >>> filename = "nemolite2d_alg.f90"
+    >>> filename = ("src/psyclone/tests/test_files/gocean1p0/"
+    ...             "nemolite2d_alg_mod.f90")
     >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> p_trans = ProfileTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> print(schedule.view())
     >>>
     >>> # Enclose all children within a single profile region
     >>> p_trans.apply(schedule.children)
-    >>> print(schedule.view())
 
     This implementation relies completely on the base class PSyDataTrans
     for the actual work, it only adjusts the name etc, and the list
