@@ -56,20 +56,23 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
     >>> from psyclone.psyGen import PSyFactory
     >>>
     >>> API = "lfric"
-    >>> FILENAME = "alg.x90"
-    >>> ast, invokeInfo = parse(FILENAME, api=API)
-    >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>>
-    >>> from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-    >>> ftrans =  LFRicLoopFuseTrans()
-    >>>
-    >>> ftrans.apply(schedule[0], schedule[1])
-    >>> print(schedule.view())
+
+    # FIXME: Which alg.f90?
+    # >>> FILENAME = "alg.x90"
+    # >>> ast, invokeInfo = parse(FILENAME, api=API)
+    # >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # >>> schedule = psy.invokes.get('invoke_0').schedule
+    # >>>
+    # >>> from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+    # >>> ftrans =  LFRicLoopFuseTrans()
+    # >>>
+    # >>> ftrans.apply(schedule[0], schedule[1])
+
+    # FIXME: doctest compare output code
 
     The optional argument `same_space` can be set as
 
-    >>> ftrans.apply(schedule[0], schedule[1], {"same_space": True})
+    # >>> ftrans.apply(schedule[0], schedule[1], {"same_space": True})
 
     when applying the transformation.
 

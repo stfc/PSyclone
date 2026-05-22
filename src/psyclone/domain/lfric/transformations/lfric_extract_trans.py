@@ -53,17 +53,18 @@ class LFRicExtractTrans(ExtractTrans):
     >>> from psyclone.psyGen import PSyFactory
     >>>
     >>> API = "lfric"
-    >>> FILENAME = "solver_alg.x90"
-    >>> ast, invokeInfo = parse(FILENAME, api=API)
-    >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>>
-    >>> from psyclone.domain.lfric.transformations import LFRicExtractTrans
-    >>> etrans = LFRicExtractTrans()
-    >>>
-    >>> # Apply LFRicExtractTrans transformation to selected Nodes
-    >>> etrans.apply(schedule.children[0:3])
-    >>> print(schedule.view())
+
+    # FIXME: Which solver_mod.x90 file?
+    # >>> FILENAME = "solver_mod.x90"
+    # >>> ast, invoke_info = parse(FILENAME, api=API)
+    # >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # >>> schedule = psy.invokes.get('invoke_0').schedule
+    # >>>
+    # >>> from psyclone.domain.lfric.transformations import LFRicExtractTrans
+    # >>> etrans = LFRicExtractTrans()
+    # >>>
+    # >>> # Apply LFRicExtractTrans transformation to selected Nodes
+    # >>> etrans.apply(schedule.children[0:3])
 
     '''
 

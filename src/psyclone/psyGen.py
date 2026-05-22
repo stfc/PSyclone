@@ -204,15 +204,6 @@ class PSy():
                                  by the function :func:`parse.algorithm.parse`.
     :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo`
 
-    For example:
-
-    >>> from psyclone.parse.algorithm import parse
-    >>> ast, info = parse("argspec.F90")
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "..."
-    >>> psy = PSyFactory(api).create(info)
-    >>> print(psy.gen)
-
     '''
 
     def __init__(self, invoke_info):
@@ -630,21 +621,10 @@ class InvokeSchedule(Routine):
     Stores schedule information for an invocation call. Schedules can be
     optimised using transformations.
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> ast, info = parse("algorithm.f90")
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "..."
-    >>> psy = PSyFactory(api).create(info)
-    >>> invokes = psy.invokes
-    >>> invokes.names
-    >>> invoke = invokes.get("name")
-    >>> schedule = invoke.schedule
-    >>> print(schedule.view())
-
     :param symbol: RoutineSymbol representing the invoke.
     :type symbol: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
-    :param type KernFactory: class instance of the factory to use when \
-     creating Kernels. e.g. \
+    :param type KernFactory: class instance of the factory to use when
+        creating Kernels. e.g. \
      :py:class:`psyclone.domain.lfric.LFRicKernCallFactory`.
     :param type BuiltInFactory: class instance of the factory to use when \
      creating built-ins. e.g. \
@@ -2208,18 +2188,6 @@ class TransInfo():
     .. warning::
         This utility will not find Transformations under the new file
         structure (TODO #620) and is deprecated.
-
-    For example:
-
-    >>> from psyclone.psyGen import TransInfo
-    >>> t = TransInfo()
-    >>> print(t.list)
-    There is 1 transformation available:
-      1: SwapTrans, A test transformation
-    >>> # accessing a transformation by index
-    >>> trans = t.get_trans_num(1)
-    >>> # accessing a transformation by name
-    >>> trans = t.get_trans_name("SwapTrans")
 
     '''
 

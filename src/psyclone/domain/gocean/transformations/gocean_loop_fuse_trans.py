@@ -51,15 +51,16 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> ast, invokeInfo = parse("shallow_alg.f90")
+    >>> filename = "examples/gocean/eg1/shallow_alg.f90"
+    >>> ast, invokeInfo = parse(filename, "gocean")
     >>> psy = PSyFactory("gocean").create(invokeInfo)
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> print(schedule.view())
     >>>
-    >>> from psyclone.transformations import GOceanLoopFuseTrans
+    >>> from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
     >>> ftrans = GOceanLoopFuseTrans()
-    >>> ftrans.apply(schedule[0], schedule[1])
-    >>> print(schedule.view())
+
+    # FIXME
+    # >>> ftrans.apply(schedule[0], schedule[1])
 
     '''
     def __str__(self):

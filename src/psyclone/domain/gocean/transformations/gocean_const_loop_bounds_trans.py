@@ -74,18 +74,17 @@ class GOConstLoopBoundsTrans(Transformation):
     >>> from psyclone.psyGen import PSyFactory
     >>> import os
     >>> TEST_API = "gocean"
-    >>> _, info = parse(os.path.join("tests", "test_files", "gocean1p0",
-    ...                              "single_invoke.f90"),
-    ...                 api=TEST_API)
+    >>> filename = "src/psyclone/tests/test_files/gocean1p0/single_invoke.f90"
+    >>> _, info = parse(filename, api=TEST_API)
     >>> psy = PSyFactory(TEST_API).create(info)
     >>> invoke = psy.invokes.get('invoke_0_compute_cu')
     >>> schedule = invoke.schedule
     >>>
-    >>> from psyclone.transformations import GOConstLoopBoundsTrans
+    >>> from psyclone.domain.gocean.transformations import \
+    GOConstLoopBoundsTrans
     >>> clbtrans = GOConstLoopBoundsTrans()
     >>>
     >>> clbtrans.apply(schedule)
-    >>> print(schedule.view())
 
     '''
 

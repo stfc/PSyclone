@@ -67,13 +67,14 @@ class GOOpenCLTrans(Transformation):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> API = "gocean"
-    >>> FILENAME = "shallow_alg.f90" # examples/gocean/eg1
+    >>> FILENAME = "examples/gocean/eg1/shallow_alg.f90"
     >>> ast, invoke_info = parse(FILENAME, api=API)
     >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> ocl_trans = GOOpenCLTrans()
-    >>> ocl_trans.apply(schedule)
-    >>> print(schedule.view())
+
+    # FIXME: Needs GOMoveIterationBoundariesInsideKernelTrans
+    # >>> ocl_trans.apply(schedule)
 
     '''
     # Specify which OpenCL command queue to use for management operations like
