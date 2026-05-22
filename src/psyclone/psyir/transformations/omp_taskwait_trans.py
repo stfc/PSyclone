@@ -66,13 +66,9 @@ class OMPTaskwaitTrans(Transformation):
 
     For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean"
-    >>> filename = ("src/psyclone/tests/test_files/gocean1p0/"
-    ...             "nemolite2d_alg_mod.f90")
-    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
-    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "nemolite2d_alg_mod.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>>
     >>> from psyclone.transformations import OMPSingleTrans
     >>> from psyclone.psyir.transformations import OMPParallelTrans
@@ -82,8 +78,6 @@ class OMPTaskwaitTrans(Transformation):
     >>> paralleltrans = OMPParallelTrans()
     >>> tasklooptrans = OMPTaskloopTrans()
     >>> taskwaittrans = OMPTaskwaitTrans()
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
     >>>
     >>> # Apply the OpenMP Taskloop transformation to *every* loop
     >>> # in the schedule.

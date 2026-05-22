@@ -56,32 +56,21 @@ from psyclone.psyir.transformations.transformation_error import (
 from psyclone.utils import transformation_documentation_wrapper
 
 
-GOCEAN_SOURCE_FILE = (
-    "src/psyclone/tests/test_files/gocean1p0/"
-    "test11_different_iterates_over_one_invoke.f90")
-
-
 @transformation_documentation_wrapper
 class OMPParallelTrans(ParallelRegionTrans):
     '''
     Create an OpenMP PARALLEL region by inserting directives. For
     example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.parse.utils import ParseError
-    >>> from psyclone.psyGen import PSyFactory
-    >>> from psyclone.errors import GenerationError
-    >>> api = "gocean"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "nemolite2d_alg_mod.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>>
     >>> from psyclone.psyGen import TransInfo
     >>> t = TransInfo()
     >>> ltrans = t.get_trans_name('GOceanOMPLoopTrans')
     >>> from psyclone.psyir.transformations import OMPParallelTrans
     >>> rtrans = OMPParallelTrans()
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
     >>>
     >>> # Apply the OpenMP Loop transformation to *every* loop
     >>> # in the schedule

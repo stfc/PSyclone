@@ -600,6 +600,37 @@ def get_invoke(algfile: str,
     return psy, invoke
 
 
+def get_psylayer_schedule(
+    algfile: str,
+    api: str,
+    invoke_name: str = "invoke_0",
+    dist_mem: bool = False
+) -> Node:
+    '''
+    Utility method to get the psylayer schedule associated with the given
+    algorithm file.
+
+    :param algfile: name of the Algorithm source file (Fortran).
+    :param api: which PSyclone API this Algorithm uses.
+    :param invoke_name: return the schedule of a given invoke.
+    :param dist_mem: if the psy instance should be created with or
+                     without distributed memory support.
+
+    :returns: the associated psylayer schedule.
+
+    '''
+
+    config = Config.get()
+    config.api = api
+    # Ensure infrastructure module files can be discovered.
+    # config.include_paths.append(get_infrastructure_path(api))
+    filepath = os.path.join(get_base_path(api), algfile)
+
+    _, info = parse(filepath, api=api)
+    psy = PSyFactory(api, distributed_memory=dist_mem).create(info)
+    return psy.invokes.get(invoke_name).schedule
+
+
 # =============================================================================
 def get_ast(api: str, filename: str) -> BeginSource:
     '''Returns the fparser1 parse tree for a filename that is stored in the

@@ -48,19 +48,12 @@ class ProfileTrans(PSyDataTrans):
     ''' Create a profile region around a list of statements. For
     example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.parse.utils import ParseError
-    >>> from psyclone.psyGen import PSyFactory, GenerationError
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "nemolite2d_alg_mod.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
+    >>>
     >>> from psyclone.psyir.transformations import ProfileTrans
-    >>> api = "gocean"
-    >>> filename = ("src/psyclone/tests/test_files/gocean1p0/"
-    ...             "nemolite2d_alg_mod.f90")
-    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
-    >>> psy = PSyFactory(api).create(invokeInfo)
-    >>>
     >>> p_trans = ProfileTrans()
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
     >>>
     >>> # Enclose all children within a single profile region
     >>> p_trans.apply(schedule.children)

@@ -484,6 +484,7 @@ class Symbol(CommentableMixin):
         at least one of the indices. For example:
 
         .. code-block:: fortran
+
             do i=1, n
                 a(j) = 2
 

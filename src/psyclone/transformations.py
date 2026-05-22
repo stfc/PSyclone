@@ -91,9 +91,6 @@ from psyclone.psyir.transformations.omp_parallel_loop_trans import (
 
 
 # Files used in doctest examples
-GOCEAN_SOURCE_FILE = (
-    "src/psyclone/tests/test_files/gocean1p0/"
-    "test11_different_iterates_over_one_invoke.f90")
 NEMO_SOURCE_FILE = ("examples/nemo/code/tra_adv.F90")
 
 
@@ -695,20 +692,14 @@ class OMPSingleTrans(ParallelRegionTrans):
 
     For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "test11_different_iterates_over_one_invoke.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>>
     >>> from psyclone.transformations import OMPSingleTrans
     >>> from psyclone.psyir.transformations import OMPParallelTrans
     >>> singletrans = OMPSingleTrans()
     >>> paralleltrans = OMPParallelTrans()
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
     >>>
     >>> # Enclose all of these loops within a single OpenMP
     >>> # SINGLE region
@@ -826,20 +817,14 @@ class OMPMasterTrans(ParallelRegionTrans):
 
     For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "test11_different_iterates_over_one_invoke.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>>
     >>> from psyclone.transformations import OMPMasterTrans
     >>> from psyclone.psyir.transformations import OMPParallelTrans
     >>> mastertrans = OMPMasterTrans()
     >>> paralleltrans = OMPParallelTrans()
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
     >>>
     >>> # Enclose all of these loops within a single OpenMP
     >>> # MASTER region
@@ -847,8 +832,6 @@ class OMPMasterTrans(ParallelRegionTrans):
     >>> # Enclose all of these loops within a single OpenMP
     >>> # PARALLEL region
     >>> paralleltrans.apply(schedule.children)
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
 
     '''
     # The types of node that this transformation cannot enclose
@@ -1681,11 +1664,9 @@ class ACCEnterDataTrans(Transformation):
     Adds an OpenACC "enter data" directive to a Schedule.
     For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "test11_different_iterates_over_one_invoke.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>>
     >>> from psyclone.transformations import (
     ...     ACCEnterDataTrans, ACCParallelTrans)
@@ -1693,10 +1674,6 @@ class ACCEnterDataTrans(Transformation):
     >>> dtrans = ACCEnterDataTrans()
     >>> ltrans = ACCLoopTrans()
     >>> ptrans = ACCParallelTrans()
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
     >>>
     >>> # Apply the OpenACC Loop transformation to *every* loop in the schedule
     >>> for child in schedule.children[:]:
@@ -1707,9 +1684,6 @@ class ACCEnterDataTrans(Transformation):
     >>>
     >>> # Add an enter data directive
     >>> dtrans.apply(schedule)
-    >>>
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
 
     '''
     def __str__(self):
@@ -1836,19 +1810,18 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin,
     (causing it to be compiled for the OpenACC accelerator device).
     For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory, CodedKern
-    >>> api = "gocean"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "test11_different_iterates_over_one_invoke.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>>
+    >>> from psyclone.psyGen import CodedKern
     >>> from psyclone.transformations import ACCRoutineTrans
     >>> rtrans = ACCRoutineTrans()
     >>> from psyclone.domain.common.transformations import (
     ...     KernelModuleInlineTrans)
     >>> itrans = KernelModuleInlineTrans()
     >>>
-    >>> kern = psy.invokes.get('invoke_0').schedule.walk(CodedKern)[0]
+    >>> kern = schedule.walk(CodedKern)[0]
     >>> # Bring the kernel into the same module
     >>> itrans.apply(kern)
     >>> # Transform the kernel
