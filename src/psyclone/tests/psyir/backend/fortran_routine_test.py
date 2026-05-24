@@ -236,8 +236,8 @@ def test_fw_routine_function(fortran_reader, fortran_writer, tmpdir,
     assert (
         f"  contains\n"
         f"  function tmp(b) result(val)\n"
-        f"    real :: b\n"
-        f"    {result_decl}\n\n"
+        f"    {result_decl}\n"
+        f"    real :: b\n\n"
         f"    val = a + b\n\n"
         f"  end function tmp\n" in result.lower())
     assert Compile(tmpdir).string_compiles(result)

@@ -68,12 +68,12 @@ def test_omp_explicit_gen(fortran_reader, fortran_writer):
 
     expected = (
         "program explicit_do\n"
-        "  integer, parameter :: jpi = 2\n"
-        "  integer, parameter :: jpj = 4\n"
-        "  integer, parameter :: jpk = 6\n"
         "  integer :: ji\n"
         "  integer :: jj\n"
         "  integer :: jk\n"
+        "  integer, parameter :: jpi = 2\n"
+        "  integer, parameter :: jpj = 4\n"
+        "  integer, parameter :: jpk = 6\n"
         "  real :: r\n"
         "  real, dimension(jpi,jpj,jpk) :: umask\n"
         "\n"

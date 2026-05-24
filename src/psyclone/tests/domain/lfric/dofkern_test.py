@@ -271,6 +271,7 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
     type(field_type), intent(in) :: f3
     type(field_type), intent(in) :: f4
     real(kind=r_def), intent(in) :: scalar_arg
+    integer(kind=i_def) :: cell
     real(kind=r_def), intent(in) :: a
     type(field_type), intent(in) :: m1
     type(field_type), intent(in) :: m2

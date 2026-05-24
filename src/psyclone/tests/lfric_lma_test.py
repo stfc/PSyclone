@@ -517,10 +517,10 @@ quadrature_xyoz_type
     use mesh_mod, only : mesh_type
     use function_space_mod, only : BASIS, DIFF_BASIS
     use constants_mod, only : i_def
+    integer(kind=i_def) :: cell
     type(operator_type), intent(in) :: mapping
     type(field_type), dimension(3), intent(in) :: coord
     type(quadrature_xyoz_type), intent(in) :: qr
-    integer(kind=i_def) :: cell
     type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: max_halo_depth_mesh
     real(kind=r_def), pointer, dimension(:) :: coord_1_data => null()
