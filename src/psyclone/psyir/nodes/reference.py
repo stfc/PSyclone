@@ -54,9 +54,12 @@ class Reference(DataNode):
     Node representing a Reference Expression.
 
     :param symbol: the symbol being referenced.
-    :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+    :param dsl_name: an optional name indicating what the name of this
+        reference is on a DSL level. E.g. in GOcean, a StructureReference
+        to `field%data` would have the dsl name `field`. This is used by
+        some PSyData transformations to use user-friendly names (i.e.
+        independent of the automatic variable naming in the PSy layer).
     :param kwargs: additional keyword arguments provided to the super class.
-    :type kwargs: unwrapped dict.
 
     '''
     # Textual description of the node.
@@ -64,9 +67,13 @@ class Reference(DataNode):
     _text_name = "Reference"
     _colour = "yellow"
 
-    def __init__(self, symbol, **kwargs):
+    def __init__(self,
+                 symbol: Symbol,
+                 dsl_name: Optional[str] = None,
+                 **kwargs: dict):
         super().__init__(**kwargs)
         self.symbol = symbol
+        self._dsl_name = dsl_name
 
     def __eq__(self, other):
         '''
@@ -169,6 +176,19 @@ class Reference(DataNode):
 
         '''
         return self._symbol.name
+
+    @property
+    def dsl_name(self) -> Optional[str]:
+        """
+        The name used for this reference on a DSL level. E.g., a
+        field reference `field_proxy` (which is an internal name
+        used in the PSy layer) would have the DSL name `field`.
+        This is used by some PSyData transformations to provide
+        user-friendly names.
+
+        :returns: the name used for this reference on a DSL level.
+        """
+        return self._dsl_name
 
     def node_str(self, colour=True):
         ''' Create a text description of this node in the schedule, optionally

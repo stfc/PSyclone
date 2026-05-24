@@ -89,6 +89,17 @@ def test_reference_equality():
     assert ref1 == ref4
 
 
+def test_dsl_name():
+    """
+    Tests that the dsl name works as expected.
+    """
+    symbol1 = DataSymbol("rname", INTEGER_SINGLE_TYPE)
+    ref = Reference(symbol1)
+    assert ref.dsl_name is None
+    ref_dsl = Reference(symbol1, "dsl_name")
+    assert ref_dsl.dsl_name == "dsl_name"
+
+
 def test_reference_node_str():
     ''' Check the node_str method of the Reference class.'''
     kschedule = KernelSchedule.create("kname")
