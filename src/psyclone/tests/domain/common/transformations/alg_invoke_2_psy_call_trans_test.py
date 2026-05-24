@@ -40,7 +40,7 @@ transformation.
 '''
 import pytest
 
-from psyclone.errors import InternalError
+from psyclone.errors import InternalError, GenerationError
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, KernelFunctor
 from psyclone.domain.common.transformations import AlgTrans
 from psyclone.domain.common.transformations import AlgInvoke2PSyCallTrans
@@ -48,7 +48,7 @@ from psyclone.domain.gocean.transformations import GOceanAlgInvoke2PSyCallTrans
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Call, Loop, Literal, Container, Reference, ArrayReference, BinaryOperation,
-    CodeBlock, UnaryOperation)
+    UnaryOperation)
 from psyclone.psyir.symbols import (
     RoutineSymbol, DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType,
     DataTypeSymbol)
@@ -194,11 +194,12 @@ def test_ai2psycall_apply_error(fortran_reader):
     AlgTrans().apply(psyir)
     invoke = psyir.children[0].children[0]
     trans = GOceanAlgInvoke2PSyCallTrans()
-    with pytest.raises(TypeError) as info:
+    with pytest.raises(GenerationError) as info:
         trans.apply(invoke)
     assert ("Expected Algorithm-layer kernel arguments to be a Literal, "
-            "Reference or CodeBlock, but 'field * 1.0' passed to kernel "
-            "'kern' is of type 'BinaryOperation'." in str(info.value))
+            "Reference, type-bound Call or a CodeBlock but 'field * 1.0' "
+            "passed to kernel 'kern' is of type 'BinaryOperation'."
+            in str(info.value))
 
 
 def test_ai2psycall_invalid_name(fortran_reader):
@@ -490,29 +491,31 @@ def test_ai2psycall_add_arg():
     '''Test the _add_arg() utility method.'''
 
     # Invalid argument exception (not a Node)
-    with pytest.raises(TypeError) as info:
+    with pytest.raises(GenerationError) as info:
         AlgInvoke2PSyCallTrans._add_arg(None, [])
     assert ("Expected Algorithm-layer kernel arguments to be a Literal, "
-            "Reference or CodeBlock, but found 'NoneType'."
+            "Reference, type-bound Call or a CodeBlock but found 'NoneType'."
             in str(info.value))
 
     # Invalid argument exception (Node parent is not a KernelFunctor)
     arg = UnaryOperation.create(
         UnaryOperation.Operator.PLUS, Literal("1.0", REAL_TYPE))
-    with pytest.raises(TypeError) as info:
+    with pytest.raises(GenerationError) as info:
         AlgInvoke2PSyCallTrans._add_arg(arg, [])
     assert ("Expected Algorithm-layer kernel arguments to be a Literal, "
-            "Reference or CodeBlock, but '+1.0' is of type 'UnaryOperation'."
+            "Reference, type-bound Call or a CodeBlock but '+1.0' is of type "
+            "'UnaryOperation'."
             in str(info.value))
 
     # Invalid argument exception (Node parent is a KernelFunctor)
     _ = KernelFunctor.create(
         DataTypeSymbol("my_kernel", REAL_TYPE), [arg])
-    with pytest.raises(TypeError) as info:
+    with pytest.raises(GenerationError) as info:
         AlgInvoke2PSyCallTrans._add_arg(arg, [])
     assert ("Expected Algorithm-layer kernel arguments to be a Literal, "
-            "Reference or CodeBlock, but '+1.0' passed to kernel "
-            "'my_kernel' is of type 'UnaryOperation'." in str(info.value))
+            "Reference, type-bound Call or a CodeBlock but '+1.0' passed "
+            "to kernel 'my_kernel' is of type 'UnaryOperation'."
+            in str(info.value))
 
     # literal (nothing added)
     args = []
@@ -540,11 +543,6 @@ def test_ai2psycall_add_arg():
     AlgInvoke2PSyCallTrans._add_arg(
         Reference(DataSymbol(name, REAL_TYPE)), args)
     assert len(args) == 2
-
-    # codeblock arg
-    AlgInvoke2PSyCallTrans._add_arg(CodeBlock([], None), args)
-    assert len(args) == 3
-    assert isinstance(args[2], CodeBlock)
 
 
 def test_ai2psycall_remove_imported_symbols(fortran_reader):

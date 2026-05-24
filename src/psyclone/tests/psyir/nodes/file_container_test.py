@@ -38,7 +38,7 @@
 ''' Performs py.test tests on the FileContainer PSyIR node. '''
 
 import pytest
-from psyclone.alg_gen import NoInvokesError
+from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import Routine, FileContainer, Container
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_SINGLE_TYPE
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -123,7 +123,7 @@ def test_invokes_property(capsys):
 
     # If produces an error if it doesn't come from a generated PSy-layer
     filecontainer = FileContainer("test")
-    with pytest.raises(NoInvokesError) as err:
+    with pytest.raises(GenerationError) as err:
         _ = filecontainer.invokes
     assert ("No InvokeSchedule found in 'test', does it come from a "
             "PSyKAl file that conforms to the GOcean or LFRic API?"

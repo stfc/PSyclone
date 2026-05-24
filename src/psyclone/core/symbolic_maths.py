@@ -118,8 +118,12 @@ class SymbolicMaths:
         if exp1 is None or exp2 is None:
             return exp1 == exp2
 
-        diff = SymbolicMaths._subtract(exp1, exp2,
-                                       identical_variables=identical_variables)
+        try:
+            diff = SymbolicMaths._subtract(
+                exp1, exp2, identical_variables=identical_variables)
+        except Exception:
+            return False
+
         # For ranges all values (start, stop, step) must be equal, meaning
         # each index of the difference must evaluate to 0:
         if isinstance(diff, list):
