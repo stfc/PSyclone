@@ -264,7 +264,8 @@ def test_invoke_opencl_initialisation(kernel_outputdir, fortran_writer):
   if (first_time) then
     call psy_init()
     cmd_queues => get_cmd_queues()
-    kernel_compute_cu_code = get_kernel_by_name('compute_cu_code')
+    kernel_compute_cu_code_inlined_ = get_kernel_by_name(\
+'compute_cu_code_inlined_')
     call initialise_device_buffer(cu_fld)
     call initialise_device_buffer(p_fld)
     call initialise_device_buffer(u_fld)
@@ -273,8 +274,9 @@ def test_invoke_opencl_initialisation(kernel_outputdir, fortran_writer):
     cu_fld_cl_mem = transfer(cu_fld%device_ptr, cu_fld_cl_mem)
     p_fld_cl_mem = transfer(p_fld%device_ptr, p_fld_cl_mem)
     u_fld_cl_mem = transfer(u_fld%device_ptr, u_fld_cl_mem)
-    call compute_cu_code_set_args(kernel_compute_cu_code, cu_fld_cl_mem, \
-p_fld_cl_mem, u_fld_cl_mem, xstart - 1, xstop - 1, ystart - 1, ystop - 1)
+    call compute_cu_code_inlined__set_args(kernel_compute_cu_code_inlined_, \
+cu_fld_cl_mem, p_fld_cl_mem, u_fld_cl_mem, xstart - 1, xstop - 1, ystart - 1, \
+ystop - 1)
 
     ! write data to the device'''
     assert expected in generated_code
@@ -389,7 +391,8 @@ c_sizeof(field%grid%area_t(1,1))'''
     if (first_time) then
       call psy_init()
       cmd_queues => get_cmd_queues()
-      kernel_compute_kernel_code = get_kernel_by_name('compute_kernel_code')
+      kernel_compute_kernel_code_inlined_ = get_kernel_by_name(\
+'compute_kernel_code_inlined_')
       call initialise_device_buffer(out_fld)
       call initialise_device_buffer(in_out_fld)
       call initialise_device_buffer(in_fld)
@@ -404,7 +407,8 @@ in_out_fld_cl_mem)
       dx_cl_mem = transfer(dx%device_ptr, dx_cl_mem)
       gphiu_cl_mem = transfer(in_fld%grid%gphiu_device, \
 gphiu_cl_mem)
-      call compute_kernel_code_set_args(kernel_compute_kernel_code, \
+      call compute_kernel_code_inlined__set_args(\
+kernel_compute_kernel_code_inlined_, \
 out_fld_cl_mem, in_out_fld_cl_mem, in_fld_cl_mem, dx_cl_mem, \
 in_fld%grid%dx, gphiu_cl_mem, xstart - 1, xstop - 1, ystart - 1, \
 ystop - 1)
@@ -595,7 +599,7 @@ def test_psy_init_defaults(kernel_outputdir):
     if (.not.initialised) then
       initialised = .true.
       call ocl_env_init(1, ocl_device_num, .false., .false.)
-      kernel_names(1) = 'compute_cu_code'
+      kernel_names(1) = 'compute_cu_code_inlined_'
       call add_kernels(1, kernel_names)
     end if
 

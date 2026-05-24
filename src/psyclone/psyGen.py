@@ -1209,6 +1209,16 @@ class CodedKern(Kern):
             f"get_callees() must be overridden in class {self.__class__}")
 
     @property
+    def name(self) -> str:
+        '''
+        Override Kern.name to use the RoutineSymbol name if one is available.
+
+        '''
+        if self.routine:
+            return self.routine.symbol.name
+        return super().name
+
+    @property
     def opencl_options(self):
         '''
         :returns: dictionary of OpenCL options regarding the kernel.
@@ -1304,7 +1314,7 @@ class CodedKern(Kern):
         '''
         symtab = self.ancestor(InvokeSchedule).symbol_table
 
-        rsymbol = symtab.lookup(self._name)
+        rsymbol = symtab.lookup(self.name)
 
         # Create Call to the rsymbol with the argument expressions as children
         # of the new node
