@@ -726,8 +726,18 @@ class Call(Statement, DataNode):
         dummy_type = routine_arg.datatype
         if isinstance(actual_type, ArrayType) and isinstance(dummy_type,
                                                              ArrayType):
-            # Arguments must have the same shape.
-            if len(actual_type.shape) != len(dummy_type.shape):
+            # Is the dummy argument an explicit-shape array?
+            has_explicit_shape = all([
+                isinstance(dim, ArrayType.ArrayBounds) and
+                dim.lower is not ArrayType.Extent.ATTRIBUTE and
+                dim.upper is not ArrayType.Extent.ATTRIBUTE
+                for dim in dummy_type.shape])
+            # Do arguments need to have the same rank?
+            match_rank = (isinstance(self.routine.symbol,
+                                     GenericInterfaceSymbol) or
+                          not has_explicit_shape)
+            # Check that ranks of arguments match, if necessary
+            if match_rank and len(actual_type.shape) != len(dummy_type.shape):
                 call_arg_str = call_arg.debug_string().strip()
                 routine_arg_str = routine_arg.name
                 raise CallMatchingArgumentsNotFound(
