@@ -43,7 +43,7 @@ from unittest import mock
 import pytest
 
 from psyclone.psyir.nodes import Literal, Loop, Schedule, Return
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
 from psyclone.tests.utilities import Compile, get_invoke
 
@@ -52,8 +52,8 @@ from psyclone.tests.utilities import Compile, get_invoke
 def test_fusetrans_error_incomplete():
     ''' Check that we reject attempts to fuse loops which are incomplete. '''
     sch = Schedule()
-    loop1 = Loop(variable=DataSymbol("i", INTEGER_TYPE))
-    loop2 = Loop(variable=DataSymbol("j", INTEGER_TYPE))
+    loop1 = Loop(variable=DataSymbol("i", ScalarType.integer_type()))
+    loop2 = Loop(variable=DataSymbol("j", ScalarType.integer_type()))
     sch.addchild(loop1)
     sch.addchild(loop2)
 
@@ -65,9 +65,9 @@ def test_fusetrans_error_incomplete():
     assert ("Error in LoopFuseTrans transformation. The target loop must have "
             "four children but found: []" in str(err.value))
 
-    loop1.addchild(Literal("1", INTEGER_TYPE))
-    loop1.addchild(Literal("3", INTEGER_TYPE))
-    loop1.addchild(Literal("1", INTEGER_TYPE))
+    loop1.addchild(Literal("1", ScalarType.integer_type()))
+    loop1.addchild(Literal("3", ScalarType.integer_type()))
+    loop1.addchild(Literal("1", ScalarType.integer_type()))
     loop1.addchild(Schedule())
     loop1.loop_body.addchild(Return())
 
@@ -77,9 +77,9 @@ def test_fusetrans_error_incomplete():
     assert ("Error in LoopFuseTrans transformation. The target loop must have "
             "four children but found: []" in str(err.value))
 
-    loop2.addchild(Literal("1", INTEGER_TYPE))
-    loop2.addchild(Literal("3", INTEGER_TYPE))
-    loop2.addchild(Literal("1", INTEGER_TYPE))
+    loop2.addchild(Literal("1", ScalarType.integer_type()))
+    loop2.addchild(Literal("3", ScalarType.integer_type()))
+    loop2.addchild(Literal("1", ScalarType.integer_type()))
     loop2.addchild(Schedule())
     loop2.loop_body.addchild(Return())
 
@@ -92,18 +92,18 @@ def test_fusetrans_error_not_same_parent():
     ''' Check that we reject attempts to fuse loops which don't share the
     same parent '''
 
-    loop1 = Loop.create(DataSymbol("i", INTEGER_TYPE),
-                        Literal("1", INTEGER_TYPE),
-                        Literal("10", INTEGER_TYPE),
-                        Literal("1", INTEGER_TYPE), [Return()])
+    loop1 = Loop.create(DataSymbol("i", ScalarType.integer_type()),
+                        Literal("1", ScalarType.integer_type()),
+                        Literal("10", ScalarType.integer_type()),
+                        Literal("1", ScalarType.integer_type()), [Return()])
     sch1 = Schedule()
     sch1.addchild(loop1)
 
     sch2 = Schedule()
-    loop2 = Loop.create(DataSymbol("j", INTEGER_TYPE),
-                        Literal("1", INTEGER_TYPE),
-                        Literal("10", INTEGER_TYPE),
-                        Literal("1", INTEGER_TYPE), [Return()])
+    loop2 = Loop.create(DataSymbol("j", ScalarType.integer_type()),
+                        Literal("1", ScalarType.integer_type()),
+                        Literal("10", ScalarType.integer_type()),
+                        Literal("1", ScalarType.integer_type()), [Return()])
 
     sch2.addchild(loop2)
 
@@ -278,7 +278,8 @@ def test_fuse_removes_unused_symbols(
     fuse = LoopFuseTrans()
     # Monkeypatch to mimic the case where these are fine to fuse (e.g.
     # because of additional DSL knowledge)
-    monkeypatch.setattr(fuse, "validate", lambda _1, _2, options: True)
+    monkeypatch.setattr(fuse, "validate",
+                        lambda _1, _2, options, **kwargs: True)
 
     loop1 = psyir.children[0].children[0]
     loop2 = psyir.children[0].children[1]
@@ -650,7 +651,8 @@ def test_loop_fuse_different_iterates_over(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     loop1 = psyir.children[0].children[0]
     loop2 = psyir.children[0].children[1]
-    fuse.apply(loop1, loop2)
+    # TODO #2668 deprecate options dict. This is to keep current coverage.
+    fuse.apply(loop1, loop2, options={"force": False})
 
 
 def test_loop_fuse_different_variables(fortran_reader, fortran_writer):

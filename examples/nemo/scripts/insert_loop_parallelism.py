@@ -82,7 +82,20 @@ ASYNC_PARALLEL = os.environ.get('ASYNC_PARALLEL', False)
 RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = []
+FILES_TO_SKIP = [
+    # Has an implicit symbol declaration (psyclone only works
+    # with 'implicit none' Fortran)
+    "icefrm.f90",
+]
+
+NEMOV5_EXCLUSIONS = [
+    # Excluded only in NEMOv5 for performance
+    "lbclnk.f90",
+]
+
+NEMOV4_EXCLUSIONS = [
+    "dynspg_ts.f90",
+]
 
 # There files are skipped because transforming them degrade the performance
 SKIP_FOR_PERFORMANCE = [
@@ -91,6 +104,7 @@ SKIP_FOR_PERFORMANCE = [
     "iom_def.f90",
     "timing.f90",
     "histcom.f90",
+    "dtatsd.f90",
 ]
 
 # These files change the results from the baseline when psyclone adds
@@ -122,23 +136,15 @@ if not NEMOV4:
         "traqsr.f90",
     ])
 
-    OFFLOADING_ISSUES.extend([
-        # The following issues only affect BENCH (because ice is enabled?)
-        # Runtime Error: Illegal address during kernel execution
-        "trcrad.f90",
-        # nvhpc > 24.11 - Signal 11 issues
-        "icerst.f90",  # When enabling ice* parallelisation
-        "trcbbl.f90",
-        "trabbc.f90",
-        "bdyice.f90",
-        "sedfunc.f90",
-        "stpmlf.f90",
-        "trddyn.f90",
-        "trczdf.f90",
-        "trcice_pisces.f90",
-        "dtatsd.f90",
+    OFFLOADING_ISSUES = [
+        # Signal 11 issues
         "trcatf.f90",
-        "stp2d.f90",
+        "seddsrjac.f90"
+    ]
+    OFFLOADING_ISSUES.extend([
+        # Signal 11 issues
+        "trcatf.f90",
+        "seddsrjac.f90"
     ])
 else:
     FILES_TO_SKIP.extend([])
@@ -268,23 +274,24 @@ def trans(psyir):
                 subroutine.name == 'dom_zgr' or
                 subroutine.name == 'dom_ngb'):
             continue
-
-        if subroutine.name == "solfrac_mod.f90":
+        if subroutine.name == "solfrac":
             # Bring these solfrac parameters to the subroutine as nvidia
             # does not permit offloaded kernels to access module parameters
             symtab = subroutine.symbol_table
-            symtab.add(symtab.lookup("pp_wgt"))
-            symtab.add(symtab.lookup("pp_len"))
+            if "pp_wgt" not in symtab:
+                symtab.add(symtab.lookup("pp_wgt"))
+            if "pp_len" not in symtab:
+                symtab.add(symtab.lookup("pp_len"))
 
         normalise_loops(
                 subroutine,
                 hoist_local_arrays=False,
                 convert_array_notation=True,
-                # See issue #3022
-                loopify_array_intrinsics=psyir.name != "getincom.f90",
+                loopify_array_intrinsics=True,
                 convert_range_loops=True,
                 increase_array_ranks=not NEMOV4,
-                hoist_expressions=True
+                hoist_expressions=True,
+                hoist_argument_expressions=True,
         )
 
         # Perform module-inlining of called routines.

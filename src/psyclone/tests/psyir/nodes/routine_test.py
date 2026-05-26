@@ -46,7 +46,7 @@ from psyclone.psyGen import CodedKern
 from psyclone.psyir.nodes import (Assignment, Call, CodeBlock, Container,
                                   Literal, Reference, Routine, ScopingNode)
 from psyclone.psyir.symbols import (
-    ContainerSymbol, DataSymbol, ImportInterface, REAL_TYPE,
+    ContainerSymbol, DataSymbol, ImportInterface, ScalarType,
     Symbol, SymbolError, SymbolTable, RoutineSymbol)
 from psyclone.tests.utilities import check_links, get_invoke
 
@@ -142,7 +142,7 @@ def test_routine_return_symbol_setter():
         node.return_symbol = "wrong"
     assert ("Routine return-symbol should be a DataSymbol but found 'str'" in
             str(err.value))
-    sym = DataSymbol("result", REAL_TYPE)
+    sym = DataSymbol("result", ScalarType.real_type())
     with pytest.raises(KeyError) as err:
         node.return_symbol = sym
     assert ("For a symbol to be a return-symbol, it must be present in the "
@@ -159,10 +159,10 @@ def test_routine_create_invalid():
 
     '''
     symbol_table = SymbolTable()
-    symbol = DataSymbol("x", REAL_TYPE)
+    symbol = DataSymbol("x", ScalarType.real_type())
     symbol_table.add(symbol)
     children = [Assignment.create(Reference(symbol),
-                                  Literal("1", REAL_TYPE))]
+                                  Literal("1", ScalarType.real_type()))]
 
     # name is not a string.
     with pytest.raises(TypeError) as excinfo:
@@ -189,22 +189,31 @@ def test_routine_create_invalid():
         "child of children argument in create method of Routine class "
         "should be a PSyIR Node but found 'str'." in str(excinfo.value))
 
+    # parent is not a Node
+    with pytest.raises(TypeError) as err:
+        _ = Routine.create("my_sub", symbol_table, [], parent="no")
+    assert ("parent argument in create method of Routine class should be a "
+            "PSyIR Node but found 'str'" in str(err.value))
+
 
 def test_routine_create():
     '''Test that the create method correctly creates a Routine instance. '''
     symbol_table = SymbolTable()
-    symbol = DataSymbol("tmp", REAL_TYPE)
+    symbol = DataSymbol("tmp", ScalarType.real_type())
     symbol_table.add(symbol)
     assignment = Assignment.create(Reference(symbol),
-                                   Literal("0.0", REAL_TYPE))
+                                   Literal("0.0", ScalarType.real_type()))
+    cntr = Container("my_mod")
     kschedule = Routine.create("mod_name", symbol_table, [assignment],
-                               is_program=True, return_symbol_name=symbol.name)
+                               is_program=True, return_symbol_name=symbol.name,
+                               parent=cntr)
     assert isinstance(kschedule, Routine)
     check_links(kschedule, [assignment])
     assert kschedule.symbol_table is symbol_table
     assert symbol_table.node is kschedule
     assert kschedule.is_program
     assert kschedule.return_symbol is symbol
+    assert kschedule.parent is cntr
 
 
 def test_routine_equality(monkeypatch):
@@ -214,12 +223,12 @@ def test_routine_equality(monkeypatch):
     monkeypatch.setattr(ScopingNode, "__eq__", lambda x, y: True)
 
     symbol_table = SymbolTable()
-    symbol = DataSymbol("tmp", REAL_TYPE)
+    symbol = DataSymbol("tmp", ScalarType.real_type())
     symbol_table.add(symbol)
     assignment = Assignment.create(Reference(symbol),
-                                   Literal("0.0", REAL_TYPE))
+                                   Literal("0.0", ScalarType.real_type()))
     assignment2 = Assignment.create(Reference(symbol),
-                                    Literal("0.0", REAL_TYPE))
+                                    Literal("0.0", ScalarType.real_type()))
 
     ksched1 = Routine.create("mod_name", symbol_table, [assignment],
                              is_program=True, return_symbol_name=symbol.name)
@@ -265,7 +274,7 @@ def test_routine_copy():
     # Create a function
     symbol_table = SymbolTable()
     routine = Routine.create("my_func", symbol_table, [])
-    symbol = DataSymbol("my_result", REAL_TYPE)
+    symbol = DataSymbol("my_result", ScalarType.real_type())
     routine.symbol_table.add(symbol)
     routine.return_symbol = symbol
 

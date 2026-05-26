@@ -42,7 +42,6 @@ TODO #2683 - rename this to {Privatise,Copy,Move}RoutineToLocalContainerTrans
 and move it to psyir/transformations/.
 
 '''
-from typing import List
 import warnings
 
 from psyclone.psyGen import Transformation, CodedKern
@@ -51,8 +50,8 @@ from psyclone.psyir.symbols import (
     ContainerSymbol, ImportInterface,
     GenericInterfaceSymbol, RoutineSymbol, Symbol, SymbolError, SymbolTable)
 from psyclone.psyir.nodes import (
-    Call, Container, FileContainer, Routine, ScopingNode,
-    IntrinsicCall, )
+    Call, Container, FileContainer, Reference, Routine, ScopingNode,
+    IntrinsicCall)
 from psyclone.utils import transformation_documentation_wrapper
 
 
@@ -165,6 +164,8 @@ class KernelModuleInlineTrans(Transformation):
             rt_sym = node.scope.symbol_table.lookup(kernel_schedule.name,
                                                     otherwise=None)
             if (not rt_sym or (rt_sym is not kernel_schedule.symbol) or
+                    (node.ancestor(Container) is not
+                     kernel_schedule.ancestor(Container)) or
                     (rt_sym.is_import or rt_sym.is_unresolved)):
                 needs_inline = True
 
@@ -252,7 +253,7 @@ class KernelModuleInlineTrans(Transformation):
 
     @staticmethod
     def _prepare_code_to_inline(
-            routines_to_inline: List[Routine]) -> List[Routine]:
+            routines_to_inline: list[Routine]) -> list[Routine]:
         '''Prepare the PSyIR tree to inline by bringing in to the subroutine
         all referenced symbols so that the implementation is self contained.
 
@@ -262,7 +263,6 @@ class KernelModuleInlineTrans(Transformation):
         :param routines_to_inline: the routine(s) to module-inline.
 
         :returns: the updated routine(s) to module-inline.
-        :rtype: list[:py:class:`psyclone.psyir.node.Routine`]
 
         '''
         # pylint: disable=too-many-branches
@@ -291,15 +291,21 @@ class KernelModuleInlineTrans(Transformation):
             symbols_to_bring_in = set()
             for symbol in all_symbols:
                 if symbol.is_unresolved or symbol.is_import:
-                    # This symbol is already in the symbol table, but adding it
-                    # to the 'symbols_to_bring_in' will make the next step
-                    # bring into the subroutine all modules that it could come
-                    # from.
+                    # This symbol may already be in the local symbol table,
+                    # but adding it to the 'symbols_to_bring_in' will make the
+                    # next step bring into the subroutine all modules that it
+                    # could come from.
                     symbols_to_bring_in.add(symbol)
 
             # Bring the selected symbols inside the subroutine
             for symbol in symbols_to_bring_in:
                 if symbol.name not in code_to_inline.symbol_table:
+                    if symbol.is_import:
+                        # We must update its import interface (to ensure it
+                        # references a ContainerSymbol in the correct scope)
+                        # before it can be added to the table.
+                        code_to_inline.symbol_table.\
+                            localise_import_interface_of(symbol)
                     code_to_inline.symbol_table.add(symbol)
                 # And when necessary the modules where they come from
                 if symbol.is_unresolved:
@@ -370,10 +376,8 @@ class KernelModuleInlineTrans(Transformation):
                         symbol.name not in table else table)
         # Find the table containing the ContainerSymbol from which
         # the symbol is imported.
-        # TODO #1734 - this *should* always be the same as `actual_table` but
-        # this is not currently guaranteed.
         ctable = (csym.find_symbol_table(table.node) if
-                  csym.name not in table else table)
+                  table.node else table)
         remove_csym = (ctable.symbols_imported_from(csym) == [symbol] and
                        not csym.wildcard_import)
         if csym.wildcard_import:
@@ -620,12 +624,11 @@ class KernelModuleInlineTrans(Transformation):
                 sym = node.scope.symbol_table.lookup(external_callee_name)
                 table = sym.find_symbol_table(node)
                 table.rename_symbol(sym, caller_name)
+                new_sym = sym
+            else:
+                new_sym = node.scope.symbol_table.lookup(caller_name)
 
-        # Update the Kernel to point to the updated PSyIR and set
-        # the module-inline flag to avoid generating the kernel imports
-        # TODO #1823. If the kernel imports were generated at PSy-layer
-        # creation time, we could just remove it here instead of setting a
-        # flag.
+        # Update the Kernel to point to the updated PSyIR.
         if isinstance(node, CodedKern):
             cntr = node.ancestor(Container)
             # TODO #2846 - since we do not currently rename module-inlined
@@ -637,6 +640,6 @@ class KernelModuleInlineTrans(Transformation):
             # point to the module-inlined version.
             for kern in cntr.walk(CodedKern, stop_type=CodedKern):
                 if kern.name == node.name:
-                    kern.module_inline = True
                     # pylint: disable=protected-access
                     kern._schedules = updated_routines
+                    kern.routine = Reference(new_sym)

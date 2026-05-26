@@ -46,12 +46,12 @@ from psyclone.psyir.nodes import (
     Schedule)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
-    ArrayType, DataSymbol, DataTypeSymbol, UnresolvedType, INTEGER_TYPE,
-    REAL_TYPE, StructureType, Symbol, SymbolTable)
+    ArrayType, DataSymbol, DataTypeSymbol, UnresolvedType, ScalarType,
+    StructureType, Symbol, SymbolTable)
 
 
-_ONE = Literal("1", INTEGER_TYPE)
-_TWO = Literal("2", INTEGER_TYPE)
+_ONE = Literal("1", ScalarType.integer_type())
+_TWO = Literal("2", ScalarType.integer_type())
 
 
 def test_index_of(fortran_reader):
@@ -97,9 +97,10 @@ def test_is_bound_op():
     class.
 
     '''
-    array = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10]))
-    array2 = DataSymbol("my_symbol2", ArrayType(INTEGER_TYPE, [10]))
-    scalar = DataSymbol("tmp", INTEGER_TYPE)
+    array = DataSymbol("my_symbol", ArrayType(ScalarType.integer_type(), [10]))
+    array2 = DataSymbol("my_symbol2", ArrayType(ScalarType.integer_type(),
+                                                [10]))
+    scalar = DataSymbol("tmp", ScalarType.integer_type())
     ubound = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.UBOUND,
         [Reference(array), ("dim", _ONE.copy())])
@@ -126,12 +127,12 @@ def test_is_bound_op():
     # 2nd dimension of the bound not an integer literal
     oper = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.UBOUND,
-        [array_ref.copy(), ("dim", Literal("1.0", REAL_TYPE))])
+        [array_ref.copy(), ("dim", Literal("1.0", ScalarType.real_type()))])
     assert not array_ref._is_bound_op(oper, IntrinsicCall.Intrinsic.UBOUND, 0)
     # 2nd dimension of the bound not the expected index
     oper = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.UBOUND,
-        [array_ref.copy(), ("dim", Literal("2", INTEGER_TYPE))])
+        [array_ref.copy(), ("dim", Literal("2", ScalarType.integer_type()))])
     assert not array_ref._is_bound_op(oper, IntrinsicCall.Intrinsic.UBOUND, 0)
     # Missing 2nd argument to UBOUND (in which case it returns an array).
     oper = IntrinsicCall.create(
@@ -363,7 +364,8 @@ def test_is_same_array(fortran_reader):
 
     assignments = psyir.walk(Assignment)
     # Argument must be a Member or Reference
-    assert not assignments[0].lhs.is_same_array(Literal("1", INTEGER_TYPE))
+    assert not assignments[0].lhs.is_same_array(
+        Literal("1", ScalarType.integer_type()))
     # Check that the array itself is the same, not the accessed index
     assert assignments[0].lhs.is_same_array(assignments[1].lhs)
     # Also works when comparing with a plain reference of the array
@@ -392,10 +394,10 @@ def test_get_bound_expression():
 
     '''
     # Symbol is of ArrayType.
-    lbound = DataSymbol("jmin", INTEGER_TYPE, is_constant=True,
-                        initial_value=Literal("3", INTEGER_TYPE))
+    lbound = DataSymbol("jmin", ScalarType.integer_type(), is_constant=True,
+                        initial_value=Literal("3", ScalarType.integer_type()))
     lbnd_ref = Reference(lbound)
-    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE,
+    symbol = DataSymbol("my_symbol", ArrayType(ScalarType.integer_type(),
                                                [10, (2, 10), (lbnd_ref, 10)]))
     aref = ArrayReference.create(symbol,
                                  [_ONE.copy(), _ONE.copy(), _ONE.copy()])
@@ -417,15 +419,15 @@ def test_get_bound_expression():
     assert isinstance(lbnd, IntrinsicCall)
     assert lbnd.intrinsic == IntrinsicCall.Intrinsic.LBOUND
     assert lbnd.arguments[0].symbol is dtsym
-    assert lbnd.arguments[1] == Literal("2", INTEGER_TYPE)
+    assert lbnd.arguments[1] == Literal("2", ScalarType.integer_type())
 
     # Tests for ubound
 
     # Symbol is of ArrayType.
-    ubound = DataSymbol("jmin", INTEGER_TYPE, is_constant=True,
-                        initial_value=Literal("10", INTEGER_TYPE))
+    ubound = DataSymbol("jmin", ScalarType.integer_type(), is_constant=True,
+                        initial_value=Literal("10", ScalarType.integer_type()))
     ubnd_ref = Reference(ubound)
-    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE,
+    symbol = DataSymbol("my_symbol", ArrayType(ScalarType.integer_type(),
                                                [1, (1, 2), (1, ubnd_ref)]))
     aref = ArrayReference.create(symbol,
                                  [_ONE.copy(), _ONE.copy(), _ONE.copy()])
@@ -438,7 +440,7 @@ def test_get_bound_expression():
     assert ub2 == ubnd_ref
 
     # An ArrayType where the upper bound is unknown.
-    symbol2 = DataSymbol("other", ArrayType(INTEGER_TYPE,
+    symbol2 = DataSymbol("other", ArrayType(ScalarType.integer_type(),
                                             [(1, ArrayType.Extent.ATTRIBUTE)]))
     aref2 = ArrayReference.create(symbol2, [_ONE.copy()])
     ubnd2 = aref2._get_bound_expression(0, "upper")
@@ -454,7 +456,7 @@ def test_get_bound_expression():
     assert isinstance(ubnd, IntrinsicCall)
     assert ubnd.intrinsic == IntrinsicCall.Intrinsic.UBOUND
     assert ubnd.arguments[0].symbol is dtsym
-    assert ubnd.arguments[1] == Literal("2", INTEGER_TYPE)
+    assert ubnd.arguments[1] == Literal("2", ScalarType.integer_type())
 
     # If the symbol its not even a DataSymbol, it will be considered as it
     # is one with an UnresolvedType
@@ -472,7 +474,7 @@ def test_get_bound_expression_unknown_size(extent):
     array type but its dimensions are unknown.
 
     '''
-    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE,
+    symbol = DataSymbol("my_symbol", ArrayType(ScalarType.integer_type(),
                                                [extent, extent]))
     aref = ArrayReference.create(symbol, [_ONE.copy(), _ONE.copy()])
     lbnd = aref._get_bound_expression(1, "lower")
@@ -493,7 +495,7 @@ def test_aref_to_aos_bound_expression():
 
     '''
     sgrid_type = StructureType.create(
-        [("ID", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
+        [("ID", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None)])
     sgrid_type_sym = DataTypeSymbol("subgrid_type", sgrid_type)
     sym = DataSymbol("subgrids", ArrayType(sgrid_type_sym, [(3, 10)]))
     lbound = IntrinsicCall.create(IntrinsicCall.Intrinsic.LBOUND,
@@ -543,7 +545,7 @@ def test_member_get_bound_expression(fortran_writer):
     out = fortran_writer(ubnd).lower()
     assert "ubound(uvar(1)%map, dim=1)" in out
     # Second, test when we do have type information.
-    a2d = ArrayType(REAL_TYPE, [2, (2, 8)])
+    a2d = ArrayType(ScalarType.real_type(), [2, (2, 8)])
     # Structure that contains "map" which is a 2D array.
     stypedef = StructureType.create(
         [("map", a2d, Symbol.Visibility.PUBLIC, None)])
@@ -584,7 +586,7 @@ def test_member_get_bound_expression(fortran_writer):
 def test_aref_get_full_range_unknown_size(extent):
     '''Tests the get_full_range function returns full ranges ezxpect by
     the is_full_range function.'''
-    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE,
+    symbol = DataSymbol("my_symbol", ArrayType(ScalarType.integer_type(),
                                                [extent, extent]))
     aref = ArrayReference.create(symbol, [_ONE.copy(), _ONE.copy()])
     range1 = aref.get_full_range(0)
@@ -606,10 +608,11 @@ def test_aref_get_full_range_unknown_size(extent):
 
 def test_arraymixin_extent(fortran_reader):
     '''Tests for the _extent() method.'''
-    atype = ArrayType(INTEGER_TYPE, [10])
+    atype = ArrayType(ScalarType.integer_type(), [10])
     asym = DataSymbol("array", atype)
     # Access to single array element just has extent of 1.
-    ref = ArrayReference.create(asym, [Literal("1", INTEGER_TYPE)])
+    ref = ArrayReference.create(
+        asym, [Literal("1", ScalarType.integer_type())])
     assert ref._extent(0).value == "1"
     ref2 = ArrayReference.create(asym, [ref.get_full_range(0)])
     assert ref2._extent(0).debug_string() == "10"
@@ -639,6 +642,7 @@ def test_get_effective_shape(fortran_reader):
         "  b(idx, 1+indices(1,1):) = 1\n"
         "  b(idx, a) = -1.0\n"
         "  b(scalarval, arrayval) = 1\n"
+        "  b(:,indices(:)) = 1\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
@@ -660,7 +664,7 @@ def test_get_effective_shape(fortran_reader):
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
-    assert "SIZE(a, dim=1)" in shape[0].debug_string()
+    assert "10" in shape[0].debug_string()
     # Array slice with only lower-bound specified.
     #   a(2:) = 0.0
     child_idx += 1
@@ -748,6 +752,11 @@ def test_get_effective_shape(fortran_reader):
             " of 'UnresolvedType' type and therefore whether it is an array "
             "slice (i.e. an indirect access) cannot be determined."
             in str(err.value))
+    # Nested array accesses with ranges with implicit bounds
+    child_idx += 1
+    shape = routine.children[child_idx].lhs._get_effective_shape()
+    assert "10" == shape[0].debug_string()
+    assert "8" == shape[1].debug_string()
 
 
 def test_struct_get_effective_shape(fortran_reader):
@@ -800,7 +809,8 @@ def test_get_outer_range_index():
     of the children list that is a range. Use ArrayReference and
     ArrayOfStructuresReference as concrete implementations of ArrayMixins.
     '''
-    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10, 10, 10]))
+    symbol = DataSymbol("my_symbol",
+                        ArrayType(ScalarType.integer_type(), [10, 10, 10]))
     array = ArrayReference.create(symbol, [Range(), Range(), Range()])
     assert array.get_outer_range_index() == 2
 
@@ -816,8 +826,10 @@ def test_get_outer_range_index_error():
     concrete implementation of ArrayMixin.
 
     '''
-    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10]))
-    array = ArrayReference.create(symbol, [Literal("2", INTEGER_TYPE)])
+    symbol = DataSymbol("my_symbol", ArrayType(ScalarType.integer_type(),
+                                               [10]))
+    array = ArrayReference.create(
+        symbol, [Literal("2", ScalarType.integer_type())])
     with pytest.raises(IndexError):
         _ = array.get_outer_range_index()
 
@@ -827,9 +839,11 @@ def test_same_range_error(fortran_reader):
 
     symtab = SymbolTable()
     symtab.new_symbol("a", symbol_type=DataSymbol,
-                      datatype=ArrayType(INTEGER_TYPE, shape=[10]))
+                      datatype=ArrayType(ScalarType.integer_type(),
+                                         shape=[10]))
     symtab.new_symbol("b", symbol_type=DataSymbol,
-                      datatype=ArrayType(INTEGER_TYPE, shape=[10]))
+                      datatype=ArrayType(ScalarType.integer_type(),
+                                         shape=[10]))
     array1 = fortran_reader.psyir_from_statement(
                                     "a(i) = 0", symbol_table=symtab).lhs
     array2 = fortran_reader.psyir_from_statement(

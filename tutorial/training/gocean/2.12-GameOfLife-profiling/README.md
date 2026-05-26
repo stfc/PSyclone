@@ -66,7 +66,7 @@ to be added. PSyclone provides interfaces to `DrHook`, the
 NVIDIA Tools Extension library (NVTX),
 the LFRic-timer (the timer functionality included in LFRic), the
 Tuning and Analysis Utilities `Tau` (https://www.cs.uoregon.edu/research/tau/home.php),
-and `dl_timer` (https://bitbucket.org/apeg/dl_timer). If you have any
+and `dl_timer` (https://github.com/stfc/dl_timer). If you have any
 of these libraries available, you only need to modify the compiler
 options to point to the right PSyclone wrapper library, and in the
 linking step add the wrapper library and your profiling library.

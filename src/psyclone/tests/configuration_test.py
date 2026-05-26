@@ -53,8 +53,7 @@ import pytest
 
 import psyclone
 
-from psyclone.configuration import (BaseConfig, ConfigurationError,
-                                    Config, VALID_KERNEL_NAMING_SCHEMES)
+from psyclone.configuration import BaseConfig, ConfigurationError, Config
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import InternalError
@@ -348,6 +347,21 @@ def test_read_values():
     assert _config.filename == str(TEST_CONFIG)
 
 
+def test_frontend():
+    ''' Checks for getter and setter for frontend parameter '''
+    config = Config()
+    config.load(config_file=TEST_CONFIG)
+    # Defaults to fparser2
+    assert config.frontend == "fparser2"
+    # Check the setter method
+    config.frontend = "treesitter"
+    assert config.frontend == "treesitter"
+    with pytest.raises(ConfigurationError) as err:
+        config.frontend = "invalid"
+    assert ("frontend must be one of ['fparser2', 'treesitter'] but got "
+            "'invalid'" in str(err.value))
+
+
 def test_dm():
     ''' Checks for getter and setter for distributed memory '''
     config = Config()
@@ -570,20 +584,6 @@ def test_disable_backend_indentation_setter_getter():
     assert config.backend_indentation_disabled is True
 
 
-def test_kernel_naming_setter():
-    ''' Check that the setter for the kernel-naming scheme rejects
-    unrecognised values.
-
-    '''
-    config = Config()
-    config.kernel_naming = "single"
-    assert config.kernel_naming == "single"
-    with pytest.raises(ValueError) as err:
-        config.kernel_naming = "not-a-scheme"
-    assert (f"kernel_naming must be one of '{VALID_KERNEL_NAMING_SCHEMES}' "
-            f"but got 'not-a-scheme'" in str(err.value))
-
-
 def test_incl_path_errors(tmpdir):
     ''' Check that we raise the expected errors if we attempt to set the list
     of include paths to something other than a list or to a location that
@@ -633,7 +633,7 @@ def test_deprecated_access_mapping(tmpdir, caplog):
         ("[lfric]\naccess_mapping = gh_read: read, gh_write: write, "
          "gh_readwrite: readwrite,\n                 gh_inc: inc, "
          "gh_sum: sum\n"))
-    with caplog.at_level(logging.WARN):
+    with caplog.at_level(logging.WARN, logger="psyclone.configuration"):
         _ = get_config(config_file, content)
 
     assert "Configuration file contains an ACCESS_MAPPING entry" in caplog.text

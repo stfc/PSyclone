@@ -51,9 +51,9 @@ from psyclone.psyir.nodes.array_of_structures_member import (
 from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin)
 from psyclone.psyir.nodes.structure_member import StructureMember
-from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataType,
-                                    DataTypeSymbol, UnresolvedType, ScalarType,
-                                    StructureType, UnsupportedType)
+from psyclone.psyir.symbols import (
+    ArrayType, DataSymbol, DataType, DataTypeSymbol, UnresolvedType,
+    StructureType, UnsupportedType)
 
 
 class StructureReference(StructureAccessorMixin, Reference):
@@ -95,7 +95,8 @@ class StructureReference(StructureAccessorMixin, Reference):
         '''
         Create a StructureReference instance given a symbol and a
         list of components. e.g. for "field%bundle(2)%flag" this
-        list would be [("bundle", [Literal("2", INTEGER4_TYPE)]), "flag"].
+        list would be
+        [("bundle", [Literal("2", ScalarType.integer4_type())]), "flag"].
 
         :param symbol: the symbol that this reference is to.
         :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
@@ -147,7 +148,8 @@ class StructureReference(StructureAccessorMixin, Reference):
         '''
         Create an instance of `cls` given a symbol, a type and a
         list of components. e.g. for "field%bundle(2)%flag" this list
-        would be [("bundle", [Literal("2", INTEGER4_TYPE)]), "flag"].
+        would be
+        [("bundle", [Literal("2", ScalarType.integer4_type())]), "flag"].
 
         This 'internal' method is used by both ArrayOfStructuresReference
         *and* this class which is why it is a class method with the symbol
@@ -367,17 +369,14 @@ class StructureReference(StructureAccessorMixin, Reference):
                 shape = cursor_shape
 
         if shape:
+            if isinstance(cursor_type, ArrayType):
+                return ArrayType(cursor_type.elemental_type, shape)
             return ArrayType(cursor_type, shape)
 
         # We must have a scalar.
         if isinstance(cursor_type, ArrayType):
-            # We have an access to a single element of the array.
-            # Currently arrays of scalars are handled in a
-            # different way to all other types of array. Issue #1857 will
-            # fix this anomaly.
-            if isinstance(cursor_type.intrinsic, ScalarType.Intrinsic):
-                return ScalarType(cursor_type.intrinsic, cursor_type.precision)
-            return cursor_type.intrinsic
+            return cursor_type.elemental_type
+
         return cursor_type
 
 

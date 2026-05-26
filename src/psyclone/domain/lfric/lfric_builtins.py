@@ -52,17 +52,18 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel import (
     LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata,
     FieldVectorArgMetadata)
+from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (ArrayReference, Assignment, BinaryOperation,
                                   Reference, IntrinsicCall)
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols import UnsupportedFortranType
+from psyclone.psyir.symbols import DataSymbol, UnsupportedFortranType
 from psyclone.utils import a_or_an
 
-# The name of the file containing the meta-data describing the
-# built-in operations for this API
+#: The name of the file containing the meta-data describing the
+#: built-in operations for this API
 BUILTIN_DEFINITIONS_FILE = "lfric_builtins_mod.f90"
 
 
@@ -475,20 +476,20 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         return self._reduction_type
 
-    def get_dof_loop_index_symbol(self):
+    def get_dof_loop_index_symbol(self) -> DataSymbol:
         '''
         Finds or creates the symbol representing the index in any loops
         over DoFs.
 
         :returns: symbol representing the DoF loop index.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
         table = self.scope.symbol_table
         # The symbol representing the loop index is created in the LFRicLoop
         # constructor.
-        return table.find_or_create_integer_symbol(
-            "df", tag="dof_loop_idx")
+        return table.find_or_create(
+            "df", tag="dof_loop_idx", symbol_type=DataSymbol,
+            datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
     def get_indexed_field_argument_references(self):
         '''
@@ -3321,7 +3322,7 @@ class LFRicIntToRealXKern(LFRicBuiltIn):
 # describing these kernels is in lfric_builtins_mod.f90. This dictionary
 # can only be defined after all of the necessary 'class' statements have
 # been executed (happens when this module is imported into another).
-# Built-ins for real-valued fields
+#: Built-ins for real-valued fields
 REAL_BUILTIN_MAP_CAPITALISED = {
     # Adding (scaled) real fields
     "X_plus_Y": LFRicXPlusYKern,
@@ -3390,7 +3391,7 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     # Converting real to real field elements
     "real_to_real_X": LFRicRealToRealXKern}
 
-# Built-ins for integer-valued fields
+#: Built-ins for integer-valued fields
 INT_BUILTIN_MAP_CAPITALISED = {
     # Adding integer fields
     "int_X_plus_Y": LFRicIntXPlusYKern,
@@ -3425,13 +3426,13 @@ INT_BUILTIN_MAP_CAPITALISED = {
     # Converting integer to real field elements
     "int_to_real_X": LFRicIntToRealXKern}
 
-# Built-in map dictionary for all built-ins
+#: Built-in map dictionary for all built-ins
 BUILTIN_MAP_CAPITALISED = REAL_BUILTIN_MAP_CAPITALISED
 BUILTIN_MAP_CAPITALISED.update(INT_BUILTIN_MAP_CAPITALISED)
 
-# Built-in map dictionary in lowercase keys for invoke generation and
-# comparison purposes. This does not enforce case sensitivity to Fortran
-# built-in names.
+#: Built-in map dictionary in lowercase keys for invoke generation and
+#: comparison purposes. This does not enforce case sensitivity to Fortran
+#: built-in names.
 BUILTIN_MAP = get_lowercase_builtin_map(BUILTIN_MAP_CAPITALISED)
 
 

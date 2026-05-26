@@ -32,14 +32,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the product2loop transformation.'''
 
 import pytest
 
 from psyclone.psyir.nodes import Reference, Literal
-from psyclone.psyir.symbols import (
-    REAL_TYPE, DataSymbol, INTEGER_TYPE, ScalarType)
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations import (
     Product2LoopTrans, TransformationError)
 from psyclone.tests.utilities import Compile
@@ -58,8 +58,8 @@ def test_initialise():
 def test_loop_body():
     '''Test that the _loop_body method works as expected.'''
     trans = Product2LoopTrans()
-    lhs = Reference(DataSymbol("i", REAL_TYPE))
-    rhs = Literal("1.0", REAL_TYPE)
+    lhs = Reference(DataSymbol("i", ScalarType.real_type()))
+    rhs = Literal("1.0", ScalarType.real_type())
     result = trans._loop_body(lhs, rhs)
     assert "i * 1.0" in result.debug_string()
 
@@ -67,7 +67,8 @@ def test_loop_body():
 @pytest.mark.parametrize("name,precision,one", [
     (ScalarType.Intrinsic.REAL, ScalarType.Precision.UNDEFINED, "1.0"),
     (ScalarType.Intrinsic.INTEGER, ScalarType.Precision.UNDEFINED, "1"),
-    (ScalarType.Intrinsic.REAL, Reference(DataSymbol("r_def", INTEGER_TYPE)),
+    (ScalarType.Intrinsic.REAL,
+     Reference(DataSymbol("r_def", ScalarType.integer_type())),
      "1.0_r_def")])
 def test_init_var(name, precision, one):
     '''Test that the _init_var method works as expected. Test with real,
@@ -126,12 +127,13 @@ def test_apply(fortran_reader, fortran_writer, tmpdir):
         "  result = product(array)\n"
         "end subroutine\n")
     expected = (
-        "  result = 1.0\n"
+        "  reduction_var = 1.0\n"
         "  do idx = 1, 20, 1\n"
         "    do idx_1 = 1, 10, 1\n"
-        "      result = result * array(idx_1,idx)\n"
+        "      reduction_var = reduction_var * array(idx_1,idx)\n"
         "    enddo\n"
-        "  enddo\n")
+        "  enddo\n"
+        "  result = reduction_var\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/IntrinsicCall
     intrinsic_node = psyir.children[0].children[0].children[1]

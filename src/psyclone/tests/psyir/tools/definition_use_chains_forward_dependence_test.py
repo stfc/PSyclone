@@ -53,7 +53,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.psyir.symbols import (
     DataSymbol,
-    INTEGER_TYPE,
+    ScalarType,
 )
 from psyclone.psyir.tools.definition_use_chains import DefinitionUseChain
 
@@ -110,7 +110,7 @@ def test_definition_use_chain_init_and_properties(fortran_reader):
             "element. Full input is " in str(excinfo.value))
 
     # Check if we don't pass a routine child then we get the root
-    sym = DataSymbol("sym", INTEGER_TYPE)
+    sym = DataSymbol("sym", ScalarType.integer_type())
     r1 = Reference(sym)
     r2 = Reference(sym)
     assign = Assignment.create(r1, r2)
@@ -1159,3 +1159,25 @@ def test_definition_use_chain_find_forward_accesses_pure_call(
     # result is first argument of the pure subroutine call
     argument = routine.walk(Call)[0].children[1]
     assert reaches[0] is argument
+
+
+def test_forward_accesses_nested_loop(fortran_reader):
+    """Test that if we have many nested loops we don't repeat the same
+    reference in the result."""
+    code = """subroutine x
+    integer :: i, j, k, l
+
+    do i = 1, 100
+      do j = 1, 100
+        do k = 1, 100
+          l = 1
+        end do
+      end do
+    end do
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    lhs = routine.walk(Assignment)[0].lhs
+    chains = DefinitionUseChain(lhs)
+    reaches = chains.find_forward_accesses()
+    assert len(reaches) == 1

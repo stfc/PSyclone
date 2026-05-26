@@ -46,6 +46,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, TYPE_MAP_FROM_FORTRAN)
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, Routine, CodeBlock, FileContainer
 from psyclone.psyir.symbols import (
     DataSymbol, UnresolvedType, NoType, RoutineSymbol, ScalarType,
@@ -187,7 +188,7 @@ def test_function_handler(fortran_reader, fortran_writer):
 @pytest.mark.parametrize("basic_type, rhs_val", [("real", "1.0"),
                                                  ("integer", "1"),
                                                  ("logical", ".false."),
-                                                 ("character", "'b'")])
+                                                 ("character(len=1)", "'b'")])
 def test_function_type_prefix(fortran_reader, fortran_writer,
                               basic_type, rhs_val):
     '''
@@ -223,7 +224,9 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
     assert isinstance(routine, Routine)
     return_sym = routine.return_symbol
     assert isinstance(return_sym, DataSymbol)
-    assert return_sym.datatype.intrinsic == TYPE_MAP_FROM_FORTRAN[basic_type]
+    # Allow for the "(len=...)" on the end of the character case.
+    type_name = basic_type.split("(")[0]
+    assert return_sym.datatype.intrinsic == TYPE_MAP_FROM_FORTRAN[type_name]
     result = fortran_writer(psyir)
     assert result == expected
 
@@ -327,8 +330,8 @@ def test_function_unsupported_type(fortran_reader):
         "    my_func = CMPLX(1.0, 1.0)\n"
         "  end function my_func\n"
         "\n"
-        "  character(len=3) function Agrif_CFixed()\n"
-        "    Agrif_CFixed = '0'\n"
+        "  complex function Agrif_CFixed()\n"
+        "    Agrif_CFixed = (0.0, 1.0)\n"
         "  end function Agrif_CFixed\n"
         "end module\n")
     psyir = fortran_reader.psyir_from_source(code)
@@ -426,9 +429,9 @@ def test_unsupported_routine_prefix(fortran_reader, fn_prefix, routine_type):
         assert isinstance(fsym.datatype, UnresolvedType)
 
 
-def test_unsupported_char_len_function(fortran_reader):
-    ''' Check that we get a CodeBlock if a Fortran function is of character
-    type with a specified length. '''
+def test_char_len_function(fortran_reader):
+    ''' Check that a Fortran function of character type with a specified length
+    is handled correctly. '''
     code = ("module a\n"
             "contains\n"
             "  character(len=2) function my_func()\n"
@@ -437,12 +440,11 @@ def test_unsupported_char_len_function(fortran_reader):
             "  end function my_func\n"
             "end module\n")
     psyir = fortran_reader.psyir_from_source(code)
-    cblock = psyir.children[0].children[0]
-    assert isinstance(cblock, CodeBlock)
-    assert "LEN = 2" in str(cblock.get_ast_nodes[0])
+    my_func = psyir.children[0].children[0]
+    assert isinstance(my_func, Routine)
     fsym = psyir.children[0].symbol_table.lookup("my_func")
     assert isinstance(fsym, RoutineSymbol)
-    assert isinstance(fsym.datatype, UnresolvedType)
+    assert fsym.datatype.length.value == "2"
 
 
 def test_unsupported_contains_subroutine(fortran_reader):
@@ -461,23 +463,56 @@ def test_unsupported_contains_subroutine(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     cblock = psyir.children[0]
     assert isinstance(cblock, CodeBlock)
-    assert "FUNCTION" in str(cblock.get_ast_nodes[0])
+    assert "FUNCTION" in str(cblock.parse_tree_nodes[0])
 
-    code = '''subroutine a(b, c, d)
-    real b, c, d
-
-    call my_func(c, d)
-
-    contains
-    subroutine my_func(a1, a2)
-    real a1, a2
-    a1 = a1 * a2
-    end subroutine
-    end subroutine'''
+    code = '''
+    module test
+        implicit none
+        contains
+        subroutine a(b, c, d)
+            real b, c, d
+            call my_func(c, d)
+        contains
+            subroutine my_func(a1, a2)
+                real a1, a2
+                a1 = a1 * a2
+            end subroutine
+        end subroutine
+    end module
+    '''
     psyir = fortran_reader.psyir_from_source(code)
-    cblock = psyir.children[0]
+    cblock = psyir.children[0].children[0]
     assert isinstance(cblock, CodeBlock)
-    assert "CONTAINS\n  SUBROUTINE" in str(cblock.get_ast_nodes[0])
+    assert "CONTAINS\n  SUBROUTINE" in str(cblock.parse_tree_nodes[0])
+    # The RoutineSymbol is still added to the symbol_table
+    assert isinstance(psyir.children[0].symbol_table.lookup("a"),
+                      RoutineSymbol)
+
+    # Do it again, but with a pre-existing reference to subroutine that will
+    # become a codeblock, the symbol should still exist
+    code = '''
+    module test
+        implicit none
+        contains
+        subroutine uses_a()
+           call a(1,2,3)
+        end subroutine
+        subroutine a(b, c, d)
+            real b, c, d
+
+            call my_func(c, d)
+
+        contains
+            subroutine my_func(a1, a2)
+                real a1, a2
+                a1 = a1 * a2
+            end subroutine
+        end subroutine
+    end module
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert isinstance(psyir.children[0].symbol_table.lookup("a"),
+                      RoutineSymbol)
 
 
 def test_unsupported_contains_function(fortran_reader):
@@ -497,7 +532,7 @@ def test_unsupported_contains_function(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     cblock = psyir.children[0]
     assert isinstance(cblock, CodeBlock)
-    assert "CONTAINS\n  REAL FUNCTION" in str(cblock.get_ast_nodes[0])
+    assert "CONTAINS\n  REAL FUNCTION" in str(cblock.parse_tree_nodes[0])
 
     code = '''function a(b, c, d)
     real b, c, d
@@ -514,7 +549,7 @@ def test_unsupported_contains_function(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     cblock = psyir.children[0]
     assert isinstance(cblock, CodeBlock)
-    assert "SUBROUTINE" in str(cblock.get_ast_nodes[0])
+    assert "SUBROUTINE" in str(cblock.parse_tree_nodes[0])
 
 
 def test_implicit_declns(fortran_reader):
@@ -588,3 +623,66 @@ def test_module_contains_subroutine_contains_subroutine(
         psyir.children[0].symbol_table.lookup("s")
     out = fortran_writer(psyir)
     assert "subroutine func_a" not in out
+
+
+def test_module_contains_comment_before_subroutine(
+    fortran_writer
+):
+    '''Test to check that subroutines contained in a module are
+    correctly handled when there are comments before the subroutine
+    statement after the contains.'''
+    code = """MODULE test_mod
+CONTAINS
+! Here is a comment
+   SUBROUTINE test()
+     contains
+     Subroutine subsub()
+     end subroutine
+   END SUBROUTINE test
+END MODULE test_mod"""
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    assert "test" in psyir.children[0].symbol_table
+    assert "subsub" not in psyir.children[0].symbol_table
+    out = fortran_writer(psyir)
+    assert """  contains
+  ! PSyclone CodeBlock (unsupported code) reason:
+  !  - PSyclone doesn't yet support 'Contains' inside a Subroutine or Function
+  ! Here is a comment
+    SUBROUTINE test
+    CONTAINS
+    SUBROUTINE subsub
+    END SUBROUTINE
+  END SUBROUTINE test""" in out
+
+
+def test_module_contains_comment_before_function(
+    fortran_writer
+):
+    '''Test to check that functions contained in a module are
+    correctly handled when there are comments before the function
+    statement after the contains.'''
+    code = """MODULE test_mod
+CONTAINS
+! Here is a comment
+   FUNCTION test()
+     contains
+     function subsub()
+     end function
+   END FUNCTION test
+END MODULE test_mod"""
+
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    assert "test" in psyir.children[0].symbol_table
+    assert "subsub" not in psyir.children[0].symbol_table
+    out = fortran_writer(psyir)
+    assert """  contains
+  ! PSyclone CodeBlock (unsupported code) reason:
+  !  - PSyclone doesn't yet support 'Contains' inside a Subroutine or Function
+  ! Here is a comment
+    FUNCTION test()
+    CONTAINS
+    FUNCTION subsub()
+    END FUNCTION
+  END FUNCTION test""" in out

@@ -37,10 +37,11 @@
 
 ''' pytest tests for the parallel_loop_trans module. '''
 
-import pytest
 import logging
 
-from psyclone.psyir.symbols import INTEGER_TYPE
+import pytest
+
+from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.nodes import (
     Assignment, IfBlock, Loop, OMPParallelDoDirective, Routine, WhileLoop,
     Literal
@@ -660,7 +661,8 @@ def test_paralooptrans_with_array_privatisation(fortran_reader,
     # (and it permits valid loops - in case we have a bulk list of symbols for
     # all the code, but it will log the symbols not found)
     caplog.clear()
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING,
+                         logger="psyclone.psyir.transformations"):
         trans.apply(loop, {"privatise_arrays": True,
                            "force_private": ["ztmp2", "symbol_not_in_loop"]})
     assert ("!$omp parallel do default(shared) private(ji,jj,ztmp) "
@@ -766,9 +768,9 @@ def test_paralooptrans_array_privatisation_complex_control_flow(
     routine = psyir.children[0]
     children = routine.pop_all_children()
     routine.addchild(Loop.create(routine.symbol_table.lookup("i"),
-                                 Literal("1", INTEGER_TYPE),
-                                 Literal("2", INTEGER_TYPE),
-                                 Literal("1", INTEGER_TYPE),
+                                 Literal("1", ScalarType.integer_type()),
+                                 Literal("2", ScalarType.integer_type()),
+                                 Literal("1", ScalarType.integer_type()),
                                  children))
 
     with pytest.raises(TransformationError) as err:

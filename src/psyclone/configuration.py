@@ -60,16 +60,9 @@ from psyclone.errors import PSycloneError, InternalError
 # Name of the config file we search for
 _FILE_NAME = "psyclone.cfg"
 
-# The different naming schemes supported when transforming kernels:
-# multiple = Every transformed kernel is given a unique name. This permits
-#            multiple versions of the same kernel to be created.
-# single = If any given kernel (within a single Application) is transformed
-#          more than once then the same transformation must always be
-#          applied and only one version of the transformed kernel is created.
-VALID_KERNEL_NAMING_SCHEMES = ["multiple", "single"]
-
 LFRIC_API_NAMES = ["lfric", "dynamo0.3"]
 GOCEAN_API_NAMES = ["gocean", "gocean1.0"]
+SUPPORTED_FRONTENDS = ["fparser2", "treesitter"]
 
 
 # pylint: disable=too-many-lines
@@ -237,6 +230,9 @@ class Config:
 
         # The Fortran standard that fparser should use
         self._fortran_standard = None
+
+        # The Fortran parser that psyclone should use
+        self._frontend = 'fparser2'
 
         # By default, the PSyIR backends don't output argument names on (most)
         # IntrinsicCalls. This option controls that behaviour.
@@ -540,6 +536,27 @@ class Config:
                                  f"{_file_paths}")
 
     @property
+    def frontend(self) -> str:
+        '''
+        :returns: the frontend used to parse the input files.
+        '''
+        return self._frontend
+
+    @frontend.setter
+    def frontend(self, value: str) -> None:
+        '''
+        :param value: which frontend to use to parse the input files.
+
+        :raises ConfigurationError: the provided value is not a string.
+        :raises ConfigurationError: the provided value is not supported.
+        '''
+        if not isinstance(value, str) or value not in SUPPORTED_FRONTENDS:
+            raise ConfigurationError(
+                f"frontend must be one of {SUPPORTED_FRONTENDS} but got "
+                f"'{value}''")
+        self._frontend = value
+
+    @property
     def distributed_memory(self):
         '''
         Getter for whether or not distributed memory is enabled
@@ -721,31 +738,6 @@ class Config:
         :param str value: directory to which to write transformed kernels.
         '''
         self._kernel_output_dir = value
-
-    @property
-    def kernel_naming(self):
-        '''
-        :returns: what naming scheme to use when writing transformed kernels \
-                  to file.
-        :rtype: str
-        '''
-        return self._kernel_naming
-
-    @kernel_naming.setter
-    def kernel_naming(self, value):
-        '''
-        Setter for how to re-name kernels when writing transformed kernels
-        to file.
-
-        :param str value: one of VALID_KERNEL_NAMING_SCHEMES.
-        :raises ValueError: if the supplied value is not a recognised \
-                            kernel-renaming scheme.
-        '''
-        if value not in VALID_KERNEL_NAMING_SCHEMES:
-            raise ValueError(
-                f"kernel_naming must be one of '{VALID_KERNEL_NAMING_SCHEMES}'"
-                f" but got '{value}'")
-        self._kernel_naming = value
 
     @property
     def include_paths(self):

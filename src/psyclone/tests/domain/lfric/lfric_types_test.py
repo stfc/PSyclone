@@ -44,9 +44,10 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicTypes
 from psyclone.errors import InternalError
-from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
-    ImportInterface, ScalarType, AutomaticInterface, ArgumentInterface, \
-    ArrayType, Symbol
+from psyclone.psyir.symbols import (
+    ArrayType, ContainerSymbol, DataSymbol,
+    ImportInterface, ScalarType, AutomaticInterface, ArgumentInterface,
+    Symbol, SymbolTable)
 from psyclone.psyir.nodes import Reference, Literal
 
 
@@ -95,7 +96,10 @@ def test_constants_mod():
         # pylint: disable=no-member
         assert isinstance(symbol, DataSymbol)
         assert isinstance(symbol.interface, ImportInterface)
-        assert symbol.interface.container_symbol is module
+        # TODO #2659, ideally we'd check for equality of the Symbols themselves
+        # but currently there's no guarantee that the Symbol instance will
+        # be the same.
+        assert symbol.interface.container_symbol.name == module.name
 
 
 # Generic scalars
@@ -327,7 +331,7 @@ def test_arrays(data_type_name, symbol_name, scalar_type_name,
     scalar_type = LFRicTypes(scalar_type_name)
     lfric_datatype = data_type(dims)
     assert isinstance(lfric_datatype, ArrayType)
-    assert isinstance(lfric_datatype._datatype, scalar_type)
+    assert isinstance(lfric_datatype._elemental_type, scalar_type)
     for idx, dim in enumerate(lfric_datatype.shape):
         if isinstance(dim.upper, Literal):
             assert dim.upper.value == str(dims[idx])
@@ -399,3 +403,31 @@ def test_vector_fields(symbol, parent_symbol, space, visibility):
         assert ref.symbol.visibility == lfric_symbol.DEFAULT_VISIBILITY
     else:
         assert ref.symbol.visibility == visibility
+
+
+def test_add_precision_symbol():
+    '''Test the add_precision_symbol() utility method.'''
+    table = SymbolTable()
+    # A recognised LFRic precision is successfully added to the table as
+    # an import, along with the originating ContainerSymbol.
+    sym = LFRicTypes.add_precision_symbol(table, "r_def")
+    rdef = table.lookup("r_def")
+    assert sym is rdef
+    assert rdef.is_import
+    csym = table.lookup("constants_mod")
+    assert isinstance(csym, ContainerSymbol)
+    assert rdef.interface.container_symbol is csym
+    # Repeating the call should have no effect.
+    sym = LFRicTypes.add_precision_symbol(table, "r_def")
+    assert sym is rdef
+    assert table.lookup("r_def") is rdef
+    # An unrecognised LFRic precision raises an error.
+    with pytest.raises(ValueError) as err:
+        LFRicTypes.add_precision_symbol(table, "wrong")
+    assert "'wrong' is not a recognised LFRic precision" in str(err.value)
+    # Add a symbol with a clashing name.
+    table.new_symbol("r_solver")
+    with pytest.raises(ValueError) as err:
+        LFRicTypes.add_precision_symbol(table, "r_solver")
+    assert ("symbol 'r_solver' is already in scope but is not imported from"
+            in str(err.value))

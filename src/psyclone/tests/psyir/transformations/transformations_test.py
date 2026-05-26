@@ -47,22 +47,20 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.nodes import (
     CodeBlock, Literal, Loop, Node, Reference, Schedule, Statement,
-    ACCLoopDirective, OMPMasterDirective,
+    ACCLoopDirective, OMPMasterDirective, Fparser2CodeBlock,
     OMPDoDirective, OMPLoopDirective, Routine)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE,
-    ImportInterface, ContainerSymbol)
+     ContainerSymbol, ScalarType, DataSymbol, ImportInterface)
 from psyclone.psyir.transformations import (
-    ProfileTrans, RegionTrans, TransformationError)
+    ProfileTrans, RegionTrans, TransformationError, OMPTaskloopTrans,
+    OMPDeclareTargetTrans, ACCLoopTrans, OMPParallelTrans)
 from psyclone.tests.utilities import get_invoke, Compile
 from psyclone.transformations import (
-    ACCEnterDataTrans, ACCLoopTrans,
-    ACCParallelTrans, OMPLoopTrans, OMPParallelLoopTrans,
-    OMPSingleTrans, OMPMasterTrans)
+    ACCEnterDataTrans, ACCParallelTrans, OMPLoopTrans,
+    OMPParallelLoopTrans, OMPSingleTrans,
+    OMPMasterTrans)
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.transformations import (
-    OMPTaskloopTrans, OMPDeclareTargetTrans, OMPParallelTrans)
 
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
@@ -136,6 +134,7 @@ def test_accparalleltrans_validate(fortran_reader):
         integer :: j
         character*8 :: a, b
         character :: c(8), d(8)
+        character :: command
         do i = 1, 10
             do j = 1, 10
                 A(i, j) = myfunc(3)
@@ -148,7 +147,7 @@ def test_accparalleltrans_validate(fortran_reader):
         end do
         do i = 1, 10
             do j = 1, 10
-                A(i,j) = GET_COMMAND(2)
+                A(i, j) = ADJUSTR(command)
             end do
         end do
         do i = 1, 8
@@ -170,19 +169,19 @@ def test_accparalleltrans_validate(fortran_reader):
 
     with pytest.raises(TransformationError) as err:
         accparalleltrans.validate(loops[1])
-    assert ("Nodes of type 'CodeBlock' cannot be enclosed by a ACCParallel"
-            "Trans transformation" in str(err.value))
+    assert ("Nodes of type 'Fparser2CodeBlock' cannot be enclosed by a "
+            "ACCParallelTrans transformation" in str(err.value))
 
     with pytest.raises(TransformationError) as err:
         accparalleltrans.validate(loops[2])
-    assert ("'GET_COMMAND' is not available on the default accelerator "
+    assert ("'ADJUSTR' is not available on the default accelerator "
             "device. Use the 'device_string' option to specify a different "
             "device." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
         accparalleltrans.validate(loops[2], options={'device_string':
                                                      'nvfortran-all'})
-    assert ("'GET_COMMAND' is not available on the 'nvfortran-all' accelerator"
+    assert ("'ADJUSTR' is not available on the 'nvfortran-all' accelerator"
             " device. Use the 'device_string' option to specify a different "
             "device." in str(err.value))
 
@@ -383,8 +382,9 @@ def test_ompdeclaretargettrans_with_globals(sample_psyir, parser):
         not_declared1 = not_declared1 + not_declared2
     end subroutine mytest''')
     prog = parser(reader)
-    block = CodeBlock(prog.children[0].children[1].children[0].children,
-                      CodeBlock.Structure.EXPRESSION)
+    block = Fparser2CodeBlock(
+        prog.children[0].children[1].children[0].children,
+        CodeBlock.Structure.EXPRESSION)
     ref1.replace_with(block)
     with pytest.raises(TransformationError) as err:
         ompdeclaretargettrans.apply(routine)
@@ -604,7 +604,7 @@ def test_omploop_trans_new_options(sample_psyir):
     with pytest.raises(ValueError) as excinfo:
         omplooptrans.apply(tree.walk(Loop)[0], fakeoption1=1, fakeoption2=2)
     assert ("'OMPLoopTrans' received invalid options ['fakeoption1', "
-            "'fakeoption2']. Valid options are '['node_type_check', "
+            "'fakeoption2']. Valid options are ['node_type_check', "
             "'verbose', 'collapse', 'force', 'ignore_dependencies_for', "
             "'privatise_arrays', 'sequential', 'nowait', 'reduction_ops', "
             "'force_private', 'options', 'reprod', 'enable_reductions']."
@@ -779,9 +779,9 @@ def test_regiontrans_wrong_children():
     rtrans = ACCParallelTrans()
     # Construct a valid Loop in the PSyIR
     parent = Loop()
-    parent.addchild(Literal("1", INTEGER_TYPE))
-    parent.addchild(Literal("10", INTEGER_TYPE))
-    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent.addchild(Literal("1", ScalarType.integer_type()))
+    parent.addchild(Literal("10", ScalarType.integer_type()))
+    parent.addchild(Literal("1", ScalarType.integer_type()))
     parent.addchild(Schedule())
     with pytest.raises(TransformationError) as err:
         RegionTrans.validate(rtrans, parent.children)
@@ -795,10 +795,10 @@ def test_parallellooptrans_refuse_codeblock():
     ParallelLoopTrans is abstract. '''
     otrans = OMPParallelLoopTrans()
     # Construct a valid Loop in the PSyIR with a CodeBlock in its body
-    parent = Loop.create(DataSymbol("ji", INTEGER_TYPE),
-                         Literal("1", INTEGER_TYPE),
-                         Literal("10", INTEGER_TYPE),
-                         Literal("1", INTEGER_TYPE),
+    parent = Loop.create(DataSymbol("ji", ScalarType.integer_type()),
+                         Literal("1", ScalarType.integer_type()),
+                         Literal("10", ScalarType.integer_type()),
+                         Literal("1", ScalarType.integer_type()),
                          [CodeBlock([], CodeBlock.Structure.STATEMENT,
                                     None)])
     with pytest.raises(TransformationError) as err:

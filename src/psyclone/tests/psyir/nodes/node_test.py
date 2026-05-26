@@ -54,7 +54,7 @@ from psyclone.psyir.nodes import Schedule, Reference, Container, Routine, \
     BinaryOperation, ArrayReference, Call, Range
 from psyclone.psyir.nodes.node import ChildrenList, Node
 from psyclone.psyir.symbols import DataSymbol, SymbolError, \
-    INTEGER_TYPE, REAL_TYPE, SymbolTable, ArrayType, RoutineSymbol, NoType
+    ScalarType, SymbolTable, ArrayType, RoutineSymbol, NoType
 from psyclone.tests.utilities import get_invoke
 from psyclone.psyir.nodes.node import colored
 
@@ -174,7 +174,8 @@ def test_node_view():
 
     '''
     range_node = Range.create(
-        Literal("1", INTEGER_TYPE), Literal("10", INTEGER_TYPE))
+        Literal("1", ScalarType.integer_type()),
+        Literal("10", ScalarType.integer_type()))
 
     # default argument values
     result = range_node.view()
@@ -223,12 +224,12 @@ def test_node_view_schedule():
 
     '''
     symbol_table = SymbolTable()
-    symbol = DataSymbol("tmp", REAL_TYPE)
+    symbol = DataSymbol("tmp", ScalarType.real_type())
     symbol_table.add(symbol)
     assignment1 = Assignment.create(Reference(symbol),
-                                    Literal("0.0", REAL_TYPE))
+                                    Literal("0.0", ScalarType.real_type()))
     assignment2 = Assignment.create(Reference(symbol),
-                                    Literal("1.0", REAL_TYPE))
+                                    Literal("1.0", ScalarType.real_type()))
     routine_node = Routine.create(
         "my_sub", symbol_table, [assignment1, assignment2])
     result = routine_node.view(colour=False)
@@ -248,7 +249,7 @@ def test_node_view_error():
     an incorrect argument is supplied.
 
     '''
-    test_node = Literal("1.0", REAL_TYPE)
+    test_node = Literal("1.0", ScalarType.real_type())
 
     with pytest.raises(TypeError) as error:
         test_node.view(depth=None)
@@ -301,7 +302,7 @@ def test_compute_cached_abs_positions(fortran_reader):
             # Also the abs_position should use the cached value too.
             assert child.abs_position == child._cached_abs_position
     # Change something in the tree
-    rlit = Literal("1", INTEGER_TYPE)
+    rlit = Literal("1", ScalarType.integer_type())
     psyir.children[0].children[0].rhs.replace_with(rlit)
     # Check that cache is invalidated.
     assert psyir.root._cached_abs_position is None
@@ -745,9 +746,10 @@ def test_dag_names():
 
     # Classes without the dag_name specialised should show the name of the
     # class and the relative position to the ancestor routine
-    dtype = ArrayType(INTEGER_TYPE, [10])
+    dtype = ArrayType(ScalarType.integer_type(), [10])
     sym = DataSymbol("array", dtype)
-    aref = ArrayReference.create(sym, [Literal("2", INTEGER_TYPE)])
+    aref = ArrayReference.create(
+        sym, [Literal("2", ScalarType.integer_type())])
     assert aref.children[0].dag_name == "Literal_1"
     # Some classes have their own specialisation of the dag_name
     assert schedule.dag_name == "routine_invoke_0_testkern_type_0"
@@ -763,15 +765,13 @@ def test_dag_names():
     idx = aref.children[0].detach()
     assert idx.dag_name == "Literal_0"
 
-    # GlobalSum and BuiltIn also have specialised dag_names
+    # BuiltIn also has specialised dag_names
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         api="lfric")
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    global_sum = schedule.children[2]
-    assert global_sum.dag_name == "globalsum(asum)_2"
     builtin = schedule.children[1].loop_body[0]
     assert builtin.dag_name == "builtin_sum_x_12"
 
@@ -782,7 +782,7 @@ def test_node_dag_no_graphviz(tmpdir, monkeypatch):
     not graphviz is installed by monkeypatching sys.modules. '''
     def not_installed(_, **kwargs):
         raise graphviz.ExecutableNotFound("error")
-    monkeypatch.setattr(graphviz.graphs.Digraph, "render", not_installed)
+    monkeypatch.setattr(graphviz.Digraph, "render", not_installed)
     monkeypatch.setitem(sys.modules, 'graphviz', None)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -931,10 +931,10 @@ def test_scope():
 
     '''
     kernel_symbol_table = SymbolTable()
-    symbol = DataSymbol("tmp", REAL_TYPE)
+    symbol = DataSymbol("tmp", ScalarType.real_type())
     kernel_symbol_table.add(symbol)
     ref = Reference(symbol)
-    assign = Assignment.create(ref, Literal("0.0", REAL_TYPE))
+    assign = Assignment.create(ref, Literal("0.0", ScalarType.real_type()))
     kernel_schedule = KernelSchedule.create("my_kernel", kernel_symbol_table,
                                             [assign])
     container = Container.create("my_container", SymbolTable(),
@@ -944,7 +944,7 @@ def test_scope():
     assert kernel_schedule.scope is kernel_schedule
     assert container.scope is container
 
-    anode = Literal("1", INTEGER_TYPE)
+    anode = Literal("1", ScalarType.integer_type())
     with pytest.raises(SymbolError) as excinfo:
         _ = anode.scope
     assert ("Unable to find the scope of node "
@@ -963,7 +963,7 @@ def test_children_validation():
     '''
     assignment = Assignment()
     return_stmt = Return()
-    reference = Reference(DataSymbol("a", INTEGER_TYPE))
+    reference = Reference(DataSymbol("a", ScalarType.integer_type()))
 
     assert isinstance(assignment.children, (ChildrenList, list))
 
@@ -999,15 +999,16 @@ def test_children_validation():
     assignment.addchild(reference)
 
     # Check displaced items are also checked when needed
-    start = Literal("0", INTEGER_TYPE)
-    stop = Literal("1", INTEGER_TYPE)
-    step = Literal("2", INTEGER_TYPE)
-    child_node = Assignment.create(Reference(DataSymbol("tmp", REAL_TYPE)),
-                                   Reference(DataSymbol("i", REAL_TYPE)))
-    loop_variable = DataSymbol("idx", INTEGER_TYPE)
+    start = Literal("0", ScalarType.integer_type())
+    stop = Literal("1", ScalarType.integer_type())
+    step = Literal("2", ScalarType.integer_type())
+    child_node = Assignment.create(
+        Reference(DataSymbol("tmp", ScalarType.real_type())),
+        Reference(DataSymbol("i", ScalarType.real_type())))
+    loop_variable = DataSymbol("idx", ScalarType.integer_type())
     loop = Loop.create(loop_variable, start, stop, step, [child_node])
     with pytest.raises(GenerationError):
-        loop.children.insert(1, Literal("0", INTEGER_TYPE))
+        loop.children.insert(1, Literal("0", ScalarType.integer_type()))
 
     with pytest.raises(GenerationError):
         loop.children.remove(stop)
@@ -1255,9 +1256,9 @@ def test_replace_with_named_context():
     '''Check that the replace_with method behaves as expected when the
     replaced node is named in its parent context.'''
 
-    node1 = Literal('1', INTEGER_TYPE)
-    node2 = Literal('2', INTEGER_TYPE)
-    node3 = Literal('3', INTEGER_TYPE)
+    node1 = Literal('1', ScalarType.integer_type())
+    node2 = Literal('2', ScalarType.integer_type())
+    node3 = Literal('3', ScalarType.integer_type())
     parent_node = Call.create(RoutineSymbol("mycall"), [
         ("name1", node1),
         ("name2", node2),
@@ -1266,7 +1267,7 @@ def test_replace_with_named_context():
     parent_node.children = [parent_node.routine, node1, node2, node3]
 
     # Replace a node keeping the name
-    new_node = Literal('20', INTEGER_TYPE)
+    new_node = Literal('20', ScalarType.integer_type())
     node2.replace_with(new_node)
     assert parent_node.children[2] is new_node
     assert new_node.parent is parent_node
@@ -1274,7 +1275,7 @@ def test_replace_with_named_context():
     assert parent_node.argument_names == ["name1", "name2", "name3"]
 
     # Replace a node keeping the name
-    new_node = Literal('10', INTEGER_TYPE)
+    new_node = Literal('10', ScalarType.integer_type())
     node1.replace_with(new_node, keep_name_in_context=False)
     assert parent_node.children[1] is new_node
     assert new_node.parent is parent_node
@@ -1295,10 +1296,10 @@ def test_replace_with_error1():
     to.
 
     '''
-    iterator = DataSymbol("i", INTEGER_TYPE)
-    start = Literal("0", INTEGER_TYPE)
-    stop = Literal("1", INTEGER_TYPE)
-    step = Literal("1", INTEGER_TYPE)
+    iterator = DataSymbol("i", ScalarType.integer_type())
+    start = Literal("0", ScalarType.integer_type())
+    stop = Literal("1", ScalarType.integer_type())
+    step = Literal("1", ScalarType.integer_type())
     loop = Loop.create(iterator, start, stop, step, [])
     new_node = Assignment()
     # The first child of a loop is the loop start value which should
@@ -1381,10 +1382,10 @@ def test_detach():
 
     # Create a PSyIR tree
     routine = RoutineSymbol("test", NoType())
-    e_sym = DataSymbol("e", REAL_TYPE)
-    f_sym = DataSymbol("f", REAL_TYPE)
+    e_sym = DataSymbol("e", ScalarType.real_type())
+    f_sym = DataSymbol("f", ScalarType.real_type())
     e_ref = Reference(e_sym)
-    lit = Literal("1", REAL_TYPE)
+    lit = Literal("1", ScalarType.real_type())
     e_ref2 = Reference(e_sym)
     f_ref = Reference(f_sym)
     node1 = Call.create(routine)
@@ -1490,10 +1491,10 @@ def test_following_preceding():
 
     '''
     # 1: There is no Routine ancestor node.
-    a_ref = Reference(DataSymbol("a", REAL_TYPE))
-    b_ref = Reference(DataSymbol("b", REAL_TYPE))
-    c_ref = Reference(DataSymbol("c", REAL_TYPE))
-    d_ref = Reference(DataSymbol("d", REAL_TYPE))
+    a_ref = Reference(DataSymbol("a", ScalarType.real_type()))
+    b_ref = Reference(DataSymbol("b", ScalarType.real_type()))
+    c_ref = Reference(DataSymbol("c", ScalarType.real_type()))
+    d_ref = Reference(DataSymbol("d", ScalarType.real_type()))
     multiply1 = BinaryOperation.create(
         BinaryOperation.Operator.MUL, c_ref, d_ref)
     multiply2 = BinaryOperation.create(
@@ -1535,8 +1536,8 @@ def test_following_preceding():
     # 2: Routine is an ancestor node, but is not a root
     # node.
     routine1 = Routine.create("routine1", SymbolTable(), [assign1])
-    e_ref = Reference(DataSymbol("e", REAL_TYPE))
-    zero = Literal("0.0", REAL_TYPE)
+    e_ref = Reference(DataSymbol("e", ScalarType.real_type()))
+    zero = Literal("0.0", ScalarType.real_type())
     assign2 = Assignment.create(e_ref, zero)
     routine2 = Routine.create("routine2", SymbolTable(), [assign2])
     container = Container.create(
@@ -1593,8 +1594,9 @@ def test_equality():
     # Same number of children, but children not equal
     two.detach()
     one.detach()
-    three = Assignment.create(Reference(DataSymbol("a", INTEGER_TYPE)),
-                              Literal("2", INTEGER_TYPE))
+    three = Assignment.create(
+        Reference(DataSymbol("a", ScalarType.integer_type())),
+        Literal("2", ScalarType.integer_type()))
     parent1.addchild(three)
     assert parent1 != parent2
 
@@ -1972,7 +1974,7 @@ def test_is_descendant_of(fortran_reader):
     """
 
     psyir = fortran_reader.psyir_from_source(code)
-    one = Literal("1", INTEGER_TYPE)
+    one = Literal("1", ScalarType.integer_type())
     assert not one.is_descendant_of(psyir)
 
     routine = psyir.children[0]

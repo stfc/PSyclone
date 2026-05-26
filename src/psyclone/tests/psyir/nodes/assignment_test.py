@@ -40,7 +40,7 @@
 ''' Performs py.test tests on the Assignment PSyIR node. '''
 
 import pytest
-from psyclone.core import Signature
+from psyclone.core import Signature, AccessType
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
@@ -48,8 +48,7 @@ from psyclone.psyir.nodes import (
     ArrayOfStructuresReference, IntrinsicCall)
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
-    DataSymbol, REAL_SINGLE_TYPE, Symbol, INTEGER_SINGLE_TYPE, REAL_TYPE,
-    ArrayType, INTEGER_TYPE, StructureType, DataTypeSymbol)
+    DataSymbol, ScalarType, Symbol, ArrayType, StructureType, DataTypeSymbol)
 from psyclone.tests.utilities import check_links
 
 
@@ -78,7 +77,8 @@ def test_assignment_semantic_navigation():
     assert "' malformed or incomplete. It needs at least 1 child to have " \
         "a lhs." in str(err.value)
 
-    ref = Reference(DataSymbol("a", REAL_SINGLE_TYPE), parent=assignment)
+    ref = Reference(DataSymbol("a", ScalarType.real_single_type()),
+                    parent=assignment)
     assignment.addchild(ref)
 
     # rhs should fail if second child is not present
@@ -87,7 +87,7 @@ def test_assignment_semantic_navigation():
     assert " malformed or incomplete. It needs at least 2 children to have " \
         "a rhs." in str(err.value)
 
-    lit = Literal("1", INTEGER_SINGLE_TYPE, assignment)
+    lit = Literal("1", ScalarType.integer_single_type(), assignment)
     assignment.addchild(lit)
     assert assignment.lhs is assignment._children[0]
     assert assignment.rhs is assignment._children[1]
@@ -98,8 +98,8 @@ def test_assignment_create():
     creates an Assignment instance.
 
     '''
-    lhs = Reference(DataSymbol("tmp", REAL_SINGLE_TYPE))
-    rhs = Literal("0.0", REAL_SINGLE_TYPE)
+    lhs = Reference(DataSymbol("tmp", ScalarType.real_single_type()))
+    rhs = Literal("0.0", ScalarType.real_single_type())
     assignment = Assignment.create(lhs, rhs)
     assert assignment.is_literal_assignment
     check_links(assignment, [lhs, rhs])
@@ -114,23 +114,26 @@ def test_assignment_children_validation():
     '''
     # Create method with lhs not a Node.
     with pytest.raises(GenerationError) as excinfo:
-        _ = Assignment.create("invalid", Literal("0.0", REAL_SINGLE_TYPE))
+        _ = Assignment.create("invalid",
+                              Literal("0.0", ScalarType.real_single_type()))
     assert ("Item 'str' can't be child 0 of 'Assignment'. The valid format "
             "is: 'DataNode, DataNode'.") in str(excinfo.value)
 
     # Create method with rhs not a Node.
     with pytest.raises(GenerationError) as excinfo:
-        _ = Assignment.create(Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
-                              "invalid")
+        _ = Assignment.create(
+            Reference(DataSymbol("tmp", ScalarType.real_single_type())),
+            "invalid")
     assert ("Item 'str' can't be child 1 of 'Assignment'. The valid format "
             "is: 'DataNode, DataNode'.") in str(excinfo.value)
 
     # Direct assignment of a 3rd children
     assignment = Assignment.create(
-        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
-        Literal("0.0", REAL_SINGLE_TYPE))
+        Reference(DataSymbol("tmp", ScalarType.real_single_type())),
+        Literal("0.0", ScalarType.real_single_type()))
     with pytest.raises(GenerationError) as excinfo:
-        assignment.children.append(Literal("0.0", REAL_SINGLE_TYPE))
+        assignment.children.append(
+            Literal("0.0", ScalarType.real_single_type()))
     assert ("Item 'Literal' can't be child 2 of 'Assignment'. The valid format"
             " is: 'DataNode, DataNode'.") in str(excinfo.value)
 
@@ -141,12 +144,12 @@ def test_is_array_assignment():
     access.
 
     '''
-    one = Literal("1.0", REAL_TYPE)
-    int_one = Literal("1", INTEGER_TYPE)
-    int_ten = Literal("10", INTEGER_TYPE)
+    one = Literal("1.0", ScalarType.real_type())
+    int_one = Literal("1", ScalarType.integer_type())
+    int_ten = Literal("10", ScalarType.integer_type())
 
     # lhs is an array reference with a range
-    array_type = ArrayType(REAL_TYPE, [10, 10])
+    array_type = ArrayType(ScalarType.real_type(), [10, 10])
     symbol = DataSymbol("x", array_type)
     x_range = Range.create(int_one, int_ten.copy(), int_one.copy())
     array_ref = ArrayReference.create(symbol, [x_range, int_one.copy()])
@@ -156,12 +159,13 @@ def test_is_array_assignment():
 
     # Check when lhs consists of various forms of structure access
     grid_type = StructureType.create([
-        ("dx", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC, None),
-        ("dy", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC, None)])
+        ("dx", ScalarType.real_single_type(), Symbol.Visibility.PUBLIC, None),
+        ("dy", ScalarType.real_single_type(), Symbol.Visibility.PUBLIC, None)])
     grid_type_symbol = DataTypeSymbol("grid_type", grid_type)
     # Create the definition of the 'field_type', contains array of grid_types
     field_type_def = StructureType.create(
-        [("data", ArrayType(REAL_SINGLE_TYPE, [10]), Symbol.Visibility.PUBLIC,
+        [("data", ArrayType(ScalarType.real_single_type(), [10]),
+          Symbol.Visibility.PUBLIC,
           None),
          ("sub_meshes", ArrayType(grid_type_symbol, [3]),
           Symbol.Visibility.PUBLIC, None)])
@@ -184,7 +188,8 @@ def test_is_array_assignment():
     assert assign.is_array_assignment is True
 
     # Access to slice of 'sub_meshes': wind%sub_meshes(1:3)%dx = 1.0
-    sub_range = Range.create(int_one.copy(), Literal("3", INTEGER_TYPE))
+    sub_range = Range.create(int_one.copy(),
+                             Literal("3", ScalarType.integer_type()))
     dx_ref = StructureReference.create(field_symbol, [("sub_meshes",
                                                        [sub_range]), "dx"])
     sub_assign = Assignment.create(dx_ref, one.copy())
@@ -193,7 +198,8 @@ def test_is_array_assignment():
     # Create an array of these derived types and assign to a slice:
     # chi(1:10)%data(1) = 1.0
     field_bundle_symbol = DataSymbol("chi", ArrayType(field_type_symbol, [3]))
-    fld_range = Range.create(int_one.copy(), Literal("10", INTEGER_TYPE))
+    fld_range = Range.create(int_one.copy(),
+                             Literal("10", ScalarType.integer_type()))
     fld_ref = ArrayOfStructuresReference.create(field_bundle_symbol,
                                                 [fld_range],
                                                 [("data", [int_one.copy()])])
@@ -202,7 +208,7 @@ def test_is_array_assignment():
 
     # When the slice has two operator ancestors, none of which are a reduction
     # e.g y(1, INT(ABS(map(:, 1)))) = 1.0
-    int_array_type = ArrayType(INTEGER_SINGLE_TYPE, [10, 10])
+    int_array_type = ArrayType(ScalarType.integer_single_type(), [10, 10])
     map_sym = DataSymbol("map", int_array_type)
     lbound1 = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.LBOUND,
@@ -229,12 +235,12 @@ def test_array_assignment_with_reduction():
     The example is: x(1, MAXVAL(SIN(map(:, :)))) = 1.0
 
     '''
-    one = Literal("1.0", REAL_TYPE)
-    int_one = Literal("1", INTEGER_TYPE)
-    int_two = Literal("2", INTEGER_TYPE)
-    int_array_type = ArrayType(INTEGER_SINGLE_TYPE, [10, 10])
+    one = Literal("1.0", ScalarType.real_type())
+    int_one = Literal("1", ScalarType.integer_type())
+    int_two = Literal("2", ScalarType.integer_type())
+    int_array_type = ArrayType(ScalarType.integer_single_type(), [10, 10])
     map_sym = DataSymbol("map", int_array_type)
-    array_type = ArrayType(REAL_TYPE, [10, 10])
+    array_type = ArrayType(ScalarType.real_type(), [10, 10])
     symbol = DataSymbol("x", array_type)
     lbound1 = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.LBOUND,
@@ -267,9 +273,9 @@ def test_is_not_array_assignment():
     an assignment to an array range.
 
     '''
-    int_one = Literal("1", INTEGER_SINGLE_TYPE)
-    one = Literal("1.0", REAL_TYPE)
-    var = DataSymbol("x", REAL_TYPE)
+    int_one = Literal("1", ScalarType.integer_single_type())
+    one = Literal("1.0", ScalarType.real_type())
+    var = DataSymbol("x", ScalarType.real_type())
     reference = Reference(var)
 
     # lhs is not an array
@@ -277,7 +283,7 @@ def test_is_not_array_assignment():
     assert assignment.is_array_assignment is False
 
     # lhs is an array reference but has no range
-    array_type = ArrayType(REAL_TYPE, [10, 10])
+    array_type = ArrayType(ScalarType.real_type(), [10, 10])
     symbol = DataSymbol("y", array_type)
     array_ref = Reference(symbol)
     assignment = Assignment.create(array_ref, one.copy())
@@ -285,7 +291,7 @@ def test_is_not_array_assignment():
 
     # lhs is an array reference but the single index value is obtained
     # using an array range, y(1, SUM(map(:), 1)) = 1.0
-    int_array_type = ArrayType(INTEGER_SINGLE_TYPE, [10])
+    int_array_type = ArrayType(ScalarType.integer_single_type(), [10])
     map_sym = DataSymbol("map", int_array_type)
     start = IntrinsicCall.create(IntrinsicCall.Intrinsic.LBOUND,
                                  [Reference(map_sym), ("dim", int_one.copy())])
@@ -314,8 +320,8 @@ def test_is_not_array_assignment():
 
     # lhs is a scalar member of a structure
     grid_type = StructureType.create([
-        ("dx", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC, None),
-        ("dy", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC, None)])
+        ("dx", ScalarType.real_single_type(), Symbol.Visibility.PUBLIC, None),
+        ("dy", ScalarType.real_single_type(), Symbol.Visibility.PUBLIC, None)])
     grid_type_symbol = DataTypeSymbol("grid_type", grid_type)
     grid_sym = DataSymbol("grid", grid_type_symbol)
     assignment = Assignment.create(StructureReference.create(grid_sym, ["dx"]),
@@ -366,13 +372,16 @@ def test_reference_accesses(fortran_reader):
              integer :: g(10)
              g(1) = g + 1
              g(g(1)) = 1
+             g(:) = 1
            end program test_prog''')
     assigns = psyir.walk(Assignment)
     # Check that the lhs has been converted to a write
     assigns[0].reference_accesses()[Signature('g')].is_written()
 
-    # This doesn't work for nested references to the same symbol
-    with pytest.raises(NotImplementedError) as err:
-        assigns[1].reference_accesses()
-    assert ("The variable 'g' appears more than once on the left-hand side "
-            "of an assignment." in str(err.value))
+    # Test nested references to the same symbol (first there is the inner
+    # READ to g, followed by the WRITE to the outer g)
+    accesses = assigns[1].reference_accesses()
+    assert accesses[Signature('g')][0].node == assigns[1].lhs.indices[0]
+    assert accesses[Signature('g')][0].access_type == AccessType.READ
+    assert accesses[Signature('g')][1].node == assigns[1].lhs
+    assert accesses[Signature('g')][1].access_type == AccessType.WRITE

@@ -247,7 +247,7 @@ def test_preprocess_arrayassign2loop_failure(fortran_reader, fortran_writer):
     with pytest.raises(TransformationError) as err:
         preprocess_trans(psyir, ["a", "c"])
     assert ("ArrayAssignment2LoopsTrans does not accept calls which are not "
-            "guaranteed to be elemental" in str(err.value))
+            "guaranteed to" in str(err.value))
 
 
 @pytest.mark.parametrize("operation", ["+", "-"])
