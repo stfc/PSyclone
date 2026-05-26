@@ -1,3 +1,6 @@
+   23) PR #3436 for #3135. Fixes some cyclic dependencies by replacing
+   the ScalarType import-time instantiations.
+
    22) PR #3439 for #3415. Fix datatype method for StructureReference nodes
    that return arrays.
 
