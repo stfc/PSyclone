@@ -36,11 +36,6 @@
 ..             I. Kavcic, Met Office
 ..             J. Dendy, Met Office
 
-.. testsetup::
-
-    # Define NEMO_SOURCE_FILE to point to an existing nemo file.
-    NEMO_SOURCE_FILE = "../examples/nemo/code/tra_adv.F90"
-
 .. _transformations:
 
 Transformations

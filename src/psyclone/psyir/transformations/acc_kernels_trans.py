@@ -58,7 +58,6 @@ from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 from psyclone.utils import transformation_documentation_wrapper
 
-NEMO_SOURCE_FILE = ("examples/nemo/code/tra_adv.F90")
 
 @transformation_documentation_wrapper
 class ACCKernelsTrans(RegionTrans):
@@ -69,7 +68,9 @@ class ACCKernelsTrans(RegionTrans):
     For example:
 
     >>> from psyclone.psyir.frontend.fortran import FortranReader
-    >>> psyir = FortranReader().psyir_from_file(NEMO_SOURCE_FILE)
+    >>> from psyclone.tests.utilities import get_file_path
+    >>> filename = get_file_path("code/tra_adv.F90")
+    >>> psyir = FortranReader().psyir_from_file(filename)
     >>>
     >>> from psyclone.psyir.transformations import ACCKernelsTrans
     >>> ktrans = ACCKernelsTrans()

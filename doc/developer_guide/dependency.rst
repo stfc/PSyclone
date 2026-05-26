@@ -581,7 +581,7 @@ can be parallelised:
 .. testoutput::
     :hide:
 
-   Error: The write access to 'a(i,i)' in 'a(i,i) = j + k' and the read access to 'a(i + 1,i + 1)' in 'a(i,i) = a(i + 1,i + 1)' are dependent and cannot be parallelised. Variable: 'a'.
+    Error: The write access to 'a(i,i)' in 'a(i,i) = j + k' and the read access to 'a(i + 1,i + 1)' in 'a(i,i) = a(i + 1,i + 1)' are dependent and cannot be parallelised. Variable: 'a'.
 
 .. _defusechain:
 

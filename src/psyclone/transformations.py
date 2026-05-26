@@ -90,10 +90,6 @@ from psyclone.psyir.transformations.omp_parallel_loop_trans import (
     OMPParallelLoopTrans)
 
 
-# Files used in doctest examples
-NEMO_SOURCE_FILE = ("examples/nemo/code/tra_adv.F90")
-
-
 def check_intergrid(node):
     '''
     Utility function to check that the supplied node does not have
@@ -1920,7 +1916,9 @@ class ACCDataTrans(RegionTrans):
     For example:
 
     >>> from psyclone.psyir.frontend.fortran import FortranReader
-    >>> psyir = FortranReader().psyir_from_file(NEMO_SOURCE_FILE)
+    >>> from psyclone.tests.utilities import get_file_path
+    >>> filename = get_file_path("code/tra_adv.F90")
+    >>> psyir = FortranReader().psyir_from_file(filename)
     >>>
     >>> from psyclone.transformations import ACCDataTrans
     >>> from psyclone.psyir.transformations import ACCKernelsTrans

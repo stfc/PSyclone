@@ -75,7 +75,6 @@ class CompileError(PSycloneError):
         PSycloneError.value = "Compile error: " + str(value)
 
 
-# =============================================================================
 def line_number(root, string_name):
     '''Helper routine which returns the first index of the supplied
     name in the root object, when it is converted into a string, or
@@ -98,7 +97,6 @@ def line_number(root, string_name):
     return -1
 
 
-# =============================================================================
 def count_lines(root, string_name):
     '''Helper routine which returns the number of lines that contain the
     supplied string.
@@ -120,7 +118,6 @@ def count_lines(root, string_name):
     return count
 
 
-# =============================================================================
 def print_diffs(expected, actual):
     '''
     Pretty-print the diff between the two, possibly multi-line, strings
@@ -135,7 +132,6 @@ def print_diffs(expected, actual):
     pprint(diff_list)
 
 
-# =============================================================================
 @contextmanager
 def change_dir(new_dir):
     '''This is a small context manager that changes the current working
@@ -154,7 +150,6 @@ def change_dir(new_dir):
         os.chdir(prev_dir)
 
 
-# =============================================================================
 class Compile():
     '''This class provides compile functionality to the testing framework.
     It stores the name of the compiler, compiler flags, and a temporary
@@ -507,8 +502,7 @@ class Compile():
         return success
 
 
-# =============================================================================
-def get_base_path(api: str) -> str:
+def get_base_path(api: str = "") -> str:
     '''Get the absolute base path for the specified API relative to the
     'tests/test_files' directory, i.e. the directory in which all
     Fortran test files are stored.
@@ -524,7 +518,7 @@ def get_base_path(api: str) -> str:
     # Note that the nemo files are outside of the default tests/test_files
     # directory, they are in tests/nemo/test_files
     api_2_path = {"lfric": "lfric",
-                  "nemo": "../nemo/test_files",
+                  "": "../nemo/test_files",
                   "gocean": "gocean1p0"}
     try:
         dir_name = api_2_path[api]
@@ -555,7 +549,6 @@ def get_infrastructure_path(api: str) -> str:
                        f"Supported values are 'lfric' and 'gocean'.")
 
 
-# =============================================================================
 def get_invoke(algfile: str,
                api: str,
                idx: Optional[int] = None,
@@ -634,7 +627,16 @@ def get_psylayer_schedule(
         return psy.invokes.invoke_list[0].schedule
 
 
-# =============================================================================
+def get_file_path(relative_path: str):
+    '''
+    :param relative_path: given a relative file path.
+
+    :returns: its absolute file path inside the test directory.
+
+    '''
+    return os.path.join(get_base_path(), relative_path)
+
+
 def get_ast(api: str, filename: str) -> BeginSource:
     '''Returns the fparser1 parse tree for a filename that is stored in the
     test files for the specified API.
@@ -652,7 +654,6 @@ def get_ast(api: str, filename: str) -> BeginSource:
     return ast
 
 
-# =============================================================================
 def check_links(parent: Node, children: list[Node]) -> None:
     '''Utility routine to check that the parent node has children as its
     children in the order specified and that the children have parent
@@ -699,7 +700,6 @@ def make_external_module(monkeypatch,
     monkeypatch.setitem(mman._modules, mod_name, minfo)
 
 
-# ============================================================================
 min_version_3_10 = pytest.mark.skipif(
     sys.version_info < (3, 10), reason="tests require python 3.10 or higher"
 )

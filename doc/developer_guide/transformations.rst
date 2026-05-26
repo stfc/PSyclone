@@ -33,11 +33,6 @@
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
-.. testsetup::
-
-    # Define NEMO_SOURCE_FILE to point to an existing nemo file.
-    NEMO_SOURCE_FILE = "../examples/nemo/code/tra_adv.F90"
-
 
 Transformations
 ###############
