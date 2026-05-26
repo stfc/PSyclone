@@ -84,14 +84,6 @@ PROFILING_IGNORE = ["flo_dom", "macho", "mpp_", "nemo_gcm", "dyn_ldf"
 # functions, the following subroutines contains known statement functions
 CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 
-# These files change the results from the baseline when psyclone adds
-# parallelisation directives
-PARALLELISATION_ISSUES = [
-    "ldfc1d_c2d.f90",
-    "tramle.f90",
-    "traqsr.f90",
-]
-
 
 def _it_should_be(symbol, of_type, instance):
     ''' Make sure that symbol has the datatype as provided.

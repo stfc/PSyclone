@@ -146,14 +146,13 @@ jobs:
     - name: NEMO MetOffice OpenACC kernels for GPU
       id: nemo_acc_kernels
       run: |
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment %${NVHPC_TOOLCHAIN}
         . .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PROFILE_HOME=${GITHUB_WORKSPACE}/lib/profiling/nvidia/
         export NEMO_DIR=${PREFIX}/UKMO-NEMOv4
         cd $PSYCLONE_NEMO_DIR
-        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
-        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
-        module load perl/${PERL_VERSION}
         make clean
         make -j ${NUM_PARALLEL} openacc_kernels
         COMPILER_ARCH=linux_nvidia_acc_gpu make -j ${NUM_PARALLEL} compile-openacc_kernels

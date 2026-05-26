@@ -82,20 +82,7 @@ ASYNC_PARALLEL = os.environ.get('ASYNC_PARALLEL', False)
 RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # List of all files that psyclone will skip processing
-FILES_TO_SKIP = [
-    # Has an implicit symbol declaration (psyclone only works
-    # with 'implicit none' Fortran)
-    "icefrm.f90",
-]
-
-NEMOV5_EXCLUSIONS = [
-    # Excluded only in NEMOv5 for performance
-    "lbclnk.f90",
-]
-
-NEMOV4_EXCLUSIONS = [
-    "dynspg_ts.f90",
-]
+FILES_TO_SKIP = []
 
 # There files are skipped because transforming them degrade the performance
 SKIP_FOR_PERFORMANCE = [
@@ -115,7 +102,13 @@ PARALLELISATION_ISSUES = []
 # offloading directives
 OFFLOADING_ISSUES = []
 
-if not NEMOV4:
+if NEMOV4:
+    # NEMOv4 additional exclusions
+    FILES_TO_SKIP.extend([
+        "dynspg_ts.f90",
+    ])
+else:
+    # NEMOv5 additional exclusions
     FILES_TO_SKIP.extend([
         # Fail in nvfortran when enabling seaice - Has unsupported implicit
         # symbol declaration
@@ -136,18 +129,11 @@ if not NEMOV4:
         "traqsr.f90",
     ])
 
-    OFFLOADING_ISSUES = [
-        # Signal 11 issues
-        "trcatf.f90",
-        "seddsrjac.f90"
-    ]
     OFFLOADING_ISSUES.extend([
         # Signal 11 issues
         "trcatf.f90",
         "seddsrjac.f90"
     ])
-else:
-    FILES_TO_SKIP.extend([])
 
 ASYNC_ISSUES = [
     # Runtime Error: (CUDA_ERROR_LAUNCH_FAILED): Launch failed
@@ -159,7 +145,8 @@ ASYNC_ISSUES = [
     "zdfsh2.f90",
     # Diverging results with asynchronicity
     "traadv_fct.f90",
-    "bdy_oce.f90",
+    # Signal 11 in build
+    "zdfswm.f90",
 ]
 
 
