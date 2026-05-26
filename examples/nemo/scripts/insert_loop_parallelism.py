@@ -46,9 +46,8 @@ from psyclone.psyir.nodes import Routine, Loop
 from psyclone.psyir.transformations import (
     OMPTargetTrans, OMPDeclareTargetTrans)
 from psyclone.transformations import (
-    OMPLoopTrans, TransformationError)
-from psyclone.transformations import (
-    ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans)
+    ACCParallelTrans, ACCRoutineTrans)
+from psyclone.psyir.transformations import ACCLoopTrans, OMPLoopTrans
 
 
 # This environment variable informs if this is targeting NEMOv4
