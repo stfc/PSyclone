@@ -46,8 +46,7 @@ from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Literal, Reference
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
-                                    ImportInterface, INTEGER_TYPE, ScalarType,
-                                    SymbolTable)
+                                    ImportInterface, ScalarType, SymbolTable)
 
 
 class LFRicTypes:
@@ -173,7 +172,8 @@ class LFRicTypes:
                 var_name = module_var.upper()
                 interface = ImportInterface(LFRicTypes(module_name))
                 LFRicTypes._name_to_class[var_name] = \
-                    DataSymbol(module_var, INTEGER_TYPE, interface=interface)
+                    DataSymbol(module_var, ScalarType.integer_type(),
+                               interface=interface)
 
     # ------------------------------------------------------------------------
     @staticmethod
@@ -639,7 +639,7 @@ class LFRicTypes:
 
         constants_mod = table.find_or_create(mod_name,
                                              symbol_type=ContainerSymbol)
-        sym = DataSymbol(name, INTEGER_TYPE,
+        sym = DataSymbol(name, ScalarType.integer_type(),
                          interface=ImportInterface(constants_mod))
         table.add(sym)
 

@@ -53,7 +53,7 @@ from psyclone.parse.algorithm import InvokeCall
 from psyclone.psyGen import Invoke
 from psyclone.psyir.nodes import Assignment, Reference, Call, Literal
 from psyclone.psyir.symbols import (
-    ContainerSymbol, RoutineSymbol, ImportInterface, DataSymbol, INTEGER_TYPE)
+    ContainerSymbol, RoutineSymbol, ImportInterface, DataSymbol, ScalarType)
 
 
 class LFRicInvoke(Invoke):
@@ -326,7 +326,7 @@ class LFRicInvoke(Invoke):
                             "omp_num_threads",
                             root_name="nthreads",
                             symbol_type=DataSymbol,
-                            datatype=INTEGER_TYPE)
+                            datatype=ScalarType.integer_type())
             omp_lib = symtab.find_or_create("omp_lib",
                                             symbol_type=ContainerSymbol)
             omp_get_max_threads = symtab.find_or_create(
