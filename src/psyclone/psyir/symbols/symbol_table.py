@@ -48,17 +48,16 @@ from collections.abc import Iterable
 import inspect
 import copy
 import logging
-import re
 from typing import Any, List, Optional, Union, TYPE_CHECKING
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import (
-    DataSymbol, ContainerSymbol, DataTypeSymbol,
-    ImportInterface, RoutineSymbol, Symbol, SymbolError, UnresolvedInterface)
+    DataSymbol, ContainerSymbol, CommonBlockSymbol,
+    DataTypeSymbol, ImportInterface, RoutineSymbol, Symbol, SymbolError,
+    UnresolvedInterface)
 from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
-from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
 
 if TYPE_CHECKING:
     from psyclone.psyir.nodes.scoping_node import ScopingNode
@@ -301,11 +300,15 @@ class SymbolTable():
             new_st._node = attached_to
 
         # Make a copy of each symbol in the symbol table ensuring we do any
-        # ContainerSymbols first as there may be imports from them.
+        # ContainerSymbols first as there may be imports from them, then
+        # CommonBlockSymbols so that CommonBlockInterface references can be
+        # updated before the variables are added.
         for symbol in self.containersymbols:
             new_st.add(symbol.copy())
+        for symbol in self.common_block_symbols:
+            new_st.add(symbol.copy())
         for symbol in self.symbols:
-            if isinstance(symbol, ContainerSymbol):
+            if isinstance(symbol, (ContainerSymbol, CommonBlockSymbol)):
                 continue
             new_sym = symbol.copy()
             if new_sym.is_import:
@@ -334,9 +337,16 @@ class SymbolTable():
                 pass
 
         # Update any references to Symbols within Symbols (initial values,
-        # precision etc.)
+        # precision etc.). This also re-points any CommonBlockInterface
+        # references to the copied CommonBlockSymbol instances.
         for symbol in new_st.symbols:
             symbol.replace_symbols_using(new_st)
+
+        # Reconstruct the ordered variable list for each CommonBlockSymbol.
+        for old_cb_sym in self.common_block_symbols:
+            new_cb_sym = new_st.lookup_commonblock(old_cb_sym.name)
+            for old_var in old_cb_sym.variables:
+                new_cb_sym.add_variable(new_st.lookup(old_var.name))
 
         # Set the default visibility
         new_st._default_visibility = self.default_visibility
@@ -625,22 +635,6 @@ class SymbolTable():
             raise KeyError(f"Symbol table already contains a symbol with "
                            f"name '{new_symbol.name}'.")
 
-        # Treat a COMMON-block marker whose declaration exactly matches one
-        # already present (possibly under a different name) as a duplicate.
-        if (self._normalize(new_symbol.name).startswith(
-                "_psyclone_internal_commonblock")
-                and isinstance(new_symbol.datatype, UnsupportedFortranType)):
-            if any(
-                sym.datatype.declaration == new_symbol.datatype.declaration
-                for sym in self.symbols
-                if (self._normalize(sym.name).startswith(
-                        "_psyclone_internal_commonblock")
-                    and isinstance(sym.datatype, UnsupportedFortranType))
-            ):
-                raise KeyError(
-                    f"Symbol table already contains a COMMON-block marker "
-                    f"with the same declaration as '{new_symbol.name}'.")
-
         if tag:
             if tag in self.get_tags():
                 raise KeyError(
@@ -724,10 +718,13 @@ class SymbolTable():
                     isinstance(other_sym, IntrinsicSymbol)):
                 continue
 
-            # If both symbols have CommonBlockInterface, they represent the
-            # same shared COMMON-block data. They cannot (and do not need to)
+            # If both symbols are CommonBlockSymbols (same block name) or
+            # both variables in a COMMON block, they represent the same
+            # shared COMMON-block data. They cannot (and do not need to)
             # be renamed, so treat this as a benign clash.
-            if this_sym.is_commonblock and other_sym.is_commonblock:
+            if ((isinstance(this_sym, CommonBlockSymbol) and
+                    isinstance(other_sym, CommonBlockSymbol)) or
+                    (this_sym.is_commonblock and other_sym.is_commonblock)):
                 continue
 
             if other_sym.is_import and this_sym.is_import:
@@ -974,9 +971,11 @@ class SymbolTable():
 
         for old_sym in other_table.symbols:
 
-            if old_sym in symbols_to_skip or isinstance(old_sym,
-                                                        ContainerSymbol):
-                # We've dealt with Container symbols in _add_container_symbols.
+            if old_sym in symbols_to_skip or isinstance(
+                    old_sym, (ContainerSymbol, CommonBlockSymbol)):
+                # ContainerSymbols are handled by _add_container_symbols;
+                # CommonBlockSymbols are handled by
+                # _add_commonblock_symbols_from_table.
                 continue
 
             try:
@@ -985,6 +984,20 @@ class SymbolTable():
             except KeyError:
                 # We have a clash with a symbol in this table.
                 self._handle_symbol_clash(old_sym, other_table)
+
+    def get_common_block_groups(self) -> dict:
+        '''Return a dict mapping lower-cased COMMON-block name to the
+        lower-cased list of variable names for every COMMON block in this
+        table.
+
+        The blank COMMON is mapped with the key ``""``.
+
+        :returns: mapping of COMMON-block name to ordered list of variable
+            names.
+        :rtype: dict[str, list[str]]
+        '''
+        return {s.name.lower(): [v.name.lower() for v in s.variables]
+                for s in self.common_block_symbols}
 
     def _handle_symbol_clash_common_block(self, old_sym: Symbol) -> bool:
         '''
@@ -996,15 +1009,13 @@ class SymbolTable():
 
         Two kinds of COMMON-block symbol are handled:
 
+        * :py:class:`~psyclone.psyir.symbols.CommonBlockSymbol` (block
+          objects themselves): the clash has already been approved by
+          ``check_for_clashes``; the block is already declared — skip.
         * Variables with a
-          :py:class:`~psyclone.psyir.symbols.CommonBlockInterface`
-          (``is_commonblock``): the clash has already been approved by
-          ``check_for_clashes``; nothing to do.
-        * Internal marker symbols (``_PSYCLONE_INTERNAL_COMMONBLOCK_N``):
-          if the incoming marker's COMMON-block name(s) overlap with any
-          marker already in ``self``, the block is already declared and a
-          second declaration would produce a compile error — skip it.
-          Otherwise fall through to the rename-and-add path.
+          :py:class:`~psyclone.psyir.symbols.CommonBlockInterface`:
+          the clash has already been approved by ``check_for_clashes``;
+          the variable is already in scope — skip.
 
         :param old_sym: the Symbol being added to self.
 
@@ -1015,36 +1026,19 @@ class SymbolTable():
         try:
             self_sym = self.lookup(old_sym.name)
         except KeyError:
-            # old_sym.name is not in this table: add() must have raised
-            # because an identical declaration is already present under a
-            # different marker name.  The COMMON block is already declared
-            # so the incoming marker should simply be skipped.
             self_sym = None
 
         if self_sym is None:
-            # Name absent means same-declaration / different-name duplicate.
+            return True
+
+        if (isinstance(old_sym, CommonBlockSymbol) and
+                isinstance(self_sym, CommonBlockSymbol)):
+            # Same-named COMMON block already declared — skip.
             return True
 
         if old_sym.is_commonblock and self_sym.is_commonblock:
-            # check_for_clashes has already approved this; nothing to do.
+            # check_for_clashes has already approved this variable clash.
             return True
-
-        if (isinstance(old_sym.datatype, UnsupportedFortranType)
-                and isinstance(self_sym.datatype, UnsupportedFortranType)
-                and self._normalize(old_sym.name).startswith(
-                    "_psyclone_internal_commonblock")):
-            # Marker with different declaration but possibly overlapping
-            # block name(s).  Skip if the block is already declared.
-            _blk_re = re.compile(r"/\s*(\w*)\s*/", re.IGNORECASE)
-            old_blocks = set(_blk_re.findall(old_sym.datatype.declaration))
-            for sym in self.symbols:
-                if (self._normalize(sym.name).startswith(
-                        "_psyclone_internal_commonblock")
-                        and isinstance(sym.datatype, UnsupportedFortranType)):
-                    self_blocks = set(_blk_re.findall(
-                        sym.datatype.declaration))
-                    if old_blocks & self_blocks:
-                        return True
 
         return False
 
@@ -1065,12 +1059,7 @@ class SymbolTable():
             check_for_clashes()).
 
         '''
-        # Check for COMMON-block markers first, before any lookup, because
-        # add() may have rejected old_sym because an identical declaration
-        # already exists under a *different* name.  In that case old_sym.name
-        # is not in this table at all, and lookup() would raise a KeyError.
-        if old_sym.is_commonblock or self._normalize(old_sym.name).startswith(
-                "_psyclone_internal_commonblock"):
+        if old_sym.is_commonblock or isinstance(old_sym, CommonBlockSymbol):
             if self._handle_symbol_clash_common_block(old_sym):
                 return
 
@@ -1153,8 +1142,15 @@ class SymbolTable():
         # Deal with any Container symbols first.
         self._add_container_symbols_from_table(other_table)
 
+        # Deal with any CommonBlockSymbols next.
+        for cb_sym in other_table.common_block_symbols:
+            outer_sym = self.lookup(cb_sym.name, otherwise=None)
+            if not outer_sym:
+                self.add(cb_sym)
+
         # Copy each Symbol from the supplied table into this one, excluding
-        # ContainerSymbols and any listed in `symbols_to_skip`.
+        # ContainerSymbols, CommonBlockSymbols, and any listed in
+        # `symbols_to_skip`.
         self._add_symbols_from_table(other_table,
                                      symbols_to_skip=symbols_to_skip)
 
@@ -1318,6 +1314,28 @@ class SymbolTable():
         except KeyError as err:
             raise KeyError(f"Could not find the tag '{tag}' in the Symbol "
                            f"Table.") from err
+
+    def lookup_commonblock(self, name: str):
+        '''Look up a :py:class:`~psyclone.psyir.symbols.CommonBlockSymbol`
+        by COMMON-block name.  Use ``""`` for the blank COMMON.
+
+        :param str name: the COMMON-block name (empty string for blank COMMON).
+
+        :returns: the CommonBlockSymbol with the given name.
+        :rtype: :py:class:`psyclone.psyir.symbols.CommonBlockSymbol`
+
+        :raises KeyError: if no CommonBlockSymbol with the given name exists \
+            in scope.
+        :raises KeyError: if a symbol with that name exists but is not a \
+            CommonBlockSymbol.
+
+        '''
+        sym = self.lookup(name)
+        if not isinstance(sym, CommonBlockSymbol):
+            raise KeyError(
+                f"'{name}' is present in the Symbol Table but is not a "
+                f"CommonBlockSymbol.")
+        return sym
 
     def __contains__(self, key):
         '''Check if the given key is part of the Symbol Table.
@@ -1755,6 +1773,15 @@ class SymbolTable():
         '''
         return [sym for sym in self.symbols if isinstance(sym,
                                                           ContainerSymbol)]
+
+    @property
+    def common_block_symbols(self):
+        '''
+        :returns: a list of the CommonBlockSymbols present in the Symbol Table.
+        :rtype: List[:py:class:`psyclone.psyir.symbols.CommonBlockSymbol`]
+        '''
+        return [sym for sym in self.symbols if isinstance(sym,
+                                                          CommonBlockSymbol)]
 
     @property
     def datatypesymbols(self):

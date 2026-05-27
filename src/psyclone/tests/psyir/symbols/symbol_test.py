@@ -52,7 +52,7 @@ from psyclone.core import Signature, AccessSequence, AccessType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Container, Literal, KernelSchedule, Reference
 from psyclone.psyir.symbols import (
-    ArgumentInterface, ContainerSymbol,
+    ArgumentInterface, ContainerSymbol, CommonBlockSymbol,
     DataSymbol, ImportInterface, DefaultModuleInterface, StaticInterface,
     ScalarType, AutomaticInterface, CommonBlockInterface,
     NoType, RoutineSymbol, Symbol, SymbolError, UnknownInterface,
@@ -163,7 +163,7 @@ def test_symbol_interface_setter_and_is_properties():
     assert not symbol.is_commonblock
     assert not symbol.is_unknown_interface
 
-    symbol.interface = CommonBlockInterface()
+    symbol.interface = CommonBlockInterface(CommonBlockSymbol("myblock"))
     assert not symbol.is_automatic
     assert not symbol.is_import
     assert not symbol.is_argument

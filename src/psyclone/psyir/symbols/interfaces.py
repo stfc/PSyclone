@@ -96,11 +96,69 @@ class UnknownInterface(SymbolInterface):
 
 
 class CommonBlockInterface(SymbolInterface):
-    ''' A symbol declared in the local scope but acts as a global that
-    can be accessed by any scope referencing the same CommonBlock name.'''
+    '''Describes a symbol that belongs to a Fortran COMMON block.
+
+    :param common_block_symbol: the :py:class:`CommonBlockSymbol` that \
+        represents the COMMON block this variable is part of.
+    :type common_block_symbol: \
+        :py:class:`psyclone.psyir.symbols.CommonBlockSymbol`
+
+    :raises TypeError: if *common_block_symbol* is not a \
+        :py:class:`~psyclone.psyir.symbols.CommonBlockSymbol`.
+
+    '''
+
+    def __init__(self, common_block_symbol):
+        super().__init__()
+        # Use setter for validation.
+        self.common_block_symbol = common_block_symbol
+
+    @property
+    def common_block_symbol(self):
+        '''
+        :returns: the CommonBlockSymbol for the COMMON block that owns this \
+            variable.
+        :rtype: :py:class:`psyclone.psyir.symbols.CommonBlockSymbol`
+        '''
+        return self._common_block_symbol
+
+    @common_block_symbol.setter
+    def common_block_symbol(self, value):
+        '''
+        :param value: the CommonBlockSymbol for this interface.
+        :type value: :py:class:`psyclone.psyir.symbols.CommonBlockSymbol`
+
+        :raises TypeError: if *value* is not a \
+            :py:class:`~psyclone.psyir.symbols.CommonBlockSymbol`.
+
+        '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols.commonblocksymbol import CommonBlockSymbol
+        if not isinstance(value, CommonBlockSymbol):
+            raise TypeError(
+                f"CommonBlockInterface common_block_symbol parameter must be "
+                f"of type CommonBlockSymbol, but found "
+                f"'{type(value).__name__}'.")
+        self._common_block_symbol = value
 
     def __str__(self):
-        return "CommonBlock"
+        block_label = (f"/{self.common_block_symbol.name}/"
+                       if self.common_block_symbol.name else "//")
+        return f"CommonBlock({block_label})"
+
+    def __eq__(self, other):
+        if not super().__eq__(other):
+            return False
+        return (self.common_block_symbol.name.lower() ==
+                other.common_block_symbol.name.lower())
+
+    def copy(self):
+        '''
+        :returns: a copy of this interface (sharing the same \
+            :py:class:`~psyclone.psyir.symbols.CommonBlockSymbol` instance).
+        :rtype: :py:class:`psyclone.psyir.symbols.CommonBlockInterface`
+        '''
+        return self.__class__(self.common_block_symbol)
 
 
 class UnresolvedInterface(SymbolInterface):

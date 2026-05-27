@@ -45,7 +45,7 @@ from psyclone.psyir.symbols.interfaces import (
      AutomaticInterface, ArgumentInterface, CommonBlockInterface,
      DefaultModuleInterface, ImportInterface, PreprocessorInterface,
      StaticInterface, SymbolInterface, UnknownInterface, UnresolvedInterface)
-from psyclone.psyir.symbols import ContainerSymbol
+from psyclone.psyir.symbols import CommonBlockSymbol, ContainerSymbol
 
 
 def test_symbolinterface():
@@ -91,12 +91,36 @@ def test_static_interface():
 
 
 def test_commonblockinterface():
-    '''Test we can create an CommonBlockInterface instance and check its
-    __str__ value
+    '''Test we can create a CommonBlockInterface instance and check its
+    __str__ value, equality, and copy.
 
     '''
-    interface = CommonBlockInterface()
-    assert str(interface) == "CommonBlock"
+    cb_sym = CommonBlockSymbol("myblock")
+    interface = CommonBlockInterface(cb_sym)
+    assert str(interface) == "CommonBlock(/myblock/)"
+    assert interface.common_block_symbol is cb_sym
+
+    # Test __eq__
+    cb_sym2 = CommonBlockSymbol("myblock")
+    iface2 = CommonBlockInterface(cb_sym2)
+    assert interface == iface2
+
+    cb_sym3 = CommonBlockSymbol("other")
+    iface3 = CommonBlockInterface(cb_sym3)
+    assert interface != iface3
+
+    # Test copy
+    iface_copy = interface.copy()
+    assert iface_copy.common_block_symbol is cb_sym
+
+    # Blank common
+    blank = CommonBlockSymbol("")
+    blank_iface = CommonBlockInterface(blank)
+    assert str(blank_iface) == "CommonBlock(//)"
+
+    # TypeError on bad argument
+    with pytest.raises(TypeError, match="CommonBlockSymbol"):
+        CommonBlockInterface("not_a_symbol")
 
 
 def test_unresolvedinterface():

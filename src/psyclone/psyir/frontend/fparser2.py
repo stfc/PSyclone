@@ -68,9 +68,9 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, AutomaticInterface, ScalarType,
-    CommonBlockInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    DefaultModuleInterface, GenericInterfaceSymbol, ImportInterface,
-    NoType, RoutineSymbol, StaticInterface,
+    CommonBlockInterface, CommonBlockSymbol, ContainerSymbol, DataSymbol,
+    DataTypeSymbol, DefaultModuleInterface, GenericInterfaceSymbol,
+    ImportInterface, NoType, RoutineSymbol, StaticInterface,
     StructureType, Symbol, SymbolError, UnknownInterface,
     UnresolvedInterface, UnresolvedType, UnsupportedFortranType,
     UnsupportedType, SymbolTable)
@@ -2875,10 +2875,12 @@ class Fparser2Reader():
 
     @staticmethod
     def _process_common_blocks(nodes, psyir_parent):
-        ''' Process the fparser2 common block declaration statements. This is
-        done after the other declarations and it will keep the statement
-        as a UnsupportedFortranType and update the referenced symbols to a
-        CommonBlockInterface.
+        ''' Process the fparser2 common block declaration statements.
+        For each COMMON block found, a
+        :py:class:`~psyclone.psyir.symbols.CommonBlockSymbol` is created (or
+        reused if already present) and each variable listed in the block has
+        its interface updated to
+        :py:class:`~psyclone.psyir.symbols.CommonBlockInterface`.
 
         :param nodes: fparser2 AST nodes containing declaration statements.
         :type nodes: List[:py:class:`fparser.two.utils.Base`]
@@ -2896,33 +2898,28 @@ class Fparser2Reader():
         '''
         for node in nodes:
             if isinstance(node, Fortran2003.Common_Stmt):
-                # Place the declaration statement into a UnsupportedFortranType
-                # (for now we just want to reproduce it). The name of the
-                # commonblock is not in the same namespace as the variable
-                # symbols names (and there may be multiple of them in a
-                # single statement). So we use an internal symbol name.
-                psyir_parent.symbol_table.new_symbol(
-                    root_name="_PSYCLONE_INTERNAL_COMMONBLOCK",
-                    symbol_type=DataSymbol,
-                    datatype=UnsupportedFortranType(str(node)))
-
-                # Get the names of the symbols accessed with the commonblock,
-                # they are already defined in the symbol table but they must
-                # now have a common-block interface.
+                table = psyir_parent.symbol_table
                 try:
-                    # Loop over every COMMON block defined in this Common_Stmt
-                    for cb_object in node.children[0]:
-                        for symbol_name in cb_object[1].items:
-                            sym = psyir_parent.symbol_table.lookup(
-                                        str(symbol_name))
+                    for block_name, var_names in node.get_block_groups():
+                        actual_name = (block_name
+                                       if block_name is not None else "")
+                        # Find or create the CommonBlockSymbol.
+                        cb_sym = table.lookup(actual_name, otherwise=None)
+                        if cb_sym is None:
+                            cb_sym = CommonBlockSymbol(actual_name)
+                            table.add(cb_sym)
+                        # Update each variable's interface.
+                        for var_name in var_names:
+                            sym = table.lookup(var_name)
                             if sym.initial_value:
                                 # This is C506 of the F2008 standard.
                                 raise NotImplementedError(
                                     f"Symbol '{sym.name}' has an initial value"
-                                    f" ({sym.initial_value.debug_string()}) "
-                                    f"but appears in a common block. This is "
-                                    f"not valid Fortran.")
-                            sym.interface = CommonBlockInterface()
+                                    f" ({sym.initial_value.debug_string()}"
+                                    f") but appears in a common block. This is"
+                                    f" not valid Fortran.")
+                            sym.interface = CommonBlockInterface(cb_sym)
+                            cb_sym.add_variable(sym)
                 except KeyError as error:
                     raise NotImplementedError(
                         f"The symbol interface of a common block variable "

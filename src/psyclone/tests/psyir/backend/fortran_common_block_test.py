@@ -73,8 +73,8 @@ def test_fw_common_blocks(fortran_reader, fortran_writer, tmpdir):
         "  real :: d\n"
         "  real :: e\n"
         "  real :: f\n"
-        "  COMMON /name1/ a, b\n"
-        "  COMMON /name1/ c /name2/ d\n"
+        "  COMMON /name1/ a, b, c\n"
+        "  COMMON /name2/ d\n"
         "  COMMON // e, f\n\n\n"
         "end subroutine sub\n")
     assert Compile(tmpdir).string_compiles(fortran_writer(psyir))

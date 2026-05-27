@@ -40,6 +40,7 @@
 
 from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.containersymbol import ContainerSymbol
+from psyclone.psyir.symbols.commonblocksymbol import CommonBlockSymbol
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.generic_interface_symbol import (
     GenericInterfaceSymbol)
@@ -61,6 +62,7 @@ __all__ = ['ArgumentInterface',
            'ArrayType',
            'AutomaticInterface',
            'CommonBlockInterface',
+           'CommonBlockSymbol',
            'ContainerSymbol',
            'DataSymbol',
            'DataType',

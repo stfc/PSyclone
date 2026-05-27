@@ -1338,73 +1338,103 @@ def test_handle_symbol_clash_imported_symbols():
 
 
 def test_handle_symbol_clash_commonblock_same_declaration():
-    '''Test that _handle_symbol_clash() ignores duplicate COMMON-block
-    markers with identical declarations.'''
+    '''Test that _handle_symbol_clash() ignores a duplicate CommonBlockSymbol
+    (same block name already present in the table).'''
     table1 = symbols.SymbolTable()
     table2 = symbols.SymbolTable()
-    decl = "common /keep_me/ a"
-    marker_name = "_PSYCLONE_INTERNAL_COMMONBLOCK_1"
-    table1.add(symbols.DataSymbol(
-        marker_name, symbols.UnsupportedFortranType(decl)))
-    table2.add(symbols.DataSymbol(
-        marker_name, symbols.UnsupportedFortranType(decl)))
 
-    old_sym = table2.lookup(marker_name)
-    table1._handle_symbol_clash(old_sym, table2)
+    cb1 = symbols.CommonBlockSymbol("keep_me")
+    table1.add(cb1)
+    cb2 = symbols.CommonBlockSymbol("keep_me")
+    table2.add(cb2)
 
-    assert len(table1.symbols) == 1
-    assert old_sym.name == marker_name
+    # _handle_symbol_clash should silently ignore the duplicate block symbol.
+    table1._handle_symbol_clash(cb2, table2)
+
+    cb_syms = [s for s in table1.symbols
+               if isinstance(s, symbols.CommonBlockSymbol)]
+    assert len(cb_syms) == 1
+    assert cb_syms[0].name == "keep_me"
 
 
-def test_add_symbols_from_table_commonblock_same_decl_different_name():
-    '''Test that _add_symbols_from_table() silently skips an incoming
-    COMMON-block marker whose declaration is identical to one already in the
-    table but under a *different* marker name.
-
-    This is the regression case for the bug where add() raises a KeyError
-    for the duplicate declaration, _add_symbols_from_table() forwards it to
-    _handle_symbol_clash(), and _handle_symbol_clash() previously crashed
-    because it called self.lookup(old_sym.name) before checking for
-    COMMON-block markers — and the name was absent from the table.'''
+def test_add_symbols_from_table_commonblock_same_name():
+    '''Test that _add_symbols_from_table() skips CommonBlockSymbols (they
+    are handled by merge() via a separate explicit step).'''
     table1 = symbols.SymbolTable()
     table2 = symbols.SymbolTable()
-    decl = "COMMON /ocean/ u, v"
-    # table1 already has the COMMON block under marker number 10.
-    table1.add(symbols.DataSymbol(
-        "_PSYCLONE_INTERNAL_COMMONBLOCK_10",
-        symbols.UnsupportedFortranType(decl)))
-    # table2 has the *same* COMMON block under marker number 33 (different
-    # number, as happens when two routines are independently parsed).
-    table2.add(symbols.DataSymbol(
-        "_PSYCLONE_INTERNAL_COMMONBLOCK_33",
-        symbols.UnsupportedFortranType(decl)))
 
+    table1.add(symbols.CommonBlockSymbol("ocean"))
+    table2.add(symbols.CommonBlockSymbol("ocean"))
+
+    # _add_symbols_from_table skips CommonBlockSymbols entirely.
     table1._add_symbols_from_table(table2)
 
-    # The COMMON block must be present exactly once (no duplicate).
-    matching = [sym for sym in table1.symbols
-                if isinstance(sym.datatype, symbols.UnsupportedFortranType)
-                and sym.datatype.declaration == decl]
-    assert len(matching) == 1
+    cb_syms = [s for s in table1.symbols
+               if isinstance(s, symbols.CommonBlockSymbol)]
+    assert len(cb_syms) == 1
 
 
-def test_handle_symbol_clash_commonblock_distinct_blocks_renamed():
-    '''Test that _handle_symbol_clash() renames and adds an incoming
-    COMMON-block marker when block names do not overlap.'''
+def test_add_symbols_from_table_commonblock_distinct_blocks():
+    '''Test that _add_symbols_from_table() skips CommonBlockSymbols (they
+    are handled by merge() via a separate explicit step), even when the
+    two tables have CommonBlockSymbols with different names.'''
     table1 = symbols.SymbolTable()
     table2 = symbols.SymbolTable()
-    marker_name = "_PSYCLONE_INTERNAL_COMMONBLOCK_1"
-    table1.add(symbols.DataSymbol(
-        marker_name, symbols.UnsupportedFortranType("common /first/ a")))
-    table2.add(symbols.DataSymbol(
-        marker_name, symbols.UnsupportedFortranType("common /second/ b")))
 
-    old_sym = table2.lookup(marker_name)
-    table1._handle_symbol_clash(old_sym, table2)
+    table1.add(symbols.CommonBlockSymbol("first"))
+    table2.add(symbols.CommonBlockSymbol("second"))
 
-    assert old_sym.name != marker_name
-    assert any(sym.datatype.declaration == "common /second/ b"
-               for sym in table1.symbols)
+    # _add_symbols_from_table skips CommonBlockSymbols.
+    table1._add_symbols_from_table(table2)
+
+    # "second" was NOT added by _add_symbols_from_table.
+    assert table1.lookup("second", otherwise=None) is None
+
+
+def test_get_common_block_groups():
+    '''Tests for SymbolTable.get_common_block_groups().'''
+    stype = symbols.ScalarType(
+        symbols.ScalarType.Intrinsic.REAL, symbols.ScalarType.Precision.SINGLE)
+
+    table = symbols.SymbolTable()
+
+    # An empty table returns an empty dict.
+    assert table.get_common_block_groups() == {}
+
+    # Single named block with two variables.
+    cb = symbols.CommonBlockSymbol("myblock")
+    table.add(cb)
+    x = symbols.DataSymbol("x", stype)
+    x.interface = symbols.CommonBlockInterface(cb)
+    table.add(x)
+    cb.add_variable(x)
+    y = symbols.DataSymbol("y", stype)
+    y.interface = symbols.CommonBlockInterface(cb)
+    table.add(y)
+    cb.add_variable(y)
+    result = table.get_common_block_groups()
+    assert result == {"myblock": ["x", "y"]}
+
+    # Blank COMMON is mapped to the empty-string key.
+    table2 = symbols.SymbolTable()
+    blank_cb = symbols.CommonBlockSymbol("")
+    table2.add(blank_cb)
+    a = symbols.DataSymbol("a", stype)
+    a.interface = symbols.CommonBlockInterface(blank_cb)
+    table2.add(a)
+    blank_cb.add_variable(a)
+    b = symbols.DataSymbol("b", stype)
+    b.interface = symbols.CommonBlockInterface(blank_cb)
+    table2.add(b)
+    blank_cb.add_variable(b)
+    result2 = table2.get_common_block_groups()
+    assert result2 == {"": ["a", "b"]}
+
+    # Non-COMMON symbols are ignored.
+    table5 = symbols.SymbolTable()
+    table5.add(symbols.DataSymbol(
+        "z", symbols.UnsupportedFortranType("real :: z")))
+    assert table5.get_common_block_groups() == {}
 
 
 def test_handle_symbol_clash_unsupported_fortran_non_commonblock_name():
@@ -3006,8 +3036,10 @@ def test_rename_symbol_errors():
             "and as such may be named in a Call." in str(err.value))
 
     # Cannot rename a common block symbol
+    cb_sym = symbols.CommonBlockSymbol("myblock")
+    table.add(cb_sym)
     asym = symbols.DataSymbol("a", symbols.ScalarType.integer_type(),
-                              interface=symbols.CommonBlockInterface())
+                              interface=symbols.CommonBlockInterface(cb_sym))
     table.add(asym)
     with pytest.raises(symbols.SymbolError) as err:
         table.rename_symbol(asym, "b")

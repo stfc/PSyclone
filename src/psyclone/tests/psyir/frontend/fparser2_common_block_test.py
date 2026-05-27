@@ -42,7 +42,7 @@ from fparser.two.Fortran2003 import Specification_Part
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Routine
 from psyclone.psyir.symbols import (
-    CommonBlockInterface, ScalarType, UnsupportedFortranType)
+    CommonBlockInterface, CommonBlockSymbol, ScalarType)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -62,10 +62,10 @@ def test_named_common_block():
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(routine, fparser2spec.content, [])
 
-    # There is a name1 commonblock symbol
-    commonblock = symtab.lookup("_PSYCLONE_INTERNAL_COMMONBLOCK")
-    assert isinstance(commonblock.datatype, UnsupportedFortranType)
-    assert commonblock.datatype.declaration == "COMMON /name1/ a, b, c"
+    # There is a name1 CommonBlockSymbol
+    cb_sym = symtab.lookup_commonblock("name1")
+    assert isinstance(cb_sym, CommonBlockSymbol)
+    assert [v.name for v in cb_sym.variables] == ["a", "b", "c"]
 
     # The variables have been updated to a common block interface
     assert isinstance(symtab.lookup("a").interface, CommonBlockInterface)
@@ -73,7 +73,7 @@ def test_named_common_block():
     assert isinstance(symtab.lookup("c").interface, CommonBlockInterface)
 
     # The same common block can also bring other variables in a separate
-    # statement
+    # statement; the existing CommonBlockSymbol is reused.
     reader = FortranStringReader('''
         real :: d, e
         real(kind=wp) :: f
@@ -81,10 +81,8 @@ def test_named_common_block():
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(routine, fparser2spec.content, [])
 
-    # This is stored in a separate symbol, but the declaration has the right
-    # text
-    commonblock_2 = symtab.lookup("_PSYCLONE_INTERNAL_COMMONBLOCK_1")
-    assert commonblock_2.datatype.declaration == "COMMON /name1/ d, e, f"
+    # The same CommonBlockSymbol now also includes d, e, f
+    assert [v.name for v in cb_sym.variables] == ["a", "b", "c", "d", "e", "f"]
     assert isinstance(symtab.lookup("d").interface, CommonBlockInterface)
     assert isinstance(symtab.lookup("e").interface, CommonBlockInterface)
     fsym = symtab.lookup("f")
@@ -108,10 +106,11 @@ def test_unnamed_commonblock():
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(routine, fparser2spec.content, [])
 
-    # There is an UnsupportedFortranType symbol containing the commonblock
-    commonblock = symtab.lookup("_PSYCLONE_INTERNAL_COMMONBLOCK")
-    assert isinstance(commonblock.datatype, UnsupportedFortranType)
-    assert commonblock.datatype.declaration == "COMMON // a, b, c"
+    # There is a blank-name CommonBlockSymbol for the blank common block
+    cb_sym = symtab.lookup_commonblock("")
+    assert isinstance(cb_sym, CommonBlockSymbol)
+    assert cb_sym.name == ""
+    assert [v.name for v in cb_sym.variables] == ["a", "b", "c"]
 
     # The variables have been updated to a common block interface
     assert isinstance(symtab.lookup("a").interface, CommonBlockInterface)
@@ -137,13 +136,15 @@ def test_multiple_commonblocks_in_statement():
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(routine, fparser2spec.content, [])
 
-    # There is a UnsupportedFortranType symbol containing each the commonblock
-    commonblock = symtab.lookup("_PSYCLONE_INTERNAL_COMMONBLOCK")
-    assert isinstance(commonblock.datatype, UnsupportedFortranType)
-    assert commonblock.datatype.declaration == "COMMON /name1/ a, b /name2/ c"
-    commonblock = symtab.lookup("_PSYCLONE_INTERNAL_COMMONBLOCK_1")
-    assert isinstance(commonblock.datatype, UnsupportedFortranType)
-    assert commonblock.datatype.declaration == "COMMON /name2/ d"
+    # There is a CommonBlockSymbol for each block name
+    cb1 = symtab.lookup_commonblock("name1")
+    assert isinstance(cb1, CommonBlockSymbol)
+    assert [v.name for v in cb1.variables] == ["a", "b"]
+
+    cb2 = symtab.lookup_commonblock("name2")
+    assert isinstance(cb2, CommonBlockSymbol)
+    # name2 was extended by the second COMMON statement
+    assert [v.name for v in cb2.variables] == ["c", "d"]
 
     # The variables have been updated to a common block interface
     assert isinstance(symtab.lookup("a").interface, CommonBlockInterface)
@@ -155,7 +156,8 @@ def test_multiple_commonblocks_in_statement():
 @pytest.mark.usefixtures("f2008_parser")
 def test_named_commonblock_with_posterior_declaration():
     ''' Test that commonblocks with symbols that are declared after the
-    commonblock statement are handled correctly.'''
+    commonblock statement are handled correctly (process_declarations processes
+    COMMON blocks in a second pass, after all declarations).'''
 
     # Create a dummy test routine
     routine = Routine.create("test_routine")
@@ -169,10 +171,10 @@ def test_named_commonblock_with_posterior_declaration():
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(routine, fparser2spec.content, [])
 
-    # There is an UnsupportedFortranType symbol containing the commonblock
-    commonblock = symtab.lookup("_PSYCLONE_INTERNAL_COMMONBLOCK")
-    assert isinstance(commonblock.datatype, UnsupportedFortranType)
-    assert commonblock.datatype.declaration == "COMMON /name1/ a, b"
+    # There is a CommonBlockSymbol for name1
+    cb_sym = symtab.lookup_commonblock("name1")
+    assert isinstance(cb_sym, CommonBlockSymbol)
+    assert [v.name for v in cb_sym.variables] == ["a", "b"]
 
     # The variables have been updated to a common block interface
     assert isinstance(symtab.lookup("a").interface, CommonBlockInterface)
@@ -202,24 +204,28 @@ def test_undeclared_symbol():
 
 @pytest.mark.usefixtures("f2008_parser")
 def test_commonblock_with_explicit_array_shape_symbol():
-    ''' Test that commonblocks with an explicit-shape-spec-list
-    produce NotImplementedError.'''
+    ''' Test that commonblocks with an explicit-shape-spec-list in the COMMON
+    statement are handled correctly: the array dimension is stripped by
+    get_block_groups() and the bare variable name is looked up. '''
 
     # Create a dummy test routine
     routine = Routine.create("test_routine")
+    symtab = routine.symbol_table
     processor = Fparser2Reader()
 
-    # This is also valid Fortran, but currently not supported
+    # The Fortran standard allows specifying array bounds in the COMMON
+    # statement itself; get_block_groups() strips the "(10, 4)" suffix.
     reader = FortranStringReader('''
         integer :: a
         common /name1/ a (10, 4)''')
-
     fparser2spec = Specification_Part(reader)
-    with pytest.raises(NotImplementedError) as err:
-        processor.process_declarations(routine, fparser2spec.content, [])
-    assert ("The symbol interface of a common block variable could not be "
-            "updated because of \"Could not find 'a(10, 4)' in the Symbol "
-            "Table.\"." in str(err.value))
+    processor.process_declarations(routine, fparser2spec.content, [])
+
+    # The variable 'a' is found and its interface is set correctly.
+    cb_sym = symtab.lookup_commonblock("name1")
+    assert isinstance(cb_sym, CommonBlockSymbol)
+    assert [v.name for v in cb_sym.variables] == ["a"]
+    assert isinstance(symtab.lookup("a").interface, CommonBlockInterface)
 
 
 @pytest.mark.usefixtures("f2008_parser")

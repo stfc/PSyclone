@@ -481,8 +481,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             that should therefore be skipped during the table merge.
         '''
         routine_table = routine.symbol_table
-        caller_blocks = self._common_block_vars(table)
-        callee_blocks = self._common_block_vars(routine_table)
+        caller_blocks = table.get_common_block_groups()
+        callee_blocks = routine_table.get_common_block_groups()
 
         symbols_to_skip = []
         for block_name, callee_vars in callee_blocks.items():
@@ -503,39 +503,6 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                 symbols_to_skip.append(callee_sym)
 
         return symbols_to_skip
-
-    @staticmethod
-    def _common_block_vars(table: SymbolTable) -> dict[str, list[str]]:
-        '''Return a dict mapping lower-cased COMMON-block name to the
-        lower-cased list of variable names for every COMMON-block marker
-        symbol found in *table*.
-
-        Each marker symbol is named ``_PSYCLONE_INTERNAL_COMMONBLOCK_N`` and
-        carries a declaration such as ``COMMON /name/ var1, var2``.  A single
-        declaration may contain several block groups
-        (``COMMON /a/ x /b/ y, z``), all of which are extracted.
-
-        :param table: the symbol table to inspect.
-        :returns: mapping of block name to ordered list of variable names.
-
-        '''
-        result = {}
-        # Match pattern /[common_block_name]/ comma_separated_variables
-        import re
-        _group_re = re.compile(r"/\s*(\w*)\s*/\s*([\w\s,]+)", re.IGNORECASE)
-        for sym in table.symbols:
-            if (sym.name.lower().startswith(
-                    "_psyclone_internal_commonblock")
-                    and isinstance(sym.datatype, UnsupportedFortranType)):
-                for m in _group_re.finditer(sym.datatype.declaration):
-                    block_name = m.group(1).strip().lower()
-                    var_names = [
-                        v.strip().lower()
-                        for v in m.group(2).split(",")
-                        if v.strip()
-                    ]
-                    result[block_name] = var_names
-        return result
 
     def _optional_arg_resolve_present_intrinsics(self,
                                                  routine_node: Routine,
@@ -1334,8 +1301,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         # Different names at the same block position mean the two variables
         # are memory aliases; that is acceptable as long as their types
         # match (the actual reference-redirection happens in apply()).
-        caller_blocks = self._common_block_vars(parent_routine.symbol_table)
-        callee_blocks = self._common_block_vars(routine_table)
+        caller_blocks = parent_routine.symbol_table.get_common_block_groups()
+        callee_blocks = routine_table.get_common_block_groups()
         for block_name, callee_vars in callee_blocks.items():
             if block_name not in caller_blocks:
                 continue

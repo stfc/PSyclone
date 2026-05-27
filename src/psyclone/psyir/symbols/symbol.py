@@ -555,21 +555,39 @@ class Symbol(CommentableMixin):
             :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        if not isinstance(self.interface, ImportInterface):
-            return
-        name = self.interface.container_symbol.name
-        orig_name = self.interface.orig_name
-        if isinstance(table_or_symbol, Symbol):
-            if name.lower() == table_or_symbol.name.lower():
-                self.interface = ImportInterface(table_or_symbol,
-                                                 orig_name=orig_name)
-        else:
-            try:
-                new_container = table_or_symbol.lookup(name)
-                self.interface = ImportInterface(new_container,
-                                                 orig_name=orig_name)
-            except KeyError:
-                pass
+        if isinstance(self.interface, ImportInterface):
+            name = self.interface.container_symbol.name
+            orig_name = self.interface.orig_name
+            if isinstance(table_or_symbol, Symbol):
+                if name.lower() == table_or_symbol.name.lower():
+                    self.interface = ImportInterface(table_or_symbol,
+                                                     orig_name=orig_name)
+            else:
+                try:
+                    new_container = table_or_symbol.lookup(name)
+                    self.interface = ImportInterface(new_container,
+                                                     orig_name=orig_name)
+                except KeyError:
+                    pass
+
+        elif isinstance(self.interface, CommonBlockInterface):
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.symbols.commonblocksymbol import (
+                CommonBlockSymbol)
+            name = self.interface.common_block_symbol.name
+            if isinstance(table_or_symbol, Symbol):
+                if (isinstance(table_or_symbol, CommonBlockSymbol) and
+                        name.lower() == table_or_symbol.name.lower()):
+                    self.interface = CommonBlockInterface(table_or_symbol)
+            else:
+                # table_or_symbol is a SymbolTable — look up by name.
+                # Blank-common symbols have name ""; use find_or_create so
+                # we tolerate tables that have not yet added the block sym.
+                try:
+                    new_cb = table_or_symbol.lookup_commonblock(name)
+                    self.interface = CommonBlockInterface(new_cb)
+                except KeyError:
+                    pass
 
     def get_all_accessed_symbols(self) -> set["Symbol"]:
         '''
