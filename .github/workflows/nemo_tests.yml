@@ -220,7 +220,7 @@ jobs:
         source .runner_venv/bin/activate
 
         # Set up envvars
-        export TEST_DIR=SPITZ12_ACC_LOOPS_NVHPC
+        export TEST_DIR=SPITZ12_OMP_CPU
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PSYCLONE_COMPILER=$MPIF90
         export MPIF90=psyclonefc
@@ -233,7 +233,7 @@ jobs:
         cd ${PREFIX}/ECMWF-NEMOv4
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         rm -rf cfgs/${TEST_DIR}
-        ./makenemo -r SPITZ12 -m linux_spack -n SPITZ12_psyclone -j ${NUM_PARALLEL} \
+        ./makenemo -r SPITZ12 -m linux_spack -n ${TEST_DIR} -j ${NUM_PARALLEL} \
           add_key "IEEE_IS_NAN=ieee_is_nan key_nosignedzero" \
           del_key "key_iomput"
         
