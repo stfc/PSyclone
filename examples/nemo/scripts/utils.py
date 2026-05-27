@@ -561,12 +561,6 @@ def hoist_arguments_to_temporaries(calls: list[Call]):
                 (isinstance(arg, Operation) or
                     isinstance(arg, IntrinsicCall))):
                 try:
-                    # TODO #3443: Does the fixes in that PR fix this, or
-                    # maybe the DataNodeToTempTrans has to skip characters
-                    if (isinstance(dtype.elemental_type, ScalarType)
-                        and dtype.elemental_type.intrinsic ==
-                            ScalarType.Intrinsic.CHARACTER):
-                        continue
                     DataNodeToTempTrans().apply(arg, verbose=True)
                 except TransformationError:
                     pass
