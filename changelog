@@ -1,3 +1,6 @@
+   24) PR #3429 for #3412. Generalise hoist_arguments_to_temporaries in NEMO utils
+   to all arguments with array operations.
+
    23) PR #3436 for #3135. Fixes some cyclic dependencies by replacing
    the ScalarType import-time instantiations.
 
