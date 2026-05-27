@@ -38,7 +38,7 @@
 
 import pytest
 from fparser.common.readfortran import FortranStringReader
-from fparser.two.Fortran2003 import Specification_Part
+from fparser.two.Fortran2003 import Common_Stmt, Specification_Part
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Routine
 from psyclone.psyir.symbols import (
@@ -246,3 +246,33 @@ def test_commonblock_with_explicit_init_symbol():
         processor.process_declarations(routine, fparser2spec.content, [])
     assert ("Symbol 'a' has an initial value (10) but appears in a common "
             "block." in str(err.value))
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_get_common_block_groups():
+    '''Tests for Fparser2Reader._get_common_block_groups().'''
+
+    # Blank common (no block name) with a single variable.
+    obj = Common_Stmt("common a")
+    assert Fparser2Reader._get_common_block_groups(obj) == [(None, ['a'])]
+
+    # Blank common with an explicit // and multiple variables.
+    obj = Common_Stmt("common // a, b")
+    assert Fparser2Reader._get_common_block_groups(obj) == [(None, ['a', 'b'])]
+
+    # Named common block.
+    obj = Common_Stmt("common /myblock/ x, y")
+    assert Fparser2Reader._get_common_block_groups(obj) == [('myblock', ['x', 'y'])]
+
+    # Array variables: the dimension spec is stripped, only the bare name
+    # is returned.
+    obj = Common_Stmt("common /name/ a, b(4,5)")
+    assert Fparser2Reader._get_common_block_groups(obj) == [('name', ['a', 'b'])]
+
+    # Multiple block groups in a single statement.
+    obj = Common_Stmt("common /name/ a, b(4,5) // c, /ljuks/ g(2)")
+    assert Fparser2Reader._get_common_block_groups(obj) == [
+        ('name', ['a', 'b']),
+        (None, ['c']),
+        ('ljuks', ['g']),
+    ]

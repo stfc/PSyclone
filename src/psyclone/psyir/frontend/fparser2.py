@@ -2874,6 +2874,40 @@ class Fparser2Reader():
                 sym.interface = StaticInterface()
 
     @staticmethod
+    def _get_common_block_groups(node):
+        '''Return the COMMON-block groups in a ``Common_Stmt`` node as a list
+        of ``(block_name, variable_names)`` pairs.
+
+        The *block_name* is the name of the COMMON block as a string, or
+        ``None`` for the blank common.  The *variable_names* list contains
+        the bare variable names (without any array-dimension suffixes) as
+        strings, preserving the original case from the source.
+
+        Example: ``COMMON /a/ x, y(3) /b/ z`` returns
+        ``[('a', ['x', 'y']), ('b', ['z'])]``.
+
+        :param node: a fparser2 Common_Stmt node.
+        :type node: :py:class:`fparser.two.Fortran2003.Common_Stmt`
+
+        :returns: ordered list of ``(block_name, variable_names)`` pairs.
+        :rtype: list[tuple[str | None, list[str]]]
+        '''
+        groups = []
+        for name, lst in node.items[0]:
+            block_name = str(name) if name is not None else None
+            var_names = []
+            for item in lst.items:
+                # item is either a Name/StringBase (bare variable) or a
+                # Common_Block_Object/CallBase (variable with an explicit
+                # shape spec).  For the latter, items[0] holds the name.
+                if isinstance(item, utils.CallBase):
+                    var_names.append(str(item.items[0]))
+                else:
+                    var_names.append(str(item))
+            groups.append((block_name, var_names))
+        return groups
+
+    @staticmethod
     def _process_common_blocks(nodes, psyir_parent):
         ''' Process the fparser2 common block declaration statements.
         For each COMMON block found, a
@@ -2900,7 +2934,8 @@ class Fparser2Reader():
             if isinstance(node, Fortran2003.Common_Stmt):
                 table = psyir_parent.symbol_table
                 try:
-                    for block_name, var_names in node.get_block_groups():
+                    for block_name, var_names in \
+                            Fparser2Reader._get_common_block_groups(node):
                         actual_name = (block_name
                                        if block_name is not None else "")
                         # Find or create the CommonBlockSymbol.
