@@ -56,7 +56,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     SymbolTable, ImportInterface,
     ContainerSymbol, ScalarType, ArrayType, RoutineSymbol, DataSymbol,
-    INTEGER_TYPE, UnresolvedType, UnsupportedType)
+    UnresolvedType, UnsupportedType)
 from psyclone.psyir.transformations import TransformationError
 
 
@@ -416,7 +416,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
     # to avoid any clashes with any of the container and kernel names.
     dim_size_sym = symbol_table.new_symbol("array_extent",
                                            symbol_type=DataSymbol,
-                                           datatype=INTEGER_TYPE,
+                                           datatype=ScalarType.integer_type(),
                                            is_constant=True,
                                            initial_value=TEST_ARRAY_DIM_SIZE)
 
@@ -690,7 +690,7 @@ def _create_array_inner_product(result, array1, array2, table):
     ranges2 = []
     # Generate a Range object for each dimension of each array
     for idx in range(len(array1.datatype.shape)):
-        idx_literal = Literal(str(idx+1), INTEGER_TYPE)
+        idx_literal = Literal(str(idx+1), ScalarType.integer_type())
         lbound1 = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.LBOUND,
             [Reference(array1), ("dim", idx_literal.copy())])

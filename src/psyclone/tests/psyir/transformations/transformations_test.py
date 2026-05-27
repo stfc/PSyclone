@@ -50,8 +50,7 @@ from psyclone.psyir.nodes import (
     ACCLoopDirective, OMPMasterDirective, Fparser2CodeBlock,
     OMPDoDirective, OMPLoopDirective, Routine)
 from psyclone.psyir.symbols import (
-     ContainerSymbol, INTEGER_TYPE,
-     DataSymbol, ImportInterface)
+     ContainerSymbol, ScalarType, DataSymbol, ImportInterface)
 from psyclone.psyir.transformations import (
     ProfileTrans, RegionTrans, TransformationError, OMPTaskloopTrans,
     OMPDeclareTargetTrans, ACCLoopTrans, OMPParallelTrans)
@@ -576,7 +575,7 @@ def test_omploop_trans_new_options(sample_psyir):
     with pytest.raises(ValueError) as excinfo:
         omplooptrans.apply(tree.walk(Loop)[0], fakeoption1=1, fakeoption2=2)
     assert ("'OMPLoopTrans' received invalid options ['fakeoption1', "
-            "'fakeoption2']. Valid options are '['node_type_check', "
+            "'fakeoption2']. Valid options are ['node_type_check', "
             "'verbose', 'collapse', 'force', 'ignore_dependencies_for', "
             "'privatise_arrays', 'sequential', 'nowait', 'reduction_ops', "
             "'force_private', 'options', 'reprod', 'enable_reductions']."
@@ -751,9 +750,9 @@ def test_regiontrans_wrong_children():
     rtrans = ACCParallelTrans()
     # Construct a valid Loop in the PSyIR
     parent = Loop()
-    parent.addchild(Literal("1", INTEGER_TYPE))
-    parent.addchild(Literal("10", INTEGER_TYPE))
-    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent.addchild(Literal("1", ScalarType.integer_type()))
+    parent.addchild(Literal("10", ScalarType.integer_type()))
+    parent.addchild(Literal("1", ScalarType.integer_type()))
     parent.addchild(Schedule())
     with pytest.raises(TransformationError) as err:
         RegionTrans.validate(rtrans, parent.children)
@@ -767,10 +766,10 @@ def test_parallellooptrans_refuse_codeblock():
     ParallelLoopTrans is abstract. '''
     otrans = OMPParallelLoopTrans()
     # Construct a valid Loop in the PSyIR with a CodeBlock in its body
-    parent = Loop.create(DataSymbol("ji", INTEGER_TYPE),
-                         Literal("1", INTEGER_TYPE),
-                         Literal("10", INTEGER_TYPE),
-                         Literal("1", INTEGER_TYPE),
+    parent = Loop.create(DataSymbol("ji", ScalarType.integer_type()),
+                         Literal("1", ScalarType.integer_type()),
+                         Literal("10", ScalarType.integer_type()),
+                         Literal("1", ScalarType.integer_type()),
                          [CodeBlock([], CodeBlock.Structure.STATEMENT,
                                     None)])
     with pytest.raises(TransformationError) as err:

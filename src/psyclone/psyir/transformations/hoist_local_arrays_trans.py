@@ -48,7 +48,7 @@ from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
                                   IntrinsicCall, BinaryOperation, Reference,
                                   DataNode)
 from psyclone.psyir.symbols import (
-    ArrayType, DataSymbol, DataTypeSymbol, INTEGER_TYPE, Symbol)
+    ArrayType, DataSymbol, DataTypeSymbol, ScalarType, Symbol)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 from psyclone.utils import transformation_documentation_wrapper
@@ -119,6 +119,7 @@ then
     call.
 
     '''
+
     def apply(self, node: Routine, options=None,
               allow_accroutine: bool = False, **kwargs):
         '''Applies the transformation to the supplied Routine node,
@@ -203,7 +204,8 @@ then
                                 lbound = child.start
                                 ubound = child.stop
                             else:
-                                lbound = Literal("1", INTEGER_TYPE)
+                                lbound = Literal("1",
+                                                 ScalarType.integer_type())
                                 ubound = child
                             orig_shape.append(
                                 ArrayType.ArrayBounds(lbound, ubound)
@@ -256,7 +258,8 @@ then
                             IntrinsicCall.create(
                                 IntrinsicCall.Intrinsic.LBOUND,
                                 [Reference(sym),
-                                 ("dim", Literal(str(idx+1), INTEGER_TYPE))]),
+                                 ("dim", Literal(str(idx+1),
+                                                 ScalarType.integer_type()))]),
                             dim.lower.copy())
                     # We chain the new check to the already existing cond_expr
                     # which starts with the 'not allocated' condition added
@@ -270,7 +273,8 @@ then
                             IntrinsicCall.create(
                                 IntrinsicCall.Intrinsic.UBOUND,
                                 [Reference(sym),
-                                 ("dim", Literal(str(idx+1), INTEGER_TYPE))]),
+                                 ("dim", Literal(str(idx+1),
+                                                 ScalarType.integer_type()))]),
                             dim.upper.copy())
                     # We chain the new check to the already existing cond_expr
                     # which starts with the 'not allocated' condition added

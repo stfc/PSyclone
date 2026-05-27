@@ -48,7 +48,7 @@ from psyclone.domain.common import DriverCreator
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyir.nodes import Call, Node, StructureReference
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol,
-                                    ImportInterface, INTEGER_TYPE,
+                                    ImportInterface, ScalarType,
                                     SymbolTable)
 
 
@@ -94,7 +94,7 @@ class LFRicDriverCreator(DriverCreator):
             symbol_table.new_symbol(prec_name,
                                     tag=f"{prec_name}@{mod_name}",
                                     symbol_type=DataSymbol,
-                                    datatype=INTEGER_TYPE,
+                                    datatype=ScalarType.integer_type(),
                                     interface=ImportInterface(constant_mod))
 
     # -------------------------------------------------------------------------

@@ -40,7 +40,7 @@
 import pytest
 
 from psyclone.psyir.nodes import Container, Literal, Routine
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations import (
     ReplaceReferenceByLiteralTrans,
     TransformationError,
@@ -58,7 +58,7 @@ def test_rrbl_errors():
     """Test errors that should be thrown."""
 
     rrbl = ReplaceReferenceByLiteralTrans()
-    lit = Literal("1", INTEGER_TYPE)
+    lit = Literal("1", ScalarType.integer_type())
     with pytest.raises(TransformationError) as err:
         rrbl.apply(lit)
 

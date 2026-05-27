@@ -59,7 +59,7 @@ from psyclone.psyir.nodes import (
     Container, KernelSchedule, Literal, Reference, Routine)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, DataSymbol, GenericInterfaceSymbol,
-    INTEGER_TYPE, REAL_TYPE)
+    ScalarType)
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import LFRicColourTrans
 from psyclone.psyir.backend.visitor import VisitorError
@@ -311,11 +311,11 @@ def test_validate_kernel_code_arg(monkeypatch):
     read_access = ArgumentInterface(ArgumentInterface.Access.READ)
 
     real_scalar_symbol = DataSymbol(
-        "generic_real_scalar", REAL_TYPE, interface=read_access)
+        "generic_real_scalar", ScalarType.real_type(), interface=read_access)
     int_scalar_symbol = DataSymbol(
-        "generic_int_scalar", INTEGER_TYPE, interface=read_access)
+        "generic_int_scalar", ScalarType.integer_type(), interface=read_access)
     real_scalar_rw_symbol = DataSymbol(
-        "generic_scalar_rw", REAL_TYPE,
+        "generic_scalar_rw", ScalarType.real_type(),
         interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
     lfric_real_scalar_symbol = LFRicTypes("LFRicRealScalarDataSymbol")(
         "scalar", interface=read_access)
@@ -390,8 +390,9 @@ def test_validate_kernel_code_arg(monkeypatch):
                                      lfric_real_field_symbol2)
     # Lower array bound of 2 rather than 1
     monkeypatch.setattr(lfric_real_field_symbol3.datatype, "_shape",
-                        [ArrayType.ArrayBounds(Literal("2", INTEGER_TYPE),
-                                               Reference(undf))])
+                        [ArrayType.ArrayBounds(
+                            Literal("2", ScalarType.integer_type()),
+                            Reference(undf))])
     with pytest.raises(GenerationError) as info:
         kernel._validate_kernel_code_arg(lfric_real_field_symbol3,
                                          lfric_real_field_symbol3)

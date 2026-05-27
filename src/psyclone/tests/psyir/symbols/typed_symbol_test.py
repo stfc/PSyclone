@@ -42,11 +42,8 @@ import pytest
 
 from psyclone.psyir.symbols import (
     AutomaticInterface, ArrayType, TypedSymbol, ContainerSymbol, DataSymbol,
-    ImportInterface, UnresolvedInterface, ScalarType,
-    REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE, REAL8_TYPE,
-    INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE,
-    BOOLEAN_TYPE, CHARACTER_TYPE, DataTypeSymbol, NoType, RoutineSymbol,
-    Symbol, SymbolTable, UnresolvedType, UnsupportedFortranType)
+    ImportInterface, UnresolvedInterface, ScalarType, DataTypeSymbol, NoType,
+    RoutineSymbol, Symbol, SymbolTable, UnresolvedType, UnsupportedFortranType)
 from psyclone.psyir.nodes import Literal, Reference
 
 
@@ -63,7 +60,7 @@ def test_typed_symbol_abstract():
     ''' Check that TypedSymbol is abstract. '''
     # pylint: disable=abstract-class-instantiated
     with pytest.raises(TypeError) as err:
-        TypedSymbol('a', REAL_SINGLE_TYPE)
+        TypedSymbol('a', ScalarType.real_single_type())
     assert "instantiate abstract class TypedSymbol" in str(err.value)
 
 
@@ -72,32 +69,35 @@ def test_typed_symbol_initialisation():
     arguments are given, otherwise raise relevant exceptions.'''
 
     # Test with valid arguments
-    assert isinstance(TSymbol('a', REAL_SINGLE_TYPE), TypedSymbol)
-    assert isinstance(TSymbol('a', REAL_DOUBLE_TYPE), TypedSymbol)
-    assert isinstance(TSymbol('a', REAL4_TYPE), TypedSymbol)
-    kind = DataSymbol('r_def', INTEGER_SINGLE_TYPE)
+    assert isinstance(TSymbol('a', ScalarType.real_single_type()), TypedSymbol)
+    assert isinstance(TSymbol('a', ScalarType.real_double_type()), TypedSymbol)
+    assert isinstance(TSymbol('a', ScalarType.real4_type()), TypedSymbol)
+    kind = DataSymbol('r_def', ScalarType.integer_single_type())
     real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(kind))
     assert isinstance(TSymbol('a', real_kind_type), TypedSymbol)
-    assert isinstance(TSymbol('a', INTEGER_SINGLE_TYPE), TypedSymbol)
-    assert isinstance(TSymbol('a', INTEGER_DOUBLE_TYPE), TypedSymbol)
-    assert isinstance(TSymbol('a', INTEGER4_TYPE), TypedSymbol)
+    assert isinstance(TSymbol('a', ScalarType.integer_single_type()),
+                      TypedSymbol)
+    assert isinstance(TSymbol('a', ScalarType.integer_double_type()),
+                      TypedSymbol)
+    assert isinstance(TSymbol('a', ScalarType.integer4_type()), TypedSymbol)
 
-    assert isinstance(TSymbol('a', CHARACTER_TYPE), TypedSymbol)
-    assert isinstance(TSymbol('a', BOOLEAN_TYPE), TypedSymbol)
-    array_type = ArrayType(REAL_SINGLE_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    assert isinstance(TSymbol('a', ScalarType.character_type()), TypedSymbol)
+    assert isinstance(TSymbol('a', ScalarType.boolean_type()), TypedSymbol)
+    array_type = ArrayType(ScalarType.real_single_type(),
+                           [ArrayType.Extent.ATTRIBUTE])
     assert isinstance(TSymbol('a', array_type), TypedSymbol)
 
-    array_type = ArrayType(REAL_SINGLE_TYPE, [3])
+    array_type = ArrayType(ScalarType.real_single_type(), [3])
     assert isinstance(TSymbol('a', array_type), TypedSymbol)
-    array_type = ArrayType(REAL_SINGLE_TYPE, [3, 6])
+    array_type = ArrayType(ScalarType.real_single_type(), [3, 6])
     assert isinstance(TSymbol('a', array_type), TypedSymbol)
-    assert isinstance(TSymbol('a', REAL_SINGLE_TYPE), TypedSymbol)
-    assert isinstance(TSymbol('a', REAL8_TYPE), TypedSymbol)
-    dim = DataSymbol('dim', INTEGER_SINGLE_TYPE,
+    assert isinstance(TSymbol('a', ScalarType.real_single_type()), TypedSymbol)
+    assert isinstance(TSymbol('a', ScalarType.real8_type()), TypedSymbol)
+    dim = DataSymbol('dim', ScalarType.integer_single_type(),
                      interface=UnresolvedInterface())
-    array_type = ArrayType(REAL_SINGLE_TYPE, [Reference(dim)])
+    array_type = ArrayType(ScalarType.real_single_type(), [Reference(dim)])
     assert isinstance(TSymbol('a', array_type), TypedSymbol)
-    array_type = ArrayType(REAL_SINGLE_TYPE,
+    array_type = ArrayType(ScalarType.real_single_type(),
                            [ArrayType.Extent.ATTRIBUTE,
                             ArrayType.Extent.ATTRIBUTE])
     assert isinstance(TSymbol('a', array_type), TypedSymbol)
@@ -133,8 +133,8 @@ def test_typedsymbol_specialise_and_process_arguments():
 
     # Include a datatype
     sym2 = Symbol("symbol2")
-    sym2.specialise(TSymbol, datatype=REAL_SINGLE_TYPE)
-    assert sym2.datatype is REAL_SINGLE_TYPE
+    sym2.specialise(TSymbol, datatype=ScalarType.real_single_type())
+    assert sym2.datatype == ScalarType.real_single_type()
 
 
 def test_typed_symbol_scalar_array():
@@ -143,9 +143,9 @@ def test_typed_symbol_scalar_array():
     is_array returns True if the TypedSymbol is an array and False if not.
 
     '''
-    sym1 = DataSymbol("s1", INTEGER_SINGLE_TYPE,
+    sym1 = DataSymbol("s1", ScalarType.integer_single_type(),
                       interface=UnresolvedInterface())
-    array_type = ArrayType(REAL_SINGLE_TYPE, [2, Reference(sym1)])
+    array_type = ArrayType(ScalarType.real_single_type(), [2, Reference(sym1)])
     sym2 = TSymbol("s2", array_type)
     assert sym1.is_scalar
     assert not sym1.is_array
@@ -158,7 +158,7 @@ def test_typed_symbol_copy():
     of the original symbol.
 
     '''
-    array_type = ArrayType(REAL_SINGLE_TYPE, [1, 2])
+    array_type = ArrayType(ScalarType.real_single_type(), [1, 2])
     symbol = TSymbol("myname", array_type)
     new_symbol = symbol.copy()
 
@@ -199,9 +199,9 @@ def test_typed_symbol_copy():
 
 def test_typed_symbol_copy_properties():
     ''' Check that the copy_properties() method works as expected. '''
-    array_type = ArrayType(REAL_SINGLE_TYPE, [1, 2])
+    array_type = ArrayType(ScalarType.real_single_type(), [1, 2])
     symbol = TSymbol("myname", array_type)
-    new_sym = TSymbol("new_name", INTEGER_SINGLE_TYPE,
+    new_sym = TSymbol("new_name", ScalarType.integer_single_type(),
                       interface=UnresolvedInterface())
     new_sym.copy_properties(symbol, exclude_interface=True)
     # Name should be unchanged, as should interface.
@@ -212,14 +212,14 @@ def test_typed_symbol_copy_properties():
     new_sym.copy_properties(symbol)
     assert isinstance(new_sym.interface, AutomaticInterface)
     with pytest.raises(TypeError) as err:
-        new_sym.copy_properties(INTEGER_SINGLE_TYPE)
+        new_sym.copy_properties(ScalarType.integer_single_type())
     assert ("Argument should be of type 'TypedSymbol' but found 'ScalarType'"
             in str(err.value))
 
 
 def test_typed_symbol_resolve_type(monkeypatch):
     ''' Test the TypedSymbol resolve_type method '''
-    symbola = TSymbol('a', INTEGER_SINGLE_TYPE)
+    symbola = TSymbol('a', ScalarType.integer_single_type())
     new_sym = symbola.resolve_type()
     # For a TypedSymbol (unlike a Symbol), resolve_type should always
     # return the object on which it was called.
@@ -231,10 +231,10 @@ def test_typed_symbol_resolve_type(monkeypatch):
     # Monkeypatch the get_external_symbol() method so that it just returns
     # a new DataSymbol
     monkeypatch.setattr(symbolb, "get_external_symbol",
-                        lambda: TSymbol("b", INTEGER_SINGLE_TYPE))
+                        lambda: TSymbol("b", ScalarType.integer_single_type()))
     new_sym = symbolb.resolve_type()
     assert new_sym is symbolb
-    assert new_sym.datatype == INTEGER_SINGLE_TYPE
+    assert new_sym.datatype == ScalarType.integer_single_type()
     assert new_sym.visibility == Symbol.Visibility.PRIVATE
     assert isinstance(new_sym.interface, ImportInterface)
     # Repeat for an imported RoutineSymbol with NoType (implying that it is
@@ -253,16 +253,16 @@ def test_typed_symbol_resolve_type(monkeypatch):
 
 def test_typed_symbol_shape():
     ''' Test that shape works for both scalars and arrays.'''
-    data_symbol = TSymbol("a", REAL4_TYPE)
+    data_symbol = TSymbol("a", ScalarType.real4_type())
     assert data_symbol.shape == []
-    symbol2 = TSymbol("b", ArrayType(INTEGER_SINGLE_TYPE, [5]))
+    symbol2 = TSymbol("b", ArrayType(ScalarType.integer_single_type(), [5]))
     assert len(symbol2.shape) == 1
     assert symbol2.shape[0].upper.value == "5"
     symbol3 = TSymbol("c", UnsupportedFortranType("integer, pointer :: c"))
     assert symbol3.shape == []
     symbol4 = TSymbol("d", UnsupportedFortranType(
         "integer, pointer :: c",
-        partial_datatype=ArrayType(INTEGER_SINGLE_TYPE, [10])))
+        partial_datatype=ArrayType(ScalarType.integer_single_type(), [10])))
     assert len(symbol4.shape) == 1
     assert symbol4.shape[0].upper.value == "10"
 
@@ -274,7 +274,7 @@ def test_typed_symbol_replace_symbols_using(table):
     definition of a TypedSymbol.
 
     '''
-    kind = DataSymbol('r_def', INTEGER_SINGLE_TYPE)
+    kind = DataSymbol('r_def', ScalarType.integer_single_type())
     real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(kind))
     sym = TSymbol("a", real_kind_type)
     new_kind = kind.copy()
@@ -303,7 +303,7 @@ def test_typed_symbol_get_all_accessed_symbols():
     Test the get_all_accessed_symbols() method of TypedSymbol.
     '''
     # When the type has a custom precision.
-    kind = DataSymbol('r_def', INTEGER_SINGLE_TYPE)
+    kind = DataSymbol('r_def', ScalarType.integer_single_type())
     real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(kind))
     sym = TSymbol("a", real_kind_type)
     dependent_symbols = sym.get_all_accessed_symbols()

@@ -57,7 +57,7 @@ PROFILE_LINK ?=
 #         use profile_psy_data_mod, only : profile_PSyDataInit
 #         call profile_PSyDataInit()
 #
-# (git clone https://bitbucket.org/apeg/dl_timer.git
+# (git clone https://github.com/stfc/dl_timer.git
 #  cd dl_timer; . compiler_setup/gnu_setup.sh; make sm_lib)
 #PROFILE_WRAPPER_DIR ?= ../../../../lib/profiling/dl_timer
 #PROFILE_WRAPPER_LIB ?= ${PROFILE_WRAPPER_DIR}/libdl_timer_psy.a
