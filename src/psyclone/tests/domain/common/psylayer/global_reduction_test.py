@@ -45,7 +45,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.domain.common.psylayer import GlobalReduction
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.nodes.node import colored
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import ScalarType
 from psyclone.tests.utilities import get_invoke
 
 
@@ -82,7 +82,7 @@ def test_globalreduction_children_validation():
             gsum = child
             break
     with pytest.raises(GenerationError) as excinfo:
-        gsum.addchild(Literal("2", INTEGER_TYPE))
+        gsum.addchild(Literal("2", ScalarType.integer_type()))
     assert ("Item 'Literal' can't be child 0 of 'LFRicGlobalSum'. "
             "LFRicGlobalSum is a LeafNode and doesn't accept children."
             in str(excinfo.value))

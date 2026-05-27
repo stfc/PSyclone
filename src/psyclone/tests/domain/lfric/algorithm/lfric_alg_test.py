@@ -50,7 +50,7 @@ from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, UnresolvedType, DataTypeSymbol,
-    ImportInterface, ArrayType, ScalarType, INTEGER_TYPE)
+    ImportInterface, ArrayType, ScalarType)
 
 # Constants
 BASE_PATH = os.path.join(
@@ -186,9 +186,9 @@ def test_initialise_field(prog, fortran_writer):
     # Add symbols for the necessary function spaces but for simplicity
     # make them of integer type.
     table.new_symbol("vector_space_w3_ptr", symbol_type=DataSymbol,
-                     datatype=INTEGER_TYPE)
+                     datatype=ScalarType.integer_type())
     table.new_symbol("vector_space_w2_ptr", symbol_type=DataSymbol,
-                     datatype=INTEGER_TYPE)
+                     datatype=ScalarType.integer_type())
     # First - a single field argument.
     sym = table.new_symbol("field1", symbol_type=DataSymbol, datatype=ftype)
     LFRicAlg().initialise_field(prog, sym, "w3")
@@ -215,10 +215,14 @@ def test_initialise_quadrature(prog, fortran_writer):
     ''' Tests for the initialise_quadrature function with the supported
     XYoZ shape. '''
     table = prog.symbol_table
-    table.new_symbol("element_order_h", tag="element_order_h",
-                     symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-    table.new_symbol("element_order_v", tag="element_order_v",
-                     symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    table.new_symbol("element_order_h",
+                     tag="element_order_h",
+                     symbol_type=DataSymbol,
+                     datatype=ScalarType.integer_type())
+    table.new_symbol("element_order_v",
+                     tag="element_order_v",
+                     symbol_type=DataSymbol,
+                     datatype=ScalarType.integer_type())
     # Setup symbols that would normally be created in KernCallInvokeArgList.
     quad_container = table.new_symbol(
         "quadrature_xyoz_mod", symbol_type=ContainerSymbol)
@@ -244,10 +248,14 @@ def test_initialise_quadrature_unsupported_shape(prog):
     ''' Test that the initialise_quadrature function raises the expected error
     for an unsupported quadrature shape. '''
     table = prog.symbol_table
-    table.new_symbol("element_order_h", tag="element_order_h",
-                     symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-    table.new_symbol("element_order_v", tag="element_order_v",
-                     symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    table.new_symbol("element_order_h",
+                     tag="element_order_h",
+                     symbol_type=DataSymbol,
+                     datatype=ScalarType.integer_type())
+    table.new_symbol("element_order_v",
+                     tag="element_order_v",
+                     symbol_type=DataSymbol,
+                     datatype=ScalarType.integer_type())
     # Setup symbols that would normally be created in KernCallInvokeArgList.
     quad_container = table.new_symbol(
         "quadrature_xyz_mod", symbol_type=ContainerSymbol)

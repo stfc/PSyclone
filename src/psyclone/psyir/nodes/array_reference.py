@@ -46,7 +46,7 @@ from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import (
     DataSymbol, UnresolvedType, UnsupportedFortranType, UnsupportedType,
-    DataTypeSymbol, ArrayType, INTEGER_TYPE, Symbol, DataType)
+    DataTypeSymbol, ArrayType, ScalarType, Symbol, DataType)
 
 
 class ArrayReference(ArrayMixin, Reference):
@@ -104,11 +104,11 @@ class ArrayReference(ArrayMixin, Reference):
                 lbound = IntrinsicCall.create(
                     IntrinsicCall.Intrinsic.LBOUND,
                     [Reference(symbol),
-                     ("dim", Literal(f"{ind+1}", INTEGER_TYPE))])
+                     ("dim", Literal(f"{ind+1}", ScalarType.integer_type()))])
                 ubound = IntrinsicCall.create(
                     IntrinsicCall.Intrinsic.UBOUND,
                     [Reference(symbol),
-                     ("dim", Literal(f"{ind+1}", INTEGER_TYPE))])
+                     ("dim", Literal(f"{ind+1}", ScalarType.integer_type()))])
                 my_range = Range.create(lbound, ubound)
                 array.addchild(my_range)
             else:

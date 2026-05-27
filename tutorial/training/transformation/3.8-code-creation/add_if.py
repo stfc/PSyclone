@@ -45,7 +45,7 @@ import os
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.transformations import OMPParallelLoopTrans
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.nodes import (BinaryOperation, FileContainer, IfBlock,
                                   Literal, Loop, Routine, Schedule)
 
@@ -103,7 +103,7 @@ def trans(psyir: FileContainer) -> None:
         # Create `stop-start >= 99`:
         expr = BinaryOperation.create(BinaryOperation.Operator.GE,
                                       TODO,
-                                      Literal("99", INTEGER_TYPE))
+                                      Literal("99", ScalarType.integer_type()))
 
     # We first create a new if statement, with the above condition
     # and a copy of the loop as if-body, but no else body:

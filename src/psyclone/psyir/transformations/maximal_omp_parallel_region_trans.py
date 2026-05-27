@@ -65,6 +65,7 @@ class MaximalOMPParallelRegionTrans(MaximalRegionTrans):
     the discussion on #3205 for more detail.'''
     # The type of parallel transformation to be applied to the input region.
     _transformation = OMPParallelTrans
+    _SUB_TRANSFORMATIONS = [OMPParallelTrans]
     # Tuple of statement nodes allowed inside the _transformation
     _allowed_contiguous_statements = (
         OMPTaskwaitDirective,

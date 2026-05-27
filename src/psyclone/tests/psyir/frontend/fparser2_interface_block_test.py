@@ -49,7 +49,7 @@ from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import (
-    DataSymbol, DataTypeSymbol, GenericInterfaceSymbol, INTEGER_TYPE,
+    DataSymbol, DataTypeSymbol, GenericInterfaceSymbol, ScalarType,
     NoType, RoutineSymbol, Symbol, SymbolTable, UnsupportedFortranType)
 
 
@@ -222,7 +222,7 @@ def test_named_interface_wrong_symbol_type(f2008_parser):
     # Add a DataSymbol with the same name as one of the routines referred to by
     # the interface.
     table.new_symbol("test_code_r4", symbol_type=DataSymbol,
-                     datatype=INTEGER_TYPE)
+                     datatype=ScalarType.integer_type())
     processor = Fparser2Reader()
     # This should raise an InternalError...
     with pytest.raises(InternalError) as err:

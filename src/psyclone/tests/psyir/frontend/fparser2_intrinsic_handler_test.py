@@ -50,7 +50,7 @@ from psyclone.psyir.frontend.fparser2 import (
 from psyclone.psyir.nodes import (
     Schedule, Assignment, Reference, IntrinsicCall, Literal, CodeBlock)
 from psyclone.psyir.symbols import (
-    REAL_TYPE, DataSymbol, UnsupportedFortranType, INTEGER_TYPE, SymbolTable,
+    ScalarType, DataSymbol, UnsupportedFortranType, SymbolTable,
     ArrayType, RoutineSymbol, AutomaticInterface)
 
 
@@ -63,17 +63,18 @@ def make_symbol_table():
     '''
     symbol_table = SymbolTable()
     symbol_table.new_symbol("x", symbol_type=DataSymbol,
-                            datatype=REAL_TYPE)
+                            datatype=ScalarType.real_type())
     symbol_table.new_symbol("a", symbol_type=DataSymbol,
-                            datatype=REAL_TYPE)
+                            datatype=ScalarType.real_type())
     symbol_table.new_symbol("b", symbol_type=DataSymbol,
-                            datatype=REAL_TYPE)
+                            datatype=ScalarType.real_type())
     symbol_table.new_symbol("c", symbol_type=DataSymbol,
-                            datatype=REAL_TYPE)
+                            datatype=ScalarType.real_type())
     symbol_table.new_symbol("idx", symbol_type=DataSymbol,
-                            datatype=INTEGER_TYPE)
+                            datatype=ScalarType.integer_type())
     symbol_table.new_symbol("mask", symbol_type=DataSymbol,
-                            datatype=ArrayType(INTEGER_TYPE, [10]))
+                            datatype=ArrayType(ScalarType.integer_type(),
+                                               [10]))
     return symbol_table
 
 
@@ -312,16 +313,17 @@ def test_handling_nested_intrinsic():
     fake_parent = Schedule()
     # Declare all the symbols needed by the test code.
     symtab = fake_parent.symbol_table
-    symtab.add(DataSymbol("jk", INTEGER_TYPE))
-    symtab.add(DataSymbol("wp", INTEGER_TYPE,
+    symtab.add(DataSymbol("jk", ScalarType.integer_type()))
+    symtab.add(DataSymbol("wp", ScalarType.integer_type(),
                           is_constant=True,
-                          initial_value=Literal("4", INTEGER_TYPE)))
-    symtab.add(DataSymbol("rcpi", REAL_TYPE))
-    symtab.add(DataSymbol("rLfus", REAL_TYPE))
-    symtab.add(DataSymbol("ze_z", REAL_TYPE))
-    symtab.add(DataSymbol("zbbb", REAL_TYPE))
-    symtab.add(DataSymbol("zccc", REAL_TYPE))
-    symtab.add(DataSymbol("ztmelts", REAL_TYPE))
+                          initial_value=Literal(
+                              "4", ScalarType.integer_type())))
+    symtab.add(DataSymbol("rcpi", ScalarType.real_type()))
+    symtab.add(DataSymbol("rLfus", ScalarType.real_type()))
+    symtab.add(DataSymbol("ze_z", ScalarType.real_type()))
+    symtab.add(DataSymbol("zbbb", ScalarType.real_type()))
+    symtab.add(DataSymbol("zccc", ScalarType.real_type()))
+    symtab.add(DataSymbol("ztmelts", ScalarType.real_type()))
     symtab.add(DataSymbol("e1t", UnsupportedFortranType("blah :: e1t")))
     symtab.add(DataSymbol("e2t", UnsupportedFortranType("blah :: e2t")))
     symtab.add(DataSymbol(

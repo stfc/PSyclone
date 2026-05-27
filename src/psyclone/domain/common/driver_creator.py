@@ -51,8 +51,8 @@ from psyclone.psyir.nodes import (
     Call, ExtractNode, FileContainer, Literal, Node, Reference, Routine,
     StructureReference)
 from psyclone.psyir.symbols import (
-    CHARACTER_TYPE, ContainerSymbol, DataTypeSymbol, ImportInterface,
-    INTEGER_TYPE, NoType, RoutineSymbol, DataSymbol, UnsupportedFortranType,
+    ScalarType, ContainerSymbol, DataTypeSymbol, ImportInterface,
+    NoType, RoutineSymbol, DataSymbol, UnsupportedFortranType,
     Symbol, AutomaticInterface, UnresolvedType, SymbolTable)
 from psyclone.psyir.tools import ReadWriteInfo
 
@@ -177,12 +177,12 @@ class DriverCreator:
 
         DriverCreator.add_call(program, "compare_init",
                                [Literal(f"{len(output_symbols)}",
-                                        INTEGER_TYPE)])
+                                        ScalarType.integer_type())])
 
         # TODO #2083: check if this can be combined with psyad result
         # comparison.
         for (sym_computed, sym_read) in output_symbols:
-            lit_name = Literal(sym_computed.name, CHARACTER_TYPE)
+            lit_name = Literal(sym_computed.name, ScalarType.character_type())
             DriverCreator.add_call(program, "compare",
                                    [lit_name, Reference(sym_computed),
                                     Reference(sym_read)])
@@ -250,7 +250,7 @@ class DriverCreator:
             post_tag = f"{name}{postfix}@{module_name}"
         else:
             post_tag = f"{name}{postfix}"
-        name_lit = Literal(post_tag, CHARACTER_TYPE)
+        name_lit = Literal(post_tag, ScalarType.character_type())
         DriverCreator.add_read_call(program, name_lit, post_sym, read_var)
 
         return (sym, post_sym)
@@ -308,7 +308,8 @@ class DriverCreator:
                 symbol_table.add(sym)
                 # Only add the variable if it is not to be ignored
                 if (module_name, signature) not in vars_to_ignore:
-                    name_lit = Literal(str(signature), CHARACTER_TYPE)
+                    name_lit = Literal(str(signature),
+                                       ScalarType.character_type())
                     read_stmts.append((name_lit, sym))
 
         # Now do the input external variables. These are done after the locals
@@ -322,7 +323,7 @@ class DriverCreator:
                 orig_sym = mod_info.get_symbol(signature[0])
                 tag = f"{signature[0]}@{module_name}"
                 sym = symbol_table.lookup_with_tag(tag)
-                name_lit = Literal(tag, CHARACTER_TYPE)
+                name_lit = Literal(tag, ScalarType.character_type())
                 read_stmts.append((name_lit, sym))
 
         for name_lit, sym in read_stmts:
@@ -470,14 +471,14 @@ class DriverCreator:
             else:
                 psydata_arg = str_unique_name
 
-        psydata_len = \
-            program_symbol_table.find_or_create("psydata_len",
-                                                symbol_type=DataSymbol,
-                                                datatype=INTEGER_TYPE).name
-        psydata_i = \
-            program_symbol_table.find_or_create("psydata_i",
-                                                symbol_type=DataSymbol,
-                                                datatype=INTEGER_TYPE).name
+        psydata_len = program_symbol_table.find_or_create(
+            "psydata_len",
+            symbol_type=DataSymbol,
+            datatype=ScalarType.integer_type()).name
+        psydata_i = program_symbol_table.find_or_create(
+            "psydata_i",
+            symbol_type=DataSymbol,
+            datatype=ScalarType.integer_type()).name
         # We can only parse one statement at a time, so start with the
         # command line handling:
         code = f"""

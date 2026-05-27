@@ -41,7 +41,7 @@ import logging
 
 import pytest
 
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.nodes import (
     Assignment, IfBlock, Loop, OMPParallelDoDirective, Routine, WhileLoop,
     Literal
@@ -768,9 +768,9 @@ def test_paralooptrans_array_privatisation_complex_control_flow(
     routine = psyir.children[0]
     children = routine.pop_all_children()
     routine.addchild(Loop.create(routine.symbol_table.lookup("i"),
-                                 Literal("1", INTEGER_TYPE),
-                                 Literal("2", INTEGER_TYPE),
-                                 Literal("1", INTEGER_TYPE),
+                                 Literal("1", ScalarType.integer_type()),
+                                 Literal("2", ScalarType.integer_type()),
+                                 Literal("1", ScalarType.integer_type()),
                                  children))
 
     with pytest.raises(TransformationError) as err:

@@ -43,7 +43,7 @@ from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.psyir.nodes import Return, KernelSchedule, Literal
 from psyclone.psyir.symbols import (
     DataSymbol, SymbolTable, ArgumentInterface, UnresolvedInterface, ArrayType,
-    REAL_TYPE, INTEGER_TYPE)
+    ScalarType)
 
 
 def test_oclw_initialization():
@@ -74,13 +74,14 @@ def test_oclw_gen_id_variable():
 
     '''
     oclwriter = OpenCLWriter()
-    symbol = DataSymbol("id1", INTEGER_TYPE)
+    symbol = DataSymbol("id1", ScalarType.integer_type())
     result = oclwriter.gen_id_variable(symbol, 3)
     assert result == "int id1 = get_global_id(3);\n"
 
-    array_type = ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE,
-                                          ArrayType.Extent.ATTRIBUTE,
-                                          ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(ScalarType.integer_type(),
+                           [ArrayType.Extent.ATTRIBUTE,
+                            ArrayType.Extent.ATTRIBUTE,
+                            ArrayType.Extent.ATTRIBUTE])
     symbol = DataSymbol("array", array_type)
     with pytest.raises(VisitorError) as excinfo:
         _ = oclwriter.gen_id_variable(symbol, 3)
@@ -97,14 +98,15 @@ def test_oclw_gen_declaration():
 
     # Basic entry - Scalar are passed by value and don't have additional
     # qualifiers.
-    symbol = DataSymbol("dummy1", INTEGER_TYPE)
+    symbol = DataSymbol("dummy1", ScalarType.integer_type())
     result = oclwriter.gen_declaration(symbol)
     assert result == "int dummy1"
 
     # Array argument has a memory qualifier (only __global for now)
-    array_type = ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE,
-                                          ArrayType.Extent.ATTRIBUTE,
-                                          ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(ScalarType.integer_type(),
+                           [ArrayType.Extent.ATTRIBUTE,
+                            ArrayType.Extent.ATTRIBUTE,
+                            ArrayType.Extent.ATTRIBUTE])
     symbol = DataSymbol("dummy2", array_type)
     result = oclwriter.gen_declaration(symbol)
     assert result == "__global int * restrict dummy2"
@@ -117,9 +119,10 @@ def test_oclw_gen_declaration():
     assert result == "__global int * restrict dummy2"
 
     # Array with a lower bound other than 1
-    two = Literal("2", INTEGER_TYPE)
-    five = Literal("5", INTEGER_TYPE)
-    array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.ArrayBounds(two, five)])
+    two = Literal("2", ScalarType.integer_type())
+    five = Literal("5", ScalarType.integer_type())
+    array_type = ArrayType(ScalarType.integer_type(),
+                           [2, ArrayType.ArrayBounds(two, five)])
     symbol = DataSymbol("dummy3", array_type)
     with pytest.raises(VisitorError) as err:
         oclwriter.gen_declaration(symbol)
@@ -135,20 +138,21 @@ def test_oclw_gen_array_length_variables():
     oclwriter = OpenCLWriter()
 
     # A scalar should not return any LEN variables
-    symbol1 = DataSymbol("dummy2LEN1", INTEGER_TYPE)
+    symbol1 = DataSymbol("dummy2LEN1", ScalarType.integer_type())
     result = oclwriter.gen_array_length_variables(symbol1)
     assert result == ""
 
     # Array with 1 dimension generates 1 length variable
-    array_type = ArrayType(INTEGER_TYPE, [2])
+    array_type = ArrayType(ScalarType.integer_type(), [2])
     symbol2 = DataSymbol("dummy1", array_type)
     result = oclwriter.gen_array_length_variables(symbol2)
     assert result == "int dummy1LEN1 = get_global_size(0);\n"
 
     # Array with multiple dimension generates one variable per dimension
-    array_type = ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE,
-                                          ArrayType.Extent.ATTRIBUTE,
-                                          ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(ScalarType.integer_type(),
+                           [ArrayType.Extent.ATTRIBUTE,
+                            ArrayType.Extent.ATTRIBUTE,
+                            ArrayType.Extent.ATTRIBUTE])
     symbol3 = DataSymbol("dummy2", array_type)
     result = oclwriter.gen_array_length_variables(symbol3)
     assert result == "int dummy2LEN1 = get_global_size(0);\n" \
@@ -203,9 +207,9 @@ def test_oclw_kernelschedule():
 
     # Create a sample symbol table and kernel schedule
     interface = ArgumentInterface(ArgumentInterface.Access.UNKNOWN)
-    i = DataSymbol('i', INTEGER_TYPE, interface=interface)
-    j = DataSymbol('j', INTEGER_TYPE, interface=interface)
-    array_type = ArrayType(REAL_TYPE, [10, 10])
+    i = DataSymbol('i', ScalarType.integer_type(), interface=interface)
+    j = DataSymbol('j', ScalarType.integer_type(), interface=interface)
+    array_type = ArrayType(ScalarType.real_type(), [10, 10])
     data1 = DataSymbol('data1', array_type, interface=interface)
     data2 = DataSymbol('data2', array_type, interface=interface)
     kschedule.symbol_table.add(i)
@@ -251,7 +255,7 @@ def test_oclw_kernelschedule():
 
     # Add a symbol with an UnresolvedInterface and check that this raises the
     # expected error
-    array_type = ArrayType(REAL_TYPE, [10, 10])
+    array_type = ArrayType(ScalarType.real_type(), [10, 10])
     kschedule.symbol_table.add(DataSymbol('broken', array_type,
                                           interface=UnresolvedInterface()))
     with pytest.raises(VisitorError) as err:

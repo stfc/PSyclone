@@ -51,9 +51,8 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArrayType,
-    BOOLEAN_TYPE,
+    ScalarType,
     DataSymbol,
-    INTEGER_TYPE,
     StructureType,
     SymbolError,
     SymbolTable,
@@ -71,7 +70,7 @@ from psyclone.psyir.nodes.call import CallMatchingArgumentsNotFound
 from psyclone.utils import transformation_documentation_wrapper
 
 
-_ONE = Literal("1", INTEGER_TYPE)
+_ONE = Literal("1", ScalarType.integer_type())
 
 
 @transformation_documentation_wrapper
@@ -142,6 +141,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         Some of these restrictions will be lifted by #924.
 
     '''
+
     def apply(self,
               node: Call,
               routine: Optional[Routine] = None,
@@ -578,9 +578,11 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                                                            None)
                 if is_present:
                     # The argument is present.
-                    intrinsic_call.replace_with(Literal("true", BOOLEAN_TYPE))
+                    intrinsic_call.replace_with(
+                        Literal("true", ScalarType.boolean_type()))
                 else:
-                    intrinsic_call.replace_with(Literal("false", BOOLEAN_TYPE))
+                    intrinsic_call.replace_with(
+                        Literal("false", ScalarType.boolean_type()))
 
     def _optional_arg_eliminate_ifblock_if_const_condition(
         self, routine_node: Routine

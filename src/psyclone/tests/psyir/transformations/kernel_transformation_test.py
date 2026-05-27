@@ -49,7 +49,7 @@ from psyclone.generator import GenerationError
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import (Call, Container, Routine, FileContainer,
                                   IntrinsicCall)
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations import (
     TransformationError, OMPDeclareTargetTrans)
 from psyclone.transformations import ACCRoutineTrans, LFRicKernelConstTrans
@@ -183,7 +183,8 @@ end module my_mod'''
             "KernelImportsToArguments transformation." in str(err.value))
     # Specialise the imported symbol and make it constant.
     sym = psyir.children[0].symbol_table.lookup("some_data")
-    sym.specialise(DataSymbol, datatype=INTEGER_TYPE, is_constant=True)
+    sym.specialise(DataSymbol, datatype=ScalarType.integer_type(),
+                   is_constant=True)
     # Validation should now pass.
     rtrans.validate(routine)
 

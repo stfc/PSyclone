@@ -43,7 +43,7 @@ from psyclone.psyir.nodes import (
     Assignment, Reference
 )
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE
+    DataSymbol, ScalarType
 )
 from psyclone.psyir.transformations import (
     DataNodeToTempTrans, TransformationError
@@ -116,7 +116,7 @@ def test_datanodetotemptrans_validate(fortran_reader):
             "provided types." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        dtrans.validate(Reference(DataSymbol("a", INTEGER_TYPE)))
+        dtrans.validate(Reference(DataSymbol("a", ScalarType.integer_type())))
     assert ("Input node to DataNodeToTempTrans has no ancestor Statement "
             "node which is not supported." in str(err.value))
 

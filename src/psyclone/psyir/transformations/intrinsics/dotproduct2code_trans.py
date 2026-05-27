@@ -46,8 +46,7 @@ better than the intrinsic.
 
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
     Loop, Literal, ArrayReference, Range, Routine, IntrinsicCall
-from psyclone.psyir.symbols import (DataSymbol, INTEGER_TYPE, REAL_TYPE,
-                                    ScalarType)
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import \
@@ -109,6 +108,7 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
     <BLANKLINE>
 
     '''
+
     def __init__(self):
         super().__init__()
         self._intrinsic = IntrinsicCall.Intrinsic.DOT_PRODUCT
@@ -223,7 +223,7 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
 
         # Create new i loop iterator.
         i_loop_symbol = symbol_table.new_symbol(
-            "i", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            "i", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
 
         # Create temporary result variable. Use the datatype of one of
         # the arguments. We can do this as the validate method only
@@ -276,11 +276,12 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
             lower_bound, upper_bound = bounds2[0], bounds2[1]
         # Create i loop and add the above code as a child
         iloop = Loop.create(i_loop_symbol, lower_bound,
-                            upper_bound, Literal("1", INTEGER_TYPE),
+                            upper_bound,
+                            Literal("1", ScalarType.integer_type()),
                             [assign])
         # Create "result = 0.0"
         assign = Assignment.create(result_ref.copy(),
-                                   Literal("0.0", REAL_TYPE))
+                                   Literal("0.0", ScalarType.real_type()))
         # Add the initialisation and loop nodes into the PSyIR tree
         assignment.parent.children.insert(assignment.position, assign)
         assignment.parent.children.insert(assignment.position, iloop)

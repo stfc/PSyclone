@@ -67,10 +67,10 @@ from psyclone.psyir.nodes import (
     WhileLoop, Fparser2CodeBlock, ScopingNode, UnknownDirective)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
-    ArgumentInterface, ArrayType, AutomaticInterface, CHARACTER_TYPE,
+    ArgumentInterface, ArrayType, AutomaticInterface, ScalarType,
     CommonBlockInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,
     DefaultModuleInterface, GenericInterfaceSymbol, ImportInterface,
-    INTEGER_TYPE, NoType, RoutineSymbol, ScalarType, StaticInterface,
+    NoType, RoutineSymbol, StaticInterface,
     StructureType, Symbol, SymbolError, UnknownInterface,
     UnresolvedInterface, UnresolvedType, UnsupportedFortranType,
     UnsupportedType, SymbolTable)
@@ -1320,7 +1320,7 @@ class Fparser2Reader():
                                Explicit_Shape_Spec or Assumed_Size_Spec.
 
         '''
-        one = Literal("1", INTEGER_TYPE)
+        one = Literal("1", ScalarType.integer_type())
         shape = []
         # Traverse shape specs in Depth-first-search order
         for dim in walk(dimensions, (Fortran2003.Assumed_Shape_Spec,
@@ -2416,7 +2416,7 @@ class Fparser2Reader():
                 # If it has a length_selector it is a string, we do not
                 # support it yet but we can set the partial datatype as
                 # an ArrayType of CHARACTER
-                datatype = ArrayType(CHARACTER_TYPE,
+                datatype = ArrayType(ScalarType.character_type(),
                                      [ArrayType.Extent.DEFERRED])
 
         # Restore the fparser2 parse tree
@@ -3880,7 +3880,8 @@ class Fparser2Reader():
             # original select type clauses.
             clause = BinaryOperation.create(
                 BinaryOperation.Operator.EQ, Reference(type_string_symbol),
-                Literal(select_type.guard_type_name[idx], CHARACTER_TYPE))
+                Literal(select_type.guard_type_name[idx],
+                        ScalarType.character_type()))
 
             ifblock.addchild(clause)
             # Add If_body
@@ -4035,7 +4036,8 @@ class Fparser2Reader():
         # parent here and compute and return the if statement in a
         # subsequent routine (using the type_string_symbol).
         parent.addchild(Assignment.create(
-            Reference(type_string_symbol), Literal("", CHARACTER_TYPE)))
+            Reference(type_string_symbol),
+            Literal("", ScalarType.character_type())))
         parent.addchild(code_block)
 
         return (type_string_symbol, pointer_symbols)
@@ -4529,7 +4531,7 @@ class Fparser2Reader():
                     f"WHERE not supported because '{ref.name}' cannot "
                     f"be converted to an array due to: {error}")
         table = parent.scope.symbol_table
-        one = Literal("1", INTEGER_TYPE)
+        one = Literal("1", ScalarType.integer_type())
         arrays = parent.walk(ArrayMixin)
 
         first_rank = None
@@ -4773,7 +4775,7 @@ class Fparser2Reader():
         # Now create a loop nest of depth `rank`
         add_op = BinaryOperation.Operator.ADD
         sub_op = BinaryOperation.Operator.SUB
-        one = Literal("1", INTEGER_TYPE)
+        one = Literal("1", ScalarType.integer_type())
         new_parent = parent
         for idx in range(rank, 0, -1):
 
@@ -5080,7 +5082,8 @@ class Fparser2Reader():
                 array_name = child.children[0].string
                 new_ref = _create_struct_reference(
                     sched, base_ref, base_sym,
-                    members + [(array_name, [Literal("1", INTEGER_TYPE)])],
+                    members + [(array_name, [
+                        Literal("1", ScalarType.integer_type())])],
                     base_indices)
                 # 'Chase the pointer' all the way to the bottom of the
                 # derived-type reference
@@ -6159,9 +6162,10 @@ class Fparser2Reader():
         # correctly into Directive nodes. PSyclone currently always
         # outputs directives starting with !$
         dont_match = ["!$ompx", "!dir$"]
-        str_rep = str(node).lstrip().lower()
+        str_rep = str(node).lstrip()
+        lcase = str_rep.lower()
         to_direc = all([
-            not str_rep.startswith(prefix) for prefix in dont_match
+            not lcase.startswith(prefix) for prefix in dont_match
         ])
         if to_direc:
             content = str_rep[2:].lstrip()

@@ -55,8 +55,10 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError,
 )
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class ReplaceReferenceByLiteralTrans(Transformation):
     '''
     This transformation takes a psyir Routine and replace all Reference psyir
@@ -67,7 +69,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
 
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
-    >>> from psyclone.psyir.symbols import INTEGER_TYPE
+    >>> from psyclone.psyir.symbols import ScalarType
     >>> from psyclone.psyir.transformations import (
         ReplaceReferenceByLiteralTrans)
     >>> source = """program test
@@ -230,7 +232,8 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         return new_shape
 
     # ------------------------------------------------------------------------
-    def apply(self, node: Routine, options: Optional[Dict[str, Any]] = None):
+    def apply(self, node: Routine, options: Optional[Dict[str, Any]] = None,
+              **kwargs):
         """Applies the transformation to a Routine node:
         * First update a dictionary (param_table) with the Literal of constant
         (parameter) symbol from node.parent symbol_table, and from
@@ -248,6 +251,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         :param node: node on which the transformation is applied
         :param options: a dictionary with options for transformations.
         """
+        # TODO 2668: Remove options.
         ## Reset the param table for the current Routine
         self._param_table = {}
         self.validate(node, options)
@@ -279,7 +283,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
                                              new_shape)
 
     # ------------------------------------------------------------------------
-    def validate(self, node, options=None):
+    def validate(self, node: Routine, options=None, **kwargs):
         """Perform various checks to ensure that it is valid to apply the
         ReplaceReferenceByLiteralTrans transformation to the supplied PSyIR
         Node.
@@ -290,6 +294,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
 
         :raises TransformationError: if the node argument is not a Routine.
         """
+        self.validate_options(**kwargs)
         if not isinstance(node, Routine):
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied node "

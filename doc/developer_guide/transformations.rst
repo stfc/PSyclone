@@ -567,4 +567,48 @@ the ``ParallelLoopTrans`` class for reference):
 7. Repeat this process for any classes that the class inherits from.
 
 
+Transformations options and meta-transformations
+================================================
+
+Sometimes it is useful to implement transformation that in turn call one or
+multiple other transformations. In these cases we often want to propagate the
+kwargs not only to the superclass (by inheritance) but also to the internally
+used transformations, but we cannot pass the whole kwargs everywhere because
+many options will only be valid for certain transformations.
+
+To easily decide which options provide to each transformation we are developing
+the concept of ``_SUB_TRANSFORMATIONS``. Populating this class attribute allows
+`self.split_kwargs(**kwargs)` to return the set of valid kwargs for itself and
+each of the listed transformations, while maintaining the `validate_options`
+functionality. Typically both the apply and the validate need to split the
+kwargs as in the example below:
+
+.. code-block:: python
+
+    class TestMetaTrans(Transformation):
+        ''' MetaTrans Example'''
+        _trans1 = Called1Trans
+        _trans2 = Called2Trans
+        _SUB_TRANSFORMATIONS = [Called1Trans, Called2Trans]
+
+        def validate(self, node, **kwargs):
+            self_kwargs, tr1_kwargs, tr2_kwargs = self.split_kwargs(**kwargs)
+            self._trans1().validate(node, **tr1_kwargs)
+            self._trans2().validate(node, **tr2_kwargs)
+            self.validate_options(**self_kwargs)
+            super().validate(node, **self_kwargs)
+
+		def apply(self, node, my_option):
+		    # Omitted code before using the subtransformations...
+            _, tr1_kwargs, tr2_kwargs = self.split_kwargs(
+                my_option=my_options, **kwargs)
+            self._trans1().apply(node, **tr1_kwargs)
+            self._trans2().apply(node, **tr2_kwargs)
+
+Note that the TestMetaTrans docstring won't mention the SUB_TRANSFORMATIONS
+options, therefore it is currently recommended to explicitly mention the
+relevant internal transformations in the apply docstring with a
+``:py:class:`` tag (to create a link). TODO #3330 will explore automating
+this step.
+
 .. footbibliography::

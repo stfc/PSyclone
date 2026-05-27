@@ -72,7 +72,7 @@ from psyclone.psyir.nodes.omp_directives import (
 from psyclone.psyir.nodes.omp_task_directive import (
     OMPTaskDirective
 )
-from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol
+from psyclone.psyir.symbols import ScalarType, DataSymbol
 
 
 class DynamicOMPTaskDirective(OMPTaskDirective):
@@ -459,19 +459,19 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         if divisor > 1:
             step = BinaryOperation.create(
                 BinaryOperation.Operator.MUL,
-                Literal(f"{divisor}", INTEGER_TYPE),
-                Literal(f"{step_val}", INTEGER_TYPE),
+                Literal(f"{divisor}", ScalarType.integer_type()),
+                Literal(f"{step_val}", ScalarType.integer_type()),
             )
             if divisor > 2:
                 step2 = BinaryOperation.create(
                     BinaryOperation.Operator.MUL,
-                    Literal(f"{divisor-1}", INTEGER_TYPE),
-                    Literal(f"{step_val}", INTEGER_TYPE),
+                    Literal(f"{divisor-1}", ScalarType.integer_type()),
+                    Literal(f"{step_val}", ScalarType.integer_type()),
                 )
             else:
-                step2 = Literal(f"{step_val}", INTEGER_TYPE)
+                step2 = Literal(f"{step_val}", ScalarType.integer_type())
         else:
-            step = Literal(f"{step_val}", INTEGER_TYPE)
+            step = Literal(f"{step_val}", ScalarType.integer_type())
 
         # Create a Binary Operation of the correct format.
         binop = None

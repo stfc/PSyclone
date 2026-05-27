@@ -354,16 +354,14 @@ module test_mod
       ! Comment on assignment 'a = 2'
       a = 2
       ! Comment on elseif block 'elseif (a == 2) then' => CodeBlock
+    elseif (a == 2) then
+      ! Comment on assignment 'a = 3'
+      a = 3
+      ! Comment on else block 'else' => CodeBlock
     else
-      if (a == 2) then
-        ! Comment on assignment 'a = 3'
-        a = 3
-        ! Comment on else block 'else' => CodeBlock
-      else
-        ! Comment on assignment 'a = 4'
-        a = 4
-        ! Comment on 'end if' => CodeBlock
-      end if
+      ! Comment on assignment 'a = 4'
+      a = 4
+      ! Comment on 'end if' => CodeBlock
     end if  ! Inline comment on 'end if'
 
     ! Comment on loop 'do i = 1, 10'
@@ -433,14 +431,12 @@ module test_mod
     if (a == 1) then
       ! Comment on assignment 'a = 2'
       a = 2
+    elseif (a == 2) then
+      ! Comment on assignment 'a = 3'
+      a = 3
     else
-      if (a == 2) then
-        ! Comment on assignment 'a = 3'
-        a = 3
-      else
-        ! Comment on assignment 'a = 4'
-        a = 4
-      end if
+      ! Comment on assignment 'a = 4'
+      a = 4
     end if  ! Inline comment on 'end if'
 
     ! Comment on loop 'do i = 1, 10'
