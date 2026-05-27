@@ -43,7 +43,7 @@ from psyclone.psyir.nodes import (
     Assignment, Loop, Directive, Node, Reference, CodeBlock, Call,
     Routine, Schedule, IntrinsicCall, StructureReference, IfBlock,
     Operation)
-from psyclone.psyir.symbols import DataSymbol, ArrayType
+from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
     HoistTrans, InlineTrans, Maxval2LoopTrans, Sum2LoopTrans, Minval2LoopTrans,
@@ -197,10 +197,6 @@ def normalise_loops(
     :param hoist_argument_expressions: whether to hoist array expressions
         out of the containing Call.
     '''
-    # TODO #3412: This is currently limited to iom_put, we want to expand it
-    # throughout the code
-    if hoist_argument_expressions:
-        iom_put_argument_to_temporary(schedule.walk(Call))
 
     if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
         # Apply the HoistLocalArraysTrans when possible, it cannot be applied
@@ -272,6 +268,20 @@ def normalise_loops(
                 except TransformationError:
                     pass
 
+    if hoist_argument_expressions:
+        hoist_arguments_to_temporaries(schedule.walk(Call))
+        normalise_loops(
+            schedule,
+            hoist_local_arrays=hoist_local_arrays,
+            convert_array_notation=convert_array_notation,
+            loopify_array_intrinsics=loopify_array_intrinsics,
+            convert_range_loops=convert_range_loops,
+            scalarise_loops=scalarise_loops,
+            increase_array_ranks=False,
+            hoist_expressions=hoist_expressions,
+            # Make sure we never repeat this step.
+            hoist_argument_expressions=False,
+        )
     # TODO #1928: In order to perform better on the GPU, nested loops with two
     # sibling inner loops need to be fused or apply loop fission to the
     # top level. This would allow the collapse clause to be applied.
@@ -533,9 +543,9 @@ def add_profiling(children: Union[List[Node], Schedule]):
         MaximalProfilingOutsideDirectivesTrans().apply(children)
 
 
-def iom_put_argument_to_temporary(calls: list[Call]):
-    '''Extracts the second argument of all iom_put calls and puts them
-     in a temporary if they are an Operation with an array datatype.
+def hoist_arguments_to_temporaries(calls: list[Call]):
+    '''Extracts the arguments of all calls and puts them
+     in a temporary result if they are an Operation with an array datatype.
 
     :param calls: The list of calls in a subroutine whose arguments
         may be moved into temporary storage to allow additional potential
@@ -543,13 +553,20 @@ def iom_put_argument_to_temporary(calls: list[Call]):
 
      '''
     for call in calls:
-        if call.symbol.name == "iom_put":
-            for arg in call.arguments:
-                dtype = arg.datatype
-                if (isinstance(dtype, ArrayType) and
-                    (isinstance(arg, Operation) or
-                        isinstance(arg, IntrinsicCall))):
-                    try:
-                        DataNodeToTempTrans().apply(arg, verbose=True)
-                    except TransformationError:
-                        pass
+        for arg in call.arguments:
+            dtype = arg.datatype
+            # Only extract expressions that can potentially be loopfied,
+            # i.e. operations over arrays.
+            if (isinstance(dtype, ArrayType) and
+                (isinstance(arg, Operation) or
+                    isinstance(arg, IntrinsicCall))):
+                try:
+                    # TODO #3443: Does the fixes in that PR fix this, or
+                    # maybe the DataNodeToTempTrans has to skip characters
+                    if (isinstance(dtype.elemental_type, ScalarType)
+                        and dtype.elemental_type.intrinsic ==
+                            ScalarType.Intrinsic.CHARACTER):
+                        continue
+                    DataNodeToTempTrans().apply(arg, verbose=True)
+                except TransformationError:
+                    pass
