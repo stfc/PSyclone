@@ -961,8 +961,8 @@ class ACCParallelTrans(ParallelRegionTrans):
                         if dtype.intrinsic == ScalarType.Intrinsic.CHARACTER:
                             message = (
                                 f"ACCParallelTrans doesn't enclose regions "
-                                f"that uses characters, but found: "
-                                f"{datanode.debug_string()}, use the "
+                                f"that use characters, but found: "
+                                f"'{datanode.debug_string()}', use the "
                                 f"'allow_strings' transformation option to "
                                 f"offload this region."
                             )

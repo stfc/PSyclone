@@ -132,8 +132,8 @@ def test_accparalleltrans_validate(fortran_reader):
         integer, dimension(10, 10) :: A
         integer :: i
         integer :: j
-        character*8 :: a, b
-        character :: c(8), d(8)
+        character*8 :: ca, cb
+        character :: cc(8), cd(8)
         character :: command
         do i = 1, 10
             do j = 1, 10
@@ -151,10 +151,10 @@ def test_accparalleltrans_validate(fortran_reader):
             end do
         end do
         do i = 1, 8
-            a(i) = b(i)
+            ca(i) = cb(i)
         end do
         do i = 1, 8
-            c(i) = d(i)
+            cc(i) = cd(i)
         end do
     end subroutine
     '''
@@ -173,14 +173,16 @@ def test_accparalleltrans_validate(fortran_reader):
             "ACCParallelTrans transformation" in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        accparalleltrans.validate(loops[2])
+        accparalleltrans.validate(loops[2], options={'allow_strings': True})
     assert ("'ADJUSTR' is not available on the default accelerator "
             "device. Use the 'device_string' option to specify a different "
             "device." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        accparalleltrans.validate(loops[2], options={'device_string':
-                                                     'nvfortran-all'})
+        accparalleltrans.validate(loops[2], options={
+            'device_string': 'nvfortran-all',
+            'allow_strings': True
+        })
     assert ("'ADJUSTR' is not available on the 'nvfortran-all' accelerator"
             " device. Use the 'device_string' option to specify a different "
             "device." in str(err.value))
@@ -188,18 +190,18 @@ def test_accparalleltrans_validate(fortran_reader):
     # Character substrings and no verbose option
     with pytest.raises(TransformationError) as err:
         accparalleltrans.validate(loops[3])
-    assert ("ACCParallelTrans doesn't enclose regions that uses characters, "
-            "but found: b(i), use the 'allow_strings' transformation option "
-            "to offload this region." in str(err.value))
+    assert ("ACCParallelTrans doesn't enclose regions that use characters, "
+            "but found: 'ca(i)', use the 'allow_strings' transformation option"
+            " to offload this region." in str(err.value))
     assert loops[3].preceding_comment == ""
 
     # Character array and verbose option
     with pytest.raises(TransformationError) as err:
         accparalleltrans.validate(loops[4], options={'verbose': True})
-    assert ("ACCParallelTrans doesn't enclose regions that uses characters, "
-            "but found: c(i), use the 'allow_strings' transformation option "
-            "to offload this region." in str(err.value))
-    assert ("but found: c(i), use the 'allow_strings'"
+    assert ("ACCParallelTrans doesn't enclose regions that use characters, "
+            "but found: 'cc(i)', use the 'allow_strings' transformation option"
+            " to offload this region." in str(err.value))
+    assert ("but found: 'cc(i)', use the 'allow_strings'"
             in loops[4].preceding_comment)
 
     # These validate with the right option

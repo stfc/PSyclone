@@ -46,7 +46,7 @@ from psyclone.psyir.nodes import Routine, Loop
 from psyclone.psyir.transformations import (
     OMPTargetTrans, OMPDeclareTargetTrans)
 from psyclone.transformations import (
-    ACCParallelTrans, ACCRoutineTrans)
+    ACCParallelTrans, ACCRoutineTrans, TransformationError)
 from psyclone.psyir.transformations import ACCLoopTrans, OMPLoopTrans
 
 
