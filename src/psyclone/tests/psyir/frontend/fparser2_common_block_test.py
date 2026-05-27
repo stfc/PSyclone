@@ -262,12 +262,14 @@ def test_get_common_block_groups():
 
     # Named common block.
     obj = Common_Stmt("common /myblock/ x, y")
-    assert Fparser2Reader._get_common_block_groups(obj) == [('myblock', ['x', 'y'])]
+    assert Fparser2Reader._get_common_block_groups(obj) == [
+            ('myblock', ['x', 'y'])]
 
     # Array variables: the dimension spec is stripped, only the bare name
     # is returned.
     obj = Common_Stmt("common /name/ a, b(4,5)")
-    assert Fparser2Reader._get_common_block_groups(obj) == [('name', ['a', 'b'])]
+    assert Fparser2Reader._get_common_block_groups(obj) == [
+            ('name', ['a', 'b'])]
 
     # Multiple block groups in a single statement.
     obj = Common_Stmt("common /name/ a, b(4,5) // c, /ljuks/ g(2)")
