@@ -301,7 +301,7 @@ def test_datanodetotemptrans_apply(fortran_reader, fortran_writer, tmp_path):
     dtrans.apply(assign.rhs.operands[1])
     # Check the tmp symbol is at the routine scope.
     routine = psyir.walk(Routine)[0]
-    assert routine.symbol_table.lookup("tmp") is not None
+    assert "tmp" in routine.symbol_table
     out = fortran_writer(psyir)
     assert """  integer, allocatable, dimension(:,:) :: tmp
 
