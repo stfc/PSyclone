@@ -68,7 +68,7 @@ jobs:
           python-version: '3.14'
       - run: sudo apt-get install -y graphviz doxygen
       - run: python -m pip install --upgrade pip
-      - run: pip install .[test,doc]
+      - run: pip install -e .[test,doc]
       # Now we can check for warnings and broken links
       - run: cd doc; make doctest
       - run: cd doc; make html SPHINXOPTS="-W --keep-going"

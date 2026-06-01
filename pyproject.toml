@@ -114,6 +114,7 @@ script-files = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
+exclude = ["psyclone.tests", "psyclone.tests.*"]
 
 [tool.setuptools.dynamic]
 version = { attr = "psyclone.version.__VERSION__" }
