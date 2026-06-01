@@ -219,8 +219,6 @@ def test_save_common_module(fortran_reader):
             assert sym.name.lower().startswith("_psyclone_internal_save")
             assert sym.datatype._declaration == "SAVE :: /my_common/"
             break
-    else:  # pragma: no cover
-        assert False, "No Symbol of UnsupportedFortranType found"
 
     sub = psyir.walk(Routine)[0]
     for sym in sub.symbol_table.symbols:
@@ -228,6 +226,3 @@ def test_save_common_module(fortran_reader):
             assert sym.name.lower().startswith("_psyclone_internal_save")
             assert sym.datatype._declaration == "SAVE :: /some_other_common/"
             break
-    else:  # pragma: no cover
-        assert False, ("No Symbol of UnsupportedFortranType found in nested"
-                       "table")

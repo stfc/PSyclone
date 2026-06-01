@@ -231,15 +231,54 @@ def test_omp_parallel_do_lowering(fortran_reader, monkeypatch, caplog):
     assert len(pdir.children[3].children) == 1
     assert pdir.children[3].children[0].name == 'b'
 
-    # Monkeypatch a case with shared variables that need synchronisation
+
+def test_ompparallel_lowering_in_depend_continue(fortran_reader, monkeypatch):
+    '''Exercise the branch that ignores IN dependence clauses when checking
+    synchronisation requirements.
+
+    '''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10) :: a
+        integer :: i
+        do i = 1, 10
+            a(i) = i
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    ptrans.apply(tree.walk(Loop)[0])
+    pdir = tree.walk(OMPParallelDirective)[0]
+
+    shared_sym = Symbol("a")
     monkeypatch.setattr(pdir, "infer_sharing_attributes",
-                        lambda: ({}, {}, {Symbol("a")}))
-    with caplog.at_level(logging.WARNING, logger=TEST_LOGGER_OMP):
-        pdir.lower_to_language_level()
-    assert ("Lowering 'OMPParallelDoDirective' detected a possible race "
-            "condition for symbol 'a'. Make sure this is a false WaW "
-            "dependency or the code includes the necessary synchronisations."
-            "\n" in caplog.text)
+                        lambda: (set(), set(), {shared_sym}))
+
+    task_dir = OMPTaskDirective()
+    task_dir.addchild(OMPPrivateClause())
+    task_dir.addchild(OMPFirstprivateClause())
+    task_dir.addchild(OMPSharedClause())
+    in_clause = OMPDependClause(
+        depend_type=OMPDependClause.DependClauseTypes.IN)
+    in_clause.addchild(Reference(shared_sym))
+    task_dir.addchild(in_clause)
+    pdir.children[0].addchild(task_dir)
+
+    monkeypatch.setattr(OMPDependClause, "operator",
+                        property(lambda self: "in"))
+    pdir.lower_to_language_level()
+    assert isinstance(pdir.children[2], OMPPrivateClause)
+
+
+def test_ompparallel_encloses_no_directive_pass_branch(monkeypatch):
+    '''Exercise the code path where no enclosed OpenMP region directives are
+    found.
+
+    '''
+    pdir = OMPParallelDirective()
+    monkeypatch.setattr(pdir, "walk", lambda *args, **kwargs: [])
+    assert pdir._encloses_omp_directive() is None
 
 
 def test_omp_teams_distribute_parallel_do_strings(
