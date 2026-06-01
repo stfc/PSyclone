@@ -21,6 +21,8 @@ def test_have_graphviz_missing_executable(monkeypatch):
         '''Raise the same exception graphviz emits when binaries are absent.'''
         raise graphviz.ExecutableNotFound("not found")
 
-    assert psyconftest.have_graphviz
+    # 'have_graphviz' is a fixture and cannot be called directly, but we can
+    # do it through its `__wrapped__` method
+    assert psyconftest.have_graphviz.__wrapped__() is True
     monkeypatch.setattr(graphviz, "version", missing_graphviz)
     assert psyconftest.have_graphviz.__wrapped__() is False
