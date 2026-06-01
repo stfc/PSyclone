@@ -71,11 +71,16 @@ class GOOpenCLTrans(Transformation):
     >>> from psyclone.domain.gocean.transformations import (
     ...     GOMoveIterationBoundariesInsideKernelTrans,
     ...     GOOpenCLTrans)
+    >>> from psyclone.domain.common.transformations import (
+    ...     KernelModuleInlineTrans)
     >>> move_trans = GOMoveIterationBoundariesInsideKernelTrans()
+    >>> mod_inline_trans = KernelModuleInlineTrans()
     >>> ocl_trans = GOOpenCLTrans()
-
-    # FIXME: Needs GOMoveIterationBoundariesInsideKernelTrans
-    # >>> ocl_trans.apply(schedule)
+    >>> for kern in schedule.kernels():
+    ...    # Put kernels in same container and iterate the whole space
+    ...    mod_inline_trans.apply(kern)
+    ...    move_trans.apply(kern)
+    >>> ocl_trans.apply(schedule)
 
     '''
     # Specify which OpenCL command queue to use for management operations like

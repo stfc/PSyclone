@@ -91,9 +91,7 @@ class OMPTaskwaitTrans(Transformation):
     >>> # Enclose all of these loops within a single OpenMP
     >>> # PARALLEL region
     >>> paralleltrans.apply(schedule.children)
-
-    # FIXME
-    # >>> taskwaittrans.apply(schedule.children)
+    >>> taskwaittrans.apply(schedule.children[0])
 
     '''
     def __str__(self):

@@ -56,7 +56,6 @@ class PSyDataTrans(RegionTrans):
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean"
 
-    # FIXME: What file?
     >>> from psyclone.tests.utilities import get_psylayer_schedule
     >>> filename = "test11_different_iterates_over_one_invoke.f90"
     >>> schedule = get_psylayer_schedule(filename, api="gocean")

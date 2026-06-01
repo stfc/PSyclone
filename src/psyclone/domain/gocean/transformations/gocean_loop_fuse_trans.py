@@ -56,7 +56,8 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
     >>> from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
     >>> ftrans = GOceanLoopFuseTrans()
 
-    # FIXME
+    # Currently produces an error with  "Cannot fuse loops that are over "
+    # "different grid-point types: go_cu and go_cv"
     # >>> ftrans.apply(schedule[0], schedule[1])
 
     '''

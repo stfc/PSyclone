@@ -73,9 +73,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     >>> # PARALLEL region
     >>> paralleltrans.apply(schedule.children)
     >>> # Ensure loop dependencies are satisfied
-
-    # FIXME
-    # >>> taskwaittrans.apply(schedule.children)
+    >>> taskwaittrans.apply(schedule.children[0])
 
     '''
 

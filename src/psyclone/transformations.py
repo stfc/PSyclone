@@ -356,18 +356,14 @@ class ColourTrans(LoopTrans):
     Apply a colouring transformation to a loop (in order to permit a
     subsequent parallelisation over colours). For example:
 
-    # FIXME
-    # >>> invoke = ...
-    # >>> schedule = invoke.schedule
-    # >>>
-    # >>> ctrans = ColourTrans()
-    # >>>
-    # >>> # Colour all of the loops
-    # >>> for child in schedule.children:
-    # >>>     ctrans.apply(child)
-    # >>>
-    # >>> # Uncomment the following line to see a text view of the schedule
-    # >>> # print(schedule.view())
+    .. code-block:: python
+
+        invoke = ...
+        schedule = invoke.schedule
+        ctrans = ColourTrans()
+        # Colour all of the loops
+        for child in schedule.children:
+            ctrans.apply(child)
 
     '''
     def __str__(self):
@@ -1225,23 +1221,6 @@ class LFRicAsyncHaloExchangeTrans(Transformation):
     '''Splits a synchronous halo exchange into a halo exchange start and
     halo exchange end. For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "lfric"
-    >>>
-    # FIXME
-    # >>> ast, invokeInfo = parse("file.f90", api=api)
-    # >>> psy=PSyFactory(api).create(invokeInfo)
-    # >>> schedule = psy.invokes.get('invoke_0').schedule
-    # >>> # Uncomment the following line to see a text view of the schedule
-    # >>> # print(schedule.view())
-    # >>>
-    # >>> from psyclone.transformations import LFRicAsyncHaloExchangeTrans
-    # >>> trans = LFRicAsyncHaloExchangeTrans()
-    # >>> trans.apply(schedule.children[0])
-    # >>> # Uncomment the following line to see a text view of the schedule
-    # >>> # print(schedule.view())
-
     '''
 
     def __str__(self):
@@ -1313,25 +1292,13 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
     number of quadrature points are fixed in the kernel rather than
     being passed in by argument.
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "lfric"
-    >>>
-    # FIXME
-    # >>> ast, invokeInfo = parse("file.f90", api=api)
-    # >>> psy=PSyFactory(api).create(invokeInfo)
-    # >>> schedule = psy.invokes.get('invoke_0').schedule
-    # >>> # Uncomment the following line to see a text view of the schedule
-    # >>> # print(schedule.view())
-    # >>>
-    # >>> from psyclone.transformations import LFRicKernelConstTrans
-    # >>> trans = LFRicKernelConstTrans()
-    # >>> for kernel in schedule.coded_kernels():
-    # >>>     trans.apply(kernel, number_of_layers=150)
-    # >>>     kernel_schedule = kernel.get_callees()[0]
-    # >>>     # Uncomment the following line to see a text view of the
-    # >>>     # symbol table
-    # >>>     # print(kernel_schedule.symbol_table.view())
+    .. code-block:: python
+
+        from psyclone.transformations import LFRicKernelConstTrans
+        trans = LFRicKernelConstTrans()
+        for kernel in schedule.coded_kernels():
+            trans.apply(kernel, number_of_layers=150)
+            kernel_schedule = kernel.get_callees()[0]
 
     '''
 
