@@ -37,7 +37,7 @@
 
 '''This module provides generic utility functions.'''
 
-from typing import Type
+from typing import Type, Union
 from collections import OrderedDict
 import sys
 from psyclone.errors import InternalError
@@ -91,8 +91,9 @@ def stringify_annotation(annotation) -> str:
 
 
 def transformation_documentation_wrapper(*args,
-                                         inherit: list[Type[Transformation]]
-                                         | bool = True,
+                                         inherit:
+                                         Union[list[Type[Transformation]],
+                                               bool] = True,
                                          add_subtransformations: bool = True,
                                          **kwargs):
     '''
