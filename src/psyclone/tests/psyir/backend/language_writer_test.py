@@ -42,7 +42,7 @@ import pytest
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.symbols import ArrayType, DataSymbol, DataTypeSymbol, \
-    INTEGER_TYPE, REAL_TYPE, Symbol, StructureType
+    ScalarType, Symbol, StructureType
 from psyclone.psyir.nodes import ArrayOfStructuresReference, ArrayReference, \
     Literal, Member, StructureReference
 from psyclone.tests.utilities import Compile
@@ -81,10 +81,11 @@ def test_lw_arrayreference_incomplete(fortran_writer):
     Test that the correct error is raised if an incomplete ArrayReference
     is encountered.
     '''
-    array_type = ArrayType(REAL_TYPE, [10])
+    array_type = ArrayType(ScalarType.real_type(), [10])
     symbol = DataSymbol("b", array_type)
     # create() must be supplied with a shape
-    array = ArrayReference.create(symbol, [Literal("1", INTEGER_TYPE)])
+    array = ArrayReference.create(
+        symbol, [Literal("1", ScalarType.integer_type())])
     # Remove its children
     array._children = []
     with pytest.raises(VisitorError) as err:
@@ -121,12 +122,12 @@ def test_lw_structureref(fortran_writer):
     ''' Test the LanguageWriter support for StructureReference
     using the FortranWriter as instance. '''
     region_type = StructureType.create([
-        ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
-        ("ny", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
+        ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
+        ("ny", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None)])
     region_type_sym = DataTypeSymbol("grid_type", region_type)
     region_array_type = ArrayType(region_type_sym, [2, 2])
     grid_type = StructureType.create([
-        ("dx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("dx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
         ("area", region_type_sym, Symbol.Visibility.PUBLIC, None),
         ("levels", region_array_type, Symbol.Visibility.PUBLIC, None)])
     grid_type_sym = DataTypeSymbol("grid_type", grid_type)
@@ -134,8 +135,9 @@ def test_lw_structureref(fortran_writer):
     grid_ref = StructureReference.create(grid_var, ['area', 'nx'])
     assert fortran_writer.structurereference_node(grid_ref) == "grid%area%nx"
     level_ref = StructureReference.create(
-        grid_var, [('levels', [Literal("1", INTEGER_TYPE),
-                               Literal("2", INTEGER_TYPE)]), 'ny'])
+        grid_var, [('levels', [Literal("1", ScalarType.integer_type()),
+                               Literal("2", ScalarType.integer_type())]),
+                   'ny'])
     assert fortran_writer(level_ref) == "grid%levels(1,2)%ny"
     # Make the number of children invalid
     level_ref._children = []
@@ -144,7 +146,7 @@ def test_lw_structureref(fortran_writer):
     assert ("StructureReference must have a single child but the reference "
             "to symbol 'grid' has 0" in str(err.value))
     # Single child but not of the right type
-    level_ref._children = [Literal("1", INTEGER_TYPE)]
+    level_ref._children = [Literal("1", ScalarType.integer_type())]
     with pytest.raises(VisitorError) as err:
         fortran_writer._visit(level_ref)
     assert ("StructureReference must have a single child which is a sub-"
@@ -156,8 +158,8 @@ def test_lw_arrayofstructuresmember(fortran_writer):
     ''' Test the LanguageWriter support for ArrayOfStructuresMember
     using the FortranWriter. '''
     region_type = StructureType.create([
-        ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
-        ("ny", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
+        ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
+        ("ny", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None)])
     region_type_sym = DataTypeSymbol("grid_type", region_type)
     region_array_type = ArrayType(region_type_sym, [2, 2])
     # The grid type contains an array of region-type structures
@@ -166,18 +168,16 @@ def test_lw_arrayofstructuresmember(fortran_writer):
     grid_type_sym = DataTypeSymbol("grid_type", grid_type)
     grid_var = DataSymbol("grid", grid_type_sym)
     # Reference to an element of an array that is a structure
-    level_ref = StructureReference.create(grid_var,
-                                          [("levels",
-                                            [Literal("1", INTEGER_TYPE),
-                                             Literal("1", INTEGER_TYPE)])])
+    level_ref = StructureReference.create(
+        grid_var, [("levels", [Literal("1", ScalarType.integer_type()),
+                               Literal("1", ScalarType.integer_type())])])
     assert (fortran_writer.structurereference_node(level_ref) ==
             "grid%levels(1,1)")
     # Reference to a member of a structure that is an element of an array
-    grid_ref = StructureReference.create(grid_var,
-                                         [("levels",
-                                           [Literal("1", INTEGER_TYPE),
-                                            Literal("1", INTEGER_TYPE)]),
-                                          "nx"])
+    grid_ref = StructureReference.create(
+        grid_var, [("levels", [Literal("1", ScalarType.integer_type()),
+                               Literal("1", ScalarType.integer_type())]),
+                   "nx"])
     assert (fortran_writer.structurereference_node(grid_ref) ==
             "grid%levels(1,1)%nx")
     # Reference to an *array* of structures
@@ -189,13 +189,12 @@ def test_lw_arrayofstructuresref(fortran_writer):
     ''' Test the LanguageWriter support for ArrayOfStructuresReference
     using the FortranWriter as instance. '''
     grid_type = StructureType.create([
-        ("dx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
+        ("dx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None)])
     grid_type_sym = DataTypeSymbol("grid_type", grid_type)
     grid_array_type = ArrayType(grid_type_sym, [10])
     grid_var = DataSymbol("grid", grid_array_type)
-    grid_ref = ArrayOfStructuresReference.create(grid_var,
-                                                 [Literal("3", INTEGER_TYPE)],
-                                                 ["dx"])
+    grid_ref = ArrayOfStructuresReference.create(
+        grid_var, [Literal("3", ScalarType.integer_type())], ["dx"])
     assert (fortran_writer.arrayofstructuresreference_node(grid_ref) ==
             "grid(3)%dx")
     # Break the node to trigger checks
@@ -216,8 +215,8 @@ def test_lw_arrayofstructuresref(fortran_writer):
 def test_member_node(fortran_writer):
     '''Explicitly test the member_node function.'''
     region_type = StructureType.create([
-        ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
-        ("ny", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
+        ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
+        ("ny", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None)])
     region_type_sym = DataTypeSymbol("grid_type", region_type)
     region_array_type = ArrayType(region_type_sym, [2, 2])
     # The grid type contains an array of region-type structures
@@ -226,11 +225,10 @@ def test_member_node(fortran_writer):
     grid_type_sym = DataTypeSymbol("grid_type", grid_type)
     grid_var = DataSymbol("grid", grid_type_sym)
     # Reference to a member of a structure that is an element of an array
-    grid_ref = StructureReference.create(grid_var,
-                                         [("levels",
-                                           [Literal("1", INTEGER_TYPE),
-                                            Literal("1", INTEGER_TYPE)]),
-                                          "nx"])
+    grid_ref = StructureReference.create(
+        grid_var, [("levels", [Literal("1", ScalarType.integer_type()),
+                               Literal("1", ScalarType.integer_type())]),
+                   "nx"])
 
     # Specifically test member_node:
     member = grid_ref.children[0]

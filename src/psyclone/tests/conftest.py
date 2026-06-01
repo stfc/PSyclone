@@ -84,7 +84,7 @@ def pytest_addoption(parser):
 
 
 @pytest.fixture
-def have_graphviz():  # pragma: no-cover
+def have_graphviz():
     ''' Whether or not the system has graphviz installed. This refers to
     the underlying system library, not the python bindings that are provided
     by 'import graphviz'. '''
@@ -92,9 +92,9 @@ def have_graphviz():  # pragma: no-cover
     import graphviz
     try:
         graphviz.version()
+        return True
     except graphviz.ExecutableNotFound:
         return False
-    return True
 
 
 @pytest.fixture(scope="session", autouse=True)

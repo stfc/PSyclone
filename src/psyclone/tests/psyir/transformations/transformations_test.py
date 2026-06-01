@@ -50,8 +50,7 @@ from psyclone.psyir.nodes import (
     ACCLoopDirective, OMPMasterDirective, Fparser2CodeBlock,
     OMPDoDirective, OMPLoopDirective, Routine)
 from psyclone.psyir.symbols import (
-     ContainerSymbol, INTEGER_TYPE,
-     DataSymbol, ImportInterface)
+     ContainerSymbol, ScalarType, DataSymbol, ImportInterface)
 from psyclone.psyir.transformations import (
     ProfileTrans, RegionTrans, TransformationError, OMPTaskloopTrans,
     OMPDeclareTargetTrans, ACCLoopTrans, OMPParallelTrans)
@@ -184,6 +183,64 @@ def test_accenterdata():
     acct = ACCEnterDataTrans()
     assert acct.name == "ACCEnterDataTrans"
     assert str(acct) == "Adds an OpenACC 'enter data' directive"
+
+
+def test_accenterdata_check_child_async_mismatch(fortran_reader):
+    '''Check that check_child_async() rejects children with a different
+    async queue value.
+
+    '''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10) :: a
+        integer :: i
+        do i = 1, 10
+            a(i) = i
+        end do
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    parallel_trans = ACCParallelTrans()
+    parallel_trans.apply(routine.walk(Loop)[0], options={"async_queue": 1})
+
+    enter_trans = ACCEnterDataTrans()
+    with pytest.raises(TransformationError) as err:
+        enter_trans.check_child_async(routine, 2)
+    assert ("Try to make an ACCEnterDataTrans with async_queue different "
+            "than the one in child kernels" in str(err.value))
+
+
+def test_ompdeclaretargettrans_detached_scope_fallback(sample_psyir,
+                                                       monkeypatch):
+    '''Exercise the fallback path used when an access node has no scope.
+
+    '''
+    ompdeclaretargettrans = OMPDeclareTargetTrans()
+    routine = sample_psyir.walk(Routine)[0]
+    ref1 = sample_psyir.walk(Reference)[0]
+    ref1.symbol.interface = ImportInterface(ContainerSymbol('my_mod'))
+
+    class DummySig:  # pylint: disable=too-few-public-methods
+        '''Minimal signature object with a variable name.'''
+        var_name = "a"
+
+    class DummyAccess:  # pylint: disable=too-few-public-methods
+        '''Minimal access-info object that stores a node.'''
+        def __init__(self, node):
+            self.node = node
+
+    class DummyVAM:  # pylint: disable=too-few-public-methods
+        '''Minimal variable-access map replacement for this test.'''
+        all_signatures = [DummySig()]
+
+        def __getitem__(self, _):
+            return [DummyAccess(Statement())]
+
+    monkeypatch.setattr(routine, "reference_accesses", lambda: DummyVAM())
+    with pytest.raises(TransformationError) as err:
+        ompdeclaretargettrans.apply(routine)
+    assert "which is imported" in str(err.value)
 
 
 def test_omptaskloop_no_collapse():
@@ -751,9 +808,9 @@ def test_regiontrans_wrong_children():
     rtrans = ACCParallelTrans()
     # Construct a valid Loop in the PSyIR
     parent = Loop()
-    parent.addchild(Literal("1", INTEGER_TYPE))
-    parent.addchild(Literal("10", INTEGER_TYPE))
-    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent.addchild(Literal("1", ScalarType.integer_type()))
+    parent.addchild(Literal("10", ScalarType.integer_type()))
+    parent.addchild(Literal("1", ScalarType.integer_type()))
     parent.addchild(Schedule())
     with pytest.raises(TransformationError) as err:
         RegionTrans.validate(rtrans, parent.children)
@@ -767,10 +824,10 @@ def test_parallellooptrans_refuse_codeblock():
     ParallelLoopTrans is abstract. '''
     otrans = OMPParallelLoopTrans()
     # Construct a valid Loop in the PSyIR with a CodeBlock in its body
-    parent = Loop.create(DataSymbol("ji", INTEGER_TYPE),
-                         Literal("1", INTEGER_TYPE),
-                         Literal("10", INTEGER_TYPE),
-                         Literal("1", INTEGER_TYPE),
+    parent = Loop.create(DataSymbol("ji", ScalarType.integer_type()),
+                         Literal("1", ScalarType.integer_type()),
+                         Literal("10", ScalarType.integer_type()),
+                         Literal("1", ScalarType.integer_type()),
                          [CodeBlock([], CodeBlock.Structure.STATEMENT,
                                     None)])
     with pytest.raises(TransformationError) as err:

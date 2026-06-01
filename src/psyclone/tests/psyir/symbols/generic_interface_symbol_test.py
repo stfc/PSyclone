@@ -40,7 +40,7 @@ import pytest
 
 from psyclone.psyir.symbols import (
     AutomaticInterface, ContainerSymbol, GenericInterfaceSymbol,
-    ImportInterface, INTEGER_TYPE, RoutineSymbol, SymbolTable, Symbol,
+    ImportInterface, ScalarType, RoutineSymbol, SymbolTable, Symbol,
     UnresolvedInterface)
 
 
@@ -139,7 +139,7 @@ def test_gis_typedsymbol_keywords_rejected():
     '''
     with pytest.raises(ValueError) as err:
         _ = GenericInterfaceSymbol("walnut", [(RoutineSymbol("nut"), True)],
-                                   datatype=INTEGER_TYPE)
+                                   datatype=ScalarType.integer_type())
     assert ("'datatype' property of GenericInterfaceSymbol cannot be supplied "
             "to the constructor" in str(err.value))
     with pytest.raises(ValueError) as err:

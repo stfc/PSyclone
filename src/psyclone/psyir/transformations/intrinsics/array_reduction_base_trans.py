@@ -126,7 +126,6 @@ class ArrayReductionBaseTrans(Transformation, ABC):
             raise TransformationError(
                 f"The dimension argument to {self._INTRINSIC_NAME} is not "
                 f"yet supported.")
-
         if isinstance(node.datatype, (UnresolvedType, UnsupportedType)):
             raise TransformationError(
                 f"Error in {self.name} transformation. Cannot create "
@@ -178,6 +177,9 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         :param options: options for the transformation.
         :type options: Optional[Dict[str, Any]]
 
+        :raises TransformationError: if node only contains Reference nodes,
+            and they can't be convered to ArrayReferences by the calls to
+            Reference2ArrayRangeTrans.
         '''
         # TODO 2668: options are now deprecated:
         if options:
@@ -221,6 +223,11 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         # resulting in the following code being created:
         # a(:,:) = a(:,:)+b(:,:)
         array_refs = new_array_expr.walk(ArrayReference)
+        if len(array_refs) == 0:
+            raise TransformationError(
+                f"Can't apply {self.name} to {node.debug_string()} due "
+                f"to no ArrayReference nodes present."
+            )
         assignment = Assignment.create(array_refs[0].copy(),
                                        new_array_expr.detach())
 

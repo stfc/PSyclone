@@ -71,9 +71,9 @@ from psyclone.psyGen import (TransInfo, PSyFactory,
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
                                   Literal, Loop, Node, KernelSchedule, Call,
                                   colored, Schedule)
-from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, REAL_TYPE,
+from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, ScalarType,
                                     ImportInterface, ContainerSymbol, Symbol,
-                                    INTEGER_TYPE, UnresolvedType, SymbolTable)
+                                    UnresolvedType, SymbolTable)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.test_files import dummy_transformations
 from psyclone.tests.test_files.dummy_transformations import LocalTransformation
@@ -180,6 +180,7 @@ def test_transformation_init_name():
         transformation methods.
 
         '''
+
         def apply(self, _1):
             '''Dummy apply method to ensure this transformation is not
             abstract.'''
@@ -194,6 +195,7 @@ def test_transformation_get_options():
     class TestTrans(Transformation):
         '''Utility transformation to test methods of the abstract
         Transformation class.'''
+
         def apply(self, node, valid: bool = True):
             ...
     trans = TestTrans()
@@ -315,6 +317,7 @@ def test_transformation_apply_deprecation_message(capsys):
     function gets the expected deprecation message.'''
     class TestTrans(Transformation):
         '''Utility transformation to test methods.'''
+
         def apply(self, node=None, options=None):
             super().apply(node, options=options)
 
@@ -338,6 +341,7 @@ def test_transformation_get_valid_options():
     class TestTrans(Transformation):
         '''Utility transformation to test methods of the abstract
         Transformation class.'''
+
         def apply(self, node, valid: bool = True, untyped=False, options={}):
             '''Apply method of TestTrans.'''
 
@@ -353,6 +357,7 @@ def test_transformation_get_valid_options():
 
     class InheritTrans(TestTrans):
         '''Utility transformation to test inheriting arguments'''
+
         def apply(self, node, valid2: int = 1):
             '''Apply method of InheritTrans.'''
 
@@ -384,6 +389,7 @@ def test_transformation_get_valid_options_no_sphinx():
         class TestTrans(Transformation):
             '''Utility transformation to test methods of the abstract
             Transformation class.'''
+
             def apply(self, node, valid: bool = True, untyped=False):
                 '''Apply method of TestTrans.'''
 
@@ -401,6 +407,7 @@ def test_transformation_validate_options():
     class TestTrans(Transformation):
         '''Utility transformation to test methods of the abstract
         Transformation class.'''
+
         def apply(self, node, valid: bool = True, options=None):
             ...
 
@@ -724,8 +731,10 @@ def test_invokeschedule_lowering_with_preexisting_globals():
     schedule = psy.invokes.invoke_list[0].schedule
     my_mod = ContainerSymbol("my_mod")
     schedule.symbol_table.add(my_mod)
-    global1 = DataSymbol('gvar1', REAL_TYPE, interface=ImportInterface(my_mod))
-    global2 = DataSymbol('gvar2', REAL_TYPE, interface=ImportInterface(my_mod))
+    global1 = DataSymbol('gvar1', ScalarType.real_type(),
+                         interface=ImportInterface(my_mod))
+    global2 = DataSymbol('gvar2', ScalarType.real_type(),
+                         interface=ImportInterface(my_mod))
     schedule.symbol_table.add(global1)
     schedule.symbol_table.add(global2)
 
@@ -808,7 +817,7 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     # TODO #1085 LFRic Arguments do not have a translation to PSyIR
     # yet, we monkeypatch a dummy expression for now:
     monkeypatch.setattr(LFRicKernelArguments, "psyir_expressions",
-                        lambda x: [Literal("1", INTEGER_TYPE)])
+                        lambda x: [Literal("1", ScalarType.integer_type())])
 
     # In DSL-level it is a CodedKern with no children
     assert isinstance(kern, CodedKern)
@@ -869,7 +878,7 @@ def test_kern_children_validation():
     kern.load_meta(metadata)
 
     with pytest.raises(GenerationError) as excinfo:
-        kern.addchild(Literal("2", INTEGER_TYPE))
+        kern.addchild(Literal("2", ScalarType.integer_type()))
     assert ("Item 'Literal' can't be child 0 of 'CodedKern'. CodedKern "
             "is a LeafNode and doesn't accept children.") in str(excinfo.value)
 
@@ -902,7 +911,7 @@ def test_inlinedkern_children_validation():
     ikern = InlinedKern(None)
 
     with pytest.raises(GenerationError) as excinfo:
-        ikern.addchild(Literal("2", INTEGER_TYPE))
+        ikern.addchild(Literal("2", ScalarType.integer_type()))
     assert ("Item 'Literal' can't be child 1 of 'InlinedKern'. The valid "
             "format is: 'Schedule'.") in str(excinfo.value)
 
@@ -979,21 +988,24 @@ def test_kern_is_coloured2():
     # Create the loop variables
     for idx in range(3):
         table.new_symbol(f"cell{idx}", symbol_type=DataSymbol,
-                         datatype=INTEGER_TYPE)
+                         datatype=ScalarType.integer_type())
     # Create a loop nest of depth 3 containing the kernel, innermost first
     my_kern = LFRicKern()
     loops = [PSyLoop.create(table.lookup("cell0"),
-                            Literal("1", INTEGER_TYPE),
-                            Literal("10", INTEGER_TYPE),
-                            Literal("1", INTEGER_TYPE), [my_kern])]
+                            Literal("1", ScalarType.integer_type()),
+                            Literal("10", ScalarType.integer_type()),
+                            Literal("1", ScalarType.integer_type()),
+                            [my_kern])]
     loops.append(PSyLoop.create(table.lookup("cell1"),
-                                Literal("1", INTEGER_TYPE),
-                                Literal("10", INTEGER_TYPE),
-                                Literal("1", INTEGER_TYPE), [loops[-1]]))
+                                Literal("1", ScalarType.integer_type()),
+                                Literal("10", ScalarType.integer_type()),
+                                Literal("1", ScalarType.integer_type()),
+                                [loops[-1]]))
     loops.append(PSyLoop.create(table.lookup("cell2"),
-                                Literal("1", INTEGER_TYPE),
-                                Literal("10", INTEGER_TYPE),
-                                Literal("1", INTEGER_TYPE), [loops[-1]]))
+                                Literal("1", ScalarType.integer_type()),
+                                Literal("10", ScalarType.integer_type()),
+                                Literal("1", ScalarType.integer_type()),
+                                [loops[-1]]))
     # As we're using the generic Loop class, we have to manually set the list
     # of valid Loop types
     for loop in loops:
@@ -1621,7 +1633,7 @@ def test_haloexchange_children_validation():
     '''
     haloex = HaloExchange(None)
     with pytest.raises(GenerationError) as excinfo:
-        haloex.addchild(Literal("2", INTEGER_TYPE))
+        haloex.addchild(Literal("2", ScalarType.integer_type()))
     assert ("Item 'Literal' can't be child 0 of 'HaloExchange'. HaloExchange "
             "is a LeafNode and doesn't accept children.") in str(excinfo.value)
 

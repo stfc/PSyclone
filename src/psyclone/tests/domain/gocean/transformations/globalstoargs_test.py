@@ -44,8 +44,7 @@ from psyclone.parse import ModuleManager
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import Argument, PSyFactory, InvokeSchedule
 from psyclone.psyir.nodes import Literal
-from psyclone.psyir.symbols import (DataSymbol, REAL_TYPE, INTEGER_TYPE,
-                                    CHARACTER_TYPE, Symbol)
+from psyclone.psyir.symbols import DataSymbol, ScalarType, Symbol
 from psyclone.tests.utilities import get_invoke, make_external_module
 from psyclone.transformations import (KernelImportsToArguments,
                                       TransformationError)
@@ -194,10 +193,11 @@ def test_kernelimportstoargumentstrans_constant(monkeypatch, fortran_writer):
     # Monkeypatch resolve_type to avoid module searching and importing
     # in this test. In this case we assume it is a constant INTEGER
     def create_data_symbol(arg):
-        symbol = DataSymbol(arg.name, INTEGER_TYPE,
-                            interface=arg.interface,
-                            is_constant=True,
-                            initial_value=Literal("1", INTEGER_TYPE))
+        symbol = DataSymbol(
+            arg.name, ScalarType.integer_type(),
+            interface=arg.interface,
+            is_constant=True,
+            initial_value=Literal("1", ScalarType.integer_type()))
         return symbol
 
     monkeypatch.setattr(DataSymbol, "resolve_type", create_data_symbol)
@@ -232,7 +232,7 @@ def test_kernelimportstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
     # In this case we set it to be of type CHARACTER as that is not supported
     # in the GOcean infrastructure.
     def create_data_symbol(arg):
-        symbol = DataSymbol(arg.name, CHARACTER_TYPE,
+        symbol = DataSymbol(arg.name, ScalarType.character_type(),
                             interface=arg.interface)
         return symbol
     monkeypatch.setattr(Symbol, "resolve_type", create_data_symbol)
@@ -339,7 +339,7 @@ def test_kernelimportstoargumentstrans_clash_symboltable(monkeypatch,
 
     # Add 'rdt' into the symbol table of this Invoke.
     kernel.ancestor(InvokeSchedule).symbol_table.add(
-        DataSymbol("rdt", REAL_TYPE))
+        DataSymbol("rdt", ScalarType.real_type()))
 
     # Test transforming a single kernel
     mod_inline_trans.apply(kernel)

@@ -40,10 +40,10 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    Assignment, Reference
+    Assignment, Loop, Reference, Routine
 )
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE
+    DataSymbol, ScalarType
 )
 from psyclone.psyir.transformations import (
     DataNodeToTempTrans, TransformationError
@@ -116,7 +116,7 @@ def test_datanodetotemptrans_validate(fortran_reader):
             "provided types." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        dtrans.validate(Reference(DataSymbol("a", INTEGER_TYPE)))
+        dtrans.validate(Reference(DataSymbol("a", ScalarType.integer_type())))
     assert ("Input node to DataNodeToTempTrans has no ancestor Statement "
             "node which is not supported." in str(err.value))
 
@@ -299,6 +299,9 @@ def test_datanodetotemptrans_apply(fortran_reader, fortran_writer, tmp_path):
     psyir = fortran_reader.psyir_from_source(code)
     assign = psyir.walk(Assignment)[0]
     dtrans.apply(assign.rhs.operands[1])
+    # Check the tmp symbol is at the routine scope.
+    routine = psyir.walk(Routine)[0]
+    assert "tmp" in routine.symbol_table
     out = fortran_writer(psyir)
     assert """  integer, allocatable, dimension(:,:) :: tmp
 
@@ -308,6 +311,27 @@ def test_datanodetotemptrans_apply(fortran_reader, fortran_writer, tmp_path):
   tmp = MATMUL(a, b)
   d = c + tmp""" in out
     assert Compile(tmp_path).string_compiles(out)
+
+    # Check the symbol is still created if the assignment is in some other
+    # non-routine scope.
+    code = """subroutine test()
+    integer :: a, b, c
+    integer :: i
+
+    do i = 1, 100
+      a = b + c
+    end do
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0].detach()
+    assign = loop.walk(Assignment)[0]
+    dtrans.apply(assign.rhs)
+    assert "tmp" in assign.scope.symbol_table
+    out = fortran_writer(loop)
+    assert """do i = 1, 100, 1
+  tmp = b + c
+  a = tmp
+enddo""" in out
 
     code = """subroutine test()
         real :: a
