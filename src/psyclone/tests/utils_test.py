@@ -99,7 +99,7 @@ def test_transformation_doc_wrapper_non_transformation():
 def test_transformation_doc_wrapper_single_inheritance():
     '''Test the transformation_doc_wrapper.'''
 
-    # Createa base transformation class
+    # Create base transformation class
     @transformation_documentation_wrapper(inherit=False)
     class BaseTrans(Transformation):
 
@@ -204,7 +204,6 @@ def test_transformation_doc_wrapper_multi_inheritance():
         InheritingTrans,
         inherit=[BaseTrans1, BaseTrans2]
     )
-    print(InheritingTrans.apply.__doc__)
     assert "param bool opt1: opt1 docstring." in InheritingTrans.apply.__doc__
     assert "param bool opt2: opt2 docstring." in InheritingTrans.apply.__doc__
     assert ("param bool opt1: opt1 docstring."
@@ -441,9 +440,9 @@ def test_transformation_doc_wrapper_subtrans():
     :param opt1: opt1 docstring.
     :param opt2: opt2 docstring.
     :type opt2: opt2 type.
-    :param opt3: (Option used for SubTrans1) opt3 docstring.
+    :param opt3: (Option provided for SubTrans1) opt3 docstring.
     :type opt3: int
-    :param int opt3: (Option used for SubTrans2) opt3 docstring.\
+    :param int opt3: (Option provided for SubTrans2) opt3 docstring.\
 """  # noqa: W293
     assert correct in BaseTrans.apply.__doc__
 
@@ -475,8 +474,8 @@ def test_transformation_doc_wrapper_subtrans():
     :param opt1: opt1 docstring.
     :param opt2: opt2 docstring.
     :type opt2: opt2 type.
-    :param opt3: (Option used for SubTrans1) opt3 docstring.
+    :param opt3: (Option provided for SubTrans1) opt3 docstring.
     :type opt3: int
-    :param int opt3: (Option used for SubTrans2) opt3 docstring.\
+    :param int opt3: (Option provided for SubTrans2) opt3 docstring.\
 """  # noqa: W293
     assert correct in BaseTrans.apply.__doc__

@@ -37,13 +37,14 @@
 
 '''This module provides generic utility functions.'''
 
-
+from typing import Type
 from collections import OrderedDict
 import sys
 from psyclone.errors import InternalError
 from psyclone.docstring_parser import (
-    DocstringData,
+    DocstringData, ReturnsData
 )
+from psyclone.psyGen import Transformation
 
 
 def within_virtual_env():
@@ -89,29 +90,46 @@ def stringify_annotation(annotation) -> str:
     return str(annotation)
 
 
-def transformation_documentation_wrapper(*args, inherit=True,
+def transformation_documentation_wrapper(*args,
+                                         inherit: list[Type[Transformation]]
+                                         | bool = True,
                                          add_subtransformations: bool = True,
                                          **kwargs):
     '''
-    Updates the apply and validate methods' docstrings for the supplied cls,
-    according to the value of inherit. args is either a length 1 set argument
-    containing the class to be wrapper, or a length 0 argument set if
-    options are specified on the transformation_docstring_wrapper that is
-    handled by python. This works due to:
+    Updates the apply and validate methods' docstrings for the decorated
+    class, according to the value of inherit. Should be used as a
+    decorator on a Transformation subclass.
+
+    *args is either a length 1 list of
+    arguments containing the class to be wrapped, or a length 0 argument set
+    when options are specified on the transformation_docstring_wrapper that is
+    handled by python. The length 0 set would happen with a case like this:
 
     >>> @transformation_documentation_wrapper(inherit=True)
-    >>> class myclass():
-    >>>     pass
+    ... class mytrans(Transformation):
+    ...     pass
 
-    essentially being:
+    as this code is equivalent to:
 
-    >>> transformation_documentation_wrapper(inherit=True)(myclass)
+    >>> mytrans = transformation_documentation_wrapper(inherit=True)(mytrans)
 
-    whilst the decorator without any argument is simply:
+    For this case *args is empty, as only the inherit argument is provided
+    to the transformation_documentation_wrapper call.
 
-    >>> transformation_documentation_wrapper(myclass)
+    Without arguments to the decorator:
 
-    We use this to vary the behaviour of the wrapper slightly depending on
+    >>> @transformation_documentation_wrapper
+    ... class mytrans(Transformation):
+    ...    pass
+
+    the resultant code is the same as writing:
+
+    >>> mytrans = transformation_documentation_wrapper(mytrans)
+
+    In this case *args contains the wrapped class in *args, which needs to be
+    passed manually to the sub-function inside the wrapper.
+
+    This allows us to vary the behaviour of the wrapper slightly depending on
     whether any arguments are present.
 
     :param inherit: whether to inherit argument docstrings from cls' parent's
@@ -121,7 +139,6 @@ def transformation_documentation_wrapper(*args, inherit=True,
                     inherit is False, the wrapper will just update the
                     Transformation's validate docstring from its own
                     apply docstring.
-    :type inherit: Union[list[Class], bool]
     :param add_subtransformations: Whether to add parameter docstrings from
         sub transformations used by this Transformation.
     '''
@@ -162,8 +179,8 @@ def transformation_documentation_wrapper(*args, inherit=True,
             )
         if isinstance(inherit, list):
             added_parameters = DocstringData(
-                desc=None, arguments=OrderedDict(),
-                raises=[], returns=None,
+                desc="", arguments=OrderedDict(),
+                raises=[], returns=ReturnsData("", None),
                 sub_arguments=OrderedDict())
             for superclass in inherit:
                 inherited_params = \
@@ -179,8 +196,8 @@ def transformation_documentation_wrapper(*args, inherit=True,
         if add_subtransformations and len(cls._SUB_TRANSFORMATIONS) > 0:
             if added_parameters is None:
                 added_parameters = DocstringData(
-                    desc=None, arguments=OrderedDict(),
-                    raises=[], returns=None,
+                    desc="", arguments=OrderedDict(),
+                    raises=[], returns=ReturnsData("", None),
                     sub_arguments=OrderedDict())
             for trans in cls._SUB_TRANSFORMATIONS:
                 inherited_params = \

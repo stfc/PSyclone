@@ -102,7 +102,7 @@ class ArgumentData():
         :returns: The docstring represented by this ArgumentData.
         '''
         if cls_name:
-            cls_name = f"(Option used for {cls_name}) "
+            cls_name = f"(Option provided for {cls_name}) "
         rstr = ":param "
         if function:
             # If the argument is in function's parameter list and has a type
