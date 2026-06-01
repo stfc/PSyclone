@@ -19,7 +19,8 @@ def test_have_graphviz_missing_executable(monkeypatch):
     '''
     def missing_graphviz():
         '''Raise the same exception graphviz emits when binaries are absent.'''
-        raise graphviz.ExecutableNotFound("dot")
+        raise graphviz.ExecutableNotFound("not found")
 
+    assert psyconftest.have_graphviz
     monkeypatch.setattr(graphviz, "version", missing_graphviz)
     assert psyconftest.have_graphviz.__wrapped__() is False

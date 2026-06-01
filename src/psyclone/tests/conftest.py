@@ -90,7 +90,7 @@ def have_graphviz():
     by 'import graphviz'. '''
     # pylint: disable=import-outside-toplevel
     import graphviz
-    try:  # pragma: no-cover
+    try:
         graphviz.version()
         return True
     except graphviz.ExecutableNotFound:
