@@ -48,8 +48,9 @@ from psyclone.utils import transformation_documentation_wrapper
 
 @transformation_documentation_wrapper
 class LFRicLoopFuseTrans(LoopFuseTrans):
-    ''' LFRic API specialisation of the :py:class:`base class <LoopFuseTrans>` in order
-    to fuse two LFRic loops after performing validity checks. For example:
+    ''' LFRic API specialisation of the :py:class:`base class <LoopFuseTrans>`
+    in order to fuse two LFRic loops after performing validity checks. For
+    example:
 
     .. code-block :: python
 
