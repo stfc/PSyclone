@@ -48,6 +48,7 @@ from psyclone.psyir.nodes import (
     Loop,
     Range,
     Reference,
+    Routine,
     Statement,
     Schedule,
     UnaryOperation,
@@ -229,7 +230,10 @@ class DataNodeToTempTrans(Transformation):
                 f"Statement node which is not supported."
             )
 
-        if isinstance(dtype, (UnresolvedType, UnsupportedFortranType)):
+        if (isinstance(dtype, (UnresolvedType, UnsupportedFortranType))
+                or (isinstance(dtype, ArrayType) and
+                    isinstance(dtype.elemental_type,
+                               (UnresolvedType, UnsupportedFortranType)))):
             failing_symbols = []
             symbols = node.get_all_accessed_symbols()
             for sym in symbols:
@@ -342,14 +346,19 @@ class DataNodeToTempTrans(Transformation):
                                       allocatable_datatype.shape])
 
         # Create a symbol of the relevant type.
+        containing_routine = node.ancestor(Routine)
+        if containing_routine:
+            sym_tab = containing_routine.symbol_table
+        else:
+            sym_tab = node.scope.symbol_table
         if not storage_name:
-            symbol = node.scope.symbol_table.new_symbol(
+            symbol = sym_tab.new_symbol(
                 root_name="tmp",
                 symbol_type=DataSymbol,
                 datatype=datatype
             )
         else:
-            symbol = node.scope.symbol_table.new_symbol(
+            symbol = sym_tab.new_symbol(
                 root_name=storage_name,
                 symbol_type=DataSymbol,
                 datatype=datatype
