@@ -121,7 +121,7 @@ def test_accparalleltrans_validate(fortran_reader):
     ''' Test that ACCParallelTrans validation fails if it contains non-allowed
     constructs. '''
 
-    omptargettrans = ACCParallelTrans()
+    accparalleltrans = ACCParallelTrans()
 
     code = '''
     function myfunc(a)
@@ -132,6 +132,8 @@ def test_accparalleltrans_validate(fortran_reader):
         integer, dimension(10, 10) :: A
         integer :: i
         integer :: j
+        character*8 :: ca, cb
+        character :: cc(8), cd(8)
         character :: command
         do i = 1, 10
             do j = 1, 10
@@ -148,34 +150,63 @@ def test_accparalleltrans_validate(fortran_reader):
                 A(i, j) = ADJUSTR(command)
             end do
         end do
+        do i = 1, 8
+            ca(i) = cb(i)
+        end do
+        do i = 1, 8
+            cc(i) = cd(i)
+        end do
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.walk(Loop, stop_type=Loop)
 
     with pytest.raises(TransformationError) as err:
-        omptargettrans.validate(loops[0])
+        accparalleltrans.validate(loops[0])
     assert ("'myfunc' is not available on the accelerator device, and "
             "therefore it cannot be called from within an ACC parallel region."
             in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        omptargettrans.validate(loops[1])
+        accparalleltrans.validate(loops[1])
     assert ("Nodes of type 'Fparser2CodeBlock' cannot be enclosed by a "
             "ACCParallelTrans transformation" in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        omptargettrans.validate(loops[2])
+        accparalleltrans.validate(loops[2], options={'allow_strings': True})
     assert ("'ADJUSTR' is not available on the default accelerator "
             "device. Use the 'device_string' option to specify a different "
             "device." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        omptargettrans.validate(loops[2], options={'device_string':
-                                                   'nvfortran-all'})
+        accparalleltrans.validate(loops[2], options={
+            'device_string': 'nvfortran-all',
+            'allow_strings': True
+        })
     assert ("'ADJUSTR' is not available on the 'nvfortran-all' accelerator"
             " device. Use the 'device_string' option to specify a different "
             "device." in str(err.value))
+
+    # Character substrings and no verbose option
+    with pytest.raises(TransformationError) as err:
+        accparalleltrans.validate(loops[3])
+    assert ("ACCParallelTrans doesn't enclose regions that use characters, "
+            "but found: 'ca(i)', use the 'allow_strings' transformation option"
+            " to offload this region." in str(err.value))
+    assert loops[3].preceding_comment == ""
+
+    # Character array and verbose option
+    with pytest.raises(TransformationError) as err:
+        accparalleltrans.validate(loops[4], options={'verbose': True})
+    assert ("ACCParallelTrans doesn't enclose regions that use characters, "
+            "but found: 'cc(i)', use the 'allow_strings' transformation option"
+            " to offload this region." in str(err.value))
+    assert ("but found: 'cc(i)', use the 'allow_strings'"
+            in loops[4].preceding_comment)
+
+    # These validate with the right option
+    accparalleltrans.validate(loops[3], options={'allow_strings': True})
+    accparalleltrans.validate(loops[4], options={'allow_strings': True})
 
 
 def test_accenterdata():

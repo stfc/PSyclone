@@ -43,7 +43,7 @@ from psyclone.psyir.nodes import (
     Assignment, Loop, Directive, Node, Reference, CodeBlock, Call,
     Routine, Schedule, IntrinsicCall, StructureReference, IfBlock,
     Operation)
-from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType
+from psyclone.psyir.symbols import DataSymbol, ArrayType
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
     HoistTrans, InlineTrans, Maxval2LoopTrans, Sum2LoopTrans, Minval2LoopTrans,
@@ -83,14 +83,6 @@ PROFILING_IGNORE = ["flo_dom", "macho", "mpp_", "nemo_gcm", "dyn_ldf"
 # Currently fparser has no way of distinguishing array accesses from statement
 # functions, the following subroutines contains known statement functions
 CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
-
-# These files change the results from the baseline when psyclone adds
-# parallelisation directives
-PARALLELISATION_ISSUES = [
-    "ldfc1d_c2d.f90",
-    "tramle.f90",
-    "traqsr.f90",
-]
 
 
 def _it_should_be(symbol, of_type, instance):
@@ -569,12 +561,6 @@ def hoist_arguments_to_temporaries(calls: list[Call]):
                 (isinstance(arg, Operation) or
                     isinstance(arg, IntrinsicCall))):
                 try:
-                    # TODO #3443: Does the fixes in that PR fix this, or
-                    # maybe the DataNodeToTempTrans has to skip characters
-                    if (isinstance(dtype.elemental_type, ScalarType)
-                        and dtype.elemental_type.intrinsic ==
-                            ScalarType.Intrinsic.CHARACTER):
-                        continue
                     DataNodeToTempTrans().apply(arg, verbose=True)
                 except TransformationError:
                     pass
