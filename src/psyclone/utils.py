@@ -97,14 +97,14 @@ def transformation_documentation_wrapper(*args,
                                          add_subtransformations: bool = True,
                                          **kwargs):
     '''
-    Updates the apply and validate methods' docstrings for the decorated
-    class, according to the value of inherit. Should be used as a
-    decorator on a Transformation subclass.
+    This function should be used as a decorator on a Transformation subclass.
+    It updates the apply and validate methods' docstrings for the decorated
+    class, according to the value of inherit.
 
-    *args is either a length 1 list of
-    arguments containing the class to be wrapped, or a length 0 argument set
-    when options are specified on the transformation_docstring_wrapper that is
-    handled by python. The length 0 set would happen with a case like this:
+    *args is either a length 1 list of arguments containing the class to be
+    wrapped, or a length 0 argument set when options are specified on the
+    transformation_docstring_wrapper that is handled by python. The length 0
+    set would happen with a case like this:
 
     >>> @transformation_documentation_wrapper(inherit=True)
     ... class mytrans(Transformation):
@@ -115,7 +115,7 @@ def transformation_documentation_wrapper(*args,
     >>> mytrans = transformation_documentation_wrapper(inherit=True)(mytrans)
 
     For this case *args is empty, as only the inherit argument is provided
-    to the transformation_documentation_wrapper call.
+    to the transformation_documentation_wrapper call and is through kwargs.
 
     Without arguments to the decorator:
 

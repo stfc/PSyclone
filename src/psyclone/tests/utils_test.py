@@ -434,16 +434,14 @@ def test_transformation_doc_wrapper_subtrans():
 
     # Disable some flake8 for this string, as empty lines in output
     # contain whitespace.
-    correct = """Super apply docstring
-    
-    
+    correct = """    Super apply docstring\n    \n    \n\
     :param opt1: opt1 docstring.
     :param opt2: opt2 docstring.
     :type opt2: opt2 type.
     :param opt3: (Option provided for SubTrans1) opt3 docstring.
     :type opt3: int
     :param int opt3: (Option provided for SubTrans2) opt3 docstring.\
-"""  # noqa: W293
+"""
     assert correct in BaseTrans.apply.__doc__
 
     # Test behaviour still is consistant with inherit=False
@@ -466,16 +464,11 @@ def test_transformation_doc_wrapper_subtrans():
             :type opt2: opt2 type.
             '''
 
-    # Disable some flake8 for this string, as empty lines in output
-    # contain whitespace.
-    correct = """Super apply docstring
-    
-    
+    correct = """Super apply docstring\n    \n    \n\
     :param opt1: opt1 docstring.
     :param opt2: opt2 docstring.
     :type opt2: opt2 type.
     :param opt3: (Option provided for SubTrans1) opt3 docstring.
     :type opt3: int
-    :param int opt3: (Option provided for SubTrans2) opt3 docstring.\
-"""  # noqa: W293
+    :param int opt3: (Option provided for SubTrans2) opt3 docstring."""
     assert correct in BaseTrans.apply.__doc__

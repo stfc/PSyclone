@@ -95,9 +95,8 @@ class ArgumentData():
                     can be no type annotation and so the type information is
                     included inline in the :param or in a separate :type
                     entry.
-        :param cls_name: The cls_name to use for saying which subclass (or
-            otherwise) this argument is from. Used for documenting
-            sub transformation options.
+        :param cls_name: The cls_name to use for saying which argument is this
+            from. Used for documenting sub transformation options.
 
         :returns: The docstring represented by this ArgumentData.
         '''
