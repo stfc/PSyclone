@@ -63,10 +63,10 @@ from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule)
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
-    ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective, Reference,
-    Call, CodeBlock, Container, Directive, Literal, Loop,
-    OMPMasterDirective, OMPParallelDirective, OMPSerialDirective,
-    OMPSingleDirective, Return, Schedule, PSyDataNode, IntrinsicCall)
+    ACCParallelDirective, ACCRoutineDirective, Call, CodeBlock, Container,
+    Literal, Loop, OMPMasterDirective, OMPParallelDirective,
+    OMPSerialDirective, OMPSingleDirective, Reference, Return, Schedule,
+    PSyDataNode, IntrinsicCall)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.omp_directives import OMPDirective
