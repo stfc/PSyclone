@@ -55,7 +55,7 @@ from psyclone.psyir.transformations import (
     OMPDeclareTargetTrans, OMPParallelTrans, ACCLoopTrans)
 from psyclone.transformations import (
     LFRicColourTrans, LFRicOMPLoopTrans,
-    ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans,
+    ACCParallelTrans, ACCRoutineTrans,
     LFRicRedundantComputationTrans,
     OMPLoopTrans)
 
