@@ -128,6 +128,10 @@ from psyclone.psyir.transformations.omp_taskloop_trans import \
     OMPTaskloopTrans
 from psyclone.psyir.transformations.omp_declare_target_trans import \
     OMPDeclareTargetTrans
+from psyclone.psyir.transformations.acc_loop_trans import \
+    ACCLoopTrans
+from psyclone.psyir.transformations.omp_parallel_loop_trans import \
+    OMPParallelLoopTrans
 from psyclone.psyir.transformations.maximal_omp_parallel_region_trans import (
     MaximalOMPParallelRegionTrans
 )
@@ -190,6 +194,8 @@ __all__ = [
     "ParallelRegionTrans",
     "OMPTaskloopTrans",
     "OMPDeclareTargetTrans",
+    "ACCLoopTrans",
+    "OMPParallelLoopTrans",
     "MaximalRegionTrans",
     "OMPCriticalTrans",
     "MaximalOMPParallelRegionTrans",

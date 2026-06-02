@@ -41,10 +41,13 @@ from psyclone.core import AccessType
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (ArrayReference, Assignment, BinaryOperation,
                                   Call, CodeBlock, Loop, Reference)
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError
+)
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class ReplaceInductionVariablesTrans(Transformation):
     '''Move all supported induction variables out of the loop, and replace
     their usage inside the loop. For example:
@@ -197,17 +200,17 @@ class ReplaceInductionVariablesTrans(Transformation):
         return True
 
     # ------------------------------------------------------------------------
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''Apply the ReplaceInductionVariablesTrans transformation to the
         specified node. The node must be a loop. In case of nested
         loops, the transformation might need to be applied several
         times, from the inner-most loop outwards.
 
         :param node: a Loop node.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
 
         '''
-        self.validate(node, options)
+        # TODO #2668: Remove options.
+        self.validate(node, options, **kwargs)
         loop_var = node.variable.name
 
         # Find assignments that are directly part of the loop (this
@@ -263,18 +266,18 @@ class ReplaceInductionVariablesTrans(Transformation):
             # statement in the body.
 
     # ------------------------------------------------------------------------
-    def validate(self, node, options=None):
+    def validate(self, node: Loop, options=None, **kwargs):
         '''Perform various checks to ensure that it is valid to apply the
         ReplaceInductionVariablesTrans transformation to the supplied PSyIR
         Node.
 
         :param node: the node that is being checked.
-        :type node: :py:class:`psyclone.psyir.nodes.Assignment`
 
-        :raises TransformationError: if the node argument is not a \
+        :raises TransformationError: if the node argument is not a
             Loop.
 
         '''
+        self.validate_options(**kwargs)
         if not isinstance(node, Loop):
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied node "

@@ -52,10 +52,11 @@ from psyclone.psyir.nodes import (
     Call, Directive, IntrinsicCall, Loop, Routine, Schedule)
 from psyclone.psyir.transformations import (
     ACCKernelsTrans, Matmul2CodeTrans, OMPTargetTrans, TransformationError,
-    OMPDeclareTargetTrans, OMPParallelTrans)
+    OMPDeclareTargetTrans, OMPParallelTrans, ACCLoopTrans)
 from psyclone.transformations import (
     LFRicColourTrans, LFRicOMPLoopTrans,
     ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans,
+    LFRicRedundantComputationTrans,
     OMPLoopTrans)
 
 

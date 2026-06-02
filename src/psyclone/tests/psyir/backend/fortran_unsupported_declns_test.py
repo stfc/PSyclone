@@ -48,7 +48,7 @@ from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.symbols import (
     ArgumentInterface, DataSymbol, UnresolvedType, RoutineSymbol,
     UnsupportedType, UnsupportedFortranType, ImportInterface, ContainerSymbol,
-    Symbol, SymbolTable, INTEGER_TYPE)
+    Symbol, SymbolTable, ScalarType)
 from psyclone.tests.utilities import Compile
 
 
@@ -96,7 +96,7 @@ def test_fw_unsupported_interface_decln(tmp_path, fortran_writer):
     container.symbol_table.remove(container.symbol_table.lookup("my_sub"))
     # We have to make the interfaces to the two 'module procedures' different
     # so we give 'eos1d' an integer argument.
-    arg = DataSymbol("var1", datatype=INTEGER_TYPE,
+    arg = DataSymbol("var1", datatype=ScalarType.integer_type(),
                      interface=ArgumentInterface())
     eos1d_table = SymbolTable()
     eos1d_table.add(arg)
@@ -154,7 +154,7 @@ def test_fw_add_accessibility_errors():
         "Expected a Symbol or DerivedType component but got 'str'")
     with pytest.raises(TypeError) as err:
         add_accessibility_to_unsupported_declaration(
-            DataSymbol("var", INTEGER_TYPE))
+            DataSymbol("var", ScalarType.integer_type()))
     assert ("Expected a Symbol of UnsupportedFortranType but symbol 'var' has "
             "type 'Scalar<INTEGER, UNDEFINED>'" in str(err.value))
     # Missing :: separator in declaration

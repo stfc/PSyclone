@@ -44,16 +44,17 @@ from typing import TYPE_CHECKING
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
-if TYPE_CHECKING:  # pragma: no cover
-    from psyclone.domain.common.psylayer import GlobalReduction
-    from psyclone.domain.lfric.lfric_invokes import LFRicInvokes
 from psyclone.domain.lfric.lfric_loop import LFRicLoop
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.parse.algorithm import InvokeCall
 from psyclone.psyGen import Invoke
 from psyclone.psyir.nodes import Assignment, Reference, Call, Literal
 from psyclone.psyir.symbols import (
-    ContainerSymbol, RoutineSymbol, ImportInterface, DataSymbol, INTEGER_TYPE)
+    ContainerSymbol, RoutineSymbol, ImportInterface, DataSymbol, ScalarType)
+
+if TYPE_CHECKING:
+    from psyclone.domain.common.psylayer import GlobalReduction
+    from psyclone.domain.lfric.lfric_invokes import LFRicInvokes
 
 
 class LFRicInvoke(Invoke):
@@ -326,7 +327,7 @@ class LFRicInvoke(Invoke):
                             "omp_num_threads",
                             root_name="nthreads",
                             symbol_type=DataSymbol,
-                            datatype=INTEGER_TYPE)
+                            datatype=ScalarType.integer_type())
             omp_lib = symtab.find_or_create("omp_lib",
                                             symbol_type=ContainerSymbol)
             omp_get_max_threads = symtab.find_or_create(

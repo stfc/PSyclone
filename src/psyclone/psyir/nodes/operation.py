@@ -340,8 +340,7 @@ class BinaryOperation(Operation):
 
         '''
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols.datatypes import (
-                BOOLEAN_TYPE, ScalarType)
+        from psyclone.psyir.symbols.datatypes import ScalarType
         from psyclone.psyir.tools.type_info_computation import (
                 compute_scalar_type
         )
@@ -349,7 +348,7 @@ class BinaryOperation(Operation):
         if self.operator not in self._numeric_ops:
             # Must be a relational or logical operator. Intrinsic type of
             # result will be boolean.
-            return BOOLEAN_TYPE
+            return ScalarType.boolean_type()
 
         try:
             return compute_scalar_type(optypes)

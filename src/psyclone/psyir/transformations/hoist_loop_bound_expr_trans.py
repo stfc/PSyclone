@@ -48,7 +48,7 @@ from psyclone.psyir.nodes import (
     Routine,
     StructureReference,
 )
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations.loop_trans import LoopTrans, \
     TransformationError
 from psyclone.utils import transformation_documentation_wrapper
@@ -94,6 +94,7 @@ class HoistLoopBoundExprTrans(LoopTrans):
     <BLANKLINE>
 
     '''
+
     def apply(self, node: Loop, options=None, **kwargs):
         '''Move complex bounds expressions out of the given loop construct and
         place them in integer scalar assignments before the loop.
@@ -123,7 +124,8 @@ class HoistLoopBoundExprTrans(LoopTrans):
 
             # Create new symbol
             symbol = node.ancestor(Routine).symbol_table.new_symbol(
-                f"loop_{name}", symbol_type=DataSymbol, datatype=INTEGER_TYPE
+                f"loop_{name}", symbol_type=DataSymbol,
+                datatype=ScalarType.integer_type()
             )
             # Move bound expression to an assignment preceding the loop
             bound.replace_with(Reference(symbol))

@@ -46,10 +46,7 @@ from fparser.two import Fortran2003
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, Symbol, DataTypeSymbol, AutomaticInterface,
     ImportInterface, ArgumentInterface, StaticInterface, UnresolvedInterface,
-    ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE,
-    REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE,
-    BOOLEAN_TYPE, CHARACTER_TYPE, SymbolTable, UnresolvedType,
-    UnsupportedFortranType)
+    ScalarType, ArrayType, SymbolTable, UnresolvedType, UnsupportedFortranType)
 from psyclone.psyir.nodes import (
     BinaryOperation, CodeBlock, Fparser2CodeBlock, IntrinsicCall,
     Literal, Reference, Return)
@@ -60,16 +57,19 @@ def test_datasymbol_initialisation():
     given, otherwise raise relevant exceptions.'''
 
     # Test with valid arguments
-    assert isinstance(DataSymbol('a', REAL_SINGLE_TYPE), DataSymbol)
-    assert isinstance(DataSymbol('a', REAL_DOUBLE_TYPE), DataSymbol)
-    assert isinstance(DataSymbol('a', REAL4_TYPE), DataSymbol)
-    kind = DataSymbol('r_def', INTEGER_SINGLE_TYPE)
+    assert isinstance(DataSymbol('a', ScalarType.real_single_type()),
+                      DataSymbol)
+    assert isinstance(DataSymbol('a', ScalarType.real_double_type()),
+                      DataSymbol)
+    assert isinstance(DataSymbol('a', ScalarType.real4_type()), DataSymbol)
+    kind = DataSymbol('r_def', ScalarType.integer_single_type())
     real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(kind))
     assert isinstance(DataSymbol('a', real_kind_type),
                       DataSymbol)
-    assert isinstance(DataSymbol('a', INTEGER_SINGLE_TYPE), DataSymbol)
+    assert isinstance(DataSymbol('a', ScalarType.integer_single_type()),
+                      DataSymbol)
     # Run-time constant with no interface specified.
-    sym = DataSymbol('a', REAL_DOUBLE_TYPE, is_constant=True,
+    sym = DataSymbol('a', ScalarType.real_double_type(), is_constant=True,
                      initial_value=0.0)
     assert isinstance(sym, DataSymbol)
     assert sym.is_constant
@@ -79,49 +79,56 @@ def test_datasymbol_initialisation():
     # Run-time constant can only have StaticInterface, UnresolvedInterface
     # or ImportInterface.
     with pytest.raises(ValueError) as err:
-        _ = DataSymbol('a', INTEGER_DOUBLE_TYPE, is_constant=True,
+        _ = DataSymbol('a', ScalarType.integer_double_type(), is_constant=True,
                        interface=StaticInterface())
     assert ("DataSymbol 'a' cannot be a constant because it does not have an "
             "initial value or an import or unresolved interface."
             in str(err.value))
 
-    assert isinstance(DataSymbol('a', INTEGER4_TYPE),
+    assert isinstance(DataSymbol('a', ScalarType.integer4_type()),
                       DataSymbol)
 
-    assert isinstance(DataSymbol('a', CHARACTER_TYPE), DataSymbol)
-    assert isinstance(DataSymbol('a', CHARACTER_TYPE, is_constant=True,
+    assert isinstance(DataSymbol('a', ScalarType.character_type()), DataSymbol)
+    assert isinstance(DataSymbol('a', ScalarType.character_type(),
+                                 is_constant=True,
                                  initial_value="hello"), DataSymbol)
-    assert isinstance(DataSymbol('a', BOOLEAN_TYPE), DataSymbol)
-    assert isinstance(DataSymbol('a', BOOLEAN_TYPE, is_constant=True,
+    assert isinstance(DataSymbol('a', ScalarType.boolean_type()), DataSymbol)
+    assert isinstance(DataSymbol('a', ScalarType.boolean_type(),
+                                 is_constant=True,
                                  initial_value=False),
                       DataSymbol)
-    array_type = ArrayType(REAL_SINGLE_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(ScalarType.real_single_type(),
+                           [ArrayType.Extent.ATTRIBUTE])
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
 
-    array_type = ArrayType(REAL_SINGLE_TYPE, [3])
+    array_type = ArrayType(ScalarType.real_single_type(), [3])
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
     with pytest.raises(TypeError) as err:
-        _ = ArrayType(REAL_SINGLE_TYPE, [3, ArrayType.Extent.ATTRIBUTE])
+        _ = ArrayType(ScalarType.real_single_type(),
+                      [3, ArrayType.Extent.ATTRIBUTE])
     assert ("An assumed-shape array must have every dimension unspecified "
             "(either as 'ATTRIBUTE' or with the upper bound as 'ATTRIBUTE') "
             "but found shape: [3, <Extent.ATTRIBUTE: 2>]" in str(err.value))
-    array_type = ArrayType(REAL_SINGLE_TYPE, [ArrayType.Extent.ATTRIBUTE,
-                                              ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(ScalarType.real_single_type(),
+                           [ArrayType.Extent.ATTRIBUTE,
+                            ArrayType.Extent.ATTRIBUTE])
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
-    assert isinstance(DataSymbol('a', REAL_SINGLE_TYPE), DataSymbol)
-    assert isinstance(DataSymbol('a', REAL8_TYPE), DataSymbol)
-    dim = DataSymbol('dim', INTEGER_SINGLE_TYPE,
+    assert isinstance(DataSymbol('a', ScalarType.real_single_type()),
+                      DataSymbol)
+    assert isinstance(DataSymbol('a', ScalarType.real8_type()), DataSymbol)
+    dim = DataSymbol('dim', ScalarType.integer_single_type(),
                      interface=UnresolvedInterface())
-    array_type = ArrayType(REAL_SINGLE_TYPE, [Reference(dim)])
+    array_type = ArrayType(ScalarType.real_single_type(), [Reference(dim)])
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
-    array_type = ArrayType(REAL_SINGLE_TYPE, [3, Reference(dim), 4])
+    array_type = ArrayType(ScalarType.real_single_type(),
+                           [3, Reference(dim), 4])
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
     assert isinstance(
-        DataSymbol('a', REAL_SINGLE_TYPE,
+        DataSymbol('a', ScalarType.real_single_type(),
                    interface=ArgumentInterface(
                        ArgumentInterface.Access.READWRITE)), DataSymbol)
     assert isinstance(
-        DataSymbol('a', REAL_SINGLE_TYPE,
+        DataSymbol('a', ScalarType.real_single_type(),
                    visibility=Symbol.Visibility.PRIVATE), DataSymbol)
     assert isinstance(DataSymbol('field', DataTypeSymbol("field_type",
                                                          UnresolvedType())),
@@ -140,23 +147,23 @@ def test_datasymbol_specialise_and_process_arguments():
 
     # Include a datatype
     sym2 = Symbol("symbol2")
-    sym2.specialise(DataSymbol, datatype=REAL_SINGLE_TYPE)
-    assert sym2.datatype is REAL_SINGLE_TYPE
+    sym2.specialise(DataSymbol, datatype=ScalarType.real_single_type())
+    assert sym2.datatype == ScalarType.real_single_type()
     assert sym2.is_constant is False
     assert sym2.initial_value is None
 
     # Include an initial_value
     sym3 = Symbol("symbol3")
-    sym3.specialise(DataSymbol, datatype=REAL_SINGLE_TYPE,
+    sym3.specialise(DataSymbol, datatype=ScalarType.real_single_type(),
                     initial_value=3.14)
-    assert sym3.datatype is REAL_SINGLE_TYPE
+    assert sym3.datatype == ScalarType.real_single_type()
     assert isinstance(sym3.initial_value, Literal)
     assert sym3.initial_value.value == '3.14'
 
     # Include an initial_value of the wrong type
     sym4 = Symbol("symbol4")
     with pytest.raises(ValueError) as error:
-        sym4.specialise(DataSymbol, datatype=INTEGER_SINGLE_TYPE,
+        sym4.specialise(DataSymbol, datatype=ScalarType.integer_single_type(),
                         initial_value=3.14)
     assert ("This DataSymbol instance datatype is 'Scalar<INTEGER, SINGLE>' "
             "meaning the initial value should be"
@@ -166,7 +173,7 @@ def test_datasymbol_specialise_and_process_arguments():
     # initial value.
     sym5 = Symbol("symbol5")
     with pytest.raises(ValueError) as error:
-        sym5.specialise(DataSymbol, datatype=INTEGER_SINGLE_TYPE,
+        sym5.specialise(DataSymbol, datatype=ScalarType.integer_single_type(),
                         is_constant=True)
     assert ("DataSymbol 'symbol5' cannot be a constant because it does not "
             "have an initial value or an import or unresolved interface."
@@ -175,7 +182,7 @@ def test_datasymbol_specialise_and_process_arguments():
     # ImportInterface.
     csym = ContainerSymbol("some_mod")
     sym6 = Symbol("symbol6")
-    sym6.specialise(DataSymbol, datatype=INTEGER_SINGLE_TYPE,
+    sym6.specialise(DataSymbol, datatype=ScalarType.integer_single_type(),
                     is_constant=True, interface=ImportInterface(csym))
     assert sym6.is_constant
     assert sym6.is_import
@@ -189,8 +196,9 @@ def test_datasymbol_specialise_and_process_arguments():
     sym8 = Symbol("symbol8")
     with pytest.raises(ValueError) as err:
         sym8.specialise(
-            DataSymbol, datatype=INTEGER_SINGLE_TYPE, is_constant=True,
-            initial_value=Literal("1", INTEGER_SINGLE_TYPE),
+            DataSymbol, datatype=ScalarType.integer_single_type(),
+            is_constant=True,
+            initial_value=Literal("1", ScalarType.integer_single_type()),
             interface=ArgumentInterface(ArgumentInterface.Access.READ))
     assert ("Error setting initial value for symbol 'symbol8'. A DataSymbol "
             "with an ArgumentInterface can not have an initial value."
@@ -200,14 +208,14 @@ def test_datasymbol_specialise_and_process_arguments():
 def test_datasymbol_can_be_printed():
     '''Test that a DataSymbol instance can always be printed. (i.e. is
     initialised fully.)'''
-    symbol = DataSymbol("sname", REAL_SINGLE_TYPE)
+    symbol = DataSymbol("sname", ScalarType.real_single_type())
     assert "sname: DataSymbol<Scalar<REAL, SINGLE>, Automatic>" in str(symbol)
 
-    sym1 = DataSymbol("s1", INTEGER_SINGLE_TYPE,
+    sym1 = DataSymbol("s1", ScalarType.integer_single_type(),
                       interface=UnresolvedInterface())
     assert "s1: DataSymbol<Scalar<INTEGER, SINGLE>, Unresolved>" in str(sym1)
 
-    array_type = ArrayType(REAL_SINGLE_TYPE,
+    array_type = ArrayType(ScalarType.real_single_type(),
                            [ArrayType.Extent.ATTRIBUTE,
                             ArrayType.Extent.ATTRIBUTE,
                             ArrayType.Extent.ATTRIBUTE])
@@ -216,12 +224,12 @@ def test_datasymbol_can_be_printed():
             "'ATTRIBUTE', 'ATTRIBUTE']>, Automatic>" in str(sym2))
 
     my_mod = ContainerSymbol("my_mod")
-    sym3 = DataSymbol("s3", REAL_SINGLE_TYPE,
+    sym3 = DataSymbol("s3", ScalarType.real_single_type(),
                       interface=ImportInterface(my_mod))
     assert ("s3: DataSymbol<Scalar<REAL, SINGLE>, Import(container='my_mod')>"
             in str(sym3))
 
-    sym3 = DataSymbol("s3", INTEGER_SINGLE_TYPE, initial_value=12)
+    sym3 = DataSymbol("s3", ScalarType.integer_single_type(), initial_value=12)
     assert ("s3: DataSymbol<Scalar<INTEGER, SINGLE>, Automatic, "
             "initial_value=Literal"
             "[value:'12', Scalar<INTEGER, SINGLE>]>" in str(sym3))
@@ -230,7 +238,7 @@ def test_datasymbol_can_be_printed():
             "initial_value=Literal"
             "[value:'12', Scalar<INTEGER, SINGLE>], constant=True>"
             in str(sym3))
-    sym4 = DataSymbol("s4", INTEGER_SINGLE_TYPE,
+    sym4 = DataSymbol("s4", ScalarType.integer_single_type(),
                       interface=UnresolvedInterface())
     assert "s4: DataSymbol<Scalar<INTEGER, SINGLE>, Unresolved>" in str(sym4)
 
@@ -240,26 +248,27 @@ def test_datasymbol_initial_value_setter():
     value.'''
 
     # Test with valid constant values
-    sym = DataSymbol('a', INTEGER_SINGLE_TYPE, initial_value=7)
+    sym = DataSymbol('a', ScalarType.integer_single_type(), initial_value=7)
     assert sym.initial_value.value == "7"
     sym.initial_value = 9
     assert sym.initial_value.value == "9"
 
-    sym = DataSymbol('a', REAL_SINGLE_TYPE, initial_value=3.1415)
+    sym = DataSymbol('a', ScalarType.real_single_type(), initial_value=3.1415)
     assert sym.initial_value.value == "3.1415"
     sym.initial_value = 1.0
     assert sym.initial_value.value == "1.0"
 
-    sym = DataSymbol('a', BOOLEAN_TYPE, initial_value=True)
+    sym = DataSymbol('a', ScalarType.boolean_type(), initial_value=True)
     assert sym.initial_value.value == "true"
     sym.initial_value = False
     assert sym.initial_value.value == "false"
 
     # Test with valid constant expressions
-    lhs = Literal('2', INTEGER_SINGLE_TYPE)
-    rhs = Reference(DataSymbol('constval', INTEGER_SINGLE_TYPE))
+    lhs = Literal('2', ScalarType.integer_single_type())
+    rhs = Reference(DataSymbol('constval', ScalarType.integer_single_type()))
     ct_expr = BinaryOperation.create(BinaryOperation.Operator.ADD, lhs, rhs)
-    sym = DataSymbol('a', INTEGER_SINGLE_TYPE, initial_value=ct_expr)
+    sym = DataSymbol('a', ScalarType.integer_single_type(),
+                     initial_value=ct_expr)
     assert isinstance(sym.initial_value, BinaryOperation)
     assert sym.initial_value is ct_expr
 
@@ -283,20 +292,21 @@ def test_datasymbol_initial_value_setter_invalid():
     # Test with invalid initial expressions
     ct_expr = Return()
     with pytest.raises(ValueError) as error:
-        _ = DataSymbol('a', INTEGER_SINGLE_TYPE, initial_value=ct_expr)
+        _ = DataSymbol('a', ScalarType.integer_single_type(),
+                       initial_value=ct_expr)
     assert ("Error setting initial value for symbol 'a'. PSyIR static "
             "expressions can only contain PSyIR Literal, Operation, Reference,"
             " IntrinsicCall or CodeBlock nodes but found:" in str(error.value))
 
     with pytest.raises(ValueError) as error:
-        DataSymbol('a', INTEGER_SINGLE_TYPE, interface=ArgumentInterface(),
-                   initial_value=9)
+        DataSymbol('a', ScalarType.integer_single_type(),
+                   interface=ArgumentInterface(), initial_value=9)
     assert ("Error setting initial value for symbol 'a'. A DataSymbol with "
             "an ArgumentInterface can not have an initial value."
             in str(error.value))
 
     with pytest.raises(ValueError) as error:
-        DataSymbol('a', INTEGER_SINGLE_TYPE, initial_value=9.81)
+        DataSymbol('a', ScalarType.integer_single_type(), initial_value=9.81)
     assert ("Error setting initial value for symbol 'a'. This DataSymbol "
             "instance datatype is 'Scalar<INTEGER, SINGLE>' meaning "
             "the initial value should be") in str(error.value)
@@ -304,7 +314,7 @@ def test_datasymbol_initial_value_setter_invalid():
     assert "'float'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
-        DataSymbol('a', CHARACTER_TYPE, initial_value=42)
+        DataSymbol('a', ScalarType.character_type(), initial_value=42)
     assert ("Error setting initial value for symbol 'a'. This DataSymbol "
             "instance datatype is 'Scalar<CHARACTER, UNDEFINED, len:Literal["
             "value:'1', Scalar<INTEGER, UNDEFINED>]>' meaning "
@@ -313,7 +323,7 @@ def test_datasymbol_initial_value_setter_invalid():
     assert "'int'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
-        DataSymbol('a', BOOLEAN_TYPE, initial_value="hello")
+        DataSymbol('a', ScalarType.boolean_type(), initial_value="hello")
     assert ("Error setting initial value for symbol 'a'. This DataSymbol "
             "instance datatype is 'Scalar<BOOLEAN, UNDEFINED>' meaning "
             "the initial value should be") in str(error.value)
@@ -322,7 +332,7 @@ def test_datasymbol_initial_value_setter_invalid():
 
     # is_constant specified but without an initial_value
     with pytest.raises(ValueError) as error:
-        DataSymbol('a', BOOLEAN_TYPE, is_constant=True)
+        DataSymbol('a', ScalarType.boolean_type(), is_constant=True)
     assert ("DataSymbol 'a' cannot be a constant because it does not have an "
             "initial value or an import or unresolved interface."
             in str(error.value))
@@ -333,7 +343,7 @@ def test_datasymbol_is_constant():
     constant value is set and False if it is not.
 
     '''
-    sym = DataSymbol('a', INTEGER_SINGLE_TYPE, initial_value=9)
+    sym = DataSymbol('a', ScalarType.integer_single_type(), initial_value=9)
     assert not sym.is_constant
     sym.is_constant = True
     assert sym.is_constant
@@ -353,7 +363,7 @@ def test_datasymbol_is_constant():
 @pytest.mark.usefixtures("parser")
 def test_datasymbol_initial_value_codeblock():
     ''' Test that a DataSymbol can have a CodeBlock as its initial value. '''
-    sym = DataSymbol('a', INTEGER_SINGLE_TYPE)
+    sym = DataSymbol('a', ScalarType.integer_single_type())
     reader = FortranStringReader(
         "INTEGER, PARAMETER :: a=SELECTED_REAL_KIND(6,37)")
     fparser2spec = Fortran2003.Specification_Part(reader).children[0]
@@ -373,9 +383,10 @@ def test_datasymbol_scalar_array():
     is_array returns True if the DataSymbol is an array and False if not.
 
     '''
-    sym1 = DataSymbol("s1", INTEGER_SINGLE_TYPE,
+    sym1 = DataSymbol("s1", ScalarType.integer_single_type(),
                       interface=UnresolvedInterface())
-    array_type = ArrayType(REAL_SINGLE_TYPE, [3, 2, Reference(sym1)])
+    array_type = ArrayType(ScalarType.real_single_type(),
+                           [3, 2, Reference(sym1)])
     sym2 = DataSymbol("s2", array_type)
     assert sym1.is_scalar
     assert not sym1.is_array
@@ -388,8 +399,9 @@ def test_datasymbol_copy():
     of the original symbol.
 
     '''
-    nelem = DataSymbol("nelem", INTEGER_SINGLE_TYPE)
-    array_type = ArrayType(REAL_SINGLE_TYPE, [1, Reference(nelem)])
+    nelem = DataSymbol("nelem", ScalarType.integer_single_type())
+    array_type = ArrayType(ScalarType.real_single_type(),
+                           [1, Reference(nelem)])
     symbol = DataSymbol("myname", array_type, initial_value=None,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READWRITE))
@@ -470,7 +482,7 @@ def test_datasymbol_copy():
 
 def test_datasymbol_copy_properties():
     '''Test that the DataSymbol copy_properties method works as expected.'''
-    array_type = ArrayType(REAL_SINGLE_TYPE, [1, 2])
+    array_type = ArrayType(ScalarType.real_single_type(), [1, 2])
     symbol = DataSymbol("myname", array_type, initial_value=None,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READWRITE))
@@ -481,7 +493,7 @@ def test_datasymbol_copy_properties():
     assert ("Argument should be of type 'DataSymbol' but found 'NoneType'."
             "") in str(excinfo.value)
 
-    new_symbol = DataSymbol("other_name", INTEGER_SINGLE_TYPE,
+    new_symbol = DataSymbol("other_name", ScalarType.integer_single_type(),
                             initial_value=7)
 
     # Copy properties excluding the interface.
@@ -505,7 +517,7 @@ def test_datasymbol_copy_properties():
 
 def test_datasymbol_resolve_type(monkeypatch):
     ''' Test the datasymbol resolve_type method '''
-    symbola = DataSymbol('a', INTEGER_SINGLE_TYPE)
+    symbola = DataSymbol('a', ScalarType.integer_single_type())
     new_sym = symbola.resolve_type()
     # For a DataSymbol (unlike a Symbol), resolve_type should always
     # return the object on which it was called.
@@ -517,23 +529,24 @@ def test_datasymbol_resolve_type(monkeypatch):
     # Monkeypatch the get_external_symbol() method so that it just returns
     # a new DataSymbol
     monkeypatch.setattr(symbolb, "get_external_symbol",
-                        lambda: DataSymbol("b", INTEGER_SINGLE_TYPE))
+                        lambda: DataSymbol(
+                            "b", ScalarType.integer_single_type()))
     new_sym = symbolb.resolve_type()
     assert new_sym is symbolb
-    assert new_sym.datatype == INTEGER_SINGLE_TYPE
+    assert new_sym.datatype == ScalarType.integer_single_type()
     assert new_sym.visibility == Symbol.Visibility.PRIVATE
     assert isinstance(new_sym.interface, ImportInterface)
 
 
 def test_datasymbol_shape():
     ''' Test that shape returns [] if the symbol is a scalar.'''
-    data_symbol = DataSymbol("a", REAL4_TYPE)
+    data_symbol = DataSymbol("a", ScalarType.real4_type())
     assert data_symbol.shape == []
 
 
 def test_datasymbol_str():
     '''Test that the DataSymbol __str__ method returns the expected string'''
-    data_symbol = DataSymbol("a", INTEGER4_TYPE, initial_value=3)
+    data_symbol = DataSymbol("a", ScalarType.integer4_type(), initial_value=3)
     assert (data_symbol.__str__() ==
             "a: DataSymbol<Scalar<INTEGER, 4>, Automatic, initial_value="
             "Literal[value:'3', Scalar<INTEGER, 4>]>")
@@ -545,12 +558,12 @@ def test_datasymbol_replace_symbols_using():
     of a DataSymbol.
 
     '''
-    kind = DataSymbol("i_def", INTEGER_SINGLE_TYPE)
-    rkind = DataSymbol("r_def", INTEGER_SINGLE_TYPE)
+    kind = DataSymbol("i_def", ScalarType.integer_single_type())
+    rkind = DataSymbol("r_def", ScalarType.integer_single_type())
     int_kind_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(kind))
     real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(rkind))
-    istart = DataSymbol("start", INTEGER_SINGLE_TYPE)
-    istop = DataSymbol("stop", INTEGER_SINGLE_TYPE)
+    istart = DataSymbol("start", ScalarType.integer_single_type())
+    istop = DataSymbol("stop", ScalarType.integer_single_type())
     atype = ArrayType(real_kind_type, [(Reference(istart), Reference(istop)),
                                        (Reference(istart), Reference(istop)),
                                        (Literal("2", int_kind_type),
@@ -585,9 +598,9 @@ def test_datasymbol_get_all_accessed_symbols():
     checks the initialisation expression.
 
     '''
-    kind = DataSymbol("i_def", INTEGER_SINGLE_TYPE)
+    kind = DataSymbol("i_def", ScalarType.integer_single_type())
     int_kind_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(kind))
-    sym3 = DataSymbol("c", REAL_SINGLE_TYPE,
+    sym3 = DataSymbol("c", ScalarType.real_single_type(),
                       initial_value=Literal("1", int_kind_type))
     dependent_symbols = sym3.get_all_accessed_symbols()
     assert kind in dependent_symbols
@@ -597,10 +610,10 @@ def test_datasymbol_get_bounds():
     '''
     Tests for the get_bounds() method.
     '''
-    one = Literal("1", INTEGER_SINGLE_TYPE)
-    istart = DataSymbol("start", INTEGER_SINGLE_TYPE)
-    istop = DataSymbol("stop", INTEGER_SINGLE_TYPE)
-    atype = ArrayType(INTEGER_SINGLE_TYPE,
+    one = Literal("1", ScalarType.integer_single_type())
+    istart = DataSymbol("start", ScalarType.integer_single_type())
+    istop = DataSymbol("stop", ScalarType.integer_single_type())
+    atype = ArrayType(ScalarType.integer_single_type(),
                       [(Reference(istart), Reference(istop)),
                        Reference(istop),
                        ArrayType.ArrayBounds(
@@ -633,7 +646,7 @@ def test_datasymbol_get_bounds_assumed_size():
     Test get_bounds when we don't have bounds information.
 
     '''
-    atype = ArrayType(INTEGER_SINGLE_TYPE,
+    atype = ArrayType(ScalarType.integer_single_type(),
                       [ArrayType.Extent.ATTRIBUTE])
     sym = DataSymbol("c", atype)
     lbnd, ubnd = sym.get_bounds(0)
@@ -649,7 +662,7 @@ def test_datasymbol_get_bounds_unsupported_type():
     partial datatype.
 
     '''
-    atype = ArrayType(INTEGER_SINGLE_TYPE,
+    atype = ArrayType(ScalarType.integer_single_type(),
                       [ArrayType.Extent.ATTRIBUTE])
     utype = UnsupportedFortranType("integer, dimension(:), pointer :: var",
                                    partial_datatype=atype)
