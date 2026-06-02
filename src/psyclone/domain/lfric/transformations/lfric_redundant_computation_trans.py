@@ -86,10 +86,6 @@ class LFRicRedundantComputationTrans(LoopTrans):
 
         :param node: the supplied node on which we are performing
                      validity checks.
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param int options["depth"]: the depth of the stencil if the value
-                                     is provided and None if not.
 
         :raises TransformationError: if the parent of the loop is a
             :py:class:`psyclone.psyir.nodes.Directive`.
@@ -214,9 +210,10 @@ class LFRicRedundantComputationTrans(LoopTrans):
         # loops containing inter-grid kernels
         check_intergrid(node)
 
-        if not options:
-            options = {}
-        depth = options.get("depth")
+        # TODO #2668: Deprecate options dictionary.
+        if options:
+            depth = options.get("depth")
+
         if depth is None:
             if node.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
                 if not node.upper_bound_halo_depth:
@@ -281,14 +278,12 @@ class LFRicRedundantComputationTrans(LoopTrans):
             Default is None in which case the full halo depth is used.
 
         '''
-        # TODO #2668: remove options dictionary.
-        self.validate(node, options=options, **kwargs)
-
         if options:
             # TODO #2668: Deprecate options dictionary.
             depth = options.get("depth")
-        else:
-            depth = self.get_option("depth", **kwargs)
+
+        # TODO #2668: remove options dictionary.
+        self.validate(node, options=options, depth=depth, **kwargs)
 
         loop = node
         if loop.loop_type == "":
