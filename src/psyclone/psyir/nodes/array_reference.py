@@ -40,8 +40,9 @@
 
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
+from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import (
@@ -181,19 +182,28 @@ class ArrayReference(ArrayMixin, Reference):
                 if isinstance(self.symbol.datatype, ArrayType):
                     base_type = self.symbol.datatype.elemental_type.copy()
                 else:
-                    # TODO #3240 - sometimes we have an ArrayReference that is
-                    # actually a character sub-string.
-                    base_type = self.symbol.datatype.copy()
+                    # Sometimes we have an ArrayReference that is actually a
+                    # character sub-string, its return type is a ScalarType
+                    # with different length
+                    if (self.symbol.datatype.intrinsic ==
+                            ScalarType.Intrinsic.CHARACTER):
+                        if len(shape) == 1 and isinstance(shape[0], DataNode):
+                            rtype = self.symbol.datatype.copy()
+                            rtype.length = shape[0]
+                            return rtype
+                    base_type = UnresolvedType()
             return ArrayType(base_type, shape)
         # Otherwise, we're accessing a single element of the array.
         if type(self.symbol) is Symbol:
             return UnresolvedType()
-        if isinstance(self.symbol.datatype, UnsupportedType):
-            if (isinstance(self.symbol.datatype, UnsupportedFortranType) and
-                    self.symbol.datatype.partial_datatype):
-                if isinstance(self.symbol.datatype.partial_datatype,
+        # From here, we know it is a datasymbol, so we can ge the symbol type
+        stype = self.symbol.datatype
+        if isinstance(stype, UnsupportedType):
+            if (isinstance(stype, UnsupportedFortranType) and
+                    stype.partial_datatype):
+                if isinstance(stype.partial_datatype,
                               ArrayType):
-                    return self.symbol.datatype.partial_datatype.elemental_type
+                    return stype.partial_datatype.elemental_type
             # Since we're accessing a single element of an array of
             # UnsupportedType we have to create a new UnsupportedFortranType.
             # Ideally we would re-write the original Fortran
@@ -201,15 +211,23 @@ class ArrayReference(ArrayMixin, Reference):
             # shape in the fparser2 parse tree but, at this point, we
             # wouldn't know what the variable name should be (TODO #2137).
             return UnresolvedType()
-        if not isinstance(self.symbol.datatype, ArrayType):
+        if isinstance(stype, ScalarType):
+            # Character strings are represented with Scalars with length, but
+            # are accessed as arrays (this is the case that it resolves to
+            # one element, if it had a shape it was already processed above)
+            if stype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                rtype = stype.copy()
+                rtype.length = Literal("1", ScalarType.integer_type())
+                return rtype
+        if not isinstance(stype, ArrayType):
             # If we have an array reference to a symbol that is not considered
             # an array by PSyIR, we don't know how to retrieve its element type
             # (TODO #2448)
             return UnresolvedType()
 
-        if isinstance(self.symbol.datatype.intrinsic, DataTypeSymbol):
-            return self.symbol.datatype.intrinsic
-        return self.symbol.datatype.elemental_type
+        if isinstance(stype.intrinsic, DataTypeSymbol):
+            return stype.intrinsic
+        return stype.elemental_type
 
 
 # For AutoAPI documentation generation

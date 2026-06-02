@@ -553,14 +553,6 @@ def test_array_datatype(fortran_reader):
     assert dtype.shape[0].lower.value == "1"
     assert dtype.shape[0].upper.value == "10"
 
-    # Character sub-strings are currently mis-identified as array
-    # ranges (TODO #3240):
-    # my_string(1:10)
-    dref = refs[5]
-    dtype = dref.datatype
-    assert isinstance(dtype, ArrayType)
-    assert dtype.intrinsic is ScalarType.Intrinsic.CHARACTER
-
     # Reference to a single element of an array of structures.
     one = Literal("1", ScalarType.integer_type())
     two = Literal("2", ScalarType.integer_type())
@@ -631,6 +623,25 @@ def test_array_datatype(fortran_reader):
     aref7.addchild(one.copy())
     aref7._symbol = DataSymbol("int_test", ScalarType.integer_type())
     assert isinstance(aref7.datatype, UnresolvedType)
+
+    # Test that we can do character_strings that resolve to a single character
+    character_string = ScalarType.character_type()
+    character_string.length = Reference(generic_sym)
+    symbol = DataSymbol("char_str_test", character_string)
+    aref8 = ArrayReference(symbol)
+    aref8.addchild(one.copy())
+    assert aref8.datatype == ScalarType.character_type()
+    # And those that resolve to a character string of a different length
+    aref9 = ArrayReference(symbol)
+    aref9.addchild(Range.create(one.copy(), four.copy()))
+    assert aref9.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER
+    assert aref9.datatype.length == four
+    # This doesn't look as a character-string access, so we just return
+    # UnresolvedType
+    aref10 = ArrayReference(symbol)
+    aref10.addchild(Range.create(one.copy(), four.copy()))
+    aref10.addchild(Range.create(one.copy(), four.copy()))
+    assert aref10.datatype.elemental_type == UnresolvedType()
 
 
 def test_array_create_colon(fortran_writer):

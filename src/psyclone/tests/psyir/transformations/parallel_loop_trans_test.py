@@ -402,6 +402,41 @@ previous iteration variable 'j'
 enddo
 ''' in fortran_writer(test_loop.parent.parent)
 
+
+def test_paralooptrans_collapse_warn_scalar_written_once(monkeypatch,
+                                                         fortran_reader,
+                                                         fortran_writer):
+    '''Exercise the branch that skips dependency issues when all messages are
+    WARN_SCALAR_WRITTEN_ONCE.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_sub()
+          integer :: i, j
+          real :: var(10, 10)
+          do i = 1, 10
+            do j = 1, 10
+              var(i, j) = var(i, j)
+            end do
+          end do
+        end subroutine my_sub''')
+
+    class DummyMsg:  # pylint: disable=too-few-public-methods
+        '''Mock dependency message carrying just the required code.'''
+        code = DTCode.WARN_SCALAR_WRITTEN_ONCE
+
+    monkeypatch.setattr(
+      Loop, "independent_iterations",
+      lambda self, dep_tools=None, signatures_to_ignore=None, **kwargs:
+      False)
+    monkeypatch.setattr(DependencyTools, "get_all_messages",
+                        lambda self: [DummyMsg()])
+
+    trans = ParaTrans()
+    trans.apply(psyir.walk(Loop, stop_type=Loop)[0],
+                {"collapse": True, "verbose": True})
+    assert psyir.walk(OMPParallelDoDirective)
+
     # Also it won't collapse if the loop inside is not perfectly nested,
     # regardless of the force option.
     psyir = fortran_reader.psyir_from_source('''
@@ -419,7 +454,6 @@ enddo
             end do
           end do
         end subroutine my_sub''')
-    loop = psyir.walk(Loop)[0]
     trans = ParaTrans()
     test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
     trans.apply(test_loop, {"collapse": True, "verbose": True, "force": True})

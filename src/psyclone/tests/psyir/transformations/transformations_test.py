@@ -121,7 +121,7 @@ def test_accparalleltrans_validate(fortran_reader):
     ''' Test that ACCParallelTrans validation fails if it contains non-allowed
     constructs. '''
 
-    omptargettrans = ACCParallelTrans()
+    accparalleltrans = ACCParallelTrans()
 
     code = '''
     function myfunc(a)
@@ -132,6 +132,8 @@ def test_accparalleltrans_validate(fortran_reader):
         integer, dimension(10, 10) :: A
         integer :: i
         integer :: j
+        character*8 :: ca, cb
+        character :: cc(8), cd(8)
         character :: command
         do i = 1, 10
             do j = 1, 10
@@ -148,34 +150,63 @@ def test_accparalleltrans_validate(fortran_reader):
                 A(i, j) = ADJUSTR(command)
             end do
         end do
+        do i = 1, 8
+            ca(i) = cb(i)
+        end do
+        do i = 1, 8
+            cc(i) = cd(i)
+        end do
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.walk(Loop, stop_type=Loop)
 
     with pytest.raises(TransformationError) as err:
-        omptargettrans.validate(loops[0])
+        accparalleltrans.validate(loops[0])
     assert ("'myfunc' is not available on the accelerator device, and "
             "therefore it cannot be called from within an ACC parallel region."
             in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        omptargettrans.validate(loops[1])
+        accparalleltrans.validate(loops[1])
     assert ("Nodes of type 'Fparser2CodeBlock' cannot be enclosed by a "
             "ACCParallelTrans transformation" in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        omptargettrans.validate(loops[2])
+        accparalleltrans.validate(loops[2], options={'allow_strings': True})
     assert ("'ADJUSTR' is not available on the default accelerator "
             "device. Use the 'device_string' option to specify a different "
             "device." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        omptargettrans.validate(loops[2], options={'device_string':
-                                                   'nvfortran-all'})
+        accparalleltrans.validate(loops[2], options={
+            'device_string': 'nvfortran-all',
+            'allow_strings': True
+        })
     assert ("'ADJUSTR' is not available on the 'nvfortran-all' accelerator"
             " device. Use the 'device_string' option to specify a different "
             "device." in str(err.value))
+
+    # Character substrings and no verbose option
+    with pytest.raises(TransformationError) as err:
+        accparalleltrans.validate(loops[3])
+    assert ("ACCParallelTrans doesn't enclose regions that use characters, "
+            "but found: 'ca(i)', use the 'allow_strings' transformation option"
+            " to offload this region." in str(err.value))
+    assert loops[3].preceding_comment == ""
+
+    # Character array and verbose option
+    with pytest.raises(TransformationError) as err:
+        accparalleltrans.validate(loops[4], options={'verbose': True})
+    assert ("ACCParallelTrans doesn't enclose regions that use characters, "
+            "but found: 'cc(i)', use the 'allow_strings' transformation option"
+            " to offload this region." in str(err.value))
+    assert ("but found: 'cc(i)', use the 'allow_strings'"
+            in loops[4].preceding_comment)
+
+    # These validate with the right option
+    accparalleltrans.validate(loops[3], options={'allow_strings': True})
+    accparalleltrans.validate(loops[4], options={'allow_strings': True})
 
 
 def test_accenterdata():
@@ -183,6 +214,64 @@ def test_accenterdata():
     acct = ACCEnterDataTrans()
     assert acct.name == "ACCEnterDataTrans"
     assert str(acct) == "Adds an OpenACC 'enter data' directive"
+
+
+def test_accenterdata_check_child_async_mismatch(fortran_reader):
+    '''Check that check_child_async() rejects children with a different
+    async queue value.
+
+    '''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10) :: a
+        integer :: i
+        do i = 1, 10
+            a(i) = i
+        end do
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    parallel_trans = ACCParallelTrans()
+    parallel_trans.apply(routine.walk(Loop)[0], options={"async_queue": 1})
+
+    enter_trans = ACCEnterDataTrans()
+    with pytest.raises(TransformationError) as err:
+        enter_trans.check_child_async(routine, 2)
+    assert ("Try to make an ACCEnterDataTrans with async_queue different "
+            "than the one in child kernels" in str(err.value))
+
+
+def test_ompdeclaretargettrans_detached_scope_fallback(sample_psyir,
+                                                       monkeypatch):
+    '''Exercise the fallback path used when an access node has no scope.
+
+    '''
+    ompdeclaretargettrans = OMPDeclareTargetTrans()
+    routine = sample_psyir.walk(Routine)[0]
+    ref1 = sample_psyir.walk(Reference)[0]
+    ref1.symbol.interface = ImportInterface(ContainerSymbol('my_mod'))
+
+    class DummySig:  # pylint: disable=too-few-public-methods
+        '''Minimal signature object with a variable name.'''
+        var_name = "a"
+
+    class DummyAccess:  # pylint: disable=too-few-public-methods
+        '''Minimal access-info object that stores a node.'''
+        def __init__(self, node):
+            self.node = node
+
+    class DummyVAM:  # pylint: disable=too-few-public-methods
+        '''Minimal variable-access map replacement for this test.'''
+        all_signatures = [DummySig()]
+
+        def __getitem__(self, _):
+            return [DummyAccess(Statement())]
+
+    monkeypatch.setattr(routine, "reference_accesses", lambda: DummyVAM())
+    with pytest.raises(TransformationError) as err:
+        ompdeclaretargettrans.apply(routine)
+    assert "which is imported" in str(err.value)
 
 
 def test_omptaskloop_no_collapse():
