@@ -271,7 +271,7 @@ def test_ompdeclaretargettrans_detached_scope_fallback(sample_psyir,
     monkeypatch.setattr(routine, "reference_accesses", lambda: DummyVAM())
     with pytest.raises(TransformationError) as err:
         ompdeclaretargettrans.apply(routine)
-    assert "which is imported" in str(err.value)
+    assert "accesses the imported symbol" in str(err.value)
 
 
 def test_omptaskloop_no_collapse():

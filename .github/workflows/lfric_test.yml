@@ -149,7 +149,7 @@ jobs:
         rm -rf working-gh-ompoffload
         export BUILD_START="${SECONDS}"
         LFRIC_OFFLOAD_DIRECTIVES=omp ./build/local_build.py -v -j ${NUM_PARALLEL} -p psyclone-test \
-          -w working-gh-ompoffload gungho_model |& tee output
+          -w working-gh-ompoffload gungho_model |& tee output.txt
         # Piping to tee ignores the errcode of the first command, make sure we account for it
         if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
             exit ${PIPESTATUS[0]}
