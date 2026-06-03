@@ -76,19 +76,21 @@ def test_docstringdata_base():
     arguments = OrderedDict()
     returns = ReturnsData(desc="desc", datatype="datatype")
     raises = []
+    subargs = OrderedDict()
 
     docdata = DocstringData(desc="desc", arguments=arguments, raises=raises,
-                            returns=returns)
+                            returns=returns, sub_arguments=subargs)
     assert docdata.desc == "desc"
     assert docdata.arguments is arguments
     assert docdata.raises is raises
     assert docdata.returns is returns
+    assert docdata.sub_arguments is subargs
 
 
 def test_docstringdata_add_data():
     'Test the add_data function of the DocstringData dataclass.'''
     docdata = DocstringData(desc=None, arguments=OrderedDict(), raises=[],
-                            returns=None)
+                            returns=None, sub_arguments=OrderedDict())
 
     docdata.add_data("desc")
     assert docdata.desc == "desc"
@@ -124,10 +126,10 @@ def test_docstringdata_add_data():
 def test_docstringdata_merge():
     '''Test the merge function of the DocstringData dataclass.'''
     docdata = DocstringData(desc=None, arguments=OrderedDict(), raises=[],
-                            returns=None)
+                            returns=None, sub_arguments=OrderedDict())
 
     docdata2 = DocstringData(desc=None, arguments=OrderedDict(), raises=[],
-                             returns=None)
+                             returns=None, sub_arguments=OrderedDict())
     adata = ArgumentData(name="name", datatype="datatype",
                          desc="desc", inline_type=True)
     docdata2.add_data(adata)
@@ -142,7 +144,7 @@ def test_docstringdata_merge():
 
     # Check we don't overwrite arguments without replace set.
     docdata3 = DocstringData(desc=None, arguments=OrderedDict(), raises=[],
-                             returns=None)
+                             returns=None, sub_arguments=OrderedDict())
     adata3 = ArgumentData(name="name", datatype="datatype",
                           desc="desc", inline_type=True)
     docdata3.add_data(adata3)
@@ -153,13 +155,13 @@ def test_docstringdata_merge():
 
     # Merge a description.
     docdata4 = DocstringData(desc="desc", arguments=OrderedDict(), raises=[],
-                             returns=None)
+                             returns=None, sub_arguments=OrderedDict())
     docdata.merge(docdata4)
     assert docdata.desc == "desc"
 
     # Don't overwrite without param
     docdata5 = DocstringData(desc="desc2", arguments=OrderedDict(), raises=[],
-                             returns=None)
+                             returns=None, sub_arguments=OrderedDict())
     docdata.merge(docdata5)
     assert docdata.desc == "desc"
     docdata.merge(docdata5, replace_desc=True)
@@ -167,7 +169,7 @@ def test_docstringdata_merge():
 
     # Merge raises
     docdata6 = DocstringData(desc="desc", arguments=OrderedDict(), raises=[],
-                             returns=None)
+                             returns=None, sub_arguments=OrderedDict())
     rdata = RaisesData(desc="desc2", exception="Error")
     docdata6.add_data(rdata)
     docdata.merge(docdata6)
@@ -175,7 +177,7 @@ def test_docstringdata_merge():
 
     # Merge returns
     docdata7 = DocstringData(desc="desc", arguments=OrderedDict(), raises=[],
-                             returns=None)
+                             returns=None, sub_arguments=OrderedDict())
     rdata = ReturnsData(desc="desc", datatype="datatype")
     docdata7.add_data(rdata)
     docdata.merge(docdata7)
@@ -183,13 +185,40 @@ def test_docstringdata_merge():
 
     # Don't overwrite without param
     docdata8 = DocstringData(desc="desc", arguments=OrderedDict(), raises=[],
-                             returns=None)
+                             returns=None, sub_arguments=OrderedDict())
     rdata2 = ReturnsData(desc="desc2", datatype="datatype")
     docdata8.add_data(rdata2)
     docdata.merge(docdata8)
     assert docdata.returns is not rdata2
     docdata.merge(docdata8, replace_returns=True)
     assert docdata.returns is rdata2
+
+    # Test merging of sub arguments.
+    subargs1 = {"Subclass1": {"opt1": "Test opt1"}}
+    subargs2 = {"Subclass2": {"opt2": "Test opt2"}}
+    docdata = DocstringData(desc="desc", arguments=OrderedDict(), raises=[],
+                            returns=None, sub_arguments=subargs1)
+    docdata2 = DocstringData(desc="desc", arguments=OrderedDict(), raises=[],
+                             returns=None, sub_arguments=subargs2)
+
+    docdata.merge(docdata2)
+    assert docdata.sub_arguments["Subclass2"] == {"opt2": "Test opt2"}
+    # Modify subargs2[Subclass2] to show its not modifying our docdata.
+    subargs2["Subclass2"]["opt3"] = "Test opt3"
+    assert docdata.sub_arguments["Subclass2"] == {"opt2": "Test opt2"}
+
+    subargs3 = {"Subclass1": {"opt1": "Not test opt1",
+                              "opt3": "Test opt 3"}}
+    docdata3 = DocstringData(desc="desc", arguments=OrderedDict(), raises=[],
+                             returns=None, sub_arguments=subargs3)
+    # Check the merging without replace_args doesn't change things.
+    docdata.merge(docdata3)
+    assert docdata.sub_arguments["Subclass1"]["opt1"] == "Test opt1"
+    assert docdata.sub_arguments["Subclass1"]["opt3"] == "Test opt 3"
+
+    # Check that merging with replace_args does change things.
+    docdata.merge(docdata3, replace_args=True)
+    assert docdata.sub_arguments["Subclass1"]["opt1"] == "Not test opt1"
 
 
 def dummy_function(typed_arg: int, untyped_arg):
@@ -316,7 +345,7 @@ def test_DocstringData_gen_docstring_():
 
     # Check we get nothing for an empty DocstringData
     docdata = DocstringData(desc=None, arguments=OrderedDict(), raises=[],
-                            returns=None)
+                            returns=None, sub_arguments=OrderedDict())
     output = docdata.gen_docstring()
     assert output == ""
 
@@ -594,3 +623,67 @@ def test_no_sphinx():
         assert isinstance(data, ArgumentData)
         assert (data.datatype ==
                 "<class 'psyclone.docstring_parser.DocstringData'>")
+
+
+def test_subarguments():
+    '''
+    Test that we can add sub arguments to a docstring data as expected.
+    '''
+
+    def docstringobj(arg1: int):
+        '''
+        description.
+
+        :param arg1: my param
+        '''
+
+    def subobject(arg1: int, arg2: int):
+        '''
+        subobject description
+
+        :param arg1: sub param
+        :param arg2: arg2
+        '''
+
+    def subobject2(arg3, arg2: int):
+        '''
+        subobject2 description
+
+        :param arg2: subobj2 arg2
+        :param arg3: arg3
+        :type arg3: int
+        '''
+
+    doc1 = DocstringData.create_from_object(docstringobj)
+
+    # Should have no sub arguments
+    assert doc1.sub_arguments == {}
+
+    doc2 = DocstringData.create_from_object(subobject)
+    assert "arg1" in doc2.arguments
+    assert "arg2" in doc2.arguments
+    assert len(doc2.arguments) == 2
+
+    # Add doc2 as subarguments to doc1
+    doc1.add_subarguments("subobject", doc2, replace_args=False)
+
+    # Should only have arg2 in the sub arguments
+    assert len(doc1.sub_arguments["subobject"]) == 2
+    assert doc1.sub_arguments["subobject"]["arg1"].desc == "sub param"
+    assert doc1.sub_arguments["subobject"]["arg2"].desc == "arg2"
+
+    doc3 = DocstringData.create_from_object(subobject2)
+    # Add doc3 also as subobject to doc1 without replace_args
+    doc1.add_subarguments("subobject", doc3, replace_args=False)
+    assert len(doc1.sub_arguments["subobject"]) == 3
+    assert doc1.sub_arguments["subobject"]["arg1"].desc == "sub param"
+    assert doc1.sub_arguments["subobject"]["arg2"].desc == "arg2"
+    assert doc1.sub_arguments["subobject"]["arg3"].desc == "arg3"
+
+    # Add doc 3 as a subojbject with replace_args
+    # Add doc3 also as subobject to doc1 without replace_args
+    doc1.add_subarguments("subobject", doc3, replace_args=True)
+    assert len(doc1.sub_arguments["subobject"]) == 3
+    assert doc1.sub_arguments["subobject"]["arg1"].desc == "sub param"
+    assert doc1.sub_arguments["subobject"]["arg2"].desc == "subobj2 arg2"
+    assert doc1.sub_arguments["subobject"]["arg3"].desc == "arg3"

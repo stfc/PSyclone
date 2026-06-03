@@ -1,3 +1,6 @@
+   27) PR #3438 for #3435. Add support for sub_transformations in the kwargs
+   documentation functionality.
+
    26) PR #3443 for #3243. Unifies NEMO parallelisation scripts to reduce the
    amount of code duplication between all the parallelisation scripts, and
    adds a README for the NEMO scripts directory.
