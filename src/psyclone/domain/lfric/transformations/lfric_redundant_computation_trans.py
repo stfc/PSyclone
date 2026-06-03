@@ -114,8 +114,7 @@ class LFRicRedundantComputationTrans(LoopTrans):
             loop to the maximum halo depth but the loop contains a stencil
             access (as this would result in the field being accessed
             beyond the halo depth).
-        :raises TransformationError: if the supplied depth value is not an
-            integer.
+        :raises TypeError: if the supplied depth value is of the wrong type.
         :raises TransformationError: if the supplied depth value is less
             than 1.
         :raises TransformationError: if the supplied depth value is not
@@ -233,7 +232,7 @@ class LFRicRedundantComputationTrans(LoopTrans):
                                 f"maximum depth")
         else:
             if not isinstance(depth, int):
-                raise TransformationError(
+                raise TypeError(
                     f"In the LFRicRedundantComputation transformation "
                     f"apply method the supplied depth should be an integer but"
                     f" found type '{type(depth)}'")

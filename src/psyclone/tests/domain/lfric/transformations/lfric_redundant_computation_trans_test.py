@@ -40,6 +40,7 @@
 
 ''' Tests of the LFRic redundant-computation transformation. '''
 
+import sys
 import pytest
 
 from psyclone.configuration import Config
@@ -176,6 +177,37 @@ def test_rc_invalid_depth():
         rc_trans.apply(loop, depth=0)
     assert ("In the LFRicRedundantComputation transformation apply method "
             "the supplied depth is less than 1") in str(excinfo.value)
+
+
+def test_rc_invalid_depth_type():
+    ''' If an incorrect type is passed as a depth value to the redundant
+    computation transformation an exception should be raised. This test
+    checks that this exception is raised as expected.
+
+    '''
+    _, invoke = get_invoke("1_single_invoke.f90",
+                           TEST_API, idx=0, dist_mem=True)
+    schedule = invoke.schedule
+    loop = schedule.children[4]
+    rc_trans = LFRicRedundantComputationTrans()
+    # TODO #2668: Deprecate options dictionary
+    with pytest.raises(TypeError) as excinfo:
+        rc_trans.apply(loop, {"depth": "2"})
+    assert (f"the supplied depth should be an integer but found "
+            f"type '{type('txt')}'" in str(excinfo.value))
+    with pytest.raises(TypeError) as excinfo:
+        rc_trans.apply(loop, depth="2")
+    if sys.version_info < (3, 10):
+        # TODO #3416 - remove this branch once support for Python 3.9 is
+        # dropped.
+        # The 'automatic' type checking of transformation options doesn't
+        # work fully with older Python versions so we get a different msg.
+        assert (f"the supplied depth should be an integer but found "
+                f"type '{type('txt')}'" in str(excinfo.value))
+    else:
+        assert (f"'depth' option expects type 'int | "
+                f"psyclone.psyir.nodes.datanode.DataNode | None' but received "
+                f"'2' of type '{type('2')}'" in str(excinfo.value))
 
 
 def test_rc_invalid_depth_continuous():
@@ -1231,29 +1263,6 @@ def test_stencil_rc_max_depth_1(monkeypatch):
         _ = halo_exchange._compute_halo_read_info()
     assert ("redundant computation to max depth with a stencil is "
             "invalid" in str(excinfo.value))
-
-
-def test_rc_invalid_depth_type():
-    ''' If an incorrect type is passed as a depth value to the redundant
-    computation transformation an exception should be raised. This test
-    checks that this exception is raised as expected.
-
-    '''
-    _, invoke = get_invoke("1_single_invoke.f90",
-                           TEST_API, idx=0, dist_mem=True)
-    schedule = invoke.schedule
-    loop = schedule.children[4]
-    rc_trans = LFRicRedundantComputationTrans()
-    # TODO #2668: Deprecate options dictionary
-    with pytest.raises(TransformationError) as excinfo:
-        rc_trans.apply(loop, {"depth": "2"})
-    assert (f"the supplied depth should be an integer but found "
-            f"type '{type('txt')}'" in str(excinfo.value))
-    with pytest.raises(TypeError) as excinfo:
-        rc_trans.apply(loop, depth="2")
-    assert ("'depth' option expects type 'int | "
-            "psyclone.psyir.nodes.datanode.DataNode | None' but received "
-            "'2' of type 'str'" in str(excinfo.value))
 
 
 def test_rc_no_directive():
