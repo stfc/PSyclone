@@ -60,11 +60,12 @@ from psyclone.configuration import Config
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.nodes import (
-    ArrayMember, ArrayOfStructuresReference, ArrayReference, Assignment,
-    BinaryOperation, Call, CodeBlock, Container, DataNode, Directive,
-    FileContainer, IfBlock, IntrinsicCall, Literal, Loop, Member, Node, Range,
-    Reference, Return, Routine, Schedule, StructureReference, UnaryOperation,
-    WhileLoop, Fparser2CodeBlock, ScopingNode, UnknownDirective)
+    ArrayMember, ACCRoutineDirective, ArrayOfStructuresReference,
+    ArrayReference, Assignment, BinaryOperation, Call, CodeBlock, Container,
+    DataNode, Directive, FileContainer, IfBlock, IntrinsicCall, Literal, Loop,
+    Member, Node, OMPDeclareTargetDirective, Range, Reference, Return,
+    Routine, Schedule, StructureReference, UnaryOperation, WhileLoop,
+    Fparser2CodeBlock, ScopingNode, UnknownDirective)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, AutomaticInterface, ScalarType,
@@ -6168,6 +6169,31 @@ class Fparser2Reader():
             not lcase.startswith(prefix) for prefix in dont_match
         ])
         if to_direc:
+            # We first try to specialise some directives.
+            # PSyclone doesn't support clauses on Declare Target so
+            # we can just look for exact string.
+            if lcase == "!$omp declare target":
+                return OMPDeclareTargetDirective(parent=parent)
+
+            if lcase.startswith("!$acc routine"):
+                # If we have an acc routine we need to see if there is
+                # a parallelism clause
+                parallel_clause = lcase[13:].lstrip()
+                print(parallel_clause)
+                if parallel_clause != "":
+                    try:
+                        directive = ACCRoutineDirective(
+                            parallelism=parallel_clause, parent=parent
+                        )
+                        return directive
+                    except ValueError:
+                        # Fall back to an Unknown Directive if the parallel
+                        # clause isn't understood by PSyclone.
+                        return UnknownDirective(str_rep[2:].lstrip(),
+                                                parent=parent)
+                # If we have no parallel clause then return the default.
+                return ACCRoutineDirective(parent=parent)
+            # Otherwise return an UnknownDirective for the node.
             content = str_rep[2:].lstrip()
             return UnknownDirective(content, parent=parent)
         code_block = Fparser2CodeBlock(
