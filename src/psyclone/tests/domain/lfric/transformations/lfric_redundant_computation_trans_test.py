@@ -54,6 +54,8 @@ from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
+from psyclone.transformations import (LFRicColourTrans,
+                                      LFRicOMPParallelLoopTrans)
 
 
 TEST_API = "lfric"
@@ -575,7 +577,7 @@ def test_rc_dofs_depth():
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[0]
-    rc_trans.apply(loop, {"depth": 3})
+    rc_trans.apply(loop, depth=3)
     result = str(psy.gen)
     for field in ["f1", "f2"]:
         assert f"if ({field}_proxy%is_dirty(depth=3)) then" in result
@@ -628,7 +630,7 @@ def test_rc_dofs_depth_prev_dep(annexed, tmpdir):
     else:
         index = 5
     loop = schedule.children[index]
-    rc_trans.apply(loop, {"depth": 3})
+    rc_trans.apply(loop, depth=3)
     result = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -742,7 +744,7 @@ def test_rc_vector_depth(tmpdir):
     schedule = invoke.schedule
     rc_trans = LFRicRedundantComputationTrans()
     loop = schedule[5]
-    rc_trans.apply(loop, {"depth": 3})
+    rc_trans.apply(loop, depth=3)
     result = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -797,7 +799,7 @@ def test_rc_no_halo_decrease():
     # First, change the size of the f2 halo exchange to 3 by performing
     # redundant computation in the first loop
     loop = schedule.walk(Loop)[0]
-    rc_trans.apply(loop, {"depth": 3})
+    rc_trans.apply(loop, depth=3)
     result = str(psy.gen)
     assert "if (f2_proxy%is_dirty(depth=3)) then" in result
     assert "if (m1_proxy%is_dirty(depth=3)) then" in result
@@ -806,7 +808,7 @@ def test_rc_no_halo_decrease():
     # performing redundant computation in the second loop
     schedule = invoke.schedule
     loop = schedule.walk(Loop)[1]
-    rc_trans.apply(loop, {"depth": 2})
+    rc_trans.apply(loop, depth=2)
     result = str(psy.gen)
     assert "if (f2_proxy%is_dirty(depth=3)) then" in result
     assert "if (m1_proxy%is_dirty(depth=3)) then" in result
@@ -823,7 +825,7 @@ def test_rc_no_halo_decrease():
     # Fourth, try to change the size of the f2 halo exchange to 4 by
     # performing redundant computation in the first loop
     loop = schedule.walk(Loop)[0]
-    rc_trans.apply(loop, {"depth": 4})
+    rc_trans.apply(loop, depth=4)
     result = str(psy.gen)
     assert "if (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) then" in result
     assert "if (m1_proxy%is_dirty(depth=4)) then" in result
@@ -844,7 +846,7 @@ def test_rc_updated_dependence_analysis():
     # introduces a new halo exchange
     rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.children[0]
-    rc_trans.apply(loop, {"depth": 2})
+    rc_trans.apply(loop, depth=2)
     previous_field = f2_field.backward_dependence()
     previous_node = previous_field.call
     # check f2_field has a backward dependence with the new halo
@@ -867,20 +869,20 @@ def test_rc_no_loop_decrease():
     rc_trans = LFRicRedundantComputationTrans()
     # first set our loop to redundantly compute to the level 2 halo
     loop = schedule.children[0]
-    rc_trans.apply(loop, {"depth": 2})
+    rc_trans.apply(loop, depth=2)
     # now try to reduce the redundant computation to the level 1 halo
     # f1 and f2 have read accesses (readwrite and read) so there
     # is one halo exchange for each before the loop
     loop = schedule.children[2]
     with pytest.raises(TransformationError) as excinfo:
-        rc_trans.apply(loop, {"depth": 1})
+        rc_trans.apply(loop, depth=1)
     assert ("supplied depth (1) must be greater than the existing halo depth "
             "(2)") in str(excinfo.value)
     # second set our loop to redundantly compute to the maximum halo depth
     rc_trans.apply(loop)
     # now try to reduce the redundant computation to a fixed value
     with pytest.raises(TransformationError) as excinfo:
-        rc_trans.apply(loop, {"depth": 2})
+        rc_trans.apply(loop, depth=2)
     assert ("loop is already set to the maximum halo depth so can't be "
             "set to a fixed value") in str(excinfo.value)
     # now try to set the redundant computation to the same (max) value
@@ -916,7 +918,7 @@ def test_rc_remove_halo_exchange(tmpdir, monkeypatch):
     #
     rc_trans = LFRicRedundantComputationTrans()
     loop = schedule.walk(Loop)[0]
-    rc_trans.apply(loop, {"depth": 1})
+    rc_trans.apply(loop, depth=1)
     result = str(psy.gen)
     assert "call f1_proxy%halo_exchange(depth=1)" not in result
     assert "call f2_proxy%halo_exchange(depth=1)" in result
@@ -924,7 +926,7 @@ def test_rc_remove_halo_exchange(tmpdir, monkeypatch):
     assert "call m1_proxy%halo_exchange(depth=1)" in result
     #
     loop = schedule.walk(Loop)[1]
-    rc_trans.apply(loop, {"depth": 1})
+    rc_trans.apply(loop, depth=1)
     result = str(psy.gen)
     assert "call f1_proxy%halo_exchange(depth=1)" not in result
     assert "call f2_proxy%halo_exchange(depth=1)" not in result
@@ -1016,8 +1018,8 @@ def test_rc_continuous_halo_remove(fortran_writer):
     # f3_read_loop does not remove the initial number of halo exchanges.
     # However, the "is_dirty" check and the halo exchange before the
     # f3_inc_loop are now to depth 2.
-    rc_trans.apply(f3_read_loop, {"depth": 3})
-    rc_trans.apply(f3_inc_loop, {"depth": 3})
+    rc_trans.apply(f3_read_loop, depth=3)
+    rc_trans.apply(f3_inc_loop, depth=3)
     result = fortran_writer(schedule)
     assert result.count("call f3_proxy%halo_exchange(depth=") == 2
     assert f3_inc_hex._compute_halo_depth().value == "2"
@@ -1028,7 +1030,7 @@ def test_rc_continuous_halo_remove(fortran_writer):
     # removes the halo exchange before the f3_read_loop.
     # The "is_dirty" check and the halo exchange before the
     # f3_inc_loop are now to depth 3.
-    rc_trans.apply(f3_inc_loop, {"depth": 4})
+    rc_trans.apply(f3_inc_loop, depth=4)
     result = fortran_writer(schedule)
     assert result.count("call f3_proxy%halo_exchange(depth=") == 1
     assert f3_inc_hex._compute_halo_depth().value == "3"
@@ -1059,14 +1061,14 @@ def test_rc_discontinuous_halo_remove(monkeypatch, fortran_writer):
     f4_read_loop = loops[4]
     assert "call f4_proxy%halo_exchange(depth=1)" in result
     assert "if (f4_proxy%is_dirty(depth=1)) then" not in result
-    rc_trans.apply(f4_read_loop, {"depth": 3})
-    rc_trans.apply(f4_write_loop, {"depth": 2})
+    rc_trans.apply(f4_read_loop, depth=3)
+    rc_trans.apply(f4_write_loop, depth=2)
     result = fortran_writer(schedule)
     assert "call f4_proxy%halo_exchange(depth=3)" in result
     assert "if (f4_proxy%is_dirty(depth=3)) then" not in result
     # Increase RC depth to 3 and check that halo exchange is removed
     # when a discontinuous field has write access
-    rc_trans.apply(f4_write_loop, {"depth": 3})
+    rc_trans.apply(f4_write_loop, depth=3)
     result = fortran_writer(schedule)
     assert "call f4_proxy%halo_exchange(depth=" not in result
     assert "if (f4_proxy%is_dirty(depth=" not in result
@@ -1076,7 +1078,7 @@ def test_rc_discontinuous_halo_remove(monkeypatch, fortran_writer):
     f4_arg = call.arguments.args[0]
     monkeypatch.setattr(f4_arg, "_access", value=AccessType.READWRITE)
     monkeypatch.setattr(f4_write_loop, "_upper_bound_halo_depth", value=2)
-    rc_trans.apply(f4_write_loop, {"depth": 3})
+    rc_trans.apply(f4_write_loop, depth=3)
     result = fortran_writer(schedule)
     assert "call f4_proxy%halo_exchange(depth=" in result
     assert "if (f4_proxy%is_dirty(depth=" in result
@@ -1101,14 +1103,14 @@ def test_rc_reader_halo_remove(fortran_writer):
     rc_trans = LFRicRedundantComputationTrans()
 
     # Redundant computation to avoid halo exchange for f2
-    rc_trans.apply(loops[1], {"depth": 2})
+    rc_trans.apply(loops[1], depth=2)
     result = fortran_writer(schedule)
     assert "call f2_proxy%halo_exchange(" not in result
 
     # Redundant computation to depth 2 in f2 reader loop should not
     # cause a new halo exchange as it is still covered by depth=2 in
     # the writer loop
-    rc_trans.apply(loops[2], {"depth": 2})
+    rc_trans.apply(loops[2], depth=2)
     result = fortran_writer(schedule)
     assert "call f2_proxy%halo_exchange(" not in result
 
@@ -1132,7 +1134,7 @@ def test_rc_vector_reader_halo_remove(fortran_writer):
     rc_trans = LFRicRedundantComputationTrans()
 
     # Redundant computation for first loop
-    rc_trans.apply(loops[0], {"depth": 1})
+    rc_trans.apply(loops[0], depth=1)
     result = fortran_writer(schedule)
     assert result.count("is_dirty") == 3
     assert result.count("halo_exchange") == 3
@@ -1140,7 +1142,7 @@ def test_rc_vector_reader_halo_remove(fortran_writer):
     # Redundant computation in reader loop should not
     # cause a new halo exchange as it is still covered by depth=1 in
     # the writer loop
-    rc_trans.apply(loops[1], {"depth": 1})
+    rc_trans.apply(loops[1], depth=1)
     result = fortran_writer(schedule)
     assert result.count("is_dirty") == 3
     assert result.count("halo_exchange") == 3
@@ -1167,14 +1169,14 @@ def test_rc_vector_reader_halo_readwrite(fortran_writer):
 
     # Redundant computation for first loop: both fields have
     # read dependencies for all three components
-    rc_trans.apply(loops[0], {"depth": 1})
+    rc_trans.apply(loops[0], depth=1)
     result = fortran_writer(schedule)
     assert result.count("is_dirty") == 6
     assert result.count("halo_exchange") == 6
 
     # Redundant computation in reader loop causes new halo exchanges
     # due to readwrite dependency in f3
-    rc_trans.apply(loops[1], {"depth": 1})
+    rc_trans.apply(loops[1], depth=1)
     result = fortran_writer(schedule)
     assert result.count("is_dirty") == 9
     assert result.count("halo_exchange") == 9
@@ -1182,7 +1184,7 @@ def test_rc_vector_reader_halo_readwrite(fortran_writer):
     # Now increase RC depth of the reader loop to 2 to check for
     # additional halo exchanges (3 more due to readwrite to read
     # dependency in f1)
-    rc_trans.apply(loops[1], {"depth": 2})
+    rc_trans.apply(loops[1], depth=2)
     result = fortran_writer(schedule)
     # Check for additional halo exchanges
     hexches = schedule.walk(HaloExchange)
@@ -1242,7 +1244,301 @@ def test_rc_invalid_depth_type():
     schedule = invoke.schedule
     loop = schedule.children[4]
     rc_trans = LFRicRedundantComputationTrans()
+    # TODO #2668: Deprecate options dictionary
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, {"depth": "2"})
     assert (f"the supplied depth should be an integer but found "
             f"type '{type('txt')}'" in str(excinfo.value))
+    with pytest.raises(TypeError) as excinfo:
+        rc_trans.apply(loop, depth="2")
+    assert ("'depth' option expects type 'int | "
+            "psyclone.psyir.nodes.datanode.DataNode | None' but received "
+            "'2' of type 'str'" in str(excinfo.value))
+
+
+def test_rc_no_directive():
+    ''' When the redundant computation transformation is given a Loop whose
+    parent is a directive an exception is raised as this is not
+    supported (redundant computation transformations must be applied
+    before directives are added). This test checks that this exception
+    is raised correctly.
+
+    '''
+    _, invoke = get_invoke("1_single_invoke.f90",
+                           TEST_API, idx=0, dist_mem=True)
+    schedule = invoke.schedule
+
+    # Create a colouring transformation and apply this to the loop
+    ctrans = LFRicColourTrans()
+    ctrans.apply(schedule[4])
+
+    # Create an openmp transformation and apply this to the loop
+    otrans = LFRicOMPParallelLoopTrans()
+    otrans.apply(schedule[4].loop_body[0])
+
+    # Create a redundant computation transformation and apply this to the loop
+    rc_trans = LFRicRedundantComputationTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(
+            schedule[4].loop_body[0].dir_body[0], {"depth": 1})
+    assert ("Redundant computation must be applied before directives are added"
+            in str(excinfo.value))
+
+
+def test_rc_wrong_parent(monkeypatch):
+    ''' When the redundant computation transformation is given a Loop which
+    has the wrong parent, and that parent is not a Directive (which is
+    handled in a separate case) an exception is raised. This test
+    checks that this exception is raised correctly.
+
+    '''
+    _, invoke = get_invoke("1_single_invoke.f90",
+                           TEST_API, idx=0, dist_mem=True)
+    schedule = invoke.schedule
+
+    # Make the parent of the loop a halo exchange
+    monkeypatch.setattr(schedule.children[4], "_parent", schedule.children[0])
+
+    rc_trans = LFRicRedundantComputationTrans()
+    # Apply redundant computation to the loop
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(schedule.children[4], {"depth": 1})
+    assert ("the parent of the supplied loop must be the LFRicInvokeSchedule, "
+            "or a Loop") in str(excinfo.value)
+
+
+def test_rc_parent_loop_colour(monkeypatch):
+    ''' If the parent of the loop supplied to the redundant computation
+    transformation is a loop then
+
+    1) the parent loop's parent should be a schedule. If this is not
+    the case then an exception is raised.
+
+    2) the parent loop should iterate over 'colours'. If this is not
+    the case then an exception is raised.
+
+    3) the supplied loop should iterate over cells of a given
+    colour. If this is not the case then an exception is raised.
+
+    This test checks that the appropriate exceptions are correctly
+    raised for these three situations.
+
+    '''
+    _, invoke = get_invoke("1_single_invoke.f90",
+                           TEST_API, idx=0, dist_mem=True)
+    schedule = invoke.schedule
+
+    # Apply colouring
+    # Create colour transformation
+    ctrans = LFRicColourTrans()
+    # Colour the loop
+    ctrans.apply(schedule.children[4])
+
+    # Make the parent of the outermost loop something other than
+    # InvokeSchedule (we use halo exchange in this case)
+    monkeypatch.setattr(schedule.children[4], "_parent", schedule.children[0])
+
+    rc_trans = LFRicRedundantComputationTrans()
+    # Apply redundant computation to the loop
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
+    assert ("if the parent of the supplied Loop is also a Loop then the "
+            "parent's parent must be the LFRicInvokeSchedule"
+            in str(excinfo.value))
+
+    # Make the outermost loop iterate over cells (it should be
+    # colours). We can ignore the previous monkeypatch as this
+    # exception is encountered before the previous one.
+    monkeypatch.setattr(schedule.children[4], "_loop_type", "cells")
+
+    rc_trans = LFRicRedundantComputationTrans()
+    # Apply redundant computation to the loop
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
+    assert ("if the parent of the supplied Loop is also a Loop then the "
+            "parent must iterate over 'colours'" in str(excinfo.value))
+
+    # Make the innermost loop iterate over cells (it should be
+    # colour). We can ignore the previous monkeypatches as this
+    # exception is encountered before the previous ones.
+    monkeypatch.setattr(schedule.children[4].loop_body[0], "_loop_type",
+                        "cells")
+
+    rc_trans = LFRicRedundantComputationTrans()
+    # Apply redundant computation to the loop
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
+    assert ("if the parent of the supplied Loop is also a Loop then the "
+            "supplied Loop must iterate over 'cells_in_colour'"
+            in str(excinfo.value))
+
+
+def test_rc_unsupported_loop_type(monkeypatch):
+    ''' When an unsupported loop type is provided to the redundant
+    computation apply method an exception is raised. It is not
+    possible to get to this exception in normal circumstances due to
+    the validation tests so we monkey patch it. This test checks that
+    the exception is raised correctly.
+
+    '''
+    _, invoke = get_invoke("1_single_invoke.f90",
+                           TEST_API, idx=0, dist_mem=True)
+    schedule = invoke.schedule
+
+    # Apply colouring
+    # Create colour transformation
+    ctrans = LFRicColourTrans()
+    # Colour the loop
+    ctrans.apply(schedule.children[4])
+
+    # Make the loop type invalid
+    monkeypatch.setattr(schedule.children[4].loop_body[0], "_loop_type",
+                        "invalid")
+
+    rc_trans = LFRicRedundantComputationTrans()
+
+    # Switch off validation
+    monkeypatch.setattr(rc_trans, "validate",
+                        lambda loop, options, depth: None)
+
+    # Apply redundant computation to the loop
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
+    assert "Unsupported loop_type 'invalid' found" in str(excinfo.value)
+
+
+def test_rc_colour_no_loop_decrease():
+    ''' Test that we raise an exception if we try to reduce the size of a
+    loop halo depth when using the redundant computation
+    transformation. This is not allowed partly for simplicity but also
+    because, in the current implementation we might not decrease the
+    size of the relevant halo exchange as these can only be increased
+    with the current logic.
+
+    '''
+    _, invoke = get_invoke("1_single_invoke.f90",
+                           TEST_API, idx=0, dist_mem=True)
+    schedule = invoke.schedule
+
+    # Create our colour transformation
+    ctrans = LFRicColourTrans()
+    # Colour the loop
+    ctrans.apply(schedule.children[4])
+
+    rc_trans = LFRicRedundantComputationTrans()
+    # First set our loop to redundantly compute to the level 2 halo
+    loop = schedule.children[4].loop_body[0]
+    rc_trans.apply(loop, {"depth": 2})
+    # Now try to reduce the redundant computation to the level 1 halo
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(loop, {"depth": 1})
+    assert ("supplied depth (1) must be greater than the existing halo depth "
+            "(2)") in str(excinfo.value)
+    # Second set our loop to redundantly compute to the maximum halo depth
+    rc_trans.apply(loop)
+    # Now try to reduce the redundant computation to a fixed value
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(loop, {"depth": 2})
+    assert ("loop is already set to the maximum halo depth so can't be "
+            "set to a fixed value") in str(excinfo.value)
+    # Now try to set the redundant computation to the same (max) value
+    # it is now
+    with pytest.raises(TransformationError) as excinfo:
+        rc_trans.apply(loop)
+    assert ("loop is already set to the maximum halo depth so this "
+            "transformation does nothing") in str(excinfo.value)
+
+
+def test_rc_colour(tmpdir):
+    ''' Test that we can redundantly compute over a colour in a coloured
+    loop. '''
+    psy, invoke = get_invoke("1_single_invoke.f90",
+                             TEST_API, idx=0, dist_mem=True)
+    schedule = invoke.schedule
+
+    # Create our colour transformation
+    ctrans = LFRicColourTrans()
+    # Colour the loop
+    ctrans.apply(schedule.children[4])
+
+    # Create our redundant computation transformation
+    rc_trans = LFRicRedundantComputationTrans()
+    # Apply redundant computation to the colour loop
+    rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 2})
+
+    result = str(psy.gen)
+
+    assert (
+        "    if (f2_proxy%is_dirty(depth=2)) then\n"
+        "      call f2_proxy%halo_exchange(depth=2)\n"
+        "    end if\n"
+        "    if (m1_proxy%is_dirty(depth=2)) then\n"
+        "      call m1_proxy%halo_exchange(depth=2)\n"
+        "    end if\n"
+        "    if (m2_proxy%is_dirty(depth=2)) then\n"
+        "      call m2_proxy%halo_exchange(depth=2)\n"
+        "    end if\n" in result)
+    assert "    cmap => mesh%get_colour_map()\n" in result
+    assert "loop0_stop = ncolour" in result
+    assert ("last_halo_cell_all_colours = "
+            "mesh%get_last_halo_cell_all_colours()" in result)
+    assert (
+        "    do colour = loop0_start, loop0_stop, 1\n"
+        "      do cell = loop1_start, last_halo_cell_all_colours(colour,2), 1"
+        in result)
+
+    # We've requested redundant computation out to the level 2 halo
+    # but f1 is continuous and so the outermost halo depth (2) remains
+    # dirty. This means that all of the halo is dirty apart from level
+    # 1.
+    assert (
+        "    call f1_proxy%set_dirty()\n"
+        "    call f1_proxy%set_clean(1)" in result)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_rc_max_colour(tmpdir):
+    ''' Test that we can redundantly compute over a colour to the maximum
+    depth in a coloured loop. '''
+    psy, invoke = get_invoke("1_single_invoke.f90",
+                             TEST_API, idx=0, dist_mem=True)
+    schedule = invoke.schedule
+
+    # Create our colour transformation
+    ctrans = LFRicColourTrans()
+    # Colour the loop
+    ctrans.apply(schedule.children[4])
+
+    # Create our redundant computation transformation
+    rc_trans = LFRicRedundantComputationTrans()
+    # Apply redundant computation to the colour loop out to the full
+    # halo depth
+    rc_trans.apply(schedule.children[4].loop_body[0])
+
+    result = str(psy.gen)
+    assert (
+        "    if (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
+        "      call f2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
+        "    end if\n"
+        "    if (m1_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
+        "      call m1_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
+        "    end if\n"
+        "    if (m2_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
+        "      call m2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
+        "    end if\n" in result)
+    assert "    cmap => mesh%get_colour_map()\n" in result
+    assert "loop0_stop = ncolour" in result
+    assert ("last_halo_cell_all_colours = "
+            "mesh%get_last_halo_cell_all_colours()" in result)
+    assert (
+        "    do colour = loop0_start, loop0_stop, 1\n"
+        "      do cell = loop1_start, last_halo_cell_all_colours(colour,"
+        "max_halo_depth_mesh), 1\n"
+        in result)
+
+    assert (
+        "    call f1_proxy%set_dirty()\n"
+        "    call f1_proxy%set_clean(max_halo_depth_mesh - 1)" in result)
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
