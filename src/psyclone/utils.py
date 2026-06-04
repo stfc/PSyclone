@@ -37,14 +37,15 @@
 
 '''This module provides generic utility functions.'''
 
-from typing import Type, Union
+from typing import Type, TYPE_CHECKING, Union
 from collections import OrderedDict
 import sys
 from psyclone.errors import InternalError
 from psyclone.docstring_parser import (
     DocstringData, ReturnsData
 )
-from psyclone.psyGen import Transformation
+if TYPE_CHECKING:
+    from psyclone.psyGen import Transformation
 
 
 def within_virtual_env():
@@ -92,7 +93,7 @@ def stringify_annotation(annotation) -> str:
 
 def transformation_documentation_wrapper(*args,
                                          inherit:
-                                         Union[list[Type[Transformation]],
+                                         Union[list[Type["Transformation"]],
                                                bool] = True,
                                          add_subtransformations: bool = True,
                                          **kwargs):
