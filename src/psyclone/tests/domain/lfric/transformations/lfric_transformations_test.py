@@ -58,8 +58,7 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
     colored, Loop, Schedule, Literal, Directive, OMPDoDirective,
     ACCEnterDataDirective, Assignment, Reference)
-from psyclone.psyir.symbols import (AutomaticInterface, ScalarType, ArrayType,
-                                    REAL_TYPE, INTEGER_TYPE)
+from psyclone.psyir.symbols import AutomaticInterface, ScalarType, ArrayType
 from psyclone.psyir.transformations import (
     ACCKernelsTrans, LoopFuseTrans, LoopTrans, OMPLoopTrans,
     TransformationError, ACCLoopTrans, OMPParallelTrans,
@@ -7792,13 +7791,13 @@ def test_kern_const_invalid_make_constant2():
     symbol_table = kernel_schedule.symbol_table
     symbol = symbol_table._argument_list[7]
     # Expecting scalar integer. Set to array.
-    symbol._datatype = ArrayType(INTEGER_TYPE, [10])
+    symbol._datatype = ArrayType(ScalarType.integer_type(), [10])
     with pytest.raises(TransformationError) as excinfo:
         kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     assert ("Expected entry to be a scalar argument but found "
             "'ArrayType'." in str(excinfo.value))
     # Expecting scalar integer. Set to real.
-    symbol._datatype = REAL_TYPE
+    symbol._datatype = ScalarType.real_type()
     with pytest.raises(TransformationError) as excinfo:
         kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})
     assert ("Expected entry to be a scalar integer argument but found "
@@ -7806,7 +7805,7 @@ def test_kern_const_invalid_make_constant2():
     # Expecting scalar integer. Set to constant.
     symbol._datatype = ScalarType(ScalarType.Intrinsic.INTEGER,
                                   ScalarType.Precision.UNDEFINED)
-    symbol._initial_value = Literal("10", INTEGER_TYPE)
+    symbol._initial_value = Literal("10", ScalarType.integer_type())
     symbol._is_constant = True
     with pytest.raises(TransformationError) as excinfo:
         kctrans.apply(kernel, {"element_order_h": 0, "element_order_v": 0})

@@ -53,7 +53,7 @@ from psyclone.psyir.nodes import (
     Call, BinaryOperation, ArrayOfStructuresReference, Directive, DataNode,
     Node, Routine)
 from psyclone.psyir.symbols import (
-    AutomaticInterface, DataSymbol, INTEGER_TYPE, UnresolvedType)
+    AutomaticInterface, DataSymbol, ScalarType, UnresolvedType)
 
 
 class LFRicLoop(PSyLoop):
@@ -72,6 +72,7 @@ class LFRicLoop(PSyLoop):
         InvokeSchedule is not provided.
 
     '''
+
     # pylint: disable=too-many-instance-attributes
     def __init__(self, loop_type="", **kwargs):
         const = LFRicConstants()
@@ -125,11 +126,12 @@ class LFRicLoop(PSyLoop):
         idx = len(ischedule.loops())
         start_name = f"uninitialised_loop{idx}_start"
         stop_name = f"uninitialised_loop{idx}_stop"
-        lbound = DataSymbol(start_name, datatype=INTEGER_TYPE)
-        ubound = DataSymbol(stop_name, datatype=INTEGER_TYPE)
+        lbound = DataSymbol(start_name, datatype=ScalarType.integer_type())
+        ubound = DataSymbol(stop_name, datatype=ScalarType.integer_type())
         self.addchild(Reference(lbound))  # start
         self.addchild(Reference(ubound))  # stop
-        self.addchild(Literal("1", INTEGER_TYPE, parent=self))  # step
+        # step
+        self.addchild(Literal("1", ScalarType.integer_type(), parent=self))
         self.addchild(Schedule(parent=self))  # loop body
 
         # At this stage we don't know what our loop bounds are
@@ -384,7 +386,7 @@ class LFRicLoop(PSyLoop):
         if halo_depth and isinstance(halo_depth, int):
             # We support specifying depth as an int as a convenience but we
             # now convert it to a PSyIR literal.
-            psyir = Literal(f"{halo_depth}", INTEGER_TYPE)
+            psyir = Literal(f"{halo_depth}", ScalarType.integer_type())
             self._upper_bound_halo_depth = psyir
         else:
             if halo_depth is not None and not isinstance(halo_depth, DataNode):
@@ -427,7 +429,7 @@ class LFRicLoop(PSyLoop):
                 f"The lower bound must be 'start' if we are sequential but "
                 f"found '{self._upper_bound_name}'")
         if self._lower_bound_name == "start":
-            return Literal("1", INTEGER_TYPE)
+            return Literal("1", ScalarType.integer_type())
 
         # the start of our space is the end of the previous space +1
         if self._lower_bound_name == "inner":
@@ -459,9 +461,11 @@ class LFRicLoop(PSyLoop):
                 StructureReference.create(
                     mesh_obj, ["get_last_" + prev_space_name + "_cell"]))
         if prev_space_index_str:
-            call.addchild(Literal(prev_space_index_str, INTEGER_TYPE))
+            call.addchild(Literal(prev_space_index_str,
+                                  ScalarType.integer_type()))
         return BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                      call, Literal("1", INTEGER_TYPE))
+                                      call,
+                                      Literal("1", ScalarType.integer_type()))
 
     @property
     def _mesh_name(self):
@@ -964,7 +968,8 @@ class LFRicLoop(PSyLoop):
                     # the range function below returns values from 1 to the
                     # vector size which is what we require in our Fortran code
                     for index in range(1, field.vector_size+1):
-                        idx_literal = Literal(str(index), INTEGER_TYPE)
+                        idx_literal = Literal(str(index),
+                                              ScalarType.integer_type())
                         call = Call.create(ArrayOfStructuresReference.create(
                             field_symbol, [idx_literal], ["set_dirty"]))
                         cursor += 1
@@ -987,7 +992,8 @@ class LFRicLoop(PSyLoop):
                         set_clean = Call.create(
                             ArrayOfStructuresReference.create(
                                 field_symbol,
-                                [Literal(str(index), INTEGER_TYPE)],
+                                [Literal(str(index),
+                                         ScalarType.integer_type())],
                                 ["set_clean"]))
                         set_clean.addchild(clean_depth.copy())
                         cursor += 1

@@ -41,7 +41,7 @@
 import pytest
 from psyclone.psyir.nodes import IfBlock, Literal, Reference, Schedule, \
     Return, Assignment
-from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, BOOLEAN_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
@@ -77,7 +77,8 @@ def test_ifblock_view_indices():
     colouredif = colored("If", IfBlock._colour)
     colouredreturn = colored("Return", Return._colour)
     colouredref = colored("Reference", Reference._colour)
-    condition = Reference(DataSymbol('condition1', REAL_SINGLE_TYPE))
+    condition = Reference(
+        DataSymbol('condition1', ScalarType.real_single_type()))
     then_content = [Return()]
     ifblock = IfBlock.create(condition, then_content)
     output = ifblock.view()
@@ -90,7 +91,7 @@ def test_ifblock_view_indices():
 def test_ifblock_can_be_printed():
     '''Test that an IfBlock instance can always be printed (i.e. is
     initialised fully)'''
-    condition = Reference(DataSymbol('condition1', BOOLEAN_TYPE))
+    condition = Reference(DataSymbol('condition1', ScalarType.boolean_type()))
     then_content = [Return()]
     ifblock = IfBlock.create(condition, then_content)
 
@@ -109,7 +110,7 @@ def test_ifblock_properties():
     assert ("IfBlock malformed or incomplete. It should have "
             "at least 2 children, but found 0." in str(err.value))
 
-    ref1 = Reference(DataSymbol('condition1', BOOLEAN_TYPE),
+    ref1 = Reference(DataSymbol('condition1', ScalarType.boolean_type()),
                      parent=ifblock)
     ifblock.addchild(ref1)
 
@@ -144,13 +145,14 @@ def test_ifblock_create():
 
     '''
     # Without an else clause.
-    if_condition = Literal('true', BOOLEAN_TYPE)
+    if_condition = Literal('true', ScalarType.boolean_type())
     if_body = [Assignment.create(
-        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
-        Literal("0.0", REAL_SINGLE_TYPE)),
+        Reference(DataSymbol("tmp", ScalarType.real_single_type())),
+        Literal("0.0", ScalarType.real_single_type())),
                Assignment.create(
-                   Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),
-                   Literal("1.0", REAL_SINGLE_TYPE))]
+                   Reference(
+                        DataSymbol("tmp2", ScalarType.real_single_type())),
+                   Literal("1.0", ScalarType.real_single_type()))]
     ifblock = IfBlock.create(if_condition, if_body)
     if_schedule = ifblock.children[1]
     assert isinstance(if_schedule, Schedule)
@@ -163,19 +165,22 @@ def test_ifblock_create():
                       "end if\n")
 
     # With an else clause.
-    if_condition = Literal('true', BOOLEAN_TYPE)
+    if_condition = Literal('true', ScalarType.boolean_type())
     if_body = [Assignment.create(
-        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
-        Literal("0.0", REAL_SINGLE_TYPE)),
+        Reference(DataSymbol("tmp", ScalarType.real_single_type())),
+        Literal("0.0", ScalarType.real_single_type())),
                Assignment.create(
-                   Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),
-                   Literal("1.0", REAL_SINGLE_TYPE))]
-    else_body = [Assignment.create(Reference(DataSymbol("tmp",
-                                                        REAL_SINGLE_TYPE)),
-                                   Literal("1.0", REAL_SINGLE_TYPE)),
-                 Assignment.create(Reference(DataSymbol("tmp2",
-                                                        REAL_SINGLE_TYPE)),
-                                   Literal("0.0", REAL_SINGLE_TYPE))]
+                   Reference(
+                        DataSymbol("tmp2", ScalarType.real_single_type())),
+                   Literal("1.0", ScalarType.real_single_type()))]
+    else_body = [Assignment.create(
+                     Reference(DataSymbol("tmp",
+                                          ScalarType.real_single_type())),
+                     Literal("1.0", ScalarType.real_single_type())),
+                 Assignment.create(
+                     Reference(DataSymbol("tmp2",
+                                          ScalarType.real_single_type())),
+                     Literal("0.0", ScalarType.real_single_type()))]
     ifblock = IfBlock.create(if_condition, if_body, else_body)
     if_schedule = ifblock.children[1]
     assert isinstance(if_schedule, Schedule)
@@ -199,10 +204,10 @@ def test_ifblock_create_invalid():
     exception if the provided input is invalid.
 
     '''
-    if_condition = Literal('true', BOOLEAN_TYPE)
+    if_condition = Literal('true', ScalarType.boolean_type())
     if_body = [Assignment.create(
-        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
-        Literal("0.0", REAL_SINGLE_TYPE))]
+        Reference(DataSymbol("tmp", ScalarType.real_single_type())),
+        Literal("0.0", ScalarType.real_single_type()))]
 
     # if_condition not a Node.
     with pytest.raises(GenerationError) as excinfo:
@@ -212,8 +217,8 @@ def test_ifblock_create_invalid():
 
     # One or more if body not a Node.
     if_body_err = [Assignment.create(
-        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
-        Literal("0.0", REAL_SINGLE_TYPE)), "invalid"]
+        Reference(DataSymbol("tmp", ScalarType.real_single_type())),
+        Literal("0.0", ScalarType.real_single_type())), "invalid"]
     with pytest.raises(GenerationError) as excinfo:
         _ = IfBlock.create(if_condition, if_body_err)
     assert ("Item 'str' can't be child 1 of 'Schedule'. The valid format is: "
@@ -226,14 +231,14 @@ def test_ifblock_create_invalid():
             "list but found 'str'.") in str(excinfo.value)
 
     # One of more of else_body not a Node.
-    if_condition = Literal('true', BOOLEAN_TYPE)
+    if_condition = Literal('true', ScalarType.boolean_type())
     if_body = [Assignment.create(
-        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
-        Literal("0.0", REAL_SINGLE_TYPE))]
+        Reference(DataSymbol("tmp", ScalarType.real_single_type())),
+        Literal("0.0", ScalarType.real_single_type()))]
 
     else_body_err = [Assignment.create(
-        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
-        Literal("1.0", REAL_SINGLE_TYPE)), "invalid"]
+        Reference(DataSymbol("tmp", ScalarType.real_single_type())),
+        Literal("1.0", ScalarType.real_single_type())), "invalid"]
     with pytest.raises(GenerationError) as excinfo:
         _ = IfBlock.create(if_condition, if_body, else_body_err)
     assert ("Item 'str' can't be child 1 of 'Schedule'. The valid format is: "
@@ -252,7 +257,7 @@ def test_ifblock_children_validation():
 
     '''
     ifblock = IfBlock()
-    if_condition = Literal('true', BOOLEAN_TYPE)
+    if_condition = Literal('true', ScalarType.boolean_type())
     if_body = Schedule()
     else_body = Schedule()
 

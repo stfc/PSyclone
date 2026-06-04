@@ -49,8 +49,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
                                     UnresolvedType, ImportInterface,
-                                    INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE,
-                                    REAL_TYPE, ScalarType, Symbol, SymbolTable)
+                                    ScalarType, Symbol, SymbolTable)
 from psyclone.psyir.transformations import ProfileTrans
 
 
@@ -73,8 +72,8 @@ def test_reference_equality():
     1. Both are the same type (Reference)
     2. They Reference the same symbol name
     '''
-    symbol1 = DataSymbol("rname", INTEGER_SINGLE_TYPE)
-    symbol2 = DataSymbol("rname2", INTEGER_SINGLE_TYPE)
+    symbol1 = DataSymbol("rname", ScalarType.integer_single_type())
+    symbol2 = DataSymbol("rname2", ScalarType.integer_single_type())
 
     ref1 = Reference(symbol1)
     ref2 = Reference(symbol1)
@@ -84,7 +83,7 @@ def test_reference_equality():
     assert ref1 != ref3
 
     # Create another symbol with the same name (but not the same instance)
-    symbol3 = DataSymbol("rname", INTEGER_SINGLE_TYPE)
+    symbol3 = DataSymbol("rname", ScalarType.integer_single_type())
     ref4 = Reference(symbol3)
     assert ref1 == ref4
 
@@ -92,7 +91,7 @@ def test_reference_equality():
 def test_reference_node_str():
     ''' Check the node_str method of the Reference class.'''
     kschedule = KernelSchedule.create("kname")
-    symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
+    symbol = DataSymbol("rname", ScalarType.integer_single_type())
     kschedule.symbol_table.add(symbol)
     assignment = Assignment()
     ref = Reference(symbol, parent=assignment)
@@ -104,7 +103,7 @@ def test_reference_can_be_printed():
     '''Test that a Reference instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule.create("kname")
-    symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
+    symbol = DataSymbol("rname", ScalarType.integer_single_type())
     kschedule.symbol_table.add(symbol)
     assignment = Assignment()
     ref = Reference(symbol, parent=assignment)
@@ -116,7 +115,7 @@ def test_reference_optional_parent():
     argument is not supplied.
 
     '''
-    ref = Reference(DataSymbol("rname", REAL_SINGLE_TYPE))
+    ref = Reference(DataSymbol("rname", ScalarType.real_single_type()))
     assert ref.parent is None
 
 
@@ -125,9 +124,9 @@ def test_reference_children_validation():
     does not accept any children.
 
     '''
-    ref = Reference(DataSymbol("rname", REAL_SINGLE_TYPE))
+    ref = Reference(DataSymbol("rname", ScalarType.real_single_type()))
     with pytest.raises(GenerationError) as excinfo:
-        ref.addchild(Literal("2", INTEGER_SINGLE_TYPE))
+        ref.addchild(Literal("2", ScalarType.integer_single_type()))
     assert ("Item 'Literal' can't be child 0 of 'Reference'. Reference is a"
             " LeafNode and doesn't accept children.") in str(excinfo.value)
 
@@ -136,7 +135,7 @@ def test_reference_datatype():
     '''Test the datatype property.
 
     '''
-    reference = Reference(DataSymbol("test", REAL_TYPE))
+    reference = Reference(DataSymbol("test", ScalarType.real_type()))
     assert isinstance(reference.datatype, ScalarType)
     assert reference.datatype.intrinsic == ScalarType.Intrinsic.REAL
 
@@ -150,15 +149,15 @@ def test_reference_accesses():
     usual case (see the next test for the unusual case).
 
     '''
-    reference = Reference(DataSymbol("test", REAL_TYPE))
+    reference = Reference(DataSymbol("test", ScalarType.real_type()))
     var_access_info = reference.reference_accesses()
     assert (str(var_access_info)) == "test: READ"
 
     # Test using reference_access with an array to check
     # that arrays are handled correctly.
-    array_type = ArrayType(REAL_SINGLE_TYPE, [10])
+    array_type = ArrayType(ScalarType.real_single_type(), [10])
     symbol_temp = DataSymbol("temp", array_type)
-    symbol_i = DataSymbol("i", INTEGER_SINGLE_TYPE)
+    symbol_i = DataSymbol("i", ScalarType.integer_single_type())
     array = ArrayReference.create(symbol_temp, [Reference(symbol_i)])
     var_access_info = array.reference_accesses()
     assert str(var_access_info) == "i: READ, temp: READ"
@@ -176,8 +175,9 @@ def test_reference_accesses():
 def test_reference_can_be_copied():
     ''' Test that a reference can be copied. '''
 
-    array_symbol = DataSymbol("symbol", ArrayType(REAL_TYPE, [10]))
-    scalar_symbol = DataSymbol("other", REAL_TYPE)
+    array_symbol = DataSymbol("symbol", ArrayType(ScalarType.real_type(),
+                                                  [10]))
+    scalar_symbol = DataSymbol("other", ScalarType.real_type())
 
     ref = Reference(array_symbol)
 
@@ -528,7 +528,7 @@ def test_reference_replace_symbols_using():
     to which the Reference refers.
 
     '''
-    wp = DataSymbol("wp", INTEGER_SINGLE_TYPE)
+    wp = DataSymbol("wp", ScalarType.integer_single_type())
     stype = ScalarType(ScalarType.Intrinsic.REAL, Reference(wp))
     asym = DataSymbol("asym", stype)
     ref = Reference(asym)

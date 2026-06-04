@@ -44,8 +44,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import (
     Assignment, Loop, Literal, Schedule, Return, Reference, Routine)
 from psyclone.psyir.symbols import (
-    DataSymbol, REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, INTEGER_TYPE, ArrayType,
-    REAL_TYPE, SymbolTable)
+    DataSymbol, ScalarType, ArrayType, SymbolTable)
 from psyclone.psyir.tools import DependencyTools
 from psyclone.tests.utilities import check_links
 
@@ -59,14 +58,16 @@ def make_loop():
     :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
     '''
-    start = Literal("0", INTEGER_SINGLE_TYPE)
-    stop = Literal("1", INTEGER_SINGLE_TYPE)
-    step = Literal("1", INTEGER_SINGLE_TYPE)
+    start = Literal("0", ScalarType.integer_single_type())
+    stop = Literal("1", ScalarType.integer_single_type())
+    step = Literal("1", ScalarType.integer_single_type())
     sched = Routine.create("loop_test_sub")
-    tmp = sched.symbol_table.new_symbol("tmp", symbol_type=DataSymbol,
-                                        datatype=REAL_SINGLE_TYPE)
-    isym = sched.symbol_table.new_symbol("i", symbol_type=DataSymbol,
-                                         datatype=INTEGER_SINGLE_TYPE)
+    tmp = sched.symbol_table.new_symbol(
+        "tmp", symbol_type=DataSymbol,
+        datatype=ScalarType.real_single_type())
+    isym = sched.symbol_table.new_symbol(
+        "i", symbol_type=DataSymbol,
+        datatype=ScalarType.integer_single_type())
     child_node = Assignment.create(Reference(tmp), Reference(isym))
     loop = Loop.create(isym, start, stop, step, [child_node])
     sched.addchild(loop)
@@ -84,7 +85,7 @@ def test_loop_init():
     assert loop._variable is None
 
     # valid variable
-    loop = Loop(variable=DataSymbol("var", INTEGER_TYPE))
+    loop = Loop(variable=DataSymbol("var", ScalarType.integer_type()))
     assert loop.variable.name == "var"
 
     # invalid variable (test_check_variable tests check all ways a
@@ -118,9 +119,9 @@ def test_loop_navigation_properties():
         _ = loop.start_expr
     assert error_str in str(err.value)
 
-    loop.addchild(Literal("0", INTEGER_SINGLE_TYPE))
-    loop.addchild(Literal("2", INTEGER_SINGLE_TYPE))
-    loop.addchild(Literal("1", INTEGER_SINGLE_TYPE))
+    loop.addchild(Literal("0", ScalarType.integer_single_type()))
+    loop.addchild(Literal("2", ScalarType.integer_single_type()))
+    loop.addchild(Literal("1", ScalarType.integer_single_type()))
 
     # If it's not fully complete, it still returns an error
     with pytest.raises(InternalError) as err:
@@ -146,9 +147,9 @@ def test_loop_navigation_properties():
     assert isinstance(loop.loop_body[0], Return)
 
     # Test Setters
-    loop.start_expr = Literal("1", INTEGER_SINGLE_TYPE)
-    loop.stop_expr = Literal("3", INTEGER_SINGLE_TYPE)
-    loop.step_expr = Literal("2", INTEGER_SINGLE_TYPE)
+    loop.start_expr = Literal("1", ScalarType.integer_single_type())
+    loop.stop_expr = Literal("3", ScalarType.integer_single_type())
+    loop.step_expr = Literal("2", ScalarType.integer_single_type())
 
     assert loop.start_expr.value == "1"
     assert loop.stop_expr.value == "3"
@@ -195,7 +196,7 @@ def test_loop_replace_symbols_using(table):
     loop = make_loop()
     assert loop.variable.name == "i"
     # Create a replacement symbol.
-    new_i = DataSymbol("i", datatype=INTEGER_TYPE)
+    new_i = DataSymbol("i", datatype=ScalarType.integer_type())
     assert loop.variable is not new_i
     if table is not None:
         table.add(new_i)
@@ -208,9 +209,9 @@ def test_loop_replace_symbols_using(table):
     assert loop.loop_body[0].rhs.symbol is new_i
     # Test when the Loop doesn't have the _variable property set.
     loop = Loop()
-    loop.addchild(Literal("0", INTEGER_SINGLE_TYPE))
-    loop.addchild(Literal("2", INTEGER_SINGLE_TYPE))
-    loop.addchild(Literal("1", INTEGER_SINGLE_TYPE))
+    loop.addchild(Literal("0", ScalarType.integer_single_type()))
+    loop.addchild(Literal("2", ScalarType.integer_single_type()))
+    loop.addchild(Literal("1", ScalarType.integer_single_type()))
     loop.addchild(Schedule(parent=loop))
     assert not loop._variable
     if table is not None:
@@ -266,13 +267,13 @@ def test_loop_create(fortran_writer):
     creates a Loop instance.
 
     '''
-    start = Literal("0", INTEGER_SINGLE_TYPE)
-    stop = Literal("1", INTEGER_SINGLE_TYPE)
-    step = Literal("1", INTEGER_SINGLE_TYPE)
+    start = Literal("0", ScalarType.integer_single_type())
+    stop = Literal("1", ScalarType.integer_single_type())
+    step = Literal("1", ScalarType.integer_single_type())
     child_node = Assignment.create(
-        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
-        Reference(DataSymbol("i", REAL_SINGLE_TYPE)))
-    loop = Loop.create(DataSymbol("i", INTEGER_SINGLE_TYPE),
+        Reference(DataSymbol("tmp", ScalarType.real_single_type())),
+        Reference(DataSymbol("i", ScalarType.real_single_type())))
+    loop = Loop.create(DataSymbol("i", ScalarType.integer_single_type()),
                        start, stop, step, [child_node])
     schedule = loop.children[3]
     assert isinstance(schedule, Schedule)
@@ -287,10 +288,10 @@ def test_loop_create_invalid():
     exception if the provided input is invalid.
 
     '''
-    zero = Literal("0", INTEGER_SINGLE_TYPE)
-    one = Literal("1", INTEGER_SINGLE_TYPE)
+    zero = Literal("0", ScalarType.integer_single_type())
+    one = Literal("1", ScalarType.integer_single_type())
     children = Assignment.create(
-        Reference(DataSymbol("x", INTEGER_SINGLE_TYPE)),
+        Reference(DataSymbol("x", ScalarType.integer_single_type())),
         one.copy())
 
     # invalid variable (test_check_variable tests check all ways a
@@ -301,7 +302,7 @@ def test_loop_create_invalid():
     assert ("variable property in Loop class should be a DataSymbol but "
             "found 'int'.") in str(excinfo.value)
 
-    variable = DataSymbol("i", INTEGER_TYPE)
+    variable = DataSymbol("i", ScalarType.integer_type())
 
     # start not a Node.
     with pytest.raises(GenerationError) as excinfo:
@@ -340,9 +341,9 @@ def test_loop_children_validation():
 
     '''
     loop = Loop()
-    datanode1 = Literal("1", INTEGER_SINGLE_TYPE)
-    datanode2 = Literal("2", INTEGER_SINGLE_TYPE)
-    datanode3 = Literal("3", INTEGER_SINGLE_TYPE)
+    datanode1 = Literal("1", ScalarType.integer_single_type())
+    datanode2 = Literal("2", ScalarType.integer_single_type())
+    datanode3 = Literal("3", ScalarType.integer_single_type())
     schedule = Schedule(parent=loop)
 
     # First child
@@ -393,20 +394,20 @@ def test_check_variable():
     assert ("variable property in Loop class should be a DataSymbol but "
             "found 'str'." in str(info.value))
 
-    array_type = ArrayType(INTEGER_TYPE, shape=[10, 20])
+    array_type = ArrayType(ScalarType.integer_type(), shape=[10, 20])
     array_symbol = DataSymbol("my_array", array_type)
     with pytest.raises(GenerationError) as info:
         Loop._check_variable(array_symbol)
     assert ("variable 'my_array' in Loop class should be a ScalarType but "
             "found 'ArrayType'." in str(info.value))
 
-    scalar_symbol = DataSymbol("my_array", REAL_TYPE)
+    scalar_symbol = DataSymbol("my_array", ScalarType.real_type())
     with pytest.raises(GenerationError) as info:
         Loop._check_variable(scalar_symbol)
     assert ("variable 'my_array' in Loop class should be a scalar integer but "
             "found 'REAL'." in str(info.value))
 
-    scalar_symbol = DataSymbol("my_array", INTEGER_TYPE)
+    scalar_symbol = DataSymbol("my_array", ScalarType.integer_type())
     assert Loop._check_variable(scalar_symbol) is None
 
 
@@ -420,7 +421,7 @@ def test_variable_setter():
     assert loop._variable is None
 
     # valid variable
-    loop.variable = DataSymbol("var", INTEGER_TYPE)
+    loop.variable = DataSymbol("var", ScalarType.integer_type())
     assert loop.variable.name == "var"
 
     # invalid variable (test_check_variable tests check all ways a
@@ -455,15 +456,15 @@ def test_loop_equality():
     # for their equality to be True
     symboltable = SymbolTable()
     # Set up the symbols
-    tmp = DataSymbol("tmp", REAL_SINGLE_TYPE)
-    i_sym = DataSymbol("i", REAL_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.real_single_type())
+    i_sym = DataSymbol("i", ScalarType.real_single_type())
 
     # Create two equal loops
-    loop_sym = DataSymbol("i", INTEGER_SINGLE_TYPE)
+    loop_sym = DataSymbol("i", ScalarType.integer_single_type())
     sched1 = Schedule(symbol_table=symboltable)
-    start = Literal("0", INTEGER_SINGLE_TYPE)
-    stop = Literal("1", INTEGER_SINGLE_TYPE)
-    step = Literal("1", INTEGER_SINGLE_TYPE)
+    start = Literal("0", ScalarType.integer_single_type())
+    stop = Literal("1", ScalarType.integer_single_type())
+    step = Literal("1", ScalarType.integer_single_type())
     child_node = Assignment.create(
         Reference(tmp),
         Reference(i_sym))
@@ -490,7 +491,7 @@ def test_loop_equality():
     assert loop1 == loop2
 
     # Set different variables
-    loop2.variable = DataSymbol("k", INTEGER_SINGLE_TYPE)
+    loop2.variable = DataSymbol("k", ScalarType.integer_single_type())
     assert loop1 != loop2
 
 

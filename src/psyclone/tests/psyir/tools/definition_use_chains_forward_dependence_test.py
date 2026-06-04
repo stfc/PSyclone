@@ -54,7 +54,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.psyir.symbols import (
     DataSymbol,
-    INTEGER_TYPE,
+    ScalarType,
 )
 from psyclone.psyir.tools.definition_use_chains import DefinitionUseChain
 
@@ -123,7 +123,7 @@ def test_definition_use_chain_init_and_properties(fortran_reader):
             "element. Full input is " in str(excinfo.value))
 
     # Check if we don't pass a routine child then we get the root
-    sym = DataSymbol("sym", INTEGER_TYPE)
+    sym = DataSymbol("sym", ScalarType.integer_type())
     r1 = Reference(sym)
     r2 = Reference(sym)
     assign = Assignment.create(r1, r2)

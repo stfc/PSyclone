@@ -1,3 +1,33 @@
+   27) PR #3438 for #3435. Add support for sub_transformations in the kwargs
+   documentation functionality.
+
+   26) PR #3443 for #3243. Unifies NEMO parallelisation scripts to reduce the
+   amount of code duplication between all the parallelisation scripts, and
+   adds a README for the NEMO scripts directory.
+
+   25) PR #3447 for #3250. Add missing tests to achieve 100% code coverage.
+
+   24) PR #3429 for #3412. Generalise hoist_arguments_to_temporaries in NEMO utils
+   to all arguments with array operations.
+
+   23) PR #3436 for #3135. Fixes some cyclic dependencies by replacing
+   the ScalarType import-time instantiations.
+
+   22) PR #3439 for #3415. Fix datatype method for StructureReference nodes
+   that return arrays.
+
+   21) PR #3434 for #2813. Migrates the setup files to use a
+   pyproject.toml rather than setup.py.
+
+   20) PR #3433 for #3432. Introduces initial support for sub transformations
+   and option handling.
+
+   19) PR #3404 for #3403. Modernises the remaining runme examples.
+
+   18) PR #3410 towards #2668. Update more Transformations to use kwargs.
+
+   17) PR #3427. Preserve directive format casing.
+
    16) PR #3422 for #440. Updates tests to use the Fortran backend to generate
    GOLoops in test suite.
    

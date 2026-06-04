@@ -40,7 +40,7 @@
 import pytest
 
 from psyclone.psyir.nodes import Literal
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.transformations import (ReplaceInductionVariablesTrans,
                                             TransformationError)
 
@@ -60,7 +60,7 @@ def test_riv_errors():
     '''Test errors that should be thrown. '''
 
     riv = ReplaceInductionVariablesTrans()
-    lit = Literal("1", INTEGER_TYPE)
+    lit = Literal("1", ScalarType.integer_type())
     with pytest.raises(TransformationError) as err:
         riv.apply(lit)
 

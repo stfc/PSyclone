@@ -51,24 +51,26 @@ def test_am_constructor():
 
 def test_am_create():
     ''' Test the create method of ArrayMember. '''
-    amem = nodes.ArrayMember.create("subdomains",
-                                    [nodes.Literal("1", symbols.INTEGER_TYPE),
-                                     nodes.Literal("2", symbols.INTEGER_TYPE)])
+    amem = nodes.ArrayMember.create(
+        "subdomains",
+        [nodes.Literal("1", symbols.ScalarType.integer_type()),
+         nodes.Literal("2", symbols.ScalarType.integer_type())])
     assert isinstance(amem, nodes.ArrayMember)
     assert len(amem.children) == 2
     assert isinstance(amem.indices[1], nodes.Literal)
     assert amem.indices[1].parent is amem
 
     with pytest.raises(GenerationError) as err:
-        nodes.ArrayMember.create("subdomains",
-                                 nodes.Literal("1", symbols.INTEGER_TYPE))
+        nodes.ArrayMember.create(
+            "subdomains",
+            nodes.Literal("1", symbols.ScalarType.integer_type()))
     assert ("indices argument in create method of ArrayMember class should be "
             "a list but found 'Literal'" in str(err.value))
 
 
 def test_am_validate_child():
     ''' Test the _validate_child method of ArrayMember. '''
-    idx = nodes.Literal("3", symbols.INTEGER_TYPE)
+    idx = nodes.Literal("3", symbols.ScalarType.integer_type())
     amr = nodes.ArrayMember("sub_mesh")
     with pytest.raises(GenerationError) as err:
         amr.addchild("wrong")
@@ -79,11 +81,11 @@ def test_am_validate_child():
 
 def test_am_is_lower_upper_bound():
     ''' Test the is_lower/upper_bound methods of ArrayMember. '''
-    one = nodes.Literal("1", symbols.INTEGER_TYPE)
-    two = nodes.Literal("2", symbols.INTEGER_TYPE)
+    one = nodes.Literal("1", symbols.ScalarType.integer_type())
+    two = nodes.Literal("2", symbols.ScalarType.integer_type())
     amem1 = nodes.ArrayMember.create(
         "subdomains",
-        [one.copy(), nodes.Literal("2", symbols.INTEGER_TYPE)])
+        [one.copy(), nodes.Literal("2", symbols.ScalarType.integer_type())])
     assert amem1.is_lower_bound(0) is False
     assert amem1.is_upper_bound(0) is False
     grid_type = symbols.DataTypeSymbol("grid_type", symbols.UnresolvedType())
@@ -144,15 +146,15 @@ def test_am_is_lower_upper_bound():
 
 def test_am_same_array():
     ''' Test the is_same_array method of ArrayMember. '''
-    one = nodes.Literal("1", symbols.INTEGER_TYPE)
-    two = nodes.Literal("2", symbols.INTEGER_TYPE)
+    one = nodes.Literal("1", symbols.ScalarType.integer_type())
+    two = nodes.Literal("2", symbols.ScalarType.integer_type())
     amem1 = nodes.ArrayMember.create(
         "subdomains",
-        [one.copy(), nodes.Literal("2", symbols.INTEGER_TYPE)])
+        [one.copy(), nodes.Literal("2", symbols.ScalarType.integer_type())])
     # Check when the ArrayMember has no parent Reference
     result = amem1.is_same_array(
         nodes.Reference(symbols.DataSymbol("fake",
-                                           symbols.INTEGER_TYPE)))
+                                           symbols.ScalarType.integer_type())))
     assert result is False
     grid_type = symbols.DataTypeSymbol("grid_type", symbols.UnresolvedType())
     sym1 = symbols.DataSymbol("grid_var", grid_type)
