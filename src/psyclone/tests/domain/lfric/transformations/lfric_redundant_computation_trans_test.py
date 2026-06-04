@@ -207,7 +207,7 @@ def test_rc_invalid_depth_type():
     else:
         assert (f"'depth' option expects type 'int | "
                 f"psyclone.psyir.nodes.datanode.DataNode | None' but received "
-                f"'2' of type '{type('2')}'" in str(excinfo.value))
+                f"'2' of type '{type('2').__name__}'" in str(excinfo.value))
 
 
 def test_rc_invalid_depth_continuous():
