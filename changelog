@@ -1,3 +1,12 @@
+   27) PR #3438 for #3435. Add support for sub_transformations in the kwargs
+   documentation functionality.
+
+   26) PR #3443 for #3243. Unifies NEMO parallelisation scripts to reduce the
+   amount of code duplication between all the parallelisation scripts, and
+   adds a README for the NEMO scripts directory.
+
+   25) PR #3447 for #3250. Add missing tests to achieve 100% code coverage.
+
    24) PR #3429 for #3412. Generalise hoist_arguments_to_temporaries in NEMO utils
    to all arguments with array operations.
 

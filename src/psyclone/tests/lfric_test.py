@@ -54,7 +54,8 @@ from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.lfric import (
     LFRicACCEnterDataDirective, LFRicBoundaryConditions,
-    LFRicKernelArgument, LFRicKernelArguments, LFRicProxies, HaloReadAccess,
+    LFRicKernelArgument, LFRicKernelArguments, LFRicProxies, HaloDepth,
+    HaloReadAccess,
     KernCallArgList)
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.gen_kernel_stub import generate
@@ -1484,6 +1485,91 @@ def test_arg_ref_name_method_error2():
         _ = first_argument.ref_name()
     assert ("LFRicKernelArgument.ref_name(fs): Found unsupported argument "
             "type 'gh_funky_instigator'" in str(excinfo.value))
+
+
+def test_arg_ref_name_method_error3(monkeypatch):
+    '''Test error handling for an operator argument when the supplied
+    function-space matches the argument but not either descriptor endpoint.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
+    first_argument = first_kernel.arguments.args[0]
+
+    descriptor_type = type(first_argument.descriptor)
+    monkeypatch.setattr(descriptor_type, "function_space_from",
+                        property(lambda self: "w_broken_from"))
+    monkeypatch.setattr(descriptor_type, "function_space_to",
+                        property(lambda self: "w_broken_to"))
+
+    with pytest.raises(GenerationError) as excinfo:
+        _ = first_argument.ref_name(first_argument.function_spaces[0])
+    assert ("is one of the 'gh_operator' function spaces" in
+            str(excinfo.value))
+
+
+def test_arg_proxy_name_indexed_vector():
+    '''Check that proxy_name_indexed includes an explicit (1) index for a
+    vector argument.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
+    first_argument = first_kernel.arguments.args[1]
+    first_argument._vector_size = 2
+    assert first_argument.proxy_name_indexed == "f1_proxy(1)"
+
+
+def test_mesh_properties_initialise_invalid_property():
+    '''Check that unsupported mesh properties are rejected during
+    initialisation code generation.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "24.1_mesh_prop_invoke.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    invoke.setup_psy_layer_symbols()
+    invoke.mesh_properties._properties.append("not-a-property")
+
+    with pytest.raises(InternalError) as err:
+        invoke.mesh_properties.initialise(0)
+    assert "Found unsupported mesh property 'not-a-property'" in str(err.value)
+
+
+def test_halo_depth_parent_type_error():
+    '''Check validation of the parent argument to HaloDepth.'''
+    with pytest.raises(TypeError) as err:
+        _ = HaloDepth(parent="not-a-node")
+    assert "HaloDepth parent argument must be a Node" in str(err.value)
+
+
+def test_iteration_space_arg_error_empty_args():
+    '''Check that iteration_space_arg() raises the expected error when no
+    field/operator arguments are present.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
+    arguments = first_kernel.arguments
+    saved_args = arguments._args
+    arguments._args = []
+    try:
+        with pytest.raises(GenerationError) as err:
+            arguments.iteration_space_arg()
+        assert "None of these were found." in str(err.value)
+    finally:
+        arguments._args = saved_args
 
 
 def test_arg_intent_error():
@@ -3510,6 +3596,35 @@ def test_haloex_not_required(monkeypatch):
     for index in range(3):
         haloex = schedule.children[index]
         assert haloex.required() == (False, True)
+
+
+def test_haloex_required_max_depth_clean_outer(monkeypatch):
+    '''Check the required() logic branch where the full halo is known clean
+    due to redundant computation.
+
+    '''
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    haloex = invoke.schedule.children[0]
+
+    class DummyReadInfo:  # pylint: disable=too-few-public-methods
+        '''Minimal read-info object for required().'''
+        max_depth = False
+        annexed_only = False
+
+    class DummyWriteInfo:  # pylint: disable=too-few-public-methods
+        '''Minimal write-info object for required().'''
+        max_depth = True
+        dirty_outer = False
+
+    monkeypatch.setattr(haloex, "_compute_halo_read_depth_info",
+                        lambda _ignore_hex_dep=False: [DummyReadInfo()])
+    monkeypatch.setattr(haloex, "_compute_halo_write_info",
+                        lambda: DummyWriteInfo())
+
+    assert haloex.required() == (False, True)
 
 
 def test_lfriccollection_err1():

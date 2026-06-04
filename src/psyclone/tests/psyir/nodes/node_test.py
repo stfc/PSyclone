@@ -38,6 +38,8 @@
 
 ''' Performs py.test tests on the Node PSyIR node. '''
 
+import builtins
+import runpy
 import sys
 import os
 import re
@@ -124,6 +126,24 @@ def test_node_coloured_name_exception(monkeypatch):
     assert ("The _colour attribute in class 'Node' has been set to a "
             "colour ('invalid') that is not supported by the termcolor "
             "package." in str(err.value))
+
+
+def test_node_colored_fallback_without_termcolor(monkeypatch):
+    '''Exercise the fallback implementation of ``colored`` when termcolor
+    cannot be imported.
+
+    '''
+    original_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        '''Raise ImportError only for termcolor.'''
+        if name == "termcolor":
+            raise ImportError("termcolor unavailable")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    module_globals = runpy.run_path(node.__file__)
+    assert module_globals["colored"]("text", "green") == "text"
 
 
 def test_node_str(monkeypatch):
@@ -644,6 +664,48 @@ def test_node_is_valid_location():
     # 11: invalid following dep (after)
     anode = schedule.children[0]
     assert not anode.is_valid_location(schedule.children[3], position="after")
+
+
+def test_node_forward_dependence_selects_closest():
+    '''Check that ``forward_dependence`` keeps the closest dependence when
+    several dependencies are found.
+
+    '''
+    class MyNode(Node):
+        '''Simple Node subclass with configurable arguments.'''
+        _colour = "green"
+
+        @staticmethod
+        def _validate_child(position, child):
+            return True
+
+        @property
+        def args(self):
+            return self._args
+
+    class FakeDepArg:
+        '''Argument object that returns a predefined dependence.'''
+        def __init__(self, dep_node):
+            self._dep_node = dep_node
+
+        def forward_dependence(self):
+            class DepInfo:  # pylint: disable=too-few-public-methods
+                '''Mimic a dependence container with a ``call`` node.'''
+            dep = DepInfo()
+            dep.call = self._dep_node
+            return dep
+
+    parent = MyNode()
+    target = MyNode()
+    dep_near = MyNode()
+    dep_far = MyNode()
+    parent.addchild(target)
+    parent.addchild(dep_near)
+    parent.addchild(dep_far)
+    target._args = [FakeDepArg(dep_far), FakeDepArg(dep_near)]
+
+    assert dep_far.position > dep_near.position
+    assert target.forward_dependence() is dep_near
 
 
 def test_node_ancestor():

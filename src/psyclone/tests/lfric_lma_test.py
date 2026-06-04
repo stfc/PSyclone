@@ -985,6 +985,14 @@ end module dummy_mod
 
     # Try with unsupported types
     lma_args = args_filter(kernel.arguments.args, arg_types=["gh_operator"])
+    lma_args[0]._intrinsic_type = "integer"
+    generated_code = fortran_writer(kernel.gen_stub)
+    assert "dimension(op_1_ncell_3d,ndf_w0,ndf_w0), intent(inout) :: op_1" \
+        in generated_code
+    assert "integer(kind=" in generated_code
+
+    # Try with unsupported types
+    lma_args = args_filter(kernel.arguments.args, arg_types=["gh_operator"])
     lma_args[0]._intrinsic_type = "logical"
     with pytest.raises(NotImplementedError) as err:
         _ = kernel.gen_stub
