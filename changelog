@@ -1,3 +1,6 @@
+   28) PR #3417 towards #3398. Move LFRicRedundantComputationTrans into the
+   LFRic transformations module.
+
    27) PR #3438 for #3435. Add support for sub_transformations in the kwargs
    documentation functionality.
 
