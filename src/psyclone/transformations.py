@@ -63,7 +63,7 @@ from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule)
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
-    ACCParallelDirective, ACCRoutineDirective,
+    ACCParallelDirective, ACCRoutineDirective, Reference,
     Call, CodeBlock, Container, Directive, Literal, Loop,
     OMPMasterDirective, OMPParallelDirective, OMPSerialDirective,
     OMPSingleDirective, Return, Schedule, PSyDataNode, IntrinsicCall)
@@ -73,7 +73,7 @@ from psyclone.psyir.nodes.omp_directives import OMPDirective
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
-    ArgumentInterface, DataSymbol, INTEGER_TYPE, ScalarType, Symbol,
+    ArgumentInterface, DataSymbol, ScalarType, Symbol,
     SymbolError, UnresolvedType)
 from psyclone.psyir.transformations.callee_transformation_mixin import (
     CalleeTransformationMixin)
@@ -931,9 +931,18 @@ class ACCParallelTrans(ParallelRegionTrans):
             avoid using unsupported nodes inside a region.
         :param bool options["default_present"]: this flag controls if the
             inserted directive should include the default_present clause.
+        :param bool options["allow_strings"]: whether to allow the
+            transformation on assignments involving character types. Defaults
+            to False.
+        :param bool options["verbose"]: whether to allow the
+            transformation on assignments involving character types. Defaults
+            to False.
 
         '''
         node_list = self.get_node_list(node_list)
+        verbose = options.get("verbose", False) if options else False
+        device_string = options.get("device_string", "") if options else ""
+        allow_strings = options.get("allow_strings", "") if options else False
         super().validate(node_list, options)
         if options is not None and "default_present" in options:
             if not isinstance(options["default_present"], bool):
@@ -941,8 +950,26 @@ class ACCParallelTrans(ParallelRegionTrans):
                     f"The provided 'default_present' option must be a "
                     f"boolean, but found '{options['default_present']}'."
                 )
-        device_string = options.get("device_string", "") if options else ""
         for node in node_list:
+            if not allow_strings:
+                # Check there are no character assignments in the region
+                for datanode in node.walk((Reference, Literal),
+                                          stop_type=Reference):
+                    dtype = datanode.datatype
+                    # Don't allow CHARACTERS on GPU
+                    if hasattr(dtype, "intrinsic"):
+                        if dtype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                            message = (
+                                f"ACCParallelTrans doesn't enclose regions "
+                                f"that use characters, but found: "
+                                f"'{datanode.debug_string()}', use the "
+                                f"'allow_strings' transformation option to "
+                                f"offload this region."
+                            )
+                            if verbose:
+                                node.preceding_comment = message
+                            raise TransformationError(message)
+
             for call in node.walk(Call):
                 if not call.is_available_on_device(device_string):
                     if isinstance(call, IntrinsicCall):
@@ -975,6 +1002,9 @@ class ACCParallelTrans(ParallelRegionTrans):
             avoid using unsupported nodes inside a region.
         :param bool options["default_present"]: this flag controls if the
             inserted directive should include the default_present clause.
+        :param bool options["allow_strings"]: whether to allow the
+            transformation on assignments involving character types. Defaults
+            to False.
 
         '''
         if not options:
@@ -1492,7 +1522,7 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
             # and is unused within the kernel body.
             orig_name = symbol.name
             new_name = symbol_table.next_available_name(f"{orig_name}_dummy")
-            local_symbol = DataSymbol(new_name, INTEGER_TYPE,
+            local_symbol = DataSymbol(new_name, ScalarType.integer_type(),
                                       is_constant=True, initial_value=value)
             symbol_table.add(local_symbol)
             symbol_table.swap_symbol_properties(symbol, local_symbol)

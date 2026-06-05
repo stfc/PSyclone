@@ -61,7 +61,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     GenericInterfaceSymbol, ImportInterface, SymbolTable,
-    UnresolvedType, INTEGER_TYPE, UnsupportedFortranType)
+    UnresolvedType, ScalarType, UnsupportedFortranType)
 
 
 class LFRicKern(CodedKern):
@@ -1099,7 +1099,7 @@ class LFRicKern(CodedKern):
             # go beyond the L1 halo.
             if (parent_loop.upper_bound_name == "cell_halo" and
                     parent_loop.upper_bound_halo_depth != Literal(
-                        "1", INTEGER_TYPE)):
+                        "1", ScalarType.integer_type())):
                 raise GenerationError(
                     f"Kernel '{self._name}' reads from an operator and "
                     f"therefore cannot be used for cells beyond the level 1 "

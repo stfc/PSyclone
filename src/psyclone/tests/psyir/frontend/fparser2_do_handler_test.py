@@ -48,7 +48,7 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
     Assignment, BinaryOperation, CodeBlock, Literal, Loop, Routine, Schedule,
     WhileLoop, Reference)
-from psyclone.psyir.symbols import DataSymbol, ScalarType, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.tests.utilities import Compile
 
 
@@ -284,10 +284,10 @@ def test_do_concurrent(fortran_reader, fortran_writer, tmpdir):
     loops = psyir.walk(Loop)
     assert len(loops) == 1
     assert loops[0].variable.name == "i"
-    assert loops[0].start_expr == Literal("1", INTEGER_TYPE)
+    assert loops[0].start_expr == Literal("1", ScalarType.integer_type())
     assert isinstance(loops[0].stop_expr, Reference)
     assert loops[0].stop_expr.symbol.name == "n"
-    assert loops[0].step_expr == Literal("1", INTEGER_TYPE)
+    assert loops[0].step_expr == Literal("1", ScalarType.integer_type())
 
     # Do concurrent with nested loops and step values
     code = '''

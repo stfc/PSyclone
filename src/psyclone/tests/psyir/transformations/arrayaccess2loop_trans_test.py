@@ -43,8 +43,7 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Assignment, ArrayReference, Literal, Node
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
-    ArrayType
+from psyclone.psyir.symbols import DataSymbol, ScalarType, ArrayType
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import Compile
 
@@ -437,8 +436,8 @@ def test_validate_assignment():
     within an assignment.
 
     '''
-    dim_access = Literal("1", INTEGER_TYPE)
-    array_symbol = DataSymbol("x", ArrayType(REAL_TYPE, [10]))
+    dim_access = Literal("1", ScalarType.integer_type())
+    array_symbol = DataSymbol("x", ArrayType(ScalarType.real_type(), [10]))
     ArrayReference.create(array_symbol, [dim_access])
     trans = ArrayAccess2LoopTrans()
     with pytest.raises(TransformationError) as info:
@@ -456,9 +455,9 @@ def test_validate_lhs_assignment():
     within an assignment, but is on its right hand side.
 
     '''
-    dim_access = Literal("1", INTEGER_TYPE)
-    lhs_array_symbol = DataSymbol("x", ArrayType(REAL_TYPE, [10]))
-    rhs_array_symbol = DataSymbol("y", ArrayType(REAL_TYPE, [10]))
+    dim_access = Literal("1", ScalarType.integer_type())
+    lhs_array_symbol = DataSymbol("x", ArrayType(ScalarType.real_type(), [10]))
+    rhs_array_symbol = DataSymbol("y", ArrayType(ScalarType.real_type(), [10]))
     lhs = ArrayReference.create(lhs_array_symbol, [dim_access.copy()])
     rhs = ArrayReference.create(rhs_array_symbol, [dim_access])
     Assignment.create(lhs, rhs)

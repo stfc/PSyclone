@@ -69,7 +69,8 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
         be specified with a DataTypeSymbol. The member of the
         structure that is accessed is specified using the 'members'
         argument. e.g. for a reference to "field(idx)%bundle(2)%flag" this
-        argument would be [("bundle", [Literal("2", INTEGER4_TYPE)]), "flag"].
+        argument would be
+        [("bundle", [Literal("2", ScalarType.integer4_type())]), "flag"].
         The 'indices' argument specifies the DataNodes describing the indexing
         into the array of structures. For the example given previously, this
         would be [Reference(idx_symbol)] where `idx_symbol` is the Symbol

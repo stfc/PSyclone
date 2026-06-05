@@ -95,7 +95,8 @@ class StructureReference(StructureAccessorMixin, Reference):
         '''
         Create a StructureReference instance given a symbol and a
         list of components. e.g. for "field%bundle(2)%flag" this
-        list would be [("bundle", [Literal("2", INTEGER4_TYPE)]), "flag"].
+        list would be
+        [("bundle", [Literal("2", ScalarType.integer4_type())]), "flag"].
 
         :param symbol: the symbol that this reference is to.
         :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
@@ -147,7 +148,8 @@ class StructureReference(StructureAccessorMixin, Reference):
         '''
         Create an instance of `cls` given a symbol, a type and a
         list of components. e.g. for "field%bundle(2)%flag" this list
-        would be [("bundle", [Literal("2", INTEGER4_TYPE)]), "flag"].
+        would be
+        [("bundle", [Literal("2", ScalarType.integer4_type())]), "flag"].
 
         This 'internal' method is used by both ArrayOfStructuresReference
         *and* this class which is why it is a class method with the symbol
@@ -348,8 +350,11 @@ class StructureReference(StructureAccessorMixin, Reference):
             if not isinstance(cursor_type, (UnresolvedType, UnsupportedType)):
                 # Once we've hit an Unresolved/UnsupportedType the cursor_type
                 # will remain set to that as we can't do any better.
-                cursor_type = cursor_type.components[
-                    cursor.name.lower()].datatype
+                try:
+                    cursor_type = cursor_type.components[
+                        cursor.name.lower()].datatype
+                except KeyError:
+                    return UnresolvedType()
             try:
                 cursor_shape = _get_cursor_shape(cursor, cursor_type)
             except NotImplementedError:

@@ -39,7 +39,7 @@
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.symbols import ScalarType, INTEGER_TYPE
+from psyclone.psyir.symbols import ScalarType
 
 
 class Range(Node):
@@ -64,23 +64,26 @@ class Range(Node):
     A common use case is to want to specify all the elements of a given
     array dimension without knowing the extent of that dimension. In the
     PSyIR this is achieved by using the ``LBOUND``, and ``UBOUND``
-    intrinsics::
+    intrinsics:
 
-      >>> one = Literal("1", INTEGER_TYPE)
-      >>> # Declare a 1D real array called 'a' with 10 elements
-      >>> symbol = DataSymbol("a", ArrayType(REAL_TYPE, [10]))
-      >>> # Return the lower bound of the first dimension of array 'a'
-      >>> lbound = IntrinsicCall.create(
-              IntrinsicCall.Intrinsic.LBOUND,
-              [Reference(symbol), one.copy()])
-      >>> # Return the upper bound of the first dimension of array 'a'
-      >>> ubound = IntrinsicCall.create(
-              IntrinsicCall.Intrinsic.UBOUND,
-              [Reference(symbol), one.copy()])
-      >>> # Step defaults to 1 so no need to include it when creating range
-      >>> my_range = Range.create(lbound, ubound)
-      >>> # Create an access to all elements in the 1st dimension of array 'a'
-      >>> array_access = ArrayReference.create(symbol, [my_range])
+    >>> from psyclone.psyir.nodes import (
+    ...      Literal, IntrinsicCall, Reference, ArrayReference, Range)
+    >>> from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType
+    >>> one = Literal("1", ScalarType.integer_type())
+    >>> # Declare a 1D real array called 'a' with 10 elements
+    >>> symbol = DataSymbol("a", ArrayType(ScalarType.real_type(), [10]))
+    >>> # Return the lower bound of the first dimension of array 'a'
+    >>> lbound = IntrinsicCall.create(
+    ...       IntrinsicCall.Intrinsic.LBOUND,
+    ...       [Reference(symbol), one.copy()])
+    >>> # Return the upper bound of the first dimension of array 'a'
+    >>> ubound = IntrinsicCall.create(
+    ...       IntrinsicCall.Intrinsic.UBOUND,
+    ...       [Reference(symbol), one.copy()])
+    >>> # Step defaults to 1 so no need to include it when creating range
+    >>> my_range = Range.create(lbound, ubound)
+    >>> # Create an access to all elements in the 1st dimension of array 'a'
+    >>> array_access = ArrayReference.create(symbol, [my_range])
 
     In Fortran the above access ``array_access`` can be represented by
     ``a(:)``. The Fortran front-ends and back-ends are aware of array
@@ -132,7 +135,7 @@ class Range(Node):
             erange.step = step
         else:
             # No step supplied so default to a value of 1
-            erange.step = Literal("1", INTEGER_TYPE)
+            erange.step = Literal("1", ScalarType.integer_type())
         return erange
 
     @staticmethod
