@@ -2539,7 +2539,7 @@ class Transformation(metaclass=abc.ABCMeta):
                 except TypeError:
                     # Type checking for Generics, e.g. Union[...], doesn't
                     # work so we skip this check - it is done in the
-                    # relevant function instead.
+                    # validate method of the transformation instead.
                     pass
 
         if len(invalid_options) > 0:
