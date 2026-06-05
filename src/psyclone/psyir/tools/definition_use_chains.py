@@ -1026,11 +1026,11 @@ class DefinitionUseChain:
             # Find the min abs position, as all of these are
             # contained in the same parent.
             # We stop before any of the provided references, as
-            # for a statement such as b = a + a we don't want to return
-            # any of the References to a both of the a References are provided
-            # as an input to the DUC.
+            # for a statement such as 'b = a + a' we don't want to return
+            # any of the References to 'a' if both of the 'a' References
+            # are provided as an input to the DUC.
             self._stop_point = min(list(self._references_abs_pos.values()))
-        # If there is no set start point, then any Reference after
+        # If there is no set start point, then any Reference
         # before the stop point can potentially be a backward access.
         if self._start_point is None:
             self._start_point = self._scope[0].abs_position
