@@ -1,3 +1,6 @@
+   29) PR #3399 towards #3367. Extends the DefinitionUseChain functionality
+   to handle multiple inputs and thus Assignment statements.
+ 
    28) PR #3417 towards #3398. Move LFRicRedundantComputationTrans into the
    LFRic transformations module.
 
