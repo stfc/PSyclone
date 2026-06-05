@@ -44,22 +44,23 @@ from psyclone.core import SymbolicMaths
 from psyclone.errors import LazyString, InternalError
 from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.nodes import (
-    ArrayReference, ArrayOfStructuresReference, BinaryOperation, Call,
-    CodeBlock, Container, DataNode, FileContainer, IfBlock, IntrinsicCall,
-    Literal, Loop, Node, Range, Routine, Reference, Return, Schedule,
-    ScopingNode, Statement, StructureMember, StructureReference, Assignment)
+    ArrayReference, ArrayOfStructuresReference, Assignment, BinaryOperation,
+    Call, CodeBlock, DataNode, IfBlock, IntrinsicCall, Literal, Loop, Node,
+    Range, Routine, Reference, Return, Schedule, ScopingNode, Statement,
+    StructureMember, StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArrayType,
-    BOOLEAN_TYPE,
+    ScalarType,
     DataSymbol,
-    INTEGER_TYPE,
     StructureType,
     SymbolError,
     UnresolvedType,
     UnsupportedType,
     UnsupportedFortranType,
 )
+from psyclone.psyir.transformations.callee_transformation_mixin import (
+    CalleeTransformationMixin)
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
     Reference2ArrayRangeTrans)
 from psyclone.psyir.transformations.transformation_error import (
@@ -68,11 +69,11 @@ from psyclone.psyir.nodes.call import CallMatchingArgumentsNotFound
 from psyclone.utils import transformation_documentation_wrapper
 
 
-_ONE = Literal("1", INTEGER_TYPE)
+_ONE = Literal("1", ScalarType.integer_type())
 
 
 @transformation_documentation_wrapper
-class InlineTrans(Transformation):
+class InlineTrans(Transformation, CalleeTransformationMixin):
     '''
     This transformation takes a Call (which may have a return value)
     and replaces it with the body of the target routine. It is used as
@@ -139,6 +140,7 @@ class InlineTrans(Transformation):
         Some of these restrictions will be lifted by #924.
 
     '''
+
     def apply(self,
               node: Call,
               routine: Optional[Routine] = None,
@@ -368,9 +370,11 @@ class InlineTrans(Transformation):
                                                            None)
                 if is_present:
                     # The argument is present.
-                    intrinsic_call.replace_with(Literal("true", BOOLEAN_TYPE))
+                    intrinsic_call.replace_with(
+                        Literal("true", ScalarType.boolean_type()))
                 else:
-                    intrinsic_call.replace_with(Literal("false", BOOLEAN_TYPE))
+                    intrinsic_call.replace_with(
+                        Literal("false", ScalarType.boolean_type()))
 
     def _optional_arg_eliminate_ifblock_if_const_condition(
         self, routine_node: Routine
@@ -958,7 +962,7 @@ class InlineTrans(Transformation):
             container is accessed in the target routine.
         :raises TransformationError: if the shape of an array formal argument
             does not match that of the corresponding actual argument.
-        :raises TransformationError: if one of the declaratoins in the routine
+        :raises TransformationError: if one of the declarations in the routine
             depends on an argument that is written to prior to the call.
         :raises InternalError: if an unhandled Node type is returned by
             Reference.previous_accesses().
@@ -1026,15 +1030,7 @@ class InlineTrans(Transformation):
         # Container. If it isn't, KernelModuleInlineTrans should be used as
         # this performs various checks to make sure it's safe to bring in the
         # routine.
-        callsite_contr = node.ancestor(Container, excluding=FileContainer)
-        if callsite_contr:
-            # The call site is within a Container.
-            if callsite_contr is not routine.ancestor(Container):
-                raise TransformationError(
-                    f"Routine '{name}' is not in the same Container as the "
-                    f"call site ('{callsite_contr.name}') and therefore cannot"
-                    f" be inlined. (Try using KernelModuleInlineTrans to bring"
-                    f" the routine into the same Container first.)")
+        self._check_callee_implementation_is_local(node)
 
         return_stmts = routine.walk(Return)
         if return_stmts:

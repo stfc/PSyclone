@@ -42,7 +42,7 @@ on:
   push
 
 env:
-  LFRIC_APPS_HASH: 948b9ec1a7ae6ef110b97ed45ced8d4b71079f34
+  LFRIC_APPS_HASH: 299d4f786dd2d86a59a184c3e53384005a69eded
   PYTHON_VERSION: "3.14"
   GNU_TOOLCHAIN: gnu14_openmpi
   NVHPC_TOOLCHAIN: nvhpc26_3_openmpi
@@ -278,6 +278,26 @@ jobs:
         export VAR_TIME=$((${SECONDS}-${START_TIME}))
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
         echo "build_time=${BUILD_ELAPSED}" >> "${GITHUB_OUTPUT}"
+
+    - name: LFRic Atm nvfortran
+      id: lfric_atm_nvfortran
+      run: |
+        # Set up environment
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load lfric-build-environment %${NVHPC_TOOLCHAIN}
+        source .runner_venv/bin/activate
+        export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
+        export LFRIC_DIR=/archive/psyclone-tests/latest-run/lfric_apps
+        cd ${LFRIC_DIR}
+
+        # Currently we just compile the 'meto-ex1a' with the nvidia compiler, this won't
+        # create offloading directives and fails at runtime because lfric_atm needs XIOS
+        # enabled, but we want to make sure we keep the nvfortran build working.
+        rm -rf working-atm-gpu
+        export BUILD_START="${SECONDS}"
+        ./build/local_build.py -v -p meto-ex1a -j 16 -w working-atm-gpu lfric_atm
+        export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
+
 
   upload_if_on_mirror:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}

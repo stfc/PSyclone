@@ -45,7 +45,7 @@ from psyclone.core import SymbolicMaths
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, \
     Assignment, Literal, Node, Schedule, Loop
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.utils import transformation_documentation_wrapper
@@ -116,7 +116,7 @@ class ArrayAccess2LoopTrans(Transformation):
         # not exist then create it.
         loop_variable_symbol = symbol_table.find_or_create(
                 loop_variable_name, symbol_type=DataSymbol,
-                datatype=INTEGER_TYPE)
+                datatype=ScalarType.integer_type())
 
         # Replace current access with loop variable.
         for array in assignment.walk(ArrayReference):
@@ -130,7 +130,7 @@ class ArrayAccess2LoopTrans(Transformation):
         loc_index = loop_body.position
 
         # Create the new single-trip loop and add its children.
-        step = Literal("1", INTEGER_TYPE)
+        step = Literal("1", ScalarType.integer_type())
         loop = Loop.create(loop_variable_symbol, node_copy,
                            node_copy.copy(), step, [loop_body.detach()])
 

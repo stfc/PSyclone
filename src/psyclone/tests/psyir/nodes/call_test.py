@@ -46,9 +46,8 @@ from psyclone.psyir.nodes import (
     Node, Reference, Routine, Schedule, CallMatchingArgumentsNotFound)
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
-    ArrayType, INTEGER_TYPE, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    NoType, RoutineSymbol, REAL_TYPE, SymbolError, UnresolvedInterface,
-    UnresolvedType, ScalarType)
+    ArrayType, ScalarType, ContainerSymbol, DataSymbol, DataTypeSymbol,
+    NoType, RoutineSymbol, SymbolError, UnresolvedInterface, UnresolvedType)
 
 
 class SpecialCall(Call):
@@ -75,11 +74,11 @@ def test_call_init():
     routine = RoutineSymbol("jo", NoType())
     call = Call(parent=parent)
     call.addchild(Reference(routine))
-    call.addchild(Literal('3', INTEGER_TYPE))
+    call.addchild(Literal('3', ScalarType.integer_type()))
     assert call.routine.symbol is routine
     assert call.symbol is routine
     assert call.parent is parent
-    assert call.arguments == (Literal('3', INTEGER_TYPE),)
+    assert call.arguments == (Literal('3', ScalarType.integer_type()),)
 
 
 def test_call_is_elemental():
@@ -125,21 +124,24 @@ def test_call_equality():
     assert call1 != call3
 
     # Check with argument names
-    call4 = Call.create(routine, [("name", Literal("1.0", REAL_TYPE))])
-    call5 = Call.create(routine, [("name", Literal("1.0", REAL_TYPE))])
+    call4 = Call.create(
+        routine, [("name", Literal("1.0", ScalarType.real_type()))])
+    call5 = Call.create(
+        routine, [("name", Literal("1.0", ScalarType.real_type()))])
     assert call4 == call5
 
     # Check with argument name and no argument name
-    call6 = Call.create(routine, [Literal("1.0", REAL_TYPE)])
+    call6 = Call.create(routine, [Literal("1.0", ScalarType.real_type())])
     assert call4 != call6
 
     # Check with different argument names
-    call7 = Call.create(routine, [("new_name", Literal("1.0", REAL_TYPE))])
+    call7 = Call.create(
+        routine, [("new_name", Literal("1.0", ScalarType.real_type()))])
     assert call4 != call7
 
     # Check when a Reference (to the same RoutineSymbol) is provided.
     call8 = Call.create(Reference(routine),
-                        [("new_name", Literal("1.0", REAL_TYPE))])
+                        [("new_name", Literal("1.0", ScalarType.real_type()))])
     assert call8 == call7
 
 
@@ -150,9 +152,9 @@ def test_call_create(cls):
     properties.
 
     '''
-    routine = RoutineSymbol("ellie", INTEGER_TYPE)
-    array_type = ArrayType(INTEGER_TYPE, shape=[10, 20])
-    arguments = [Reference(DataSymbol("arg1", INTEGER_TYPE)),
+    routine = RoutineSymbol("ellie", ScalarType.integer_type())
+    array_type = ArrayType(ScalarType.integer_type(), shape=[10, 20])
+    arguments = [Reference(DataSymbol("arg1", ScalarType.integer_type())),
                  ArrayReference(DataSymbol("arg2", array_type))]
     call = cls.create(routine, [arguments[0], ("name", arguments[1])])
     # pylint: disable=unidiomatic-typecheck
@@ -189,11 +191,11 @@ def test_call_create_error2():
 def test_call_create_error3():
     '''Test that the appropriate exception is raised if one or more of the
     argument names is not valid.'''
-    routine = RoutineSymbol("roo", INTEGER_TYPE)
+    routine = RoutineSymbol("roo", ScalarType.integer_type())
     with pytest.raises(ValueError) as info:
         _ = Call.create(
             routine, [Reference(DataSymbol(
-                "arg1", INTEGER_TYPE)), (" a", None)])
+                "arg1", ScalarType.integer_type())), (" a", None)])
     assert "Invalid Fortran name ' a' found." in str(info.value)
 
 
@@ -203,11 +205,11 @@ def test_call_create_error4():
     DataNode.
 
     '''
-    routine = RoutineSymbol("roo", INTEGER_TYPE)
+    routine = RoutineSymbol("roo", ScalarType.integer_type())
     with pytest.raises(GenerationError) as info:
         _ = Call.create(
             routine, [Reference(DataSymbol(
-                "arg1", INTEGER_TYPE)), ("name", None)])
+                "arg1", ScalarType.integer_type())), ("name", None)])
     assert ("Item 'NoneType' can't be child 2 of 'Call'. The valid format "
             "is: 'Reference, [DataNode]*'." in str(info.value))
 
@@ -215,10 +217,10 @@ def test_call_create_error4():
 def test_call_add_args():
     '''Test the _add_args method in the Call class.'''
 
-    routine = RoutineSymbol("myeloma", INTEGER_TYPE)
+    routine = RoutineSymbol("myeloma", ScalarType.integer_type())
     call = Call.create(routine)
-    array_type = ArrayType(INTEGER_TYPE, shape=[10, 20])
-    arguments = [Reference(DataSymbol("arg1", INTEGER_TYPE)),
+    array_type = ArrayType(ScalarType.integer_type(), shape=[10, 20])
+    arguments = [Reference(DataSymbol("arg1", ScalarType.integer_type())),
                  ArrayReference(DataSymbol("arg2", array_type))]
     Call._add_args(call, [arguments[0], ("name", arguments[1])])
     assert call.routine.symbol is routine
@@ -266,9 +268,9 @@ def test_call_appendnamedarg():
     that it works as expected when the input is valid.
 
     '''
-    op1 = Literal("1", INTEGER_TYPE)
-    op2 = Literal("2", INTEGER_TYPE)
-    op3 = Literal("3", INTEGER_TYPE)
+    op1 = Literal("1", ScalarType.integer_type())
+    op2 = Literal("2", ScalarType.integer_type())
+    op3 = Literal("3", ScalarType.integer_type())
     call = Call.create(RoutineSymbol("hello"), [])
     # name arg wrong type
     with pytest.raises(TypeError) as info:
@@ -299,9 +301,9 @@ def test_call_insertnamedarg():
     that it works as expected when the input is valid.
 
     '''
-    op1 = Literal("1", INTEGER_TYPE)
-    op2 = Literal("2", INTEGER_TYPE)
-    op3 = Literal("3", INTEGER_TYPE)
+    op1 = Literal("1", ScalarType.integer_type())
+    op2 = Literal("2", ScalarType.integer_type())
+    op3 = Literal("3", ScalarType.integer_type())
     call = Call.create(RoutineSymbol("hello"), [])
     # name arg wrong type
     with pytest.raises(TypeError) as info:
@@ -341,9 +343,9 @@ def test_call_replacenamedarg():
     that it works as expected when the input is valid.
 
     '''
-    op1 = Literal("1", INTEGER_TYPE)
-    op2 = Literal("2", INTEGER_TYPE)
-    op3 = Literal("3", INTEGER_TYPE)
+    op1 = Literal("1", ScalarType.integer_type())
+    op2 = Literal("2", ScalarType.integer_type())
+    op3 = Literal("3", ScalarType.integer_type())
     call = Call.create(RoutineSymbol("hello"),
                        [("name1", op1), ("name2", op2)])
 
@@ -372,9 +374,9 @@ def test_call_replacenamedarg():
 
 def test_call_argument_by_name():
     '''Test the argument_by_name method.'''
-    op1 = Literal("1", INTEGER_TYPE)
-    op2 = Literal("2", INTEGER_TYPE)
-    op3 = Literal("3", INTEGER_TYPE)
+    op1 = Literal("1", ScalarType.integer_type())
+    op2 = Literal("2", ScalarType.integer_type())
+    op3 = Literal("3", ScalarType.integer_type())
     call = Call.create(RoutineSymbol("hello"), [op1, ("A", op2), ("b", op3)])
     assert call.argument_by_name("z") is None
     assert call.argument_by_name("a") is op2
@@ -387,12 +389,12 @@ def test_call_reference_accesses():
     '''Test the reference_accesses() method.'''
     rsym = RoutineSymbol("trillian")
     # A call with an argument passed by value.
-    call1 = Call.create(rsym, [Literal("1", INTEGER_TYPE)])
+    call1 = Call.create(rsym, [Literal("1", ScalarType.integer_type())])
     var_info = call1.reference_accesses()
     # The Routine symbol is not considered 'read'.
     assert not var_info.is_read(Signature("trillian"))
     assert var_info.is_called(Signature("trillian"))
-    dsym = DataSymbol("beta", INTEGER_TYPE)
+    dsym = DataSymbol("beta", ScalarType.integer_type())
     # Simple argument passed by reference.
     call2 = Call.create(rsym, [Reference(dsym)])
     var_info = call2.reference_accesses()
@@ -400,8 +402,9 @@ def test_call_reference_accesses():
     assert not var_info.is_called(Signature("beta"))
     # Array access argument. The array should be READWRITE, any variable in
     # the index expression should be READ.
-    idx_sym = DataSymbol("ji", INTEGER_TYPE)
-    asym = DataSymbol("gamma", ArrayType(INTEGER_TYPE, shape=[10]))
+    idx_sym = DataSymbol("ji", ScalarType.integer_type())
+    asym = DataSymbol(
+        "gamma", ArrayType(ScalarType.integer_type(), shape=[10]))
     aref = ArrayReference.create(asym, [Reference(idx_sym)])
     call3 = Call.create(rsym, [aref])
     var_info = call3.reference_accesses()
@@ -409,7 +412,8 @@ def test_call_reference_accesses():
     assert var_info.is_read(Signature("ji"))
     # Argument is a temporary so any inputs to it are READ only.
     expr = BinaryOperation.create(BinaryOperation.Operator.MUL,
-                                  Literal("2", INTEGER_TYPE), Reference(dsym))
+                                  Literal("2", ScalarType.integer_type()),
+                                  Reference(dsym))
     call4 = Call.create(rsym, [expr])
     var_info = call4.reference_accesses()
     assert var_info.is_read(Signature("beta"))
@@ -511,8 +515,8 @@ def test_call_argumentnames_after_removearg():
     keep things consistent.
 
     '''
-    op1 = Literal("1", INTEGER_TYPE)
-    op2 = Literal("1", INTEGER_TYPE)
+    op1 = Literal("1", ScalarType.integer_type())
+    op2 = Literal("1", ScalarType.integer_type())
     call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
     assert len(call.arguments) == 2
     assert len(call._argument_names) == 2
@@ -531,9 +535,9 @@ def test_call_argumentnames_after_addarg():
     keep things consistent.
 
     '''
-    op1 = Literal("1", INTEGER_TYPE)
-    op2 = Literal("1", INTEGER_TYPE)
-    op3 = Literal("1", INTEGER_TYPE)
+    op1 = Literal("1", ScalarType.integer_type())
+    op2 = Literal("1", ScalarType.integer_type())
+    op3 = Literal("1", ScalarType.integer_type())
     call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
     assert len(call.arguments) == 2
     assert len(call._argument_names) == 2
@@ -552,9 +556,9 @@ def test_call_argumentnames_after_replacearg():
     keep things consistent.
 
     '''
-    op1 = Literal("1", INTEGER_TYPE)
-    op2 = Literal("1", INTEGER_TYPE)
-    op3 = Literal("1", INTEGER_TYPE)
+    op1 = Literal("1", ScalarType.integer_type())
+    op2 = Literal("1", ScalarType.integer_type())
+    op3 = Literal("1", ScalarType.integer_type())
     call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
     assert len(call.arguments) == 2
     assert len(call._argument_names) == 2
@@ -575,9 +579,9 @@ def test_call_argumentnames_after_reorderarg():
     keep things consistent.
 
     '''
-    op1 = Literal("1", INTEGER_TYPE)
-    op2 = Literal("1", INTEGER_TYPE)
-    op3 = Literal("1", INTEGER_TYPE)
+    op1 = Literal("1", ScalarType.integer_type())
+    op2 = Literal("1", ScalarType.integer_type())
+    op3 = Literal("1", ScalarType.integer_type())
     call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
     assert len(call.arguments) == 2
     assert len(call._argument_names) == 2
@@ -595,9 +599,9 @@ def test_call_node_reconcile_add():
     where we add a new arg.
 
     '''
-    op1 = Literal("1", INTEGER_TYPE)
-    op2 = Literal("1", INTEGER_TYPE)
-    op3 = Literal("1", INTEGER_TYPE)
+    op1 = Literal("1", ScalarType.integer_type())
+    op2 = Literal("1", ScalarType.integer_type())
+    op3 = Literal("1", ScalarType.integer_type())
     call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
     # consistent
     assert len(call._argument_names) == 2
@@ -621,8 +625,8 @@ def test_call_node_reconcile_reorder():
     where we reorder the arguments.
 
     '''
-    op1 = Literal("1", INTEGER_TYPE)
-    op2 = Literal("2", INTEGER_TYPE)
+    op1 = Literal("1", ScalarType.integer_type())
+    op2 = Literal("2", ScalarType.integer_type())
     call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
     # consistent
     assert len(call._argument_names) == 2
@@ -660,8 +664,8 @@ def test_call_str():
 
 def test_copy():
     ''' Test that the copy() method behaves as expected. '''
-    op1 = Literal("1", INTEGER_TYPE)
-    op2 = Literal("2", INTEGER_TYPE)
+    op1 = Literal("1", ScalarType.integer_type())
+    op2 = Literal("2", ScalarType.integer_type())
     call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
     # Call copy with consistent internal state of _arguments_name
     call2 = call.copy()
@@ -1897,37 +1901,42 @@ def test_check_argument_type_matches(fortran_reader):
     ''')
     calls = psyir.walk(Call)
     call = calls[0]
-    call._check_argument_type_matches(call.arguments[0],
-                                      DataSymbol("dummy1", REAL_TYPE))
+    call._check_argument_type_matches(
+        call.arguments[0],
+        DataSymbol("dummy1", ScalarType.real_type()))
     # Integer instead of real.
     with pytest.raises(CallMatchingArgumentsNotFound) as err:
-        call._check_argument_type_matches(call.arguments[0],
-                                          DataSymbol("dummy1", INTEGER_TYPE))
+        call._check_argument_type_matches(
+            call.arguments[0],
+            DataSymbol("dummy1", ScalarType.integer_type()))
     assert "Argument type mismatch of call argument 'var'" in str(err.value)
     # For an array argument.
     call2 = calls[1]
     call2._check_argument_type_matches(
         call2.arguments[0],
-        DataSymbol("dummy1", ArrayType(REAL_TYPE, shape=[10])))
+        DataSymbol("dummy1", ArrayType(ScalarType.real_type(), shape=[10])))
     # Array of wrong rank.
     with pytest.raises(CallMatchingArgumentsNotFound) as err:
         call2._check_argument_type_matches(
             call2.arguments[0],
-            DataSymbol("dummy1", ArrayType(REAL_TYPE, shape=[10, 10])))
+            DataSymbol("dummy1", ArrayType(ScalarType.real_type(),
+                                           shape=[10, 10])))
     assert ("Rank mismatch of call argument 'var2' (rank 1) and routine "
             "argument 'dummy1' (rank 2)" in str(err.value))
     # Array of wrong intrinsic type.
     with pytest.raises(CallMatchingArgumentsNotFound) as err:
         call2._check_argument_type_matches(
             call2.arguments[0],
-            DataSymbol("dummy1", ArrayType(INTEGER_TYPE, shape=[10])))
+            DataSymbol("dummy1", ArrayType(ScalarType.integer_type(),
+                                           shape=[10])))
     assert ("Array argument type mismatch of call argument 'var2' "
             "(Intrinsic.REAL) and routine argument 'dummy1' "
             "(Intrinsic.INTEGER)" in str(err.value))
     # Scalar instead of array.
     with pytest.raises(CallMatchingArgumentsNotFound) as err:
-        call2._check_argument_type_matches(call2.arguments[0],
-                                           DataSymbol("dummy1", REAL_TYPE))
+        call2._check_argument_type_matches(
+            call2.arguments[0],
+            DataSymbol("dummy1", ScalarType.real_type()))
     assert "Argument type mismatch of call argument 'var2'" in str(err.value)
     # Derived type.
     call3 = calls[2]
@@ -1938,7 +1947,7 @@ def test_check_argument_type_matches(fortran_reader):
     # An intrinsic scalar should not match with it.
     with pytest.raises(CallMatchingArgumentsNotFound) as err:
         call3._check_argument_type_matches(
-            call3.arguments[0], DataSymbol("dummy1", REAL_TYPE))
+            call3.arguments[0], DataSymbol("dummy1", ScalarType.real_type()))
     assert ("Argument type mismatch of call argument 'athing(1)' (my_type: "
             "DataTypeSymbol) and routine argument 'dummy1' (Scalar<REAL"
             in str(err.value))

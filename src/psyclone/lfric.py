@@ -57,7 +57,7 @@ from psyclone.core import AccessType, Signature, SymbolicMaths
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric import (
     FunctionSpace, KernCallAccArgList, KernCallArgList, LFRicCollection,
-    LFRicConstants, LFRicSymbolTable, LFRicKern, LFRicTypes, LFRicLoop)
+    LFRicConstants, LFRicKern, LFRicTypes, LFRicLoop)
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.kernel import getkerneldescriptors
@@ -70,9 +70,10 @@ from psyclone.psyir.nodes import (
     StructureReference, Literal, IfBlock, Call, BinaryOperation, IntrinsicCall,
     Assignment, ArrayReference, Loop, Container, DataNode, Schedule, Node)
 from psyclone.psyir.symbols import (
-    INTEGER_TYPE, DataSymbol, DataType, DataTypeSymbol,
+    DataSymbol, DataType, DataTypeSymbol,
     ScalarType, UnresolvedType, ContainerSymbol, ImportInterface,
-    StructureType, ArrayType, UnsupportedFortranType, ArgumentInterface)
+    StructureType, SymbolTable, ArrayType, UnsupportedFortranType,
+    ArgumentInterface)
 
 
 # pylint: disable=too-many-lines
@@ -379,6 +380,7 @@ class LFRicMeshProperties(LFRicCollection):
                 :py:class:`psyclone.domain.lfric.LFRicInvoke`
 
     '''
+
     def __init__(self, node):
         super().__init__(node)
 
@@ -757,6 +759,7 @@ class LFRicReferenceElement(LFRicCollection):
                            is encountered.
 
     '''
+
     # pylint: disable=too-many-instance-attributes
     def __init__(self, node):
         # pylint: disable=too-many-branches, too-many-statements
@@ -1016,7 +1019,7 @@ class LFRicReferenceElement(LFRicCollection):
             arrsym = self.symtab.lookup(arr.name)
             arrsym.datatype = ArrayType(
                     LFRicTypes("LFRicRealScalarDataType")(),
-                    [Literal("3", INTEGER_TYPE), Reference(sym)])
+                    [Literal("3", ScalarType.integer_type()), Reference(sym)])
             arrsym.interface = ArgumentInterface(
                                     ArgumentInterface.Access.READ)
             self.symtab.append_argument(arrsym)
@@ -1137,6 +1140,7 @@ class LFRicFunctionSpaces(LFRicCollection):
 
     :param invoke: the Invoke or Kernel object.
     '''
+
     def __init__(self, kern_or_invoke):
         super().__init__(kern_or_invoke)
 
@@ -1269,6 +1273,7 @@ class LFRicProxies(LFRicCollection):
     or to those that are read only.
 
     '''
+
     def __init__(self, node):
         super().__init__(node)
         const = LFRicConstants()
@@ -1290,7 +1295,7 @@ class LFRicProxies(LFRicCollection):
             if arg.argument_type == "gh_columnwise_operator":
                 # CMA operators are handled by the LFRicCMAOperators class.
                 continue
-            ctable.add_lfric_precision_symbol(arg.precision)
+            LFRicTypes.add_precision_symbol(ctable, arg.precision)
             intrinsic_type = "integer" if arg in int_field_args else "real"
             suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
             if arg.vector_size > 1:
@@ -1495,10 +1500,11 @@ class LFRicProxies(LFRicCollection):
                         Assignment.create(
                             lhs=ArrayReference.create(
                                 self.symtab.lookup(arg.proxy_name),
-                                [Literal(str(idx), INTEGER_TYPE)]),
+                                [Literal(str(idx),
+                                         ScalarType.integer_type())]),
                             rhs=Call.create(ArrayOfStructuresReference.create(
                                 self.symtab.lookup(arg.name),
-                                [Literal(str(idx), INTEGER_TYPE)],
+                                [Literal(str(idx), ScalarType.integer_type())],
                                 ["get_proxy"]))),
                         cursor)
                     cursor += 1
@@ -1509,7 +1515,8 @@ class LFRicProxies(LFRicCollection):
                             lhs=Reference(symbol),
                             rhs=ArrayOfStructuresReference.create(
                                     self.symtab.lookup(arg.proxy_name),
-                                    [Literal(str(idx), INTEGER_TYPE)],
+                                    [Literal(str(idx),
+                                             ScalarType.integer_type())],
                                     ["data"]),
                             is_pointer=True),
                         cursor)
@@ -1572,6 +1579,7 @@ class LFRicLMAOperators(LFRicCollection):
     '''
     Handles all entities associated with Local-Matrix-Assembly Operators.
     '''
+
     def stub_declarations(self):
         '''
         Declare all LMA-related quantities in a Kernel stub. Note that argument
@@ -1796,7 +1804,8 @@ class LFRicCMAOperators(LFRicCollection):
             tag = f"{op_name}:{suffix}"
             arg = self._cma_ops[op_name]["arg"]
             # Ensure that the appropriate precision symbol exists.
-            kind_sym = self.symtab.add_lfric_precision_symbol(arg.precision)
+            kind_sym = LFRicTypes.add_precision_symbol(self.symtab,
+                                                       arg.precision)
             array_type = ArrayType(
                 LFRicTypes("LFRicRealScalarDataType")(kind_sym),
                 [ArrayType.Extent.DEFERRED]*3)
@@ -2139,34 +2148,45 @@ class LFRicMeshes():
                     datatype=UnsupportedFortranType(
                         f"integer(kind=i_def), pointer :: {base_name}(:,:,:)"))
                 base_name = "ntilecolour_" + carg_name
-                ntilecolours = self.symtab.find_or_create_integer_symbol(
-                                    base_name, tag=base_name)
+                ntilecolours = self.symtab.find_or_create(
+                                    base_name, tag=base_name,
+                                    symbol_type=DataSymbol,
+                                    datatype=LFRicTypes(
+                                        "LFRicIntegerScalarDataType")())
                 # Array holding the last cell of a given colour.
                 if (Config.get().distributed_memory and
                         not call.all_updates_are_writes):
                     # This will require a loop into the halo and so the array
                     # is 2D (indexed by colour *and* halo depth).
                     base_name = "last_halo_tile_per_colour_" + carg_name
-                    last_tile = self.symtab.find_or_create_array(
-                        base_name, 2, ScalarType.Intrinsic.INTEGER,
-                        tag=base_name)
+                    last_tile = self.symtab.find_or_create(
+                        base_name, tag=base_name, symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            2*[ArrayType.Extent.DEFERRED]))
                     base_name = ("last_halo_cell_per_colour_and_tile_" +
                                  carg_name)
-                    last_cell_tile = self.symtab.find_or_create_array(
-                        base_name, 3, ScalarType.Intrinsic.INTEGER,
-                        tag=base_name)
+                    last_cell_tile = self.symtab.find_or_create(
+                        base_name, tag=base_name, symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            3*[ArrayType.Extent.DEFERRED]))
                 else:
                     # Array holding the last edge cell of a given colour. Just
                     # 1D as indexed by colour only.
                     base_name = "last_edge_tile_per_colour_" + carg_name
-                    last_tile = self.symtab.find_or_create_array(
-                        base_name, 1, ScalarType.Intrinsic.INTEGER,
-                        tag=base_name)
+                    last_tile = self.symtab.find_or_create(
+                        base_name, tag=base_name, symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            [ArrayType.Extent.DEFERRED]))
                     base_name = ("last_edge_cell_per_colour_and_tile_"
                                  + carg_name)
-                    last_cell_tile = self.symtab.find_or_create_array(
-                        base_name, 2, ScalarType.Intrinsic.INTEGER,
-                        tag=base_name)
+                    last_cell_tile = self.symtab.find_or_create(
+                        base_name, tag=base_name, symbol_type=DataSymbol,
+                        datatype=ArrayType(
+                            LFRicTypes("LFRicIntegerScalarDataType")(),
+                            2*[ArrayType.Extent.DEFERRED]))
                 # Add these symbols into the dictionary entry for this
                 # inter-grid kernel
                 call._intergrid_ref.set_tilecolour_info(
@@ -2441,8 +2461,8 @@ class LFRicMeshes():
                             lhs=Reference(digncellfine),
                             rhs=Call.create(StructureReference.create(
                                 fine_mesh, ["get_last_halo_cell"])))
-                    assignment.rhs.append_named_arg("depth",
-                                                    Literal("2", INTEGER_TYPE))
+                    assignment.rhs.append_named_arg(
+                        "depth", Literal("2", ScalarType.integer_type()))
                     self._invoke.schedule.addchild(assignment, cursor)
                     cursor += 1
                 else:
@@ -2579,6 +2599,7 @@ class LFRicInterGrid():
     :param coarse_arg: Kernel argument on the coarse mesh.
     :type coarse_arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
     '''
+
     # pylint: disable=too-few-public-methods, too-many-instance-attributes
     def __init__(self, fine_arg, coarse_arg):
 
@@ -3015,10 +3036,10 @@ class LFRicBasisFunctions(LFRicCollection):
             dims = []
             for value in basis_arrays[basis]:
                 try:
-                    dims.append(Literal(value, INTEGER_TYPE))
+                    dims.append(Literal(value, ScalarType.integer_type()))
                 except ValueError:
                     dims.append(Reference(self.symtab.find_or_create(value)))
-            kind_sym = self.symtab.add_lfric_precision_symbol("r_def")
+            kind_sym = LFRicTypes.add_precision_symbol(self.symtab, "r_def")
             arr_type = ArrayType(ScalarType(ScalarType.Intrinsic.REAL,
                                             Reference(kind_sym)), dims)
             arg = self.symtab.find_or_create_tag(
@@ -3037,8 +3058,8 @@ class LFRicBasisFunctions(LFRicCollection):
                     f"Quadrature shapes other than {supported_shapes} are not "
                     f"yet supported - got: '{shape}'")
 
-            kind_sym = self.symtab.add_lfric_precision_symbol(
-                const.QUADRATURE_TYPE_MAP[shape]["kind"])
+            kind_sym = LFRicTypes.add_precision_symbol(
+                self.symtab, const.QUADRATURE_TYPE_MAP[shape]["kind"])
 
             # All quatratures are REAL
             intr_type = ScalarType(ScalarType.Intrinsic.REAL,
@@ -3104,7 +3125,7 @@ class LFRicBasisFunctions(LFRicCollection):
         # or an evaluator
         if self._qr_vars or self._eval_targets:
             # Quadrature weights and basis functions are in r_def precision.
-            self.symtab.add_lfric_precision_symbol("r_def")
+            LFRicTypes.add_precision_symbol(self.symtab, "r_def")
             module = self.symtab.find_or_create(
                 const.FUNCTION_SPACE_TYPE_MAP["function_space"]["module"],
                 symbol_type=ContainerSymbol)
@@ -3204,7 +3225,7 @@ class LFRicBasisFunctions(LFRicCollection):
             # to evaluate basis/diff-basis functions
             nodes_name = "nodes_" + fspace.mangled_name
             kind = api_config.default_kind["real"]
-            self.symtab.add_lfric_precision_symbol(kind)
+            LFRicTypes.add_precision_symbol(self.symtab, kind)
             symbol = self.symtab.new_symbol(
                 nodes_name, symbol_type=DataSymbol,
                 datatype=UnsupportedFortranType(
@@ -3686,9 +3707,9 @@ class LFRicBasisFunctions(LFRicCollection):
                         symbol_type=DataSymbol,
                         datatype=LFRicTypes("LFRicIntegerScalarDataType")())
                     loop = Loop.create(
-                            symbol, Literal('1', INTEGER_TYPE),
+                            symbol, Literal('1', ScalarType.integer_type()),
                             Reference(self.symtab.lookup(space.ndf_name)),
-                            Literal('1', INTEGER_TYPE), [])
+                            Literal('1', ScalarType.integer_type()), [])
                     if first:
                         loop.preceding_comment = (
                             "Compute basis/diff-basis arrays")
@@ -3704,10 +3725,10 @@ class LFRicBasisFunctions(LFRicCollection):
                         symbol_type=DataSymbol,
                         datatype=LFRicTypes("LFRicIntegerScalarDataType")())
                     inner_loop = Loop.create(
-                            symbol, Literal('1', INTEGER_TYPE),
+                            symbol, Literal('1', ScalarType.integer_type()),
                             Reference(self.symtab.lookup(
                                         basis_fn["fspace"].ndf_name)),
-                            Literal('1', INTEGER_TYPE), [])
+                            Literal('1', ScalarType.integer_type()), [])
                     loop.loop_body.addchild(inner_loop)
 
                     symbol = self.symtab.lookup_with_tag(op_name)
@@ -3862,7 +3883,7 @@ class LFRicBoundaryConditions(LFRicCollection):
             ndf_name = self.symtab.lookup(dofs.function_space.ndf_name)
             dtype = ArrayType(
                 LFRicTypes("LFRicIntegerScalarDataType")(),
-                [Reference(ndf_name), Literal("2", INTEGER_TYPE)])
+                [Reference(ndf_name), Literal("2", ScalarType.integer_type())])
             new_symbol = self.symtab.new_symbol(
                 name,
                 symbol_type=DataSymbol,
@@ -3927,7 +3948,7 @@ def _create_depth_list(halo_info_list, parent):
     annexed_only = True
     for halo_info in halo_info_list:
         if not (halo_info.annexed_only or
-                (halo_info.var_depth == Literal("1", INTEGER_TYPE)
+                (halo_info.var_depth == Literal("1", ScalarType.integer_type())
                  and not halo_info.needs_clean_outer)):
             # There are two cases when we only care about accesses to
             # annexed dofs. 1) when annexed_only is set and 2) when
@@ -3937,10 +3958,11 @@ def _create_depth_list(halo_info_list, parent):
             break
     if annexed_only:
         depth_info = HaloDepth(parent)
-        depth_info.set_by_value(max_depth=False,
-                                var_depth=Literal("1", INTEGER_TYPE),
-                                annexed_only=True,
-                                max_depth_m1=False)
+        depth_info.set_by_value(
+            max_depth=False,
+            var_depth=Literal("1", ScalarType.integer_type()),
+            annexed_only=True,
+            max_depth_m1=False)
         return [depth_info]
     # Next look to see if one of the field dependencies specifies
     # a max_depth access. If so the whole halo region is accessed
@@ -3976,7 +3998,7 @@ def _create_depth_list(halo_info_list, parent):
             # access.
             var_depth = BinaryOperation.create(
                 BinaryOperation.Operator.SUB,
-                var_depth.copy(), Literal("1", INTEGER_TYPE))
+                var_depth.copy(), Literal("1", ScalarType.integer_type()))
 
         # check whether we match with existing depth information
         for depth_info in depth_info_list:
@@ -4012,6 +4034,7 @@ class LFRicHaloExchange(HaloExchange):
     :type parent: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
     '''
+
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
         HaloExchange.__init__(self, field, check_dirty=check_dirty,
@@ -4064,7 +4087,7 @@ class LFRicHaloExchange(HaloExchange):
         # Assignment to temporarily host the expression.
         sym_maths = SymbolicMaths.get()
         fake_assign = Assignment.create(
-            Reference(DataSymbol("tmp", INTEGER_TYPE)), psyir)
+            Reference(DataSymbol("tmp", ScalarType.integer_type())), psyir)
         self.parent.addchild(fake_assign)
 
         sym_maths.expand(fake_assign.rhs)
@@ -4377,7 +4400,7 @@ class LFRicHaloExchange(HaloExchange):
 
         # Create infrastructure Calls
         if self.vector_index:
-            idx = Literal(str(self.vector_index), INTEGER_TYPE)
+            idx = Literal(str(self.vector_index), ScalarType.integer_type())
             if_condition = Call.create(
                 ArrayOfStructuresReference.create(symbol, [idx], ['is_dirty']),
                 [('depth', depth_expr.copy())])
@@ -4576,6 +4599,7 @@ class HaloDepth():
     :raises TypeError: if the parent argument is not a Node.
 
     '''
+
     def __init__(self, parent):
         # var_depth is used to store the PSyIR of the expression holding
         # depth of halo that is accessed.
@@ -4680,7 +4704,8 @@ class HaloDepth():
         # have to create a fake Assignment and temporarily graft it into the
         # tree.
         fake_assign = Assignment.create(
-            Reference(DataSymbol("tmp", INTEGER_TYPE)), var_depth.copy())
+            Reference(DataSymbol("tmp", ScalarType.integer_type())),
+            var_depth.copy())
         sched = self._parent.ancestor(Schedule, include_self=True)
         sched.addchild(fake_assign)
 
@@ -4702,7 +4727,7 @@ class HaloDepth():
             return BinaryOperation.create(
                         BinaryOperation.Operator.SUB,
                         Reference(max_depth),
-                        Literal('1', INTEGER_TYPE))
+                        Literal('1', ScalarType.integer_type()))
         if self.var_depth:
             return self.var_depth.copy()
 
@@ -4762,6 +4787,7 @@ class HaloWriteAccess(HaloDepth):
                    that contains this halo access.
 
     '''
+
     def __init__(self, field: LFRicKernelArgument, parent: Node):
         super().__init__(parent)
         self._compute_from_field(field)
@@ -4803,11 +4829,11 @@ class HaloWriteAccess(HaloDepth):
         if self.dirty_outer:
             halo_depth = BinaryOperation.create(
                 BinaryOperation.Operator.SUB,
-                halo_depth.copy(), Literal("1", INTEGER_TYPE))
+                halo_depth.copy(), Literal("1", ScalarType.integer_type()))
 
         sym_maths = SymbolicMaths.get()
         fake_assign = Assignment.create(
-            Reference(DataSymbol("tmp", INTEGER_TYPE)),
+            Reference(DataSymbol("tmp", ScalarType.integer_type())),
             halo_depth)
         sched = self._parent.ancestor(Schedule)
         sched.addchild(fake_assign)
@@ -4815,7 +4841,7 @@ class HaloWriteAccess(HaloDepth):
         sym_maths.expand(fake_assign.rhs)
         depth_expr = fake_assign.rhs.detach()
         fake_assign.detach()
-        if depth_expr == Literal("0", INTEGER_TYPE):
+        if depth_expr == Literal("0", ScalarType.integer_type()):
             return None
         return depth_expr
 
@@ -4859,7 +4885,7 @@ class HaloWriteAccess(HaloDepth):
         if call.is_intergrid and field.mesh == "gh_fine" and depth:
             depth = BinaryOperation.create(
                 BinaryOperation.Operator.MUL,
-                Literal("2", INTEGER_TYPE), depth.copy())
+                Literal("2", ScalarType.integer_type()), depth.copy())
         # The third argument for set_by_value gives the PSyIR of the
         # expression specifying the depth.
         var_depth = depth
@@ -4883,6 +4909,7 @@ class HaloReadAccess(HaloDepth):
     :type parent: :py:class:`psyclone.psyir.node.Node`
 
     '''
+
     def __init__(self, field, parent=None):
         super().__init__(parent)
         self._stencil_type = None
@@ -5015,7 +5042,7 @@ class HaloReadAccess(HaloDepth):
                     # level 1 halo here as there is currently no
                     # mechanism to perform a halo exchange solely on
                     # annexed dofs.
-                    self._var_depth = Literal("1", INTEGER_TYPE)
+                    self._var_depth = Literal("1", ScalarType.integer_type())
                     self._annexed_only = True
         elif loop.upper_bound_name == "ndofs":
             # we only access owned dofs so there is no access to the
@@ -5050,7 +5077,8 @@ class HaloReadAccess(HaloDepth):
             stencil_depth = field.descriptor.stencil['extent']
             if stencil_depth:
                 # stencil_depth is provided in the kernel metadata
-                st_depth = Literal(str(stencil_depth), INTEGER_TYPE)
+                st_depth = Literal(str(stencil_depth),
+                                   ScalarType.integer_type())
             else:
                 # Stencil_depth is provided by the algorithm layer.
                 # It is currently not possible to specify kind for an
@@ -5059,7 +5087,7 @@ class HaloReadAccess(HaloDepth):
                 if field.stencil.extent_arg.is_literal():
                     # a literal is specified
                     value_str = field.stencil.extent_arg.text
-                    st_depth = Literal(value_str, INTEGER_TYPE)
+                    st_depth = Literal(value_str, ScalarType.integer_type())
                 else:
                     # a variable is specified
                     st_depth = Reference(
@@ -5090,7 +5118,8 @@ class HaloReadAccess(HaloDepth):
             if self._var_depth:
                 self._var_depth = BinaryOperation.create(
                     BinaryOperation.Operator.MUL,
-                    Literal("2", INTEGER_TYPE), self._var_depth.copy())
+                    Literal("2", ScalarType.integer_type()),
+                    self._var_depth.copy())
 
 
 class FSDescriptor():
@@ -5134,6 +5163,7 @@ class FSDescriptors():
     :type descriptors: list of :py:class:`psyclone.LFRicFuncDescriptor`.
 
     '''
+
     def __init__(self, descriptors):
         self._orig_descriptors = descriptors
         self._descriptors = []
@@ -5262,6 +5292,7 @@ class LFRicKernelArguments(Arguments):
 
     :raises GenerationError: if the kernel metadata specifies stencil extent.
     '''
+
     def __init__(self, call, parent_call, check=True):
         # pylint: disable=too-many-branches
         Arguments.__init__(self, parent_call)
@@ -5314,11 +5345,11 @@ class LFRicKernelArguments(Arguments):
                 symtab = inv_sched.symbol_table
             else:
                 # This can happen in stub generation.
-                symtab = LFRicSymbolTable()
+                symtab = SymbolTable()
         else:
             # TODO 719 The symtab is not connected to other parts of the
             # Stub generation.
-            symtab = LFRicSymbolTable()
+            symtab = SymbolTable()
         const = LFRicConstants()
         for arg in self._args:
             if not arg.descriptor.stencil:
@@ -5599,6 +5630,7 @@ class LFRicKernelArgument(KernelArgument):
                            descriptor data type.
 
     '''
+
     # pylint: disable=too-many-public-methods, too-many-instance-attributes
     def __init__(self, kernel_args, arg_meta_data, arg_info, call, check=True):
         # Keep a reference to LFRicKernelArguments object that contains
@@ -5705,7 +5737,7 @@ class LFRicKernelArgument(KernelArgument):
             # For a field vector, just call the specified method on the first
             # element
             return Call.create(ArrayOfStructuresReference.create(
-                symbol, [Literal('1', INTEGER_TYPE)],
+                symbol, [Literal('1', ScalarType.integer_type())],
                 [self.ref_name(function_space), method]))
         return Call.create(StructureReference.create(
             symbol, [self.ref_name(function_space), method]))
@@ -5728,7 +5760,7 @@ class LFRicKernelArgument(KernelArgument):
         if self._vector_size > 1:
             # For a field vector, access the first element
             return ArrayOfStructuresReference.create(
-                symbol, [Literal('1', INTEGER_TYPE)],
+                symbol, [Literal('1', ScalarType.integer_type())],
                 [self.ref_name(function_space)])
         return StructureReference.create(
             symbol, [self.ref_name(function_space)])
@@ -6169,7 +6201,8 @@ class LFRicKernelArgument(KernelArgument):
             reader = FortranReader()
             if self.precision:
                 # Ensure any associated precision symbol is in the table.
-                symbol_table.add_lfric_precision_symbol(self.precision)
+                LFRicTypes.add_precision_symbol(symbol_table,
+                                                self.precision)
             lit = reader.psyir_from_expression(self.name, symbol_table)
 
             # Sanity check that the resulting expression is a literal.
@@ -6456,7 +6489,7 @@ class LFRicKernelArgument(KernelArgument):
                 constants_container = symtab.find_or_create(
                     const_mod, symbol_type=ContainerSymbol)
                 kind_symbol = DataSymbol(
-                    kind_name, INTEGER_TYPE,
+                    kind_name, ScalarType.integer_type(),
                     interface=ImportInterface(constants_container))
                 symtab.add(kind_symbol)
             dts = ScalarType(prim_type, Reference(kind_symbol))
@@ -6490,6 +6523,7 @@ class LFRicACCEnterDataDirective(ACCEnterDataDirective):
     of data_on_device().
 
     '''
+
     def data_on_device(self, _):
         '''
         Provide a hook to be able to add information about data being on a

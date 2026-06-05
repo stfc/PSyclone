@@ -52,32 +52,33 @@ import warnings
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessMap
-from psyclone.domain.lfric import (KernCallArgList, LFRicConstants,
-                                   LFRicInvokeSchedule, LFRicKern, LFRicLoop)
+from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
+from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
+from psyclone.domain.lfric.lfric_kern import LFRicKern
+from psyclone.domain.lfric.lfric_loop import LFRicLoop
 from psyclone.lfric import LFRicHaloExchangeEnd, LFRicHaloExchangeStart
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule)
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
-    ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective,
-    Call, CodeBlock, Directive, Literal, Loop,
-    Return, Schedule, PSyDataNode, IntrinsicCall)
+    ACCParallelDirective, ACCRoutineDirective, Reference,
+    Call, CodeBlock, Container, Directive, Literal, Loop,
+    OMPMasterDirective, OMPParallelDirective, OMPSerialDirective,
+    OMPSingleDirective, Return, Schedule, PSyDataNode, IntrinsicCall)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.nodes.omp_directives import (
-    MAP_REDUCTION_OP_TO_OMP, OMPDirective, OMPMasterDirective,
-    OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
-    OMPReductionClause, OMPSingleDirective)
+from psyclone.psyir.nodes.omp_directives import OMPDirective
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
-    ArgumentInterface, DataSymbol, INTEGER_TYPE, ScalarType, Symbol,
+    ArgumentInterface, DataSymbol, ScalarType, Symbol,
     SymbolError, UnresolvedType)
+from psyclone.psyir.transformations.callee_transformation_mixin import (
+    CalleeTransformationMixin)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
-from psyclone.psyir.transformations.parallel_loop_trans import (
-    ParallelLoopTrans)
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
@@ -85,6 +86,8 @@ from psyclone.psyir.transformations import ParallelRegionTrans
 from psyclone.utils import transformation_documentation_wrapper
 from psyclone.psyir.transformations.mark_routine_for_gpu_mixin import (
     MarkRoutineForGPUMixin)
+from psyclone.psyir.transformations.omp_parallel_loop_trans import (
+    OMPParallelLoopTrans)
 
 
 def check_intergrid(node):
@@ -112,189 +115,6 @@ def check_intergrid(node):
                 f"This Transformation cannot currently be applied to nodes "
                 f"which have inter-grid kernels as descendants and {kern.name}"
                 f" is such a kernel.")
-
-
-class ACCLoopTrans(ParallelLoopTrans):
-    '''
-    Adds an OpenACC loop directive to a loop. This directive must be within
-    the scope of some OpenACC Parallel region (at code-generation time).
-
-    For example:
-
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.parse.utils import ParseError
-    >>> from psyclone.psyGen import PSyFactory
-    >>> from psyclone.errors import GenerationError
-    >>> api = "gocean"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
-    >>>
-    >>> from psyclone.psyGen import TransInfo
-    >>> t = TransInfo()
-    >>> ltrans = t.get_trans_name('ACCLoopTrans')
-    >>> rtrans = t.get_trans_name('ACCParallelTrans')
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>>
-    >>> # Apply the OpenACC Loop transformation to *every* loop in the schedule
-    >>> for child in schedule.children[:]:
-    ...     ltrans.apply(child)
-    >>>
-    >>> # Enclose all of these loops within a single OpenACC parallel region
-    >>> rtrans.apply(schedule)
-    >>>
-
-    '''
-    # The types of node that must be excluded from the section of PSyIR
-    # being transformed.
-    excluded_node_types = (PSyDataNode,)
-
-    def __init__(self):
-        # Whether to add the "independent" clause
-        # to the loop directive.
-        self._independent = True
-        self._sequential = False
-        self._gang = False
-        self._vector = False
-        super().__init__()
-
-    def __str__(self):
-        return "Adds an 'OpenACC loop' directive to a loop"
-
-    def _directive(self, children, collapse=None):
-        '''
-        Creates the ACCLoopDirective needed by this sub-class of
-        transformation.
-
-        :param children: list of child nodes of the new directive Node.
-        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-        :param int collapse: number of nested loops to collapse or None if
-                             no collapse attribute is required.
-        '''
-        directive = ACCLoopDirective(children=children,
-                                     collapse=collapse,
-                                     independent=self._independent,
-                                     sequential=self._sequential,
-                                     gang=self._gang,
-                                     vector=self._vector)
-        return directive
-
-    def apply(self, node, options=None):
-        '''
-        Apply the ACCLoop transformation to the specified node. This node
-        must be a Loop since this transformation corresponds to
-        inserting a directive immediately before a loop, e.g.:
-
-        .. code-block:: fortran
-
-          !$ACC LOOP
-          do ...
-             ...
-          end do
-
-        At code-generation time (when lowering is called),
-        this node must be within (i.e. a child of) a PARALLEL region.
-
-        :param node: the supplied node to which we will apply the
-                     Loop transformation.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param int options["collapse"]: number of nested loops to collapse.
-        :param bool options["independent"]: whether to add the "independent"
-                clause to the directive (not strictly necessary within
-                PARALLEL regions).
-        :param bool options["sequential"]: whether to add the "seq" clause to
-                the directive.
-        :param bool options["gang"]: whether to add the "gang" clause to the
-                directive.
-        :param bool options["vector"]: whether to add the "vector" clause to
-                the directive.
-
-        '''
-        # Store sub-class specific options. These are used when
-        # creating the directive (in the _directive() method).
-        if not options:
-            options = {}
-        self._independent = options.get("independent", True)
-        self._sequential = options.get("sequential", False)
-        self._gang = options.get("gang", False)
-        self._vector = options.get("vector", False)
-
-        # Call the apply() method of the base class
-        super().apply(node, options)
-
-
-class OMPParallelLoopTrans(OMPLoopTrans):
-
-    ''' Adds an OpenMP PARALLEL DO directive to a loop.
-
-        For example:
-
-        >>> from psyclone.parse.algorithm import parse
-        >>> from psyclone.psyGen import PSyFactory
-        >>> ast, invokeInfo = parse("lfric.F90")
-        >>> psy = PSyFactory("lfric").create(invokeInfo)
-        >>> schedule = psy.invokes.get('invoke_v3_kernel_type').schedule
-        >>> # Uncomment the following line to see a text view of the schedule
-        >>> # print(schedule.view())
-        >>>
-        >>> from psyclone.transformations import OMPParallelLoopTrans
-        >>> trans = OMPParallelLoopTrans()
-        >>> trans.apply(schedule.children[0])
-        >>> # Uncomment the following line to see a text view of the schedule
-        >>> # print(schedule.view())
-
-    '''
-    def __str__(self):
-        return "Add an 'OpenMP PARALLEL DO' directive"
-
-    def apply(self, node, options=None, **kwargs):
-        ''' Apply an OMPParallelLoop Transformation to the supplied node
-        (which must be a Loop). In the generated code this corresponds to
-        wrapping the Loop with directives:
-
-        .. code-block:: fortran
-
-          !$OMP PARALLEL DO ...
-          do ...
-            ...
-          end do
-          !$OMP END PARALLEL DO
-
-        :param node: the node (loop) to which to apply the transformation.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param options: a dictionary with options for transformations
-            and validation.
-        :type options: Optional[Dict[str, Any]]
-        '''
-        local_options = options.copy() if options is not None else None
-        if options and options.get("enable_reductions", False):
-            local_options["reduction_ops"] = \
-                list(MAP_REDUCTION_OP_TO_OMP.keys())
-
-        self.validate(node, options=local_options, **kwargs)
-
-        # keep a reference to the node's original parent and its index as these
-        # are required and will change when we change the node's location
-        node_parent = node.parent
-        node_position = node.position
-
-        # add our OpenMP loop directive setting its parent to the node's
-        # parent and its children to the node
-        directive = OMPParallelDoDirective(children=[node.detach()],
-                                           omp_schedule=self.omp_schedule)
-
-        # Add any inferred reduction clauses to the newly introduced directive
-        for (op, ref) in self.inferred_reduction_clauses:
-            clause = OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[op])
-            clause.addchild(ref)
-            directive.addchild(clause)
-
-        # add the OpenMP loop directive as a child of the node's parent
-        node_parent.addchild(directive, index=node_position)
 
 
 class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
@@ -1111,9 +931,18 @@ class ACCParallelTrans(ParallelRegionTrans):
             avoid using unsupported nodes inside a region.
         :param bool options["default_present"]: this flag controls if the
             inserted directive should include the default_present clause.
+        :param bool options["allow_strings"]: whether to allow the
+            transformation on assignments involving character types. Defaults
+            to False.
+        :param bool options["verbose"]: whether to allow the
+            transformation on assignments involving character types. Defaults
+            to False.
 
         '''
         node_list = self.get_node_list(node_list)
+        verbose = options.get("verbose", False) if options else False
+        device_string = options.get("device_string", "") if options else ""
+        allow_strings = options.get("allow_strings", "") if options else False
         super().validate(node_list, options)
         if options is not None and "default_present" in options:
             if not isinstance(options["default_present"], bool):
@@ -1121,8 +950,26 @@ class ACCParallelTrans(ParallelRegionTrans):
                     f"The provided 'default_present' option must be a "
                     f"boolean, but found '{options['default_present']}'."
                 )
-        device_string = options.get("device_string", "") if options else ""
         for node in node_list:
+            if not allow_strings:
+                # Check there are no character assignments in the region
+                for datanode in node.walk((Reference, Literal),
+                                          stop_type=Reference):
+                    dtype = datanode.datatype
+                    # Don't allow CHARACTERS on GPU
+                    if hasattr(dtype, "intrinsic"):
+                        if dtype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                            message = (
+                                f"ACCParallelTrans doesn't enclose regions "
+                                f"that use characters, but found: "
+                                f"'{datanode.debug_string()}', use the "
+                                f"'allow_strings' transformation option to "
+                                f"offload this region."
+                            )
+                            if verbose:
+                                node.preceding_comment = message
+                            raise TransformationError(message)
+
             for call in node.walk(Call):
                 if not call.is_available_on_device(device_string):
                     if isinstance(call, IntrinsicCall):
@@ -1155,6 +1002,9 @@ class ACCParallelTrans(ParallelRegionTrans):
             avoid using unsupported nodes inside a region.
         :param bool options["default_present"]: this flag controls if the
             inserted directive should include the default_present clause.
+        :param bool options["allow_strings"]: whether to allow the
+            transformation on assignments involving character types. Defaults
+            to False.
 
         '''
         if not options:
@@ -1509,7 +1359,7 @@ class LFRicAsyncHaloExchangeTrans(Transformation):
                 f"'{type(node)}'.")
 
 
-class LFRicKernelConstTrans(Transformation):
+class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
     '''Modifies a kernel so that the number of dofs, number of layers and
     number of quadrature points are fixed in the kernel rather than
     being passed in by argument.
@@ -1672,7 +1522,7 @@ class LFRicKernelConstTrans(Transformation):
             # and is unused within the kernel body.
             orig_name = symbol.name
             new_name = symbol_table.next_available_name(f"{orig_name}_dummy")
-            local_symbol = DataSymbol(new_name, INTEGER_TYPE,
+            local_symbol = DataSymbol(new_name, ScalarType.integer_type(),
                                       is_constant=True, initial_value=value)
             symbol_table.add(local_symbol)
             symbol_table.swap_symbol_properties(symbol, local_symbol)
@@ -1697,12 +1547,7 @@ class LFRicKernelConstTrans(Transformation):
 
         arg_list_info = KernCallArgList(kernel)
         arg_list_info.generate()
-        try:
-            kernel_schedules = kernel.get_callees()
-        except NotImplementedError as excinfo:
-            raise TransformationError(
-                f"Failed to parse kernel '{kernel.name}'. Error reported was "
-                f"'{excinfo}'.") from excinfo
+        kernel_schedules = kernel.get_callees()
 
         for kernel_schedule in kernel_schedules:
             symbol_table = kernel_schedule.symbol_table
@@ -1753,9 +1598,6 @@ class LFRicKernelConstTrans(Transformation):
                     make_constant(symbol_table, info.position, ndofs,
                                   function_space=info.function_space)
 
-        # Flag that the kernel has been modified
-        kernel.modified = True
-
     def validate(self, node, options=None):
         '''This method checks whether the input arguments are valid for
         this transformation.
@@ -1788,6 +1630,8 @@ class LFRicKernelConstTrans(Transformation):
             raise TransformationError(
                 f"Error in LFRicKernelConstTrans transformation. Supplied "
                 f"node must be an LFRic kernel but found '{type(node)}'.")
+
+        self._check_callee_implementation_is_local(node)
 
         if not options:
             options = {}
@@ -2001,7 +1845,8 @@ class ACCEnterDataTrans(Transformation):
 
 
 @transformation_documentation_wrapper
-class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
+class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin,
+                      CalleeTransformationMixin):
     '''
     Transform a kernel or routine by adding a "!$acc routine" directive
     (causing it to be compiled for the OpenACC accelerator device).
@@ -2056,9 +1901,6 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
             warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
 
         if isinstance(node, Kern):
-            # Flag that the kernel has been modified
-            node.modified = True
-
             # Get the schedule(s) representing the kernel subroutine
             routines = node.get_callees()
         else:
@@ -2105,6 +1947,9 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
         super().validate(node, options, **kwargs)
 
         self.validate_it_can_run_on_gpu(node, options, **kwargs)
+
+        if isinstance(node, Kern):
+            self._check_callee_implementation_is_local(node)
 
         if options:
             # TODO #2668: Deprecate options dictionary
@@ -2259,7 +2104,7 @@ class ACCDataTrans(RegionTrans):
                             f"component is the one being iterated over.")
 
 
-class KernelImportsToArguments(Transformation):
+class KernelImportsToArguments(Transformation, CalleeTransformationMixin):
     '''
     Transformation that removes any accesses of imported data from the supplied
     kernel and places them in the caller. The values/references are then passed
@@ -2308,15 +2153,13 @@ class KernelImportsToArguments(Transformation):
                 f"for the GOcean API but got an InvokeSchedule of type: "
                 f"'{type(invoke_schedule).__name__}'")
 
-        # Check that there are no unqualified imports or undeclared symbols
-        try:
-            kernels = node.get_callees()
-        except (SymbolError, NotImplementedError) as err:
-            raise TransformationError(
-                f"Kernel '{node.name}' contains undeclared symbol: "
-                f"{err.value}") from err
+        # Check that the kernel has already been module-inlined (as this
+        # permits us to safely modify it).
+        self._check_callee_implementation_is_local(node)
 
-        for kernel in kernels:
+        # Check that the kernel implementation doesn't have any unresolved
+        # symbols.
+        for kernel in node.get_callees():
             try:
                 kernel.check_outer_scope_accesses(
                     node, "Kernel",
@@ -2332,7 +2175,9 @@ class KernelImportsToArguments(Transformation):
         '''
         Convert the imported variables used inside the kernel into arguments
         and modify the InvokeSchedule to pass the same imported variables to
-        the kernel call.
+        the kernel call. Since it is a pre-requisite that the kernel have been
+        module-inlined first, this transformation must also update all other
+        calls to the same module-inlined routine.
 
         :param node: a kernel call.
         :type node: :py:class:`psyclone.psyGen.CodedKern`
@@ -2348,6 +2193,9 @@ class KernelImportsToArguments(Transformation):
         symtab = kernel.symbol_table
         invoke_symtab = node.ancestor(InvokeSchedule).symbol_table
         count_imported_vars_removed = 0
+
+        # The arguments that we have to add to the Kernel call.
+        new_kernel_args: list[tuple(str, str)] = []
 
         # Transform each imported variable into an argument.
         # TODO #11: When support for logging is added, we could warn the user
@@ -2413,17 +2261,22 @@ class KernelImportsToArguments(Transformation):
                     f"infrastructure does not have any scalar type equivalent "
                     f"to the PSyIR {updated_sym.datatype} type.")
 
-            # Add the imported variable in the call argument list
-            node.arguments.append(updated_sym.name, go_space)
+            # Record the addition to the call argument list
+            new_kernel_args.append((updated_sym.name, go_space))
 
             # Check whether we still need the Container symbol from which
             # this import was originally accessed
-            if not kernel.symbol_table.symbols_imported_from(container) and \
-               not container.wildcard_import:
+            if (not kernel.symbol_table.symbols_imported_from(container) and
+                    not container.wildcard_import):
                 kernel.symbol_table.remove(container)
 
-        if count_imported_vars_removed > 0:
-            node.modified = True
+        # Since we've modified the Kernel argument list *and* have removed the
+        # imported symbols from its implementation, we have to make sure we
+        # update the argument lists of all other calls to the inlined kernel.
+        for kern in node.ancestor(Container).walk(CodedKern):
+            if kern.name == node.name:
+                for arg in new_kernel_args:
+                    kern.arguments.append(arg[0], arg[1])
 
 
 # Create a compatibility layer for all existing Dynamo0p3 transformation
@@ -2452,7 +2305,6 @@ class Dynamo0p3{name}(LFRic{name}):
 __all__ = [
    "ACCEnterDataTrans",
    "ACCDataTrans",
-   "ACCLoopTrans",
    "ACCParallelTrans",
    "ACCRoutineTrans",
    "ColourTrans",
@@ -2466,6 +2318,5 @@ __all__ = [
    "GOceanOMPParallelLoopTrans",
    "KernelImportsToArguments",
    "OMPMasterTrans",
-   "OMPParallelLoopTrans",
    "OMPSingleTrans",
 ]

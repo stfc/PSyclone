@@ -82,6 +82,10 @@ def compiler_wrapper(arguments):
     '''
     fortran_compiler = os.getenv("PSYCLONE_COMPILER", default=None)
     psyclone_options = os.getenv("PSYCLONE_OPTS", default="").split(' ')
+    # TODO #3012: How does this interact with the script FILES_TO_SKIP
+    psyclone_exclude_files = (
+        os.getenv("PSYCLONEFC_EXCLUDE_FILES", default="").split(',')
+    )
 
     # Validate mandatory PSYCLONE_COMPILER
     if fortran_compiler is None:
@@ -119,7 +123,12 @@ def compiler_wrapper(arguments):
     # And it will be followed by each of the original arguments ...
     for argument in arguments:
         # ... but for each fortran file:
-        if argument.endswith(FORTRAN_EXTENSIONS):
+
+        filename = Path(argument).name
+        if (
+            argument.endswith(FORTRAN_EXTENSIONS) and
+            (filename not in psyclone_exclude_files)
+        ):
             # 1) Run the preprocessor
             # TODO #3012: preprocessing is currently ignored, this is not a
             # problem for NEMO because the build system does the proprocessor
@@ -128,6 +137,8 @@ def compiler_wrapper(arguments):
             # 2) Run psyclone
             stem = Path(argument).stem
             suffix = Path(argument).suffix
+            # TODO #3012: Keeping the suffix is wrong as psyclone processed
+            # files are always free-form
             output = f"{stem}.psycloned{suffix}"
             # Always add an include to the current directory, because even if
             # it is the default, psyclone removes it when adding another -I.

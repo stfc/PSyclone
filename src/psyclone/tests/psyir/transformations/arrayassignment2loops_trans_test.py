@@ -44,7 +44,7 @@ from psyclone.psyir.nodes import (
     BinaryOperation, ArrayReference, Assignment, Literal, Loop,
     Node, DataNode, CodeBlock, Range, Reference, Schedule)
 from psyclone.psyir.symbols import (
-    ArrayType, DataSymbol, INTEGER_TYPE, UnresolvedType)
+    ArrayType, DataSymbol, ScalarType, UnresolvedType)
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, Reference2ArrayRangeTrans, TransformationError)
 from psyclone.tests.utilities import Compile
@@ -524,8 +524,9 @@ def test_validate_no_assignment_with_array_range_on_lhs():
         in str(info.value))
 
     # Array Reference but with accessor that resolve to a single scalar
-    array_symbol = DataSymbol("x", ArrayType(INTEGER_TYPE, [10, 10]))
-    one = Literal("1", INTEGER_TYPE)
+    array_symbol = DataSymbol("x", ArrayType(ScalarType.integer_type(),
+                                             [10, 10]))
+    one = Literal("1", ScalarType.integer_type())
     array_assignment = ArrayReference.create(array_symbol, [one, one.copy()])
     assignment = Assignment.create(array_assignment, DataNode())
     scope.addchild(assignment)
@@ -627,8 +628,8 @@ def test_character_validation(fortran_reader):
 
 def test_unsupported_type_character(fortran_reader):
     ''' Test that the check for character references inside the assignment
-    being transformed also works with 'unsupported characters arrays' (see
-    issue #2612).
+    being transformed also works with character substrings.
+
     '''
     code = '''subroutine test()
         character(LEN=100) :: a
@@ -640,8 +641,9 @@ def test_unsupported_type_character(fortran_reader):
     end subroutine test'''
     psyir = fortran_reader.psyir_from_source(code)
 
+    trans = ArrayAssignment2LoopsTrans()
+
     for assign in psyir.walk(Assignment):
-        trans = ArrayAssignment2LoopsTrans()
         with pytest.raises(TransformationError) as info:
             trans.validate(assign)
         assert (
@@ -673,7 +675,8 @@ def test_validate_nested_or_invalid_expressions(fortran_reader):
     # This is invalid Fortran but there are no restrictions in manually
     # constructed PSyIR, so we create the case here.
     assignment.lhs.member.indices[0].replace_with(Range.create(
-        Literal("1", INTEGER_TYPE), Literal("10", INTEGER_TYPE)))
+        Literal("1", ScalarType.integer_type()),
+        Literal("10", ScalarType.integer_type())))
     with pytest.raises(TransformationError) as info:
         trans.apply(assignment, verbose=True)
     assert ("ArrayAssignment2LoopsTrans does not support array assignments "

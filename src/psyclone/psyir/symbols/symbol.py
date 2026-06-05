@@ -41,12 +41,17 @@
 
 from __future__ import annotations
 from enum import Enum
+from typing import Optional, TYPE_CHECKING
+
 from psyclone.errors import PSycloneError, InternalError
 from psyclone.psyir.symbols.interfaces import (
     AutomaticInterface, SymbolInterface, ArgumentInterface,
     UnresolvedInterface, ImportInterface, UnknownInterface,
     CommonBlockInterface, DefaultModuleInterface, StaticInterface)
 from psyclone.psyir.commentable_mixin import CommentableMixin
+if TYPE_CHECKING:
+    from psyclone.psyir.nodes import Node
+    from psyclone.psyir.symbols import SymbolTable
 
 
 class SymbolError(PSycloneError):
@@ -412,16 +417,14 @@ class Symbol(CommentableMixin):
         '''
         return isinstance(self._interface, UnknownInterface)
 
-    def find_symbol_table(self, node):
+    def find_symbol_table(self, node: "Node") -> Optional["SymbolTable"]:
         '''
         Searches back up the PSyIR tree for the SymbolTable that contains
         this Symbol instance.
 
         :param node: the PSyIR node from which to search.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: the SymbolTable containing this Symbol or None.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable` or NoneType
 
         :raises TypeError: if the supplied `node` argument is not a PSyIR Node.
 
@@ -499,7 +502,7 @@ class Symbol(CommentableMixin):
             access information is given.
 
         '''
-        # TODO #1270: this function might either be better off elsewhere,
+        # TODO #3098: this function might either be better off elsewhere,
         # or even do not implement one function that uses both access
         # information and symbol table - if required, the user can
         # query both in two simple statements anyway.

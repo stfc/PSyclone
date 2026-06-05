@@ -39,11 +39,6 @@
 ''' Performs py.test tests on the psyGen module '''
 
 
-# internal classes requiring tests
-# PSy, Invokes, Invoke, Kern, Argument1ts, Argument, KernelArgument
-
-# user classes requiring tests
-# PSyFactory, TransInfo, Transformation
 import os
 import sys
 import logging
@@ -59,6 +54,7 @@ from psyclone import transformations
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import (lfric_builtins,
                                    LFRicInvokeSchedule,
                                    LFRicKern, LFRicKernMetadata)
@@ -75,15 +71,14 @@ from psyclone.psyGen import (TransInfo, PSyFactory,
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
                                   Literal, Loop, Node, KernelSchedule, Call,
                                   colored, Schedule)
-from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, REAL_TYPE,
+from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, ScalarType,
                                     ImportInterface, ContainerSymbol, Symbol,
-                                    INTEGER_TYPE, UnresolvedType, SymbolTable)
+                                    UnresolvedType, SymbolTable)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.test_files import dummy_transformations
 from psyclone.tests.test_files.dummy_transformations import LocalTransformation
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (LFRicRedundantComputationTrans,
-                                      LFRicKernelConstTrans,
                                       LFRicColourTrans,
                                       LFRicOMPLoopTrans,
                                       Transformation)
@@ -185,6 +180,7 @@ def test_transformation_init_name():
         transformation methods.
 
         '''
+
         def apply(self, _1):
             '''Dummy apply method to ensure this transformation is not
             abstract.'''
@@ -199,6 +195,7 @@ def test_transformation_get_options():
     class TestTrans(Transformation):
         '''Utility transformation to test methods of the abstract
         Transformation class.'''
+
         def apply(self, node, valid: bool = True):
             ...
     trans = TestTrans()
@@ -210,11 +207,117 @@ def test_transformation_get_options():
             "Valid options are '['valid']." in str(excinfo.value))
 
 
+def test_transformation_split_kwargs():
+    ''' Test that the kwargs can be split when they can be propagated to
+    multiple sub-transformations. '''
+
+    class Called1Trans(Transformation):
+        ''' Transformation Example'''
+        def apply(
+            self,
+            node,
+            test_option: bool = True,
+            common_option: bool = True,
+            **kwargs
+        ):
+            self.validate(
+                node,
+                test_option=test_option,
+                common_option=common_option,
+                **kwargs
+            )
+            # Asserts to prove that the True value was propagated until here
+            assert test_option
+            assert common_option
+
+        def validate(self, node, **kwargs):
+            self.validate_options(**kwargs)
+
+    class Called2Trans(Transformation):
+        ''' Transformation Example'''
+        def apply(
+            self,
+            node,
+            test2_option: bool = False,
+            common_option: bool = False,
+            **kwargs
+        ):
+            self.validate(
+                node,
+                test2_option=test2_option,
+                common_option=common_option,
+                **kwargs
+            )
+            # Asserts to prove that the True value was propagated until here
+            assert test2_option
+            assert common_option
+
+        def validate(self, node, **kwargs):
+            self.validate_options(**kwargs)
+
+    class TestMetaTrans(Transformation):
+        ''' MetaTrans Example'''
+        _trans1 = Called1Trans
+        _trans2 = Called2Trans
+        _SUB_TRANSFORMATIONS = [Called1Trans, Called2Trans]
+
+        def validate(self, node, **kwargs):
+            self_kwargs, tr1_kwargs, tr2_kwargs = self.split_kwargs(**kwargs)
+            self._trans1().validate(node, **tr1_kwargs)
+            self._trans2().validate(node, **tr2_kwargs)
+            self.validate_options(**self_kwargs)
+
+            super().validate(node, **self_kwargs)
+
+        def apply(
+            self,
+            node,
+            meta_option: bool = True,
+            common_option: bool = True,
+            **kwargs
+        ):
+            # If we want to consume it use it by name
+            self.validate(
+                node,
+                meta_option=meta_option,
+                common_option=common_option,
+                **kwargs)
+            _, tr1_kwargs, tr2_kwargs = self.split_kwargs(
+                meta_option=meta_option, common_option=common_option, **kwargs)
+
+            self._trans1().apply(node, **tr1_kwargs)
+            self._trans2().apply(node, **tr2_kwargs)
+
+            # Asserts to prove that the True value was propagated until here
+            assert meta_option
+            assert common_option
+
+    test = TestMetaTrans()
+    test.apply(Node(), meta_option=True, common_option=True,
+               test_option=True, test2_option=True)
+    test.validate(Node(), meta_option=True, common_option=True,
+                  test_option=True, test2_option=True)
+
+    with pytest.raises(ValueError) as err:
+        test.apply(Node(), invalid=True)
+    assert ("'TestMetaTrans' received invalid options ['invalid']. Valid "
+            "options are ['meta_option', 'common_option'] or any other "
+            "options supported in ['Called1Trans', 'Called2Trans']."
+            == str(err.value))
+    with pytest.raises(ValueError) as err:
+        test.validate(Node(), invalid=True)
+    assert ("'TestMetaTrans' received invalid options ['invalid']. Valid "
+            "options are ['meta_option', 'common_option'] or any other "
+            "options supported in ['Called1Trans', 'Called2Trans']."
+            == str(err.value))
+
+
 def test_transformation_apply_deprecation_message(capsys):
     '''Test that passing the options dict to the Transformation.apply
     function gets the expected deprecation message.'''
     class TestTrans(Transformation):
         '''Utility transformation to test methods.'''
+
         def apply(self, node=None, options=None):
             super().apply(node, options=options)
 
@@ -238,6 +341,7 @@ def test_transformation_get_valid_options():
     class TestTrans(Transformation):
         '''Utility transformation to test methods of the abstract
         Transformation class.'''
+
         def apply(self, node, valid: bool = True, untyped=False, options={}):
             '''Apply method of TestTrans.'''
 
@@ -253,6 +357,7 @@ def test_transformation_get_valid_options():
 
     class InheritTrans(TestTrans):
         '''Utility transformation to test inheriting arguments'''
+
         def apply(self, node, valid2: int = 1):
             '''Apply method of InheritTrans.'''
 
@@ -284,6 +389,7 @@ def test_transformation_get_valid_options_no_sphinx():
         class TestTrans(Transformation):
             '''Utility transformation to test methods of the abstract
             Transformation class.'''
+
             def apply(self, node, valid: bool = True, untyped=False):
                 '''Apply method of TestTrans.'''
 
@@ -301,6 +407,7 @@ def test_transformation_validate_options():
     class TestTrans(Transformation):
         '''Utility transformation to test methods of the abstract
         Transformation class.'''
+
         def apply(self, node, valid: bool = True, options=None):
             ...
 
@@ -318,7 +425,7 @@ def test_transformation_validate_options():
     with pytest.raises(ValueError) as excinfo:
         instance.validate_options(not_valid=True)
     assert ("'TestTrans' received invalid options ['not_valid']. "
-            "Valid options are '['valid', 'options']." in str(excinfo.value))
+            "Valid options are ['valid', 'options']." in str(excinfo.value))
 
 
 # TransInfo class unit tests
@@ -550,7 +657,6 @@ def test_derived_type_deref_naming(tmpdir):
         "  subroutine invoke_0_testkern_type"
         "(a, f1_my_field, f1_my_field_1, m1, m2)\n"
         "    use mesh_mod, only : mesh_type\n"
-        "    use testkern_mod, only : testkern_code\n"
         "    use constants_mod, only : i_def\n"
         "    real(kind=r_def), intent(in) :: a\n"
         "    type(field_type), intent(in) :: f1_my_field\n"
@@ -625,8 +731,10 @@ def test_invokeschedule_lowering_with_preexisting_globals():
     schedule = psy.invokes.invoke_list[0].schedule
     my_mod = ContainerSymbol("my_mod")
     schedule.symbol_table.add(my_mod)
-    global1 = DataSymbol('gvar1', REAL_TYPE, interface=ImportInterface(my_mod))
-    global2 = DataSymbol('gvar2', REAL_TYPE, interface=ImportInterface(my_mod))
+    global1 = DataSymbol('gvar1', ScalarType.real_type(),
+                         interface=ImportInterface(my_mod))
+    global2 = DataSymbol('gvar2', ScalarType.real_type(),
+                         interface=ImportInterface(my_mod))
     schedule.symbol_table.add(global1)
     schedule.symbol_table.add(global2)
 
@@ -664,124 +772,20 @@ def test_codedkern_node_str():
     assert expected_output in out
 
 
-def test_codedkern_module_inline_getter_and_setter():
-    ''' Check that the module_inline setter changes the module inline
-    attribute to all the same kernels in the invoke'''
+def test_codedkern_module_inline_getter():
+    ''' Check that the module_inline property of CodedKern. '''
     # Use LFRic example with a repeated CodedKern
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    _, invoke = get_invoke("4.6_multikernel_invokes.f90", api="lfric", idx=0)
     schedule = invoke.schedule
-    coded_kern_1 = schedule.children[0].loop_body[0]
-    coded_kern_2 = schedule.children[1].loop_body[0]
-
-    # By default they are not module-inlined
-    assert not coded_kern_1.module_inline
-    assert not coded_kern_2.module_inline
-    assert "module_inline=False" in coded_kern_1.node_str()
-    assert "module_inline=False" in coded_kern_2.node_str()
-
-    # It can be turned on (and both kernels change)
-    coded_kern_1.module_inline = True
-    assert coded_kern_1.module_inline
-    assert coded_kern_2.module_inline
-    assert "module_inline=True" in coded_kern_1.node_str()
-    assert "module_inline=True" in coded_kern_2.node_str()
-
-    # It can not be turned off
-    with pytest.raises(TypeError) as err:
-        coded_kern_2.module_inline = False
-    assert ("The module inline parameter only accepts the type boolean "
-            "'True' since module-inlining is irreversible. But found: 'False'"
-            in str(err.value))
-    assert coded_kern_1.module_inline
-    assert coded_kern_2.module_inline
-
-    # And it doesn't accept other types
-    with pytest.raises(TypeError) as err:
-        coded_kern_2.module_inline = 3
-    assert ("The module inline parameter only accepts the type boolean "
-            "'True' since module-inlining is irreversible. But found: '3'"
-            in str(err.value))
-
-
-def test_codedkern_module_inline_lowering(tmpdir):
-    ''' Check that a CodedKern with module-inline gets copied into the
-    local module appropriately when the PSy-layer is generated'''
-    # Use LFRic example with a repeated CodedKern
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    coded_kern = schedule.children[0].loop_body[0]
-    gen = str(psy.gen)
-
-    # Without module-inline the subroutine is used by a module import
-    assert "use ru_kernel_mod, only : ru_code" in gen
-    assert "subroutine ru_code(" not in gen
-
-    # With module-inline the subroutine does not need to be imported
-    coded_kern.module_inline = True
-
-    # Fail if local routine symbol does not already exist
-    with pytest.raises(VisitorError) as err:
-        gen = str(psy.gen)
-    assert ("Cannot generate this kernel call to 'ru_code' because it "
-            "is marked as module-inlined but no such subroutine exists in "
-            "this module." in str(err.value))
-
-    # Create the symbol and try again, it now must succeed
-    psy.container.symbol_table.new_symbol(
-            "ru_code", symbol_type=RoutineSymbol)
-
-    gen = str(psy.gen)
-    assert "use ru_kernel_mod, only : ru_code" not in gen
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
-    ''' Check that module-inline works as expected when the same kernel
-    is provided in different invokes'''
-    # Use LFRic example with the kernel 'testkern_qr_mod' repeated once in
-    # the first invoke and 3 times in the second invoke.
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "3.1_multi_functions_multi_invokes.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-
-    # By default the kernel is imported once per invoke
-    gen = str(psy.gen)
-    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 2
-
-    # Module inline kernel in invoke 1
-    schedule = psy.invokes.invoke_list[0].schedule
-    for coded_kern in schedule.walk(CodedKern):
-        if coded_kern.name == "testkern_qr_code":
-            coded_kern.module_inline = True
-    # A top-level RoutineSymbol must now exist
-    schedule.ancestor(Container).symbol_table.new_symbol(
-            "testkern_qr_code", symbol_type=RoutineSymbol)
-    gen = str(psy.gen)
-
-    # After this, one invoke uses the inlined top-level subroutine
-    # and the other imports it (shadowing the top-level symbol)
-    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 1
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    # Module inline kernel in invoke 2
-    schedule = psy.invokes.invoke_list[1].schedule
-    for coded_kern in schedule.walk(CodedKern):
-        if coded_kern.name == "testkern_qr_code":
-            coded_kern.module_inline = True
-    gen = str(psy.gen)
-    # After this, no imports are remaining and both use the same
-    # top-level implementation
-    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 0
-    assert LFRicBuild(tmpdir).code_compiles(psy)
+    ckerns = schedule.walk(CodedKern)
+    # Double check that both kernels are the same.
+    assert ckerns[0].name == ckerns[1].name
+    assert ckerns[0].module_inline is False
+    mod_inline_trans = KernelModuleInlineTrans()
+    mod_inline_trans.apply(ckerns[0])
+    # Module inlining one should have updated both.
+    assert ckerns[0].module_inline is True
+    assert ckerns[1].module_inline is True
 
 
 def test_codedkern_lower_to_language_level(monkeypatch):
@@ -813,7 +817,7 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     # TODO #1085 LFRic Arguments do not have a translation to PSyIR
     # yet, we monkeypatch a dummy expression for now:
     monkeypatch.setattr(LFRicKernelArguments, "psyir_expressions",
-                        lambda x: [Literal("1", INTEGER_TYPE)])
+                        lambda x: [Literal("1", ScalarType.integer_type())])
 
     # In DSL-level it is a CodedKern with no children
     assert isinstance(kern, CodedKern)
@@ -874,7 +878,7 @@ def test_kern_children_validation():
     kern.load_meta(metadata)
 
     with pytest.raises(GenerationError) as excinfo:
-        kern.addchild(Literal("2", INTEGER_TYPE))
+        kern.addchild(Literal("2", ScalarType.integer_type()))
     assert ("Item 'Literal' can't be child 0 of 'CodedKern'. CodedKern "
             "is a LeafNode and doesn't accept children.") in str(excinfo.value)
 
@@ -907,7 +911,7 @@ def test_inlinedkern_children_validation():
     ikern = InlinedKern(None)
 
     with pytest.raises(GenerationError) as excinfo:
-        ikern.addchild(Literal("2", INTEGER_TYPE))
+        ikern.addchild(Literal("2", ScalarType.integer_type()))
     assert ("Item 'Literal' can't be child 1 of 'InlinedKern'. The valid "
             "format is: 'Schedule'.") in str(excinfo.value)
 
@@ -984,21 +988,24 @@ def test_kern_is_coloured2():
     # Create the loop variables
     for idx in range(3):
         table.new_symbol(f"cell{idx}", symbol_type=DataSymbol,
-                         datatype=INTEGER_TYPE)
+                         datatype=ScalarType.integer_type())
     # Create a loop nest of depth 3 containing the kernel, innermost first
     my_kern = LFRicKern()
     loops = [PSyLoop.create(table.lookup("cell0"),
-                            Literal("1", INTEGER_TYPE),
-                            Literal("10", INTEGER_TYPE),
-                            Literal("1", INTEGER_TYPE), [my_kern])]
+                            Literal("1", ScalarType.integer_type()),
+                            Literal("10", ScalarType.integer_type()),
+                            Literal("1", ScalarType.integer_type()),
+                            [my_kern])]
     loops.append(PSyLoop.create(table.lookup("cell1"),
-                                Literal("1", INTEGER_TYPE),
-                                Literal("10", INTEGER_TYPE),
-                                Literal("1", INTEGER_TYPE), [loops[-1]]))
+                                Literal("1", ScalarType.integer_type()),
+                                Literal("10", ScalarType.integer_type()),
+                                Literal("1", ScalarType.integer_type()),
+                                [loops[-1]]))
     loops.append(PSyLoop.create(table.lookup("cell2"),
-                                Literal("1", INTEGER_TYPE),
-                                Literal("10", INTEGER_TYPE),
-                                Literal("1", INTEGER_TYPE), [loops[-1]]))
+                                Literal("1", ScalarType.integer_type()),
+                                Literal("10", ScalarType.integer_type()),
+                                Literal("1", ScalarType.integer_type()),
+                                [loops[-1]]))
     # As we're using the generic Loop class, we have to manually set the list
     # of valid Loop types
     for loop in loops:
@@ -1626,7 +1633,7 @@ def test_haloexchange_children_validation():
     '''
     haloex = HaloExchange(None)
     with pytest.raises(GenerationError) as excinfo:
-        haloex.addchild(Literal("2", INTEGER_TYPE))
+        haloex.addchild(Literal("2", ScalarType.integer_type()))
     assert ("Item 'Literal' can't be child 0 of 'HaloExchange'. HaloExchange "
             "is a LeafNode and doesn't accept children.") in str(excinfo.value)
 
@@ -2156,31 +2163,6 @@ def test_dataaccess_same_vector_indices(monkeypatch):
     assert (
         "The halo exchange vector indices for 'e' are the same. This should "
         "never happen" in str(excinfo.value))
-
-
-def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
-    '''Modified Fortran kernels are written to file linewrapped at 132
-    characters. This test checks that this linewrapping works.
-
-    '''
-    psy, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
-    sched = invoke.schedule
-    kernels = sched.walk(Kern)
-    # This example does not conform to the <name>_code, <name>_mod
-    # convention so monkeypatch it to avoid the PSyIR code generation
-    # raising an exception. This limitation is the subject of issue
-    # #520.
-    monkeypatch.setattr(kernels[0], "_module_name", "testkern_mod")
-    ktrans = LFRicKernelConstTrans()
-    ktrans.apply(kernels[0], {"number_of_layers": 100})
-    # Generate the code (this triggers the generation of new kernels)
-    _ = str(psy.gen)
-    filepath = os.path.join(str(kernel_outputdir), "testkern_0_mod.f90")
-    assert os.path.isfile(filepath)
-    # Check that the argument list is line wrapped as it is longer
-    # than 132 characters.
-    with open(filepath, encoding="utf-8") as testfile:
-        assert "map_w2, &\n&ndf_w3" in testfile.read()
 
 
 def test_walk(fortran_reader):

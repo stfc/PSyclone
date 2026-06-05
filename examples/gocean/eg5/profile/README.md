@@ -56,8 +56,8 @@ The location of the dl_esm_inf infrastructure library, it defaults to
 which is the version included in PSyclone.
 
 ### DL_TIMER_ROOT:
-The location of the apeg-dl_timer library. It defaults to
-``../../../../../apeg-dl_timer``, i.e. it is assumed that apeg-dl_timer
+The location of the dl_timer library. It defaults to
+``../../../../../dl_timer``, i.e. it is assumed that dl_timer
 is installed next to PSyclone.
 Note that until Issue #730 is complete, executing this example
 will fail as the labels produced by PSyclone are longer than

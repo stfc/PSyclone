@@ -43,7 +43,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Assignment, BinaryOperation, \
         DynamicOMPTaskDirective, Literal, Loop, Reference
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.tests.utilities import Compile
 from psyclone.transformations import OMPSingleTrans
 from psyclone.psyir.transformations import OMPParallelTrans
@@ -2819,12 +2819,10 @@ va(:,j_out_var - 32),sshn_v(:,j_out_var - 32)) depend(out: va(:,j_out_var))
             jiv = j + 1
             va(i,j) = va(i,jiv) + SQRT(g / hv(i,j)) * (sshn_v(i,j) - \
 sshn_v(i,jiv))
-          else
-            if (boundary(i,j + 1) < 0) then
-              jiv = j - 1
-              va(i,j) = va(i,jiv) + SQRT(g / hv(i,j)) * (sshn_v(i,j) - \
+          elseif (boundary(i,j + 1) < 0) then
+            jiv = j - 1
+            va(i,j) = va(i,jiv) + SQRT(g / hv(i,j)) * (sshn_v(i,j) - \
 sshn_v(i,jiv))
-            end if
           end if
         end if
       enddo
@@ -3327,7 +3325,7 @@ def test_evaluate_write_reference_failcase():
     InternalError if provided a non-reference value for the ref argument.
     '''
     tdir = DynamicOMPTaskDirective()
-    one = Literal("1", INTEGER_TYPE)
+    one = Literal("1", ScalarType.integer_type())
     clause_lists = DynamicOMPTaskDirective._clause_lists(
             [], [], [], [], []
     )
@@ -3342,9 +3340,9 @@ def test_create_binops_from_step_and_divisors():
     ''' Tests the _create_binops_from_step_and_divisors function.
     '''
     tdir = DynamicOMPTaskDirective()
-    tmp = DataSymbol("tmp", INTEGER_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_type())
     ref = Reference(tmp)
-    one = Literal("1", INTEGER_TYPE)
+    one = Literal("1", ScalarType.integer_type())
     binop1 = BinaryOperation.create(BinaryOperation.Operator.ADD, ref.copy(),
                                     one.copy())
 
@@ -3358,7 +3356,7 @@ def test_create_binops_from_step_and_divisors():
     assert isinstance(res2, Reference)
 
     # Test case where literal is > step but literal % step != 0
-    val = Literal("33", INTEGER_TYPE)
+    val = Literal("33", ScalarType.integer_type())
     binop2 = BinaryOperation.create(BinaryOperation.Operator.ADD, ref.copy(),
                                     val.copy())
     res, res2 = tdir._create_binops_from_step_and_divisors(
@@ -3379,7 +3377,7 @@ def test_create_binops_from_step_and_divisors():
 
     # Test case where x + lit is an exact multiple of the step and the
     # multiple is > 1
-    val = Literal("64", INTEGER_TYPE)
+    val = Literal("64", ScalarType.integer_type())
     binop2 = BinaryOperation.create(BinaryOperation.Operator.ADD, ref.copy(),
                                     val.copy())
     res, res2 = tdir._create_binops_from_step_and_divisors(

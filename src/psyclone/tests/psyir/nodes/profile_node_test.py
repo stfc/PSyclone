@@ -41,7 +41,7 @@ import pytest
 from fparser.two import Fortran2003
 from psyclone.psyir.nodes import (ProfileNode, Literal, Assignment, CodeBlock,
                                   Reference, Return, KernelSchedule, Loop)
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE, \
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, ScalarType, \
     ContainerSymbol, DataTypeSymbol, UnsupportedFortranType, ImportInterface
 from psyclone.profiler import Profiler
 from psyclone.errors import InternalError
@@ -119,9 +119,9 @@ def test_lower_to_lang_level_single_node():
     Profiler.set_options([Profiler.INVOKES], api="nemo")
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
-        symbol_type=DataSymbol, datatype=REAL_TYPE)
-    zero = Literal("0.0", REAL_TYPE)
-    one = Literal("1.0", REAL_TYPE)
+        symbol_type=DataSymbol, datatype=ScalarType.real_type())
+    zero = Literal("0.0", ScalarType.real_type())
+    one = Literal("1.0", ScalarType.real_type())
     assign1 = Assignment.create(Reference(arg1), zero)
     assign2 = Assignment.create(Reference(arg1), one)
 
@@ -136,14 +136,14 @@ def test_lower_to_lang_level_single_node():
     assert isinstance(kschedule[0], CodeBlock)
     # The first CodeBlock should have the "psy-data-start" annotation.
     assert kschedule[0].annotations == ["psy-data-start"]
-    ptree = kschedule[0].get_ast_nodes
+    ptree = kschedule[0].parse_tree_nodes
     assert len(ptree) == 1
     assert isinstance(ptree[0], Fortran2003.Call_Stmt)
     assert kschedule[1] is assign1
     assert kschedule[2] is assign2
     assert isinstance(kschedule[-2], CodeBlock)
     assert kschedule[-2].annotations == []
-    ptree = kschedule[-2].get_ast_nodes
+    ptree = kschedule[-2].parse_tree_nodes
     assert len(ptree) == 1
     assert isinstance(ptree[0], Fortran2003.Call_Stmt)
     assert isinstance(kschedule[-1], Return)
@@ -157,8 +157,10 @@ def test_lower_named_profile_node():
     Profiler.set_options([Profiler.INVOKES], api="nemo")
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
-        symbol_type=DataSymbol, datatype=REAL_TYPE)
-    assign1 = Assignment.create(Reference(arg1), Literal("0.0", REAL_TYPE))
+        symbol_type=DataSymbol, datatype=ScalarType.real_type())
+    assign1 = Assignment.create(
+        Reference(arg1),
+        Literal("0.0", ScalarType.real_type()))
     kschedule = KernelSchedule.create(
         "work1", symbol_table, [assign1, Return()])
     Profiler.add_profile_nodes(kschedule, Loop)
@@ -169,7 +171,7 @@ def test_lower_named_profile_node():
     kschedule.lower_to_language_level()
     cblocks = kschedule.walk(CodeBlock)
     assert ("PreStart(\"my_mod\", \"first\", 0, 0)" in
-            str(cblocks[0].get_ast_nodes[0]))
+            cblocks[0].get_fortran_lines()[0])
 
 
 def test_lower_to_lang_level_multi_node():
@@ -190,14 +192,12 @@ def test_lower_to_lang_level_multi_node():
     sym1 = table.lookup("profile_psy_data_1")
     assert isinstance(sym1, DataSymbol)
     cblocks = sched.walk(CodeBlock)
-    ptree = cblocks[0].get_ast_nodes
-    code = str(ptree[0]).lower()
+    code = cblocks[0].get_fortran_lines()[0].lower()
     assert ("call profile_psy_data % prestart(\"psy_single_invoke_two_"
             "kernels\", \"invoke_0-compute_cu_code-r0\"" in code)
     assert cblocks[0].annotations == ["psy-data-start"]
     assert cblocks[1].annotations == []
-    ptree = cblocks[2].get_ast_nodes
-    code = str(ptree[0]).lower()
+    code = cblocks[2].get_fortran_lines()[0].lower()
     assert ("call profile_psy_data_1 % prestart(\"psy_single_invoke_two_"
             "kernels\", \"invoke_0-time_smooth_code-r1\"" in code)
     assert cblocks[2].annotations == ["psy-data-start"]

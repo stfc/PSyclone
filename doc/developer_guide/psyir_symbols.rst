@@ -38,8 +38,7 @@
 .. testsetup::
 
     from psyclone.psyir.symbols import Symbol, DataSymbol, RoutineSymbol, \
-        ScalarType, ArrayType, REAL4_TYPE, REAL8_TYPE, INTEGER_TYPE, \
-        BOOLEAN_TYPE
+        ScalarType, ArrayType
     from psyclone.psyir.nodes import Reference
 
 PSyIR Types and Symbols
@@ -80,8 +79,8 @@ explicitly listed may be assumed to be unsupported):
 +======================+====================+====================+
 |Variables             |ALLOCATABLE         |CLASS               |
 +----------------------+--------------------+--------------------+
-|                      |CHARACTER, DOUBLE   |COMPLEX, CHARACTER  |
-|                      |PRECISION, INTEGER, |with LEN or KIND    |
+|                      |CHARACTER, DOUBLE   |COMPLEX             |
+|                      |PRECISION, INTEGER, |                    |
 |                      |LOGICAL, REAL       |                    |
 +----------------------+--------------------+--------------------+
 |                      |Derived Types       |'extends',          |
@@ -89,10 +88,7 @@ explicitly listed may be assumed to be unsupported):
 |                      |                    |CONTAINS; Operator  |
 |                      |                    |overloading         |
 +----------------------+--------------------+--------------------+
-|                      |DIMENSION           |Array extents       |
-|                      |                    |specified using     |
-|                      |                    |expressions;        |
-|                      |                    |Assumed-size arrays |
+|                      |DIMENSION           |Assumed-size arrays |
 +----------------------+--------------------+--------------------+
 |                      |INTENT, PARAMETER,  |VOLATILE, VALUE,    |
 |                      |SAVE                |POINTER             |
@@ -102,8 +98,8 @@ explicitly listed may be assumed to be unsupported):
 +----------------------+--------------------+--------------------+
 |                      |PUBLIC, PRIVATE     |                    |
 +----------------------+--------------------+--------------------+
-|Initialisation        |Explicit            |                    |
-|expressions           |initialisation      |                    |
+|Initialisation        |Explicit            | Implicit loops,    |
+|expressions           |initialisation      | array constructors |
 +----------------------+--------------------+--------------------+
 |                      |Data statements     |                    |
 |                      |(limited)           |                    |
@@ -132,7 +128,7 @@ and has the following pre-defined shortcut
 
 ::
 
-   scalar_type = REAL4_TYPE
+   scalar_type = ScalarType.real4_type()
 
 If we were to subclass, it would have looked something like this::
 
@@ -335,15 +331,16 @@ specialisations are possible:
     >>> # sym.specialise(DataSymbol)
     >>> # The following statement is valid (in this case initial_value will
     >>> # default to None and is_constant to False):
-    >>> sym.specialise(DataSymbol, datatype=INTEGER_TYPE)
+    >>> sym.specialise(DataSymbol, datatype=ScalarType.integer_type())
 
     >>> sym2 = Symbol("b")
     >>> # The following statement would fail because the initial_value doesn't
     >>> # match the datatype of the symbol:
-    >>> # sym2.specialise(DataSymbol, datatype=INTEGER_TYPE, initial_value=3.14)
+    >>> # sym2.specialise(DataSymbol, datatype=ScalarType.integer_type(),
+    ...                   initial_value=3.14)
     >>> # The following statement is valid and initial_value is set to 3
     >>> # (and is_constant will default to False):
-    >>> sym2.specialise(DataSymbol, datatype=INTEGER_TYPE, initial_value=3)
+    >>> sym2.specialise(DataSymbol, datatype=ScalarType.integer_type(), initial_value=3)
     >>> print(sym2.initial_value)
     Literal[value:'3', Scalar<INTEGER, UNDEFINED>]
     >>> print(sym2.is_constant)

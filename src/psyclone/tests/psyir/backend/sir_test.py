@@ -45,7 +45,7 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
     Assignment, BinaryOperation, IfBlock, Literal, Routine, Loop,
     Schedule, UnaryOperation, ScopingNode)
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import ScalarType
 
 
 # pylint: disable=redefined-outer-name
@@ -552,8 +552,8 @@ def test_sirwriter_binaryoperator_not_supported(sir_writer):
     ''' Check that unsupported BinaryOperators produce a relevant error. '''
     operation = BinaryOperation.create(
         BinaryOperation.Operator.REM,
-        Literal("1", INTEGER_TYPE),
-        Literal("2", INTEGER_TYPE))
+        Literal("1", ScalarType.integer_type()),
+        Literal("2", ScalarType.integer_type()))
     with pytest.raises(VisitorError) as excinfo:
         sir_writer.binaryoperation_node(operation)
     assert ("Method binaryoperation_node in class SIRWriter, unsupported "
@@ -653,9 +653,9 @@ def test_sirwriter_literal_node_error(sir_writer, value, datatype):
     rhs = get_rhs(code)
     with pytest.raises(VisitorError) as excinfo:
         sir_writer.literal_node(rhs)
-    assert (
-        f"PSyIR type 'Scalar<{datatype}, UNDEFINED>' has no representation in "
-        f"the SIR backend." in str(excinfo.value))
+    err_msg = str(excinfo.value)
+    assert f"PSyIR type 'Scalar<{datatype}, " in err_msg
+    assert ">' has no representation in the SIR backend" in err_msg
 
 
 # (1/5) Method unaryoperation_node
@@ -734,7 +734,7 @@ def test_sirwriter_unaryoperator_not_supported(sir_writer):
     ''' Check that unsupported UnaryOperators produce a relevant error. '''
     operation = UnaryOperation.create(
         UnaryOperation.Operator.NOT,
-        Literal("1", INTEGER_TYPE))
+        Literal("1", ScalarType.integer_type()))
     with pytest.raises(VisitorError) as excinfo:
         sir_writer.unaryoperation_node(operation)
     assert ("Method unaryoperation_node in class SIRWriter, unsupported "
