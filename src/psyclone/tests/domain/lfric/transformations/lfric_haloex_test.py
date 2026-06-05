@@ -43,14 +43,15 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric import LFRicLoop
+from psyclone.domain.lfric.transformations import (
+    LFRicRedundantComputationTrans)
 from psyclone.lfric import LFRicHaloExchange
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import (LFRicRedundantComputationTrans,
-                                      LFRicAsyncHaloExchangeTrans)
+from psyclone.transformations import LFRicAsyncHaloExchangeTrans
 
 
 # constants
