@@ -78,11 +78,11 @@ from psyclone.parse.algorithm import parse
 from psyclone.parse.kernel import get_kernel_filepath
 from psyclone.parse.utils import ParseError, parse_fp2
 from psyclone.profiler import Profiler
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Loop, Container, Routine
+from psyclone.psyir.nodes import Container, FileContainer, Loop, Node, Routine
 from psyclone.psyir.symbols import UnresolvedInterface
 from psyclone.psyir.transformations import TransformationError
 from psyclone.version import __VERSION__
@@ -169,11 +169,13 @@ def load_script(
     sys.path.insert(0, filepath)
     recipe_module = importlib.import_module(module_name)
 
+    files_to_skip: list[str]
     if hasattr(recipe_module, "FILES_TO_SKIP"):
         files_to_skip = recipe_module.FILES_TO_SKIP
     else:
         files_to_skip = []
 
+    imports_to_resolve: list[str]
     if hasattr(recipe_module, "RESOLVE_IMPORTS"):
         imports_to_resolve = recipe_module.RESOLVE_IMPORTS
         # If the imports_to_resolve has the list of explicit filenames, respect
@@ -186,7 +188,7 @@ def load_script(
         imports_to_resolve = []
 
     if hasattr(recipe_module, function_name):
-        transformation_recipe = getattr(recipe_module, function_name)
+        transformation_recipe: Callable = getattr(recipe_module, function_name)
         if callable(transformation_recipe):
             # Everything is good, return recipe and files_to_skip
             return (transformation_recipe, files_to_skip,
@@ -205,13 +207,13 @@ def generate(filename: str,
              script_name: Optional[str] = None,
              kwargs_str: Optional[str] = None,
              line_length: bool = False,
-             distributed_memory: bool = None,
+             distributed_memory: Optional[bool] = None,
              kern_out_path: str = "",
              keep_comments: bool = False,
              keep_directives: bool = False,
              keep_conditional_openmp_statements: bool = False,
              free_form: bool = True
-             ) -> Tuple[str, str]:
+             ) -> Tuple[Optional[str], str]:
     # pylint: disable=too-many-arguments, too-many-statements
     # pylint: disable=too-many-branches, too-many-locals
     '''Takes a PSyclone algorithm specification as input and outputs the
@@ -353,13 +355,13 @@ def generate(filename: str,
 
         if script_name is not None:
             # Call the optimisation script for algorithm optimisations
-            recipe, _, _ = load_script(script_name, "trans_alg",
-                                       is_optional=True)
+            recipe, _, _, _ = load_script(script_name, kwargs_str,
+                                          "trans_alg", is_optional=True)
             if recipe:
                 recipe(psyir)
 
         # For each kernel called from the algorithm layer
-        kernels = {}
+        kernels: dict[int, dict[int, Node]] = {}
         for invoke in psyir.walk(AlgorithmInvokeCall):
             kernels[id(invoke)] = {}
             for kern in invoke.walk(KernelFunctor):
@@ -403,6 +405,7 @@ def generate(filename: str,
                     sys.exit(1)
 
                 # Raise to Kernel PSyIR
+                kern_trans: Transformation
                 if api in GOCEAN_API_NAMES:
                     kern_trans = RaisePSyIR2GOceanKernTrans(kern.symbol.name)
                     kern_trans.apply(kernel_psyir)
@@ -415,6 +418,7 @@ def generate(filename: str,
                 kernels[id(invoke)][id(kern)] = kernel_psyir
 
         # Transform 'invoke' calls into calls to PSy-layer subroutines
+        invoke_trans: Transformation
         if api in GOCEAN_API_NAMES:
             invoke_trans = GOceanAlgInvoke2PSyCallTrans()
         else:  # api in LFRIC_API_NAMES
@@ -460,7 +464,7 @@ def generate(filename: str,
     return alg_gen, psy.gen
 
 
-def main(arguments):
+def main(arguments: list[str]) -> None:
     '''
     Parses and checks the command line arguments, calls the generate
     function if all is well, catches any errors and outputs the
@@ -468,7 +472,6 @@ def main(arguments):
 
     :param arguments: the list of command-line arguments that PSyclone has
         been invoked with.
-    :type arguments: List[str]
 
     '''
     # pylint: disable=too-many-statements,too-many-branches
@@ -631,6 +634,7 @@ def main(arguments):
     args = parser.parse_args(arguments)
 
     # Set the logging system up.
+    handler: logging.Handler
     if args.log_file:
         handler = logging.FileHandler(args.log_file, mode="a",
                                       encoding="utf-8")
@@ -841,12 +845,13 @@ def main(arguments):
             print(f"Generated psy layer code:\n{psy_str}")
 
 
-def check_psyir(psyir, filename):
+def check_psyir(psyir: FileContainer,
+                filename: str) -> None:
     '''Check the supplied psyir to make sure that it contains a
     single program or module.
 
     :param psyir: the psyir to check.
-    :type psyir: py:class:`psyclone.psyir.nodes.FileContainer`
+    :param filename: filename to use in error messages.
 
     :raises GenerationError: if the algorithm file contains \
         multiple modules or programs.
@@ -869,7 +874,8 @@ def check_psyir(psyir, filename):
             f"found '{type(psyir.children[0]).__name__}'.")
 
 
-def add_builtins_use(fp2_tree, name):
+def add_builtins_use(fp2_tree: Fortran2003.Program,
+                     name: str) -> None:
     '''Modify the fparser2 tree adding a 'use <name>' so that builtin kernel
     functors do not appear to be undeclared.
 
@@ -906,7 +912,7 @@ def add_builtins_use(fp2_tree, name):
 
 def code_transformation_mode(input_file: str,
                              script_name: str,
-                             output_file,
+                             output_file: str,
                              keep_comments: bool,
                              keep_directives: bool,
                              keep_conditional_openmp_statements: bool,
@@ -924,7 +930,6 @@ def code_transformation_mode(input_file: str,
     :param input_file: the given input file.
     :param script_name: the given transformation recipe file.
     :param output_file: the output file where to store the resulting code.
-    :type output_file: Optional[str | os.PathLike]
     :param keep_comments: whether to keep comments from the original source.
     :param keep_directives: whether to keep directives from the original
         source.
