@@ -52,6 +52,15 @@ count_uniq() {
     grep "$1" $filename | sort | uniq | wc -l
 }
 
+check_above() {
+    value=$(grep "$1" $filename | sort | uniq | wc -l)
+    if [[ $value -lt $2 ]]; then
+        echo
+        echo "Error: Number of $1 is below $2"
+        exit 1
+    fi
+}
+
 echo " --- First we need to be able to modify kernels ---"
 count_uniq "Module-inline successful"
 count_uniq "Module-inline failed"
@@ -82,3 +91,7 @@ count_uniq "Offload with cell tile-colouring"
 count_uniq "Failed to offload"
 count_uniq "Added inner loop nested parallelism"
 count_uniq "Added OMP threading"
+
+check_above "Module-inline successful" 277
+check_above "Offload independent loop" 88
+check_above "Offload with cell colouring" 40
