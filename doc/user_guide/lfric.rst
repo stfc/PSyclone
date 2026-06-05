@@ -183,10 +183,12 @@ represented by instances of the ``field_type`` and ``integer_field_type``
 classes, respectively.
 
 Different fields may be defined on different numbers of vertical layers.
-The the number of layers can be as few as one (a 2D field). Unfortunately,
-the number of layers affects the numbering of the DoFs of a field. Therefore,
+The number of layers can be as few as one (a 2D field). Additionally,
+LFRic has the concet of multi-data fields where multiple data values can be
+associated with each DoF. Unfortunately, both the number of layers and the
+number of data values affects the numbering of the DoFs of a field. Therefore,
 a distinct DoF map is required for each unique combination of function
-space and number of vertical levels.
+space, number of vertical levels and number of data values.
 
 .. _lfric-field-vector:
 
@@ -1761,17 +1763,19 @@ Number of Layers Metadata
 If a particular field/operator kernel argument has a number of vertical
 levels that is *not* the same as the first field/operator argument then
 this must be specified using the ``NLAYERS`` option to ``GH_FIELD``/
-``GH_OPERATOR``, e.g.::
+``GH_OPERATOR``. The value specified for ``NLAYERS`` may be an integer
+literal encoded as a string if it is known at compile time, e.g.::
 
-  arg_type(GH_FIELD, GH_REAL, GH_READ, W3, NLAYERS=1)
+  arg_type(GH_FIELD, GH_REAL, GH_READ, W3, NLAYERS="1")
 
-The value specified for ``NLAYERS`` may be an integer literal if it is known
-at compile time. Alternatively, it may be given a name (e.g.
-``GH_NLAYERS_SHIFTED``). If two or more field/operator
-arguments are on the same function space and have the same number
-of layers (whether a literal or a name) then only one dofmap (that of the
-first such field listed in the metadata) is passed to the kernel for
-those arguments.
+Alternatively, it may be given a name, e.g.::
+
+  arg_type(GH_FIELD, GH_REAL, GH_READ, W3, NLAYERS="some name")
+
+If two or more field/operator arguments are on the same function space
+and have the same number of layers (whether a literal or a name) then
+only one dofmap (that of the first such field listed in the metadata)
+is passed to the kernel for those arguments.
 
 (Since the value of ``NLAYERS`` is looked-up from the corresponding kernel
 argument at run time, the labels given in the kernel metadata are just that
@@ -1784,13 +1788,19 @@ A multi-data field is the same as a standard field apart from having multiple
 values associated with each DoF. This is indicated in the field metadata by
 the optional ``NDATA`` argument to GH_FIELD, e.g.::
 
-  arg_type(GH_FIELD, GH_REAL, GH_READ, W2, NDATA=4)
+  arg_type(GH_FIELD, GH_REAL, GH_READ, W2, NDATA="4")
 
-The value specified for ``NDATA`` may be a literal if it is known at
-compile time. Alternatively, it may be given the special value
-``GH_RUNTIME`` which means that the number of data values at each DoF
-is to be determined at runtime by querying the field object (in the
-generated PSy layer).
+The value contained in the string specified for ``NDATA`` may be a literal if
+it is known at compile time. Alternatively, it may be a name in which
+case the number of data values at each DoF is determined at runtime by
+querying the field object (in the generated PSy layer). As with ``NLAYERS``,
+this name is just a label and does not have to correspond to anything in the
+LFRic infrastructure.
+
+Since the data in an LFRic field object is stored as a 1D array, having more
+than one data value associated with each DoF affects the dofmap. This is
+handled by passing the appropriate dofmap to the kernel - see
+:ref:`lfric-stub-generation-rules`.
 
 
 Column-wise Operators (CMA)
@@ -2158,11 +2168,11 @@ conventions, are:
 
 4) DoF maps for function spaces are handled in the order they appear in the
    metadata arguments (the ``to`` function space of an operator is considered
-   to be before the
-   ``from`` function space of the same operator as it appears first in
-   lexicographic order). Note that if two fields on a given function space have
-   differing numbers of vertical layers, then each requires that a
-   dofmap be supplied (because the number of vertical layers alters the
+   to be before the ``from`` function space of the same operator as it appears
+   first in lexicographic order). Note that if two fields on a given function
+   space have differing numbers of vertical layers and/or ``NDATA`` values,
+   then each requires that a dofmap be supplied (because both the number of
+   vertical layers *and* the number of data values per DoF alter the
    *values* within the map). For each required DoF map:
 
    1) Include the number of local degrees of freedom (i.e. number per-cell)
