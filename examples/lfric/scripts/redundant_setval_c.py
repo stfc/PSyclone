@@ -38,7 +38,8 @@ API to apply redundant computation to halo depth 1 for all instances
 of loops that iterate over dofs and contain the setval_c builtin.
 
 '''
-from psyclone.transformations import LFRicRedundantComputationTrans
+from psyclone.domain.lfric.transformations import (
+    LFRicRedundantComputationTrans)
 
 # We don't include "owned_dofs" here as we only want loops that
 # are permitted to perform redundant computation.

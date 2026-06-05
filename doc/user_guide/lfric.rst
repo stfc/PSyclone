@@ -4216,7 +4216,7 @@ transformations have not yet been migrated to this directory.
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.LFRicRedundantComputationTrans
+.. autoclass:: psyclone.domain.lfric.transformations.LFRicRedundantComputationTrans
     :members:
     :noindex:
 
