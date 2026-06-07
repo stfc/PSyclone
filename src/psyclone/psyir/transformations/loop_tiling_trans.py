@@ -44,8 +44,10 @@ from psyclone.psyir.transformations.loop_swap_trans import LoopSwapTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class LoopTilingTrans(LoopTrans):
     '''
     Apply a loop tiling transformation to a loop. For example:

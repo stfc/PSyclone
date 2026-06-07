@@ -40,7 +40,7 @@
 import pytest
 
 from psyclone.psyir.nodes import Literal
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.transformations import (ReplaceInductionVariablesTrans,
                                             TransformationError)
 
@@ -60,7 +60,7 @@ def test_riv_errors():
     '''Test errors that should be thrown. '''
 
     riv = ReplaceInductionVariablesTrans()
-    lit = Literal("1", INTEGER_TYPE)
+    lit = Literal("1", ScalarType.integer_type())
     with pytest.raises(TransformationError) as err:
         riv.apply(lit)
 
@@ -142,6 +142,7 @@ def test_riv_not_movable(fortran_reader, fortran_writer):
     '''
     source = '''program test
                 integer i, ic1, ic2, ic3, ic4, ic5, ic6
+                character cc1
                 integer :: some_func
                 real, dimension(10) :: a
                 do i = 1, 10
@@ -153,6 +154,7 @@ def test_riv_not_movable(fortran_reader, fortran_writer):
                         ic5 = 1
                     endif
                     ic6 = i + some_func()    ! Function might depend on #calls
+                    cc1 = 'a' // 'b'         ! Has a Codeblock
                     a(ic1) = 1+(ic1+1)*ic1
                     a(ic2) = 2+(ic2+1)*ic2
                     a(ic3) = 3+(ic3+1)*ic3

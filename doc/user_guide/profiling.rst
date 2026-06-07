@@ -107,9 +107,9 @@ libraries that come with PSyclone:
     for each MPI process), and not thread-safe.
 
 ``lib/profiling/dl_timer``
-    This wrapper uses the apeg-dl_timer library. In order to use
+    This wrapper uses the dl_timer library. In order to use
     this wrapper, you must download and install the dl_timer library
-    from https://bitbucket.org/apeg/dl_timer. This library has
+    from https://github.com/stfc/dl_timer. This library has
     various compile-time options and may be built with MPI or OpenMP
     support. Additional link options might therefore be required
     (e.g. enabling OpenMP, or linking with MPI).

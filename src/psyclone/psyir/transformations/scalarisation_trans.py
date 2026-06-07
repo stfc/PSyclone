@@ -35,17 +35,17 @@
 
 '''This module provides the sclarization transformation class.'''
 
-from typing import Optional, Dict, Any, List, Tuple
-
 from psyclone.core import VariablesAccessMap, Signature, SymbolicMaths
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Call, CodeBlock, Literal, \
         IfBlock, Loop, Node, Range, Reference, Routine, StructureReference
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, ScalarType
 from psyclone.psyir.transformations.loop_trans import LoopTrans
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class ScalarisationTrans(LoopTrans):
     '''This transformation takes a Loop and converts any array accesses
     to scalar if the results of the loop are unused, and the initial value
@@ -197,7 +197,7 @@ class ScalarisationTrans(LoopTrans):
 
     @staticmethod
     def _get_index_values_from_indices(
-            node: ArrayMixin, indices: List[Node]) -> Tuple[bool, List[Node]]:
+            node: ArrayMixin, indices: list[Node]) -> tuple[bool, list[Node]]:
         '''
         Compute a list of index values for a given node. Looks at loop bounds
         and range declarations to attempt to convert loop variables to an
@@ -232,7 +232,7 @@ class ScalarisationTrans(LoopTrans):
                 has_complex_index = True
             index_values.append(None)
 
-        one_literal = Literal("1", INTEGER_TYPE)
+        one_literal = Literal("1", ScalarType.integer_type())
         ancestor_loop = node.ancestor(Loop)
         # For Range or Literal array indices this is easy.
         for i, index in enumerate(indices):
@@ -367,8 +367,16 @@ class ScalarisationTrans(LoopTrans):
 
         return True
 
-    def apply(self, node: Loop, options: Optional[Dict[str, Any]] = None) \
-            -> None:
+    def validate(self, node: Loop, **kwargs):
+        '''
+        Validate the options provided to the ScalarisationTrans.
+
+        :param node: the supplied loop to apply scalarisation to.
+
+        '''
+        self.validate_options(**kwargs)
+
+    def apply(self, node: Loop, **kwargs) -> None:
         '''
         Apply the scalarisation transformation to a loop.
         All of the array accesses that are identified as being able to be
@@ -386,9 +394,9 @@ class ScalarisationTrans(LoopTrans):
         4. The array symbol is a local variable.
 
         :param node: the supplied loop to apply scalarisation to.
-        :param options: a dictionary with options for transformations.
 
         '''
+        self.validate(node, **kwargs)
         # For each array reference in the Loop:
         # Find every access to the same symbol in the loop
         # They all have to be accessed with the same index statement, and
@@ -438,7 +446,7 @@ class ScalarisationTrans(LoopTrans):
         for target in finalised_targets:
             target_accesses = var_accesses[target]
             first_access = target_accesses[0].node
-            symbol_type = first_access.symbol.datatype.datatype
+            symbol_type = first_access.symbol.datatype.elemental_type
             symbol_name = first_access.symbol.name
             scalar_symbol = routine_table.new_symbol(
                     root_name=f"{symbol_name}_scalar",

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -65,6 +65,7 @@ class MaximalOMPParallelRegionTrans(MaximalRegionTrans):
     the discussion on #3205 for more detail.'''
     # The type of parallel transformation to be applied to the input region.
     _transformation = OMPParallelTrans
+    _SUB_TRANSFORMATIONS = [OMPParallelTrans]
     # Tuple of statement nodes allowed inside the _transformation
     _allowed_contiguous_statements = (
         OMPTaskwaitDirective,

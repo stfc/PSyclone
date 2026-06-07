@@ -43,7 +43,7 @@ from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Call, colored, Container, FileContainer,
                                   KernelSchedule, Return, Routine)
-from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, SymbolTable
+from psyclone.psyir.symbols import DataSymbol, ScalarType, SymbolTable
 from psyclone.tests.utilities import check_links
 
 
@@ -104,7 +104,7 @@ def test_container_create():
 
     '''
     symbol_table = SymbolTable()
-    symbol_table.add(DataSymbol("tmp", REAL_SINGLE_TYPE))
+    symbol_table.add(DataSymbol("tmp", ScalarType.real_single_type()))
     kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
     kernel2 = KernelSchedule.create("mod_2", SymbolTable(), [])
     container = Container.create("container_name", symbol_table,
@@ -131,7 +131,7 @@ def test_container_create_invalid():
 
     '''
     symbol_table = SymbolTable()
-    symbol_table.add(DataSymbol("x", REAL_SINGLE_TYPE))
+    symbol_table.add(DataSymbol("x", ScalarType.real_single_type()))
     children = [KernelSchedule.create("mod_1", SymbolTable(), [])]
 
     # name is not a string.

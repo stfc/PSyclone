@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025, Science and Technology Facilities Council.
+# Copyright (c) 2025-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors A. B. G. Chalk, STFC Daresbury Lab.
+# Authors A. B. G. Chalk and S. Siso, STFC Daresbury Lab.
 # -----------------------------------------------------------------------------
 
 ''' This module contains the UnknownDirective node implementation.'''
@@ -43,16 +43,35 @@ class UnknownDirective(StandaloneDirective):
     '''
     Directive representing PSyclone-specific directives in the tree.
 
-    :param directive_string: The content after the !$psy part of this
-                             node in the tree.
+    :param directive_string: The content after the sentinel part of this
+        directive (e.g. !$CONTENT).
+    :param sentinel_infix_string: The content inside the sentinel part of this
+        directive (e.g. !CONTENT$).
     :param kwargs: additional keyword arguments provided to the PSyIR node.
+
+    :raises TypeError: if any of the provided strings are not a str.
+
     '''
 
     _children_valid_format = "<LeafNode>"
 
-    def __init__(self, directive_string: str = "", **kwargs):
+    def __init__(
+        self,
+        directive_string: str = "",
+        sentinel_infix_string: str = "",
+        **kwargs
+    ):
         super().__init__(**kwargs)
+        if not isinstance(directive_string, str):
+            raise TypeError(
+                f"'directive_string' must be a 'str' but found "
+                f"'{type(directive_string).__name__}'")
+        if not isinstance(sentinel_infix_string, str):
+            raise TypeError(
+                f"'sentinel_infix_string' must be a 'str' but found "
+                f"'{type(sentinel_infix_string).__name__}'")
         self._directive_string = directive_string
+        self._sentinel_infix_string = sentinel_infix_string
 
     @staticmethod
     def _validate_child(position, child):
@@ -74,7 +93,11 @@ class UnknownDirective(StandaloneDirective):
         '''
         return self._directive_string
 
-    def begin_string(self) -> str:
-        '''Returns the code string representing this UnknownDirective.'''
-
-        return f"{self.directive_string}"
+    @property
+    def sentinel_infix_string(self) -> str:
+        '''
+        :returns: The content inside the directive sentinel of this
+            UnknownDirective node (e.g. in Fortran this is the string
+            between the ! and $ such as in !DIR$ or !GCC$).
+        '''
+        return self._sentinel_infix_string

@@ -40,8 +40,8 @@
 
 ''' This module provides the ACCKernelsTrans transformation. '''
 
-import re
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, Union
+import warnings
 
 from psyclone import psyGen
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
@@ -49,14 +49,17 @@ from psyclone.psyir.nodes import (
     ACCEnterDataDirective, ACCKernelsDirective, Assignment,
     Call, CodeBlock, Literal, Loop, Node,
     PSyDataNode, Reference, Return, Routine, Statement, WhileLoop)
-from psyclone.psyir.symbols import INTEGER_TYPE, UnsupportedFortranType
+from psyclone.psyir.symbols import (
+    ArrayType, DataTypeSymbol, ScalarType, UnsupportedFortranType)
 from psyclone.psyir.transformations.arrayassignment2loops_trans import (
     ArrayAssignment2LoopsTrans)
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class ACCKernelsTrans(RegionTrans):
     '''
     Enclose a sub-set of nodes from a Schedule within an OpenACC kernels
@@ -83,8 +86,14 @@ class ACCKernelsTrans(RegionTrans):
 
     def apply(
                 self,
-                node: Union[Node, List[Node]],
-                options: Dict[str, Any] = {}
+                node: Union[Node, list[Node]],
+                options: Dict[str, Any] = {},
+                default_present: bool = False,
+                disable_loop_check: bool = False,
+                async_queue: Union[bool, Reference, int] = False,
+                allow_strings: bool = False,
+                verbose: bool = False,
+                **kwargs
             ):
         '''
         Enclose the supplied list of PSyIR nodes within an OpenACC
@@ -92,23 +101,21 @@ class ACCKernelsTrans(RegionTrans):
 
         :param node: a node or list of nodes in the PSyIR to enclose.
         :param options: a dictionary with options for transformations.
-        :param bool options["default_present"]: whether or not the kernels
+        :param default_present: whether or not the kernels
             region should have the 'default present' attribute (indicating
             that data is already on the accelerator). When using managed
             memory this option should be False.
-        :param bool options["disable_loop_check"]: whether to disable the check
+        :param disable_loop_check: whether to disable the check
             that the supplied region contains 1 or more loops. Default is False
             (i.e. the check is enabled).
-        :param options["async_queue"]: whether or not to add the 'async' clause
+        :param async_queue: whether or not to add the 'async' clause
             to the new directive and if so, which queue to associate it with.
             True to enable for the default queue or a queue value specified
             with an int or PSyIR expression.
-        :type options["async_queue"]:
-            Union[bool, :py:class:`psyclone.psyir.nodes.DataNode`]
-        :param bool options["allow_strings"]: whether to allow the
+        :param allow_strings: whether to allow the
             transformation on assignments involving character types. Defaults
             to False.
-        :param bool options["verbose"]: log the reason the validation failed,
+        :param verbose: log the reason the validation failed,
             at the moment with a comment in the provided PSyIR node.
 
         '''
@@ -116,13 +123,22 @@ class ACCKernelsTrans(RegionTrans):
         # one was supplied via the `node` argument.
         node_list = self.get_node_list(node)
 
-        self.validate(node_list, options)
+        if options:
+            default_present = options.get("default_present", False)
+            async_queue = options.get("async_queue", False)
+
+        self.validate(
+            node_list, options=options,
+            default_present=default_present,
+            disable_loop_check=disable_loop_check,
+            async_queue=async_queue,
+            allow_strings=allow_strings,
+            verbose=verbose,
+            **kwargs
+        )
 
         parent = node_list[0].parent
         start_index = node_list[0].position
-
-        default_present = options.get("default_present", False)
-        async_queue = options.get("async_queue", False)
 
         # Create a directive containing the nodes in node_list and insert it.
         directive = ACCKernelsDirective(
@@ -133,7 +149,7 @@ class ACCKernelsTrans(RegionTrans):
 
     @staticmethod
     def check_async_queue(
-                nodes: List[Node],
+                nodes: list[Node],
                 async_queue: Union[bool, int, Reference]
             ):
         '''
@@ -162,7 +178,7 @@ class ACCKernelsTrans(RegionTrans):
             # A value of True means that async is specified with no queue.
             checkval = None
         elif isinstance(async_queue, int):
-            checkval = Literal(f"{async_queue}", INTEGER_TYPE)
+            checkval = Literal(f"{async_queue}", ScalarType.integer_type())
         elif isinstance(async_queue, Reference):
             checkval = async_queue
         else:
@@ -192,8 +208,9 @@ class ACCKernelsTrans(RegionTrans):
 
     def validate(
                 self,
-                nodes: Union[Node, List[Node]],
-                options: Dict[str, Any] = {}
+                nodes: Union[Node, list[Node]],
+                options: Dict[str, Any] = {},
+                **kwargs
             ) -> None:
         # pylint: disable=signature-differs
         '''
@@ -203,24 +220,6 @@ class ACCKernelsTrans(RegionTrans):
         :param nodes: the proposed PSyIR node or nodes to enclose in the
                       kernels region.
         :param options: a dictionary with options for transformations.
-        :param bool options["default_present"]: whether or not the kernels
-            region should have the 'default present' attribute (indicating
-            that data is already on the accelerator). When using managed
-            memory this option should be False.
-        :param bool options["disable_loop_check"]: whether to disable the
-            check that the supplied region contains 1 or more loops. Default
-            is False (i.e. the check is enabled).
-        :param options["async_queue"]: whether or not to add the 'async' clause
-            to the new directive and if so, which queue to associate it with.
-            True to enable for the default queue or a queue value specified
-            with an int or PSyIR expression.
-        :type options["async_queue"]:
-            Union[bool, :py:class:`psyclone.psyir.nodes.DataNode`]
-        :param bool options["allow_strings"]: whether to allow the
-            transformation on assignments involving character types. Defaults
-            to False.
-        :param bool options["verbose"]: log the reason the validation failed,
-            at the moment with a comment in the provided PSyIR node.
 
         :raises NotImplementedError: if the supplied Nodes belong to
             a GOInvokeSchedule.
@@ -234,8 +233,20 @@ class ACCKernelsTrans(RegionTrans):
             character type child and options["allow_strings"] is not True.
 
         '''
-        if not options:
-            options = {}
+        if options:
+            # TODO #2668: Deprecate options dictionary.
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
+            allow_strings = options.get("allow_strings", False)
+            async_queue = options.get("async_queue", False)
+            disable_loop_check = options.get("disable_loop_check", False)
+            verbose = options.get("verbose", False)
+        else:
+            self.validate_options(**kwargs)
+            allow_strings = self.get_option("allow_strings", **kwargs)
+            async_queue = self.get_option("async_queue", **kwargs)
+            disable_loop_check = self.get_option("disable_loop_check",
+                                                 **kwargs)
+            verbose = self.get_option("verbose", **kwargs)
 
         # Ensure we are always working with a list of nodes, even if only
         # one was supplied via the `nodes` argument.
@@ -248,13 +259,7 @@ class ACCKernelsTrans(RegionTrans):
             raise NotImplementedError(
                 "OpenACC kernels regions are not currently supported for "
                 "GOcean InvokeSchedules")
-        super().validate(node_list, options)
-
-        # The regex we use to determine whether a character declaration is
-        # of assumed size ('LEN=*' or '*(*)').
-        # TODO #2612 - improve the fparser2 frontend support for character
-        # declarations.
-        assumed_size = re.compile(r"\(\s*len\s*=\s*\*\s*\)|\*\s*\(\s*\*\s*\)")
+        super().validate(node_list, options, **kwargs)
 
         # Construct a list of any symbols that correspond to assumed-size
         # character strings. These can only be routine arguments.
@@ -263,14 +268,19 @@ class ACCKernelsTrans(RegionTrans):
         if parent_routine:
             arg_syms = parent_routine.symbol_table.argument_datasymbols
             for sym in arg_syms:
-                # Currently the fparser2 frontend does not support any type
-                # of LEN= specification on a character variable so we resort
-                # to a regex to check whether it is assumed-size.
-                if isinstance(sym.datatype, UnsupportedFortranType):
-                    type_txt = sym.datatype.type_text.lower()
-                    if (type_txt.startswith("character") and
-                            assumed_size.search(type_txt)):
-                        char_syms.append(sym)
+                dtype = sym.datatype
+                if isinstance(dtype, UnsupportedFortranType):
+                    dtype = dtype.partial_datatype
+                    if not dtype:
+                        continue
+                if isinstance(dtype, DataTypeSymbol):
+                    continue
+                if dtype.intrinsic != ScalarType.Intrinsic.CHARACTER:
+                    continue
+                if isinstance(dtype, ArrayType):
+                    dtype = dtype.elemental_type
+                if isinstance(dtype.length, ScalarType.CharLengthParameter):
+                    char_syms.append(sym)
 
         for node in node_list:
             # Check that there are no assumed-size character variables as these
@@ -284,14 +294,14 @@ class ACCKernelsTrans(RegionTrans):
                         f"'{stmt.debug_string()}'")
             # Check there are no character assignments in the region as these
             # cause various problems with (at least) NVHPC <= 24.5
-            if not options.get("allow_strings", False):
+            if not allow_strings:
                 message = (
                     f"{self.name} does not permit assignments involving "
                     f"character variables by default (use the 'allow_strings' "
                     f"option to include them)")
                 for assign in node.walk(Assignment):
                     ArrayAssignment2LoopsTrans.validate_no_char(
-                        assign, message, options)
+                        assign, message, verbose)
 
             # Check that any called routines are supported on the device.
             for icall in node.walk(Call):
@@ -300,13 +310,12 @@ class ACCKernelsTrans(RegionTrans):
                         f"Cannot include '{icall.debug_string()}' in an "
                         f"OpenACC region because it is not available on GPU.")
 
-        # extract async option and check validity
-        async_queue = options.get('async_queue', False)
+        # Check the validity of the supplied async option (if any).
         self.check_async_queue(node_list, async_queue)
 
         # Check that we have at least one loop or array range within
         # the proposed region unless this has been disabled.
-        if options and options.get("disable_loop_check", False):
+        if disable_loop_check:
             return
 
         for node in node_list:

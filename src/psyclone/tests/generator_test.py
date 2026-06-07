@@ -1177,7 +1177,7 @@ def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch,
     '''
     recipe = f'''
 from psyclone.psyir.nodes import Reference, Literal
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import ScalarType
 
 RESOLVE_IMPORTS = {value}
 
@@ -1185,8 +1185,8 @@ def trans(psyir):
     # Replace all integer references with literal '1', it can only be done if
     # we have the type of the symbol (resolved from the module).
     for ref in psyir.walk(Reference):
-        if ref.datatype == INTEGER_TYPE:
-            ref.replace_with(Literal("1", INTEGER_TYPE))
+        if ref.datatype == ScalarType.integer_type():
+            ref.replace_with(Literal("1", ScalarType.integer_type()))
     '''
     recipe_name = f"replace_integers_{idx}.py"
     for filename, content in [("module1.f90", module1),
@@ -1674,24 +1674,6 @@ def test_main_kern_output_dir(tmpdir):
     # current directory
     Config.get().kernel_output_dir = None
     assert Config.get().kernel_output_dir == str(os.getcwd())
-
-
-def test_invalid_kern_naming():
-    '''Check that we raise the expected error if an invalid
-    kernel-renaming scheme is supplied.
-
-    '''
-    alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "lfric",
-                                 "1_single_invoke.f90"))
-    # Simply supplying the wrong value on the command line is picked up
-    # by the argparse module so we call generate() directly with an
-    # incorrect value
-    with pytest.raises(GenerationError) as err:
-        _, _ = generate(alg_filename, api="lfric",
-                        kern_naming="not-a-scheme")
-    assert "Invalid kernel-renaming scheme supplied" in str(err.value)
-    assert "but got 'not-a-scheme'" in str(err.value)
 
 
 def test_enable_cache_flag(tmpdir, monkeypatch):
