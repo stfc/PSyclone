@@ -6146,18 +6146,21 @@ class Fparser2Reader():
 
     def _directive_handler(
         self, node: Fortran2003.Directive, parent: Node
-    ) -> Union[CodeBlock, UnknownDirective]:
+    ) -> Union[CodeBlock, UnknownDirective, Directive]:
         '''
         Process a directive and add it to the tree. The current behaviour
         places most directives into a CodeBlock.
 
         Directives starting with !$psy are turned into a UnknownDirective.
 
+        ACC Routine directives and OMP declare target directives are converted
+        to the corresponding PSyIR Directives.
+
         :param node: Directive to process.
         :param parent: The parent to add the PSyIR node to.
 
-        :returns: a CodeBlock containing the input Directive or a
-                  UnknownDirective.
+        :returns: a CodeBlock containing the input Directive, an
+                  UnknownDirective or a specialised PSyclone Directive.
         '''
         # We don't turn OpenMP extensions or directives we can't output
         # correctly into Directive nodes. PSyclone currently always
@@ -6179,8 +6182,7 @@ class Fparser2Reader():
                 # If we have an acc routine we need to see if there is
                 # a parallelism clause
                 parallel_clause = lcase[13:].lstrip()
-                print(parallel_clause)
-                if parallel_clause != "":
+                if parallel_clause:
                     try:
                         directive = ACCRoutineDirective(
                             parallelism=parallel_clause, parent=parent
