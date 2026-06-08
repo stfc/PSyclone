@@ -35,9 +35,7 @@
 
 '''Contains the OMPMinimiseSyncTrans.'''
 
-# TODO #2837: Once we leave python 3.8 we can use list instead of List for
-# type hints.
-from typing import List, Union
+from typing import Union
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
@@ -213,8 +211,8 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
             if barrier.immediately_follows(barriers[i-1]):
                 barrier.detach()
 
-    def _find_dependencies(self, directives: List[Directive]) \
-            -> List[Union[Node, bool]]:
+    def _find_dependencies(self, directives: list[Directive]) \
+            -> list[Union[Node, bool]]:
         '''
         Finds the next dependencies for each of the directives provided.
 
@@ -247,8 +245,8 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
         return dependencies
 
     @staticmethod
-    def _reduce_barrier_set(required_barriers: List[Node],
-                            depending_barriers: List[List[Node]]) -> None:
+    def _reduce_barrier_set(required_barriers: list[Node],
+                            depending_barriers: list[list[Node]]) -> None:
         '''
         Reduces the depending_barriers set according to the list of
         required_barriers, i.e. if a required_barrier is present in one of
@@ -288,7 +286,7 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
 
     @staticmethod
     def _get_max_barrier_dependency(
-            depending_barriers: List[List[Node]]) -> int:
+            depending_barriers: list[list[Node]]) -> int:
         '''
         Returns the maximum size of a sublist in the depending_barriers
         input.
@@ -302,7 +300,7 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
         '''
         return len(max(depending_barriers, key=len))
 
-    def _eliminate_barriers(self, node: Routine, directives: List[Directive],
+    def _eliminate_barriers(self, node: Routine, directives: list[Directive],
                             barrier_type: type) -> None:
         '''
         Eliminates barriers of the barrier_type in the input Routine node that
