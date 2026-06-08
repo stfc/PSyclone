@@ -402,23 +402,46 @@ def get_stencil(metadata, valid_types):
 
 def get_nlevels(metadata: expr.NamedArg) -> str:
     '''
-    Returns the number of levels described by the supplied meta-data
+    Returns the number of levels specified by the supplied meta-data
 
     :param metadata: node in fparser1 ast holding the meta-data.
 
     :return: a label identifying the number of vertical levels.
 
     :raises ParseError: if the supplied ast does not correspond to
-                        `nlevels="some-label"`.
+                        `nlevels="some-label | int"`.
     '''
     if (not isinstance(metadata, expr.NamedArg) or
             metadata.name.lower() != "nlevels"):
         raise ParseError(
-            f"{metadata} is not a valid mesh identifier (expected "
-            f"nlevels='label')")
-    mesh = metadata.value.lower()
+            f"{metadata} is not a valid nlevels specifier (expected "
+            f"nlevels='label | int')")
+    nlevels = metadata.value.lower()
 
-    return mesh
+    return nlevels
+
+
+def get_ndata(metadata: expr.NamedArg) -> str:
+    '''
+    Returns the number of data values per DoF specified by the supplied
+    meta-data.
+
+    :param metadata: node in fparser1 ast holding the meta-data.
+
+    :return: a label (or int as a string) specifying the number of data
+             values per DoF.
+
+    :raises ParseError: if the supplied ast does not correspond to
+                        `ndata="some-label | int"`.
+    '''
+    if (not isinstance(metadata, expr.NamedArg) or
+            metadata.name.lower() != "ndata"):
+        raise ParseError(
+            f"{metadata} is not a valid ndata specifier (expected "
+            f"ndata='label | int')")
+    ndata = metadata.value.lower()
+
+    return ndata
 
 
 class Descriptor():
