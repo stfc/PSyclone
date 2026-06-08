@@ -990,7 +990,7 @@ class Kern(Statement):
             array_symbol, [
                 Literal("1", ScalarType.integer_type()),
                 Reference(thread_idx)
-        ])
+            ])
 
         assign = Assignment.create(
             arr_ref, Reference(local_var)
@@ -1029,7 +1029,6 @@ class Kern(Statement):
         parallel_region.private_clause.addchild(
                 Reference(local_var)
         )
-
 
     def reduction_sum_loop(self,
                            parent: Node,
@@ -1165,9 +1164,9 @@ class Kern(Statement):
             array_type = ArrayType(arg_sym.datatype,
                                    2*[ArrayType.Extent.DEFERRED])
             # Create a scalar temp to store to in the loop.
-            local_temp_var = table.find_or_create_tag(
-                root_name = f"local_temp_{self._reduction_arg.name}",
-                tag = f"{self.name}:{self._reduction_arg.name}:templocal",
+            _ = table.find_or_create_tag(
+                root_name=f"local_temp_{self._reduction_arg.name}",
+                tag=f"{self.name}:{self._reduction_arg.name}:templocal",
                 symbol_type=DataSymbol, datatype=arg_sym.datatype)
             local_var = table.find_or_create_tag(
                 root_name="local_"+self._reduction_arg.name,
