@@ -6160,7 +6160,7 @@ class Fparser2Reader():
         :param parent: The parent to add the PSyIR node to.
 
         :returns: a CodeBlock containing the input Directive, an
-                  UnknownDirective or a specialised PSyclone Directive.
+                  UnknownDirective or a specialised PSyIR Directive.
         '''
         # We don't turn OpenMP extensions or directives we can't output
         # correctly into Directive nodes. PSyclone currently always
