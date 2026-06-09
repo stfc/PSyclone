@@ -3818,8 +3818,7 @@ shared array as required for reproducible reductions.
     ! Perform global sum
     global_sum%value = {names["var"]}
     {names["var"]} = global_sum%get_sum()
-"""
-                      )
+""")
             assert correct in code
     else:
         assert "loop0_stop = undf_as1_f1" in code
@@ -3864,8 +3863,7 @@ shared array as required for reproducible reductions.
       {names["var"]} = {names["var"]} + {names["avar"]}(1,th_idx)
     enddo
     DEALLOCATE({names["avar"]})
-"""
-                      )
+""")
             assert correct in code
 
 
