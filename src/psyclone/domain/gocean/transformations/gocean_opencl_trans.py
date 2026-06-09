@@ -65,8 +65,8 @@ class GOOpenCLTrans(Transformation):
     each of the kernels referenced by the Invoke. For example:
 
     >>> from psyclone.tests.utilities import get_psylayer_schedule
-    >>> filename = "shallow/shallow_alg.f90"
-    >>> schedule = get_psylayer_schedule(filename, api="gocean")
+    >>> filename = "eg1/shallow_alg.f90"
+    >>> schedule = get_psylayer_schedule(filename, "gocean-examples")
     >>>
     >>> from psyclone.domain.gocean.transformations import (
     ...     GOMoveIterationBoundariesInsideKernelTrans,
@@ -80,7 +80,8 @@ class GOOpenCLTrans(Transformation):
     ...    # Put kernels in same container and iterate the whole space
     ...    mod_inline_trans.apply(kern)
     ...    move_trans.apply(kern)
-    >>> ocl_trans.apply(schedule)
+    >>> # Commented to prevent generating doctest output .cl files
+    >>> # ocl_trans.apply(schedule)
 
     '''
     # Specify which OpenCL command queue to use for management operations like

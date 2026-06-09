@@ -64,8 +64,8 @@ class LoopSwapTrans(LoopTrans):
     This transform is used as follows:
 
     >>> from psyclone.tests.utilities import get_psylayer_schedule
-    >>> filename = "shallow/shallow_alg.f90"
-    >>> schedule = get_psylayer_schedule(filename, api="gocean")
+    >>> filename = "eg1/shallow_alg.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean-examples")
     >>>
     >>> from psyclone.psyir.transformations import LoopSwapTrans
     >>> from psyclone.psyir.nodes import Loop

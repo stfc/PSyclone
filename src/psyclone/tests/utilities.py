@@ -507,7 +507,8 @@ def get_base_path(api: str = "") -> str:
     'tests/test_files' directory, i.e. the directory in which all
     Fortran test files are stored.
 
-    :param api: name of the API.
+    :param api: name of the API. Also accepts 'gocean-examples' to mean
+        a gocean api file under the examples directory.
 
     :returns: the base path for the API.
 
@@ -515,11 +516,12 @@ def get_base_path(api: str = "") -> str:
 
     '''
     # Define the mapping of supported APIs to Fortran directories
-    # Note that the nemo files are outside of the default tests/test_files
-    # directory, they are in tests/nemo/test_files
-    api_2_path = {"lfric": "lfric",
-                  "": "../nemo/test_files",
-                  "gocean": "gocean1p0"}
+    api_2_path = {
+        "lfric": "lfric",
+        "": "../nemo/test_files",
+        "gocean": "gocean1p0",
+        "gocean-examples": "../../../../examples/gocean"
+    }
     try:
         dir_name = api_2_path[api]
     except KeyError as err:
@@ -604,7 +606,9 @@ def get_psylayer_schedule(
     algorithm file.
 
     :param algfile: name of the Algorithm source file (Fortran).
-    :param api: which PSyclone API this Algorithm uses.
+    :param api: which PSyclone API this Algorithm uses. Also accepts
+        'gocean-examples' to mean a gocean api file under the examples
+        directory.
     :param invoke_name: return the schedule of a given invoke.
     :param dist_mem: if the psy instance should be created with or
                      without distributed memory support.
@@ -612,12 +616,13 @@ def get_psylayer_schedule(
     :returns: the associated psylayer schedule.
 
     '''
-
-    config = Config.get()
-    config.api = api
-    # Ensure infrastructure module files can be discovered.
-    # config.include_paths.append(get_infrastructure_path(api))
     filepath = os.path.join(get_base_path(api), algfile)
+    config = Config.get()
+    if api == "gocean-examples":
+        # gocean-examples in this utility is a shorthand for using the gocean
+        # API but from its examples directory as a basepath
+        api = "gocean"
+    config.api = api
 
     _, info = parse(filepath, api=api)
     psy = PSyFactory(api, distributed_memory=dist_mem).create(info)
@@ -627,14 +632,17 @@ def get_psylayer_schedule(
         return psy.invokes.invoke_list[0].schedule
 
 
-def get_file_path(relative_path: str):
+def get_examples_path(relative_path: str):
     '''
-    :param relative_path: given a relative file path.
+    :param relative_path: given a relative examples file path.
 
-    :returns: its absolute file path inside the test directory.
+    :returns: its absolute file path.
 
     '''
-    return os.path.join(get_base_path(), relative_path)
+    return os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "../../../examples",
+        relative_path)
 
 
 def get_ast(api: str, filename: str) -> BeginSource:

@@ -68,8 +68,8 @@ class ACCKernelsTrans(RegionTrans):
     For example:
 
     >>> from psyclone.psyir.frontend.fortran import FortranReader
-    >>> from psyclone.tests.utilities import get_file_path
-    >>> filename = get_file_path("code/tra_adv.F90")
+    >>> from psyclone.tests.utilities import get_examples_path
+    >>> filename = get_examples_path("nemo/code/tra_adv.F90")
     >>> psyir = FortranReader().psyir_from_file(filename)
     >>>
     >>> from psyclone.psyir.transformations import ACCKernelsTrans

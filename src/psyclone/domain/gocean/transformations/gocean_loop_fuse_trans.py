@@ -50,8 +50,8 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
     that the loops are over the same grid-point type). For example:
 
     >>> from psyclone.tests.utilities import get_psylayer_schedule
-    >>> filename = "shallow/shallow_alg.f90"
-    >>> schedule = get_psylayer_schedule(filename, api="gocean")
+    >>> filename = "eg1/shallow_alg.f90"
+    >>> schedule = get_psylayer_schedule(filename, "gocean-examples")
     >>>
     >>> from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
     >>> ftrans = GOceanLoopFuseTrans()
