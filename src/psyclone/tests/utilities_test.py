@@ -376,7 +376,7 @@ def test_get_base_path() -> None:
     assert "tests/test_files/gocean1p0" in gocean
     lfric = get_base_path("lfric")
     assert "tests/test_files/lfric" in lfric
-    nemo = get_base_path("nemo")
+    nemo = get_base_path()
     assert "nemo/test_files" in nemo
 
     with pytest.raises(RuntimeError) as err:

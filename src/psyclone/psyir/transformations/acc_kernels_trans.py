@@ -67,16 +67,16 @@ class ACCKernelsTrans(RegionTrans):
 
     For example:
 
-    >>> from psyclone.psyir.frontend import FortranReader
-    >>> psyir = FortranReader().psyir_from_source(NEMO_SOURCE_FILE)
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.tests.utilities import get_examples_path
+    >>> filename = get_examples_path("nemo/code/tra_adv.F90")
+    >>> psyir = FortranReader().psyir_from_file(filename)
     >>>
     >>> from psyclone.psyir.transformations import ACCKernelsTrans
     >>> ktrans = ACCKernelsTrans()
     >>>
     >>> schedule = psyir.children[0]
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>> kernels = schedule.children[9]
+    >>> kernels = schedule.children[26]
     >>> # Transform the kernel
     >>> ktrans.apply(kernels)
 

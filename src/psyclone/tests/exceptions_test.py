@@ -92,8 +92,10 @@ def test_exception_repr():
         _ = importlib.import_module(mod)
 
     all_exceptions = all_sub_exceptions(Exception)
-    psy_excepts = [exc for exc in all_exceptions if "psyclone." in str(exc)]
-    psy_excepts.append(DummyPSycloneError)
+    psy_excepts = set(exc for exc in all_exceptions
+                      if "psyclone." in str(exc) and
+                      "PSycloneError" not in str(exc))
+    psy_excepts.add(DummyPSycloneError)
 
     # Different versions of pytest behave differently with respect to their
     # handling of an exception's representation. This can lead to some tests
@@ -112,8 +114,11 @@ def test_exception_repr():
 
     for psy_except in psy_excepts:
 
-        # Check if the exception inherits PSycloneError
-        assert issubclass(psy_except, PSycloneError)
+        # Check if the exception inherits PSycloneError (we don't use
+        # issubclass because the import_modules used in this test re-imports
+        # already loaded modules and create two super classes PSycloneError)
+        assert 'PSycloneError' in [str(cls.__name__) for cls in
+                                   psy_except.__bases__]
 
         # Ensure there are __str__ & __repr__ methods implemented which are not
         # inherited from the parent Exception class

@@ -46,24 +46,19 @@ from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
 
 class GOceanExtractTrans(ExtractTrans):
-    ''' GOcean1.0 API application of ExtractTrans transformation \
+    ''' GOcean1.0 API application of ExtractTrans transformation
     to extract code into a stand-alone program. For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>>
-    >>> API = "gocean"
-    >>> FILENAME = "shallow_alg.f90"
-    >>> ast, invokeInfo = parse(FILENAME, api=API)
-    >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "eg1/shallow_alg.f90"
+    >>> schedule = get_psylayer_schedule(filename, "gocean-examples")
     >>>
     >>> from psyclone.domain.gocean.transformations import GOceanExtractTrans
     >>> etrans = GOceanExtractTrans()
     >>>
     >>> # Apply GOceanExtractTrans transformation to selected Nodes
     >>> etrans.apply(schedule.children[0])
-    >>> print(schedule.view())
+
     '''
 
     # ------------------------------------------------------------------------

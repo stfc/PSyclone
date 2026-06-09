@@ -49,23 +49,8 @@ from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 class OMPParallelLoopTrans(OMPLoopTrans):
     ''' Adds an OpenMP PARALLEL DO directive to a loop.
 
-        For example:
-
-        >>> from psyclone.parse.algorithm import parse
-        >>> from psyclone.psyGen import PSyFactory
-        >>> ast, invokeInfo = parse("lfric.F90")
-        >>> psy = PSyFactory("lfric").create(invokeInfo)
-        >>> schedule = psy.invokes.get('invoke_v3_kernel_type').schedule
-        >>> # Uncomment the following line to see a text view of the schedule
-        >>> # print(schedule.view())
-        >>>
-        >>> from psyclone.transformations import OMPParallelLoopTrans
-        >>> trans = OMPParallelLoopTrans()
-        >>> trans.apply(schedule.children[0])
-        >>> # Uncomment the following line to see a text view of the schedule
-        >>> # print(schedule.view())
-
     '''
+
     def __str__(self):
         return "Add an 'OpenMP PARALLEL DO' directive"
 
