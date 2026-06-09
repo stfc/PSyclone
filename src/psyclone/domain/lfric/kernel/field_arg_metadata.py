@@ -68,11 +68,13 @@ class FieldArgMetadata(ScalarArgMetadata):
     stencil_arg_index = 4
     # The name to use for any exceptions.
     check_name = "field"
-    # The number of arguments in the language-level metadata (min and
-    # max values).
+    # The number of positional arguments in the language-level metadata (min
+    # and max values).
     nargs = (4, 5)
 
-    def __init__(self, datatype, access, function_space, stencil=None):
+    def __init__(self, datatype, access, function_space, stencil=None,
+                 nlevels=None,
+                 ndata=1):
         super().__init__(datatype, access)
         self.function_space = function_space
         self.stencil = stencil
@@ -84,21 +86,24 @@ class FieldArgMetadata(ScalarArgMetadata):
         form (but do not check the metadata values as that is done
         separately).
 
-        :param fparser2_tree: fparser2 tree containing the metadata \
+        :param fparser2_tree: fparser2 tree containing the metadata
             for this argument.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` |
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
-        :returns: a tuple containing the datatype, access, function \
-            space and stencil metadata.
-        :rtype: Tuple[str, str, str, Optional[str]]
+        :returns: a tuple containing the datatype, access, function
+            space, stencil, nlevels and ndata metadata.
+        :rtype: Tuple[str, str, str,
+                      Optional[str], Optional[str], Optional[str]]
 
         '''
         datatype, access = super()._get_metadata(fparser2_tree)
         function_space = cls.get_arg(
             fparser2_tree, cls.function_space_arg_index)
         stencil = cls.get_stencil(fparser2_tree)
-        return (datatype, access, function_space, stencil)
+        nlevels = cls.get_named_arg(fparser2_tree, "nlevels")
+        ndata = cls.get_named_arg(fparser2_tree, "ndata")
+        return (datatype, access, function_space, stencil, nlevels, ndata)
 
     @classmethod
     def get_stencil(cls, fparser2_tree):
@@ -127,6 +132,12 @@ class FieldArgMetadata(ScalarArgMetadata):
                             f"'stencil(type)' but found '{raw_stencil_text}'.")
         stencil = raw_stencil_text[8:-1]
         return stencil
+
+    @classmethod
+    def get_nlevels(cls, fparser2_tree):
+        '''
+        '''
+        return cls.get_named_arg(fparser2_tree, "nlevels")
 
     def fortran_string(self):
         '''

@@ -150,5 +150,16 @@ class CommonArgMetadata(CommonMetadata):
             # Metadata at the specified index does not exist.
             return None
 
+    @staticmethod
+    def get_named_arg(fparser2_tree, name: str):
+        '''
+        TODO
+        '''
+        for child in fparser2_tree.children[1].children:
+            if child.children and child.children[0].tostr() == name:
+                return child.children[1].tostr()
+
+        return None
+
 
 __all__ = ["CommonArgMetadata"]
