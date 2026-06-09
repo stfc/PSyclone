@@ -43,7 +43,6 @@ functionality (e.g. metadata, parsing, invoke calls).
 
 import os
 import pytest
-import fparser
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
@@ -89,12 +88,6 @@ contains
   end subroutine testkern_field_code
 end module testkern_field_mod
 '''
-
-
-@pytest.fixture(name="disable_fparser_logging", scope="function", autouse=True)
-def disable_fparser_logging_fixture():
-    '''Fixture to automate disabling of fparser logging.'''
-    fparser.logging.disable(fparser.logging.CRITICAL)
 
 
 def test_ad_fld_type_1st_arg():
@@ -397,6 +390,26 @@ def test_arg_descriptor_field():
     assert field_descriptor.mesh is None
     assert field_descriptor.stencil is None
     assert field_descriptor.vector_size == 1
+    assert field_descriptor.nlevels is None
+    assert field_descriptor.ndata == 1
+
+
+def test_fld_nlevels():
+    '''
+    Test a field argument with the optional 'nlevels' metatadata.
+    '''
+    code = FIELD_CODE.replace(
+        "arg_type(gh_scalar, gh_integer, gh_read)",
+        "arg_type(gh_field, gh_real, gh_read, w3, nlevels='double')", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_field_type"
+    mdata = LFRicKernMetadata(ast, name=name)
+    # By default, nlevels is left as None.
+    field_descriptor = mdata.arg_descriptors[5]
+    assert field_descriptor.nlevels is None
+    # The seventh argument has nlevels specified as "double"
+    field_descriptor = mdata.arg_descriptors[6]
+    assert field_descriptor.nlevels == "double"
 
 
 def test_invalid_vector_operator():
