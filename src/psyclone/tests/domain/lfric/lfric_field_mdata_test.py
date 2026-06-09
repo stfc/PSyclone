@@ -390,6 +390,8 @@ def test_arg_descriptor_field():
     assert field_descriptor.mesh is None
     assert field_descriptor.stencil is None
     assert field_descriptor.vector_size == 1
+    assert field_descriptor.nlevels is None
+    assert field_descriptor.ndata == 1
 
 
 def test_fld_nlevels():

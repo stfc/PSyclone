@@ -315,7 +315,7 @@ def get_mesh(metadata, valid_mesh_types):
     :return: the name of the mesh
     :rtype: string
 
-    :raises ParseError: if the supplied meta-data is not a recognised \
+    :raises ParseError: if the supplied meta-data is not a recognised
                         mesh identifier.
     :raises ParseError: if the mesh type is unsupported.
 
@@ -400,6 +400,24 @@ def get_stencil(metadata, valid_types):
     return {"type": stencil_type, "extent": stencil_extent}
 
 
+def _get_char_value(metadata: expr.NamedArg, keyword: str) -> str:
+    '''
+    '''
+    if (not isinstance(metadata, expr.NamedArg) or
+            metadata.name.lower() != keyword):
+        raise ParseError(
+            f"{metadata} is not a valid {keyword} specifier (expected "
+            f"{keyword}='label | int')")
+    if not (metadata.value[0] == metadata.value[-1] and
+            metadata.value[0] in ["'", '"']):
+        raise ParseError(
+            f"The value of {keyword} must be specified as a quoted string "
+            f"but got {metadata}")
+    result = metadata.value[1:-2].lower()
+
+    return result
+
+
 def get_nlevels(metadata: expr.NamedArg) -> str:
     '''
     Returns the number of levels specified by the supplied meta-data
@@ -411,14 +429,7 @@ def get_nlevels(metadata: expr.NamedArg) -> str:
     :raises ParseError: if the supplied ast does not correspond to
                         `nlevels="some-label | int"`.
     '''
-    if (not isinstance(metadata, expr.NamedArg) or
-            metadata.name.lower() != "nlevels"):
-        raise ParseError(
-            f"{metadata} is not a valid nlevels specifier (expected "
-            f"nlevels='label | int')")
-    nlevels = metadata.value.lower()
-
-    return nlevels
+    return _get_char_value(metadata, "nlevels")
 
 
 def get_ndata(metadata: expr.NamedArg) -> str:
@@ -434,14 +445,7 @@ def get_ndata(metadata: expr.NamedArg) -> str:
     :raises ParseError: if the supplied ast does not correspond to
                         `ndata="some-label | int"`.
     '''
-    if (not isinstance(metadata, expr.NamedArg) or
-            metadata.name.lower() != "ndata"):
-        raise ParseError(
-            f"{metadata} is not a valid ndata specifier (expected "
-            f"ndata='label | int')")
-    ndata = metadata.value.lower()
-
-    return ndata
+    return _get_char_value(metadata, "ndata")
 
 
 class Descriptor():
