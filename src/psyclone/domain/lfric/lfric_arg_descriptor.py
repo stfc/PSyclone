@@ -52,7 +52,7 @@ from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import InternalError
 import psyclone.expression as expr
 from psyclone.parse.kernel import (
-    Descriptor, get_stencil, get_mesh, get_ndata, get_nlevels)
+    Descriptor, get_stencil, get_mesh, get_char_value)
 from psyclone.parse.utils import ParseError
 
 # API configuration
@@ -110,7 +110,11 @@ class LFRicArgDescriptor(Descriptor):
         self._function_space2 = None
         self._stencil = None
         self._mesh = None
-        self._nlevels = ""
+        # No. of vertical levels associated with the argument. Defaults to
+        # using that of the first field/operator argument to a kernel.
+        self._nlevels = None
+        # No. of data values per dof - defaults to 1.
+        self._ndata = 1
         self._nargs = 0
 
         # Check for the correct argument type descriptor
@@ -414,9 +418,11 @@ class LFRicArgDescriptor(Descriptor):
                         self._mesh = get_mesh(arg_type.args[prop_ind],
                                               const.VALID_MESH_TYPES)
                     elif "nlevels" in str(arg_type.args[prop_ind]):
-                        self._nlevels = get_nlevels(arg_type.args[prop_ind])
+                        self._nlevels = get_char_value(arg_type.args[prop_ind],
+                                                       "nlevels")
                     elif "ndata" in str(arg_type.args[prop_ind]):
-                        self._ndata = get_ndata(arg_type.args[prop_ind])
+                        self._ndata = get_char_value(arg_type.args[prop_ind],
+                                                     "ndata")
                     else:
                         raise ParseError("Unrecognised metadata entry")
                 except ParseError as err:

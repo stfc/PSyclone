@@ -404,9 +404,9 @@ def test_fld_nlevels():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_field_type"
     mdata = LFRicKernMetadata(ast, name=name)
-    # By default, nlevels is left as an empty string.
+    # By default, nlevels is left as None.
     field_descriptor = mdata.arg_descriptors[5]
-    assert field_descriptor.nlevels == ""
+    assert field_descriptor.nlevels is None
     # The seventh argument has nlevels specified as "double"
     field_descriptor = mdata.arg_descriptors[6]
     assert field_descriptor.nlevels == "double"

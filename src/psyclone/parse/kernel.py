@@ -400,52 +400,32 @@ def get_stencil(metadata, valid_types):
     return {"type": stencil_type, "extent": stencil_extent}
 
 
-def _get_char_value(metadata: expr.NamedArg, keyword: str) -> str:
+def get_char_value(metadata: expr.NamedArg,
+                   keyword: str) -> str:
     '''
+    :param metadata: node in fparser1 ast holding the meta-data.
+    :param keyword: the name of the meta-data entry to extract.
+
+    :returns: a label or int (as a string) representing the value
+              of the metadata element.
+
+    :raises ParseError: if the supplied metadata doesn't represent
+        a named argument for the specified keyword.
+    :raises ParseError: if the value associated with the keyword is
+        not provided as a string.
+
     '''
     if (not isinstance(metadata, expr.NamedArg) or
             metadata.name.lower() != keyword):
         raise ParseError(
             f"{metadata} is not a valid {keyword} specifier (expected "
             f"{keyword}='label | int')")
-    if not (metadata.value[0] == metadata.value[-1] and
-            metadata.value[0] in ["'", '"']):
+    if not metadata.is_string:
         raise ParseError(
             f"The value of {keyword} must be specified as a quoted string "
             f"but got {metadata}")
-    result = metadata.value[1:-2].lower()
 
-    return result
-
-
-def get_nlevels(metadata: expr.NamedArg) -> str:
-    '''
-    Returns the number of levels specified by the supplied meta-data
-
-    :param metadata: node in fparser1 ast holding the meta-data.
-
-    :return: a label identifying the number of vertical levels.
-
-    :raises ParseError: if the supplied ast does not correspond to
-                        `nlevels="some-label | int"`.
-    '''
-    return _get_char_value(metadata, "nlevels")
-
-
-def get_ndata(metadata: expr.NamedArg) -> str:
-    '''
-    Returns the number of data values per DoF specified by the supplied
-    meta-data.
-
-    :param metadata: node in fparser1 ast holding the meta-data.
-
-    :return: a label (or int as a string) specifying the number of data
-             values per DoF.
-
-    :raises ParseError: if the supplied ast does not correspond to
-                        `ndata="some-label | int"`.
-    '''
-    return _get_char_value(metadata, "ndata")
+    return metadata.value.lower()
 
 
 class Descriptor():

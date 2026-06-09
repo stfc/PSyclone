@@ -52,7 +52,7 @@ from psyclone.expression import ExpressionNode, FunctionVar, NamedArg
 from psyclone.parse.kernel import (
     KernelType, get_kernel_metadata, get_kernel_interface, KernelProcedure,
     Descriptor, BuiltInKernelTypeFactory, get_kernel_filepath, get_kernel_ast,
-    get_ndata, get_nlevels, get_stencil)
+    get_char_value, get_stencil)
 from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError
 
@@ -712,22 +712,22 @@ def test_get_stencil():
             in str(excinfo.value))
 
 
-def test_get_nlevels():
+def test_get_char_value():
     '''
-    Tests for the get_nlevels() routine.
+    Tests for the get_char_value() routine.
     '''
     enode = ExpressionNode(["1"])
     with pytest.raises(ParseError) as err:
-        _ = get_nlevels(enode)
+        _ = get_char_value(enode, "nlevels")
     assert "not a valid nlevels specifier (expected" in str(err.value)
     # Value must be a quoted string
     node = NamedArg(["nlevels", "=", "1"])
     with pytest.raises(ParseError) as err:
-        _ = get_nlevels(node)
+        _ = get_char_value(node, "nlevels")
     assert ("nlevels must be specified as a quoted string but got nlevels=1"
             in str(err.value))
     node2 = NamedArg(["nlevels", "=", "'1'"])
-    value = get_nlevels(node2)
+    value = get_char_value(node2, "nlevels")
     assert value == "1"
 
 
