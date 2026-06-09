@@ -1925,8 +1925,9 @@ class OMPDoDirective(DataSharingAttributeMixin, OMPRegionDirective):
         # We only attempt to *automatically* add reduction clauses if we have a
         # high-level (DSL) reduction operation.
         reductions = self.reductions()
-        if not reductions:
-            # No high-level reduction operations.
+        if not reductions or self.reprod:
+            # No high-level reduction operations, or
+            # using reproducible reductions
             return super().lower_to_language_level()
 
         self.children[0].lower_to_language_level()
