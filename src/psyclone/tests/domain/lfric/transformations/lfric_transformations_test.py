@@ -3820,7 +3820,7 @@ shared array as required for reproducible reductions.
     {names["var"]} = global_sum%get_sum()
 """
             )
-        assert correct in code
+            assert correct in code
     else:
         assert "loop0_stop = undf_as1_f1" in code
         assert "loop1_stop = undf_as1_f1" in code
