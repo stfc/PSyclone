@@ -38,7 +38,8 @@ API to apply redundant computation to halo depth 1 for all loops that
 iterate over dofs and do not contain a reduction.
 
 '''
-from psyclone.transformations import LFRicRedundantComputationTrans
+from psyclone.domain.lfric.transformations import (
+    LFRicRedundantComputationTrans)
 
 ITERATION_SPACES = ["dofs"]
 DEPTH = 1

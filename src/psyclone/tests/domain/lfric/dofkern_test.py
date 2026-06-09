@@ -45,12 +45,13 @@ from fparser import api as fpapi
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicKernMetadata, LFRicLoop
+from psyclone.domain.lfric.transformations import (
+    LFRicRedundantComputationTrans)
 from psyclone.lfric import LFRicHaloExchange
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.transformations import LFRicRedundantComputationTrans
 
 
 @pytest.fixture(scope="module", autouse=True)
