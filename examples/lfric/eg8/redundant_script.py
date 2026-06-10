@@ -45,18 +45,20 @@ example script has been written is taken from the Met Office
 repository but an operator has been replaced with a field in one of
 the kernels to allow redundant computation'''
 
+from psyclone.domain.lfric.transformations import (
+    LFRicRedundantComputationTrans)
+from psyclone.psyir.nodes import FileContainer
+from psyclone.psyir.transformations import MoveTrans
 
-def trans(psyir):
+
+def trans(psyir: FileContainer) -> None:
     '''Removes the grad_p halo exchanges by redundant computation then
     moves the remaining halo exchanges to the beginning of the invoke
     call.
 
     :param psyir: the PSyIR of the PSy-layer.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    from psyclone.transformations import LFRicRedundantComputationTrans
-    from psyclone.psyir.transformations import MoveTrans
     rc_trans = LFRicRedundantComputationTrans()
     m_trans = MoveTrans()
 
