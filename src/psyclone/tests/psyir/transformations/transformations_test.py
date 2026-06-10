@@ -271,7 +271,7 @@ def test_ompdeclaretargettrans_detached_scope_fallback(sample_psyir,
     monkeypatch.setattr(routine, "reference_accesses", lambda: DummyVAM())
     with pytest.raises(TransformationError) as err:
         ompdeclaretargettrans.apply(routine)
-    assert "which is imported" in str(err.value)
+    assert "accesses the imported symbol" in str(err.value)
 
 
 def test_omptaskloop_no_collapse():
@@ -429,9 +429,9 @@ def test_ompdeclaretargettrans_with_globals(sample_psyir, parser):
     ref1.symbol.interface = ImportInterface(ContainerSymbol('my_mod'))
     with pytest.raises(TransformationError) as err:
         ompdeclaretargettrans.apply(routine)
-    assert ("routine 'my_subroutine' accesses the symbol 'a: DataSymbol<Array"
-            "<Scalar<INTEGER, UNDEFINED>, shape=[10, 10]>, "
-            "Import(container='my_mod')>' which is imported. If this symbol "
+    assert ("routine 'my_subroutine' accesses the imported symbol "
+            "'a: DataSymbol<Array<Scalar<INTEGER, UNDEFINED>, shape=[10, 10]>,"
+            " Import(container='my_mod')>'. If this symbol "
             "represents data then it must first be converted to a routine "
             "argument using the KernelImportsToArguments transformation."
             in str(err.value))
@@ -448,9 +448,9 @@ def test_ompdeclaretargettrans_with_globals(sample_psyir, parser):
     ref1.replace_with(block)
     with pytest.raises(TransformationError) as err:
         ompdeclaretargettrans.apply(routine)
-    assert ("routine 'my_subroutine' accesses the symbol 'a: DataSymbol<Array<"
-            "Scalar<INTEGER, UNDEFINED>, shape=[10, 10]>, "
-            "Import(container='my_mod')>' which is imported. If this symbol "
+    assert ("routine 'my_subroutine' accesses the imported symbol "
+            "'a: DataSymbol<Array<Scalar<INTEGER, UNDEFINED>, shape=[10, 10]>,"
+            " Import(container='my_mod')>'. If this symbol "
             "represents data then it must first be converted to a routine "
             "argument using the KernelImportsToArguments transformation."
             in str(err.value))
