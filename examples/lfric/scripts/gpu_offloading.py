@@ -82,6 +82,7 @@ MANUALLY_ANNOTATED = [
     # Constants
     'cpv', 'eps', 'dl_type_latitude', 'lf', 'cl', 'recip_epsilon', 'dl_type',
     'large_real_positive', 'eps_r_tran', 'ci', 'lv0', 'small_r_tran', 'pi',
+    'rv', 'lv',
     # Functions/subroutines
     'chi2llr', 'chi2xyz', 'chi2abr', 'xyz2ll', 'xyz2llr', 'alphabetar2xyz',
     'coord_system', 'coord_system_xyz', 'cart2sphere_vector',
@@ -93,7 +94,7 @@ MANUALLY_ANNOTATED = [
     'matrix_invert_lu',
     'crosses_panel_edge', 'crosses_rotated_panel_edge',
     'panel_neighbour', 'rotated_panel_neighbour',
-    'qsaturation',
+    'qsaturation', 'interpolate_u_to_x',
     'rotation_vector_fplane', 'vert_vector_sphere', 'rotation_vector_sphere',
 
     # Subroutines with GPU annotation but that cause runtime faliures
