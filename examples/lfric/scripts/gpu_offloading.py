@@ -59,8 +59,8 @@ from psyclone.transformations import (
 from psyclone.psyir.transformations import ACCLoopTrans
 
 
-# Names of any invoke that we won't add any GPU offloading
-INVOKE_EXCLUSIONS = []
+# Names of any Algorithm module that we won't add any GPU offloading
+ALG_EXCLUSIONS = ('diagnostic_', )
 
 # We won't attempt to inline calls to routines with names that contain
 # these strings (because they're not computationally important).
@@ -68,8 +68,38 @@ INLINE_EXCLUSIONS = ["abort", "logging"]
 
 OFFLOAD_DIRECTIVES = os.getenv('LFRIC_OFFLOAD_DIRECTIVES', "none")
 
-RESOLVE_IMPORTS = ['constants_mod']
+# Ideally this script would not need the list of manually annotated symbols if
+# resolving the imports retrieved the information, but currently:
+# 1) The lfric build system does not have this in the working directory at
+# psycloning-time, or they still have preprocessor macros.
+# 2) Psyclone needs to parse comments/directive and understand them
+RESOLVE_IMPORTS = ['constants_mod', 'finite_element_config_mod']
+# Alternatively, we have to list by name every symbol that is GPU-ready
+MANUALLY_ANNOTATED = [
+    # Read-only Globals
+    'geometry', 'topology', 'geometry_spherical', 'geometry_planar',
+    'scaled_radius',
+    # Constants
+    'cpv', 'eps', 'dl_type_latitude', 'lf', 'cl', 'recip_epsilon', 'dl_type',
+    'large_real_positive', 'eps_r_tran', 'ci', 'lv0', 'small_r_tran', 'pi',
+    # Functions/subroutines
+    'chi2llr', 'chi2xyz', 'chi2abr', 'xyz2ll', 'xyz2llr', 'alphabetar2xyz',
+    'coord_system', 'coord_system_xyz', 'cart2sphere_vector',
+    'cart2sphere_scalar',
+    'coordinate_jacobian', 'coordinate_jacobian_inverse',
+    'pointwise_coordinate_jacobian', 'pointwise_coordinate_jacobian_inverse',
 
+    'cross_product',
+    'matrix_invert_lu',
+    'crosses_panel_edge', 'crosses_rotated_panel_edge',
+    'panel_neighbour', 'rotated_panel_neighbour',
+    'qsaturation',
+    'rotation_vector_fplane', 'vert_vector_sphere', 'rotation_vector_sphere',
+
+    # Subroutines with GPU annotation but that cause runtime faliures
+    # 'native_jacobian',  # Runtime invalid address access
+    # 'rehabilitate',     # Different results
+]
 
 def _replace_matmuls(sched: Schedule):
     '''
@@ -136,7 +166,13 @@ def trans(psyir):
               f"but found '{OFFLOAD_DIRECTIVES}'.")
         sys.exit(-1)
 
-    print(f"PSy name = '{psyir.name}'")
+    if psyir.name.lower().startswith(ALG_EXCLUSIONS):
+        print(f"Not adding GPU offloading to psy: '{psyir.name}'")
+        offload = False
+    else:
+        print(f"Attempting to offload psy: '{psyir.name}'")
+        offload = True
+
 
     for subroutine in psyir.walk(Routine):
 
@@ -150,12 +186,6 @@ def trans(psyir):
                 if len(loop.kernels()) == 1:
                     if loop.kernels()[0].name in ["setval_c"]:
                         rtrans.apply(loop, options={"depth": 1})
-
-        if psyir.name.lower() in INVOKE_EXCLUSIONS:
-            print(f"Not adding GPU offloading to invoke '{psyir.name}'")
-            offload = False
-        else:
-            offload = True
 
         # Keep a record of any kernels we fail to offload.
         failed_inline = set()
@@ -178,6 +208,10 @@ def trans(psyir):
                     # not need inlining/annotations.
                     continue
 
+                if kern.name == "compute_total_aam_code":
+                    failed_inline.add(kern.name.lower())
+                    failed_to_offload.add(kern.name.lower())
+                    continue
                 # Attempt to module-inline the kernel.
                 try:
                     mod_inline_trans.apply(kern)
@@ -187,6 +221,8 @@ def trans(psyir):
                     failed_inline.add(kern.name.lower())
                     print(f"Module-inline failed for kernel "
                           f"'{kern.name}' due to:\n{err.value}")
+                    kern.append_preceding_comment(f"{err.value}")
+                    loop.append_preceding_comment(f"{err.value}")
 
                 # Attempt to fully inline the kernel
                 try:
@@ -206,13 +242,18 @@ def trans(psyir):
                     # If it cannot be inlined, fallback to annotate the
                     # kernel with GPU routine directives.
                     try:
-                        gpu_annotation_trans.apply(kern)
+                        gpu_annotation_trans.apply(
+                            kern,
+                            assume_valid_on_device=MANUALLY_ANNOTATED
+                        )
                         print(f"Annotation successful for kernel "
                               f"'{kern.name}'")
                     except TransformationError as err:
                         failed_to_offload.add(kern.name.lower())
                         print(f"Annotation failed for kernel '{kern.name}' "
                               f"due to:\n{err.value}")
+                        kern.append_preceding_comment(f"{err.value}")
+                        loop.append_preceding_comment(f"{err.value}")
 
         # Add GPU offloading to loops
         for loop in subroutine.walk(Loop):

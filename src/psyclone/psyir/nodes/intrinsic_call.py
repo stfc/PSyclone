@@ -5318,6 +5318,10 @@ NVFORTRAN_UNIFORM = (
     IntrinsicCall.Intrinsic.MAXVAL, IntrinsicCall.Intrinsic.MINVAL,
     IntrinsicCall.Intrinsic.TINY, IntrinsicCall.Intrinsic.HUGE,
     IntrinsicCall.Intrinsic.CEILING,
+    IntrinsicCall.Intrinsic.DOT_PRODUCT,
+    IntrinsicCall.Intrinsic.EPSILON,
+    IntrinsicCall.Intrinsic.FLOOR,
+
 )
 # MATMUL can fail at link time depending on the precision of
 # its arguments.

@@ -99,6 +99,7 @@ class OMPDeclareTargetTrans(Transformation,
               options: Optional[dict[str, Any]] = None,
               force: bool = False,
               device_string: str = "",
+              assume_valid_on_device: Optional[list] = None,
               **kwargs) -> None:
         ''' Insert an OMPDeclareTargetDirective inside the provided routine or
         associated PSyKAl kernel.
@@ -112,6 +113,7 @@ class OMPDeclareTargetTrans(Transformation,
 
         '''
         self.validate(node, options, force=force, device_string=device_string,
+                      assume_valid_on_device=assume_valid_on_device,
                       **kwargs)
 
         if isinstance(node, Kern):
@@ -128,6 +130,7 @@ class OMPDeclareTargetTrans(Transformation,
     def validate(self,
                  node: Union[Kern, Routine],
                  options: Optional[dict[str, Any]] = None,
+                 assume_valid_on_device: Optional[list] = None,
                  **kwargs) -> None:
         ''' Check that an OMPDeclareTargetDirective can be inserted.
 
@@ -137,11 +140,16 @@ class OMPDeclareTargetTrans(Transformation,
 
         '''
         # TODO #2668 Depracate options dict.
-        if not options:
+        if options:
+            device_safe = options.get("assume_valid_on_device")
+
+        else:
             self.validate_options(**kwargs)
+            device_safe = self.get_option("assume_valid_on_device", **kwargs)
         super().validate(node, options=options, **kwargs)
 
-        self.validate_it_can_run_on_gpu(node, options, **kwargs)
+        self.validate_it_can_run_on_gpu(
+            node, options, assume_valid_on_device=assume_valid_on_device, **kwargs)
 
         if isinstance(node, Kern):
             self._check_callee_implementation_is_local(node)

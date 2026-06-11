@@ -73,9 +73,11 @@ class MarkRoutineForGPUMixin:
         if options:
             force = options.get("force", False)
             device_string = options.get("device_string", "")
+            device_string = options.get("assume_valid_on_device", None)
         else:
             force = self.get_option("force", **kwargs)
             device_string = self.get_option("device_string", **kwargs)
+            device_safe = self.get_option("assume_valid_on_device", **kwargs)
 
         if not isinstance(node, (Kern, Routine)):
             raise TransformationError(
@@ -114,6 +116,9 @@ class MarkRoutineForGPUMixin:
             ktable = sched.symbol_table
             for sig in vam.all_signatures:
                 name = sig.var_name
+                if device_safe and name in device_safe:
+                    # Marked as assumed safe
+                    continue
                 first = vam[sig][0].node
                 if isinstance(first, Reference):
                     table = ktable
@@ -159,6 +164,8 @@ class MarkRoutineForGPUMixin:
                         f"'{option_txt}' to override this check.")
 
             for call in sched.walk(Call):
+                if device_safe and call.routine.symbol.name in device_safe:
+                    continue
                 if not call.is_available_on_device(device_string):
                     if isinstance(call, IntrinsicCall):
                         if device_string:
