@@ -47,8 +47,7 @@ from psyclone.psyir.nodes import (
     Reference, ArrayReference, Assignment,
     Literal, BinaryOperation, Range, KernelSchedule, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    ArrayType, DataSymbol, DataTypeSymbol, ScalarType,
-    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, Symbol, INTEGER_TYPE,
+    ArrayType, DataSymbol, DataTypeSymbol, ScalarType, Symbol,
     UnsupportedFortranType, StructureType, UnresolvedType)
 from psyclone.tests.utilities import check_links
 
@@ -56,7 +55,8 @@ from psyclone.tests.utilities import check_links
 def test_array_node_str():
     ''' Check the node_str method of the ArrayReference class.'''
     kschedule = KernelSchedule.create("kname")
-    array_type = ArrayType(INTEGER_SINGLE_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(ScalarType.integer_single_type(),
+                           [ArrayType.Extent.ATTRIBUTE])
     symbol = DataSymbol("aname", array_type)
     kschedule.symbol_table.add(symbol)
     array = ArrayReference(symbol)
@@ -68,12 +68,14 @@ def test_array_can_be_printed():
     '''Test that an ArrayReference instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule.create("kname")
-    symbol = DataSymbol("aname", ArrayType(INTEGER_SINGLE_TYPE, [10]))
+    symbol = DataSymbol("aname",
+                        ArrayType(ScalarType.integer_single_type(), [10]))
     kschedule.symbol_table.add(symbol)
     assignment = Assignment()
     array = ArrayReference(symbol, parent=assignment)
     assert "ArrayReference[name:'aname']\n" in str(array)
-    array2 = ArrayReference.create(symbol, [Literal("1", INTEGER_TYPE)])
+    array2 = ArrayReference.create(
+        symbol, [Literal("1", ScalarType.integer_type())])
     assert ("ArrayReference[name:'aname']\nLiteral[value:'1', "
             "Scalar<INTEGER, UNDEFINED>]" in str(array2))
 
@@ -83,12 +85,12 @@ def test_array_create():
     creates an ArrayReference instance.
 
     '''
-    array_type = ArrayType(REAL_SINGLE_TYPE, [10, 10, 10])
+    array_type = ArrayType(ScalarType.real_single_type(), [10, 10, 10])
     symbol_temp = DataSymbol("temp", array_type)
-    symbol_i = DataSymbol("i", INTEGER_SINGLE_TYPE)
-    symbol_j = DataSymbol("j", INTEGER_SINGLE_TYPE)
+    symbol_i = DataSymbol("i", ScalarType.integer_single_type())
+    symbol_j = DataSymbol("j", ScalarType.integer_single_type())
     children = [Reference(symbol_i), Reference(symbol_j),
-                Literal("1", INTEGER_SINGLE_TYPE)]
+                Literal("1", ScalarType.integer_single_type())]
     array = ArrayReference.create(symbol_temp, children)
     check_links(array, children)
     result = FortranWriter().arrayreference_node(array)
@@ -100,11 +102,11 @@ def test_array_create_invalid1():
     exception if the provided symbol is not an array.
 
     '''
-    symbol_i = DataSymbol("i", INTEGER_SINGLE_TYPE)
-    symbol_j = DataSymbol("j", INTEGER_SINGLE_TYPE)
-    symbol_temp = DataSymbol("temp", REAL_SINGLE_TYPE)
+    symbol_i = DataSymbol("i", ScalarType.integer_single_type())
+    symbol_j = DataSymbol("j", ScalarType.integer_single_type())
+    symbol_temp = DataSymbol("temp", ScalarType.real_single_type())
     children = [Reference(symbol_i), Reference(symbol_j),
-                Literal("1", INTEGER_SINGLE_TYPE)]
+                Literal("1", ScalarType.integer_single_type())]
     with pytest.raises(GenerationError) as excinfo:
         _ = ArrayReference.create(symbol_temp, children)
     assert ("expecting the symbol 'temp' to be an array, but found "
@@ -117,12 +119,12 @@ def test_array_create_invalid2():
     to the number of indices provided to the create method.
 
     '''
-    array_type = ArrayType(REAL_SINGLE_TYPE, [10])
+    array_type = ArrayType(ScalarType.real_single_type(), [10])
     symbol_temp = DataSymbol("temp", array_type)
-    symbol_i = DataSymbol("i", INTEGER_SINGLE_TYPE)
-    symbol_j = DataSymbol("j", INTEGER_SINGLE_TYPE)
+    symbol_i = DataSymbol("i", ScalarType.integer_single_type())
+    symbol_j = DataSymbol("j", ScalarType.integer_single_type())
     children = [Reference(symbol_i), Reference(symbol_j),
-                Literal("1", INTEGER_SINGLE_TYPE)]
+                Literal("1", ScalarType.integer_single_type())]
     with pytest.raises(GenerationError) as excinfo:
         _ = ArrayReference.create(symbol_temp, children)
     assert ("the indices argument has '3' elements, but it must have a number "
@@ -144,8 +146,8 @@ def test_array_create_invalid3():
 
     # children not a list
     with pytest.raises(GenerationError) as excinfo:
-        _ = ArrayReference.create(DataSymbol("temp", REAL_SINGLE_TYPE),
-                                  "invalid")
+        _ = ArrayReference.create(
+            DataSymbol("temp", ScalarType.real_single_type()), "invalid")
     assert ("indices argument in create method of ArrayReference class should"
             " be a list but found 'str'." in str(excinfo.value))
 
@@ -153,9 +155,9 @@ def test_array_create_invalid3():
 def test_array_children_validation():
     '''Test that children added to Array are validated. Array accepts
     DataNodes and Range children.'''
-    array_type = ArrayType(REAL_SINGLE_TYPE, shape=[5, 5])
+    array_type = ArrayType(ScalarType.real_single_type(), shape=[5, 5])
     array = ArrayReference(DataSymbol("rname", array_type))
-    datanode1 = Literal("1", INTEGER_SINGLE_TYPE)
+    datanode1 = Literal("1", ScalarType.integer_single_type())
     erange = Range()
     assignment = Assignment()
 
@@ -173,8 +175,9 @@ def test_array_children_validation():
 def test_array_validate_index():
     '''Test that the validate_index utility function behaves as expected.'''
     array = ArrayReference.create(DataSymbol("test",
-                                             ArrayType(REAL_TYPE, [10])),
-                                  [Literal("1", INTEGER_TYPE)])
+                                             ArrayType(ScalarType.real_type(),
+                                                       [10])),
+                                  [Literal("1", ScalarType.integer_type())])
     with pytest.raises(TypeError) as info:
         array._validate_index("hello")
     assert ("The index argument should be an integer but found 'str'."
@@ -194,9 +197,10 @@ def test_array_is_lower_bound():
     expected.
 
     '''
-    two = Literal("2", INTEGER_TYPE)
+    two = Literal("2", ScalarType.integer_type())
     array = ArrayReference.create(DataSymbol("test",
-                                             ArrayType(REAL_TYPE, [10])),
+                                             ArrayType(ScalarType.real_type(),
+                                                       [10])),
                                   [two])
     with pytest.raises(TypeError) as info:
         array.is_lower_bound("hello")
@@ -206,14 +210,15 @@ def test_array_is_lower_bound():
     # not a range node at index 0
     assert not array.is_lower_bound(0)
 
-    one = Literal("1", INTEGER_TYPE)
+    one = Literal("1", ScalarType.integer_type())
     # range node does not have a binary operator for its start value
     array.children[0] = Range.create(one.copy(), one.copy(), one.copy())
     assert array.is_lower_bound(0)
 
     # range node lbound references a different array
     array2 = ArrayReference.create(DataSymbol("test2",
-                                              ArrayType(REAL_TYPE, [10])),
+                                              ArrayType(ScalarType.real_type(),
+                                                        [10])),
                                    [one.copy()])
     operator = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.LBOUND,
@@ -224,7 +229,8 @@ def test_array_is_lower_bound():
     # range node lbound references a different index
     operator = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.LBOUND,
-        [Reference(array.symbol), ("dim", Literal("2", INTEGER_TYPE))])
+        [Reference(array.symbol),
+         ("dim", Literal("2", ScalarType.integer_type()))])
     array.children[0] = Range.create(operator, one.copy(), one.copy())
     assert not array.is_lower_bound(0)
 
@@ -241,9 +247,10 @@ def test_array_is_upper_bound():
     expected.
 
     '''
-    one = Literal("1", INTEGER_TYPE)
+    one = Literal("1", ScalarType.integer_type())
     array = ArrayReference.create(DataSymbol("test",
-                                             ArrayType(REAL_TYPE, [10])),
+                                             ArrayType(ScalarType.real_type(),
+                                                       [10])),
                                   [one])
     with pytest.raises(TypeError) as info:
         array.is_upper_bound("hello")
@@ -259,7 +266,8 @@ def test_array_is_upper_bound():
 
     # range node ubound references a different array
     array2 = ArrayReference.create(DataSymbol("test2",
-                                              ArrayType(REAL_TYPE, [10])),
+                                              ArrayType(ScalarType.real_type(),
+                                                        [10])),
                                    [one.copy()])
     operator = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.UBOUND,
@@ -270,7 +278,8 @@ def test_array_is_upper_bound():
     # range node ubound references a different index
     operator = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.UBOUND,
-        [Reference(array.symbol), ("dim", Literal("2", INTEGER_TYPE))])
+        [Reference(array.symbol),
+         ("dim", Literal("2", ScalarType.integer_type()))])
     array.children[0] = Range.create(one.copy(), operator, one.copy())
     assert not array.is_upper_bound(0)
 
@@ -286,9 +295,9 @@ def test_array_is_full_range():
     '''Test that the is_full_range method in the Array Node works as
     expected. '''
     # pylint: disable=too-many-statements
-    zero = Literal("0", INTEGER_SINGLE_TYPE)
-    one = Literal("1", INTEGER_SINGLE_TYPE)
-    array_type = ArrayType(REAL_SINGLE_TYPE, [10])
+    zero = Literal("0", ScalarType.integer_single_type())
+    one = Literal("1", ScalarType.integer_single_type())
+    array_type = ArrayType(ScalarType.real_single_type(), [10])
     symbol = DataSymbol("my_array", array_type)
     reference = Reference(symbol)
     lbound = IntrinsicCall.create(IntrinsicCall.Intrinsic.LBOUND,
@@ -349,7 +358,8 @@ def test_array_is_full_range():
     # with the second value not being an integer literal.
     lbound_error = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.LBOUND,
-        [reference.copy(), ("dim", Literal("1.0", REAL_SINGLE_TYPE))])
+        [reference.copy(),
+         ("dim", Literal("1.0", ScalarType.real_single_type()))])
     my_range = Range.create(lbound_error, one.copy(), one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
@@ -405,7 +415,8 @@ def test_array_is_full_range():
     # with the second value not being an integer literal.
     ubound_error = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.UBOUND,
-        [reference.copy(), ("dim", Literal("1.0", REAL_SINGLE_TYPE))])
+        [reference.copy(),
+            ("dim", Literal("1.0", ScalarType.real_single_type()))])
     my_range = Range.create(lbound.copy(), ubound_error, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
@@ -430,7 +441,7 @@ def test_array_is_full_range():
     my_range = Range.create(lbound.copy(), ubound.copy(), one.copy())
     # We have to change this to a non-integer manually as the create
     # function only accepts integer literals for the step argument.
-    my_range.children[2] = Literal("1.0", REAL_SINGLE_TYPE)
+    my_range.children[2] = Literal("1.0", ScalarType.real_single_type())
     array_reference = ArrayReference.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
@@ -451,9 +462,10 @@ def test_array_is_full_range():
 
 def test_array_indices():
     ''' Tests for the indices property (provided by the ArrayMixin class). '''
-    one = Literal("1", INTEGER_TYPE)
+    one = Literal("1", ScalarType.integer_type())
     array = ArrayReference.create(DataSymbol("test",
-                                             ArrayType(REAL_TYPE, [10])),
+                                             ArrayType(ScalarType.real_type(),
+                                                       [10])),
                                   [one])
     assert array.indices == (one,)
     # Add an invalid child
@@ -495,7 +507,7 @@ def test_array_datatype(fortran_reader):
 
     # Reference to a single element of an array - test(1).
     aref = refs[0]
-    assert aref.datatype == REAL_TYPE
+    assert aref.datatype == ScalarType.real_type()
     # Reference to a 1D sub-array of a 2D array - test_2d(2, 2:4).
     bref = refs[1]
     assert isinstance(bref.datatype, ArrayType)
@@ -541,18 +553,10 @@ def test_array_datatype(fortran_reader):
     assert dtype.shape[0].lower.value == "1"
     assert dtype.shape[0].upper.value == "10"
 
-    # Character sub-strings are currently mis-identified as array
-    # ranges (TODO #3240):
-    # my_string(1:10)
-    dref = refs[5]
-    dtype = dref.datatype
-    assert isinstance(dtype, ArrayType)
-    assert dtype.intrinsic is ScalarType.Intrinsic.CHARACTER
-
     # Reference to a single element of an array of structures.
-    one = Literal("1", INTEGER_TYPE)
-    two = Literal("2", INTEGER_TYPE)
-    four = Literal("4", INTEGER_TYPE)
+    one = Literal("1", ScalarType.integer_type())
+    two = Literal("2", ScalarType.integer_type())
+    four = Literal("4", ScalarType.integer_type())
     stype = DataTypeSymbol("grid_type", UnresolvedType())
     atype = ArrayType(stype, [10])
     asym = DataSymbol("aos", atype)
@@ -570,9 +574,9 @@ def test_array_datatype(fortran_reader):
         "unsupported",
         UnsupportedFortranType(
             "real, dimension(5), pointer :: unsupported",
-            partial_datatype=ArrayType(REAL_SINGLE_TYPE, [5])))
+            partial_datatype=ArrayType(ScalarType.real_single_type(), [5])))
     bref = ArrayReference.create(not_quite_unsupported_sym, [two.copy()])
-    assert bref.datatype == REAL_SINGLE_TYPE
+    assert bref.datatype == ScalarType.real_single_type()
     # The partial datatype could be a DataTypeSymbol
     not_quite_unsupported_sym.datatype.partial_datatype._elemental_type = stype
     assert bref.datatype == stype
@@ -617,14 +621,33 @@ def test_array_datatype(fortran_reader):
     # don't know is an array.
     aref7 = ArrayReference(generic_sym)
     aref7.addchild(one.copy())
-    aref7._symbol = DataSymbol("int_test", INTEGER_TYPE)
+    aref7._symbol = DataSymbol("int_test", ScalarType.integer_type())
     assert isinstance(aref7.datatype, UnresolvedType)
+
+    # Test that we can do character_strings that resolve to a single character
+    character_string = ScalarType.character_type()
+    character_string.length = Reference(generic_sym)
+    symbol = DataSymbol("char_str_test", character_string)
+    aref8 = ArrayReference(symbol)
+    aref8.addchild(one.copy())
+    assert aref8.datatype == ScalarType.character_type()
+    # And those that resolve to a character string of a different length
+    aref9 = ArrayReference(symbol)
+    aref9.addchild(Range.create(one.copy(), four.copy()))
+    assert aref9.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER
+    assert aref9.datatype.length == four
+    # This doesn't look as a character-string access, so we just return
+    # UnresolvedType
+    aref10 = ArrayReference(symbol)
+    aref10.addchild(Range.create(one.copy(), four.copy()))
+    aref10.addchild(Range.create(one.copy(), four.copy()))
+    assert aref10.datatype.elemental_type == UnresolvedType()
 
 
 def test_array_create_colon(fortran_writer):
     '''Test that the create method accepts ":" as shortcut to automatically
     create a Range that represents ":".'''
-    test_sym = DataSymbol("test", ArrayType(REAL_TYPE, [10, 10]))
+    test_sym = DataSymbol("test", ArrayType(ScalarType.real_type(), [10, 10]))
     aref = ArrayReference.create(test_sym, [":", ":"])
     # Check that each dimension is `lbound(...):ubound(...)`
     for child in aref.indices:

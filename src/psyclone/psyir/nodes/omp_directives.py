@@ -83,7 +83,7 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
-    ContainerSymbol, DataSymbol, ImportInterface, INTEGER_TYPE, RoutineSymbol)
+    ContainerSymbol, DataSymbol, ImportInterface, ScalarType, RoutineSymbol)
 
 #: Mapping from PSyIR reduction operator to OMP reduction operator.
 MAP_REDUCTION_OP_TO_OMP = {
@@ -598,7 +598,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 # include stopval, whereas Python loops do not.
                 for i in range(startval, stopval + 1, stepval):
                     new_x = i + binop_val
-                    output_list.append(Literal(f"{new_x}", INTEGER_TYPE))
+                    output_list.append(
+                        Literal(f"{new_x}", ScalarType.integer_type()))
                 return output_list
 
             # If they are not all literals, we have a special case. In this
@@ -609,7 +610,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             output_list["start"] = BinaryOperation.create(
                                        BinaryOperation.Operator.ADD,
                                        start.copy(),
-                                       Literal(f"{binop_val}", INTEGER_TYPE)
+                                       Literal(f"{binop_val}",
+                                               ScalarType.integer_type())
                                     )
             output_list["stop"] = stop.copy()
             output_list["step"] = step.copy()
@@ -635,7 +637,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             # We loop from startval to stopval + 1 as PSyIR loops will include
             # stopval, whereas Python loops do not.
             for i in range(startval, stopval + 1, stepval):
-                output_list.append(Literal(f"{i}", INTEGER_TYPE))
+                output_list.append(Literal(f"{i}", ScalarType.integer_type()))
             return output_list
 
         # the sequence only. In this case, we have a non-parent loop reference
@@ -1341,16 +1343,16 @@ class OMPParallelDirective(DataSharingAttributeMixin, OMPRegionDirective):
             table.find_or_create_tag("omp_num_threads",
                                      root_name="nthreads",
                                      symbol_type=DataSymbol,
-                                     datatype=INTEGER_TYPE)
+                                     datatype=ScalarType.integer_type())
             thread_idx = table.find_or_create_tag(
                 "omp_thread_index", root_name="th_idx",
-                symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+                symbol_type=DataSymbol, datatype=ScalarType.integer_type())
             assignment = Assignment.create(
                 lhs=Reference(thread_idx),
                 rhs=BinaryOperation.create(
                         BinaryOperation.Operator.ADD,
                         Call.create(omp_get_thrd),
-                        Literal("1", INTEGER_TYPE))
+                        Literal("1", ScalarType.integer_type()))
             )
             self.dir_body.addchild(assignment, 0)
 
@@ -1542,10 +1544,10 @@ class OMPTaskloopDirective(OMPRegionDirective):
                 "numtasks clauses specified.")
         super().__init__(**kwargs)
         if self._grainsize is not None:
-            child = [Literal(f"{grainsize}", INTEGER_TYPE)]
+            child = [Literal(f"{grainsize}", ScalarType.integer_type())]
             self._children.append(OMPGrainsizeClause(children=child))
         if self._num_tasks is not None:
-            child = [Literal(f"{num_tasks}", INTEGER_TYPE)]
+            child = [Literal(f"{num_tasks}", ScalarType.integer_type())]
             self._children.append(OMPNumTasksClause(children=child))
         if self._nogroup:
             self._children.append(OMPNogroupClause())
@@ -2372,6 +2374,7 @@ class OMPAtomicDirective(OMPRegionDirective, AtomicDirectiveMixin):
     :type directive_type: :py:class:`psyclone.psyir.nodes.OMPAtomicDirective.\
                           AtomicDirectiveType`
     '''
+
     def __init__(self, ast=None, children: List[Node] = None,
                  parent: Node = None,
                  directive_type: AtomicDirectiveType = None):
@@ -2471,6 +2474,7 @@ class OMPCriticalDirective(OMPRegionDirective):
     OpenMP directive to inform that the contained region must only be executed
     by a single thread at any time.
     '''
+
     def begin_string(self) -> str:
         '''
         :returns: the opening string statement of this directive.

@@ -63,17 +63,17 @@ from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule)
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
-    ACCParallelDirective, ACCRoutineDirective,
-    Call, CodeBlock, Container, Directive, Literal, Loop,
-    OMPMasterDirective, OMPParallelDirective, OMPSerialDirective,
-    OMPSingleDirective, Return, Schedule, PSyDataNode, IntrinsicCall)
+    ACCParallelDirective, ACCRoutineDirective, Call, CodeBlock, Container,
+    Literal, Loop, OMPMasterDirective, OMPParallelDirective,
+    OMPSerialDirective, OMPSingleDirective, Reference, Return, Schedule,
+    PSyDataNode, IntrinsicCall)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.omp_directives import OMPDirective
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
-    ArgumentInterface, DataSymbol, INTEGER_TYPE, ScalarType, Symbol,
+    ArgumentInterface, DataSymbol, ScalarType, Symbol,
     SymbolError, UnresolvedType)
 from psyclone.psyir.transformations.callee_transformation_mixin import (
     CalleeTransformationMixin)
@@ -931,9 +931,18 @@ class ACCParallelTrans(ParallelRegionTrans):
             avoid using unsupported nodes inside a region.
         :param bool options["default_present"]: this flag controls if the
             inserted directive should include the default_present clause.
+        :param bool options["allow_strings"]: whether to allow the
+            transformation on assignments involving character types. Defaults
+            to False.
+        :param bool options["verbose"]: whether to allow the
+            transformation on assignments involving character types. Defaults
+            to False.
 
         '''
         node_list = self.get_node_list(node_list)
+        verbose = options.get("verbose", False) if options else False
+        device_string = options.get("device_string", "") if options else ""
+        allow_strings = options.get("allow_strings", "") if options else False
         super().validate(node_list, options)
         if options is not None and "default_present" in options:
             if not isinstance(options["default_present"], bool):
@@ -941,8 +950,26 @@ class ACCParallelTrans(ParallelRegionTrans):
                     f"The provided 'default_present' option must be a "
                     f"boolean, but found '{options['default_present']}'."
                 )
-        device_string = options.get("device_string", "") if options else ""
         for node in node_list:
+            if not allow_strings:
+                # Check there are no character assignments in the region
+                for datanode in node.walk((Reference, Literal),
+                                          stop_type=Reference):
+                    dtype = datanode.datatype
+                    # Don't allow CHARACTERS on GPU
+                    if hasattr(dtype, "intrinsic"):
+                        if dtype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                            message = (
+                                f"ACCParallelTrans doesn't enclose regions "
+                                f"that use characters, but found: "
+                                f"'{datanode.debug_string()}', use the "
+                                f"'allow_strings' transformation option to "
+                                f"offload this region."
+                            )
+                            if verbose:
+                                node.preceding_comment = message
+                            raise TransformationError(message)
+
             for call in node.walk(Call):
                 if not call.is_available_on_device(device_string):
                     if isinstance(call, IntrinsicCall):
@@ -975,6 +1002,9 @@ class ACCParallelTrans(ParallelRegionTrans):
             avoid using unsupported nodes inside a region.
         :param bool options["default_present"]: this flag controls if the
             inserted directive should include the default_present clause.
+        :param bool options["allow_strings"]: whether to allow the
+            transformation on assignments involving character types. Defaults
+            to False.
 
         '''
         if not options:
@@ -1002,246 +1032,6 @@ class ACCParallelTrans(ParallelRegionTrans):
         # of the nodes being enclosed and at the original location
         # of the first of these nodes
         node_parent.addchild(directive, index=node_position)
-
-
-class LFRicRedundantComputationTrans(LoopTrans):
-    '''This transformation allows the user to modify a loop's bounds so
-    that redundant computation will be performed. Redundant
-    computation can result in halo exchanges being modified, new halo
-    exchanges being added or existing halo exchanges being removed.
-
-    * This transformation should be performed before any
-      parallelisation transformations (e.g. for OpenMP) to the loop in
-      question and will raise an exception if this is not the case.
-
-    * This transformation can not be applied to a loop containing a
-      reduction and will again raise an exception if this is the case.
-
-    * This transformation can only be used to add redundant
-      computation to a loop, not to remove it.
-
-    * This transformation allows a loop that is already performing
-      redundant computation to be modified, but only if the depth is
-      increased.
-
-    '''
-    def __str__(self):
-        return "Change iteration space to perform redundant computation"
-
-    def validate(self, node, options=None):
-        '''Perform various checks to ensure that it is valid to apply the
-        RedundantComputation transformation to the supplied node
-
-        :param node: the supplied node on which we are performing\
-                     validity checks
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param int options["depth"]: the depth of the stencil if the value
-                                     is provided and None if not.
-
-        :raises TransformationError: if the parent of the loop is a
-            :py:class:`psyclone.psyir.nodes.Directive`.
-        :raises TransformationError: if the parent of the loop is not a
-            :py:class:`psyclone.psyir.nodes.Loop` or a
-            :py:class:`psyclone.psyGen.LFRicInvokeSchedule`.
-        :raises TransformationError: if the parent of the loop is
-            :py:class:`psyclone.psyir.nodes.Loop` but the original loop does
-            not iterate over 'cells_in_colour'.
-        :raises TransformationError: if the parent of the loop is a
-            :py:class:`psyclone.psyir.nodes.Loop` but the parent does not
-            iterate over 'colours'.
-        :raises TransformationError: if the parent of the loop is a
-            :py:class:`psyclone.psyir.nodes.Loop` but the parent's parent is
-            not a :py:class:`psyclone.psyGen.LFRicInvokeSchedule`.
-        :raises TransformationError: if this transformation is applied
-            when distributed memory is not switched on.
-        :raises TransformationError: if the loop does not iterate over
-            cells, dofs or colour.
-        :raises TransformationError: if the loop contains a kernel that
-            operates on halo cells or only on owned cells/dofs.
-        :raises TransformationError: if the transformation is setting the
-            loop to the maximum halo depth but the loop already computes
-            to the maximum halo depth.
-        :raises TransformationError: if the transformation is setting the
-            loop to the maximum halo depth but the loop contains a stencil
-            access (as this would result in the field being accessed
-            beyond the halo depth).
-        :raises TransformationError: if the supplied depth value is not an
-            integer.
-        :raises TransformationError: if the supplied depth value is less
-            than 1.
-        :raises TransformationError: if the supplied depth value is not
-            greater than 1 when a continuous loop is modified as this is
-            the minimum valid value.
-        :raises TransformationError: if the supplied depth value is not
-            greater than the existing depth value, as we should not need
-            to undo existing transformations.
-        :raises TransformationError: if a depth value has been supplied
-            but the loop has already been set to the maximum halo depth.
-
-        '''
-        # pylint: disable=too-many-branches
-        # check node is a loop
-        super().validate(node, options=options)
-
-        # Check loop's parent is the InvokeSchedule, or that it is nested
-        # in a colours loop and perform other colour(s) loop checks,
-        # otherwise halo exchange placement might fail. The only
-        # current example where the placement would fail is when
-        # directives have already been added. This could be fixed but
-        # it actually makes sense to require redundant computation
-        # transformations to be applied before adding directives so it
-        # is not particularly important.
-        dir_node = node.ancestor(Directive)
-        if dir_node:
-            raise TransformationError(
-                f"In the LFRicRedundantComputation transformation apply "
-                f"method the supplied loop is sits beneath a directive of "
-                f"type {type(dir_node)}. Redundant computation must be applied"
-                f" before directives are added.")
-        if not (isinstance(node.parent, LFRicInvokeSchedule) or
-                isinstance(node.parent.parent, Loop)):
-            raise TransformationError(
-                f"In the LFRicRedundantComputation transformation "
-                f"apply method the parent of the supplied loop must be the "
-                f"LFRicInvokeSchedule, or a Loop, but found "
-                f"{type(node.parent)}")
-        if isinstance(node.parent.parent, Loop):
-            if node.loop_type != "cells_in_colour":
-                raise TransformationError(
-                    f"In the LFRicRedundantComputation transformation "
-                    f"apply method, if the parent of the supplied Loop is "
-                    f"also a Loop then the supplied Loop must iterate over "
-                    f"'cells_in_colour', but found '{node.loop_type}'")
-            if node.parent.parent.loop_type != "colours":
-                raise TransformationError(
-                    f"In the LFRicRedundantComputation transformation "
-                    f"apply method, if the parent of the supplied Loop is "
-                    f"also a Loop then the parent must iterate over "
-                    f"'colours', but found '{node.parent.parent.loop_type}'")
-            if not isinstance(node.parent.parent.parent, LFRicInvokeSchedule):
-                raise TransformationError(
-                    f"In the LFRicRedundantComputation transformation "
-                    f"apply method, if the parent of the supplied Loop is "
-                    f"also a Loop then the parent's parent must be the "
-                    f"LFRicInvokeSchedule, but found {type(node.parent)}")
-        if not Config.get().distributed_memory:
-            raise TransformationError(
-                "In the LFRicRedundantComputation transformation apply "
-                "method distributed memory must be switched on")
-
-        # loop must iterate over cell-column, dof or cell-in-colour. Note, an
-        # empty loop_type iterates over cell-columns.
-        if node.loop_type not in ["", "dof", "cells_in_colour"]:
-            raise TransformationError(
-                f"In the LFRicRedundantComputation transformation apply "
-                f"method the loop type must be one of '' (cell-columns), 'dof'"
-                f" or 'cells_in_colour', but found '{node.loop_type}'")
-
-        const = LFRicConstants()
-
-        for kern in node.kernels():
-            if "halo" in kern.iterates_over:
-                raise TransformationError(
-                    f"Cannot apply the {self.name} transformation to kernels "
-                    f"that operate on halo cells but kernel '{kern.name}' "
-                    f"operates on '{kern.iterates_over}'.")
-            if kern.iterates_over in const.NO_RC_ITERATION_SPACES:
-                raise TransformationError(
-                    f"Cannot apply the {self.name} transformation to kernel "
-                    f"'{kern.name}' because it does not support redundant "
-                    f"computation (it operates on '{kern.iterates_over}').")
-
-        # We don't currently support the application of transformations to
-        # loops containing inter-grid kernels
-        check_intergrid(node)
-
-        if not options:
-            options = {}
-        depth = options.get("depth")
-        if depth is None:
-            if node.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
-                if not node.upper_bound_halo_depth:
-                    raise TransformationError(
-                        "In the LFRicRedundantComputation transformation "
-                        "apply method the loop is already set to the maximum "
-                        "halo depth so this transformation does nothing")
-                for call in node.kernels():
-                    for arg in call.arguments.args:
-                        if arg.stencil:
-                            raise TransformationError(
-                                f"In the LFRicRedundantComputation "
-                                f"transformation apply method the loop "
-                                f"contains field '{arg.name}' with a stencil "
-                                f"access in kernel '{call.name}', so it is "
-                                f"invalid to set redundant computation to "
-                                f"maximum depth")
-        else:
-            if not isinstance(depth, int):
-                raise TransformationError(
-                    f"In the LFRicRedundantComputation transformation "
-                    f"apply method the supplied depth should be an integer but"
-                    f" found type '{type(depth)}'")
-            if depth < 1:
-                raise TransformationError(
-                    "In the LFRicRedundantComputation transformation "
-                    "apply method the supplied depth is less than 1")
-
-            if node.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
-                if node.upper_bound_halo_depth:
-                    if isinstance(node.upper_bound_halo_depth, Literal):
-                        upper_bound = int(node.upper_bound_halo_depth.value)
-                        if upper_bound >= depth:
-                            raise TransformationError(
-                                f"In the LFRicRedundantComputation "
-                                f"transformation apply method the supplied "
-                                f"depth ({depth}) must be greater than the "
-                                f"existing halo depth ({upper_bound})")
-                else:
-                    raise TransformationError(
-                        "In the LFRicRedundantComputation transformation "
-                        "apply method the loop is already set to the maximum "
-                        "halo depth so can't be set to a fixed value")
-
-    def apply(self, loop, options=None):
-        # pylint:disable=arguments-renamed
-        '''Apply the redundant computation transformation to the loop
-        :py:obj:`loop`. This transformation can be applied to loops iterating
-        over 'cells or 'dofs'. if :py:obj:`depth` is set to a value then the
-        value will be the depth of the field's halo over which redundant
-        computation will be performed. If :py:obj:`depth` is not set to a
-        value then redundant computation will be performed to the full depth
-        of the field's halo.
-
-        :param loop: the loop that we are transforming.
-        :type loop: :py:class:`psyclone.psyGen.LFRicLoop`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param int options["depth"]: the depth of the stencil. Defaults \
-                to None.
-
-        '''
-        self.validate(loop, options=options)
-        if not options:
-            options = {}
-        depth = options.get("depth")
-
-        if loop.loop_type == "":
-            # Loop is over cells
-            loop.set_upper_bound("cell_halo", depth)
-        elif loop.loop_type == "cells_in_colour":
-            # Loop is over cells of a single colour
-            loop.set_upper_bound("colour_halo", depth)
-        elif loop.loop_type == "dof":
-            loop.set_upper_bound("dof_halo", depth)
-        else:
-            raise TransformationError(
-                f"Unsupported loop_type '{loop.loop_type}' found in "
-                f"LFRicRedundant ComputationTrans.apply()")
-        # Add/remove halo exchanges as required due to the redundant
-        # computation
-        loop.update_halo_exchanges()
 
 
 class LFRicAsyncHaloExchangeTrans(Transformation):
@@ -1492,7 +1282,7 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
             # and is unused within the kernel body.
             orig_name = symbol.name
             new_name = symbol_table.next_available_name(f"{orig_name}_dummy")
-            local_symbol = DataSymbol(new_name, INTEGER_TYPE,
+            local_symbol = DataSymbol(new_name, ScalarType.integer_type(),
                                       is_constant=True, initial_value=value)
             symbol_table.add(local_symbol)
             symbol_table.swap_symbol_properties(symbol, local_symbol)
@@ -2255,7 +2045,6 @@ class KernelImportsToArguments(Transformation, CalleeTransformationMixin):
 for name in ["OMPParallelLoopTrans",
              "OMPLoopTrans",
              "ColourTrans",
-             "RedundantComputationTrans",
              "AsyncHaloExchangeTrans",
              "KernelConstTrans"]:
     class_string = f"""
@@ -2282,7 +2071,6 @@ __all__ = [
    "LFRicColourTrans",
    "LFRicKernelConstTrans",
    "LFRicOMPLoopTrans",
-   "LFRicRedundantComputationTrans",
    "LFRicOMPParallelLoopTrans",
    "GOceanOMPLoopTrans",
    "GOceanOMPParallelLoopTrans",

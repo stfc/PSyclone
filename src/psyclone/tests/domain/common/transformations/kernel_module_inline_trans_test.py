@@ -52,7 +52,7 @@ from psyclone.psyir.nodes import (
     Container, Routine, CodeBlock, Call, IntrinsicCall, Fparser2CodeBlock)
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, GenericInterfaceSymbol, ImportInterface,
-    RoutineSymbol, REAL_TYPE, Symbol, SymbolError, SymbolTable,
+    RoutineSymbol, ScalarType, Symbol, SymbolError, SymbolTable,
     UnresolvedInterface)
 from psyclone.psyir.transformations import (
     TransformationError, OMPDeclareTargetTrans)
@@ -220,7 +220,7 @@ def test_validate_name_clashes():
     inline_trans = KernelModuleInlineTrans()
 
     # Check that name clashes which are not subroutines are detected
-    schedule.symbol_table.add(DataSymbol("ru_code", REAL_TYPE))
+    schedule.symbol_table.add(DataSymbol("ru_code", ScalarType.real_type()))
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(coded_kern)
     assert ("Cannot module-inline Kernel 'ru_code' because symbol "
@@ -418,7 +418,8 @@ def test_validate_nested_scopes(fortran_reader, monkeypatch):
     del routine.symbol_table._symbols["a"]
     # Put a new, different symbol (with the same name) into the table of the
     # parent Container.
-    routine.parent.scope.symbol_table.add(DataSymbol("a", REAL_TYPE))
+    routine.parent.scope.symbol_table.add(
+        DataSymbol("a", ScalarType.real_type()))
     monkeypatch.setattr(kern_call, "_schedules", [routine])
 
     # The transformation should succeed (because the symbol named 'a' is

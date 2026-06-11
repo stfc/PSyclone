@@ -1177,7 +1177,7 @@ def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch,
     '''
     recipe = f'''
 from psyclone.psyir.nodes import Reference, Literal
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import ScalarType
 
 RESOLVE_IMPORTS = {value}
 
@@ -1185,8 +1185,8 @@ def trans(psyir):
     # Replace all integer references with literal '1', it can only be done if
     # we have the type of the symbol (resolved from the module).
     for ref in psyir.walk(Reference):
-        if ref.datatype == INTEGER_TYPE:
-            ref.replace_with(Literal("1", INTEGER_TYPE))
+        if ref.datatype == ScalarType.integer_type():
+            ref.replace_with(Literal("1", ScalarType.integer_type()))
     '''
     recipe_name = f"replace_integers_{idx}.py"
     for filename, content in [("module1.f90", module1),

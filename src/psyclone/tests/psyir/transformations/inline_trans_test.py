@@ -2606,6 +2606,38 @@ def test_validate_call_within_routine(fortran_reader):
             "sub(a)') is not inside a Routine" in str(err.value))
 
 
+def test_validate_unknown_actual_array_arg(fortran_reader):
+    '''Check that validation rejects inlining when an actual argument has
+    unknown type but corresponds to an array formal argument.
+
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine main()\n"
+        "    real, dimension(10) :: a\n"
+        "    call sub(a)\n"
+        "  end subroutine main\n"
+        "  subroutine sub(x)\n"
+        "    real, dimension(:), intent(inout) :: x\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    routine = psyir.walk(Routine)[1]
+    routine_arg = routine.symbol_table.argument_list[0]
+    # Force unknown type information on the actual argument.
+    call.arguments[0].symbol.datatype = UnresolvedType()
+
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans._validate_inline_of_call_and_routine_argument_pairs(
+            call, call.arguments[0], routine, routine_arg)
+    assert ("the type of the actual argument 'a' corresponding to an array"
+            " formal argument ('x') is unknown." in str(err.value))
+
+
 def test_validate_automatic_array_sized_by_arg(fortran_reader, monkeypatch):
     '''
     Check that validate raises the expected error if the dimension of an

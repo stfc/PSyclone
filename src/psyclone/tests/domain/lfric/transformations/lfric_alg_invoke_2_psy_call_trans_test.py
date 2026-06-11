@@ -51,8 +51,7 @@ from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import (
     Call, Routine, Reference, Container, FileContainer, Literal)
 from psyclone.psyir.symbols import (
-    RoutineSymbol, DataTypeSymbol, REAL_TYPE, Symbol, SymbolTable,
-    INTEGER_TYPE)
+    RoutineSymbol, DataTypeSymbol, ScalarType, Symbol, SymbolTable)
 from psyclone.psyir.transformations import TransformationError
 
 
@@ -92,7 +91,7 @@ def test_lfai2psycall_validate():
             "dictionary but found 'NoneType'." in str(err.value))
 
     # kernels entry index not found
-    data_type_symbol = DataTypeSymbol("kern_type", REAL_TYPE)
+    data_type_symbol = DataTypeSymbol("kern_type", ScalarType.real_type())
     arguments = [Reference(Symbol("arg1"))]
     kernel_functor = LFRicFunctor.create(data_type_symbol, arguments)
     call = LFRicAlgorithmInvokeCall.create(
@@ -183,7 +182,7 @@ def test_lfai2psycall_get_arguments():
     # check_arg=True: Invalid number of arguments (metadata expects 2
     # but kernel functor has 1)
     trans = LFRicAlgInvoke2PSyCallTrans()
-    data_type_symbol = DataTypeSymbol("kern_type", REAL_TYPE)
+    data_type_symbol = DataTypeSymbol("kern_type", ScalarType.real_type())
     arguments = [Reference(Symbol("arg1"))]
     kernel_functor = LFRicFunctor.create(data_type_symbol, arguments)
     call = LFRicAlgorithmInvokeCall.create(
@@ -215,7 +214,7 @@ def test_lfai2psycall_get_arguments():
     assert args[0].name == "arg1"
 
     # OK, multi-kern
-    data_type_symbol = DataTypeSymbol("kern2_type", REAL_TYPE)
+    data_type_symbol = DataTypeSymbol("kern2_type", ScalarType.real_type())
     arguments = [Reference(Symbol("arg1")), Reference(Symbol("arg2"))]
     kernel_functor2 = LFRicFunctor.create(data_type_symbol, arguments)
     kernel_functor1 = kernel_functor.copy()
@@ -269,8 +268,10 @@ def test_lfai2psycall_get_arguments():
     assert args[5].name == "qr2"
 
     # error stencil
-    arguments = [Reference(Symbol("arg1")), Reference(Symbol("arg2")),
-                 Reference(Symbol("stencil1")), Literal("1", INTEGER_TYPE),
+    arguments = [Reference(Symbol("arg1")),
+                 Reference(Symbol("arg2")),
+                 Reference(Symbol("stencil1")),
+                 Literal("1", ScalarType.integer_type()),
                  Reference(Symbol("qr"))]
     kernel_functor = LFRicFunctor.create(data_type_symbol, arguments)
     call = LFRicAlgorithmInvokeCall.create(

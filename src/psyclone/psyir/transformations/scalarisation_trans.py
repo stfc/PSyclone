@@ -40,7 +40,7 @@ from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Call, CodeBlock, Literal, \
         IfBlock, Loop, Node, Range, Reference, Routine, StructureReference
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, ScalarType
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.utils import transformation_documentation_wrapper
 
@@ -232,7 +232,7 @@ class ScalarisationTrans(LoopTrans):
                 has_complex_index = True
             index_values.append(None)
 
-        one_literal = Literal("1", INTEGER_TYPE)
+        one_literal = Literal("1", ScalarType.integer_type())
         ancestor_loop = node.ancestor(Loop)
         # For Range or Literal array indices this is easy.
         for i, index in enumerate(indices):

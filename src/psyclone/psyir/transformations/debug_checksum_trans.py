@@ -45,7 +45,7 @@ from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin
 )
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, PreprocessorInterface, ScalarType
+    DataSymbol, PreprocessorInterface, ScalarType
 )
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
@@ -106,6 +106,7 @@ PSYCLONE_INTERNAL_line_ + 1
     <BLANKLINE>
 
     '''
+
     def apply(self, node: Union[Node, List[Node]],
               **kwargs) -> None:
         '''
@@ -223,10 +224,11 @@ PSYCLONE_INTERNAL_line_ + 1
         # __LINE__, and use the internal symbol to create the print statement.
         internal_line = routine_table.find_or_create(
                 "PSYCLONE_INTERNAL_line_", symbol_type=DataSymbol,
-                datatype=INTEGER_TYPE,
+                datatype=ScalarType.integer_type(),
                 )
         line = routine_table.find_or_create(
-                "__LINE__", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                "__LINE__", symbol_type=DataSymbol,
+                datatype=ScalarType.integer_type(),
                 interface=PreprocessorInterface())
         # Tell us where we are to output the checksums.
         explanation_statement = freader.psyir_from_statement(
