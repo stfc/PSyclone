@@ -68,6 +68,7 @@ from psyclone.psyir.symbols import (ArrayType, ScalarType, DataTypeSymbol,
                                     UnsupportedFortranType)
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import get_invoke
 
 
 # constants
@@ -1973,10 +1974,9 @@ def test_lfrickernelargument_idtp_r_tran_operator(tmpdir):
     '''
     # Use one of the test algorithms to create an instance of
     # LFRicKernelArgument that describes an r_tran_operator.
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "26.8_mixed_precision_args.f90"), api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    operator_argument = psy.invokes.invoke_list[0].schedule.args[8]
+    psy, invoke = get_invoke("26.8_mixed_precision_args.f90", api=TEST_API,
+                             dist_mem=False, idx=0)
+    operator_argument = invoke.schedule.args[8]
     assert operator_argument.is_operator
     assert operator_argument._precision == "r_tran"
     assert operator_argument._data_type == "r_tran_operator_type"
@@ -3867,10 +3867,8 @@ def test_mixed_precision_args(tmp_path):
     declared in the algorithm layer.
 
     '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "26.8_mixed_precision_args.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    psy, _ = get_invoke("26.8_mixed_precision_args.f90",
+                        TEST_API, idx=0, dist_mem=True)
     generated_code = str(psy.gen)
 
     assert ("use constants_mod, only : r_bl, r_def, r_solver, r_tran\n"
@@ -3886,11 +3884,14 @@ r_solver_operator_type
   use r_tran_operator_mod, only : r_tran_operator_proxy_type, \
 r_tran_operator_type
   use r_bl_field_mod, only : r_bl_field_proxy_type, r_bl_field_type
+  use, intrinsic :: iso_fortran_env, only : real32
+  use field_real32_mod, only : field_real32_proxy_type, field_real32_type
   implicit none
 """ in generated_code
     assert """subroutine invoke_0(scalar_r_def, field_r_def, operator_r_def, \
 scalar_r_solver, field_r_solver, operator_r_solver, scalar_r_tran, \
-field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl)
+field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl, scalar_real32, \
+field_real32)
     use mesh_mod, only : mesh_type
     use constants_mod, only : i_def
     real(kind=r_def), intent(in) :: scalar_r_def
@@ -3904,6 +3905,8 @@ field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl)
     type(r_tran_operator_type), intent(in) :: operator_r_tran
     real(kind=r_bl), intent(in) :: scalar_r_bl
     type(r_bl_field_type), intent(in) :: field_r_bl
+    real(kind=real32), intent(in) :: scalar_real32
+    type(field_real32_type), intent(in) :: field_real32
     integer(kind=i_def) :: cell
     type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: max_halo_depth_mesh
@@ -3911,6 +3914,7 @@ field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl)
     real(kind=r_solver), pointer, dimension(:) :: field_r_solver_data => null()
     real(kind=r_tran), pointer, dimension(:) :: field_r_tran_data => null()
     real(kind=r_bl), pointer, dimension(:) :: field_r_bl_data => null()
+    real(kind=real32), pointer, dimension(:) :: field_real32_data => null()
     real(kind=r_def), pointer, dimension(:,:,:) :: \
 operator_r_def_local_stencil => null()
     real(kind=r_solver), pointer, dimension(:,:,:) :: \
@@ -3921,6 +3925,7 @@ operator_r_tran_local_stencil => null()
     integer(kind=i_def) :: nlayers_field_r_solver
     integer(kind=i_def) :: nlayers_field_r_tran
     integer(kind=i_def) :: nlayers_field_r_bl
+    integer(kind=i_def) :: nlayers_field_real32
     integer(kind=i_def) :: ndf_w3
     integer(kind=i_def) :: undf_w3
     integer(kind=i_def) :: ndf_w0
@@ -3929,6 +3934,7 @@ operator_r_tran_local_stencil => null()
     type(r_solver_field_proxy_type) :: field_r_solver_proxy
     type(r_tran_field_proxy_type) :: field_r_tran_proxy
     type(r_bl_field_proxy_type) :: field_r_bl_proxy
+    type(field_real32_proxy_type) :: field_real32_proxy
     type(operator_proxy_type) :: operator_r_def_proxy
     type(r_solver_operator_proxy_type) :: operator_r_solver_proxy
     type(r_tran_operator_proxy_type) :: operator_r_tran_proxy
@@ -3940,6 +3946,8 @@ operator_r_tran_local_stencil => null()
     integer(kind=i_def) :: loop2_stop
     integer(kind=i_def) :: loop3_start
     integer(kind=i_def) :: loop3_stop
+    integer(kind=i_def) :: loop4_start
+    integer(kind=i_def) :: loop4_stop
 """ in generated_code
 
     # Test compilation

@@ -624,7 +624,10 @@ class LFRicTypes:
             raise ValueError(f"'{name}' is not a recognised LFRic precision.")
 
         const = LFRicConstants()
-        mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
+        if name in const.INTRINSIC_KINDS:
+            mod_name = "iso_fortran_env"
+        else:
+            mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
 
         sym = table.lookup(name, otherwise=None)
 

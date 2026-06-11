@@ -382,6 +382,10 @@ class LFRicConstants():
             OrderedDict(zip(LFRicConstants.VALID_INTRINSIC_TYPES,
                             ["r_def", "i_def", "l_def"]))
 
+        # Those kind symbols used in LFRic that are actually
+        # Fortran intrinsics (and thus don't come from constants_mod).
+        LFRicConstants.INTRINSIC_KINDS = ("real32", "real64")
+
         # ---------- Infrastructure module maps -------------------------------
 
         # Dictionary allowing us to look-up the name of the Fortran module,
@@ -444,6 +448,18 @@ class LFRicConstants():
                          "proxy_type": "operator_proxy_type",
                          "intrinsic": "real",
                          "kind": "r_def"},
+            # 'real'-valued operator with real32 data
+            "r_32_operator": {"module": "operator_real32_mod",
+                              "type": "operator_real32_type",
+                              "proxy_type": "operator_real32_proxy_type",
+                              "intrinsic": "real",
+                              "kind": "real32"},
+            # 'real'-valued operator with real32 data
+            "r_64_operator": {"module": "operator_real64_mod",
+                              "type": "operator_real64_type",
+                              "proxy_type": "operator_real64_proxy_type",
+                              "intrinsic": "real",
+                              "kind": "real64"},
             # 'real'-valued operator with data of kind 'r_solver'
             "r_solver_operator": {
                 "module": "r_solver_operator_mod",
@@ -465,6 +481,13 @@ class LFRicConstants():
                 "proxy_type": "columnwise_operator_proxy_type",
                 "intrinsic": "real",
                 "kind": "r_solver"}}
+
+        # Construct a reverse map from type to the name of the LFRic
+        # data type for all real types.
+        LFRicConstants.REAL_DATA_TYPE_RMAP = {}
+        for key, value in LFRicConstants.DATA_TYPE_MAP.items():
+            if value["intrinsic"] == "real":
+                LFRicConstants.REAL_DATA_TYPE_RMAP[value["type"]] = key
 
         # Mapping from a vector type used in the algorithm-layer to
         # the actual type used in the PSy-layer.

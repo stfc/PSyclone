@@ -5990,20 +5990,14 @@ class LFRicKernelArgument(KernelArgument):
             if not check:
                 # Use the default as we are ignoring any algorithm info
                 argtype = "field"
-            elif alg_datatype == "field_type":
-                argtype = "field"
-            elif alg_datatype == "r_bl_field_type":
-                argtype = "r_bl_field"
-            elif alg_datatype == "r_solver_field_type":
-                argtype = "r_solver_field"
-            elif alg_datatype == "r_tran_field_type":
-                argtype = "r_tran_field"
             else:
-                raise GenerationError(
-                    f"The metadata for argument '{self.name}' in kernel "
-                    f"'{self._call.name}' specifies that this is a real "
-                    f"field, however it is declared as a "
-                    f"'{alg_datatype}' in the algorithm code.")
+                argtype = const.REAL_DATA_TYPE_RMAP.get(alg_datatype, None)
+                if not argtype:
+                    raise GenerationError(
+                        f"The metadata for argument '{self.name}' in kernel "
+                        f"'{self._call.name}' specifies that this is a real "
+                        f"field, however it is declared as a "
+                        f"'{alg_datatype}' in the algorithm code.")
 
         elif self.intrinsic_type == "integer":
             if check and alg_datatype != "integer_field_type":
@@ -6484,13 +6478,21 @@ class LFRicKernelArgument(KernelArgument):
             try:
                 kind_symbol = symtab.lookup(kind_name)
             except KeyError:
-                mod_map = LFRicConstants().UTILITIES_MOD_MAP
-                const_mod = mod_map["constants"]["module"]
-                constants_container = symtab.find_or_create(
-                    const_mod, symbol_type=ContainerSymbol)
-                kind_symbol = DataSymbol(
-                    kind_name, ScalarType.integer_type(),
-                    interface=ImportInterface(constants_container))
+                if kind_name.lower() in LFRicConstants().INTRINSIC_KINDS:
+                    iso_env_sym = symtab.find_or_create(
+                        "iso_fortran_env", symbol_type=ContainerSymbol,
+                        is_intrinsic=True)
+                    kind_symbol = DataSymbol(
+                        kind_name, ScalarType.integer_type(),
+                        interface=ImportInterface(iso_env_sym))
+                else:
+                    mod_map = LFRicConstants().UTILITIES_MOD_MAP
+                    const_mod = mod_map["constants"]["module"]
+                    constants_container = symtab.find_or_create(
+                        const_mod, symbol_type=ContainerSymbol)
+                    kind_symbol = DataSymbol(
+                        kind_name, ScalarType.integer_type(),
+                        interface=ImportInterface(constants_container))
                 symtab.add(kind_symbol)
             dts = ScalarType(prim_type, Reference(kind_symbol))
             if self.is_scalar_array and self._array_ndims >= 1:
