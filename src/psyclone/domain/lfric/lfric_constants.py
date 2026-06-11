@@ -420,6 +420,18 @@ class LFRicConstants():
                            "proxy_type": "r_bl_field_proxy_type",
                            "intrinsic": "real",
                            "kind": "r_bl"},
+            # 'real'-valued field with explicit 32-bit precision
+            "r_32_field": {"module": "field_real32_mod",
+                           "type": "field_real32_type",
+                           "proxy_type": "field_real32_proxy_type",
+                           "intrinsic": "real",
+                           "kind": "real32"},
+            # 'real'-valued field with explicit 64-bit precision
+            "r_64_field": {"module": "field_real64_mod",
+                           "type": "field_real64_type",
+                           "proxy_type": "field_real64_proxy_type",
+                           "intrinsic": "real",
+                           "kind": "real64"},
             # 'integer'-valued field with data of kind 'i_def'
             "integer_field": {"module": "integer_field_mod",
                               "type": "integer_field_type",

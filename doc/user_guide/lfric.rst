@@ -432,7 +432,7 @@ Mixed Precision
 
 The LFRic API supports the ability to specify the precision required
 by the model via precision variables. To make use of this, the code
-developer must declare scalars, arrays, fields and operators in the algorithm
+developer must declare scalars, arrays, fields and operators in the Algorithm
 layer with the required LFRic-supported precision. In the current
 implementation there are two supported precisions for ``REAL`` data and
 one each for ``INTEGER`` and ``LOGICAL`` data. The actual precision used in
@@ -470,6 +470,10 @@ associated kernel metadata description and their precision:
 | R_SOLVER_FIELD_TYPE      | GH_FIELD, GH_REAL                     | R_SOLVER  |
 +--------------------------+---------------------------------------+-----------+
 | R_TRAN_FIELD_TYPE        | GH_FIELD, GH_REAL                     | R_TRAN    |
++--------------------------+---------------------------------------+-----------+
+| FIELD_REAL32_TYPE        | GH_FIELD, GH_REAL                     | REAL32    |
++--------------------------+---------------------------------------+-----------+
+| FIELD_REAL64_TYPE        | GH_FIELD, GH_REAL                     | REAL64    |
 +--------------------------+---------------------------------------+-----------+
 | INTEGER_FIELD_TYPE       | GH_FIELD, GH_INTEGER                  | I_DEF     |
 +--------------------------+---------------------------------------+-----------+
