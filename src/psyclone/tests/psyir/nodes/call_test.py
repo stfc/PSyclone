@@ -1971,7 +1971,8 @@ def test_check_argument_type_matches(fortran_reader):
     call2._check_argument_type_matches(
         call2.arguments[0],
         DataSymbol("dummy1", ArrayType(ScalarType.real_type(), shape=[10])))
-    # Array of wrong rank.
+    # Array of wrong rank. Implicit reshaping is not permitted because
+    # the dummy argument is not an explicit-shape array.
     with pytest.raises(CallMatchingArgumentsNotFound) as err:
         call2._check_argument_type_matches(
             call2.arguments[0],
@@ -2019,7 +2020,9 @@ def test_check_argument_type_matches(fortran_reader):
     assert ("Argument type mismatch of call argument 'athing' (Array<my_type: "
             "DataTypeSymbol, shape=[5]>) and routine argument 'dummy1' "
             "(MY_type: DataTypeSymbol)" in str(err.value))
-    # Doesn't match with array of derived type with wrong rank.
+    # Doesn't match with array of derived type with wrong rank. Implicit
+    # reshaping is not permitted because the dummy argument is not an
+    # explicit-shape array.
     with pytest.raises(CallMatchingArgumentsNotFound) as err:
         call4._check_argument_type_matches(
             call4.arguments[0],
