@@ -703,7 +703,10 @@ class Call(Statement, DataNode):
             ) -> None:
         """Checks whether the supplied call and routine arguments are
         compatible. This also supports 'optional' arguments by using
-        partial types.
+        partial types. Array arguments are only required to have the same
+        rank if we are dealing with an interface call (polymorphism) or
+        the dummy argument does not have an explicit shape (in which
+        case Fortran permits implicit reshaping).
 
         :param call_arg: One argument of the call
         :param routine_arg: One argument of the routine
@@ -732,7 +735,10 @@ class Call(Statement, DataNode):
                 dim.lower is not ArrayType.Extent.ATTRIBUTE and
                 dim.upper is not ArrayType.Extent.ATTRIBUTE
                 for dim in dummy_type.shape])
-            # Do arguments need to have the same rank?
+            # Arguments are only required to have the same rank if we are
+            # dealing with an interface call (polymorphism) or the dummy
+            # argument does not have an explicit shape (in which case
+            # Fortran permits implicit reshaping)
             match_rank = (isinstance(self.routine.symbol,
                                      GenericInterfaceSymbol) or
                           not has_explicit_shape)
