@@ -483,13 +483,18 @@ associated kernel metadata description and their precision:
 +--------------------------+---------------------------------------+-----------+
 | R_TRAN_OPERATOR_TYPE     | GH_OPERATOR, GH_REAL                  | R_TRAN    |
 +--------------------------+---------------------------------------+-----------+
+| OPERATOR_REAL32_TYPE     | GH_OPERATOR, GH_REAL                  | REAL32    |
++--------------------------+---------------------------------------+-----------+
+| OPERATOR_REAL64_TYPE     | GH_OPERATOR, GH_REAL                  | REAL64    |
++--------------------------+---------------------------------------+-----------+
 | COLUMNWISE_OPERATOR_TYPE | GH_COLUMNWISE_OPERATOR, GH_REAL       | R_SOLVER  |
 +--------------------------+---------------------------------------+-----------+
 
 As can be seen from the above table, the kernel metadata does not
 capture all of the precision options. For example, from the metadata
 it is not possible to determine whether a ``REAL`` scalar, ``REAL`` field
-or ``REAL`` operator has precision ``R_DEF``, ``R_SOLVER`` or ``R_TRAN``.
+or ``REAL`` operator has precision ``R_DEF``, ``R_SOLVER``, ``R_TRAN``
+or one of the Fortran intrinsic precisions (``REAL32``, ``REAL64``).
 
 If a scalar, array, field, or operator is specified with a particular
 precision in the algorithm layer then any associated kernels that it
@@ -605,6 +610,10 @@ outlined in the table below:
 +-------------------------+------------------+--------------+
 | ``r_tran_field_type``   | ``real``         | ``r_tran``   |
 +-------------------------+------------------+--------------+
+| ``field_real32_type``   | ``real``         | ``real32``   |
++-------------------------+------------------+--------------+
+| ``field_real64_type``   | ``real``         | ``real64``   |
++-------------------------+------------------+--------------+
 | ``integer_field_type``  | ``integer``      | ``i_def``    |
 +-------------------------+------------------+--------------+
 
@@ -705,7 +714,8 @@ a message that indicates the problem.
 | Fortran Datatype | Supported Precision      |
 +==================+==========================+
 | ``real``         | ``r_def``, ``r_bl``,     |
-|                  | ``r_solver``, ``r_tran`` |
+|                  | ``r_solver``, ``r_tran``,|
+|                  | ``real32``, ``real64``   |
 +------------------+--------------------------+
 | ``integer``      | ``i_def``                |
 +------------------+--------------------------+
@@ -734,6 +744,10 @@ outlined in the table below:
 | ``r_solver_operator_type`` | ``real``         | ``r_solver`` |
 +----------------------------+------------------+--------------+
 | ``r_tran_operator_type``   | ``real``         | ``r_tran``   |
++----------------------------+------------------+--------------+
+| ``operator_real32_type``   | ``real``         | ``real32``   |
++----------------------------+------------------+--------------+
+| ``operator_real64_type``   | ``real``         | ``real64``   |
 +----------------------------+------------------+--------------+
 
 .. _lfric-mixed-precision-cma-operators:
