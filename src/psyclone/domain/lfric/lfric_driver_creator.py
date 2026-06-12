@@ -98,9 +98,10 @@ class LFRicDriverCreator(DriverCreator):
                                     symbol_type=DataSymbol,
                                     datatype=ScalarType.integer_type(),
                                     interface=ImportInterface(constant_mod))
-        # Intrinsic kind symbols are imported into constants_mod but are private
-        # to it so have to be handled separately.
-        iso_mod = ContainerSymbol(const.FORTRAN_ISO_MOD_NAME, is_intrinsic=True)
+        # Intrinsic kind symbols are imported into constants_mod but are
+        # private to it so have to be handled separately.
+        iso_mod = ContainerSymbol(const.FORTRAN_ISO_MOD_NAME,
+                                  is_intrinsic=True)
         symbol_table.add(iso_mod)
         for prec_name in const.INTRINSIC_KINDS:
             symbol_table.new_symbol(prec_name,
@@ -108,7 +109,7 @@ class LFRicDriverCreator(DriverCreator):
                                     symbol_type=DataSymbol,
                                     datatype=ScalarType.integer_type(),
                                     interface=ImportInterface(iso_mod))
-                        
+
     # -------------------------------------------------------------------------
     def verify_and_cleanup_psyir(self, extract_region: Node) -> None:
         """This implementation removes MPI related calls in LFRic (`set_dirty`
