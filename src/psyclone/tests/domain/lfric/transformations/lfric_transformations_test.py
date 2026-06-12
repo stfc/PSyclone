@@ -3876,6 +3876,8 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             7*indent + "0: " + call + " x_innerproduct_y(asum,f1,f2)\n" +
             2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
             2*indent + ompprivate + "[]\n" +
+            3*indent + "Reference[name:'df']\n" +
+            3*indent + "Reference[name:'th_idx']\n" +
             2*indent + ompfprivate + "[]\n" +
             indent + "1: " + gsum + "[scalar='asum']\n" +
             indent + "2: " + ompparallel + "[]\n" +
@@ -3892,6 +3894,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             7*indent + "0: " + call + " inc_a_times_x(asum,f1)\n" +
             2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
             2*indent + ompprivate + "[]\n" +
+            3*indent + "Reference[name:'df']\n" +
             2*indent + ompfprivate + "[]\n" +
             indent + "3: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
@@ -3907,6 +3910,8 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             7*indent + "0: " + call + " sum_x(bsum,f2)\n" +
             2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
             2*indent + ompprivate + "[]\n" +
+            3*indent + "Reference[name:'df']\n" +
+            3*indent + "Reference[name:'th_idx']\n" +
             2*indent + ompfprivate + "[]\n" +
             indent + "4: " + gsum + "[scalar='bsum']\n")
         if not annexed:
@@ -3928,6 +3933,8 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             7*indent + "0: " + call + " x_innerproduct_y(asum,f1,f2)\n" +
             2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
             2*indent + ompprivate + "[]\n" +
+            3*indent + "Reference[name:'df']\n" +
+            3*indent + "Reference[name:'th_idx']\n" +
             2*indent + ompfprivate + "[]\n" +
             indent + "1: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
@@ -3943,6 +3950,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             7*indent + "0: " + call + " inc_a_times_x(asum,f1)\n" +
             2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
             2*indent + ompprivate + "[]\n" +
+            3*indent + "Reference[name:'df']\n" +
             2*indent + ompfprivate + "[]\n" +
             indent + "2: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
@@ -3958,13 +3966,15 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             7*indent + "0: " + call + " sum_x(bsum,f2)\n" +
             2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
             2*indent + ompprivate + "[]\n" +
+            3*indent + "Reference[name:'df']\n" +
+            3*indent + "Reference[name:'th_idx']\n" +
             2*indent + ompfprivate + "[]\n")
     if expected not in result:
         print("Expected ...")
         print(expected)
         print("Found ...")
         print(result)
-        assert 0
+    assert expected in result
 
 
 @pytest.mark.parametrize("reprod", [True, False])

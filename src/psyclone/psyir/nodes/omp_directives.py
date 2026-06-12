@@ -1284,6 +1284,27 @@ class OMPParallelDirective(DataSharingAttributeMixin, OMPRegionDirective):
         '''
         return self.children[2]
 
+    def generate_data_clauses(self):
+        '''
+        Adds the private and firstprivate clauses to this OMPParallelDirective
+        according to the contained nodes.
+        '''
+        reprod_red_call_list = self.reductions(reprod=True)
+        private, fprivate, need_sync = self.infer_sharing_attributes()
+        # Order the clause variables alphabetically (to facilitate comparisons)
+        if reprod_red_call_list:
+            table = self.ancestor(Routine).symbol_table
+            thread_idx = table.find_or_create_tag(
+                "omp_thread_index", root_name="th_idx",
+                symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            private.add(thread_idx)
+        private_clause = OMPPrivateClause.create(
+                            sorted(private, key=lambda x: x.name))
+        fprivate_clause = OMPFirstprivateClause.create(
+                            sorted(fprivate, key=lambda x: x.name))
+        self.children[2].replace_with(private_clause)
+        self.children[3].replace_with(fprivate_clause)
+
     def lower_to_language_level(self) -> Node:
         '''
         In-place construction of clauses as PSyIR constructs.
@@ -1358,15 +1379,7 @@ class OMPParallelDirective(DataSharingAttributeMixin, OMPRegionDirective):
 
         # Create data sharing clauses (before lowering, so the CodedKern
         # semantics are taken into account)
-        private, fprivate, need_sync = self.infer_sharing_attributes()
-
-        # Order the clause variables alphabetically (to facilitate comparisons)
-        if reprod_red_call_list:
-            private.add(thread_idx)
-        private_clause = OMPPrivateClause.create(
-                            sorted(private, key=lambda x: x.name))
-        fprivate_clause = OMPFirstprivateClause.create(
-                            sorted(fprivate, key=lambda x: x.name))
+        _, _, need_sync = self.infer_sharing_attributes()
 
         # Check all of the need_sync nodes are synchronized in children.
         # unless it has reduction_kernels which are handled separately
@@ -1388,9 +1401,6 @@ class OMPParallelDirective(DataSharingAttributeMixin, OMPRegionDirective):
                         "symbol '%s'. Make sure this is a false WaW dependency"
                         " or the code includes the necessary "
                         "synchronisations.", type(self).__name__, sym.name)
-
-        self.children[2].replace_with(private_clause)
-        self.children[3].replace_with(fprivate_clause)
 
         # Continue lowering children (but not the clauses we just added)
         for child in self.children[:2]:

@@ -177,6 +177,11 @@ class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
         local_options["force"] = True
         super().validate(node, options=local_options)
 
+    def apply(self, node, options=None):
+        super().apply(node, options=options)
+        node.ancestor(OMPParallelDirective,
+                      include_self=True).generate_data_clauses()
+
 
 class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
 
@@ -222,6 +227,9 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
                 " is not of type inner or outer.")
 
         OMPParallelLoopTrans.apply(self, node)
+
+        node.ancestor(OMPParallelDirective,
+                      include_self=True).generate_data_clauses()
 
 
 class LFRicOMPLoopTrans(OMPLoopTrans):

@@ -2134,6 +2134,7 @@ def test_fw_directive_with_clause(fortran_reader, fortran_writer):
     master = OMPMasterDirective(children=[directive])
     parallel = OMPParallelDirective.create(children=[master])
     schedule.addchild(parallel, 0)
+    parallel.generate_data_clauses()
     assert '''!$omp parallel default(shared) private(i)
   !$omp master
   !$omp taskloop num_tasks(32) nogroup

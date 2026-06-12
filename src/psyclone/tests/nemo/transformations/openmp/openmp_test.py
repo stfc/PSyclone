@@ -89,6 +89,7 @@ def test_omp_explicit_gen(fortran_reader, fortran_writer):
         "  !$omp end parallel do\n"
         "\n"
         "end program explicit_do")
+    print(fortran_writer(psyir).lower())
     assert expected in fortran_writer(psyir).lower()
     # Check that calling gen a second time gives the same code
     assert expected in fortran_writer(psyir).lower()

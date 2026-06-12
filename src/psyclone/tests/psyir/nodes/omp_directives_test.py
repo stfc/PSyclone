@@ -79,8 +79,11 @@ TEST_LOGGER_OMP = "psyclone.psyir.nodes.omp_directives"
 TEST_LOGGER_INF = "psyclone.psyir.tools.reduction_inference"
 
 
-def test_ompparallel_lowering(fortran_reader, monkeypatch, caplog):
-    ''' Check that lowering an OMP Parallel region leaves it with the
+def test_ompparallel_generate_data_clauses_and_lowering(
+    fortran_reader, monkeypatch, caplog
+):
+    ''' Check that lowering an OMP Parallel region and calling
+    generate_data_clauses (as the transformations do) leaves it with the
     appropriate begin_string and clauses for the backend to generate
     the right code'''
     code = '''
@@ -105,6 +108,7 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch, caplog):
     ptrans.apply(loops[0].parent.parent)
     assert isinstance(tree.children[0].children[0], OMPParallelDirective)
     pdir = tree.children[0].children[0]
+    pdir.generate_data_clauses()
     pdir.lower_to_language_level()
     assert pdir.begin_string() == "omp parallel"
     assert len(pdir.children) == 4
@@ -123,6 +127,7 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch, caplog):
     # Add loop
     pdir.children[0].addchild(new_loop)
 
+    pdir.generate_data_clauses()
     pdir.lower_to_language_level()
     assert pdir.children[2] is not priv_clause
 
@@ -130,6 +135,7 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch, caplog):
     monkeypatch.setattr(pdir, "infer_sharing_attributes",
                         lambda: ({Symbol("a")}, {Symbol("b")}, None))
 
+    pdir.generate_data_clauses()
     pdir.lower_to_language_level()
     assert isinstance(pdir.children[2], OMPPrivateClause)
     assert len(pdir.children[2].children) == 1
@@ -168,9 +174,11 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch, caplog):
             "\n" in caplog.text)
 
 
-def test_omp_parallel_do_lowering(fortran_reader, monkeypatch, caplog):
-    ''' Check that lowering an OMP Parallel Do leaves it with the
-    appropriate begin_string and clauses for the backend to generate
+def test_omp_parallel_do_generate_data_clauses(
+    fortran_reader, monkeypatch, caplog
+):
+    ''' Check that generate_data_clauses on an OMP Parallel Do leaves it with
+    the appropriate begin_string and clauses for the backend to generate
     the right code'''
 
     code = '''
@@ -211,6 +219,8 @@ def test_omp_parallel_do_lowering(fortran_reader, monkeypatch, caplog):
     # Change the schedule
     pdir._omp_schedule = "dynamic"
 
+    pdir.generate_data_clauses()
+    # Schedule is only updated in lowering.
     pdir.lower_to_language_level()
     assert pdir.children[2] is not priv_clause
     assert isinstance(pdir.children[2], OMPPrivateClause)
@@ -223,7 +233,7 @@ def test_omp_parallel_do_lowering(fortran_reader, monkeypatch, caplog):
     monkeypatch.setattr(pdir, "infer_sharing_attributes",
                         lambda: ({Symbol("a")}, {Symbol("b")}, None))
 
-    pdir.lower_to_language_level()
+    pdir.generate_data_clauses()
     assert isinstance(pdir.children[2], OMPPrivateClause)
     assert len(pdir.children[2].children) == 1
     assert pdir.children[2].children[0].name == 'a'

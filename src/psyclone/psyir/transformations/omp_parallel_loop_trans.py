@@ -41,12 +41,13 @@
 
 
 from psyclone.psyir.nodes import (
-    OMPParallelDoDirective, OMPReductionClause)
+    OMPParallelDoDirective, OMPReductionClause, OMPParallelDirective)
 from psyclone.psyir.nodes.omp_directives import MAP_REDUCTION_OP_TO_OMP
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 
 
 class OMPParallelLoopTrans(OMPLoopTrans):
+
     ''' Adds an OpenMP PARALLEL DO directive to a loop.
 
         For example:
@@ -105,7 +106,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         directive = OMPParallelDoDirective(children=[node.detach()],
                                            omp_schedule=self.omp_schedule)
 
-        # add any inferred reduction clauses to the newly introduced directive
+        # Add any inferred reduction clauses to the newly introduced directive
         for (op, ref) in self.inferred_reduction_clauses:
             clause = OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[op])
             clause.addchild(ref)
@@ -113,6 +114,8 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         # add the OpenMP loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
+        node.ancestor(OMPParallelDirective,
+                      include_self=True).generate_data_clauses()
 
 
 # For Sphinx AutoAPI documentation generation

@@ -696,6 +696,44 @@ def test_omploop_trans_new_options(sample_psyir):
                 in str(excinfo.value))
 
 
+def test_omplooptrans_apply_teamsloop_collapse(
+    fortran_reader, fortran_writer
+):
+    '''Test the behaviour of the OMPLoopTrans is as expected with
+    teams loop and collapse'''
+    code = """
+    subroutine x()
+    integer :: i, j
+    integer, dimension(100, 100):: arr
+    do i = 1, 100
+      do j = 1, 100
+        arr(i, j) = 1
+      end do
+    end do
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    looptrans = OMPLoopTrans(omp_directive="teamsloop")
+    loops = psyir.walk(Loop)
+    looptrans.apply(loops[0], options={"collapse": True})
+    out = fortran_writer(psyir)
+    correct = """subroutine x()
+  integer :: i
+  integer :: j
+  integer, dimension(100,100) :: arr
+
+  !$omp teams loop collapse(2) default(shared) private(i,j) schedule(auto)
+  do i = 1, 100, 1
+    do j = 1, 100, 1
+      arr(i,j) = 1
+    enddo
+  enddo
+  !$omp end teams loop
+
+end subroutine x
+"""
+    assert correct == out
+
+
 def test_omplooptrans_apply_nowait(fortran_reader, fortran_writer):
     '''Test the behaviour of the OMPLoopTrans is as expected when
     we request nowait.'''
