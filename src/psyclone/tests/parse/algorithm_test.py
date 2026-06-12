@@ -248,7 +248,8 @@ def test_parser_invokeinfo_datatypes_mixed():
     args2 = info.calls[0].kcalls[2].args
     args3 = info.calls[0].kcalls[3].args
     args4 = info.calls[0].kcalls[4].args
-    assert len(info.calls[0].kcalls) == 5
+    args5 = info.calls[0].kcalls[5].args
+    assert len(info.calls[0].kcalls) == 6
     assert args0[0]._datatype == ("real", "r_def")
     assert args0[1]._datatype == ("field_type", None)
     assert args0[2]._datatype == ("operator_type", None)
@@ -262,6 +263,9 @@ def test_parser_invokeinfo_datatypes_mixed():
     assert args3[1]._datatype == ("r_bl_field_type", None)
     assert args4[0]._datatype == ("real", "real32")
     assert args4[1]._datatype == ("field_real32_type", None)
+    assert args5[0]._datatype == ("real", "real64")
+    assert args5[1]._datatype == ("field_real64_type", None)
+    assert args5[2]._datatype == ("operator_real64_type", None)
 
 
 def test_parser_invokeinfo_datatypes_self():
