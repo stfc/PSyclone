@@ -3884,16 +3884,19 @@ r_solver_operator_type
   use r_tran_operator_mod, only : r_tran_operator_proxy_type, \
 r_tran_operator_type
   use r_bl_field_mod, only : r_bl_field_proxy_type, r_bl_field_type
-  use, intrinsic :: iso_fortran_env, only : real32
+  use, intrinsic :: iso_fortran_env, only : real32, real64
   use field_real32_mod, only : field_real32_proxy_type, field_real32_type
   use operator_real32_mod, only : operator_real32_proxy_type, \
 operator_real32_type
+  use field_real64_mod, only : field_real64_proxy_type, field_real64_type
+  use operator_real64_mod, only : operator_real64_proxy_type, \
+operator_real64_type
   implicit none
 """ in generated_code
     assert """subroutine invoke_0(scalar_r_def, field_r_def, operator_r_def, \
 scalar_r_solver, field_r_solver, operator_r_solver, scalar_r_tran, \
 field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl, scalar_real32, \
-field_real32, operator_real32)
+field_real32, operator_real32, scalar_real64, field_real64, operator_real64)
     use mesh_mod, only : mesh_type
     use constants_mod, only : i_def
     real(kind=r_def), intent(in) :: scalar_r_def
@@ -3910,6 +3913,9 @@ field_real32, operator_real32)
     real(kind=real32), intent(in) :: scalar_real32
     type(field_real32_type), intent(in) :: field_real32
     type(operator_real32_type), intent(in) :: operator_real32
+    real(kind=real64), intent(in) :: scalar_real64
+    type(field_real64_type), intent(in) :: field_real64
+    type(operator_real64_type), intent(in) :: operator_real64
     integer(kind=i_def) :: cell
     type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: max_halo_depth_mesh
@@ -3918,6 +3924,7 @@ field_real32, operator_real32)
     real(kind=r_tran), pointer, dimension(:) :: field_r_tran_data => null()
     real(kind=r_bl), pointer, dimension(:) :: field_r_bl_data => null()
     real(kind=real32), pointer, dimension(:) :: field_real32_data => null()
+    real(kind=real64), pointer, dimension(:) :: field_real64_data => null()
     real(kind=r_def), pointer, dimension(:,:,:) :: \
 operator_r_def_local_stencil => null()
     real(kind=r_solver), pointer, dimension(:,:,:) :: \
@@ -3926,11 +3933,14 @@ operator_r_solver_local_stencil => null()
 operator_r_tran_local_stencil => null()
     real(kind=real32), pointer, dimension(:,:,:) :: \
 operator_real32_local_stencil => null()
+    real(kind=real64), pointer, dimension(:,:,:) :: \
+operator_real64_local_stencil => null()
     integer(kind=i_def) :: nlayers_field_r_def
     integer(kind=i_def) :: nlayers_field_r_solver
     integer(kind=i_def) :: nlayers_field_r_tran
     integer(kind=i_def) :: nlayers_field_r_bl
     integer(kind=i_def) :: nlayers_field_real32
+    integer(kind=i_def) :: nlayers_field_real64
     integer(kind=i_def) :: ndf_w3
     integer(kind=i_def) :: undf_w3
     integer(kind=i_def) :: ndf_w0
@@ -3940,10 +3950,12 @@ operator_real32_local_stencil => null()
     type(r_tran_field_proxy_type) :: field_r_tran_proxy
     type(r_bl_field_proxy_type) :: field_r_bl_proxy
     type(field_real32_proxy_type) :: field_real32_proxy
+    type(field_real64_proxy_type) :: field_real64_proxy
     type(operator_proxy_type) :: operator_r_def_proxy
     type(r_solver_operator_proxy_type) :: operator_r_solver_proxy
     type(r_tran_operator_proxy_type) :: operator_r_tran_proxy
     type(operator_real32_proxy_type) :: operator_real32_proxy
+    type(operator_real64_proxy_type) :: operator_real64_proxy
     integer(kind=i_def) :: loop0_start
     integer(kind=i_def) :: loop0_stop
     integer(kind=i_def) :: loop1_start

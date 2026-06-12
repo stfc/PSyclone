@@ -5954,22 +5954,22 @@ class LFRicKernelArgument(KernelArgument):
             self._precision = const.SCALAR_PRECISION_MAP[
                 self.intrinsic_type]
 
-    def _init_field_properties(self, alg_datatype, check=True):
+    def _init_field_properties(self,
+                               alg_datatype: Optional[str],
+                               check: bool = True) -> None:
         '''Set up the properties of this field using algorithm datatype
         information if it is available.
 
-        :param alg_datatype: the datatype of this argument as \
-            specified in the algorithm layer or None if it is not \
-            known.
-        :type alg_datatype: str or NoneType
-        :param bool check: whether to use the algorithm \
+        :param alg_datatype: the datatype of this argument as
+            specified in the algorithm layer or None if it is not known.
+        :param check: whether to use the algorithm
             information. Optional argument that defaults to True.
 
-        :raises GenerationError: if the datatype for a gh_field \
+        :raises GenerationError: if the datatype for a gh_field
             could not be found in the algorithm layer.
-        :raises GenerationError: if the datatype specified in the \
+        :raises GenerationError: if the datatype specified in the
             algorithm layer is inconsistent with the kernel metadata.
-        :raises InternalError: if the intrinsic type of the field is \
+        :raises InternalError: if the intrinsic type of the field is
             not supported (i.e. is not real or integer).
 
         '''
@@ -6486,21 +6486,17 @@ class LFRicKernelArgument(KernelArgument):
                 if kind_name.lower() in const.INTRINSIC_KINDS:
                     # This is an intrinsic kind (e.g. real32) so it comes
                     # from the intrinsic ISO module.
-                    iso_env_sym = symtab.find_or_create(
+                    cntr_sym = symtab.find_or_create(
                         const.FORTRAN_ISO_MOD_NAME,
                         symbol_type=ContainerSymbol,
                         is_intrinsic=True)
-                    kind_symbol = DataSymbol(
-                        kind_name, ScalarType.integer_type(),
-                        interface=ImportInterface(iso_env_sym))
                 else:
                     mod_map = const.UTILITIES_MOD_MAP
                     const_mod = mod_map["constants"]["module"]
-                    constants_container = symtab.find_or_create(
+                    cntr_sym = symtab.find_or_create(
                         const_mod, symbol_type=ContainerSymbol)
-                    kind_symbol = DataSymbol(
-                        kind_name, ScalarType.integer_type(),
-                        interface=ImportInterface(constants_container))
+                kind_symbol = DataSymbol(kind_name, ScalarType.integer_type(),
+                                         interface=ImportInterface(cntr_sym))
                 symtab.add(kind_symbol)
             dts = ScalarType(prim_type, Reference(kind_symbol))
             if self.is_scalar_array and self._array_ndims >= 1:
