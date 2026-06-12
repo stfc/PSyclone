@@ -967,6 +967,69 @@ class Kern(Statement):
             insert_loc.addchild(assign, cursor)
         return new_node
 
+    def temp_to_array_assignment(self,
+                                 parent: Node,
+                                 table: SymbolTable) -> None:
+        '''
+        Generate the appropriate code to transfer the private reduction
+        temporary into the shared array for reproducible reductions.
+        The assignment is always placed as the final child of parent.
+
+        This method is designed to be used *after* a Kern has been lowered
+        (and thus detached) and therefore does not use `self.scope`.
+
+        :param parent: the node to which to add the assignment as a child.
+        :param table: the SymbolTable to use.
+        '''
+        tag = f"{self.name}:{self._reduction_arg.name}:local"
+        array_symbol = table.lookup_with_tag(tag)
+        local_var = table.lookup_with_tag(
+            f"{self.name}:{self._reduction_arg.name}:templocal")
+        thread_idx = table.lookup_with_tag("omp_thread_index")
+        arr_ref = ArrayReference.create(
+            array_symbol, [
+                Literal("1", ScalarType.integer_type()),
+                Reference(thread_idx)
+            ])
+
+        assign = Assignment.create(
+            arr_ref, Reference(local_var)
+        )
+
+        assign.preceding_comment = (
+            "Store the thread private value of the reduction into the "
+            "shared array as required for reproducible reductions."
+        )
+
+        # Where to put it?
+        parent.addchild(assign)
+
+    def initialise_and_privatise_scalar_store(
+        self, parallel_region: Node, position: int, table: SymbolTable
+    ) -> None:
+        '''
+        Generate the appropriate code to initialise the scalar reduction
+        variable inside the parallel region, and add it to the private clause.
+
+        :param parent: the parallel region to which to add the initialisation
+                       as a child.
+        :param position: where in the parent's list of children to add
+                        the new Loop.
+        :param table: the SymbolTable to use.
+        '''
+        local_var = table.lookup_with_tag(
+            f"{self.name}:{self._reduction_arg.name}:templocal")
+        assign = Assignment.create(Reference(local_var),
+                                   Literal("0", local_var.datatype))
+        parallel_region.dir_body.addchild(assign, position)
+        assign.preceding_comment = (
+            "Initialise thread-private reduction variable"
+        )
+        # The local var also needs to be thread private.
+        parallel_region.private_clause.addchild(
+                Reference(local_var)
+        )
+
     def reduction_sum_loop(self,
                            parent: Node,
                            position: int,
@@ -1020,7 +1083,7 @@ class Kern(Statement):
         Return the reference to the reduction variable if OpenMP is set to
         be unreproducible, as we will be using the OpenMP reduction clause.
         Otherwise we will be computing the reduction ourselves and therefore
-        need to store values into a (padded) array separately for each
+        need to store values into a temporary variable for each
         thread.
 
         :returns: reference to the variable to be reduced.
@@ -1031,12 +1094,8 @@ class Kern(Statement):
         symtab = self.ancestor(InvokeSchedule).symbol_table
         if self.reprod_reduction:
             local_var = symtab.lookup_with_tag(
-                f"{self.name}:{self._reduction_arg.name}:local")
-            # Return a multi-valued ArrayReference for a reproducible reduction
-            array_dim = [
-                Literal("1", ScalarType.integer_type()),
-                Reference(symtab.lookup_with_tag("omp_thread_index"))]
-            return ArrayReference.create(local_var, array_dim)
+                f"{self.name}:{self._reduction_arg.name}:templocal")
+            return Reference(local_var)
         # Return a single-valued Reference for a non-reproducible reduction
         local_var = symtab.lookup_with_tag(
             f"AlgArgs_{self._reduction_arg.text}")
@@ -1104,6 +1163,11 @@ class Kern(Statement):
 
             array_type = ArrayType(arg_sym.datatype,
                                    2*[ArrayType.Extent.DEFERRED])
+            # Create a scalar temp to store to in the loop.
+            _ = table.find_or_create_tag(
+                root_name=f"local_temp_{self._reduction_arg.name}",
+                tag=f"{self.name}:{self._reduction_arg.name}:templocal",
+                symbol_type=DataSymbol, datatype=arg_sym.datatype)
             local_var = table.find_or_create_tag(
                 root_name="local_"+self._reduction_arg.name,
                 tag=f"{self.name}:{self._reduction_arg.name}:local",
