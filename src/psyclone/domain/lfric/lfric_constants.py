@@ -483,10 +483,10 @@ class LFRicConstants():
                 "kind": "r_solver"}}
 
         # Construct a reverse map from type to the name of the LFRic
-        # data type for all real types.
+        # data type for all real field types.
         LFRicConstants.REAL_DATA_TYPE_RMAP = {}
         for key, value in LFRicConstants.DATA_TYPE_MAP.items():
-            if value["intrinsic"] == "real":
+            if value["intrinsic"] == "real" and "field" in key:
                 LFRicConstants.REAL_DATA_TYPE_RMAP[value["type"]] = key
 
         # Mapping from a vector type used in the algorithm-layer to

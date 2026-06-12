@@ -6017,20 +6017,21 @@ class LFRicKernelArgument(KernelArgument):
         self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
         self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
 
-    def _init_operator_properties(self, alg_datatype, check=True):
+    def _init_operator_properties(self,
+                                  alg_datatype: Optional[str],
+                                  check: bool = True) -> None:
         '''Set up the properties of this operator using algorithm datatype
         information if it is available.
 
-        :param alg_datatype: the datatype of this argument as \
-            specified in the algorithm layer or None if it is not \
-            known.
-        :type alg_datatype: str or NoneType
-        :param bool check: whether to use the algorithm \
-            information. Optional argument that defaults to True.
-        :raises GenerationError: if the datatype for a gh_operator \
-            could not be found in the algorithm layer (and check is \
+        :param alg_datatype: the datatype of this argument as specified in
+            the algorithm layer or None if it is not known.
+        :param check: whether to use the algorithm information. Optional
+            argument that defaults to True.
+
+        :raises GenerationError: if the datatype for a gh_operator
+            could not be found in the algorithm layer (and check is
             True).
-        :raises GenerationError: if the datatype specified in the \
+        :raises GenerationError: if the datatype specified in the
             algorithm layer is inconsistent with the kernel metadata.
         :raises InternalError: if this argument is not an operator.
 
@@ -6042,9 +6043,8 @@ class LFRicKernelArgument(KernelArgument):
                 # Use the default as we are ignoring any algorithm info
                 argtype = "operator"
             elif not alg_datatype:
-                # Raise an exception as we require algorithm
-                # information to determine the precision of the
-                # operator
+                # Raise an exception as we require algorithm information
+                # to determine the precision of the operator
                 raise GenerationError(
                     f"It was not possible to determine the operator type "
                     f"from the algorithm layer for argument '{self.name}' "
@@ -6055,6 +6055,10 @@ class LFRicKernelArgument(KernelArgument):
                 argtype = "r_solver_operator"
             elif alg_datatype == "r_tran_operator_type":
                 argtype = "r_tran_operator"
+            elif alg_datatype == "operator_real64_type":
+                argtype = "r_64_operator"
+            elif alg_datatype == "operator_real32_type":
+                argtype = "r_32_operator"
             else:
                 raise GenerationError(
                     f"The metadata for argument '{self.name}' in kernel "
