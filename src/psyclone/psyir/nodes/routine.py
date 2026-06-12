@@ -354,7 +354,11 @@ class Routine(Schedule, CommentableMixin):
                                     (Fortran2003.Subroutine_Subprogram,
                                      Fortran2003.Function_Subprogram))
                     for routine in routines:
-                        name = str(routine.children[0].children[1])
+                        # Have to walk to find the subroutine_stmt as
+                        # comments can appear before the subroutine stmt.
+                        subroutine_stmt = walk(routine,
+                                               Fortran2003.Subroutine_Stmt)
+                        name = str(subroutine_stmt[0].children[1])
                         if name == self.name:
                             raise GenerationError(
                                     f"Can't add routine '{self.name}' into"
