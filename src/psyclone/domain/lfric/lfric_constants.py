@@ -382,11 +382,12 @@ class LFRicConstants():
             OrderedDict(zip(LFRicConstants.VALID_INTRINSIC_TYPES,
                             ["r_def", "i_def", "l_def"]))
 
+        # ---------- Infrastructure module maps -------------------------------
+
         # Those kind symbols used in LFRic that are actually
         # Fortran intrinsics (and thus don't come from constants_mod).
         LFRicConstants.INTRINSIC_KINDS = ("real32", "real64")
-
-        # ---------- Infrastructure module maps -------------------------------
+        LFRicConstants.FORTRAN_ISO_MOD_NAME = "iso_fortran_env"
 
         # Dictionary allowing us to look-up the name of the Fortran module,
         # type and proxy-type associated with each LFRic data structure type.

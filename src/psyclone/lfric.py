@@ -6478,19 +6478,23 @@ class LFRicKernelArgument(KernelArgument):
                 raise NotImplementedError(
                     f"Unsupported scalar type '{self.intrinsic_type}'")
 
+            const = LFRicConstants()
             kind_name = self.precision
             try:
                 kind_symbol = symtab.lookup(kind_name)
             except KeyError:
-                if kind_name.lower() in LFRicConstants().INTRINSIC_KINDS:
+                if kind_name.lower() in const.INTRINSIC_KINDS:
+                    # This is an intrinsic kind (e.g. real32) so it comes
+                    # from the intrinsic ISO module.
                     iso_env_sym = symtab.find_or_create(
-                        "iso_fortran_env", symbol_type=ContainerSymbol,
+                        const.FORTRAN_ISO_MOD_NAME,
+                        symbol_type=ContainerSymbol,
                         is_intrinsic=True)
                     kind_symbol = DataSymbol(
                         kind_name, ScalarType.integer_type(),
                         interface=ImportInterface(iso_env_sym))
                 else:
-                    mod_map = LFRicConstants().UTILITIES_MOD_MAP
+                    mod_map = const.UTILITIES_MOD_MAP
                     const_mod = mod_map["constants"]["module"]
                     constants_container = symtab.find_or_create(
                         const_mod, symbol_type=ContainerSymbol)
