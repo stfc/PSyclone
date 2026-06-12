@@ -118,10 +118,11 @@ can be useful if it is not possible to represent this in PSyIR.
 An example usage of the ``ModuleManager`` and ``ModuleInfo`` objects,
 which prints the filenames of all modules used in ``tl_testkern_mod``:
 
-.. code-block :: python
+.. testcode ::
 
     mod_manager = ModuleManager.get()
-    # Add the path to the PSyclone LFRic example codes:
+    # Add the path to the LFRic module directories:
+    mod_manager.add_search_path("../external/lfric_infrastructure/")
     mod_manager.add_search_path("../src/psyclone/tests/test_files/"
                                 "lfric")
 
@@ -135,8 +136,8 @@ which prints the filenames of all modules used in ``tl_testkern_mod``:
         print("Module:", module_name, os.path.basename(mod_info.filename))
 
 
-.. The snippet above fails a `.. testcode ::` block, but if it didn't we
-.. excpect the follwoing `.. testoutput::`
+.. testoutput::
+
     Module: argument_mod argument_mod.f90
     Module: constants_mod constants_mod.f90
     Module: fs_continuity_mod fs_continuity_mod.f90
