@@ -44,11 +44,11 @@ Module containing tests for the parallel region transformation class.
 
 '''
 
+import logging
 import pytest
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
-from psyclone.psyir.nodes import CodeBlock
-from psyclone.psyir.nodes import (Literal, Loop)
+from psyclone.psyir.nodes import (CodeBlock, Literal, Loop)
 from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.psyir.symbols import DataSymbol, ScalarType
 
@@ -69,3 +69,32 @@ def test_parallelregion_refuse_codeblock():
         otrans.validate([parent])
     assert ("Nodes of type 'CodeBlock' cannot be enclosed by a "
             "OMPParallelTrans transformation" in str(err.value))
+
+
+def test_parallelregion_check_symtab_var(fortran_reader, caplog):
+    '''
+    Check ParallelRegionTrans._check_symbol_table_vars try and except,
+    if the logging message produces a warning when a variable is not
+    in the routine scope.We use OMPParallelTrans as ParallelRegionTrans
+    is abstract.
+    '''
+    otrans = OMPParallelTrans()
+    code = """subroutine test
+    integer :: i
+    do i = 1, 100
+
+    end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    otrans.apply(psyir.children[0].children[0])
+    parallel = psyir.children[0].children[0]
+    caplog.clear()
+    with caplog.at_level(logging.WARNING,
+                         logger="psyclone.psyir.transformations"):
+        otrans._check_symbol_table_vars(parallel, ("j"))
+
+    long_string = \
+        "\"Could not find 'j' in the Symbol Table.\" has been "\
+        "provided with the 'j' symbol name in the 'force_private' option, "\
+        "but there is no such symbol in this scope."
+    assert (long_string in caplog.text)

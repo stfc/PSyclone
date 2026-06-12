@@ -43,13 +43,15 @@
 This module provides the implementation of ParallelRegionTrans
 
 '''
-
+import logging
+from collections.abc import Iterable
 from abc import ABC, abstractmethod
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 from psyclone import psyGen
 from psyclone.psyir.transformations.region_trans import RegionTrans
-from psyclone.psyir.nodes import CodeBlock, Node, Return
+from psyclone.psyir.nodes import CodeBlock, Node, Return, RegionDirective
+from psyclone.psyir.symbols import DataSymbol
 from psyclone.utils import transformation_documentation_wrapper
 
 
@@ -75,6 +77,36 @@ class ParallelRegionTrans(RegionTrans, ABC):
         :returns: a string explaining what this transformation does.
 
         '''
+
+    def _check_symbol_table_vars(
+            self,
+            region_node: RegionDirective,
+            force_private: Iterable[str] = ()) -> set[DataSymbol]:
+        '''
+        Check that the symbol table of the provided region node contains the
+        variable variables in the provided list. Return a set of DataSymbols.
+
+        This is intended to be used as part of privatising the variables
+        contained in the list for the provided region in the child classes.
+        '''
+        explicitly_private_symbols = set()
+
+        for symbol_name in force_private:
+            sym = None
+            try:
+                sym = region_node.scope.symbol_table.lookup(
+                    symbol_name.lower())
+            except KeyError as err:
+                # This is not an error, but we will log the missed string
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    "%s has been provided with the '%s' symbol name in "
+                    "the 'force_private' option, but there is no such "
+                    "symbol in this scope.", err, symbol_name)
+            if sym:
+                explicitly_private_symbols.add(sym)
+
+        return explicitly_private_symbols
 
     def validate(self, nodes: list[Node], options=None, **kwargs):
         # pylint: disable=arguments-renamed
