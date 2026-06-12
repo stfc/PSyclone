@@ -127,12 +127,13 @@ def load_script(
     any imports that it has from the same directory can be found.
 
     :param script_name: name of the script to load.
+    :param kwargs_str: the kwargs argument from the command line.
     :param function_name: the name of the function to call in the script.
     :param is_optional: whether the function is optional or not. Defaults to
         False.
 
     :returns: callable recipe, list of files to skip, whether to resolve
-        modules (or which ones).
+        modules (or which ones), the kwargs dictionary.
 
     :raises IOError: if the file is not found.
     :raises GenerationError: if the file does not have .py extension.
@@ -143,6 +144,7 @@ def load_script(
 
     filepath, filename = os.path.split(script_name)
     if kwargs_str is not None:
+        # Parse as dictionary, i.e. wrap the user string in {}
         kwargs = literal_eval(f"{{{kwargs_str}}}")
     else:
         kwargs = {}
