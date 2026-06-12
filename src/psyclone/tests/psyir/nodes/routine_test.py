@@ -43,6 +43,7 @@ import pytest
 
 from psyclone.errors import GenerationError
 from psyclone.psyGen import CodedKern
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Assignment, Call, CodeBlock, Container,
                                   Literal, Reference, Routine, ScopingNode)
 from psyclone.psyir.symbols import (
@@ -397,6 +398,46 @@ def test_routine_update_parent_symbol_table_illegal_parent(fortran_reader):
         module.addchild(alt_routine)
     assert ("Can't add routine 'routine' into a scope that already contains "
             "a CodeBlock representing a routine with that name."
+            in str(excinfo.value))
+
+
+def test_routine_update_parent_symbol_table_with_comments():
+    ''' Test when we have a CodeBlock representing a routine that
+    if there are also comments before it in the tree we can still
+    check the name of the subroutine without failing inside
+    update_parent_symbol_table. '''
+
+    code = """module test
+
+    contains
+
+        ! This routine will be a codeblock.
+        subroutine routine()
+            procedure (halo_exchange_routine) :: exchange_halo_group
+        end subroutine
+
+        subroutine routine1(a, b, c)
+            integer, intent(inout) :: a, b, c
+
+            call routine2()
+        end subroutine
+
+        subroutine routine2()
+
+        end subroutine
+
+end module"""
+
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    alt_routine = Routine.create("routine")
+
+    module = psyir.walk(Container)[1]
+    assert isinstance(module.children[0], CodeBlock)
+    with pytest.raises(GenerationError) as excinfo:
+        module.addchild(alt_routine)
+    assert ("Can't add routine 'routine' into a scope that already contains "
+            "a resolved symbol with the same name."
             in str(excinfo.value))
 
 
