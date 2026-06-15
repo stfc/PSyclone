@@ -35,6 +35,7 @@
 
 '''This module contains the OpenMPCPURoutineTrans metatransformation.'''
 
+from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     Directive, Loop, Routine
 )
@@ -48,9 +49,11 @@ from psyclone.psyir.transformations.omp_minimise_sync_trans import (
 from psyclone.utils import transformation_documentation_wrapper
 
 
-class OpenMPCPURoutineTrans(OMPLoopTrans, MaximalOMPParallelRegionTrans,
-                            OMPMinimiseSyncTrans):
+@transformation_documentation_wrapper
+class OMPCPURoutineTrans(Transformation):
     '''FIXME Docstring'''
+    _SUB_TRANSFORMATIONS = [OMPLoopTrans, MaximalOMPParallelRegionTrans,
+                            OMPMinimiseSyncTrans]
 
     def validate(self, node: Routine, **kwargs):
         '''
@@ -60,12 +63,6 @@ class OpenMPCPURoutineTrans(OMPLoopTrans, MaximalOMPParallelRegionTrans,
         '''
         # Validate the provided options are allowed and typed correctly.
         self.validate_options(**kwargs)
-
-#        if not isinstance(node, Routine):
-#            raise TypeError(
-#                f"{self.name} expected a Routine input node but got a node "
-#                f"of type {type(node).__name__}."
-#            )
 
     def apply(self, node: Routine, **kwargs):
         '''
@@ -77,6 +74,11 @@ class OpenMPCPURoutineTrans(OMPLoopTrans, MaximalOMPParallelRegionTrans,
         '''
         self.validate(node, **kwargs)
 
+        # Split the options for the subtransformations.
+        _, loop_kwargs, maxpar_kwargs, minsync_kwargs = self.split_kwargs(
+            **kwargs
+        )
+
         # Find all of the loops.
         loops = node.walk(Loop)
         for loop in loops:
@@ -84,9 +86,9 @@ class OpenMPCPURoutineTrans(OMPLoopTrans, MaximalOMPParallelRegionTrans,
                 continue  # Skip if an outer loop is already parallelised
             try:
                 # Validate that this loop can be parallelised.
-                OMPLoopTrans.validate(self, loop, **kwargs)
+                OMPLoopTrans.validate(self, loop, **loop_kwargs)
                 # If it is, then apply the OMPLoopTrans
-                OMPLoopTrans.apply(self, loop, **kwargs)
+                OMPLoopTrans.apply(self, loop, **loop_kwargs)
             except TransformationError:
                 # If we fail to parallelise a loop we just skip it.
                 continue
@@ -94,19 +96,17 @@ class OpenMPCPURoutineTrans(OMPLoopTrans, MaximalOMPParallelRegionTrans,
         # Apply the maximal openMP parallel region transformation to the
         # routine.
         MaximalOMPParallelRegionTrans.validate(self, node.children[:],
-                                               **kwargs)
-        MaximalOMPParallelRegionTrans.apply(self, node.children[:], **kwargs)
+                                               **maxpar_kwargs)
+        MaximalOMPParallelRegionTrans.apply(self, node.children[:],
+                                            **maxpar_kwargs)
 
         nowait = self.get_option("nowait", **kwargs)
         # If the asynchronous option was specified, then we need to apply the
         # OMPMinimiseSyncTrans as well.
         if nowait:
-            OMPMinimiseSyncTrans.validate(self, node, **kwargs)
-            OMPMinimiseSyncTrans.apply(self, node, **kwargs)
+            OMPMinimiseSyncTrans.validate(self, node, **minsync_kwargs)
+            OMPMinimiseSyncTrans.apply(self, node, **minsync_kwargs)
 
 
-# TODO #3335: Multiple inheritance doesn't work with the decorator.
-transformation_documentation_wrapper(OpenMPCPURoutineTrans,
-                                     inherit=[OMPLoopTrans,
-                                              MaximalOMPParallelRegionTrans,
-                                              OMPMinimiseSyncTrans])
+# For Sphinx AutoAPI documentation generation
+__all__ = ["OMPCPURoutineTrans"]
