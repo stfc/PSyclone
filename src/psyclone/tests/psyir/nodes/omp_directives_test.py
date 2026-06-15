@@ -534,8 +534,8 @@ def test_ompdo_equality():
     sched1.addchild(child_node)
     loop1 = Loop.create(loop_sym,
                         start, stop, step, [])
-    loop1.children[3].detach()
-    loop1.addchild(sched1, 3)
+    loop1.loop_body.detach()
+    loop1.addchild(sched1)
     start2 = start.copy()
     stop2 = stop.copy()
     step2 = step.copy()
@@ -549,8 +549,8 @@ def test_ompdo_equality():
     sched2.addchild(child_node2)
     loop2 = Loop.create(loop_sym,
                         start2, stop2, step2, [])
-    loop2.children[3].detach()
-    loop2.addchild(sched2, 3)
+    loop2.loop_body.detach()
+    loop2.addchild(sched2)
 
     ompdo1 = OMPDoDirective(children=[loop1])
     ompdo2 = OMPDoDirective(children=[loop2])
@@ -1691,8 +1691,8 @@ def test_omploop_equality():
     sched1.addchild(child_node)
     loop1 = Loop.create(loop_sym,
                         start, stop, step, [])
-    loop1.children[3].detach()
-    loop1.addchild(sched1, 3)
+    loop1.loop_body.detach()
+    loop1.addchild(sched1)
     start2 = start.copy()
     stop2 = stop.copy()
     step2 = step.copy()
@@ -1706,8 +1706,8 @@ def test_omploop_equality():
     sched2.addchild(child_node2)
     loop2 = Loop.create(loop_sym,
                         start2, stop2, step2, [])
-    loop2.children[3].detach()
-    loop2.addchild(sched2, 3)
+    loop2.loop_body.detach()
+    loop2.addchild(sched2)
 
     omploop1 = OMPLoopDirective(children=[loop1])
     omploop2 = OMPLoopDirective(children=[loop2])
@@ -2601,7 +2601,7 @@ def test_omp_serial_valid_dependence_ref_binop_fails():
         Literal("32", ScalarType.integer_single_type()),
         [task3],
     )
-    loop.children[3].pop_all_children()
+    loop.loop_body.pop_all_children()
     Loop.create(
         tmp,
         Reference(tmp4),
@@ -4464,7 +4464,7 @@ def test_omp_serial_validate_task_dependencies_add_taskwait(fortran_reader):
     for child in schedule.children[:]:
         if isinstance(child, Loop):
             loop_trans.apply(child)
-            assert isinstance(child.children[3].children[0], Loop)
+            assert isinstance(child.loop_body.children[0], Loop)
             task_trans.apply(child, {"force": True})
 
     single_trans = OMPSingleTrans()

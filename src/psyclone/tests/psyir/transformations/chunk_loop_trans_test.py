@@ -131,7 +131,7 @@ def test_chunkloop_trans_validate3():
             "lvar", symbol_type=DataSymbol, datatype=ScalarType(
                     ScalarType.Intrinsic.INTEGER,
                     ScalarType.Precision.SINGLE))
-    parent._variable = lvar
+    parent.variable = lvar
     chunktrans.apply(parent)
     with pytest.raises(TransformationError) as excinfo:
         chunktrans.validate(parent.ancestor(Loop))
@@ -165,7 +165,7 @@ def test_chunkloop_trans_validate4():
                                    Literal("1", ScalarType.integer_type()))
     assign = Assignment.create(Reference(lvar), binop)
     sched.addchild(assign)
-    parent._variable = lvar
+    parent.variable = lvar
     with pytest.raises(TransformationError) as excinfo:
         chunktrans.validate(parent)
     assert ("Cannot apply a ChunkLoopTrans to this loop because the boundary "
@@ -195,7 +195,7 @@ def test_chunkloop_trans_validate4():
     assign = Assignment.create(Reference(ivar), binop)
     sched.addchild(assign)
     parent.start_expr.replace_with(Reference(ivar))
-    parent._variable = lvar
+    parent.variable = lvar
     with pytest.raises(TransformationError) as excinfo:
         chunktrans.validate(parent)
     assert ("Cannot apply a ChunkLoopTrans to this loop because the boundary "
@@ -225,7 +225,7 @@ def test_chunkloop_trans_validate4():
     assign = Assignment.create(Reference(ivar), binop)
     sched.addchild(assign)
     parent.stop_expr.replace_with(Reference(ivar))
-    parent._variable = lvar
+    parent.variable = lvar
     with pytest.raises(TransformationError) as excinfo:
         chunktrans.validate(parent)
     assert ("Cannot apply a ChunkLoopTrans to this loop because the boundary "
@@ -259,7 +259,7 @@ def test_chunkloop_trans_validate5():
                                    Literal("1", ScalarType.integer_type()))
     assign = Assignment.create(Reference(ivar), binop)
     sched.addchild(assign)
-    parent._variable = lvar
+    parent.variable = lvar
     chunktrans.validate(parent)
 
 

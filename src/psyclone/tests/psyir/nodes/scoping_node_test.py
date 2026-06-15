@@ -291,7 +291,7 @@ def test_scoping_node_copy_loop(fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(output)
     # Check that the copy operation succeeds, even if there is no variable
     # associated with the Loop (as can be the case in the LFRic domain).
-    loop._variable = None
+    loop.variable = None
     new_schedule2 = schedule.copy()
     new_loop_var = new_schedule2.symbol_table.lookup("idx")
     assert new_loop_var is not loop_var

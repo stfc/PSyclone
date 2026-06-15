@@ -61,7 +61,7 @@ def test_psyloop_init():
     assert loop._iteration_space is None
     assert loop._kern is None
     assert loop._iterates_over == "unknown"
-    assert loop._variable is None
+    assert loop.variable is None
 
     # valid variable
     loop = PSyLoop(variable=DataSymbol("var", ScalarType.integer_type()))

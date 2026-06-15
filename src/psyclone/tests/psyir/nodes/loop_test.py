@@ -82,7 +82,7 @@ def test_loop_init():
     loop = Loop()
     assert loop.parent is None
     assert loop.annotations == []
-    assert loop._variable is None
+    assert loop.variable is None
 
     # valid variable
     loop = Loop(variable=DataSymbol("var", ScalarType.integer_type()))
@@ -213,7 +213,7 @@ def test_loop_replace_symbols_using(table):
     loop.addchild(Literal("2", ScalarType.integer_single_type()))
     loop.addchild(Literal("1", ScalarType.integer_single_type()))
     loop.addchild(Schedule(parent=loop))
-    assert not loop._variable
+    assert not loop.variable
     if table is not None:
         loop.replace_symbols_using(table)
     else:
@@ -418,7 +418,7 @@ def test_variable_setter():
 
     '''
     loop = Loop()
-    assert loop._variable is None
+    assert loop.variable is None
 
     # valid variable
     loop.variable = DataSymbol("var", ScalarType.integer_type())

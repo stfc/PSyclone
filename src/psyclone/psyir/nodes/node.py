@@ -1697,6 +1697,8 @@ class Node():
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+
+        from psyclone.psyir.nodes.loop import Loop
         # Start with a shallow copy of the object
         new_instance = copy.copy(self)
         # Then refine the elements that shouldn't be shallow copied

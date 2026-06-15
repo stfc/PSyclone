@@ -96,7 +96,7 @@ def test_omp_task_directive_basic_full_array_test(
     enddo
   enddo
   !$omp end task'''
-    assert correct in fortran_writer(tree)
+    assert correct == fortran_writer(tree)
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
