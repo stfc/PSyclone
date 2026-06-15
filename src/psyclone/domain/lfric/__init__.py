@@ -55,7 +55,6 @@ from psyclone.domain.lfric.kernel_interface import KernelInterface
 from psyclone.domain.lfric.lfric_cell_iterators import LFRicCellIterators
 from psyclone.domain.lfric.lfric_driver_creator import \
     LFRicDriverCreator
-from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
 from psyclone.domain.lfric.lfric_invoke import LFRicInvoke
@@ -68,6 +67,8 @@ from psyclone.domain.lfric.lfric_loop import LFRicLoop
 from psyclone.domain.lfric.lfric_kern_call_factory import LFRicKernCallFactory
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.domain.lfric.lfric_fields import LFRicFields
+from psyclone.domain.lfric.lfric_global_reductions import (
+    LFRicGlobalMax, LFRicGlobalMin, LFRicGlobalSum)
 from psyclone.domain.lfric.lfric_run_time_checks import LFRicRunTimeChecks
 from psyclone.domain.lfric.lfric_invokes import LFRicInvokes
 from psyclone.domain.lfric.lfric_scalar_args import LFRicScalarArgs
@@ -78,34 +79,3 @@ from psyclone.domain.lfric.lfric_psy import LFRicPSy
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.domain.lfric.lfric_dofmaps import LFRicDofmaps
 from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-
-
-__all__ = [
-    'ArgOrdering',
-    'FunctionSpace',
-    'KernCallAccArgList',
-    'KernCallArgList',
-    'KernelInterface',
-    'KernStubArgList',
-    'LFRicArgDescriptor',
-    'LFRicCellIterators',
-    'LFRicCollection',
-    'LFRicConstants',
-    'LFRicDofmaps',
-    'LFRicDriverCreator',
-    'LFRicFields',
-    'LFRicHaloDepths',
-    'LFRicInvoke',
-    'LFRicInvokes',
-    'LFRicInvokeSchedule',
-    'LFRicKern',
-    'LFRicKernCallFactory',
-    'LFRicKernMetadata',
-    'LFRicLoop',
-    'LFRicLoopBounds',
-    'LFRicPSy',
-    'LFRicRunTimeChecks',
-    'LFRicScalarArgs',
-    'LFRicScalarArrayArgs',
-    'LFRicStencils',
-    'LFRicSymbolTable']

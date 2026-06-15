@@ -167,10 +167,10 @@ node can be integrated and used in the PSyIR tree:
 ::
 
     >>> from psyclone.psyir.nodes import Literal, Schedule
-    >>> from psyclone.psyir.symbols import INTEGER_TYPE
+    >>> from psyclone.psyir.symbols import ScalarType
     >>> from code_snippets.newnode import MyNode
-    >>> mynode = MyNode(children=[Literal("1", INTEGER_TYPE)])
-    >>> mynode.children.append(Literal("2", INTEGER_TYPE))
+    >>> mynode = MyNode(children=[Literal("1", ScalarType.integer_type())])
+    >>> mynode.children.append(Literal("2", ScalarType.integer_type()))
     Traceback (most recent call last):
        ...
     psyclone.errors.GenerationError: Generation Error: Item 'Literal' can't be child 1 of 'MyNodeName'. The valid format is: 'DataNode'.
@@ -965,7 +965,7 @@ PSy-layer concepts
   are the singular units of computation that can be found inside a
   `PSyLoop`.
 * The `HaloExchange` is a distributed-memory concept in the PSy-layer.
-* The `GlobalSum` is a distributed-memory concept in the PSy-layer.
+* The `GlobalReduction` is a distributed-memory concept in the PSy-layer.
 
 
 Other specializations
@@ -973,7 +973,7 @@ Other specializations
 
 In LFRic there are specialisations for
 kernel-layer datatypes and symbols. For the algorithm layer in both
-GOcean1.0 and LFRic there are specialisations for invokes and kernel
+GOcean and LFRic there are specialisations for invokes and kernel
 calls. This is discussed further in the following sections.
 
 The LFRic PSyIR

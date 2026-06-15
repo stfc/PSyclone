@@ -54,7 +54,7 @@ from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import DataSymbol, DataTypeSymbol
 from psyclone.psyir.symbols.datatypes import (
-    ScalarType, ArrayType, UnresolvedType, UnsupportedType, INTEGER_TYPE)
+    ScalarType, ArrayType, UnresolvedType, UnsupportedType)
 
 
 class ArrayMixin(metaclass=abc.ABCMeta):
@@ -294,10 +294,12 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         if bound == "lower":
             return IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.LBOUND,
-                [ref, ("dim", Literal(str(position+1), INTEGER_TYPE))])
+                [ref, ("dim", Literal(str(position+1),
+                                      ScalarType.integer_type()))])
         return IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.UBOUND,
-                [ref, ("dim", Literal(str(position+1), INTEGER_TYPE))])
+                [ref, ("dim", Literal(str(position+1),
+                                      ScalarType.integer_type()))])
 
     def get_lbound_expression(self, pos):
         '''
@@ -590,7 +592,6 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 :py:class:`psyclone.psyir.nodes.IntrinsicCall`
         '''
         expr = self.indices[idx]
-        one = Literal("1", INTEGER_TYPE)
 
         if isinstance(expr, Range):
             start = expr.start
@@ -598,25 +599,42 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             step = expr.step
         else:
             # No range so just a single element is accessed.
-            return one
+            return Literal("1", ScalarType.integer_type())
 
         if (isinstance(start, IntrinsicCall) and
                 isinstance(stop, IntrinsicCall) and self.is_full_range(idx)):
+            # If the upper and lower dimension are both integers then we can
+            # compute the size and return it as a literal. This only works for
+            # an ArrayReference as ArrayMembers don't have a symbol to find
+            # the shape from.
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.nodes import ArrayReference
+            if (isinstance(self, ArrayReference) and
+                len(self.symbol.shape) > idx and
+                isinstance(self.symbol.shape[idx], ArrayType.ArrayBounds) and
+                isinstance(self.symbol.shape[idx].lower, Literal) and
+                    isinstance(self.symbol.shape[idx].upper, Literal)):
+                upper = self.symbol.shape[idx].upper.value_as_python
+                lower = self.symbol.shape[idx].lower.value_as_python
+                size = upper - lower + 1
+                return Literal(str(size), ScalarType.integer_type())
+
             # Access is to full range and start and stop are expressed in terms
             # of LBOUND and UBOUND. Therefore, it's simpler to use SIZE.
             return IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.SIZE,
                 [start.arguments[0].copy(),
-                 ("dim", Literal(str(idx+1), INTEGER_TYPE))])
+                 ("dim", Literal(str(idx+1), ScalarType.integer_type()))])
 
-        if start == one and step == one:
+        if (isinstance(start, Literal) and start.value_as_python == 1 and
+                isinstance(step, Literal) and step.value_as_python == 1):
             # The range starts at 1 and the step is 1 so the extent is just
             # the upper bound.
             return stop.copy()
 
         extent = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                         stop.copy(), start.copy())
-        if step != one:
+        if not (isinstance(step, Literal) and step.value_as_python == 1):
             # Step is not unity so have to divide range by it.
             result = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                             extent, step.copy())
@@ -625,7 +643,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         # Extent is currently 'stop-start' or '(stop-start)/step' so we have
         # to add a '+ 1'
         return BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                      result, one.copy())
+                                      result,
+                                      Literal("1", ScalarType.integer_type()))
 
     def _get_effective_shape(self):
         '''
@@ -674,7 +693,6 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 raise InternalError(
                     f"Found unexpected node of type '{type(idx_expr)}' "
                     f"as an index expression.")
-
         return shape
 
     def get_outer_range_index(self):
@@ -809,7 +827,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             if array1_type.shape[index] == ArrayType.Extent.DEFERRED:
                 return False
             if array1_type.shape[index] == ArrayType.Extent.ATTRIBUTE:
-                range1_start = Literal("1", INTEGER_TYPE)
+                range1_start = Literal("1", ScalarType.integer_type())
             else:
                 range1_start = array1_type.shape[index].lower
 
@@ -819,7 +837,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             if array2_type.shape[index2] == ArrayType.Extent.DEFERRED:
                 return False
             if array2_type.shape[index2] == ArrayType.Extent.ATTRIBUTE:
-                range2_start = Literal("1", INTEGER_TYPE)
+                range2_start = Literal("1", ScalarType.integer_type())
             else:
                 range2_start = array2_type.shape[index2].lower
 

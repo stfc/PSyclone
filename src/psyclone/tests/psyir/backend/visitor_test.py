@@ -41,7 +41,7 @@ import pytest
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import Node, Reference, ArrayReference, Return, \
     Statement, Schedule, Container, Routine
-from psyclone.psyir.symbols import DataSymbol, ArrayType, REAL_TYPE
+from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType
 from psyclone.errors import GenerationError
 
 
@@ -169,6 +169,7 @@ def test_psyirvisitor_visit_no_string():
         nodes are returned unmodified.
 
         '''
+
         def node_node(self, node):
             '''Return the supplied node unmodified.
 
@@ -207,13 +208,15 @@ def test_psyirvisitor_lower_dsl_concepts():
             # This will break if this Node does not have a parent with
             # a scope. This is intentional to cause an error during the
             # lowering step.
-            self.scope.symbol_table.add(DataSymbol("val", REAL_TYPE))
+            self.scope.symbol_table.add(
+                DataSymbol("val", ScalarType.real_type()))
             new_node = Return()
             self.replace_with(new_node)
             return new_node
 
     class MyVisitor(PSyIRVisitor):
         ''' Simple Visitor for Schedules and Return statements '''
+
         def return_node(self, _):
             ''' Return node visitor '''
             return "return"
@@ -294,6 +297,7 @@ def test_psyirvisitor_visit_attribute_error():
     class MyPSyIRVisitor(PSyIRVisitor):
         '''Subclass PSyIRVisitor to make the node method exist but it itself
         raises an attribute error.'''
+
         def node_node(self, _):
             ''' Raise an AttributeError for testing purposes '''
             raise AttributeError("Error")
@@ -334,6 +338,7 @@ def test_psyirvisitor_visit_skip_nodes():
         works as expected.
 
         '''
+
         def testnode2_node(self, _):
             ''' Match with class TestNode2. '''
             return "testnode2\n"
@@ -375,6 +380,7 @@ def test_psyir_comments_no_prefix():
 
     class TestVisitorNoPrefix(PSyIRVisitor):
         ''' Subclass of PSyIRVisitor with a statement visitor '''
+
         def statement_node(self, _):
             ''' Statement node visitor. '''
             return "statement\n"
@@ -426,6 +432,7 @@ def test_psyirvisitor_validation():
         variable in MyVisitor works correctly.
 
         '''
+
         def validate_global_constraints(self):
             raise GenerationError("Fail for testing purposes")
 
@@ -443,6 +450,7 @@ def test_psyirvisitor_validation():
         variable works as expected.
 
         '''
+
         def node1_node(self, node):
             ''' Match with class Node1. '''
             result = "node1\n"
@@ -490,13 +498,14 @@ def test_reference():
     '''
     # Generate PSyIR Reference
     test_visitor = PSyIRVisitor()
-    reference = Reference(DataSymbol('a', REAL_TYPE))
+    reference = Reference(DataSymbol('a', ScalarType.real_type()))
     result = test_visitor(reference)
     assert result == "a"
 
     # Generate PSyIR ArrayReference
     reference2 = ArrayReference.create(
-        DataSymbol('b', ArrayType(REAL_TYPE, shape=[1])), [reference])
+        DataSymbol('b', ArrayType(ScalarType.real_type(), shape=[1])),
+        [reference])
     with pytest.raises(VisitorError) as err:
         result = test_visitor(reference2)
     assert "Expecting a Reference with no children but found: " \

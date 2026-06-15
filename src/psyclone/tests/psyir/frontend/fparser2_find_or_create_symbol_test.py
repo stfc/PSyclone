@@ -47,8 +47,8 @@ from psyclone.psyir.nodes import (
     Reference, Container, Assignment, Literal, KernelSchedule,
     BinaryOperation)
 from psyclone.psyir.symbols import (
-    Symbol, DataSymbol, SymbolTable, REAL_TYPE, ScalarType,
-    UnresolvedInterface, RoutineSymbol, NoType)
+    Symbol, DataSymbol, SymbolTable, ScalarType,
+    UnresolvedInterface, RoutineSymbol, UnresolvedType)
 from psyclone.tests.utilities import get_invoke
 
 
@@ -127,13 +127,13 @@ def test_find_or_create_unresolved_symbol_2():
     symbols when appropriate. '''
     # Create some suitable PSyIR from scratch
     symbol_table = SymbolTable()
-    symbol_table.add(DataSymbol("tmp", REAL_TYPE))
+    symbol_table.add(DataSymbol("tmp", ScalarType.real_type()))
     kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
     container = Container.create("container_name", symbol_table,
                                  [kernel1])
-    xvar = DataSymbol("x", REAL_TYPE)
+    xvar = DataSymbol("x", ScalarType.real_type())
     xref = Reference(xvar)
-    assign = Assignment.create(xref, Literal("1.0", REAL_TYPE))
+    assign = Assignment.create(xref, Literal("1.0", ScalarType.real_type()))
     kernel1.addchild(assign)
     # OK to add
     orig_symbol = _find_or_create_unresolved_symbol(assign, "undefined")
@@ -159,9 +159,9 @@ def test_find_or_create_unresolved_scope_limit():
     kernel = KernelSchedule.create("mod_1", SymbolTable(), [])
     container = Container.create("container_name", SymbolTable(),
                                  [kernel])
-    xvar = DataSymbol("x", REAL_TYPE)
+    xvar = DataSymbol("x", ScalarType.real_type())
     xref = Reference(xvar)
-    assign = Assignment.create(xref, Literal("1.0", REAL_TYPE))
+    assign = Assignment.create(xref, Literal("1.0", ScalarType.real_type()))
     kernel.addchild(assign)
 
     # Add x to the kernel symbol table as no symbol exists
@@ -217,7 +217,8 @@ def test_find_or_create_change_symbol_type():
     sub_sym = symbol_table.new_symbol("my_sub")
     kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
     _ = Container.create("container_name", symbol_table, [kernel1])
-    assign = Assignment.create(Reference(tmp_sym), Literal("1.0", REAL_TYPE))
+    assign = Assignment.create(Reference(tmp_sym),
+                               Literal("1.0", ScalarType.real_type()))
     kernel1.addchild(assign)
     # Search for the 'tmp' symbol
     sym = _find_or_create_unresolved_symbol(assign, "tmp")
@@ -226,16 +227,16 @@ def test_find_or_create_change_symbol_type():
     # Repeat but this time specify that we're expecting a DataSymbol
     sym = _find_or_create_unresolved_symbol(assign, "tmp",
                                             symbol_type=DataSymbol,
-                                            datatype=REAL_TYPE)
+                                            datatype=ScalarType.real_type())
     assert sym is tmp_sym
     assert type(sym) is DataSymbol
-    assert sym.datatype == REAL_TYPE
+    assert sym.datatype == ScalarType.real_type()
     # Search for 'my_sub' and specify that it should be a RoutineSymbol
     sym2 = _find_or_create_unresolved_symbol(assign, "my_sub",
                                              symbol_type=RoutineSymbol)
     assert sym2 is sub_sym
     assert type(sym2) is RoutineSymbol
-    assert isinstance(sym2.datatype, NoType)
+    assert isinstance(sym2.datatype, UnresolvedType)
 
 
 @pytest.mark.parametrize("visibility", [

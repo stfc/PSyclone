@@ -50,7 +50,7 @@ from psyclone.domain.lfric.kernel import (
     ScalarArgMetadata, ShapesMetadata)
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
-from psyclone.psyir.symbols import DataTypeSymbol, REAL_TYPE, \
+from psyclone.psyir.symbols import DataTypeSymbol, ScalarType, \
     UnsupportedFortranType
 
 # pylint: disable=too-many-statements
@@ -1007,7 +1007,7 @@ def test_create_from_psyir_error():
 
     with pytest.raises(InternalError) as info:
         _ = LFRicKernelMetadata.create_from_psyir(
-            DataTypeSymbol("x", REAL_TYPE))
+            DataTypeSymbol("x", ScalarType.real_type()))
     assert ("Expected kernel metadata to be stored in the PSyIR as an "
             "UnsupportedFortranType, but found ScalarType." in str(info.value))
 

@@ -99,7 +99,8 @@ def test_transformation_doc_wrapper_non_transformation():
 def test_transformation_doc_wrapper_single_inheritance():
     '''Test the transformation_doc_wrapper.'''
 
-    # Create a base transformation class
+    # Create base transformation class
+    @transformation_documentation_wrapper(inherit=False)
     class BaseTrans(Transformation):
 
         def validate(self, node, opt1, opt2, **kwargs):
@@ -116,6 +117,7 @@ def test_transformation_doc_wrapper_single_inheritance():
             :type opt2: opt2 type.
             '''
 
+    @transformation_documentation_wrapper(inherit=False)
     class InheritingTrans(BaseTrans):
 
         def validate(self, node, opt3, **kwargs):
@@ -130,18 +132,11 @@ def test_transformation_doc_wrapper_single_inheritance():
             :param opt3: opt3 docstring.
             '''
 
-    assert "opt2" not in BaseTrans.validate.__doc__
-
-    transformation_documentation_wrapper(BaseTrans, inherit=False)
-
     assert ":param bool opt1: opt1 docstring." in BaseTrans.validate.__doc__
     assert ":param opt2: opt2 docstring." in BaseTrans.validate.__doc__
     assert ":type opt2: opt2 type." in BaseTrans.validate.__doc__
 
-    assert "opt2" not in InheritingTrans.apply.__doc__
-    assert "opt3" not in InheritingTrans.validate.__doc__
-    transformation_documentation_wrapper(InheritingTrans, inherit=False)
-
+    # Test that the option worked correctly.
     assert (":param int opt3: opt3 docstring." in
             InheritingTrans.validate.__doc__)
 
@@ -358,3 +353,122 @@ def test_stringify_annotation():
             anno = stringify_annotation(v.annotation)
             # Python >= 3.14 uses the second format
             assert "typing.Union[bool, int]" == anno or "bool | int" == anno
+
+
+def test_transformation_doc_wrapper_subtrans():
+    '''Test the transformation doc wrapper works correctly for
+    subtransformations.'''
+
+    class SubTrans1(Transformation):
+
+        def validate(self, node, opt3, **kwargs):
+            '''
+            Sub validate docstring
+            '''
+
+        def apply(self, node, opt3=1, **kwargs):
+            '''
+            Sub apply docstring
+
+            :param opt3: opt3 docstring.
+            :type opt3: int
+            '''
+
+    class SubTrans2(Transformation):
+
+        def validate(self, node, opt3, **kwargs):
+            '''
+            Sub validate docstring
+            '''
+
+        def apply(self, node, opt3: int = 1, **kwargs):
+            '''
+            Sub apply docstring
+
+            :param opt3: opt3 docstring.
+            '''
+
+    # Create a base transformation class
+    @transformation_documentation_wrapper(add_subtransformations=False)
+    class BaseTrans(Transformation):
+        _SUB_TRANSFORMATIONS = [SubTrans1, SubTrans2]
+
+        def validate(self, node, **kwargs):
+            '''
+            Super validate docstring
+            '''
+
+        def apply(self, node, opt1: bool = False, opt2=None,
+                  **kwargs):
+            '''
+            Super apply docstring
+
+            :param opt1: opt1 docstring.
+            :param opt2: opt2 docstring.
+            :type opt2: opt2 type.
+            '''
+
+    # With add_subtransformations=False we shouldn't get any of the SubTrans
+    # arguments.
+    assert "opt3" not in BaseTrans.apply.__doc__
+
+    # Create a base transformation class
+    @transformation_documentation_wrapper()
+    class BaseTrans(Transformation):
+        _SUB_TRANSFORMATIONS = [SubTrans1, SubTrans2]
+
+        def validate(self, node, **kwargs):
+            '''
+            Super validate docstring
+            '''
+
+        def apply(self, node, opt1: bool = False, opt2=None,
+                  **kwargs):
+            '''
+            Super apply docstring
+
+            :param opt1: opt1 docstring.
+            :param opt2: opt2 docstring.
+            :type opt2: opt2 type.
+            '''
+
+    # Disable some flake8 for this string, as empty lines in output
+    # contain whitespace.
+    correct = """    Super apply docstring\n    \n    \n\
+    :param opt1: opt1 docstring.
+    :param opt2: opt2 docstring.
+    :type opt2: opt2 type.
+    :param opt3: (Option provided for SubTrans1) opt3 docstring.
+    :type opt3: int
+    :param int opt3: (Option provided for SubTrans2) opt3 docstring.\
+"""
+    assert correct in BaseTrans.apply.__doc__
+
+    # Test behaviour still is consistant with inherit=False
+    @transformation_documentation_wrapper(inherit=False)
+    class BaseTrans(Transformation):
+        _SUB_TRANSFORMATIONS = [SubTrans1, SubTrans2]
+
+        def validate(self, node, **kwargs):
+            '''
+            Super validate docstring
+            '''
+
+        def apply(self, node, opt1: bool = False, opt2=None,
+                  **kwargs):
+            '''
+            Super apply docstring
+
+            :param opt1: opt1 docstring.
+            :param opt2: opt2 docstring.
+            :type opt2: opt2 type.
+            '''
+
+    correct = """Super apply docstring\n    \n    \n\
+    :param opt1: opt1 docstring.
+    :param opt2: opt2 docstring.
+    :type opt2: opt2 type.
+    :param opt3: (Option provided for SubTrans1) opt3 docstring.
+    :type opt3: int
+    :param int opt3: (Option provided for SubTrans2) opt3 docstring."""
+    assert correct in BaseTrans.apply.__doc__
