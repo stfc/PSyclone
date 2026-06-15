@@ -2110,3 +2110,50 @@ def test_config_overwrite() -> None:
         main([filename, "--config-opts", "DOES_NOT_EXIST=27"])
     assert ("Attempt to overwrite unknown configuration option: "
             "'DOES_NOT_EXIST=27'" in str(err.value))
+
+
+@pytest.mark.parametrize("kwargs", ["",
+                                    "'a': 1",
+                                    "'b': {1: 2}",
+                                    "'l': [1, 2]"])
+def test_script_arguments(kwargs, tmp_path, capsys):
+    """Tests that script arguments are received as expected. This
+    test creates a dummy script that prints the arguments, which
+    we check for
+    """
+    recipe = '''
+def trans(psyir, **kwargs):
+    print("ARGS:", kwargs)
+    '''
+    script_path = tmp_path /  "print_args.py"
+    script_path.write_text(recipe)
+
+    inputfile = Path(get_base_path("lfric")) / "1_single_invoke.f90"
+    outputfile = tmp_path / "output.f90"
+    main([str(inputfile), "-s", str(script_path),
+          "--script-kwargs", kwargs,
+          "-o", str(outputfile)])
+    stdout, _ = capsys.readouterr()
+    assert f"ARGS: {{{kwargs}}}" in stdout
+
+@pytest.mark.parametrize("kwargs, out", [("", "{}"),
+                                         ("'a':1", "{'a': 1}"),
+                                         ("'l': [1,2]", "{'l': [1, 2]}")])
+def test_script_argument_errors(kwargs, out, tmp_path, capsys):
+    """Tests that script arguments are received as expected.
+    """
+    recipe = '''
+def trans(psyir, **kwargs):
+    print("ARGS:", kwargs)
+    '''
+    script_path = tmp_path /  "print_args.py"
+    script_path.write_text(recipe)
+
+    inputfile = Path(get_base_path("lfric")) / "1_single_invoke.f90"
+    outputfile = tmp_path / "output.f90"
+    main([str(inputfile), "-s", str(script_path),
+          "--script-kwargs", kwargs,
+          "-o", str(outputfile)])
+    stdout, _ = capsys.readouterr()
+    assert f"ARGS: {out}" in stdout
+
