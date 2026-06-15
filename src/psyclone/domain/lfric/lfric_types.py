@@ -608,6 +608,9 @@ class LFRicTypes:
         table then add it. Also ensure that the Container symbol from which it
         is imported is in the table.
 
+        Also supports Fortran intrinsic kinds imported from the
+        iso_fortran_env module.
+
         :param table: the symbol table to use.
         :param name: name of the LFRic precision symbol to add to table.
 
@@ -624,7 +627,13 @@ class LFRicTypes:
             raise ValueError(f"'{name}' is not a recognised LFRic precision.")
 
         const = LFRicConstants()
-        mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
+        if name in const.INTRINSIC_KINDS:
+            # This is an intrinsic precision (e.g. real64)
+            mod_name = const.FORTRAN_ISO_MOD_NAME
+            is_intrinsic = True
+        else:
+            mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
+            is_intrinsic = False
 
         sym = table.lookup(name, otherwise=None)
 
@@ -638,7 +647,8 @@ class LFRicTypes:
             return sym
 
         constants_mod = table.find_or_create(mod_name,
-                                             symbol_type=ContainerSymbol)
+                                             symbol_type=ContainerSymbol,
+                                             is_intrinsic=is_intrinsic)
         sym = DataSymbol(name, ScalarType.integer_type(),
                          interface=ImportInterface(constants_mod))
         table.add(sym)

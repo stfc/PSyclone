@@ -72,7 +72,8 @@ class LFRicDriverCreator(DriverCreator):
     # -------------------------------------------------------------------------
     def handle_precision_symbols(self, symbol_table: SymbolTable) -> None:
         '''This function adds an import of the various precision
-        symbols used by LFRic from the constants_mod module.
+        symbols used by LFRic from the constants_mod module. It also adds
+        imports of the real32 and real64 intrinsic kinds.
 
         :param symbol_table: the symbol table to which the precision symbols
             must be added.
@@ -87,15 +88,27 @@ class LFRicDriverCreator(DriverCreator):
         # does not exist at all in LFRic, but is still in LFRic's psyclone.cfg
         # file. TODO #2018 and
         # https://code.metoffice.gov.uk/trac/lfric/ticket/4674
+        names_to_skip = ["r_quad", "r_phys"] + list(const.INTRINSIC_KINDS)
         api_config = Config.get().api_conf("lfric")
         all_precisions = [name for name in api_config.precision_map
-                          if name not in ["r_quad", "r_phys"]]
+                          if name not in names_to_skip]
         for prec_name in all_precisions:
             symbol_table.new_symbol(prec_name,
                                     tag=f"{prec_name}@{mod_name}",
                                     symbol_type=DataSymbol,
                                     datatype=ScalarType.integer_type(),
                                     interface=ImportInterface(constant_mod))
+        # Intrinsic kind symbols are imported into constants_mod but are
+        # private to it so have to be handled separately.
+        iso_mod = ContainerSymbol(const.FORTRAN_ISO_MOD_NAME,
+                                  is_intrinsic=True)
+        symbol_table.add(iso_mod)
+        for prec_name in const.INTRINSIC_KINDS:
+            symbol_table.new_symbol(prec_name,
+                                    tag=f"{prec_name}@{iso_mod.name}",
+                                    symbol_type=DataSymbol,
+                                    datatype=ScalarType.integer_type(),
+                                    interface=ImportInterface(iso_mod))
 
     # -------------------------------------------------------------------------
     def verify_and_cleanup_psyir(self, extract_region: Node) -> None:
