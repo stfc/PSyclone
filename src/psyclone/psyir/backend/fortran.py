@@ -1451,7 +1451,7 @@ class FortranWriter(LanguageWriter):
 
         '''
         contents = ", ".join([self._visit(child) for child in node.children])
-        return f"[{contents}]"
+        return "[" + contents + "]"
 
     def ifblock_node(self, node):
         '''This method is called when an IfBlock instance is found in the

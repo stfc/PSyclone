@@ -51,7 +51,7 @@ class ArrayConstructor(DataNode):
     _text_name = "ArrayConstructor"
     _colour = "yellow"
 
-    def __init__(self, *elems: DataNode, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
     @staticmethod
