@@ -192,14 +192,16 @@ class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
         '''
         if (Config.get().reproducible_reductions
                 and self.omp_directive == "do"):
-            ltrans = LFRicOMPLoopTrans(omp_schedule=self.omp_schedule)
-            # TODO 2668: When we move to new kwarg options we may need to
-            # split the options using the sub_transformations methods,
-            # but disable the sub transformation option inheritance.
-            ltrans.apply(node, options=options)
-            ptrans = OMPParallelTrans()
-            ptrans.apply(node.parent.parent, options=options)
-            return
+            kerns = node.walk(Kern)
+            if any([kern.is_reduction for kern in kerns]):
+                ltrans = LFRicOMPLoopTrans(omp_schedule=self.omp_schedule)
+                # TODO 2668: When we move to new kwarg options we may need to
+                # split the options using the sub_transformations methods,
+                # but disable the sub transformation option inheritance.
+                ltrans.apply(node, options=options)
+                ptrans = OMPParallelTrans()
+                ptrans.apply(node.parent.parent, options=options)
+                return
 
         super().apply(node, options)
 
