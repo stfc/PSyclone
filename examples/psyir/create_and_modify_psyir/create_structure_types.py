@@ -48,15 +48,15 @@ from psyclone.psyir.nodes import Literal, KernelSchedule, Container, \
     IntrinsicCall, Range, Reference
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, StructureType, \
     ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, \
-    ImportInterface, INTEGER_TYPE, INTEGER4_TYPE, INTEGER8_TYPE, \
-    UnresolvedType, Symbol, DataTypeSymbol
+    ImportInterface, UnresolvedType, Symbol, DataTypeSymbol
 from psyclone.psyir.backend.fortran import FortranWriter
 
 
 # Symbol table for container (container itself created after kernel)
 CONTAINER_SYMBOL_TABLE = SymbolTable()
 REAL_KIND = CONTAINER_SYMBOL_TABLE.new_symbol(
-        root_name="RKIND", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+        root_name="RKIND", symbol_type=DataSymbol,
+        datatype=ScalarType.integer_type(),
         is_constant=True, initial_value=8)
 
 # Shorthand for a scalar type with REAL_KIND precision
@@ -86,7 +86,7 @@ FIELD_TYPE_DEF = StructureType.create(
      ("grid", GRID_TYPE_SYMBOL, Symbol.Visibility.PUBLIC, None),
      ("sub_meshes", ArrayType(GRID_TYPE_SYMBOL, [3]),
       Symbol.Visibility.PUBLIC, None),
-     ("flag", INTEGER4_TYPE, Symbol.Visibility.PUBLIC, None)])
+     ("flag", ScalarType.integer4_type(), Symbol.Visibility.PUBLIC, None)])
 FIELD_TYPE_SYMBOL = DataTypeSymbol("field_type", FIELD_TYPE_DEF)
 CONTAINER_SYMBOL_TABLE.add(FIELD_TYPE_SYMBOL)
 
@@ -109,7 +109,7 @@ print("Kernel Symbol Table:")
 print(str(SYMBOL_TABLE))
 
 INDEX_SYMBOL = SYMBOL_TABLE.new_symbol(root_name="i", symbol_type=DataSymbol,
-                                       datatype=INTEGER4_TYPE)
+                                       datatype=ScalarType.integer4_type())
 
 
 # Some predefined scalar literal nodes
@@ -120,7 +120,7 @@ def real_two():
 
 def int_one():
     ''' Generate a Literal'''
-    return Literal("1", INTEGER8_TYPE)
+    return Literal("1", ScalarType.integer8_type())
 
 
 # Reference to the "flag" scalar component of FIELD_SYMBOL, "field%flag"

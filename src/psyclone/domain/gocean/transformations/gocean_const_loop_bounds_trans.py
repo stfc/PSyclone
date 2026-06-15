@@ -42,7 +42,7 @@ from psyclone.gocean1p0 import GOInvokeSchedule, GOLoop
 from psyclone.psyGen import Transformation
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Assignment, Reference, StructureReference
-from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol, DataTypeSymbol
+from psyclone.psyir.symbols import ScalarType, DataSymbol, DataTypeSymbol
 from psyclone.psyir.transformations import TransformationError
 from psyclone.configuration import Config
 
@@ -88,6 +88,7 @@ class GOConstLoopBoundsTrans(Transformation):
     >>> print(schedule.view())
 
     '''
+
     def __str__(self):
         return "Use constant loop bounds for all loops in a GOInvokeSchedule"
 
@@ -187,9 +188,11 @@ class GOConstLoopBoundsTrans(Transformation):
         self.validate(node, options=options)
 
         i_stop = node.symbol_table.new_symbol(
-            "istop", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            "istop", symbol_type=DataSymbol,
+            datatype=ScalarType.integer_type())
         j_stop = node.symbol_table.new_symbol(
-            "jstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            "jstop", symbol_type=DataSymbol,
+            datatype=ScalarType.integer_type())
 
         # Get a field argument from the argument list (we checked there
         # is at least one on the validation method)

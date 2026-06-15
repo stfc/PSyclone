@@ -50,8 +50,7 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
         Assignment, Literal, Node, IntrinsicCall, Reference, Call
 )
-from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
-                                    INTEGER_TYPE, SymbolTable)
+from psyclone.psyir.symbols import ArrayType, ScalarType, SymbolTable
 
 
 def test_sym_writer_constructor():
@@ -81,7 +80,7 @@ def test_sym_writer_lowering_disabled(monkeypatch):
         raise NotImplementedError()
 
     monkeypatch.setattr(Literal, "lower_to_language_level", error)
-    lit = Literal("true", BOOLEAN_TYPE)
+    lit = Literal("true", ScalarType.boolean_type())
     sympy_writer = SymPyWriter()
     sympy_writer(lit)  # No error should be raised here
 
@@ -96,9 +95,9 @@ def test_sym_writer_boolean():
     '''Test that booleans are written in the way that SymPy accepts.
     '''
     sympy_writer = SymPyWriter()
-    lit = Literal("true", BOOLEAN_TYPE)
+    lit = Literal("true", ScalarType.boolean_type())
     assert sympy_writer._to_str(lit) == "True"
-    lit = Literal("false", BOOLEAN_TYPE)
+    lit = Literal("false", ScalarType.boolean_type())
     assert sympy_writer._to_str(lit) == "False"
 
 
@@ -106,7 +105,7 @@ def test_sym_writer_character():
     '''Test that characters are rejected.
     '''
     sympy_writer = SymPyWriter()
-    lit = Literal("bla", CHARACTER_TYPE)
+    lit = Literal("bla", ScalarType.character_type())
 
     with pytest.raises(TypeError) as err:
         sympy_writer(lit)
@@ -482,8 +481,8 @@ def test_gen_indices():
 
     sympy_writer = SymPyWriter()
     # Test using array bounds and DEFERRED:
-    arr_bounds = ArrayType.ArrayBounds(Literal("2", INTEGER_TYPE),
-                                       Literal("5", INTEGER_TYPE))
+    arr_bounds = ArrayType.ArrayBounds(Literal("2", ScalarType.integer_type()),
+                                       Literal("5", ScalarType.integer_type()))
     gen_ind = sympy_writer.gen_indices([arr_bounds, ArrayType.Extent.DEFERRED])
     assert gen_ind == ["2", "5", "1", "sympy_lower", "sympy_upper", "1"]
 
@@ -547,7 +546,9 @@ def test_sympy_writer_user_types(fortran_reader, fortran_writer,
 
 
 @pytest.mark.parametrize("fortran_expr,sympy_str",
-                         [("a .and. b", "And(a, b)"),
+                         [(".not. a", "Not(a)"),
+                          ("-1", "-1"),
+                          ("a .and. b", "And(a, b)"),
                           ("a .or. b", "Or(a, b)"),
                           ("a .eqv. b", "Equivalent(a, b)"),
                           ("a .neqv. b", "Xor(a, b)"),

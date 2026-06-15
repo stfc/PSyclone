@@ -41,7 +41,7 @@ import pytest
 
 from psyclone.parse import ModuleManager
 import psyclone.psyir.frontend.fparser2 as fp2
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 
 
 @pytest.fixture(scope="function")
@@ -56,7 +56,7 @@ def disable_declaration_check(monkeypatch):
     monkeypatch.setattr(
         fp2, "_find_or_create_unresolved_symbol",
         lambda _1, name, symbol_type=None, datatype=None: DataSymbol(
-            name, INTEGER_TYPE))
+            name, ScalarType.integer_type()))
 
 
 @pytest.fixture(name="clear_module_manager", scope="function", autouse=True)

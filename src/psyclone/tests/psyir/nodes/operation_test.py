@@ -49,8 +49,7 @@ from psyclone.psyir.nodes import (
     ArrayReference, BinaryOperation, colored, IntrinsicCall,
     Literal, Range, Reference, Return, StructureReference, UnaryOperation)
 from psyclone.psyir.symbols import (
-    ArrayType, BOOLEAN_TYPE, DataSymbol, UnresolvedType, INTEGER_SINGLE_TYPE,
-    REAL_DOUBLE_TYPE, REAL_SINGLE_TYPE, ScalarType, Symbol, StructureType,
+    ArrayType, DataSymbol, UnresolvedType, ScalarType, Symbol, StructureType,
     UnsupportedFortranType)
 from psyclone.tests.utilities import check_links
 
@@ -102,8 +101,8 @@ def test_binaryoperation_has_explicit_grouping():
 def test_binaryoperation_node_str():
     ''' Check the node_str method of the Binary Operation class.'''
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
-    op1 = Literal("1", INTEGER_SINGLE_TYPE)
-    op2 = Literal("1", INTEGER_SINGLE_TYPE)
+    op1 = Literal("1", ScalarType.integer_single_type())
+    op2 = Literal("1", ScalarType.integer_single_type())
     binary_operation.addchild(op1)
     binary_operation.addchild(op2)
     coloredtext = colored("BinaryOperation", BinaryOperation._colour)
@@ -115,8 +114,8 @@ def test_binaryoperation_can_be_printed():
     initialised fully)'''
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
     assert "BinaryOperation[operator:'ADD']" in str(binary_operation)
-    op1 = Literal("1", INTEGER_SINGLE_TYPE)
-    op2 = Literal("2", INTEGER_SINGLE_TYPE)
+    op1 = Literal("1", ScalarType.integer_single_type())
+    op2 = Literal("2", ScalarType.integer_single_type())
     binary_operation.addchild(op1)
     binary_operation.addchild(op2)
     # Check the node children are also printed
@@ -131,8 +130,8 @@ def test_binaryoperation_create():
     creates a BinaryOperation instance.
 
     '''
-    lhs = Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE))
-    rhs = Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE))
+    lhs = Reference(DataSymbol("tmp1", ScalarType.real_single_type()))
+    rhs = Reference(DataSymbol("tmp2", ScalarType.real_single_type()))
     oper = BinaryOperation.Operator.ADD
     binaryoperation = BinaryOperation.create(oper, lhs, rhs)
     assert not binaryoperation._has_explicit_grouping
@@ -151,8 +150,8 @@ def test_binaryoperation_create_invalid():
     expected exception if the provided input is invalid.
 
     '''
-    ref1 = Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE))
-    ref2 = Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE))
+    ref1 = Reference(DataSymbol("tmp1", ScalarType.real_single_type()))
+    ref2 = Reference(DataSymbol("tmp2", ScalarType.real_single_type()))
     add = BinaryOperation.Operator.ADD
 
     # oper not a BinaryOperation.Operator.
@@ -181,9 +180,9 @@ def test_binaryoperation_children_validation():
 
     '''
     operation = BinaryOperation(BinaryOperation.Operator.ADD)
-    literal1 = Literal("1", INTEGER_SINGLE_TYPE)
-    literal2 = Literal("2", INTEGER_SINGLE_TYPE)
-    literal3 = Literal("3", INTEGER_SINGLE_TYPE)
+    literal1 = Literal("1", ScalarType.integer_single_type())
+    literal2 = Literal("2", ScalarType.integer_single_type())
+    literal3 = Literal("3", ScalarType.integer_single_type())
     statement = Return()
 
     # Statements are not valid
@@ -203,17 +202,17 @@ def test_binaryoperation_children_validation():
 
 def test_binaryop_scalar_datatype():
     '''Test the datatype property of BinaryOperation for scalar arguments.'''
-    ref1 = Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE))
-    ref2 = Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE))
+    ref1 = Reference(DataSymbol("tmp1", ScalarType.real_single_type()))
+    ref2 = Reference(DataSymbol("tmp2", ScalarType.real_single_type()))
     oper = BinaryOperation.Operator.ADD
     binaryoperation = BinaryOperation.create(oper, ref1, ref2)
-    assert binaryoperation.datatype == REAL_SINGLE_TYPE
-    iref1 = Reference(DataSymbol("itmp1", INTEGER_SINGLE_TYPE))
+    assert binaryoperation.datatype == ScalarType.real_single_type()
+    iref1 = Reference(DataSymbol("itmp1", ScalarType.integer_single_type()))
     binop2 = BinaryOperation.create(oper, ref1.copy(), iref1)
-    assert binop2.datatype == REAL_SINGLE_TYPE
-    iref2 = Reference(DataSymbol("itmp2", INTEGER_SINGLE_TYPE))
+    assert binop2.datatype == ScalarType.real_single_type()
+    iref2 = Reference(DataSymbol("itmp2", ScalarType.integer_single_type()))
     binop3 = BinaryOperation.create(oper, iref1.copy(), iref2)
-    assert binop3.datatype == INTEGER_SINGLE_TYPE
+    assert binop3.datatype == ScalarType.integer_single_type()
     # When any one of the arguments is of UnsupportedType then we know
     # nothing about the type of the result.
     uref1 = Reference(
@@ -223,11 +222,12 @@ def test_binaryop_scalar_datatype():
     assert isinstance(binop4.datatype, UnresolvedType)
     binop5 = BinaryOperation.create(BinaryOperation.Operator.EQ,
                                     iref1.copy(), iref2.copy())
-    assert binop5.datatype == BOOLEAN_TYPE
+    assert binop5.datatype == ScalarType.boolean_type()
     # Non-numeric type as operand of numerical operation.
-    binop6 = BinaryOperation.create(oper, iref1.copy(),
-                                    Reference(DataSymbol("switch",
-                                                         BOOLEAN_TYPE)))
+    binop6 = BinaryOperation.create(
+        oper, iref1.copy(),
+        Reference(DataSymbol("switch",
+                             ScalarType.boolean_type())))
     with pytest.raises(TypeError) as err:
         _ = binop6.datatype
     assert ("Invalid argument(s) of type(s) '['Intrinsic.BOOLEAN']' to "
@@ -238,8 +238,8 @@ def test_binaryop_scalar_datatype():
 
 def test_binaryop_operands():
     '''Test the operand property of BinaryOperation.'''
-    ref1 = Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE))
-    ref2 = Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE))
+    ref1 = Reference(DataSymbol("tmp1", ScalarType.real_single_type()))
+    ref2 = Reference(DataSymbol("tmp2", ScalarType.real_single_type()))
     oper = BinaryOperation.Operator.ADD
     binaryoperation = BinaryOperation.create(oper, ref1, ref2)
     operands = binaryoperation.operands
@@ -248,8 +248,8 @@ def test_binaryop_operands():
 
 def test_binaryop_array_datatype():
     '''Test the datatype property of BinaryOperation for array arguments.'''
-    arrtype = ArrayType(REAL_SINGLE_TYPE, [10])
-    iarrtype = ArrayType(INTEGER_SINGLE_TYPE, [5])
+    arrtype = ArrayType(ScalarType.real_single_type(), [10])
+    iarrtype = ArrayType(ScalarType.integer_single_type(), [5])
     sym1 = DataSymbol("tmp1", arrtype)
     sym2 = DataSymbol("tmp2", arrtype)
     ref1 = Reference(sym1)
@@ -261,7 +261,8 @@ def test_binaryop_array_datatype():
     assert isinstance(dtype, ArrayType)
     assert dtype == arrtype
     # Add one element of an array to all elements of another array.
-    aref1 = ArrayReference.create(sym1, [Literal("2", INTEGER_SINGLE_TYPE)])
+    aref1 = ArrayReference.create(
+        sym1, [Literal("2", ScalarType.integer_single_type())])
     binop2 = BinaryOperation.create(oper, ref1.copy(), aref1)
     dtype2 = binop2.datatype
     assert isinstance(dtype2, ArrayType)
@@ -269,14 +270,15 @@ def test_binaryop_array_datatype():
     # Add two elements of an array together.
     binop3 = BinaryOperation.create(oper, aref1.copy(), aref1.copy())
     dtype3 = binop3.datatype
-    assert dtype3 == REAL_SINGLE_TYPE
+    assert dtype3 == ScalarType.real_single_type()
     # Add a scalar integer to all elements of a real array.
-    binop4 = BinaryOperation.create(oper, ref1.copy(),
-                                    Literal("3", INTEGER_SINGLE_TYPE))
+    binop4 = BinaryOperation.create(
+        oper, ref1.copy(),
+        Literal("3", ScalarType.integer_single_type()))
     assert binop4.datatype == arrtype
     # Add a real scalar to all elements of an integer array.
     ref4 = Reference(DataSymbol("tmp4", iarrtype))
-    ref5 = Reference(DataSymbol("tmp5", REAL_SINGLE_TYPE))
+    ref5 = Reference(DataSymbol("tmp5", ScalarType.real_single_type()))
     binop5 = BinaryOperation.create(oper, ref4, ref5)
     dtype5 = binop5.datatype
     assert isinstance(dtype5, ArrayType)
@@ -285,28 +287,49 @@ def test_binaryop_array_datatype():
     assert dtype5.shape[0].upper.value == "5"
     assert dtype5.intrinsic == ScalarType.Intrinsic.REAL
     # Non-conforming shapes.
-    arr2dtype = ArrayType(REAL_SINGLE_TYPE, [10, 5])
+    arr2dtype = ArrayType(ScalarType.real_single_type(), [10, 5])
     ref6 = Reference(DataSymbol("tmp2d", arr2dtype))
     binop6 = BinaryOperation.create(oper, ref1.copy(), ref6)
     with pytest.raises(InternalError) as err:
         _ = binop6.datatype
     assert ("Binary operation 'tmp1 + tmp2d' has operands of different shape: "
             "'tmp1' has rank 1 and 'tmp2d' has rank 2" in str(err.value))
+    # Create two operands where one has a defined integer shape and the other
+    # uses a full range.
+    ref6 = ArrayReference.create(sym2, [Range.create(
+        Literal("1", ScalarType.integer_single_type()),
+        Literal("5", ScalarType.integer_single_type()))])
+    ref7 = ArrayReference.create(sym1, [Range.create(
+        Literal("1", ScalarType.integer_single_type()),
+        IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.SIZE,
+            [Reference(sym2)])
+        )])
+    # Test that we choose the option that has a defined shape and not a size
+    # intrinsic regardless of argument order.
+    binop7 = BinaryOperation.create(oper, ref7.copy(), ref6.copy())
+    dtype6 = binop7.datatype
+    assert dtype6.shape[0].lower.value == "1"
+    assert dtype6.shape[0].upper.debug_string() == "5"
+    binop8 = BinaryOperation.create(oper, ref6.copy(), ref7.copy())
+    dtype7 = binop8.datatype
+    assert dtype7.shape[0].lower.value == "1"
+    assert dtype7.shape[0].upper.debug_string() == "5"
 
 
 def test_binaryop_array_section_datatype():
     '''Test the datatype property of BinaryOperation when the operands are
     array sections.'''
-    arrtype = ArrayType(REAL_SINGLE_TYPE, [10])
-    iarrtype = ArrayType(INTEGER_SINGLE_TYPE, [10, 5])
+    arrtype = ArrayType(ScalarType.real_single_type(), [10])
+    iarrtype = ArrayType(ScalarType.integer_single_type(), [10, 5])
     ref1 = ArrayReference.create(
         DataSymbol("tmp1", arrtype),
-        [Range.create(Literal("2", INTEGER_SINGLE_TYPE),
-                      Literal("3", INTEGER_SINGLE_TYPE))])
+        [Range.create(Literal("2", ScalarType.integer_single_type()),
+                      Literal("3", ScalarType.integer_single_type()))])
     ref2 = ArrayReference.create(
         DataSymbol("tmp2", arrtype),
-        [Range.create(Literal("9", INTEGER_SINGLE_TYPE),
-                      Literal("10", INTEGER_SINGLE_TYPE))])
+        [Range.create(Literal("9", ScalarType.integer_single_type()),
+                      Literal("10", ScalarType.integer_single_type()))])
     oper = BinaryOperation.Operator.ADD
     # Addition of two array sections.
     binaryoperation = BinaryOperation.create(oper, ref1, ref2)
@@ -317,12 +340,12 @@ def test_binaryop_array_section_datatype():
     # Repeat but for a non-contiguous 1D section of a rank 2, integer array.
     ref3 = ArrayReference.create(
         DataSymbol("tmp3", iarrtype),
-        [Literal("2", INTEGER_SINGLE_TYPE),
-         Range.create(Literal("4", INTEGER_SINGLE_TYPE),
-                      Literal("5", INTEGER_SINGLE_TYPE))])
+        [Literal("2", ScalarType.integer_single_type()),
+         Range.create(Literal("4", ScalarType.integer_single_type()),
+                      Literal("5", ScalarType.integer_single_type()))])
     binop3 = BinaryOperation.create(oper, ref1.copy(), ref3.copy())
     dtype3 = binop3.datatype
-    assert dtype3.intrinsic == REAL_SINGLE_TYPE.intrinsic
+    assert dtype3.intrinsic == ScalarType.real_single_type().intrinsic
     assert len(dtype3.shape) == 1
     assert dtype3.shape[0].lower.value == "1"
     assert dtype3.shape[0].upper.debug_string() == "3 - 2 + 1"
@@ -331,18 +354,18 @@ def test_binaryop_array_section_datatype():
 def test_binaryop_datatype_recursion():
     '''Test the datatype property of BinaryOperation when the operands are
     themselves BinaryOperations.'''
-    iarrtype = ArrayType(INTEGER_SINGLE_TYPE, [10, 5])
+    iarrtype = ArrayType(ScalarType.integer_single_type(), [10, 5])
     ref1 = ArrayReference.create(
         DataSymbol("tmp1", iarrtype),
-        [Range.create(Literal("2", INTEGER_SINGLE_TYPE),
-                      Literal("3", INTEGER_SINGLE_TYPE)),
-         Literal("3", INTEGER_SINGLE_TYPE)])
+        [Range.create(Literal("2", ScalarType.integer_single_type()),
+                      Literal("3", ScalarType.integer_single_type())),
+         Literal("3", ScalarType.integer_single_type())])
     ref2 = ArrayReference.create(
         DataSymbol("tmp2", iarrtype),
-        [Literal("2", INTEGER_SINGLE_TYPE),
-         Range.create(Literal("4", INTEGER_SINGLE_TYPE),
-                      Literal("5", INTEGER_SINGLE_TYPE))])
-    ref3 = Reference(DataSymbol("tmp3", REAL_SINGLE_TYPE))
+        [Literal("2", ScalarType.integer_single_type()),
+         Range.create(Literal("4", ScalarType.integer_single_type()),
+                      Literal("5", ScalarType.integer_single_type()))])
+    ref3 = Reference(DataSymbol("tmp3", ScalarType.real_single_type()))
     oper = BinaryOperation.Operator.SUB
     binop1 = BinaryOperation.create(oper, ref2, ref3)
     # Create tmp1(2:3) - (tmp2(4:5) - tmp3)
@@ -350,7 +373,7 @@ def test_binaryop_datatype_recursion():
     dtype1 = binop2.datatype
     assert isinstance(dtype1, ArrayType)
     # Since tmp3 is real, the result should be real.
-    assert dtype1.intrinsic == REAL_SINGLE_TYPE.intrinsic
+    assert dtype1.intrinsic == ScalarType.real_single_type().intrinsic
     assert len(dtype1.shape) == 1
     assert dtype1.shape[0].lower.value == "1"
     assert dtype1.shape[0].upper.debug_string() == "3 - 2 + 1"
@@ -362,18 +385,20 @@ def test_binaryop_structure_datatype():
     structure types.
 
     '''
-    arrtype = ArrayType(REAL_SINGLE_TYPE, [10, 5])
+    arrtype = ArrayType(ScalarType.real_single_type(), [10, 5])
     stype = StructureType.create([
-        ("nx", INTEGER_SINGLE_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("nx", ScalarType.integer_single_type(),
+         Symbol.Visibility.PUBLIC, None),
         ("data", arrtype, Symbol.Visibility.PUBLIC, None)])
     sym1 = DataSymbol("field", stype)
     ref1 = StructureReference.create(sym1, ["nx"])
     oper = BinaryOperation.Operator.SUB
     # field%nx - 2.0
-    binop1 = BinaryOperation.create(oper,
-                                    ref1, Literal("2.0", REAL_SINGLE_TYPE))
+    binop1 = BinaryOperation.create(
+        oper,
+        ref1, Literal("2.0", ScalarType.real_single_type()))
     dtype1 = binop1.datatype
-    assert dtype1 == REAL_SINGLE_TYPE
+    assert dtype1 == ScalarType.real_single_type()
     ref2 = StructureReference.create(sym1, ["data"])
     # field%nx - field%data
     binop2 = BinaryOperation.create(oper, ref1.copy(), ref2)
@@ -381,7 +406,7 @@ def test_binaryop_structure_datatype():
     assert isinstance(dtype2, ArrayType)
     assert len(dtype2.shape) == 2
     assert dtype2.shape == arrtype.shape
-    assert dtype2.intrinsic == REAL_SINGLE_TYPE.intrinsic
+    assert dtype2.intrinsic == ScalarType.real_single_type().intrinsic
 
 
 def test_binaryop_unresolved_datatype():
@@ -391,7 +416,7 @@ def test_binaryop_unresolved_datatype():
 
     '''
     wind = Reference(DataSymbol("wind", UnresolvedType()))
-    sea = Reference(DataSymbol("sea", INTEGER_SINGLE_TYPE))
+    sea = Reference(DataSymbol("sea", ScalarType.integer_single_type()))
     oper = BinaryOperation.Operator.ADD
     binop1 = BinaryOperation.create(oper, wind, sea)
     assert isinstance(binop1.datatype, UnresolvedType)
@@ -412,19 +437,19 @@ def test_binaryop_partial_datatype():
     have partial type information.
 
     '''
-    iarrtype = ArrayType(INTEGER_SINGLE_TYPE, [10, 5])
+    iarrtype = ArrayType(ScalarType.integer_single_type(), [10, 5])
     utype = UnsupportedFortranType(
                 "integer, dimension(10,5), pointer :: ref1",
                 partial_datatype=iarrtype)
     ref1 = Reference(DataSymbol("ref1", utype))
-    ref2 = Reference(DataSymbol("ref2", REAL_SINGLE_TYPE))
+    ref2 = Reference(DataSymbol("ref2", ScalarType.real_single_type()))
     oper = BinaryOperation.Operator.MUL
     binop1 = BinaryOperation.create(oper, ref1, ref2)
     dtype1 = binop1.datatype
     assert isinstance(dtype1, ArrayType)
-    assert dtype1.intrinsic == REAL_SINGLE_TYPE.intrinsic
+    assert dtype1.intrinsic == ScalarType.real_single_type().intrinsic
     # Create a second Symbol of UnsupportedFortranType.
-    arrtype3 = ArrayType(REAL_SINGLE_TYPE, [10, 10])
+    arrtype3 = ArrayType(ScalarType.real_single_type(), [10, 10])
     utype3 = UnsupportedFortranType(
                 "real, dimension(10,10), pointer :: ref3",
                 partial_datatype=arrtype3)
@@ -433,14 +458,14 @@ def test_binaryop_partial_datatype():
     # updating the original UnsupportedType with a new shape).
     ref3 = ArrayReference.create(
         DataSymbol("ref3", utype3),
-        [":", Range.create(Literal("5", INTEGER_SINGLE_TYPE),
-                           Literal("10", INTEGER_SINGLE_TYPE))])
+        [":", Range.create(Literal("5", ScalarType.integer_single_type()),
+                           Literal("10", ScalarType.integer_single_type()))])
     # Create ref1(:,:) * ref3(:,5:10)
     binop3 = BinaryOperation.create(oper, ref1.copy(), ref3)
     dtype3 = binop3.datatype
     assert isinstance(dtype3, UnresolvedType)
     # However, if a subsection is not involved then we are OK.
-    arrtype4 = ArrayType(REAL_SINGLE_TYPE, [10, 5])
+    arrtype4 = ArrayType(ScalarType.real_single_type(), [10, 5])
     utype4 = UnsupportedFortranType(
                 "real, dimension(10,5), pointer :: ref3",
                 partial_datatype=arrtype4)
@@ -452,16 +477,17 @@ def test_binaryop_partial_datatype():
     assert dtype4.shape[0].upper.value == "10"
     assert dtype4.shape[1].lower.value == "1"
     assert dtype4.shape[1].upper.value == "5"
-    assert dtype4.intrinsic == REAL_SINGLE_TYPE.intrinsic
+    assert dtype4.intrinsic == ScalarType.real_single_type().intrinsic
     # A reference to an array of UnsupportedType but with partial type info.
-    utype5 = UnsupportedFortranType("real, pointer :: ref5",
-                                    partial_datatype=REAL_SINGLE_TYPE)
+    utype5 = UnsupportedFortranType(
+        "real, pointer :: ref5",
+        partial_datatype=ScalarType.real_single_type())
     arrtype5 = ArrayType(utype5, [8])
     ref5 = Reference(DataSymbol("ref5", arrtype5))
     binop5 = BinaryOperation.create(oper, ref2.copy(), ref5)
     dtype5 = binop5.datatype
     assert isinstance(dtype5, ArrayType)
-    assert dtype5.intrinsic == REAL_SINGLE_TYPE.intrinsic
+    assert dtype5.intrinsic == ScalarType.real_single_type().intrinsic
     assert len(dtype5.shape) == 1
     # Reference to an array of UnsupportedType without partial type information
     utype6 = UnsupportedFortranType("real, dimension(10,5), pointer :: ref6")
@@ -478,14 +504,14 @@ def test_binaryoperation_intrinsic_fn_datatype():
     of an intrinsic function.
 
     '''
-    arrtype = ArrayType(REAL_SINGLE_TYPE, [10, 5])
+    arrtype = ArrayType(ScalarType.real_single_type(), [10, 5])
     aref = Reference(DataSymbol("array", arrtype))
     arg1 = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAXVAL, [aref])
-    arg2 = Reference(DataSymbol("scalar", INTEGER_SINGLE_TYPE))
+    arg2 = Reference(DataSymbol("scalar", ScalarType.integer_single_type()))
     oper = BinaryOperation.Operator.ADD
     binop = BinaryOperation.create(oper, arg1, arg2)
     assert isinstance(binop.datatype, ScalarType)
-    assert binop.datatype == REAL_SINGLE_TYPE
+    assert binop.datatype == ScalarType.real_single_type()
 
 
 # Test UnaryOperation class
@@ -514,7 +540,7 @@ def test_unaryoperation_operator(operator_name):
 
 def test_unaryoperation_node_str():
     ''' Check the view method of the UnaryOperation class.'''
-    ref1 = Reference(DataSymbol("a", REAL_SINGLE_TYPE))
+    ref1 = Reference(DataSymbol("a", ScalarType.real_single_type()))
     unary_operation = UnaryOperation.create(UnaryOperation.Operator.MINUS,
                                             ref1)
     coloredtext = colored("UnaryOperation", UnaryOperation._colour)
@@ -526,7 +552,7 @@ def test_unaryoperation_can_be_printed():
     initialised fully)'''
     unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
     assert "UnaryOperation[operator:'MINUS']" in str(unary_operation)
-    op1 = Literal("1", INTEGER_SINGLE_TYPE)
+    op1 = Literal("1", ScalarType.integer_single_type())
     unary_operation.addchild(op1)
     # Check the node children are also printed
     assert ("Literal[value:'1', Scalar<INTEGER, SINGLE>]"
@@ -538,7 +564,7 @@ def test_unaryoperation_create():
     creates a UnaryOperation instance.
 
     '''
-    child = Reference(DataSymbol("tmp", REAL_SINGLE_TYPE))
+    child = Reference(DataSymbol("tmp", ScalarType.real_single_type()))
     oper = UnaryOperation.Operator.MINUS
     unaryoperation = UnaryOperation.create(oper, child)
     check_links(unaryoperation, [child])
@@ -556,7 +582,7 @@ def test_unaryoperation_create_invalid4():
     with pytest.raises(GenerationError) as excinfo:
         _ = UnaryOperation.create(
             "invalid",
-            Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)))
+            Reference(DataSymbol("tmp", ScalarType.real_single_type())))
     assert ("operator argument in create method of UnaryOperation class "
             "should be a PSyIR UnaryOperation Operator but found 'str'."
             in str(excinfo.value))
@@ -568,8 +594,8 @@ def test_unaryoperation_children_validation():
 
     '''
     operation = UnaryOperation(UnaryOperation.Operator.MINUS)
-    literal1 = Literal("1", INTEGER_SINGLE_TYPE)
-    literal2 = Literal("2", INTEGER_SINGLE_TYPE)
+    literal1 = Literal("1", ScalarType.integer_single_type())
+    literal2 = Literal("2", ScalarType.integer_single_type())
     statement = Return()
 
     # Statements are not valid
@@ -592,20 +618,22 @@ def test_unaryop_datatype():
     '''
     # Numerical, scalar operation
     oper = UnaryOperation.Operator.MINUS
-    uop = UnaryOperation.create(oper, Literal("1", INTEGER_SINGLE_TYPE))
-    assert uop.datatype == INTEGER_SINGLE_TYPE
+    uop = UnaryOperation.create(oper,
+                                Literal("1", ScalarType.integer_single_type()))
+    assert uop.datatype == ScalarType.integer_single_type()
     # Numerical, array operation
-    ntype = ArrayType(REAL_DOUBLE_TYPE, [20])
+    ntype = ArrayType(ScalarType.real_double_type(), [20])
     nsym = DataSymbol("var", ntype)
     uop1 = UnaryOperation.create(oper, Reference(nsym))
     dtype = uop1.datatype
     assert dtype == ntype
     # Logical operation
     oper = UnaryOperation.Operator.NOT
-    uop2 = UnaryOperation.create(oper, Literal("true", BOOLEAN_TYPE))
-    assert uop2.datatype == BOOLEAN_TYPE
+    uop2 = UnaryOperation.create(oper,
+                                 Literal("true", ScalarType.boolean_type()))
+    assert uop2.datatype == ScalarType.boolean_type()
     # With logical array argument
-    atype = ArrayType(BOOLEAN_TYPE, [10, 10])
+    atype = ArrayType(ScalarType.boolean_type(), [10, 10])
     asym = DataSymbol("mask", atype)
     uop3 = UnaryOperation.create(oper, Reference(asym))
     dtype = uop3.datatype
@@ -619,7 +647,7 @@ def test_unaryop_operand():
     Test the operand property of UnaryOperation.
     '''
     oper = UnaryOperation.Operator.MINUS
-    node = Literal("1", INTEGER_SINGLE_TYPE)
+    node = Literal("1", ScalarType.integer_single_type())
     uop = UnaryOperation.create(oper, node)
     assert uop.operand is node
 
@@ -627,8 +655,8 @@ def test_unaryop_operand():
 def test_operations_can_be_copied():
     ''' Test that an operation can be copied. '''
 
-    operands = [Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE)),
-                Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE))]
+    operands = [Reference(DataSymbol("tmp1", ScalarType.real_single_type())),
+                Reference(DataSymbol("tmp2", ScalarType.real_single_type()))]
     operation = BinaryOperation.create(BinaryOperation.Operator.ADD, *operands)
 
     operation1 = operation.copy()
@@ -655,8 +683,8 @@ def test_operations_can_be_copied():
 
 def test_operation_equality():
     ''' Test the __eq__ method of Operation'''
-    tmp1 = DataSymbol("tmp1", REAL_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", REAL_SINGLE_TYPE)
+    tmp1 = DataSymbol("tmp1", ScalarType.real_single_type())
+    tmp2 = DataSymbol("tmp2", ScalarType.real_single_type())
     lhs = Reference(tmp1)
     rhs = Reference(tmp2)
     oper = BinaryOperation.Operator.ADD

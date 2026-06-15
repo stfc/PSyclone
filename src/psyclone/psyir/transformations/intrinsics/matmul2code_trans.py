@@ -50,7 +50,7 @@ from psyclone.psyir.nodes import (
     BinaryOperation, Assignment, Reference,
     Loop, Literal, ArrayReference, Range, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, REAL_TYPE, TypedSymbol, UnsupportedType)
+    DataSymbol, ScalarType, TypedSymbol, UnsupportedType)
 from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
     Intrinsic2CodeTrans)
 from psyclone.utils import transformation_documentation_wrapper
@@ -133,6 +133,7 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
     a rank-1 array.
 
     '''
+
     def __init__(self):
         super().__init__()
         self._intrinsic = IntrinsicCall.Intrinsic.MATMUL
@@ -363,10 +364,10 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
 
         # Create new i and j loop iterators.
         symbol_table = node.scope.symbol_table
-        i_loop_sym = symbol_table.new_symbol("i", symbol_type=DataSymbol,
-                                             datatype=INTEGER_TYPE)
-        j_loop_sym = symbol_table.new_symbol("j", symbol_type=DataSymbol,
-                                             datatype=INTEGER_TYPE)
+        i_loop_sym = symbol_table.new_symbol(
+             "i", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
+        j_loop_sym = symbol_table.new_symbol(
+             "j", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
 
         # Create "result(i)"
         r_fr_order, r_nfr_order, r_nfr = self._get_full_range_split(result)
@@ -408,10 +409,10 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
             first_pos = v_fr_order[0]
         lower_bound, upper_bound = vector.symbol.get_bounds(first_pos)
         jloop = Loop.create(j_loop_sym, lower_bound, upper_bound,
-                            Literal("1", INTEGER_TYPE), [assign])
+                            Literal("1", ScalarType.integer_type()), [assign])
         # Create "result(i) = 0.0"
         assign = Assignment.create(result_ref.copy(),
-                                   Literal("0.0", REAL_TYPE))
+                                   Literal("0.0", ScalarType.real_type()))
         # Create i loop and add assignment and j loop as children
         if len(m_fr_order) == 0:
             # If no full ranges, then matrix was specified
@@ -421,7 +422,8 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
             first_pos = m_fr_order[0]
         lower_bound, upper_bound = matrix.symbol.get_bounds(first_pos)
         iloop = Loop.create(i_loop_sym, lower_bound, upper_bound,
-                            Literal("1", INTEGER_TYPE), [assign, jloop])
+                            Literal("1", ScalarType.integer_type()),
+                            [assign, jloop])
         # Replace the existing assignment with the new loop.
         assignment.replace_with(iloop)
 
@@ -442,12 +444,12 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
 
         # Create new i, j and ii loop iterators.
         symbol_table = node.scope.symbol_table
-        i_loop_sym = symbol_table.new_symbol("i", symbol_type=DataSymbol,
-                                             datatype=INTEGER_TYPE)
-        j_loop_sym = symbol_table.new_symbol("j", symbol_type=DataSymbol,
-                                             datatype=INTEGER_TYPE)
-        ii_loop_sym = symbol_table.new_symbol("ii", symbol_type=DataSymbol,
-                                              datatype=INTEGER_TYPE)
+        i_loop_sym = symbol_table.new_symbol(
+             "i", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
+        j_loop_sym = symbol_table.new_symbol(
+             "j", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
+        ii_loop_sym = symbol_table.new_symbol(
+             "ii", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
         # Create "result(i,j)"
         r_fr_order, r_nfr_order, r_nfr = self._get_full_range_split(result)
         result_ref = _create_array_ref(result.symbol,
@@ -488,10 +490,10 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
             pos_last = m1_fr_order[-1]
         lower_bound, upper_bound = matrix1.symbol.get_bounds(pos_last)
         iiloop = Loop.create(ii_loop_sym, lower_bound, upper_bound,
-                             Literal("1", INTEGER_TYPE), [assign])
+                             Literal("1", ScalarType.integer_type()), [assign])
         # Create "result(i,j) = 0.0"
         assign = Assignment.create(result_ref.copy(),
-                                   Literal("0.0", REAL_TYPE))
+                                   Literal("0.0", ScalarType.real_type()))
         # Create i loop and add assignment and ii loop as children.
         if len(m1_fr_order) == 0:
             # If no full ranges, then matrix was specified
@@ -501,7 +503,8 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
             pos_first = m1_fr_order[0]
         lower_bound, upper_bound = matrix1.symbol.get_bounds(pos_first)
         iloop = Loop.create(i_loop_sym, lower_bound, upper_bound,
-                            Literal("1", INTEGER_TYPE), [assign, iiloop])
+                            Literal("1", ScalarType.integer_type()),
+                            [assign, iiloop])
         # Create j loop and add i loop as child.
         if len(m2_fr_order) == 0:
             # If no full ranges, then matrix was specified
@@ -511,7 +514,7 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
             pos_last = m2_fr_order[-1]
         lower_bound, upper_bound = matrix2.symbol.get_bounds(pos_last)
         jloop = Loop.create(j_loop_sym, lower_bound, upper_bound,
-                            Literal("1", INTEGER_TYPE), [iloop])
+                            Literal("1", ScalarType.integer_type()), [iloop])
         # Replace the original assignment with the new loop.
         assignment.replace_with(jloop)
 

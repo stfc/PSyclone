@@ -66,7 +66,7 @@ from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
     ArrayType, ContainerSymbol, DataSymbol, DataType, ImportInterface,
-    INTEGER_TYPE, REAL8_TYPE, Symbol, SymbolTable)
+    ScalarType, Symbol, SymbolTable)
 
 if TYPE_CHECKING:
     from psyclone.psyir.tools import ReadWriteInfo
@@ -435,9 +435,9 @@ class ExtractNode(PSyDataNode):
                     f"'{structure_reference.debug_string()}' "
                     f"in the config file '{Config.get().filename}'.")
             if gocean_property.intrinsic_type == 'real':
-                scalar_type = REAL8_TYPE
+                scalar_type = ScalarType.real8_type()
             else:
-                scalar_type = INTEGER_TYPE
+                scalar_type = ScalarType.integer_type()
             if gocean_property.type == "scalar":
                 return scalar_type
             # Everything else is a 2D field
@@ -445,7 +445,7 @@ class ExtractNode(PSyDataNode):
                                            ArrayType.Extent.DEFERRED])
 
         # Everything else defaults to integer
-        return INTEGER_TYPE
+        return ScalarType.integer_type()
 
     @staticmethod
     def bring_external_symbols(read_write_info: "ReadWriteInfo",
@@ -470,7 +470,9 @@ class ExtractNode(PSyDataNode):
                 continue
             container = symbol_table.find_or_create(
                 module_name, symbol_type=ContainerSymbol)
-
+            # Any symbols imported from this ContainerSymbol must be added
+            # to the same scope (table) in which it resides.
+            actual_table = container.find_symbol_table(symbol_table.node)
             # Now look up the original symbol. While the variable could
             # be declared Unresolved here (i.e. just imported), we need the
             # type information for the output variables (VAR_post), which
@@ -493,7 +495,7 @@ class ExtractNode(PSyDataNode):
             else:
                 interface = ImportInterface(container)
 
-            symbol_table.find_or_create_tag(
+            actual_table.find_or_create_tag(
                 tag=f"{signature[0]}@{module_name}", root_name=signature[0],
                 symbol_type=DataSymbol, interface=interface,
                 datatype=container_symbol.datatype)

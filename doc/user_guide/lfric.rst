@@ -3487,10 +3487,6 @@ Global minimum and maximum field-element values
 Built-ins which scan through all elements of a field and return its
 maximum or minimum value.
 
-.. warning::
-   Support for these built-ins is not yet complete and therefore they
-   cannot currently be used. TODO #2381.
-
 minval_X
 ^^^^^^^^
 
@@ -4164,7 +4160,7 @@ transformations have not yet been migrated to this directory.
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.LFRicRedundantComputationTrans
+.. autoclass:: psyclone.domain.lfric.transformations.LFRicRedundantComputationTrans
     :members:
     :noindex:
 

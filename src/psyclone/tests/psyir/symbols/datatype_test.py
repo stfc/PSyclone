@@ -46,8 +46,7 @@ from psyclone.psyir.nodes import (
     Literal, Reference, Routine)
 from psyclone.psyir.symbols import (
     ArrayType, DataType, UnresolvedType, ScalarType, UnsupportedFortranType,
-    DataSymbol, StructureType, NoType, INTEGER_TYPE, REAL_TYPE, Symbol,
-    DataTypeSymbol, SymbolTable)
+    DataSymbol, StructureType, NoType, Symbol, DataTypeSymbol, SymbolTable)
 
 
 # Abstract DataType class
@@ -153,6 +152,18 @@ def test_scalartype_enum_precision(intrinsic, precision):
     assert scalar_type.is_allocatable is False
 
 
+@pytest.mark.parametrize("attribute",
+                         [ScalarType.Precision.DOUBLE,
+                          ScalarType.Intrinsic.BOOLEAN,
+                          ScalarType.CharLengthParameter.DEFERRED])
+def test_scalartypeattribute(attribute):
+    '''
+    Test the debug_string() and copy() methods provided by ScalarTypeAttribute.
+    '''
+    assert attribute.copy() == attribute
+    assert attribute.debug_string() == attribute.name
+
+
 @pytest.mark.parametrize("precision", [1, 8, 16])
 @pytest.mark.parametrize("intrinsic", [ScalarType.Intrinsic.INTEGER,
                                        ScalarType.Intrinsic.REAL,
@@ -194,6 +205,46 @@ def test_scalartype_datasymbol_precision(intrinsic):
     assert scalar_type.precision.symbol is precision_symbol
     scalar_type2 = ScalarType(intrinsic, Reference(precision_symbol))
     assert scalar_type == scalar_type2
+
+
+def test_scalartype_character_length():
+    '''
+    Test the length getter and setter of ScalarType.
+    '''
+    data_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
+                           ScalarType.Precision.UNDEFINED,
+                           length=Literal("5", ScalarType.integer_type()))
+    assert data_type.length.value == "5"
+    data_type.length = Reference(Symbol("MAX_LEN"))
+    assert data_type.length.symbol.name == "MAX_LEN"
+    data_type.length = ScalarType.CharLengthParameter.DEFERRED
+    assert data_type.length == ScalarType.CharLengthParameter.DEFERRED
+    assert data_type.length.debug_string() == "DEFERRED"
+
+    with pytest.raises(ValueError) as err:
+        data_type.length = -1
+    assert ("specified using an int then it must be >= 0 but got: -1"
+            in str(err.value))
+    with pytest.raises(TypeError) as err:
+        data_type.length = "yes"
+    assert ("must be a non-negative int, ScalarType.CharLengthParameter or "
+            "DataNode but got 'str'" in str(err.value))
+
+    # Now test with a non-character type.
+    non_char = ScalarType.integer_type()
+    # The getter raises an error.
+    with pytest.raises(TypeError) as err:
+        _ = non_char.length
+    assert ("ScalarType of intrinsic type 'Intrinsic.INTEGER' does not have "
+            "the 'length' property" in str(err.value))
+    # The setter does permit a value of None.
+    non_char.length = None
+    # The setter rejects a value that is not None.
+    with pytest.raises(TypeError) as err:
+        non_char.length = 10
+    assert ("character type support the length property but length '10' was "
+            "supplied to an intrinsic type of 'Intrinsic.INTEGER'"
+            in str(err.value))
 
 
 def test_scalartype_equal():
@@ -287,6 +338,12 @@ def test_scalartype_str():
     data_type = ScalarType(ScalarType.Intrinsic.BOOLEAN,
                            ScalarType.Precision.UNDEFINED)
     assert str(data_type) == "Scalar<BOOLEAN, UNDEFINED>"
+    str_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
+                          ScalarType.Precision.UNDEFINED,
+                          4)
+    assert str(str_type) == (
+        "Scalar<CHARACTER, UNDEFINED, "
+        "len:Literal[value:'4', Scalar<INTEGER, UNDEFINED>]>")
 
 
 def test_scalartype_immutable():
@@ -310,27 +367,38 @@ def test_scalartype_replace_symbols():
     # No Symbol so there should be no change to the object.
     assert stype == ScalarType(ScalarType.Intrinsic.BOOLEAN,
                                ScalarType.Precision.UNDEFINED)
-    rdef = DataSymbol("rdef", INTEGER_TYPE)
+    rdef = DataSymbol("rdef", ScalarType.integer_type())
     stype2 = ScalarType(ScalarType.Intrinsic.INTEGER,
                         Reference(rdef))
     # Symbol with name 'rdef' is not in the supplied table so no change.
     stype2.replace_symbols_using(table)
     assert stype2.precision.symbol is rdef
     # Add a symbol with that name to the table and repeat.
-    rdef2 = DataSymbol("rdef", INTEGER_TYPE)
+    rdef2 = DataSymbol("rdef", ScalarType.integer_type())
     table.add(rdef2)
     stype2.replace_symbols_using(table)
     # Precision symbol should have been updated.
     assert stype2.precision.symbol is rdef2
+    # Repeat but for a Symbol used to define the length of a character string
+    chartype = ScalarType(ScalarType.Intrinsic.CHARACTER,
+                          ScalarType.Precision.UNDEFINED,
+                          Reference(rdef))
+    chartype.replace_symbols_using(table)
+    assert chartype.length.symbol is rdef2
 
 
 def test_scalartype_get_all_accessed_symbols():
     '''Test for the ScalarType.get_all_accessed_symbols() method.'''
-    rdef = DataSymbol("rdef", INTEGER_TYPE)
+    rdef = DataSymbol("rdef", ScalarType.integer_type())
     stype2 = ScalarType(ScalarType.Intrinsic.INTEGER,
                         Reference(rdef))
     dependent_symbols = stype2.get_all_accessed_symbols()
     assert rdef in dependent_symbols
+    chartype = ScalarType(ScalarType.Intrinsic.CHARACTER,
+                          ScalarType.Precision.UNDEFINED,
+                          Reference(rdef))
+    dependent_symbols2 = chartype.get_all_accessed_symbols()
+    assert rdef in dependent_symbols2
 
 
 def test_scalartype_copy():
@@ -342,7 +410,7 @@ def test_scalartype_copy():
     assert rcopy.intrinsic == stype2.intrinsic
     assert rcopy.precision == stype2.precision
 
-    rdef = DataSymbol("rdef", INTEGER_TYPE)
+    rdef = DataSymbol("rdef", ScalarType.integer_type())
     precis = Reference(rdef)
     stype2 = ScalarType(ScalarType.Intrinsic.INTEGER,
                         precis)
@@ -356,6 +424,23 @@ def test_scalartype_copy():
     assert rcopy.intrinsic == stype2.intrinsic
     assert rcopy.precision == stype2.precision
     assert rcopy.precision is not stype2.precision
+
+    # Repeat but with precision as an int.
+    # TODO #3135 - once precision is always stored as a DataNode this separate
+    # test won't be necessary.
+    itype = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
+    icopy = itype.copy()
+    assert icopy.precision == 4
+
+    # Test a character type with a length.
+    chartype = ScalarType(ScalarType.Intrinsic.CHARACTER,
+                          ScalarType.Precision.UNDEFINED,
+                          Reference(rdef))
+    ccopy = chartype.copy()
+    # Length expression has been copied.
+    assert ccopy.length is not chartype.length
+    # Referenced Symbol is unchanged.
+    assert ccopy.length.symbol is rdef
 
 
 # ArrayType class
@@ -374,7 +459,7 @@ def test_arraytype_arraybounds():
     Test the ArrayType.ArrayBounds class. This is a dataclass with
     type checking.
     '''
-    two = Literal("2", INTEGER_TYPE)
+    two = Literal("2", ScalarType.integer_type())
     bounds = ArrayType.ArrayBounds(lower=two,
                                    upper=ArrayType.Extent.ATTRIBUTE)
     assert bounds.lower == two
@@ -426,8 +511,7 @@ def test_arraytype():
     assert shape0.upper.value == "10"
     assert shape0.upper.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert shape0.upper.datatype.precision == ScalarType.Precision.UNDEFINED
-    # TODO #1857: the datatype property might be affected.
-    assert array_type.datatype == scalar_type
+    assert array_type.elemental_type == scalar_type
     # Provided and stored as a Literal (DataNode)
     assert array_type.shape[1].upper == literal
     # Provided and stored as an Operator (DataNode)
@@ -467,8 +551,9 @@ def test_arraytype_invalid_datatype():
     '''
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(None, None)
-    assert ("ArrayType expected 'datatype' argument to be of type DataType "
-            "or DataTypeSymbol but found 'NoneType'." in str(excinfo.value))
+    assert ("ArrayType expected 'elemental_type' argument to be of type "
+            "DataType or DataTypeSymbol but found 'NoneType'."
+            in str(excinfo.value))
 
 
 def test_arraytype_datatypesymbol_only():
@@ -476,7 +561,8 @@ def test_arraytype_datatypesymbol_only():
     type of StructureType. (This limitation is the subject of #1031.) '''
     with pytest.raises(NotImplementedError) as err:
         _ = ArrayType(StructureType.create(
-            [("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)]),
+            [("nx", ScalarType.integer_type(),
+             Symbol.Visibility.PUBLIC, None)]),
                       [5])
     assert ("When creating an array of structures, the type of those "
             "structures must be supplied as a DataTypeSymbol but got a "
@@ -489,7 +575,7 @@ def test_arraytype_datatypesymbol():
     tsym = DataTypeSymbol("my_type", UnresolvedType())
     atype = ArrayType(tsym, [5])
     assert isinstance(atype, ArrayType)
-    assert atype.datatype == tsym
+    assert atype.elemental_type == tsym
     assert len(atype.shape) == 1
     assert atype.intrinsic is tsym
     assert atype.precision is None
@@ -501,7 +587,7 @@ def test_arraytype_unsupportedtype():
     utype = UnsupportedFortranType("integer, pointer :: var")
     atype = ArrayType(utype, [8])
     assert isinstance(atype, ArrayType)
-    assert atype.datatype is utype
+    assert atype.elemental_type is utype
     assert atype.precision is None
     assert utype.declaration == "integer, pointer :: var"
     # Since no partial datatype is provided, these return None
@@ -613,7 +699,7 @@ def test_arraytype_invalid_shape_bounds():
         "If a DataSymbol is referenced in a dimension declaration then it "
         "should be an integer or of UnsupportedType or UnresolvedType, but "
         "'fred' is a 'Scalar<REAL, 4>'." in str(excinfo.value))
-    array_type = ArrayType(INTEGER_TYPE, [10])
+    array_type = ArrayType(ScalarType.integer_type(), [10])
     symbol = DataSymbol("jim", array_type)
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [(1, Reference(symbol))])
@@ -639,12 +725,12 @@ def test_arraytype_shape_dim_from_parent_scope():
     use of a reference to a symbol in a parent scope. '''
     cont = Container("test_mod")
     dim_sym = cont.symbol_table.new_symbol("dim1", symbol_type=DataSymbol,
-                                           datatype=INTEGER_TYPE)
+                                           datatype=ScalarType.integer_type())
     kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
     cont.addchild(kernel1)
     asym = kernel1.symbol_table.new_symbol(
         "array1", symbol_type=DataSymbol,
-        datatype=ArrayType(INTEGER_TYPE, [Reference(dim_sym)]))
+        datatype=ArrayType(ScalarType.integer_type(), [Reference(dim_sym)]))
     assert isinstance(asym, DataSymbol)
 
 
@@ -673,7 +759,7 @@ def test_arraytype_str_invalid():
     scalar_type = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
     array_type = ArrayType(scalar_type, [10])
     # Make one of the array dimensions an unsupported type
-    array_type._shape = [Literal("10", INTEGER_TYPE)]
+    array_type._shape = [Literal("10", ScalarType.integer_type())]
     with pytest.raises(InternalError) as excinfo:
         _ = str(array_type)
     assert ("Once constructed, every member of an ArrayType shape-list should "
@@ -699,14 +785,14 @@ def test_arraytype_eq():
     data_type1 = ArrayType(scalar_type, [10, 10])
     assert data_type1 == ArrayType(scalar_type, [10, 10])
     assert data_type1 != scalar_type
-    assert data_type1 == ArrayType(scalar_type, [10,
-                                                 Literal("10", INTEGER_TYPE)])
+    assert data_type1 == ArrayType(
+        scalar_type, [10, Literal("10", ScalarType.integer_type())])
     # Same type but different shape.
     assert data_type1 != ArrayType(scalar_type, [10])
     assert data_type1 != ArrayType(scalar_type, [10, 10, 5])
     assert data_type1 != ArrayType(scalar_type, [10, 5])
     assert data_type1 != ArrayType(scalar_type, [10, 5])
-    sym = DataSymbol("nx", INTEGER_TYPE)
+    sym = DataSymbol("nx", ScalarType.integer_type())
     assert data_type1 != ArrayType(scalar_type, [10, Reference(sym)])
     # Same shape but different type.
     dscalar_type = ScalarType(ScalarType.Intrinsic.REAL, 8)
@@ -717,9 +803,10 @@ def test_arraytype_eq():
 
 def test_arraytype_copy():
     '''Test the copy() method of ArrayType.'''
-    sym1 = DataSymbol("alimit", INTEGER_TYPE)
-    atype = ArrayType(INTEGER_TYPE, [Reference(sym1),
-                                     (Reference(sym1), Reference(sym1))])
+    sym1 = DataSymbol("alimit", ScalarType.integer_type())
+    atype = ArrayType(ScalarType.integer_type(),
+                      [Reference(sym1),
+                       (Reference(sym1), Reference(sym1))])
     acopy = atype.copy()
     assert acopy == atype
     assert acopy is not atype
@@ -730,7 +817,7 @@ def test_arraytype_copy():
     assert acopy.shape[0].upper.symbol is atype.shape[0].upper.symbol
     assert acopy.shape[1].lower.symbol is atype.shape[1].lower.symbol
     # When shape doesn't have set bounds.
-    btype = ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    btype = ArrayType(ScalarType.integer_type(), [ArrayType.Extent.ATTRIBUTE])
     bcopy = btype.copy()
     assert bcopy == btype
     assert bcopy is not btype
@@ -757,16 +844,17 @@ def test_arraytype_replace_symbols_using(table):
     SymbolTable or directly.
 
     '''
-    sym1 = DataSymbol("alimit", INTEGER_TYPE)
-    atype = ArrayType(INTEGER_TYPE, [Reference(sym1),
-                                     (Reference(sym1), Reference(sym1))])
+    sym1 = DataSymbol("alimit", ScalarType.integer_type())
+    atype = ArrayType(ScalarType.integer_type(),
+                      [Reference(sym1),
+                       (Reference(sym1), Reference(sym1))])
     if table is not None:
         atype.replace_symbols_using(table)
         assert atype.shape[0].upper.symbol is sym1
         assert atype.shape[1].lower.symbol is sym1
         assert atype.shape[1].upper.symbol is sym1
 
-    sym1_new = DataSymbol("alimit", INTEGER_TYPE)
+    sym1_new = DataSymbol("alimit", ScalarType.integer_type())
     if table is not None:
         table.add(sym1_new)
         atype.replace_symbols_using(table)
@@ -794,7 +882,7 @@ def test_arraytype_replace_symbols_using(table):
 
     # Test when the precision of the intrinsic type of the array is given
     # by a symbol.
-    rdef = DataSymbol("rdef", INTEGER_TYPE)
+    rdef = DataSymbol("rdef", ScalarType.integer_type())
     ctype = ArrayType(ScalarType(ScalarType.Intrinsic.REAL, Reference(rdef)),
                       [Reference(sym1)])
     if table is not None:
@@ -803,7 +891,7 @@ def test_arraytype_replace_symbols_using(table):
         ctype.replace_symbols_using(sym1_new)
     assert ctype.precision.symbol is rdef
     assert ctype.shape[0].upper.symbol is sym1_new
-    newrdef = DataSymbol("rdef", INTEGER_TYPE)
+    newrdef = DataSymbol("rdef", ScalarType.integer_type())
     if table is not None:
         table.add(newrdef)
         ctype.replace_symbols_using(table)
@@ -812,19 +900,20 @@ def test_arraytype_replace_symbols_using(table):
     assert ctype.precision.symbol is newrdef
 
     # Check that having an array dimension of unknown size is OK.
-    dtype = ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED])
+    dtype = ArrayType(ScalarType.integer_type(), [ArrayType.Extent.DEFERRED])
     if table is not None:
         dtype.replace_symbols_using(table)
-        assert dtype == ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED])
+        assert dtype == ArrayType(ScalarType.integer_type(),
+                                  [ArrayType.Extent.DEFERRED])
 
-    idef = DataSymbol("idef", INTEGER_TYPE)
+    idef = DataSymbol("idef", ScalarType.integer_type())
     etype = ArrayType(ScalarType(ScalarType.Intrinsic.REAL, Reference(rdef)),
                       [Literal("10", ScalarType(ScalarType.Intrinsic.INTEGER,
                                                 Reference(idef)))])
     if table is not None:
         etype.replace_symbols_using(table)
     assert etype.shape[0].upper.datatype.precision.symbol is idef
-    newidef = DataSymbol("idef", INTEGER_TYPE)
+    newidef = DataSymbol("idef", ScalarType.integer_type())
     if table is not None:
         table.add(newidef)
         etype.replace_symbols_using(table)
@@ -836,9 +925,9 @@ def test_arraytype_replace_symbols_using(table):
 def test_arraytype_get_all_accessed_symbols():
     '''Tests for the ArrayType.get_all_accessed_symbols() method.'''
 
-    rdef = DataSymbol("rdef", INTEGER_TYPE)
-    idef = DataSymbol("idef", INTEGER_TYPE)
-    ndim = DataSymbol("ndim", INTEGER_TYPE)
+    rdef = DataSymbol("rdef", ScalarType.integer_type())
+    idef = DataSymbol("idef", ScalarType.integer_type())
+    ndim = DataSymbol("ndim", ScalarType.integer_type())
     etype = ArrayType(ScalarType(ScalarType.Intrinsic.REAL, Reference(rdef)),
                       [Literal("10", ScalarType(ScalarType.Intrinsic.INTEGER,
                                Reference(idef))),
@@ -1040,7 +1129,7 @@ def test_unsupported_fortran_type_replace_symbols():
     '''
     decl = "type(some_type), dimension(nelem) :: var"
     stype = DataTypeSymbol("some_type", UnresolvedType())
-    nelem = DataSymbol("nelem", INTEGER_TYPE)
+    nelem = DataSymbol("nelem", ScalarType.integer_type())
     ptype = ArrayType(stype, [Reference(nelem)])
     utype = UnsupportedFortranType(decl, partial_datatype=ptype)
     table = SymbolTable()
@@ -1050,7 +1139,7 @@ def test_unsupported_fortran_type_replace_symbols():
     table.add(newnelem)
     utype.replace_symbols_using(table)
     assert utype.partial_datatype.shape[0].upper.symbol is newnelem
-    wp = DataSymbol("wp", INTEGER_TYPE)
+    wp = DataSymbol("wp", ScalarType.integer_type())
     ptype2 = ScalarType(ScalarType.Intrinsic.REAL, Reference(wp))
     decl2 = "real(kind=wp), pointer :: var"
     stype2 = UnsupportedFortranType(decl2, partial_datatype=ptype2)
@@ -1068,7 +1157,7 @@ def test_unsupported_fortran_type_get_all_accessed_symbols():
     '''
     decl = "type(some_type), dimension(nelem) :: var"
     stype = DataTypeSymbol("some_type", UnresolvedType())
-    nelem = DataSymbol("nelem", INTEGER_TYPE)
+    nelem = DataSymbol("nelem", ScalarType.integer_type())
     ptype = ArrayType(stype, [Reference(nelem)])
     utype = UnsupportedFortranType(decl, partial_datatype=ptype)
     dependent_symbols = utype.get_all_accessed_symbols()
@@ -1088,15 +1177,16 @@ def test_structure_type():
     stype = StructureType()
     assert str(stype) == "StructureType<>"
     assert not stype.components
-    stype.add("flaG", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)
+    stype.add("flaG", ScalarType.integer_type(),
+              Symbol.Visibility.PUBLIC, None)
     # Lookup is not case sensitive
     flag = stype.lookup("flag")
     # But we retain information on the original capitalisation
     assert flag.name == "flaG"
     assert not flag.initial_value
     assert isinstance(flag, StructureType.ComponentType)
-    stype.add("flag2", INTEGER_TYPE, Symbol.Visibility.PUBLIC,
-              Literal("1", INTEGER_TYPE))
+    stype.add("flag2", ScalarType.integer_type(), Symbol.Visibility.PUBLIC,
+              Literal("1", ScalarType.integer_type()))
     flag2 = stype.lookup("flag2")
     assert isinstance(flag2, StructureType.ComponentType)
     assert flag2.initial_value.value == "1"
@@ -1109,22 +1199,23 @@ def test_structure_type():
     assert ("type of a component of a StructureType must be a 'DataType' "
             "or 'DataTypeSymbol' but got 'str'" in str(err.value))
     with pytest.raises(TypeError) as err:
-        stype.add("hello", INTEGER_TYPE, "hello", None)
+        stype.add("hello", ScalarType.integer_type(), "hello", None)
     assert ("visibility of a component of a StructureType must be an instance "
             "of 'Symbol.Visibility' but got 'str'" in str(err.value))
     with pytest.raises(TypeError) as err:
-        stype.add("hello", INTEGER_TYPE, Symbol.Visibility.PUBLIC, "Hello")
+        stype.add("hello", ScalarType.integer_type(),
+                  Symbol.Visibility.PUBLIC, "Hello")
     assert ("The initial value of a component of a StructureType must be "
             "None or an instance of 'DataNode', but got 'str'."
             in str(err.value))
     with pytest.raises(TypeError) as err:
-        stype.add("hello", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None,
-                  preceding_comment=None)
+        stype.add("hello", ScalarType.integer_type(),
+                  Symbol.Visibility.PUBLIC, None, preceding_comment=None)
     assert ("The preceding_comment of a component of a StructureType "
             "must be a 'str' but got 'NoneType'" in str(err.value))
     with pytest.raises(TypeError) as err:
-        stype.add("hello", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None,
-                  inline_comment=None)
+        stype.add("hello", ScalarType.integer_type(), Symbol.Visibility.PUBLIC,
+                  None, inline_comment=None)
     assert ("The inline_comment of a component of a StructureType "
             "must be a 'str' but got 'NoneType'" in str(err.value))
 
@@ -1145,15 +1236,15 @@ def test_create_structuretype():
     # default.
     tsymbol = DataTypeSymbol("my_type", UnresolvedType())
     stype = StructureType.create([
-        ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
-        ("george", REAL_TYPE, Symbol.Visibility.PRIVATE,
-         Literal("1.0", REAL_TYPE)),
+        ("fred", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
+        ("george", ScalarType.real_type(), Symbol.Visibility.PRIVATE,
+         Literal("1.0", ScalarType.real_type())),
         ("barry", tsymbol, Symbol.Visibility.PUBLIC)])
     assert len(stype.components) == 3
     george = stype.lookup("george")
     assert isinstance(george, StructureType.ComponentType)
     assert george.name == "george"
-    assert george.datatype == REAL_TYPE
+    assert george.datatype == ScalarType.real_type()
     assert george.visibility == Symbol.Visibility.PRIVATE
     assert george.initial_value.value == "1.0"
     barry = stype.lookup("barry")
@@ -1163,7 +1254,8 @@ def test_create_structuretype():
     assert not barry.initial_value
     with pytest.raises(TypeError) as err:
         StructureType.create([
-            ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+            ("fred", ScalarType.integer_type(), Symbol.Visibility.PUBLIC,
+             None),
             ("george", Symbol.Visibility.PRIVATE)])
     assert ("Each component must be specified using a 3 to 6-tuple of (name, "
             "type, visibility, initial_value, preceding_comment, "
@@ -1174,40 +1266,40 @@ def test_create_structuretype():
 def test_structuretype_eq():
     '''Test the equality operator of StructureType.'''
     stype = StructureType.create([
-        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
-        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE,
-         Literal("1.0", REAL_TYPE))])
+        ("nancy", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
+        ("peggy", ScalarType.real_type(), Symbol.Visibility.PRIVATE,
+         Literal("1.0", ScalarType.real_type()))])
     assert stype == StructureType.create([
-        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
-        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE,
-         Literal("1.0", REAL_TYPE))])
+        ("nancy", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
+        ("peggy", ScalarType.real_type(), Symbol.Visibility.PRIVATE,
+         Literal("1.0", ScalarType.real_type()))])
     # Something that is not a StructureType
     assert stype != NoType()
     # Component with a different name.
     assert stype != StructureType.create([
-        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
-        ("roger", REAL_TYPE, Symbol.Visibility.PRIVATE,
-         Literal("1.0", REAL_TYPE))])
+        ("nancy", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
+        ("roger", ScalarType.real_type(), Symbol.Visibility.PRIVATE,
+         Literal("1.0", ScalarType.real_type()))])
     # Component with a different type.
     assert stype != StructureType.create([
-        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
-        ("peggy", INTEGER_TYPE, Symbol.Visibility.PRIVATE,
-         Literal("1.0", REAL_TYPE))])
+        ("nancy", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
+        ("peggy", ScalarType.integer_type(), Symbol.Visibility.PRIVATE,
+         Literal("1.0", ScalarType.real_type()))])
     # Component with a different visibility.
     assert stype != StructureType.create([
-        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
-        ("peggy", REAL_TYPE, Symbol.Visibility.PUBLIC,
-         Literal("1.0", REAL_TYPE))])
+        ("nancy", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
+        ("peggy", ScalarType.real_type(), Symbol.Visibility.PUBLIC,
+         Literal("1.0", ScalarType.real_type()))])
     # Component with a different initialisation
     assert stype != StructureType.create([
-        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
-        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE, None)])
+        ("nancy", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
+        ("peggy", ScalarType.real_type(), Symbol.Visibility.PRIVATE, None)])
     # Different number of components.
     assert stype != StructureType.create([
-        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
-        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE,
-         Literal("1.0", REAL_TYPE)),
-        ("roger", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
+        ("nancy", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
+        ("peggy", ScalarType.real_type(), Symbol.Visibility.PRIVATE,
+         Literal("1.0", ScalarType.real_type())),
+        ("roger", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None)])
 
 
 @pytest.mark.parametrize("table", [None, SymbolTable()])
@@ -1218,9 +1310,9 @@ def test_structuretype_replace_symbols(table):
     '''
     tsymbol = DataTypeSymbol("my_type", UnresolvedType())
     stype = StructureType.create([
-        ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
-        ("george", REAL_TYPE, Symbol.Visibility.PRIVATE,
-         Literal("1.0", REAL_TYPE)),
+        ("fred", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
+        ("george", ScalarType.real_type(), Symbol.Visibility.PRIVATE,
+         Literal("1.0", ScalarType.real_type())),
         ("barry", tsymbol, Symbol.Visibility.PUBLIC, None)])
     assert stype.components["barry"].datatype is tsymbol
     if table is not None:
@@ -1244,11 +1336,11 @@ def test_structuretype_get_all_accessed_symbols():
     '''Tests for the get_all_accessed_symbols() method of StructureType.'''
     tsymbol = DataTypeSymbol("my_type", UnresolvedType())
     ndim = Symbol("ndim")
-    atype = ArrayType(REAL_TYPE, [Reference(ndim)])
+    atype = ArrayType(ScalarType.real_type(), [Reference(ndim)])
     stype = StructureType.create([
-        ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("fred", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
         ("george", atype, Symbol.Visibility.PRIVATE,
-         Literal("1.0", REAL_TYPE)),
+         Literal("1.0", ScalarType.real_type())),
         ("barry", tsymbol, Symbol.Visibility.PUBLIC, None)])
     dependent_symbols = stype.get_all_accessed_symbols()
     assert tsymbol in dependent_symbols
@@ -1259,31 +1351,31 @@ def test_structuretype_componenttype_eq():
     '''Test that the equality operator of StructureType.ComponentType does
     not take the preceding_comment and inline_comment into account.
     '''
-    comp1 = StructureType.ComponentType("fred", INTEGER_TYPE,
+    comp1 = StructureType.ComponentType("fred", ScalarType.integer_type(),
                                         Symbol.Visibility.PUBLIC, None)
-    comp2 = StructureType.ComponentType("fred", INTEGER_TYPE,
+    comp2 = StructureType.ComponentType("fred", ScalarType.integer_type(),
                                         Symbol.Visibility.PUBLIC, None)
     assert comp1 == comp2
 
-    comp1 = StructureType.ComponentType("fred", INTEGER_TYPE,
+    comp1 = StructureType.ComponentType("fred", ScalarType.integer_type(),
                                         Symbol.Visibility.PUBLIC, None)
     object.__setattr__(comp1, "_preceding_comment", "A comment")
-    comp2 = StructureType.ComponentType("fred", INTEGER_TYPE,
+    comp2 = StructureType.ComponentType("fred", ScalarType.integer_type(),
                                         Symbol.Visibility.PUBLIC, None)
     object.__setattr__(comp2, "_preceding_comment", "Another comment")
     assert comp1 == comp2
 
-    comp1 = StructureType.ComponentType("fred", INTEGER_TYPE,
+    comp1 = StructureType.ComponentType("fred", ScalarType.integer_type(),
                                         Symbol.Visibility.PUBLIC, None)
     object.__setattr__(comp1, "_inline_comment", "A comment")
-    comp2 = StructureType.ComponentType("fred", INTEGER_TYPE,
+    comp2 = StructureType.ComponentType("fred", ScalarType.integer_type(),
                                         Symbol.Visibility.PUBLIC, None)
     object.__setattr__(comp2, "_inline_comment", "Another comment")
     assert comp1 == comp2
 
-    comp1 = StructureType.ComponentType("fred", INTEGER_TYPE,
+    comp1 = StructureType.ComponentType("fred", ScalarType.integer_type(),
                                         Symbol.Visibility.PUBLIC, None)
-    comp2 = StructureType.ComponentType("george", INTEGER_TYPE,
+    comp2 = StructureType.ComponentType("george", ScalarType.integer_type(),
                                         Symbol.Visibility.PUBLIC, None)
     assert comp1 != comp2
 
@@ -1291,9 +1383,9 @@ def test_structuretype_componenttype_eq():
 def test_structuretype___copy__():
     '''Test the __copy__ method of StructureType.'''
     stype = StructureType.create([
-        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
-        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE,
-         Literal("1.0", REAL_TYPE))])
+        ("nancy", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
+        ("peggy", ScalarType.real_type(), Symbol.Visibility.PRIVATE,
+         Literal("1.0", ScalarType.real_type()))])
     copied = stype.__copy__()
     assert copied == stype
     assert copied is not stype

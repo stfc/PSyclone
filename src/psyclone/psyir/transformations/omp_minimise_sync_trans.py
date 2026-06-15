@@ -50,6 +50,7 @@ from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 from psyclone.psyir.transformations.async_trans_mixin import \
     AsyncTransMixin
+from psyclone.utils import transformation_documentation_wrapper
 
 
 def _eliminate_final_parallel_barrier(
@@ -68,6 +69,7 @@ def _eliminate_final_parallel_barrier(
 
 
 # Inherits from AsyncTransMixin as it needs some of the helper functions
+@transformation_documentation_wrapper
 class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
     '''
     Attempts to remove OMPTaskwaitDirective or
@@ -165,6 +167,7 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
         :raises TypeError: if the supplied input isn't a Routine.
 
         '''
+        self.validate_options(**kwargs)
         super().validate(node, kwargs)
         if not isinstance(node, Routine):
             raise TypeError(f"OMPMinimiseSyncTrans expects a Routine input "

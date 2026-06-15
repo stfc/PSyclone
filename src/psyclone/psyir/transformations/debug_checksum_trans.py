@@ -45,11 +45,16 @@ from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin
 )
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, PreprocessorInterface, ScalarType
+    DataSymbol, PreprocessorInterface, ScalarType
 )
 from psyclone.psyir.transformations.region_trans import RegionTrans
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError
+)
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class DebugChecksumTrans(RegionTrans):
     '''
     Creates a set of checksums (written via print) for all written arrays
@@ -101,17 +106,28 @@ PSYCLONE_INTERNAL_line_ + 1
     <BLANKLINE>
 
     '''
-    def apply(self, node: Union[Node, List[Node]], options=None) -> None:
+
+    def apply(self, node: Union[Node, List[Node]],
+              **kwargs) -> None:
         '''
         Applies the checksum transformation to the provided node(s).
 
         :param node: The node or list of nodes to apply the
                       transformation to.
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
+        :raises TransformationError: if node_type_check is provided as a
+                                     keyword argument.
         '''
-        self.validate(node, options={"node-type-check": False})
+        if "node_type_check" in kwargs:
+            raise TransformationError(
+                f"node_type_check was passed as an argument to {self.name}. "
+                f"This transformation sets this option internally so it "
+                f"cannot be supplied."
+            )
+        # This transformation doesn't need the node_type_check so
+        # it forces it to False
+        self.validate(node, node_type_check=False,
+                      **kwargs)
 
         node_list = self.get_node_list(node)
         routine = node_list[0].ancestor(Routine)
@@ -147,7 +163,7 @@ PSYCLONE_INTERNAL_line_ + 1
                     member = member.member
                 datatype = assign.lhs.datatype
                 while not isinstance(datatype, ScalarType):
-                    datatype = datatype.datatype
+                    datatype = datatype.elemental_type
                 # If the final member is the only array, and its a supported
                 # datatype then we add it to the writes.
                 if (isinstance(member, ArrayMixin) and datatype.intrinsic in
@@ -208,10 +224,11 @@ PSYCLONE_INTERNAL_line_ + 1
         # __LINE__, and use the internal symbol to create the print statement.
         internal_line = routine_table.find_or_create(
                 "PSYCLONE_INTERNAL_line_", symbol_type=DataSymbol,
-                datatype=INTEGER_TYPE,
+                datatype=ScalarType.integer_type(),
                 )
         line = routine_table.find_or_create(
-                "__LINE__", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                "__LINE__", symbol_type=DataSymbol,
+                datatype=ScalarType.integer_type(),
                 interface=PreprocessorInterface())
         # Tell us where we are to output the checksums.
         explanation_statement = freader.psyir_from_statement(

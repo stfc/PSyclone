@@ -60,6 +60,7 @@ from psyclone.psyir.symbols import (
     Symbol,
     SymbolError,
     UnsupportedFortranType,
+    UnresolvedType
 )
 from psyclone.psyir.symbols.datatypes import ArrayType
 
@@ -383,20 +384,33 @@ class Call(Statement, DataNode):
         return None
 
     @property
-    def routine(self):
+    def routine(self) -> Optional[Reference]:
         '''
         :returns: the routine reference that this call calls.
-        :rtype: Optional[py:class:`psyclone.psyir.nodes.Reference`]
         '''
         if len(self._children) >= 1:
             return self.children[0]
         return None
 
     @property
-    def arguments(self) -> Tuple[DataNode]:
+    def datatype(self) -> DataType:
+        '''
+        :returns: the return value type of this call.
+        '''
+        if self.routine:
+            if isinstance(self.routine.symbol, RoutineSymbol):
+                dt = self.routine.symbol.datatype
+                # We only return the type if it has been resolved, otherwise
+                # we give a chance to the super() method as it can use location
+                # based knowledge to infer its type
+                if not isinstance(dt, UnresolvedType):
+                    return dt
+        return super().datatype
+
+    @property
+    def arguments(self) -> Tuple[DataNode, ...]:
         '''
         :returns: the children of this node that represent its arguments.
-        :rtype: list[py:class:`psyclone.psyir.nodes.DataNode`]
         '''
         if len(self._children) >= 2:
             return tuple(self.children[1:])
@@ -689,7 +703,10 @@ class Call(Statement, DataNode):
             ) -> None:
         """Checks whether the supplied call and routine arguments are
         compatible. This also supports 'optional' arguments by using
-        partial types.
+        partial types. Array arguments are only required to have the same
+        rank if we are dealing with an interface call (polymorphism) or
+        the dummy argument does not have an explicit shape (in which
+        case Fortran permits implicit reshaping).
 
         :param call_arg: One argument of the call
         :param routine_arg: One argument of the routine
@@ -712,8 +729,21 @@ class Call(Statement, DataNode):
         dummy_type = routine_arg.datatype
         if isinstance(actual_type, ArrayType) and isinstance(dummy_type,
                                                              ArrayType):
-            # Arguments must have the same shape.
-            if len(actual_type.shape) != len(dummy_type.shape):
+            # Is the dummy argument an explicit-shape array?
+            has_explicit_shape = all([
+                isinstance(dim, ArrayType.ArrayBounds) and
+                dim.lower is not ArrayType.Extent.ATTRIBUTE and
+                dim.upper is not ArrayType.Extent.ATTRIBUTE
+                for dim in dummy_type.shape])
+            # Arguments are only required to have the same rank if we are
+            # dealing with an interface call (polymorphism) or the dummy
+            # argument does not have an explicit shape (in which case
+            # Fortran permits implicit reshaping)
+            match_rank = (isinstance(self.routine.symbol,
+                                     GenericInterfaceSymbol) or
+                          not has_explicit_shape)
+            # Check that ranks of arguments match, if necessary
+            if match_rank and len(actual_type.shape) != len(dummy_type.shape):
                 call_arg_str = call_arg.debug_string().strip()
                 routine_arg_str = routine_arg.name
                 raise CallMatchingArgumentsNotFound(

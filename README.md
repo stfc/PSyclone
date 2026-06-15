@@ -22,7 +22,7 @@ DSLs following the PSyKAl model developed in the
 PSyclone is currently used to support the [LFRic mixed finite-element PSyKAl
 DSL](https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html)
 for the [UK MetOffice's next generation modelling
-system](https://www.metoffice.gov.uk/research/modelling-systems/lfric/) and
+system](https://www.metoffice.gov.uk/research/approach/modelling-systems/lfric) and
 the [GOcean finite-difference PSyKAl
 DSL](https://psyclone.readthedocs.io/en/latest/user_guide/gocean1p0.html) for a [prototype
 2D ocean modelling system](https://gtr.ukri.org/projects?ref=NE%2FL01209X%2F1).

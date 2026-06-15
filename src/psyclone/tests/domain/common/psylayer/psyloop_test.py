@@ -41,8 +41,7 @@
 import pytest
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir.nodes import Literal, Schedule, Assignment, Reference
-from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, \
-    INTEGER_SINGLE_TYPE, INTEGER_TYPE, SymbolTable
+from psyclone.psyir.symbols import DataSymbol, ScalarType, SymbolTable
 from psyclone.tests.utilities import get_invoke
 
 
@@ -65,7 +64,7 @@ def test_psyloop_init():
     assert loop._variable is None
 
     # valid variable
-    loop = PSyLoop(variable=DataSymbol("var", INTEGER_TYPE))
+    loop = PSyLoop(variable=DataSymbol("var", ScalarType.integer_type()))
     assert loop.variable.name == "var"
 
     # valid_loop_types. Note, there is no error checking for this
@@ -110,15 +109,15 @@ def test_psyloop_equality():
     # objects for their equality to be True
     symboltable = SymbolTable()
     # Set up the symbols
-    tmp = DataSymbol("tmp", REAL_SINGLE_TYPE)
-    i_sym = DataSymbol("i", REAL_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.real_single_type())
+    i_sym = DataSymbol("i", ScalarType.real_single_type())
 
     # Create two equal loops
-    loop_sym = DataSymbol("i", INTEGER_SINGLE_TYPE)
+    loop_sym = DataSymbol("i", ScalarType.integer_single_type())
     sched1 = Schedule(symbol_table=symboltable)
-    start = Literal("0", INTEGER_SINGLE_TYPE)
-    stop = Literal("1", INTEGER_SINGLE_TYPE)
-    step = Literal("1", INTEGER_SINGLE_TYPE)
+    start = Literal("0", ScalarType.integer_single_type())
+    stop = Literal("1", ScalarType.integer_single_type())
+    step = Literal("1", ScalarType.integer_single_type())
     child_node = Assignment.create(
         Reference(tmp),
         Reference(i_sym))
@@ -180,5 +179,5 @@ def test_psyloop_equality():
 
     # Set different variables
     loop2.kernel = loop1.kernel
-    loop2.variable = DataSymbol("k", INTEGER_SINGLE_TYPE)
+    loop2.variable = DataSymbol("k", ScalarType.integer_single_type())
     assert loop1 != loop2

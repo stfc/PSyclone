@@ -53,8 +53,9 @@ from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
                                    LFRicKernMetadata, LFRicLoop)
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.lfric import (
-    LFRicACCEnterDataDirective, LFRicBoundaryConditions, LFRicGlobalSum,
-    LFRicKernelArgument, LFRicKernelArguments, LFRicProxies, HaloReadAccess,
+    LFRicACCEnterDataDirective, LFRicBoundaryConditions,
+    LFRicKernelArgument, LFRicKernelArguments, LFRicProxies, HaloDepth,
+    HaloReadAccess,
     KernCallArgList)
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.gen_kernel_stub import generate
@@ -612,100 +613,6 @@ def test_invoke_uniq_declns_valid_access():
                                 fields_readwritten_args]
     assert fields_readwritten == ["f1"]
     assert fields_proxy_readwritten == ["f1_proxy"]
-
-
-def test_lfricinvoke_first_access():
-    ''' Tests that we raise an error if LFRicInvoke.first_access(name) is
-    called for an argument name that doesn't exist '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_3scalar.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(GenerationError) as excinfo:
-        psy.invokes.invoke_list[0].first_access("not_an_arg")
-    assert ("Failed to find any kernel argument with name"
-            in str(excinfo.value))
-
-
-def test_lfricinvoke_uniq_declns_intent_inv_argtype():
-    ''' Tests that we raise an error when LFRicInvoke.unique_declns_by_intent()
-    is called with at least one invalid argument type. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_3scalar.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(InternalError) as excinfo:
-        psy.invokes.invoke_list[0].unique_declns_by_intent(["gh_invalid"])
-    const = LFRicConstants()
-    assert (f"Invoke.unique_declns_by_intent() called with at least one "
-            f"invalid argument type. Expected one of "
-            f"{const.VALID_ARG_TYPE_NAMES} but found ['gh_invalid']."
-            in str(excinfo.value))
-
-
-def test_lfricinvoke_uniq_declns_intent_invalid_intrinsic():
-    ''' Tests that we raise an error when Invoke.unique_declns_by_intent()
-    is called for an invalid intrinsic type. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_3scalar.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(InternalError) as excinfo:
-        psy.invokes.invoke_list[0].unique_declns_by_intent(
-            ["gh_scalar"], intrinsic_type="triple")
-    const = LFRicConstants()
-    assert (f"Invoke.unique_declns_by_intent() called with an invalid "
-            f"intrinsic argument data type. Expected one of "
-            f"{const.VALID_INTRINSIC_TYPES} but found 'triple'."
-            in str(excinfo.value))
-
-
-def test_lfricinvoke_uniq_declns_intent_ops(tmpdir):
-    ''' Tests that LFRicInvoke.unique_declns_by_intent() returns the correct
-    list of arguments for operator arguments. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "4.4_multikernel_invokes.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    args = psy.invokes.invoke_list[0].unique_declns_by_intent(["gh_operator"])
-    assert args['inout'] == []
-    args_out = [arg.declaration_name for arg in args['out']]
-    assert args_out == ['op']
-    assert args['in'] == []
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_lfricinvoke_uniq_declns_intent_cma_ops(tmpdir):
-    ''' Tests that LFRicInvoke.unique_declns_by_intent() returns the correct
-    list of arguments for columnwise operator arguments. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "20.5_multi_cma_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    args = psy.invokes.invoke_list[0]\
-        .unique_declns_by_intent(["gh_columnwise_operator"])
-    args_out = [arg.declaration_name for arg in args['out']]
-    assert args_out == ['cma_op1']
-    args_inout = [arg.declaration_name for arg in args['inout']]
-    assert args_inout == ['cma_opc']
-    args_in = [arg.declaration_name for arg in args['in']]
-    assert args_in == ['cma_opb']
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_lfricinvoke_arg_for_fs():
-    ''' Tests that we raise an error when LFRicInvoke.arg_for_funcspace() is
-    called for an unused space. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.7_single_invoke_3scalar.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(GenerationError) as excinfo:
-        psy.invokes.invoke_list[0].arg_for_funcspace(FunctionSpace("wtheta",
-                                                                   None))
-    assert "No argument found on 'wtheta' space" in str(excinfo.value)
 
 
 def test_kernel_specific(tmpdir):
@@ -1580,6 +1487,91 @@ def test_arg_ref_name_method_error2():
             "type 'gh_funky_instigator'" in str(excinfo.value))
 
 
+def test_arg_ref_name_method_error3(monkeypatch):
+    '''Test error handling for an operator argument when the supplied
+    function-space matches the argument but not either descriptor endpoint.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
+    first_argument = first_kernel.arguments.args[0]
+
+    descriptor_type = type(first_argument.descriptor)
+    monkeypatch.setattr(descriptor_type, "function_space_from",
+                        property(lambda self: "w_broken_from"))
+    monkeypatch.setattr(descriptor_type, "function_space_to",
+                        property(lambda self: "w_broken_to"))
+
+    with pytest.raises(GenerationError) as excinfo:
+        _ = first_argument.ref_name(first_argument.function_spaces[0])
+    assert ("is one of the 'gh_operator' function spaces" in
+            str(excinfo.value))
+
+
+def test_arg_proxy_name_indexed_vector():
+    '''Check that proxy_name_indexed includes an explicit (1) index for a
+    vector argument.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
+    first_argument = first_kernel.arguments.args[1]
+    first_argument._vector_size = 2
+    assert first_argument.proxy_name_indexed == "f1_proxy(1)"
+
+
+def test_mesh_properties_initialise_invalid_property():
+    '''Check that unsupported mesh properties are rejected during
+    initialisation code generation.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "24.1_mesh_prop_invoke.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    invoke.setup_psy_layer_symbols()
+    invoke.mesh_properties._properties.append("not-a-property")
+
+    with pytest.raises(InternalError) as err:
+        invoke.mesh_properties.initialise(0)
+    assert "Found unsupported mesh property 'not-a-property'" in str(err.value)
+
+
+def test_halo_depth_parent_type_error():
+    '''Check validation of the parent argument to HaloDepth.'''
+    with pytest.raises(TypeError) as err:
+        _ = HaloDepth(parent="not-a-node")
+    assert "HaloDepth parent argument must be a Node" in str(err.value)
+
+
+def test_iteration_space_arg_error_empty_args():
+    '''Check that iteration_space_arg() raises the expected error when no
+    field/operator arguments are present.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
+    arguments = first_kernel.arguments
+    saved_args = arguments._args
+    arguments._args = []
+    try:
+        with pytest.raises(GenerationError) as err:
+            arguments.iteration_space_arg()
+        assert "None of these were found." in str(err.value)
+    finally:
+        arguments._args = saved_args
+
+
 def test_arg_intent_error():
     ''' Tests that an internal error is raised in LFRicKernelArgument
     when intent() is called and the argument access property is not one of
@@ -1758,14 +1750,6 @@ def test_lfrickernelargument_idtp_reduction():
     assert reduction._data_type == "scalar_type"
     assert reduction._proxy_data_type is None
     assert reduction._module_name == "scalar_mod"
-
-    # Scalar reduction with inconsistent precision (expects 'r_def')
-    arg = Arg("variable", None, None, ("real", "i_def"))
-    with pytest.raises(GenerationError) as info:
-        reduction._init_data_type_properties(arg)
-    assert ("This scalar is a reduction which assumes precision of type "
-            "'r_def' but the algorithm declares this scalar with precision "
-            "'i_def'" in str(info.value))
 
     # Invalid reduction type (not a 'real')
     arg = Arg("variable", None, None, ("integer", "i_def"))
@@ -2400,22 +2384,6 @@ def test_func_descriptor_str():
     assert output in func_str
 
 
-def test_lfrickern_arg_for_fs():
-    ''' Test that LFRicInvoke.arg_for_funcspace() raises an error if
-    passed an invalid function space.
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
-    with pytest.raises(InternalError) as err:
-        _ = first_invoke.arg_for_funcspace(FunctionSpace("waah", "waah"))
-    const = LFRicConstants()
-    assert (f"Unrecognised function space 'waah'. The supported spaces are "
-            f"{const.VALID_FUNCTION_SPACE_NAMES}" in str(err.value))
-
-
 def test_dist_memory_true():
     ''' Test that the distributed memory flag is on by default. '''
     Config._instance = None
@@ -2952,71 +2920,6 @@ def test_haloexchange_correct_parent():
     schedule = psy.invokes.invoke_list[0].schedule
     for child in schedule.children:
         assert child.parent == schedule
-
-
-def test_lfricglobalsum_unsupported_argument():
-    ''' Check that an instance of the LFRicGlobalSum class raises an
-    exception for an unsupported argument type. '''
-    # Get an instance of a non-scalar argument
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.6.1_single_invoke_1_int_scalar.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[4]
-    kernel = loop.loop_body[0]
-    argument = kernel.arguments.args[0]
-    with pytest.raises(InternalError) as err:
-        _ = LFRicGlobalSum(argument)
-    assert ("LFRicGlobalSum.init(): A global sum argument should be a scalar "
-            "but found argument of type 'gh_field'." in str(err.value))
-
-
-def test_lfricglobalsum_unsupported_scalar():
-    ''' Check that an instance of the LFRicGlobalSum class raises an
-    exception if an unsupported scalar type is provided when distributed
-    memory is enabled (dm=True).
-
-    '''
-    # Get an instance of an integer scalar
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.6.1_single_invoke_1_int_scalar.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[4]
-    kernel = loop.loop_body[0]
-    argument = kernel.arguments.args[1]
-    with pytest.raises(GenerationError) as err:
-        _ = LFRicGlobalSum(argument)
-    assert ("LFRicGlobalSum currently only supports real scalars, but "
-            "argument 'iflag' in Kernel 'testkern_one_int_scalar_code' "
-            "has 'integer' intrinsic type." in str(err.value))
-
-
-def test_lfricglobalsum_nodm_error():
-    ''' Check that an instance of the LFRicGlobalSum class raises an
-    exception if it is instantiated with no distributed memory enabled
-    (dm=False).
-
-    '''
-    # Get an instance of a real scalar
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.9_single_invoke_2_real_scalars.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[0]
-    kernel = loop.loop_body[0]
-    argument = kernel.arguments.args[0]
-    with pytest.raises(GenerationError) as err:
-        _ = LFRicGlobalSum(argument)
-    assert ("It makes no sense to create an LFRicGlobalSum object when "
-            "distributed memory is not enabled (dm=False)."
-            in str(err.value))
 
 
 def test_no_updated_args():
@@ -3695,6 +3598,35 @@ def test_haloex_not_required(monkeypatch):
         assert haloex.required() == (False, True)
 
 
+def test_haloex_required_max_depth_clean_outer(monkeypatch):
+    '''Check the required() logic branch where the full halo is known clean
+    due to redundant computation.
+
+    '''
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    haloex = invoke.schedule.children[0]
+
+    class DummyReadInfo:  # pylint: disable=too-few-public-methods
+        '''Minimal read-info object for required().'''
+        max_depth = False
+        annexed_only = False
+
+    class DummyWriteInfo:  # pylint: disable=too-few-public-methods
+        '''Minimal write-info object for required().'''
+        max_depth = True
+        dirty_outer = False
+
+    monkeypatch.setattr(haloex, "_compute_halo_read_depth_info",
+                        lambda _ignore_hex_dep=False: [DummyReadInfo()])
+    monkeypatch.setattr(haloex, "_compute_halo_write_info",
+                        lambda: DummyWriteInfo())
+
+    assert haloex.required() == (False, True)
+
+
 def test_lfriccollection_err1():
     ''' Check that the LFRicCollection constructor raises the expected
     error if it is not provided with an LFRicKern or LFRicInvoke. '''
@@ -3928,7 +3860,7 @@ def test_read_only_fields_hex(tmpdir):
     assert expected in generated_code
 
 
-def test_mixed_precision_args(tmpdir):
+def test_mixed_precision_args(tmp_path):
     '''
     Test that correct code is generated for the PSy-layer when there
     are scalars, fields and operators with different precision
@@ -3941,10 +3873,12 @@ def test_mixed_precision_args(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
-    assert "use constants_mod\n" in generated_code
+    assert ("use constants_mod, only : r_bl, r_def, r_solver, r_tran\n"
+            in generated_code)
     assert """
   use field_mod, only : field_proxy_type, field_type
   use operator_mod, only : operator_proxy_type, operator_type
+  use mixed_kernel_mod, only : mixed_code
   use r_solver_field_mod, only : r_solver_field_proxy_type, r_solver_field_type
   use r_solver_operator_mod, only : r_solver_operator_proxy_type, \
 r_solver_operator_type
@@ -3953,14 +3887,12 @@ r_solver_operator_type
 r_tran_operator_type
   use r_bl_field_mod, only : r_bl_field_proxy_type, r_bl_field_type
   implicit none
-  public
-
-  contains
-  subroutine invoke_0(scalar_r_def, field_r_def, operator_r_def, \
+""" in generated_code
+    assert """subroutine invoke_0(scalar_r_def, field_r_def, operator_r_def, \
 scalar_r_solver, field_r_solver, operator_r_solver, scalar_r_tran, \
 field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl)
     use mesh_mod, only : mesh_type
-    use mixed_kernel_mod, only : mixed_code
+    use constants_mod, only : i_def
     real(kind=r_def), intent(in) :: scalar_r_def
     type(field_type), intent(in) :: field_r_def
     type(operator_type), intent(in) :: operator_r_def
@@ -4011,7 +3943,7 @@ operator_r_tran_local_stencil => null()
 """ in generated_code
 
     # Test compilation
-    assert LFRicBuild(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
 def test_lfricpsy_gen_container_routines(tmpdir):
