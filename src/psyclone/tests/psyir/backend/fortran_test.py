@@ -54,7 +54,8 @@ from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, Range, StructureReference,
     Schedule, Routine, Return, FileContainer, IfBlock, OMPTaskloopDirective,
     OMPMasterDirective, OMPParallelDirective, Loop, OMPNumTasksClause,
-    OMPDependClause, IntrinsicCall, OMPReductionClause, UnknownDirective)
+    OMPDependClause, IntrinsicCall, OMPReductionClause, UnknownDirective,
+    ArrayConstructor)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ContainerSymbol, DataSymbol, GenericInterfaceSymbol,
     ImportInterface, RoutineSymbol, StaticInterface, Symbol, SymbolTable,
@@ -1742,7 +1743,7 @@ def test_fw_codeblock_2(fortran_reader, fortran_writer, tmpdir):
     '''Check the FortranWriter class codeblock method correctly prints out
     the Fortran representation when there is a code block that is part
     of a line (not a whole line). In this case the data initialisation
-    of the array 'a' "(/ 0.0 /)" is a code block.
+    of the array 'a' "(/ real :: 0.0 /)" is a code block.
 
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -1751,7 +1752,7 @@ def test_fw_codeblock_2(fortran_reader, fortran_writer, tmpdir):
         "contains\n"
         "subroutine tmp()\n"
         "  real a(1)\n"
-        "  a = (/ 0.0 /)\n"
+        "  a = (/ real :: 0.0 /)\n"
         "end subroutine tmp\n"
         "end module test")
     psyir = fortran_reader.psyir_from_source(code)
@@ -1761,7 +1762,7 @@ def test_fw_codeblock_2(fortran_reader, fortran_writer, tmpdir):
 
     # Generate Fortran from the PSyIR
     result = fortran_writer(psyir)
-    assert "a = (/0.0/)" in result
+    assert "a = (/REAL :: 0.0/)" in result
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -2351,3 +2352,15 @@ def test_fw_unknowndirective(fortran_writer):
     assert fortran_writer(direc) == "!$omp atomic\n"
     direc = UnknownDirective(" IVDEP", "DIR")
     assert fortran_writer(direc) == "!DIR$ IVDEP\n"
+
+
+def test_array_constructor(fortran_writer):
+    '''
+    Test that the ArrayConstructor visitor generates the expected string.
+    '''
+    array_cons = ArrayConstructor.create(
+                     Literal("1", ScalarType.integer_type()),
+                     Literal("2", ScalarType.integer_type()),
+                     Literal("3", ScalarType.integer_type()))
+    output = fortran_writer(array_cons)
+    assert output == "[1, 2, 3]"

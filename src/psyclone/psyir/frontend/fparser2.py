@@ -60,6 +60,7 @@ from psyclone.configuration import Config
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.nodes import (
+    ArrayConstructor,
     ArrayMember, ACCRoutineDirective, ArrayOfStructuresReference,
     ArrayReference, Assignment, BinaryOperation, Call, CodeBlock, Container,
     DataNode, Directive, FileContainer, IfBlock, IntrinsicCall, Literal, Loop,
@@ -991,6 +992,7 @@ class Fparser2Reader():
             Fortran2003.Allocate_Stmt: self._allocate_handler,
             Fortran2003.Allocate_Shape_Spec: self._allocate_shape_spec_handler,
             Fortran2003.Assignment_Stmt: self._assignment_handler,
+            Fortran2003.Array_Constructor: self._array_constructor_handler,
             Fortran2003.Structure_Constructor: self._call_handler,
             Fortran2003.Data_Pointer_Object: self._structure_accessor_handler,
             Fortran2003.Data_Ref: self._structure_accessor_handler,
@@ -4974,6 +4976,41 @@ class Fparser2Reader():
         self.process_nodes(parent=assignment, nodes=[node.items[2]])
 
         return assignment
+
+    def _array_constructor_handler(self, node, parent):
+        '''
+        Transforms an fparser2 Array_Constructor to the PSyIR representation.
+
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.Array_Constructor`
+        :param parent: Parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: PSyIR representation of node.
+        :rtype: :py:class:`psyclone.psyir.nodes.ArrayConstructor`
+
+        :raises NotImplementedError: if the parse tree contains unsupported
+            elements.
+        '''
+        ac_spec = node.items[1]
+        if isinstance(ac_spec, Fortran2003.Ac_Value_List):
+            elems = node.items[1].items
+            # Check that no elements are 'Ac_Implied_Do'
+            for elem in elems:
+                if isinstance(elem, Fortran2003.Ac_Implied_Do):
+                    raise NotImplementedError(
+                        "Array constructors with implied do loops cannot be "
+                        "handled in the PSyIR")
+            array_cons = ArrayConstructor(ast=node, parent=parent)
+            self.process_nodes(parent=array_cons, nodes=elems)
+            return array_cons
+        elif isinstance(ac_spec, Fortran2003.Ac_Spec):
+            raise NotImplementedError(
+                "Array constructors with type specifications cannot be "
+                "handled in the PSyIR")
+        else:
+            raise NotImplementedError(
+                "Array constructor cannot be handled in the PSyIR")
 
     def _structure_accessor_handler(self, node, parent):
         '''

@@ -1439,6 +1439,20 @@ class FortranWriter(LanguageWriter):
 
         return result
 
+    def arrayconstructor_node(self, node):
+        '''This method is called when an ArrayConstrutor instance is
+        found in the PSyIR tree.
+
+        :param node: an ArrayConstructor PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.ArrayConstructor`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        '''
+        contents = ", ".join([self._visit(child) for child in node.children])
+        return f"[{contents}]"
+
     def ifblock_node(self, node):
         '''This method is called when an IfBlock instance is found in the
         PSyIR tree.

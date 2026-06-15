@@ -939,13 +939,15 @@ def test_validate_indirect_indexing(fortran_reader):
       INTEGER, DIMENSION(8,kfld)  :: ishtSi2
       INTEGER :: jf
       ! Assignment with CodeBlock on RHS.
-      iwewe(:) = (/ jpwe,jpea,jpwe,jpea /)
+      iwewe(:) = (/integer :: jpwe,jpea,jpwe,jpea /)
       ! Assignment with CodeBlock in array-index expression.
-      iwewe(:) = ishtSi((/ jpwe,jpea,jpwe,jpea /), 1)
+      iwewe(:) = ishtSi((/integer :: jpwe,jpea,jpwe,jpea /), 1)
       ! Index expression that evaluate to an array is a valid range
       ishtSi(5:8,jf) = ishtSi2(iwewe+1, jf)
       ! Index expression contains a call to an unknown function.
       ishtSi(5:8,jf) = ishtSi2(my_func(1), jf)
+      ! Assignment with ArrayConstructor on RHS.
+      iwewe(:) = (/jpwe,jpea,jpwe,jpea /)
     end program test
     ''')
     assignments = psyir.walk(Assignment)
@@ -966,6 +968,11 @@ def test_validate_indirect_indexing(fortran_reader):
     assert ("ArrayAssignment2LoopsTrans does not accept calls which are not "
             "guaranteed to return a scalar or be elemental, but found "
             "'my_func'" in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignments[4])
+    assert ("ArrayAssignment2LoopsTrans does not support array assignments "
+            "that contain an ArrayConstructor anywhere in the expression"
+            in str(err.value))
 
 
 def test_validate_structure(fortran_reader):
