@@ -39,6 +39,8 @@ PSyIR front-end '''
 
 from psyclone.psyir.nodes import (
     ArrayConstructor, Reference, Literal, BinaryOperation)
+from psyclone.psyir.symbols import ScalarType, ArrayType
+
 
 
 def test_handling_array_constructor_assignment(fortran_reader):
@@ -117,3 +119,31 @@ end program my_prog
     for i in range(0, 2):
         assert isinstance(ctrs[1].children[i], Literal)
         assert ctrs[1].children[i].value == "2"
+
+
+def test_handling_array_constructor_datatype(fortran_reader):
+    '''Check that the datatype of a parsed ArrayConstructor is correct.
+    '''
+    code = """
+program my_prog
+  implicit none
+  integer :: x
+  integer, allocatable :: arr(:)
+  integer :: arr2(2, 2)
+  arr(:) = [x]
+  arr(:) = [x+1]
+  arr(:) = [[1]]
+  arr2(:,:) = 0
+  arr(:) = [arr2]
+  arr(:) = [1, 2, arr2]
+end program my_prog
+"""
+    prog = fortran_reader.psyir_from_source(code)
+
+    # All array constructors are rank-1 arrays of scalar integers
+    for ctr in prog.walk(ArrayConstructor):
+        dt = ctr.datatype
+        assert isinstance(dt, ArrayType)
+        assert len(dt.shape) == 1
+        assert isinstance(dt.elemental_type, ScalarType)
+        assert dt.elemental_type.intrinsic == ScalarType.Intrinsic.INTEGER

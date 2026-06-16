@@ -969,10 +969,12 @@ def test_validate_indirect_indexing(fortran_reader):
             "guaranteed to return a scalar or be elemental, but found "
             "'my_func'" in str(err.value))
     with pytest.raises(TransformationError) as err:
-        trans.validate(assignments[4])
+        trans.validate(assignments[4], verbose=True)
     assert ("ArrayAssignment2LoopsTrans does not support array assignments "
             "that contain an ArrayConstructor anywhere in the expression"
             in str(err.value))
+    assert ("that contain an ArrayConstructor"
+            in assignments[4].preceding_comment)
 
 
 def test_validate_structure(fortran_reader):

@@ -5008,9 +5008,11 @@ class Fparser2Reader():
             raise NotImplementedError(
                 "Array constructors with type specifications cannot be "
                 "handled in the PSyIR")
-        else:
+        else: # pragma: no cover
+            # This should never be reached, but we defensively raise
+            # an exception just in case.
             raise NotImplementedError(
-                "Array constructor cannot be handled in the PSyIR")
+                "Unexpected array constructor form encountered")
 
     def _structure_accessor_handler(self, node, parent):
         '''

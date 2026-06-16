@@ -37,7 +37,8 @@
 ''' This module contains the ArrayConstructor node implementation.'''
 
 from psyclone.core import VariablesAccessMap
-from psyclone.psyir.symbols import Symbol, UnresolvedType
+from psyclone.psyir.symbols import (
+    Symbol, UnresolvedType, ScalarType, ArrayType)
 from psyclone.psyir.nodes.datanode import DataNode
 
 
@@ -89,7 +90,17 @@ class ArrayConstructor(DataNode):
         :returns: the type of this array constructor.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
         '''
-        return UnresolvedType()
+        # The result of an array constructor is always a rank-1 array.
+        # We look through the children to find the array-element type.
+        elem_type = UnresolvedType()
+        for child in self.children:
+            if isinstance(child.datatype, ArrayType):
+                elem_type = child.datatype.elemental_type
+                break
+            elif isinstance(child.datatype, ScalarType):
+                elem_type = child.datatype
+                break
+        return ArrayType(elem_type, [ArrayType.Extent.ATTRIBUTE])
 
     def node_str(self, colour=True):
         '''
