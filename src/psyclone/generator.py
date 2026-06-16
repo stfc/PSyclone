@@ -47,14 +47,13 @@
 '''
 
 import argparse
-from ast import literal_eval
+import importlib
+import logging
 import os
+import shutil
 import sys
 import traceback
-import importlib
-import shutil
 from typing import Callable, Iterable, List, Optional, Tuple, Union
-import logging
 
 from fparser.api import get_reader
 from fparser.two import Fortran2003
@@ -85,6 +84,7 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Container, FileContainer, Loop, Node, Routine
 from psyclone.psyir.symbols import UnresolvedInterface
 from psyclone.psyir.transformations import TransformationError
+from psyclone.utils import parse_kwargs
 from psyclone.version import __VERSION__
 
 # TODO issue #1618 remove temporary LFRIC_TESTING flag, associated
@@ -144,8 +144,7 @@ def load_script(
 
     filepath, filename = os.path.split(script_name)
     if kwargs_str is not None:
-        # Parse as dictionary, i.e. wrap the user string in {}
-        kwargs = literal_eval(f"{{{kwargs_str}}}")
+        kwargs = parse_kwargs(kwargs_str)
     else:
         kwargs = {}
 

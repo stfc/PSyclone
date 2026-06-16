@@ -36,17 +36,17 @@
 '''This module implements tests for the generic utility functions.'''
 
 import inspect
-import pytest
 import sys
-
 from typing import Union
+
+import pytest
 
 from psyclone.errors import InternalError
 from psyclone.transformations import Transformation
 from psyclone.utils import (
-    within_virtual_env, a_or_an,
+    a_or_an, parse_kwargs,
     transformation_documentation_wrapper,
-    stringify_annotation,
+    stringify_annotation, within_virtual_env,
 )
 
 
@@ -472,3 +472,23 @@ def test_transformation_doc_wrapper_subtrans():
     :type opt3: int
     :param int opt3: (Option provided for SubTrans2) opt3 docstring."""
     assert correct in BaseTrans.apply.__doc__
+
+
+@pytest.mark.parametrize("kwargs, expected",
+                         [("", {}),
+                          ("'a':1", {'a': 1}),
+                          ("'b': {1: 2}", {'b': {1: 2}}),
+                          ("'l': [1,2]", {'l': [1, 2]}),
+                          ("a:1", {'a': 1}),
+                          ("b: {1: 2}", {'b': {1: 2}}),
+                          ("l: [1,2]", {'l': [1, 2]}),
+                          ])
+def test_parse_kwargs(kwargs, expected):
+    """
+    Test that the parsing function for user-specific script options
+    work as expected.
+
+    :param kwargs: the input string for the command line
+    """
+    result = parse_kwargs(kwargs)
+    assert result == expected
