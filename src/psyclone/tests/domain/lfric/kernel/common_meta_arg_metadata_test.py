@@ -134,13 +134,13 @@ def test_create_from_fparser2():
     # _get_metadata called
     with pytest.raises(TypeError) as info:
         ScalarArgMetadata.create_from_fparser2(None)
-    assert ("Expected kernel metadata to be encoded as an fparser2 Part_Ref "
-            "object but found type 'NoneType' with value 'None'."
-            in str(info.value))
+    assert ("Expected kernel metadata to be encoded as an fparser2 "
+            "Structure_Constructor object but found type 'NoneType' with "
+            "value 'None'." in str(info.value))
 
     # check_remaining_args called
     fparser2_tree = ScalarArgMetadata.create_fparser2(
-        "hello(x)", Fortran2003.Part_Ref)
+        "hello(x)", Fortran2003.Structure_Constructor)
 
     with pytest.raises(ValueError) as info:
         _ = ScalarArgMetadata.create_from_fparser2(fparser2_tree)
@@ -150,7 +150,8 @@ def test_create_from_fparser2():
 
     # expected class returned
     fparser2_tree = ScalarArgMetadata.create_fparser2(
-        "arg_type(GH_SCALAR, GH_REAL, GH_READ)", Fortran2003.Part_Ref)
+        "arg_type(GH_SCALAR, GH_REAL, GH_READ)",
+        Fortran2003.Structure_Constructor)
     obj = ScalarArgMetadata.create_from_fparser2(fparser2_tree)
     assert isinstance(obj, ScalarArgMetadata)
     assert obj.form == "gh_scalar"

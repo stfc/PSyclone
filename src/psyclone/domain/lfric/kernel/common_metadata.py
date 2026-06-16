@@ -40,6 +40,7 @@ common functionality for LFRic kernel metadata.
 from abc import ABC, abstractmethod
 
 from fparser.common.readfortran import FortranStringReader
+from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import NoMatchError, FortranSyntaxError
 
@@ -99,7 +100,8 @@ class CommonMetadata(ABC):
                 f"but found '{value}'.")
 
     @staticmethod
-    def create_fparser2(fortran_string, encoding):
+    def create_fparser2(fortran_string: str,
+                        encoding: Fortran2003.Base) -> Fortran2003.Base:
         '''Creates an fparser2 tree from a Fortran string. The resultant
         parent node of the tree will be the same type as the encoding
         argument if the string conforms to the encoding, otherwise an
@@ -108,18 +110,13 @@ class CommonMetadata(ABC):
         TODO: issue #1965: relocate this method as it is not specific
         to metadata processing.
 
-        :param str fortran_string: a string containing the metadata in \
-           Fortran.
-        :param encoding: the parent class with which we will encode the \
+        :param fortran_string: a string containing the metadata in Fortran.
+        :param encoding: the parent class with which we will encode the
             Fortran string.
-        :type encoding: subclass of :py:class:`fparser.two.Fortran2003.Base`
 
-        :returns: an fparser2 tree containing a metadata \
-            argument.
-        :rtype: subclass of :py:class:`fparser.two.Fortran2003.Base`
+        :returns: an fparser2 tree containing a metadata argument.
 
-        :raises ValueError: if the Fortran string is not in the \
-            expected form.
+        :raises ValueError: if the Fortran string is not in the expected form.
 
         '''
         std = Config.get().fortran_standard

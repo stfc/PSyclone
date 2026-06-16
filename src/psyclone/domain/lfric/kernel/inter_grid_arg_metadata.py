@@ -114,42 +114,41 @@ class InterGridArgMetadata(FieldArgMetadata):
         return (datatype, access, function_space, mesh_arg, stencil)
 
     @staticmethod
-    def get_mesh_arg(fparser2_tree, mesh_arg_index):
+    def get_mesh_arg(fparser2_tree: Fortran2003.Structure_Constructor,
+                     mesh_arg_index: int) -> str:
         '''Retrieves the mesh_arg metadata value from the supplied fparser2
         tree.
 
-        :param fparser2_tree: fparser2 tree capturing the metadata for \
+        :param fparser2_tree: fparser2 tree capturing the metadata for
             an InterGrid argument.
-        :type fparser2_tree: \
-            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
-        :param int mesh_arg_index: the index at which to find the metadata.
+        :param mesh_arg_index: the index at which to find the metadata.
 
         :returns: the metadata mesh value extracted from the fparser2 tree.
-        :rtype: str
 
-        raises ValueError: if the metadata is not in the form \
+        raises ValueError: if the metadata is not in the form
             'mesh_arg = <value>'.
 
         '''
-        try:
-            mesh_arg_lhs = fparser2_tree.children[1].\
-                children[mesh_arg_index].children[0].tostr()
-        except IndexError as info:
-            raise ValueError(
-                f"At argument index {mesh_arg_index} for metadata "
-                f"'{fparser2_tree}' expected the metadata to be in the form "
-                f"'mesh_arg=value' but found "
-                f"'{fparser2_tree.children[1].children[mesh_arg_index]}'.") \
-                from info
+        return FieldArgMetadata.get_named_arg(fparser2_tree, "mesh_arg")
+        #try:
+        #    mesh_arg_lhs = fparser2_tree.children[1].\
+        #        children[mesh_arg_index].children[0].tostr()
+        #except IndexError as info:
+        #    raise ValueError(
+        #        f"At argument index {mesh_arg_index} for metadata "
+        #        f"'{fparser2_tree}' expected the metadata to be in the form "
+        #        f"'mesh_arg=value' but found "
+        #        f"'{fparser2_tree.children[1].children[mesh_arg_index]}'.") \
+        #        from info
 
-        if not mesh_arg_lhs.lower() == "mesh_arg":
-            raise ValueError(
-                f"At argument index {mesh_arg_index} for metadata "
-                f"'{fparser2_tree}' expected the left hand side "
-                f"to be 'mesh_arg' but found '{mesh_arg_lhs}'.")
-        mesh_arg = fparser2_tree.children[1].\
-            children[mesh_arg_index].children[1].tostr()
-        return mesh_arg
+        #if not mesh_arg_lhs.lower() == "mesh_arg":
+        #    raise ValueError(
+        #        f"At argument index {mesh_arg_index} for metadata "
+        #        f"'{fparser2_tree}' expected the left hand side "
+        #        f"to be 'mesh_arg' but found '{mesh_arg_lhs}'.")
+        #mesh_arg = fparser2_tree.children[1].\
+        #    children[mesh_arg_index].children[1].tostr()
+        #return mesh_arg
 
     def fortran_string(self):
         '''

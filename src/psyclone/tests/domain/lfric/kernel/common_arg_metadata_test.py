@@ -98,12 +98,13 @@ def test_check_fparser2_arg():
     '''
     with pytest.raises(TypeError) as info:
         _ = CommonArgMetadata.check_fparser2_arg(None, None)
-    assert ("Expected kernel metadata to be encoded as an fparser2 Part_Ref "
-            "object but found type 'NoneType' with value 'None'."
-            in str(info.value))
+    assert ("Expected kernel metadata to be encoded as an fparser2 "
+            "Structure_Constructor object but found type 'NoneType' with "
+            "value 'None'." in str(info.value))
 
     fparser_tree = CommonArgMetadata.create_fparser2(
-        "braz_type(GH_FIELD, GH_REAL, GH_READ)", Fortran2003.Part_Ref)
+        "braz_type(GH_FIELD, GH_REAL, GH_READ)",
+        Fortran2003.Structure_Constructor)
     with pytest.raises(ValueError) as info:
         _ = CommonArgMetadata.check_fparser2_arg(fparser_tree, "arg_type")
     assert ("Expected kernel metadata to have the name 'arg_type' and be in "

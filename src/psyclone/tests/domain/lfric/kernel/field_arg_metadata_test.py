@@ -97,22 +97,28 @@ def test_init_invalid_stencil():
 
 
 @pytest.mark.parametrize(
-    "metadata,expected_stencil",
-    [("arg_type(GH_FIELD, GH_REAL, GH_READ, W0)", None),
-     ("arg_type(GH_FIELD, GH_REAL, GH_READ, W0, stencil(region))", "region")])
-def test_get_metadata(metadata, expected_stencil):
+    "metadata,expected_stencil,expected_nlevels,expected_ndata",
+    [("arg_type(GH_FIELD, GH_REAL, GH_READ, W0)", None, "", ""),
+     ("arg_type(GH_FIELD, GH_REAL, GH_READ, W0, stencil(region))",
+      "region", "", ""),
+     ('arg_type(GH_FIELD, GH_REAL, GH_READ, W0, nlevels="big")',
+      None, "big", "")])
+def test_get_metadata(metadata, expected_stencil, expected_nlevels,
+                      expected_ndata):
     '''Test that the _get_metadata class method works as expected, with
     and without optional stencil metadata.
 
     '''
-    fparser2_tree = FieldArgMetadata.create_fparser2(
-        metadata, Fortran2003.Part_Ref)
-    datatype, access, function_space, stencil = FieldArgMetadata._get_metadata(
-        fparser2_tree)
+    encoding = Fortran2003.Structure_Constructor
+    fparser2_tree = FieldArgMetadata.create_fparser2(metadata, encoding)
+    (datatype, access, function_space, stencil,
+     nlevels, ndata) = FieldArgMetadata._get_metadata(fparser2_tree)
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
     assert function_space == "W0"
     assert stencil == expected_stencil
+    assert nlevels == expected_nlevels
+    assert ndata == expected_ndata
 
 
 def test_get_stencil():

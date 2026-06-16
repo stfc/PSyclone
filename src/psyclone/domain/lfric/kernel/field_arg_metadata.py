@@ -38,9 +38,11 @@ associated with a field argument. Supports the creation, modification
 and Fortran output of a Field argument.
 
 '''
+from typing import Optional, Union
+
+from fparser.two import Fortran2003
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.kernel.scalar_arg_metadata import \
-    ScalarArgMetadata
+from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
 
 
 class FieldArgMetadata(ScalarArgMetadata):
@@ -49,9 +51,9 @@ class FieldArgMetadata(ScalarArgMetadata):
 
     :param str datatype: the datatype of this field (GH_INTEGER, ...).
     :param str access: the way the kernel accesses this field (GH_WRITE, ...).
-    :param str function_space: the function space that this field is \
+    :param str function_space: the function space that this field is
         on (W0, ...).
-    :param Optional[str] stencil: the type of stencil used by the \
+    :param Optional[str] stencil: the type of stencil used by the
         kernel when accessing this field.
 
     '''
@@ -59,8 +61,8 @@ class FieldArgMetadata(ScalarArgMetadata):
     form = "gh_field"
     # The relative positions of LFRic metadata. Metadata for a field
     # argument is provided in the following format 'arg_type(form,
-    # datatype, access, function_space)'. Therefore, for example, the
-    # index of the form argument (form_arg_index) is 0.
+    # datatype, access, function_space, nlevels=..., ndata=...)'. Therefore,
+    # for example, the index of the form argument (form_arg_index) is 0.
     form_arg_index = 0
     datatype_arg_index = 1
     access_arg_index = 2
@@ -72,15 +74,21 @@ class FieldArgMetadata(ScalarArgMetadata):
     # and max values).
     nargs = (4, 5)
 
-    def __init__(self, datatype, access, function_space, stencil=None,
-                 nlevels=None,
-                 ndata=1):
+    def __init__(self, datatype: str, access: str, function_space: str,
+                 stencil: Optional[str] = None,
+                 nlevels=None, ndata=1):
         super().__init__(datatype, access)
         self.function_space = function_space
         self.stencil = stencil
+        self.nlevels = nlevels
+        self.ndata = ndata
 
     @classmethod
-    def _get_metadata(cls, fparser2_tree):
+    def _get_metadata(
+            cls,
+            fparser2_tree: Union[Fortran2003.Part_Ref,
+                                 Fortran2003.Structure_Constructor]
+    ) -> tuple[str, str, str, Optional[str], Optional[str], Optional[str]]:
         '''Extract the required metadata from the fparser2 tree and return it
         as strings. Also check that the metadata is in the expected
         form (but do not check the metadata values as that is done
@@ -88,43 +96,48 @@ class FieldArgMetadata(ScalarArgMetadata):
 
         :param fparser2_tree: fparser2 tree containing the metadata
             for this argument.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` |
-            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
         :returns: a tuple containing the datatype, access, function
             space, stencil, nlevels and ndata metadata.
-        :rtype: Tuple[str, str, str,
-                      Optional[str], Optional[str], Optional[str]]
 
         '''
         datatype, access = super()._get_metadata(fparser2_tree)
         function_space = cls.get_arg(
             fparser2_tree, cls.function_space_arg_index)
         stencil = cls.get_stencil(fparser2_tree)
+        super()._validate_keyword_args(fparser2_tree,
+                                    ["nlevels", "ndata", "mesh"])
         nlevels = cls.get_named_arg(fparser2_tree, "nlevels")
         ndata = cls.get_named_arg(fparser2_tree, "ndata")
         return (datatype, access, function_space, stencil, nlevels, ndata)
-
+        
     @classmethod
-    def get_stencil(cls, fparser2_tree):
+    def get_stencil(
+            cls,
+            fparser2_tree: Fortran2003.Structure_Constructor) -> Optional[str]:
         '''Retrieves the stencil metadata value found within the supplied
         fparser2 tree (if there is one) and checks that it is valid.
 
         :param fparser2_tree: fparser2 tree capturing the required metadata.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
 
-        :returns: the stencil value extracted from the fparser2 tree \
+        :returns: the stencil value extracted from the fparser2 tree
             if there is one, or None if not.
-        :rtype: Optional[str]
 
-        :raises TypeError: if the stencil metadata is not in the \
-            expected form.
+        :raises TypeError: if the stencil metadata is not in the expected form.
 
         '''
         raw_stencil_text = FieldArgMetadata.get_arg(
             fparser2_tree, cls.stencil_arg_index)
         if not raw_stencil_text:
             return None
+
+        if isinstance(
+                fparser2_tree.children[1].children[cls.stencil_arg_index],
+                Fortran2003.Component_Spec):
+            # This is a keyword=value metadata element and thus not stencil
+            # information.
+            return None
+
         raw_stencil_text = raw_stencil_text.strip().lower()
         if not (raw_stencil_text.startswith("stencil(") and
                 raw_stencil_text.endswith(")") and len(raw_stencil_text) > 9):

@@ -38,7 +38,9 @@ metadata associated with a generic LFRic argument. Supports the
 creation, modification and Fortran output of such an argument.
 
 '''
+from typing import Optional
 from fparser.two import Fortran2003
+from fparser.two.utils import walk as fp_walk
 
 from psyclone.domain.lfric.kernel.common_metadata import CommonMetadata
 
@@ -47,7 +49,7 @@ class CommonArgMetadata(CommonMetadata):
     '''Class to capture common LFRic kernel argument metadata.'''
 
     # The fparser2 class that captures this metadata.
-    fparser2_class = Fortran2003.Part_Ref
+    fparser2_class = Fortran2003.Structure_Constructor
 
     @staticmethod
     def check_boolean(value, name):
@@ -103,11 +105,11 @@ class CommonArgMetadata(CommonMetadata):
         Structure_Constructor which captures a metadata argument.
 
         :param fparser2_tree: fparser2 tree capturing a metadata argument.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` |
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
         :param str type_name: the name of the argument datatype.
 
-        :raises ValueError: if the kernel metadata is not in \
+        :raises ValueError: if the kernel metadata is not in
             the form arg_type(...).
 
         '''
@@ -151,15 +153,38 @@ class CommonArgMetadata(CommonMetadata):
             return None
 
     @staticmethod
-    def get_named_arg(fparser2_tree, name: str):
+    def get_named_arg(fparser2_tree: Fortran2003.Component_Spec,
+                      name: str) -> Optional[str]:
         '''
-        TODO
-        '''
-        for child in fparser2_tree.children[1].children:
-            if child.children and child.children[0].tostr() == name:
-                return child.children[1].tostr()
+        Searches the supplied metadata for 'name=value' expressions and
+        returns the value corresponding to the supplied name if found.
+        Otherwise returns None.
 
+        :param fparser2_tree: the parse tree of the metadata element.
+        :param name: the name of the metadata element that we want.
+
+        :returns: the value of the named metadata element or None.
+
+        '''
+        for child in fp_walk(fparser2_tree, Fortran2003.Component_Spec):
+            if child.children[0].tostr().lower() == name:
+                text = child.children[1].tostr()
+                if isinstance(child.children[1],
+                              Fortran2003.Char_Literal_Constant):
+                    # TODO fparser/#295 - fparser keeps the quotation marks
+                    # in character strings.
+                    return text[1:-1]
+                return text
         return None
+
+    @staticmethod
+    def _validate_keyword_args(fparser2_tree: Fortran2003.Component_Spec,
+                               valid_names: list[str]) -> None:
+        '''
+        '''
+        for child in fp_walk(fparser2_tree, Fortran2003.Component_Spec):
+            if child.children[0].tostr().lower() not in valid_names:
+                raise ValueError("TODO")
 
 
 __all__ = ["CommonArgMetadata"]
