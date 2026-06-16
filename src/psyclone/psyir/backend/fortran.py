@@ -1440,7 +1440,7 @@ class FortranWriter(LanguageWriter):
         return result
 
     def arrayconstructor_node(self, node):
-        '''This method is called when an ArrayConstrutor instance is
+        '''This method is called when an ArrayConstructor instance is
         found in the PSyIR tree.
 
         :param node: an ArrayConstructor PSyIR node.

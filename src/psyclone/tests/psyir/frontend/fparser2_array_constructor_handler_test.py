@@ -51,15 +51,18 @@ program my_prog
   integer :: arr(3)
   integer :: x
   x = 10
-  arr(:) = [1, x, x+2]
+  arr(:) = [1, x, x+2, [x]]
 end program my_prog
 """
     prog = fortran_reader.psyir_from_source(code)
     ctrs = prog.walk(ArrayConstructor)
 
-    # Program has one array constructor with three elements
-    assert len(ctrs) == 1
-    assert len(ctrs[0].children) == 3
+    # Program has two array constructors, one with 4 elements one with 1
+    assert len(ctrs) == 2
+    assert len(ctrs[0].children) == 4
+    assert len(ctrs[1].children) == 1
+
+    # Look at the outer array constructor first
     ctr = ctrs[0]
 
     # The first element is the literal 1
@@ -77,6 +80,12 @@ end program my_prog
     assert ctr.children[2].operands[0].name == "x"
     assert isinstance(ctr.children[2].operands[1], Literal)
     assert ctr.children[2].operands[1].value == "2"
+
+    # The fourth element is a one-element ArrayConstructor holding "x"
+    assert isinstance(ctr.children[3], ArrayConstructor)
+    assert len(ctr.children[3].children) == 1
+    assert isinstance(ctr.children[3].children[0], Reference)
+    assert ctr.children[3].children[0].name == "x"
 
 
 def test_handling_array_constructor_arg(fortran_reader):

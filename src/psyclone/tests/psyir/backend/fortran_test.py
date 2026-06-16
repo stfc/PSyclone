@@ -2361,6 +2361,8 @@ def test_array_constructor(fortran_writer):
     array_cons = ArrayConstructor.create(
                      Literal("1", ScalarType.integer_type()),
                      Literal("2", ScalarType.integer_type()),
-                     Literal("3", ScalarType.integer_type()))
+                     ArrayConstructor.create(
+                         Literal("3", ScalarType.integer_type()),
+                         Literal("4", ScalarType.integer_type())))
     output = fortran_writer(array_cons)
-    assert output == "[1, 2, 3]"
+    assert output == "[1, 2, [3, 4]]"
