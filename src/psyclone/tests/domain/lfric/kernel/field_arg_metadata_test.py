@@ -98,11 +98,11 @@ def test_init_invalid_stencil():
 
 @pytest.mark.parametrize(
     "metadata,expected_stencil,expected_nlevels,expected_ndata",
-    [("arg_type(GH_FIELD, GH_REAL, GH_READ, W0)", None, "", ""),
+    [("arg_type(GH_FIELD, GH_REAL, GH_READ, W0)", None, None, None),
      ("arg_type(GH_FIELD, GH_REAL, GH_READ, W0, stencil(region))",
-      "region", "", ""),
+      "region", None, None),
      ('arg_type(GH_FIELD, GH_REAL, GH_READ, W0, nlevels="big")',
-      None, "big", "")])
+      None, "big", None)])
 def test_get_metadata(metadata, expected_stencil, expected_nlevels,
                       expected_ndata):
     '''Test that the _get_metadata class method works as expected, with

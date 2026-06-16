@@ -178,8 +178,8 @@ class CommonArgMetadata(CommonMetadata):
         return None
 
     @staticmethod
-    def _validate_keyword_args(fparser2_tree: Fortran2003.Component_Spec,
-                               valid_names: list[str]) -> None:
+    def _validate_named_args(fparser2_tree: Fortran2003.Component_Spec,
+                             valid_names: list[str]) -> None:
         '''
         '''
         for child in fp_walk(fparser2_tree, Fortran2003.Component_Spec):

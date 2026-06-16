@@ -74,6 +74,8 @@ class FieldArgMetadata(ScalarArgMetadata):
     # and max values).
     nargs = (4, 5)
 
+    fparser2_class = (Fortran2003.Structure_Constructor, Fortran2003.Part_Ref)
+
     def __init__(self, datatype: str, access: str, function_space: str,
                  stencil: Optional[str] = None,
                  nlevels=None, ndata=1):
@@ -105,12 +107,12 @@ class FieldArgMetadata(ScalarArgMetadata):
         function_space = cls.get_arg(
             fparser2_tree, cls.function_space_arg_index)
         stencil = cls.get_stencil(fparser2_tree)
-        super()._validate_keyword_args(fparser2_tree,
-                                    ["nlevels", "ndata", "mesh"])
+        super()._validate_named_args(fparser2_tree,
+                                     ["nlevels", "ndata", "mesh"])
         nlevels = cls.get_named_arg(fparser2_tree, "nlevels")
         ndata = cls.get_named_arg(fparser2_tree, "ndata")
         return (datatype, access, function_space, stencil, nlevels, ndata)
-        
+
     @classmethod
     def get_stencil(
             cls,

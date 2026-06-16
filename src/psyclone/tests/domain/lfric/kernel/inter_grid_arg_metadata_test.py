@@ -121,26 +121,16 @@ def test_get_mesh_arg():
     fparser2_tree = InterGridArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, mesh_arg=GH_COARSE)",
         encoding=Fortran2003.Structure_Constructor)
-    mesh_arg = InterGridArgMetadata.get_mesh_arg(fparser2_tree, 4)
+    mesh_arg = InterGridArgMetadata.get_mesh_arg(fparser2_tree)
     assert mesh_arg == "GH_COARSE"
 
     # Test when metadata is not in the expected 'mesh_arg = value'
-    # form. For simplicity, just choose the wrong argument index for
-    # the existing valid metadata.
-    with pytest.raises(ValueError) as info:
-        _ = InterGridArgMetadata.get_mesh_arg(fparser2_tree, 3)
-    assert ("At argument index 3 for metadata 'arg_type(GH_FIELD, GH_REAL, "
-            "GH_READ, W0, mesh_arg = GH_COARSE)' expected the metadata to be "
-            "in the form 'mesh_arg=value' but found 'W0'." in str(info.value))
-
+    # form - this will just mean that mesh_arg isn't found. Validation
+    # of keyword arguments happens elsewhere.
     fparser2_tree = InterGridArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, invalid=GH_COARSE)",
         encoding=Fortran2003.Structure_Constructor)
-    with pytest.raises(ValueError) as info:
-        _ = InterGridArgMetadata.get_mesh_arg(fparser2_tree, 4)
-    assert ("At argument index 4 for metadata 'arg_type(GH_FIELD, GH_REAL, "
-            "GH_READ, W0, invalid = GH_COARSE)' expected the left hand side "
-            "to be 'mesh_arg' but found 'invalid'." in str(info.value))
+    assert InterGridArgMetadata.get_mesh_arg(fparser2_tree) is None
 
 
 @pytest.mark.parametrize("fortran_string", [

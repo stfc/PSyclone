@@ -38,6 +38,7 @@ associated with an intergrid argument. Supports the creation, modification
 and Fortran output of an intergrid argument.
 
 '''
+from typing import Optional
 from fparser.two import Fortran2003
 
 from psyclone.domain.lfric import LFRicConstants
@@ -48,15 +49,15 @@ class InterGridArgMetadata(FieldArgMetadata):
     '''Class to capture LFRic kernel metadata information for an intergrid
     argument.
 
-    :param str datatype: the datatype of this InterGrid argument \
+    :param str datatype: the datatype of this InterGrid argument
         (GH_INTEGER, ...).
-    :param str access: the way the kernel accesses this intergrid \
+    :param str access: the way the kernel accesses this intergrid
         argument (GH_WRITE, ...).
-    :param str function_space: the function space that this \
+    :param str function_space: the function space that this
         InterGrid is on (W0, ...).
-    :param str mesh_arg: the type of mesh that this InterGrid arg \
+    :param str mesh_arg: the type of mesh that this InterGrid arg
         is on (coarse or fine).
-    :param Optional[str] stencil: the type of stencil used by the \
+    :param Optional[str] stencil: the type of stencil used by the
         kernel when accessing this InterGrid arg.
 
     '''
@@ -104,56 +105,33 @@ class InterGridArgMetadata(FieldArgMetadata):
         datatype, access = cls._get_datatype_access_metadata(fparser2_tree)
         function_space = cls.get_arg(
             fparser2_tree, cls.function_space_arg_index)
+        cls._validate_named_args(fparser2_tree, ["mesh_arg"])
         try:
             stencil = cls.get_stencil(fparser2_tree)
-            mesh_arg = cls.get_mesh_arg(fparser2_tree, 5)
         except TypeError:
             stencil = None
-            mesh_arg = cls.get_mesh_arg(fparser2_tree, 4)
+        mesh_arg = cls.get_mesh_arg(fparser2_tree)
 
         return (datatype, access, function_space, mesh_arg, stencil)
 
     @staticmethod
-    def get_mesh_arg(fparser2_tree: Fortran2003.Structure_Constructor,
-                     mesh_arg_index: int) -> str:
+    def get_mesh_arg(
+            fparser2_tree: Fortran2003.Structure_Constructor) -> Optional[str]:
         '''Retrieves the mesh_arg metadata value from the supplied fparser2
         tree.
 
         :param fparser2_tree: fparser2 tree capturing the metadata for
             an InterGrid argument.
-        :param mesh_arg_index: the index at which to find the metadata.
 
-        :returns: the metadata mesh value extracted from the fparser2 tree.
-
-        raises ValueError: if the metadata is not in the form
-            'mesh_arg = <value>'.
+        :returns: the metadata mesh value extracted from the fparser2 tree or
+            None if it isn't present.
 
         '''
         return FieldArgMetadata.get_named_arg(fparser2_tree, "mesh_arg")
-        #try:
-        #    mesh_arg_lhs = fparser2_tree.children[1].\
-        #        children[mesh_arg_index].children[0].tostr()
-        #except IndexError as info:
-        #    raise ValueError(
-        #        f"At argument index {mesh_arg_index} for metadata "
-        #        f"'{fparser2_tree}' expected the metadata to be in the form "
-        #        f"'mesh_arg=value' but found "
-        #        f"'{fparser2_tree.children[1].children[mesh_arg_index]}'.") \
-        #        from info
 
-        #if not mesh_arg_lhs.lower() == "mesh_arg":
-        #    raise ValueError(
-        #        f"At argument index {mesh_arg_index} for metadata "
-        #        f"'{fparser2_tree}' expected the left hand side "
-        #        f"to be 'mesh_arg' but found '{mesh_arg_lhs}'.")
-        #mesh_arg = fparser2_tree.children[1].\
-        #    children[mesh_arg_index].children[1].tostr()
-        #return mesh_arg
-
-    def fortran_string(self):
+    def fortran_string(self) -> str:
         '''
         :returns: the metadata represented by this class as Fortran.
-        :rtype: str
         '''
         if self.stencil:
             return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
