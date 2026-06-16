@@ -42,7 +42,6 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import ScalarType, ArrayType
 
 
-
 def test_handling_array_constructor_assignment(fortran_reader):
     '''Check that the fparser2 frontend can handle simple
     array constructors, without type specs and implicit do loops.

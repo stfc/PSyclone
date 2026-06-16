@@ -5008,7 +5008,7 @@ class Fparser2Reader():
             raise NotImplementedError(
                 "Array constructors with type specifications cannot be "
                 "handled in the PSyIR")
-        else: # pragma: no cover
+        else:  # pragma: no cover
             # This should never be reached, but we defensively raise
             # an exception just in case.
             raise NotImplementedError(
