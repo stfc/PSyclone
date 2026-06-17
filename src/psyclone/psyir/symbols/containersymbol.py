@@ -37,10 +37,14 @@
 # -----------------------------------------------------------------------------
 
 ''' This module contains the ContainerSymbol and its interfaces.'''
+from typing import TYPE_CHECKING, Optional
 
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
 from psyclone.psyir.symbols.interfaces import SymbolInterface
 from psyclone.configuration import Config
+
+if TYPE_CHECKING:  # pragma: no cover
+    from psyclone.psyir.nodes import Container, Node
 
 
 class ContainerSymbol(Symbol):
@@ -125,7 +129,11 @@ class ContainerSymbol(Symbol):
         new_symbol.is_intrinsic = self.is_intrinsic
         return new_symbol
 
-    def find_container_psyir(self, local_node=None):
+    def find_container_psyir(
+        self,
+        local_node: Optional['Node'] = None,
+        load_external_files: bool = True
+    ) -> 'Container':
         ''' Searches for the Container that this Symbol refers to. If it is
         not available, use the interface to import the container. If
         `local_node` is supplied then the PSyIR tree below it is searched for
@@ -134,6 +142,8 @@ class ContainerSymbol(Symbol):
         :param local_node: root of PSyIR sub-tree to include in search for
                            the container.
         :type local_node: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        :param load_external_files: allow this method to load external files
+            to find the needed declarations.
 
         :returns: referenced container.
         :rtype: :py:class:`psyclone.psyir.nodes.Container`
@@ -151,7 +161,8 @@ class ContainerSymbol(Symbol):
                         self._reference = local
                         return self._reference
             # We didn't find it so now attempt to import the container.
-            self._reference = self._interface.get_container(self._name)
+            self._reference = self._interface.get_container(
+                  self._name, load_external_files)
         return self._reference
 
     def __str__(self):
@@ -212,12 +223,18 @@ class ContainerSymbol(Symbol):
 class ContainerSymbolInterface(SymbolInterface):
     ''' Abstract implementation of the ContainerSymbol Interface '''
 
-    @staticmethod
-    def get_container(name):
+    def __init__(self):
+        self._container_psyir = None
+
+    def get_container(self, name: str, load_external_files: bool = True):
         ''' Abstract method to import an external container, the specific
         implementation depends on the language used.
 
-        :param str name: name of the external entity to be imported.
+        :param name: name of the external entity to be imported.
+        :param load_external_files: whether to search, parse and link an
+            external source file to populate the required container PSyIR
+            node (doing this operation in an already created PSyIR is
+            expensive, so explore using the RESOLVE_IMPORTS option first).
 
         :raises NotImplementedError: this is an abstract method.
         '''
@@ -227,12 +244,15 @@ class ContainerSymbolInterface(SymbolInterface):
 class FortranModuleInterface(ContainerSymbolInterface):
     ''' Implementation of ContainerSymbolInterface for Fortran modules '''
 
-    @staticmethod
-    def get_container(name):
+    def get_container(self, name: str, load_external_files: bool = True):
         ''' Imports a Fortran module as a PSyIR Container (via the
         ModuleManager) and returns it.
 
-        :param str name: name of the module to be imported.
+        :param name: name of the module to be imported.
+        :param load_external_files: whether to search, parse and link an
+            external source file to populate the required container PSyIR
+            node (doing this operation in an already created PSyIR is
+            expensive, so explore using the RESOLVE_IMPORTS option first).
 
         :returns: container associated with the given name.
         :rtype: :py:class:`psyclone.psyir.nodes.Container`
@@ -241,6 +261,15 @@ class FortranModuleInterface(ContainerSymbolInterface):
             import path.
 
         '''
+        if not load_external_files:
+            if self._container_psyir is None:
+                raise SymbolError(
+                    f"Module '{name}' has not been loaded and linked to the "
+                    f"local PSyIR symbol. Use the RESOLVE_IMPORTS parameter "
+                    f" in the psyclone script or the 'load_external_files="
+                    "True' in this method to attempt to do so.")
+            return self._container_psyir
+
         # pylint: disable-next=import-outside-toplevel
         from psyclone.parse import ModuleManager
         mod_manager = ModuleManager.get()
@@ -259,7 +288,8 @@ class FortranModuleInterface(ContainerSymbolInterface):
             raise SymbolError(
                 f"Module '{name}' not found in any of the include_paths "
                 f"directories {Config.get().include_paths}.")
-        return minfo.get_psyir()
+        self._container_psyir = minfo.get_psyir()
+        return self._container_psyir
 
 
 # For Sphinx AutoAPI documentation generation

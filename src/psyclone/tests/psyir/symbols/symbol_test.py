@@ -328,7 +328,7 @@ def test_get_external_symbol(monkeypatch):
     # Monkeypatch the container's FortranModuleInterface so that it always
     # appears to be unable to find the "some_mod" module
 
-    def fake_import(name):
+    def fake_import(name, load_external_files):
         raise SymbolError("Oh dear")
     monkeypatch.setattr(other_container._interface, "get_container",
                         fake_import)
