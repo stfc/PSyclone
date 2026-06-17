@@ -58,6 +58,8 @@ def test_create(datatype, access, function_space):
     assert field_arg._access == "gh_read"
     assert field_arg._function_space == "w0"
     assert field_arg._stencil is None
+    assert field_arg.ndata == "1"
+    assert field_arg.nlevels is None
 
 
 def test_create_stencil():
@@ -72,6 +74,30 @@ def test_create_stencil():
     assert field_arg._access == "gh_read"
     assert field_arg._function_space == "w0"
     assert field_arg._stencil == "cross"
+    assert field_arg.nlevels is None
+    assert field_arg.ndata == "1"
+
+
+def test_create_nlevels_ndata():
+    '''Test that an instance of FieldArgMetadata can be created successfully
+    with optional ndata and nlevels metadata.
+
+    '''
+    fld_arg = FieldArgMetadata("gh_real", "gh_write", "w0", nlevels="1",
+                               stencil="cross")
+    assert isinstance(fld_arg, FieldArgMetadata)
+    assert fld_arg.form == "gh_field"
+    assert fld_arg._datatype == "gh_real"
+    assert fld_arg._access == "gh_write"
+    assert fld_arg._function_space == "w0"
+    assert fld_arg._stencil == "cross"
+    assert fld_arg.nlevels == "1"
+    assert fld_arg.ndata == "1"
+    fld_arg2 = FieldArgMetadata("gh_real", "gh_write", "w0", nlevels="ustar",
+                                stencil="cross", ndata="big_phys")
+    assert fld_arg2._stencil == "cross"
+    assert fld_arg2.nlevels == "ustar"
+    assert fld_arg2.ndata == "big_phys"
 
 
 def test_init_invalid_fs():

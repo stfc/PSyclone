@@ -78,7 +78,8 @@ class FieldArgMetadata(ScalarArgMetadata):
 
     def __init__(self, datatype: str, access: str, function_space: str,
                  stencil: Optional[str] = None,
-                 nlevels=None, ndata=1):
+                 nlevels: Optional[str] = None,
+                 ndata: Optional[str] = "1"):
         super().__init__(datatype, access)
         self.function_space = function_space
         self.stencil = stencil
@@ -148,16 +149,9 @@ class FieldArgMetadata(ScalarArgMetadata):
         stencil = raw_stencil_text[8:-1]
         return stencil
 
-    @classmethod
-    def get_nlevels(cls, fparser2_tree):
-        '''
-        '''
-        return cls.get_named_arg(fparser2_tree, "nlevels")
-
-    def fortran_string(self):
+    def fortran_string(self) -> str:
         '''
         :returns: the metadata represented by this class as Fortran.
-        :rtype: str
         '''
         if self.stencil:
             return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
