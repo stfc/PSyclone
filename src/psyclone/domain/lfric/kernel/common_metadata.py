@@ -38,6 +38,7 @@ common functionality for LFRic kernel metadata.
 
 '''
 from abc import ABC, abstractmethod
+from typing import Union
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
@@ -101,7 +102,8 @@ class CommonMetadata(ABC):
 
     @staticmethod
     def create_fparser2(fortran_string: str,
-                        encoding: Fortran2003.Base) -> Fortran2003.Base:
+                        encoding: Union[tuple[Fortran2003.Base],
+                                        Fortran2003.Base]) -> Fortran2003.Base:
         '''Creates an fparser2 tree from a Fortran string. The resultant
         parent node of the tree will be the same type as the encoding
         argument if the string conforms to the encoding, otherwise an
@@ -111,8 +113,8 @@ class CommonMetadata(ABC):
         to metadata processing.
 
         :param fortran_string: a string containing the metadata in Fortran.
-        :param encoding: the parent class with which we will encode the
-            Fortran string.
+        :param encoding: the fparser2 class(es) with which we will attempt
+                         to match the Fortran string.
 
         :returns: an fparser2 tree containing a metadata argument.
 
@@ -122,15 +124,23 @@ class CommonMetadata(ABC):
         std = Config.get().fortran_standard
         _ = ParserFactory().create(std=std)
         reader = FortranStringReader(fortran_string)
-        match = True
-        try:
-            fparser2_tree = encoding(reader)
-        except (NoMatchError, FortranSyntaxError):
-            match = False
+        match = False
+        if isinstance(encoding, tuple):
+            classes = encoding
+        else:
+            classes = [encoding]
+        for enc in classes:
+            try:
+                fparser2_tree = enc(reader)
+                match = True
+                break
+            except (NoMatchError, FortranSyntaxError):
+                continue
         if not match or not fparser2_tree:
+            text = " or ".join(enc.__name__ for enc in classes)
             raise ValueError(
                 f"Expected kernel metadata to be a Fortran "
-                f"{encoding.__name__}, but found '{fortran_string}'.")
+                f"{text}, but found '{fortran_string}'.")
         return fparser2_tree
 
     @classmethod
