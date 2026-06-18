@@ -40,7 +40,7 @@
 import ast
 from collections import OrderedDict
 import sys
-from typing import Type, TYPE_CHECKING, Union
+from typing import Any, Type, TYPE_CHECKING, Union
 
 from psyclone.errors import InternalError
 from psyclone.docstring_parser import (
@@ -239,34 +239,51 @@ def transformation_documentation_wrapper(*args,
 
 
 # ----------------------------------------------------------------------------
-def parse_kwargs(s: str) -> dict:
+def parse_kwargs(kwargs: str) -> dict[str, Any]:
     """
     This function safely parses a user string provided on the command line
     using '--kwargs ...` into a python dictionary. It especially simplifies
     the syntax for the user by not requiring the keys to be escaped, e.g.
     --kwargs "'a':1,'b':2" and --kwargs "a:1,b:2" will both work as expected.
 
-    This is done by using Python's ast parser, then adding a separate
+    This is done by using Python'kwargs ast parser, then adding a separate
     transformation step that replaces keys that are an ast.Name
     with an ast.Constant, then finally calling literal_eval to
     create the dictionary.
 
-    :param s: the string to parse.
+    :param kwargs: the string to parse.
+
+    :raises ValueError: if the string cannot be converted to a kwargs-style
+        dictionary.
     """
 
-    # Make it look like a dict literal
-    wrapped = "{" + s.strip().rstrip(",") + "}"
+    # Parse as an expression. Note that various ast functions can
+    # raise different exceptions, so we catch all exceptions and
+    # re-raise them as a ValueError
+    try:
+        # Make it look like a dict literal
+        wrapped = "{" + kwargs.strip().rstrip(",") + "}"
+        expr = ast.parse(wrapped, mode="eval")
 
-    # Parse as an expression
-    expr = ast.parse(wrapped, mode="eval")
+        # Convert bare-name keys to string keys
+        transformer = NameKeysToStr()
+        expr = transformer.visit(expr)
+        # This call will update line-number, column, ... information in
+        # the modified tree, since the newly created nodes won't have
+        # this information
+        ast.fix_missing_locations(expr)
 
-    # Convert bare-name keys to string keys
-    transformer = NameKeysToStr()
-    expr = transformer.visit(expr)
-    ast.fix_missing_locations(expr)
+        # Safely evaluate literals/containers
+        result = ast.literal_eval(expr)
+    # pylint: disable=broad-exception-caught
+    except Exception:
+        # This will trigger an exception in the next statement
+        result = None
 
-    # Safely evaluate literals/containers
-    return ast.literal_eval(expr)
+    if not isinstance(result, dict):
+        raise ValueError(f"Invalid syntax for keyword arguments '{kwargs}' ")
+
+    return result
 
 
 class NameKeysToStr(ast.NodeTransformer):

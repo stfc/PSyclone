@@ -492,3 +492,18 @@ def test_parse_kwargs(kwargs, expected):
     """
     result = parse_kwargs(kwargs)
     assert result == expected
+
+
+@pytest.mark.parametrize("kwargs", ["1", "'a'", "[1,2]", "{1:2}",
+                                    "a=1", 123])
+def test_parse_kwargs_errors(kwargs):
+    """
+    Test that the parsing function for user-specific script options
+    work as expected.
+
+    :param kwargs: the input string for the command line
+    """
+    with pytest.raises(ValueError) as err:
+        parse_kwargs(kwargs)
+
+    assert "Invalid syntax for keyword arguments" in str(err.value)

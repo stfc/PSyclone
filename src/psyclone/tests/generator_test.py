@@ -2141,3 +2141,27 @@ def trans(psyir, **kwargs):
           "-o", str(outputfile)])
     stdout, _ = capsys.readouterr()
     assert f"ARGS: {out}" in stdout
+
+
+@pytest.mark.parametrize("kwargs", ["1", "'a'", "[1,2]", "{1:2}",
+                                    "a=1"])
+def test_script_arguments_errors(kwargs, tmp_path):
+    """Tests that script arguments are received as expected. This
+    test creates a dummy script that prints the arguments, which
+    we check for
+    :param kwargs: the input string for the command line
+    """
+    recipe = '''
+def trans(psyir, **kwargs):
+    print("ARGS:", kwargs)
+    '''
+    script_path = tmp_path / "print_args.py"
+    script_path.write_text(recipe)
+
+    inputfile = Path(get_base_path("lfric")) / "1_single_invoke.f90"
+    outputfile = tmp_path / "output.f90"
+    with pytest.raises(ValueError) as err:
+        main([str(inputfile), "-s", str(script_path),
+              "--script-kwargs", kwargs,
+              "-o", str(outputfile)])
+    assert "Invalid syntax for keyword arguments" in str(err.value)
