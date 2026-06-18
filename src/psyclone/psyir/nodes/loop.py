@@ -83,7 +83,8 @@ class Loop(Statement):
     '''
     valid_annotations = ('was_where', 'was_single_stmt', 'chunked')
     # Textual description of the node.
-    _children_valid_format = "Reference, DataNode, DataNode, DataNode, Schedule"
+    _children_valid_format = (
+        "Reference, DataNode, DataNode, DataNode, Schedule")
     _text_name = "Loop"
     _colour = "red"
 
@@ -266,7 +267,7 @@ class Loop(Statement):
         # We cannot just do str(self) in this routine we can end up being
         # called as a result of str(self) higher up the call stack
         # (because loop bounds are evaluated dynamically).
-        if len(self.children) < 4:
+        if len(self.children) < 5:
             raise InternalError(
                 f"Loop is incomplete. It should have exactly 4 "
                 f"children, but found loop with {len(self.children)} children:"

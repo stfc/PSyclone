@@ -119,6 +119,8 @@ def test_loop_navigation_properties():
         _ = loop.start_expr
     assert error_str in str(err.value)
 
+    ivar = DataSymbol("i", datatype=ScalarType.integer_type())
+    loop.addchild(Reference(ivar))
     loop.addchild(Literal("0", ScalarType.integer_single_type()))
     loop.addchild(Literal("2", ScalarType.integer_single_type()))
     loop.addchild(Literal("1", ScalarType.integer_single_type()))
@@ -207,17 +209,6 @@ def test_loop_replace_symbols_using(table):
     assert loop.variable is new_i
     # Check that the method has recursed to the children too.
     assert loop.loop_body[0].rhs.symbol is new_i
-    # Test when the Loop doesn't have the _variable property set.
-    loop = Loop()
-    loop.addchild(Literal("0", ScalarType.integer_single_type()))
-    loop.addchild(Literal("2", ScalarType.integer_single_type()))
-    loop.addchild(Literal("1", ScalarType.integer_single_type()))
-    loop.addchild(Schedule(parent=loop))
-    assert not loop.variable
-    if table is not None:
-        loop.replace_symbols_using(table)
-    else:
-        loop.replace_symbols_using(new_i)
 
 
 def test_loop_str():
@@ -275,9 +266,10 @@ def test_loop_create(fortran_writer):
         Reference(DataSymbol("i", ScalarType.real_single_type())))
     loop = Loop.create(DataSymbol("i", ScalarType.integer_single_type()),
                        start, stop, step, [child_node])
-    schedule = loop.children[3]
+    ref = loop.children[0]
+    schedule = loop.loop_body
     assert isinstance(schedule, Schedule)
-    check_links(loop, [start, stop, step, schedule])
+    check_links(loop, [ref, start, stop, step, schedule])
     check_links(schedule, [child_node])
     result = fortran_writer.loop_node(loop)
     assert result == "do i = 0, 1, 1\n  tmp = i\nenddo\n"
@@ -307,20 +299,23 @@ def test_loop_create_invalid():
     # start not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create(variable, "invalid", one, one, [children.copy()])
-    assert ("Item 'str' can't be child 0 of 'Loop'. The valid format is: "
-            "'DataNode, DataNode, DataNode, Schedule'.") in str(excinfo.value)
+    assert ("Item 'str' can't be child 1 of 'Loop'. The valid format is: "
+            "'Reference, DataNode, DataNode, DataNode, Schedule'."
+            in str(excinfo.value))
 
     # stop not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create(variable, zero, "invalid", one, [children.copy()])
-    assert ("Item 'str' can't be child 1 of 'Loop'. The valid format is: "
-            "'DataNode, DataNode, DataNode, Schedule'.") in str(excinfo.value)
+    assert ("Item 'str' can't be child 2 of 'Loop'. The valid format is: "
+            "'Reference, DataNode, DataNode, DataNode, Schedule'."
+            in str(excinfo.value))
 
     # step not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create(variable, zero, one, "invalid", [children.copy()])
-    assert ("Item 'str' can't be child 2 of 'Loop'. The valid format is: "
-            "'DataNode, DataNode, DataNode, Schedule'.") in str(excinfo.value)
+    assert ("Item 'str' can't be child 3 of 'Loop'. The valid format is: "
+            "'Reference, DataNode, DataNode, DataNode, Schedule'."
+            in str(excinfo.value))
 
     # children not a list
     with pytest.raises(GenerationError) as excinfo:
@@ -341,6 +336,7 @@ def test_loop_children_validation():
 
     '''
     loop = Loop()
+    ivar = DataSymbol("i", datatype=ScalarType.integer_type())
     datanode1 = Literal("1", ScalarType.integer_single_type())
     datanode2 = Literal("2", ScalarType.integer_single_type())
     datanode3 = Literal("3", ScalarType.integer_single_type())
@@ -350,35 +346,48 @@ def test_loop_children_validation():
     with pytest.raises(GenerationError) as excinfo:
         loop.addchild(schedule)
     assert ("Item 'Schedule' can't be child 0 of 'Loop'. The valid format is: "
-            "'DataNode, DataNode, DataNode, Schedule'." in str(excinfo.value))
-    loop.addchild(datanode1)
+            "'Reference, DataNode, DataNode, DataNode, Schedule'."
+            in str(excinfo.value))
+    loop.addchild(Reference(ivar))
 
     # Second child
     with pytest.raises(GenerationError) as excinfo:
         loop.addchild(schedule)
     assert ("Item 'Schedule' can't be child 1 of 'Loop'. The valid format is: "
-            "'DataNode, DataNode, DataNode, Schedule'." in str(excinfo.value))
-    loop.addchild(datanode2)
+            "'Reference, DataNode, DataNode, DataNode, Schedule'."
+            in str(excinfo.value))
+    loop.addchild(datanode1)
 
     # Third child
     with pytest.raises(GenerationError) as excinfo:
         loop.addchild(schedule)
     assert ("Item 'Schedule' can't be child 2 of 'Loop'. The valid format is: "
-            "'DataNode, DataNode, DataNode, Schedule'." in str(excinfo.value))
-    loop.addchild(datanode3)
+            "'Reference, DataNode, DataNode, DataNode, Schedule'."
+            in str(excinfo.value))
+    loop.addchild(datanode2)
 
     # Fourth child
     with pytest.raises(GenerationError) as excinfo:
+        loop.addchild(schedule)
+    assert ("Item 'Schedule' can't be child 3 of 'Loop'. The valid format is: "
+            "'Reference, DataNode, DataNode, DataNode, Schedule'."
+            in str(excinfo.value))
+    loop.addchild(datanode3)
+
+    # Fith child
+    with pytest.raises(GenerationError) as excinfo:
         loop.addchild(datanode1)
-    assert ("Item 'Literal' can't be child 3 of 'Loop'. The valid format is: "
-            "'DataNode, DataNode, DataNode, Schedule'." in str(excinfo.value))
+    assert ("Item 'Literal' can't be child 4 of 'Loop'. The valid format is: "
+            "'Reference, DataNode, DataNode, DataNode, Schedule'."
+            in str(excinfo.value))
     loop.addchild(schedule)
 
     # Additional children
     with pytest.raises(GenerationError) as excinfo:
         loop.addchild(schedule)
-    assert ("Item 'Schedule' can't be child 4 of 'Loop'. The valid format is: "
-            "'DataNode, DataNode, DataNode, Schedule'." in str(excinfo.value))
+    assert ("Item 'Schedule' can't be child 5 of 'Loop'. The valid format is: "
+            "'Reference, DataNode, DataNode, DataNode, Schedule'."
+            in str(excinfo.value))
 
 
 def test_check_variable():
@@ -433,23 +442,6 @@ def test_variable_setter():
             "found 'NoneType'.") in str(excinfo.value)
 
 
-def test_variable_getter():
-    '''Check that the variable property raises an exception if it is
-    accessed and its value has not been set (is still None).
-
-    '''
-    loop = Loop()
-    # invalid variable (test_check_variable tests check all ways a
-    # variable could be invalid. Here we just check that the
-    # _check_variable() method is called correctly). The particular
-    # case we want to catch in the code is when the variable has not
-    # been set, so is None.
-    with pytest.raises(GenerationError) as excinfo:
-        _ = loop.variable
-    assert ("variable property in Loop class should be a DataSymbol but "
-            "found 'NoneType'.") in str(excinfo.value)
-
-
 def test_loop_equality():
     '''Test the __eq__ method of Loop'''
     # We need to manually set the same SymbolTable instance in both directives
@@ -471,8 +463,8 @@ def test_loop_equality():
     sched1.addchild(child_node)
     loop1 = Loop.create(loop_sym,
                         start, stop, step, [])
-    loop1.children[3].detach()
-    loop1.addchild(sched1, 3)
+    loop1.loop_body.detach()
+    loop1.addchild(sched1)
     start2 = start.copy()
     stop2 = stop.copy()
     step2 = step.copy()
@@ -486,8 +478,8 @@ def test_loop_equality():
     sched2.addchild(child_node2)
     loop2 = Loop.create(loop_sym,
                         start2, stop2, step2, [])
-    loop2.children[3].detach()
-    loop2.addchild(sched2, 3)
+    loop2.loop_body.detach()
+    loop2.addchild(sched2)
     assert loop1 == loop2
 
     # Set different variables

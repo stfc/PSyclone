@@ -821,7 +821,7 @@ def test_dag_names():
     assert schedule.children[4].dag_name == "loop_[cells_in_colour]_5"
     schedule.children[4].loop_type = ""
     assert (schedule.children[4].loop_body[0].dag_name ==
-            "kernel_testkern_code_10")
+            "kernel_testkern_code_11")
 
     # If there is no ancestor routine, the index is the absolute position
     idx = aref.children[0].detach()
@@ -835,7 +835,7 @@ def test_dag_names():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     builtin = schedule.children[1].loop_body[0]
-    assert builtin.dag_name == "builtin_sum_x_12"
+    assert builtin.dag_name == "builtin_sum_x_14"
 
 
 def test_node_dag_no_graphviz(tmpdir, monkeypatch):
@@ -924,26 +924,26 @@ EXPECTED2 = re.compile(
     r"\s*routine_invoke_0_0_end\n"
     r"\s*loop_1_start\n"
     r"\s*loop_1_end\n"
-    r"\s*loop_1_end -> loop_7_start \[color=green\]\n"
+    r"\s*loop_1_end -> loop_8_start \[color=green\]\n"
     r"\s*routine_invoke_0_0_start -> loop_1_start \[color=blue\]\n"
-    r"\s*Schedule_5_start\n"
-    r"\s*Schedule_5_end\n"
-    r"\s*Schedule_5_end -> loop_1_end \[color=blue\]\n"
-    r"\s*loop_1_start -> Schedule_5_start \[color=blue\]\n"
-    r"\s*kernel_testkern_qr_code_6\n"
-    r"\s*kernel_testkern_qr_code_6 -> Schedule_5_end \[color=blue\]\n"
-    r"\s*Schedule_5_start -> kernel_testkern_qr_code_6 \[color=blue\]\n"
-    r"\s*loop_7_start\n"
-    r"\s*loop_7_end\n"
-    r"\s*loop_7_end -> routine_invoke_0_0_end \[color=blue\]\n"
-    r"\s*loop_1_end -> loop_7_start \[color=red\]\n"
-    r"\s*Schedule_11_start\n"
-    r"\s*Schedule_11_end\n"
-    r"\s*Schedule_11_end -> loop_7_end \[color=blue\]\n"
-    r"\s*loop_7_start -> Schedule_11_start \[color=blue\]\n"
-    r"\s*kernel_testkern_qr_code_12\n"
-    r"\s*kernel_testkern_qr_code_12 -> Schedule_11_end \[color=blue\]\n"
-    r"\s*Schedule_11_start -> kernel_testkern_qr_code_12 \[color=blue\]\n"
+    r"\s*Schedule_6_start\n"
+    r"\s*Schedule_6_end\n"
+    r"\s*Schedule_6_end -> loop_1_end \[color=blue\]\n"
+    r"\s*loop_1_start -> Schedule_6_start \[color=blue\]\n"
+    r"\s*kernel_testkern_qr_code_7\n"
+    r"\s*kernel_testkern_qr_code_7 -> Schedule_6_end \[color=blue\]\n"
+    r"\s*Schedule_6_start -> kernel_testkern_qr_code_7 \[color=blue\]\n"
+    r"\s*loop_8_start\n"
+    r"\s*loop_8_end\n"
+    r"\s*loop_8_end -> routine_invoke_0_0_end \[color=blue\]\n"
+    r"\s*loop_1_end -> loop_8_start \[color=red\]\n"
+    r"\s*Schedule_13_start\n"
+    r"\s*Schedule_13_end\n"
+    r"\s*Schedule_13_end -> loop_8_end \[color=blue\]\n"
+    r"\s*loop_8_start -> Schedule_13_start \[color=blue\]\n"
+    r"\s*kernel_testkern_qr_code_14\n"
+    r"\s*kernel_testkern_qr_code_14 -> Schedule_13_end \[color=blue\]\n"
+    r"\s*Schedule_13_start -> kernel_testkern_qr_code_14 \[color=blue\]\n"
     r"}")
 # pylint: enable=anomalous-backslash-in-string
 
@@ -965,6 +965,7 @@ def test_node_dag(tmpdir, have_graphviz):
     assert isinstance(dag, graphviz.Digraph)
 
     result = my_file.read()
+    print(result)
     assert EXPECTED2.match(result)
     my_file = tmpdir.join('test.svg')
     result = my_file.read()
@@ -972,8 +973,8 @@ def test_node_dag(tmpdir, have_graphviz):
                  "<title>routine_invoke_0_0_end</title>",
                  "<title>loop_1_start</title>",
                  "<title>loop_1_end</title>",
-                 "<title>kernel_testkern_qr_code_6</title>",
-                 "<title>kernel_testkern_qr_code_12</title>",
+                 "<title>kernel_testkern_qr_code_7</title>",
+                 "<title>kernel_testkern_qr_code_14</title>",
                  "<svg", "</svg>", ]:
         assert name in result
     for colour_name, colour_code in [("blue", "#0000ff"),
@@ -1086,11 +1087,6 @@ def test_children_validation():
 
     with pytest.raises(GenerationError):
         loop.children.reverse()
-
-    # But in the right circumstances they work fine
-    assert isinstance(loop.children.pop(), Schedule)
-    loop.children.reverse()
-    assert loop.children[0].value == "2"
 
 
 def test_children_is_orphan_validation():
@@ -1369,7 +1365,7 @@ def test_replace_with_error1():
     with pytest.raises(GenerationError) as info:
         loop.children[0].replace_with(new_node)
     assert ("Item 'Assignment' can't be child 0 of 'Loop'. The valid "
-            "format is: 'DataNode, DataNode, DataNode, Schedule'"
+            "format is: 'Reference, DataNode, DataNode, DataNode, Schedule'"
             in str(info.value))
 
 

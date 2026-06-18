@@ -4513,7 +4513,7 @@ def test_omp_serial_validate_task_dependencies_add_taskwait(fortran_reader):
     for child in schedule.children[:]:
         if isinstance(child, Loop):
             loop_trans.apply(child)
-            assert isinstance(child.children[3].children[0], Loop)
+            assert isinstance(child.loop_body.children[0], Loop)
             task_trans.apply(child, {"force": True})
         if isinstance(child, IfBlock):
             loop = child.if_body.children[0]
@@ -4567,7 +4567,7 @@ def test_omp_serial_validate_task_dependencies_add_taskwait(fortran_reader):
     for child in schedule.children[:]:
         if isinstance(child, Loop):
             loop_trans.apply(child)
-            assert isinstance(child.children[3].children[0], Loop)
+            assert isinstance(child.loop_body.children[0], Loop)
             task_trans.apply(child, {"force": True})
         if isinstance(child, IfBlock):
             loop = child.if_body.children[0]
@@ -4623,7 +4623,7 @@ def test_omp_serial_validate_task_dependencies_add_taskwait(fortran_reader):
     for child in schedule.children[:]:
         if isinstance(child, Loop):
             loop_trans.apply(child)
-            assert isinstance(child.children[3].children[0], Loop)
+            assert isinstance(child.loop_body.children[0], Loop)
             task_trans.apply(child, {"force": True})
 
     single_trans = OMPSingleTrans()
@@ -4673,7 +4673,7 @@ def test_omp_serial_validate_task_dependencies_add_taskwait(fortran_reader):
     for child in schedule.children[:]:
         if isinstance(child, Loop):
             loop_trans.apply(child)
-            assert isinstance(child.children[3].children[0], Loop)
+            assert isinstance(child.loop_body.children[0], Loop)
             task_trans.apply(child, {"force": True})
 
     single_trans = OMPSingleTrans()
