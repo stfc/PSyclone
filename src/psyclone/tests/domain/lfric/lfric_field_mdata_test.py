@@ -166,15 +166,15 @@ def test_ad_fld_type_too_few_args():
 
 def test_ad_fld_type_too_many_args():
     ''' Tests that an error is raised when the field argument descriptor
-    metadata has more than 4 args. '''
+    metadata has more than 7 args. '''
     code = FIELD_CODE.replace(
         "arg_type(gh_field,  gh_real,    gh_inc,     w1)",
-        "arg_type(gh_field,  gh_real,    gh_inc,   w1, w1, w2)", 1)
+        "arg_type(gh_field,  gh_real,    gh_inc,   w1, w1, w2, w3, w3)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
-    assert ("each 'meta_arg' entry must have at most 5 arguments if its "
+    assert ("each 'meta_arg' entry must have at most 7 arguments if its "
             "first argument is of ['gh_field'] type" in str(excinfo.value))
 
 
@@ -259,7 +259,7 @@ def test_arg_descriptor_invalid_fs():
 
 def test_ad_field_init_wrong_iteration_space():
     ''' Test that an error is raised if a wrong iteration space
-    (other than ['cell_column', 'dof']) is passed to the
+    (other than ['cell_column', 'dof', ...]) is passed to the
     LFRicArgDescriptor._init_field() method.
 
     '''
@@ -391,7 +391,7 @@ def test_arg_descriptor_field():
     assert field_descriptor.stencil is None
     assert field_descriptor.vector_size == 1
     assert field_descriptor.nlevels is None
-    assert field_descriptor.ndata == 1
+    assert field_descriptor.ndata == "1"
 
 
 def test_fld_nlevels():
@@ -410,6 +410,24 @@ def test_fld_nlevels():
     # The seventh argument has nlevels specified as "double"
     field_descriptor = mdata.arg_descriptors[6]
     assert field_descriptor.nlevels == "double"
+
+
+def test_fld_ndata():
+    '''
+    Test a field argument with the optional 'ndata' metatadata.
+    '''
+    code = FIELD_CODE.replace(
+        "arg_type(gh_scalar, gh_integer, gh_read)",
+        "arg_type(gh_field, gh_real, gh_read, w3, ndata='2')", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_field_type"
+    mdata = LFRicKernMetadata(ast, name=name)
+    # By default, ndata is 1.
+    field_descriptor = mdata.arg_descriptors[5]
+    assert field_descriptor.ndata == "1"
+    # The seventh argument has ndata specified as "2"
+    field_descriptor = mdata.arg_descriptors[6]
+    assert field_descriptor.ndata == "2"
 
 
 def test_invalid_vector_operator():

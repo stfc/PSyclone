@@ -114,7 +114,7 @@ class LFRicArgDescriptor(Descriptor):
         # using that of the first field/operator argument to a kernel.
         self._nlevels = None
         # No. of data values per dof - defaults to 1.
-        self._ndata = 1
+        self._ndata = "1"
         self._nargs = 0
 
         # Check for the correct argument type descriptor
@@ -378,8 +378,8 @@ class LFRicArgDescriptor(Descriptor):
                 f"{nargs_field_min} arguments if its first argument is of "
                 f"{const.VALID_FIELD_NAMES} type, but found {self._nargs} in "
                 f"'{arg_type}'.")
-        # There must be at most 5 arguments
-        nargs_field_max = 5
+        # There must be at most 7 arguments
+        nargs_field_max = 7
         if self._nargs > nargs_field_max:
             raise ParseError(
                 f"In the LFRic API each 'meta_arg' entry must have at most "
