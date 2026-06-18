@@ -934,14 +934,15 @@ def test_validate_indirect_indexing(fortran_reader):
     psyir = fortran_reader.psyir_from_source('''
     program test
       use dom_oce
+      CHARACTER(:), ALLOCATABLE :: str
       INTEGER, DIMENSION(4)  ::   iwewe
-      INTEGER, DIMENSION(8,kfld)  :: ishtSi
-      INTEGER, DIMENSION(8,kfld)  :: ishtSi2
+      INTEGER, DIMENSION(64,kfld)  :: ishtSi
+      INTEGER, DIMENSION(64,kfld)  :: ishtSi2
       INTEGER :: jf
       ! Assignment with CodeBlock on RHS.
-      iwewe(:) = (/integer :: jpwe,jpea,jpwe,jpea /)
+      str = 'This''s a CodeBlock'
       ! Assignment with CodeBlock in array-index expression.
-      iwewe(:) = ishtSi((/integer :: jpwe,jpea,jpwe,jpea /), 1)
+      iwewe(1) = ishtSi(len('This''s a CodeBlock'), 1)
       ! Index expression that evaluate to an array is a valid range
       ishtSi(5:8,jf) = ishtSi2(iwewe+1, jf)
       ! Index expression contains a call to an unknown function.

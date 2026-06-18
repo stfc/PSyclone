@@ -37,9 +37,10 @@
 '''Performs py.test tests on the support for array constructors in the fparser2
 PSyIR front-end '''
 
+import pytest
 from psyclone.psyir.nodes import (
     ArrayConstructor, Reference, Literal, BinaryOperation)
-from psyclone.psyir.symbols import ScalarType, ArrayType
+from psyclone.psyir.symbols import ScalarType, ArrayType, DataTypeSymbol
 
 
 def test_handling_array_constructor_assignment(fortran_reader):
@@ -120,29 +121,87 @@ end program my_prog
         assert ctrs[1].children[i].value == "2"
 
 
-def test_handling_array_constructor_datatype(fortran_reader):
+@pytest.mark.parametrize("arr_type", ["real", "integer"])
+def test_handling_array_constructor_datatype(fortran_reader, arr_type):
     '''Check that the datatype of a parsed ArrayConstructor is correct.
     '''
-    code = """
+    if arr_type == "real":
+        one = "1.0"
+    else:
+        one = "1"
+    code = f"""
 program my_prog
   implicit none
-  integer :: x
-  integer, allocatable :: arr(:)
-  integer :: arr2(2, 2)
+  {arr_type}, allocatable :: arr(:)
+  {arr_type} :: arr2(2, 2)
+  {arr_type} :: x
+  x = {one}
   arr(:) = [x]
-  arr(:) = [x+1]
-  arr(:) = [[1]]
-  arr2(:,:) = 0
+  arr(:) = [x+{one}]
+  arr(:) = [[{one}]]
+  arr2(:,:) = {one}
   arr(:) = [arr2]
-  arr(:) = [1, 2, arr2]
+  arr(:) = [{one}, arr2]
+  arr(:) = [{arr_type} ::]
+  arr(:) = [{arr_type} :: {one}, x]
 end program my_prog
 """
     prog = fortran_reader.psyir_from_source(code)
 
-    # All array constructors are rank-1 arrays of scalar integers
+    # All example constructions are rank-1 arrays of scalars
+    count = 0
     for ctr in prog.walk(ArrayConstructor):
         dt = ctr.datatype
         assert isinstance(dt, ArrayType)
         assert len(dt.shape) == 1
         assert isinstance(dt.elemental_type, ScalarType)
-        assert dt.elemental_type.intrinsic == ScalarType.Intrinsic.INTEGER
+        if arr_type == "real":
+            assert dt.elemental_type.intrinsic == ScalarType.Intrinsic.REAL
+        else:
+            assert dt.elemental_type.intrinsic == ScalarType.Intrinsic.INTEGER
+        count += 1
+
+    # Check that all array constructors have been found
+    assert count == 8
+
+
+def test_handling_array_constructor_derived_type(fortran_reader):
+    '''Check that the datatype of a parsed ArrayConstructor is correct
+    in the case of a derived type.
+    '''
+    code = """
+module my_mod
+  type :: my_type
+    integer :: val
+  end type
+contains
+  subroutine sub()
+    implicit none
+    type(my_type), allocatable :: arr(:)
+    type(my_type) :: arr2(2, 2)
+    type(my_type) :: x
+    x%val = 1
+    arr(:) = [x]
+    arr(:) = [[x]]
+    arr2(:,:) = x
+    arr(:) = [arr2]
+    arr(:) = [x, arr2]
+    arr(:) = [my_type ::]
+    arr(:) = [my_type :: x, x]
+  end subroutine
+end module
+"""
+    prog = fortran_reader.psyir_from_source(code)
+
+    # All example constructions are rank-1 arrays of derived type
+    count = 0
+    for ctr in prog.walk(ArrayConstructor):
+        dt = ctr.datatype
+        assert isinstance(dt, ArrayType)
+        assert len(dt.shape) == 1
+        assert isinstance(dt.elemental_type, DataTypeSymbol)
+        assert dt.elemental_type.name == "my_type"
+        count += 1
+
+    # Check that all array constructors have been found
+    assert count == 7

@@ -1450,8 +1450,19 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         '''
-        contents = ", ".join([self._visit(child) for child in node.children])
-        return "[" + contents + "]"
+        # Render the type specification, if there is one
+        type_spec = ""
+        if node._type_spec:
+            if isinstance(node._type_spec, DataTypeSymbol):
+                type_spec = f"{node._type_spec.name} :: "
+            else:
+                name = "[ArrayConstructor]"
+                type_spec = self.gen_datatype(node._type_spec, name) + " :: "
+
+        # Render the elements
+        elems = ", ".join([self._visit(child) for child in node.children])
+
+        return "[" + type_spec + elems + "]"
 
     def ifblock_node(self, node):
         '''This method is called when an IfBlock instance is found in the

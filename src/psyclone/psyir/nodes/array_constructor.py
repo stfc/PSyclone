@@ -36,9 +36,10 @@
 
 ''' This module contains the ArrayConstructor node implementation.'''
 
+from typing import Union
 from psyclone.core import VariablesAccessMap
 from psyclone.psyir.symbols import (
-    Symbol, UnresolvedType, ScalarType, ArrayType)
+    Symbol, UnresolvedType, ScalarType, ArrayType, DataTypeSymbol)
 from psyclone.psyir.nodes.datanode import DataNode
 
 
@@ -52,8 +53,11 @@ class ArrayConstructor(DataNode):
     _text_name = "ArrayConstructor"
     _colour = "yellow"
 
-    def __init__(self, **kwargs):
+    def __init__(self,
+                 type_spec: Union[ScalarType, DataTypeSymbol] = None,
+                 **kwargs):
         super().__init__(**kwargs)
+        self._type_spec = type_spec
 
     @staticmethod
     def create(*elems: DataNode):
@@ -91,15 +95,25 @@ class ArrayConstructor(DataNode):
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
         '''
         # The result of an array constructor is always a rank-1 array.
-        # We look through the children to find the array-element type.
+        # First look at the type-spec to determine the array-element type.
         elem_type = UnresolvedType()
-        for child in self.children:
-            if isinstance(child.datatype, ArrayType):
-                elem_type = child.datatype.elemental_type
-                break
-            elif isinstance(child.datatype, ScalarType):
-                elem_type = child.datatype
-                break
+        if isinstance(self._type_spec, ScalarType):
+            elem_type = self._type_spec
+        elif isinstance(self._type_spec, DataTypeSymbol):
+            elem_type = self._type_spec
+        else:
+            # Alternatively, look through the children to find the
+            # array-element type.
+            for child in self.children:
+                if isinstance(child.datatype, ArrayType):
+                    elem_type = child.datatype.elemental_type
+                    break
+                elif isinstance(child.datatype, ScalarType):
+                    elem_type = child.datatype
+                    break
+                elif isinstance(child.datatype, DataTypeSymbol):
+                    elem_type = child.datatype
+                    break
         return ArrayType(elem_type, [ArrayType.Extent.ATTRIBUTE])
 
     def node_str(self, colour=True):
@@ -112,17 +126,21 @@ class ArrayConstructor(DataNode):
         :returns: description of this PSyIR node.
         :rtype: str
         '''
-        elems = ", ".join([child.node_str(colour=colour)
-                           for child in self.children])
-        return (f"{self.coloured_name(colour)}"
-                f"[{elems}]")
+        string = f"{self.coloured_name(colour)}["
+        if self._type_spec:
+            string += f"type_spec={self._type_spec}"
+        string += "]"
+        return string
 
     def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
         :returns: a set of all the symbols accessed inside this
-            ArrayConsructor.
+            ArrayConstructor.
         '''
-        return super().get_all_accessed_symbols()
+        syms = super().get_all_accessed_symbols()
+        if self._type_spec:
+            syms.update(self._type_spec.get_all_accessed_symbols())
+        return syms
 
     def reference_accesses(self) -> VariablesAccessMap:
         '''
@@ -147,6 +165,8 @@ class ArrayConstructor(DataNode):
 
         '''
         super().replace_symbols_using(table_or_symbol)
+        if self._type_spec:
+            self._type_spec.replace_symbols_using(table_or_symbol)
 
 
 # For AutoAPI documentation generation

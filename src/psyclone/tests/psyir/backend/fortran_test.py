@@ -1742,8 +1742,8 @@ def test_fw_codeblock_1(fortran_reader, fortran_writer, tmpdir):
 def test_fw_codeblock_2(fortran_reader, fortran_writer, tmpdir):
     '''Check the FortranWriter class codeblock method correctly prints out
     the Fortran representation when there is a code block that is part
-    of a line (not a whole line). In this case the data initialisation
-    of the array 'a' "(/ real :: 0.0 /)" is a code block.
+    of a line (not a whole line). In this case the assignment of the string
+    'str' to "'This''s a CodeBlock'" is a code block.
 
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -1751,8 +1751,8 @@ def test_fw_codeblock_2(fortran_reader, fortran_writer, tmpdir):
         "module test\n"
         "contains\n"
         "subroutine tmp()\n"
-        "  real a(1)\n"
-        "  a = (/ real :: 0.0 /)\n"
+        "  character(:), allocatable :: str\n"
+        "  str = 'This''s a CodeBlock'\n"
         "end subroutine tmp\n"
         "end module test")
     psyir = fortran_reader.psyir_from_source(code)
@@ -1762,7 +1762,7 @@ def test_fw_codeblock_2(fortran_reader, fortran_writer, tmpdir):
 
     # Generate Fortran from the PSyIR
     result = fortran_writer(psyir)
-    assert "a = (/REAL :: 0.0/)" in result
+    assert "str = 'This''s a CodeBlock'" in result
     assert Compile(tmpdir).string_compiles(result)
 
 

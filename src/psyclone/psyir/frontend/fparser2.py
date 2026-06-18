@@ -1708,6 +1708,47 @@ class Fparser2Reader():
                     if symbol.name.lower() in visibility_map:
                         symbol.visibility = visibility_map[symbol.name.lower()]
 
+    def _process_type_name(
+            self,
+            parent: Node,
+            ty_name: Fortran2003.Type_Name,
+            ty_spec: Optional[Fortran2003.Type_Spec] = None,
+    ) -> DataTypeSymbol:
+        '''
+        Processes the fparser2 parse tree of a type name in order to
+        determine the type's symbol.
+
+        :param parent: the parent of the current PSyIR node under construction.
+        :param ty_name: the fparser2 parse tree of the type name.
+        :param ty_spec: the fparser2 parse tree of the enclosing type spec.
+            Only used for error messages.
+
+        :returns: the type's symbol.
+
+        :raises SymbolError: if a symbol already exists for the name of a
+            derived type but is not a DataTypeSymbol.
+
+        '''
+        type_name = str(ty_name)
+        # Do we already have a Symbol for this derived type?
+        type_symbol = _find_or_create_unresolved_symbol(parent, type_name)
+        # pylint: disable=unidiomatic-typecheck
+        if type(type_symbol) is Symbol:
+            # We do but we didn't know what kind of symbol it was. Create
+            # a DataTypeSymbol to replace it.
+            new_symbol = DataTypeSymbol(type_name, UnresolvedType(),
+                                        interface=type_symbol.interface,
+                                        visibility=type_symbol.visibility)
+            table = type_symbol.find_symbol_table(parent)
+            table.swap(type_symbol, new_symbol)
+            type_symbol = new_symbol
+        elif not isinstance(type_symbol, DataTypeSymbol):
+            raise SymbolError(
+                f"Search for a DataTypeSymbol named '{type_name}' "
+                f"(required by specification '{ty_spec}') found a "
+                f"'{type(type_symbol).__name__}' instead.")
+        return type_symbol
+
     def _process_type_spec(
             self,
             parent: Node,
@@ -1769,25 +1810,8 @@ class Fparser2Reader():
                 raise NotImplementedError(
                     f"Could not process {type_spec} - declarations "
                     f"other than 'type' are not yet supported.")
-            type_name = str(walk(type_spec, Fortran2003.Type_Name)[0])
-            # Do we already have a Symbol for this derived type?
-            type_symbol = _find_or_create_unresolved_symbol(parent, type_name)
-            # pylint: disable=unidiomatic-typecheck
-            if type(type_symbol) is Symbol:
-                # We do but we didn't know what kind of symbol it was. Create
-                # a DataTypeSymbol to replace it.
-                new_symbol = DataTypeSymbol(type_name, UnresolvedType(),
-                                            interface=type_symbol.interface,
-                                            visibility=type_symbol.visibility)
-                table = type_symbol.find_symbol_table(parent)
-                table.swap(type_symbol, new_symbol)
-                type_symbol = new_symbol
-            elif not isinstance(type_symbol, DataTypeSymbol):
-                raise SymbolError(
-                    f"Search for a DataTypeSymbol named '{type_name}' "
-                    f"(required by specification '{type_spec}') found a "
-                    f"'{type(type_symbol).__name__}' instead.")
-            base_type = type_symbol
+            type_name = walk(type_spec, Fortran2003.Type_Name)[0]
+            base_type = self._process_type_name(parent, type_name, type_spec)
 
         else:
             # Not a supported type specification. This will result in a
@@ -4993,26 +5017,43 @@ class Fparser2Reader():
             elements.
         '''
         ac_spec = node.items[1]
+
+        # First, process the type-spec if there is one
+        base_type = None
+        if isinstance(ac_spec, Fortran2003.Ac_Spec):
+            type_spec = ac_spec.items[0]
+            ac_spec = ac_spec.items[1]
+            if isinstance(type_spec, Fortran2003.Type_Name):
+                base_type = self._process_type_name(parent, type_spec)
+            else:
+                base_type, _ = self._process_type_spec(parent, type_spec)
+
+        # Second, handle a non-existent value list
+        if ac_spec is None:
+            return ArrayConstructor(ast=node,
+                                    parent=parent,
+                                    type_spec=base_type)
+
+        # Third, process the value list
         if isinstance(ac_spec, Fortran2003.Ac_Value_List):
-            elems = node.items[1].items
+            elems = ac_spec.items
             # Check that no elements are 'Ac_Implied_Do'
             for elem in elems:
                 if isinstance(elem, Fortran2003.Ac_Implied_Do):
                     raise NotImplementedError(
                         "Array constructors with implied do loops cannot be "
                         "handled in the PSyIR")
-            array_cons = ArrayConstructor(ast=node, parent=parent)
+            array_cons = ArrayConstructor(ast=node,
+                                          parent=parent,
+                                          type_spec=base_type)
             self.process_nodes(parent=array_cons, nodes=elems)
             return array_cons
-        elif isinstance(ac_spec, Fortran2003.Ac_Spec):
+
+        # We should never reach here, but we defensively raise an
+        # exception just in case.
+        if True:  # pragma: no cover
             raise NotImplementedError(
-                "Array constructors with type specifications cannot be "
-                "handled in the PSyIR")
-        else:  # pragma: no cover
-            # This should never be reached, but we defensively raise
-            # an exception just in case.
-            raise NotImplementedError(
-                "Unexpected array constructor form encountered")
+                "Unexpected array-constructor form encountered")
 
     def _structure_accessor_handler(self, node, parent):
         '''
