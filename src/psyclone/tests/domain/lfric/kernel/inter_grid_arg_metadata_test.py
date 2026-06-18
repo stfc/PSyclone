@@ -114,14 +114,14 @@ def test_get_metadata_stencil():
 
 
 def test_get_mesh_arg():
-    '''Test that the get_mesh_arg method works as expected. Also check
-    that it raises the expected error when the metadata is invalid.
+    '''Test that the get_named_arg method works as expected for "mesh_arg".
+    Also check that it raises the expected error when the metadata is invalid.
 
     '''
     fparser2_tree = InterGridArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, mesh_arg=GH_COARSE)",
         encoding=Fortran2003.Structure_Constructor)
-    mesh_arg = InterGridArgMetadata.get_mesh_arg(fparser2_tree)
+    mesh_arg = InterGridArgMetadata.get_named_arg(fparser2_tree, "mesh_arg")
     assert mesh_arg == "GH_COARSE"
 
     # Test when metadata is not in the expected 'mesh_arg = value'
@@ -130,7 +130,8 @@ def test_get_mesh_arg():
     fparser2_tree = InterGridArgMetadata.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, invalid=GH_COARSE)",
         encoding=Fortran2003.Structure_Constructor)
-    assert InterGridArgMetadata.get_mesh_arg(fparser2_tree) is None
+    assert (InterGridArgMetadata.get_named_arg(fparser2_tree, "mesh_arg")
+            is None)
 
 
 @pytest.mark.parametrize("fortran_string", [

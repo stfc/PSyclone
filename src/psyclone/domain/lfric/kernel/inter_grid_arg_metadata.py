@@ -86,48 +86,30 @@ class InterGridArgMetadata(FieldArgMetadata):
         self.mesh_arg = mesh_arg
 
     @classmethod
-    def _get_metadata(cls, fparser2_tree):
+    def _get_metadata(
+            cls,
+            fparser2_tree: Fortran2003.Structure_Constructor
+    ) -> tuple[str, str, str, str, Optional[str]]:
         '''Extract the required metadata from the fparser2 tree and return it
-        as strings. Also check that the metadata is in the expected
-        form (but do not check the metadata values as that is done
-        separately).
+        as strings. Also check that the metadata is in the expected form (but
+        do not check the metadata values as that is done separately).
 
-        :param fparser2_tree: fparser2 tree containing the metadata \
+        :param fparser2_tree: fparser2 tree containing the metadata
             for this argument.
-        :type fparser2_tree: \
-            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
-        :returns: a tuple containing the datatype, access, function \
+        :returns: a tuple containing the datatype, access, function
             space, mesh and stencil metadata.
-        :rtype: Tuple[str, str, str, str, Optional[str]]
 
         '''
         datatype, access = cls._get_datatype_access_metadata(fparser2_tree)
         function_space = cls.get_arg(
             fparser2_tree, cls.function_space_arg_index)
+
         cls._validate_named_args(fparser2_tree, ["mesh_arg"])
-        try:
-            stencil = cls.get_stencil(fparser2_tree)
-        except TypeError:
-            stencil = None
-        mesh_arg = cls.get_mesh_arg(fparser2_tree)
+        stencil = cls.get_stencil(fparser2_tree)
+        mesh_arg = cls.get_named_arg(fparser2_tree, "mesh_arg")
 
         return (datatype, access, function_space, mesh_arg, stencil)
-
-    @staticmethod
-    def get_mesh_arg(
-            fparser2_tree: Fortran2003.Structure_Constructor) -> Optional[str]:
-        '''Retrieves the mesh_arg metadata value from the supplied fparser2
-        tree.
-
-        :param fparser2_tree: fparser2 tree capturing the metadata for
-            an InterGrid argument.
-
-        :returns: the metadata mesh value extracted from the fparser2 tree or
-            None if it isn't present.
-
-        '''
-        return FieldArgMetadata.get_named_arg(fparser2_tree, "mesh_arg")
 
     def fortran_string(self) -> str:
         '''
@@ -141,10 +123,9 @@ class InterGridArgMetadata(FieldArgMetadata):
                 f"{self.function_space}, mesh_arg={self.mesh_arg})")
 
     @property
-    def mesh_arg(self):
+    def mesh_arg(self) -> str:
         '''
         :returns: the mesh type for this intergrid argument.
-        :rtype: str
         '''
         return self._mesh_arg
 
