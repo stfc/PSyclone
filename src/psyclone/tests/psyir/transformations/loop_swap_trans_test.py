@@ -171,7 +171,7 @@ def test_loop_swap_validate():
 
     # Now remove the body of the first inner loop, and pass the first
     # inner loop --> i.e. a loop with an empty body
-    del schedule.children[0].loop_body[0].children[3].children[0]
+    del schedule.children[0].loop_body[0].loop_body.children[0]
 
     with pytest.raises(TransformationError) as error:
         swap.apply(schedule.children[0].loop_body[0])

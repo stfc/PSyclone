@@ -112,7 +112,7 @@ class LoopTrans(Transformation, metaclass=abc.ABCMeta):
         if len(node.children) != 5:
             raise TransformationError(
                 f"Error in {self.name} transformation. The target loop "
-                f"must have four children but found: "
+                f"must have five children but found: "
                 f"{[type(child).__name__ for child in node.children]}.")
 
         # TODO 2668: options are now deprecated.

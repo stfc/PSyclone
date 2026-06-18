@@ -76,7 +76,7 @@ def test_chunkloop_trans_validate1():
             "incvar", symbol_type=DataSymbol, datatype=ScalarType(
                     ScalarType.Intrinsic.INTEGER,
                     ScalarType.Precision.SINGLE))
-    parent = Loop()
+    parent = Loop(DataSymbol("i", ScalarType.integer_type()))
     parent.addchild(Reference(lvar))
     parent.addchild(Literal("10", ScalarType.integer_type()))
     parent.addchild(Reference(incvar))
@@ -92,7 +92,7 @@ def test_chunkloop_trans_validate2():
     '''Test the validate method of ChunkLoopTrans for bad step sizes'''
     chunktrans = ChunkLoopTrans()
     # Construct a Loop with too large a step-size
-    parent = Loop()
+    parent = Loop(DataSymbol("i", ScalarType.integer_type()))
     parent.addchild(Literal("1", ScalarType.integer_type()))
     parent.addchild(Literal("2560", ScalarType.integer_type()))
     parent.addchild(Literal("128", ScalarType.integer_type()))
@@ -103,7 +103,7 @@ def test_chunkloop_trans_validate2():
             "(128) than the chosen chunk size (16).") in str(excinfo.value)
 
     # Construct a Loop with step-size of 0
-    parent = Loop()
+    parent = Loop(DataSymbol("i", ScalarType.integer_type()))
     parent.addchild(Literal("1", ScalarType.integer_type()))
     parent.addchild(Literal("2560", ScalarType.integer_type()))
     parent.addchild(Literal("0", ScalarType.integer_type()))
@@ -121,7 +121,7 @@ def test_chunkloop_trans_validate3():
     # Construct a Loop and apply a ChunkLoopTrans to it, then revalidate the
     # parent loop (can't apply a chunk loop trans to a chunk loop trans
     symbol_table = SymbolTable()
-    parent = Loop()
+    parent = Loop(DataSymbol("i", ScalarType.integer_type()))
     parent.addchild(Literal("1", ScalarType.integer_type()))
     parent.addchild(Literal("512", ScalarType.integer_type()))
     parent.addchild(Literal("1", ScalarType.integer_type()))
@@ -149,7 +149,7 @@ def test_chunkloop_trans_validate4():
     chunktrans = ChunkLoopTrans()
     # Construct a Loop that writes to the Loop variable inside its body
     symbol_table = SymbolTable()
-    parent = Loop()
+    parent = Loop(DataSymbol("i", ScalarType.integer_type()))
     parent.addchild(Literal("1", ScalarType.integer_type()))
     parent.addchild(Literal("512", ScalarType.integer_type()))
     parent.addchild(Literal("1", ScalarType.integer_type()))
@@ -174,7 +174,7 @@ def test_chunkloop_trans_validate4():
 
     # Construct a loop that writes to the variable used for the initial value
     symbol_table = SymbolTable()
-    parent = Loop()
+    parent = Loop(DataSymbol("i", ScalarType.integer_type()))
     parent.addchild(Literal("1", ScalarType.integer_type()))
     parent.addchild(Literal("512", ScalarType.integer_type()))
     parent.addchild(Literal("1", ScalarType.integer_type()))
@@ -204,7 +204,7 @@ def test_chunkloop_trans_validate4():
 
     # Construct a loop that writes to the variable used for the final value
     symbol_table = SymbolTable()
-    parent = Loop()
+    parent = Loop(DataSymbol("i", ScalarType.integer_type()))
     parent.addchild(Literal("1", ScalarType.integer_type()))
     parent.addchild(Literal("512", ScalarType.integer_type()))
     parent.addchild(Literal("1", ScalarType.integer_type()))
@@ -239,7 +239,7 @@ def test_chunkloop_trans_validate5():
     chunktrans = ChunkLoopTrans()
     # Construct a loop that reads from the loop variable (this is allowed)
     symbol_table = SymbolTable()
-    parent = Loop()
+    parent = Loop(DataSymbol("i", ScalarType.integer_type()))
     parent.addchild(Literal("1", ScalarType.integer_type()))
     parent.addchild(Literal("512", ScalarType.integer_type()))
     parent.addchild(Literal("1", ScalarType.integer_type()))
@@ -268,7 +268,7 @@ def test_chunkloop_trans_validate6():
     to a loop that has a non-integer loop step'''
     chunktrans = ChunkLoopTrans()
     # Construct a Loop with a non-integer step
-    parent = Loop()
+    parent = Loop(DataSymbol("i", ScalarType.integer_type()))
     parent.addchild(Literal("1.0", ScalarType.real_double_type()))
     parent.addchild(Literal("2560.0", ScalarType.real_double_type()))
     parent.addchild(Literal("1.1", ScalarType.real_double_type()))
@@ -287,7 +287,7 @@ def test_chunkloop_trans_validate7():
     # Construct a Schedule containing a CodeBlock
     sched = Schedule()
     sched.addchild(CodeBlock([], CodeBlock.Structure.STATEMENT))
-    parent = Loop()
+    parent = Loop(DataSymbol("i", ScalarType.integer_type()))
     parent.addchild(Literal("1", ScalarType.integer_type()))
     parent.addchild(Literal("512", ScalarType.integer_type()))
     parent.addchild(Literal("1", ScalarType.integer_type()))

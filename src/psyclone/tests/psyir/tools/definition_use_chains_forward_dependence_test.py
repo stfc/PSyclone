@@ -1324,7 +1324,7 @@ def test_if_else_behaviour(fortran_reader):
     references = psyir.walk(Reference)
     # Find the next accesses of some_array(1,4,9) from
     # the lhs of the first assignment.
-    next_accesses = references[4].next_accesses()
+    next_accesses = references[7].next_accesses()
 
     # The next accesses should be the some_array(1,4,9) access in
     # if(tmp3 .or. some_array(1, 4, 9) and to the same reference.
@@ -1332,5 +1332,5 @@ def test_if_else_behaviour(fortran_reader):
     # find any accesses to the some_array writes in the else_bodies
     # of the containing IfBlock nodes
     assert len(next_accesses) == 2
-    assert next_accesses[0] is references[3]
-    assert next_accesses[1] is references[4]
+    assert next_accesses[0] is references[6]
+    assert next_accesses[1] is references[7]

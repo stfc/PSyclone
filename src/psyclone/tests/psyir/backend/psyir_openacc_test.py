@@ -133,7 +133,7 @@ end module test''')
             "    grid%data(i) = i\n"
             "    grid%weights(i) = 1.0\n"
             "  enddo\n"
-            "  !$acc end data\n" in gen)
+            "  !$acc end data\n" == gen)
 
 
 @pytest.mark.parametrize("default_present, expected",

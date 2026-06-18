@@ -90,7 +90,7 @@ def test_omptask_validate(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     trans = OMPTaskTrans()
     loops = psyir.walk(Loop)
-    loops[1].children[3].children.append(CodeBlock([], None))
+    loops[1].loop_body.children.append(CodeBlock([], None))
     with pytest.raises(GenerationError) as excinfo:
         trans.apply(loops[1])
     assert ("OMPTaskTransformation cannot be applied to a region containing "
