@@ -182,7 +182,9 @@ def test_get_stencil():
 
 @pytest.mark.parametrize("fortran_string", [
     "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)",
-    "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, STENCIL(REGION))"])
+    "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, STENCIL(REGION))",
+    "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, NDATA='THREE')",
+    "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, NLEVELS='4')"])
 def test_fortran_string(fortran_string):
     '''Test that the fortran_string method works as expected. Test with
     and without a stencil.

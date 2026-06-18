@@ -109,7 +109,7 @@ class FieldArgMetadata(ScalarArgMetadata):
             fparser2_tree, cls.function_space_arg_index)
         stencil = cls.get_stencil(fparser2_tree)
         super()._validate_named_args(fparser2_tree,
-                                     ["nlevels", "ndata", "mesh"])
+                                     ["nlevels", "ndata"])
         nlevels = cls.get_named_arg(fparser2_tree, "nlevels")
         ndata = cls.get_named_arg(fparser2_tree, "ndata")
         return (datatype, access, function_space, stencil, nlevels, ndata)
@@ -153,11 +153,16 @@ class FieldArgMetadata(ScalarArgMetadata):
         '''
         :returns: the metadata represented by this class as Fortran.
         '''
+        result = (f"arg_type({self.form}, {self.datatype}, {self.access}, "
+                  f"{self.function_space}")
         if self.stencil:
-            return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
-                    f"{self.function_space}, stencil({self.stencil}))")
-        return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
-                f"{self.function_space})")
+            result += f", stencil({self.stencil})"
+        if self.nlevels:
+            result += f", nlevels='{self.nlevels}'"
+        if self.ndata and self.ndata != "1":
+            result += f", ndata='{self.ndata}'"
+        result += ")"
+        return result
 
     @staticmethod
     def check_datatype(value):

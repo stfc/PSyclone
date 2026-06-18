@@ -49,47 +49,44 @@ class InterGridArgMetadata(FieldArgMetadata):
     '''Class to capture LFRic kernel metadata information for an intergrid
     argument.
 
-    :param str datatype: the datatype of this InterGrid argument
-        (GH_INTEGER, ...).
-    :param str access: the way the kernel accesses this intergrid
+    :param datatype: the datatype of this InterGrid argument (GH_INTEGER, ...).
+    :param access: the way the kernel accesses this intergrid
         argument (GH_WRITE, ...).
-    :param str function_space: the function space that this
+    :param function_space: the function space that this
         InterGrid is on (W0, ...).
-    :param str mesh_arg: the type of mesh that this InterGrid arg
+    :param mesh_arg: the type of mesh that this InterGrid arg
         is on (coarse or fine).
-    :param Optional[str] stencil: the type of stencil used by the
+    :param stencil: the type of stencil used by the
         kernel when accessing this InterGrid arg.
 
     '''
-    # The relative position of LFRic mesh metadata. Metadata for an
-    # inter-grid argument is provided in the following format
-    # 'arg_type(form, datatype, access, function_space, [stencil],
-    # mesh)'. The stencil argument is optional and its index
-    # (stencil_arg_index) is therefore 4 if it exists and the index of
-    # the mesh argument is 4 or 5 depending on whether there is a
-    # stencil argument. As the mesh argument index value is not known
-    # beforehand, it is not set. Fixed index values not provided here
-    # are common to the parent classes and are inherited from them.
-    stencil_arg_index = 4
     # The name to use for any exceptions.
     check_name = "inter-grid"
     # The number of arguments in the language-level metadata (min and
     # max values).
-    nargs = (5, 6)
+    nargs = (5, 8)
 
     # The fparser2 class that captures this metadata.
     fparser2_class = Fortran2003.Structure_Constructor
 
-    def __init__(self, datatype, access, function_space, mesh_arg,
-                 stencil=None):
-        super().__init__(datatype, access, function_space, stencil=stencil)
+    def __init__(self,
+                 datatype: str,
+                 access: str,
+                 function_space: str,
+                 mesh_arg: str,
+                 stencil: Optional[str] = None,
+                 nlevels: Optional[str] = None,
+                 ndata: Optional[str] = "1"):
+        super().__init__(datatype, access, function_space, stencil=stencil,
+                         nlevels=nlevels, ndata=ndata)
         self.mesh_arg = mesh_arg
 
     @classmethod
     def _get_metadata(
             cls,
             fparser2_tree: Fortran2003.Structure_Constructor
-    ) -> tuple[str, str, str, str, Optional[str]]:
+    ) -> tuple[str, str, str, str,
+               Optional[str], Optional[str], Optional[str]]:
         '''Extract the required metadata from the fparser2 tree and return it
         as strings. Also check that the metadata is in the expected form (but
         do not check the metadata values as that is done separately).
@@ -98,29 +95,31 @@ class InterGridArgMetadata(FieldArgMetadata):
             for this argument.
 
         :returns: a tuple containing the datatype, access, function
-            space, mesh and stencil metadata.
+            space, mesh, stencil, nlevels and ndata metadata.
 
         '''
         datatype, access = cls._get_datatype_access_metadata(fparser2_tree)
-        function_space = cls.get_arg(
-            fparser2_tree, cls.function_space_arg_index)
+        function_space = cls.get_arg(fparser2_tree,
+                                     cls.function_space_arg_index)
 
-        cls._validate_named_args(fparser2_tree, ["mesh_arg"])
+        cls._validate_named_args(fparser2_tree, ["mesh_arg", "nlevels",
+                                                 "ndata"])
         stencil = cls.get_stencil(fparser2_tree)
-        mesh_arg = cls.get_named_arg(fparser2_tree, "mesh_arg")
 
-        return (datatype, access, function_space, mesh_arg, stencil)
+        mesh_arg = cls.get_named_arg(fparser2_tree, "mesh_arg")
+        nlevels = cls.get_named_arg(fparser2_tree, "nlevels")
+        ndata = cls.get_named_arg(fparser2_tree, "ndata")
+
+        return (datatype, access, function_space, mesh_arg, stencil, nlevels,
+                ndata)
 
     def fortran_string(self) -> str:
         '''
         :returns: the metadata represented by this class as Fortran.
         '''
-        if self.stencil:
-            return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
-                    f"{self.function_space}, stencil({self.stencil}), "
-                    f"mesh_arg={self.mesh_arg})")
-        return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
-                f"{self.function_space}, mesh_arg={self.mesh_arg})")
+        result = super().fortran_string()
+        # Have to remove closing ')' before adding mesh_arg info.
+        return (f"{result[:-1]}, mesh_arg={self.mesh_arg})")
 
     @property
     def mesh_arg(self) -> str:
@@ -130,10 +129,9 @@ class InterGridArgMetadata(FieldArgMetadata):
         return self._mesh_arg
 
     @mesh_arg.setter
-    def mesh_arg(self, value):
+    def mesh_arg(self, value: str) -> None:
         '''
-        :param str value: set the mesh type to the \
-            specified value.
+        :param value: set the mesh type to the specified value.
         '''
         const = LFRicConstants()
         InterGridArgMetadata.validate_scalar_value(

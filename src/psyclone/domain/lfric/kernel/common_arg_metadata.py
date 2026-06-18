@@ -38,7 +38,7 @@ metadata associated with a generic LFRic argument. Supports the
 creation, modification and Fortran output of such an argument.
 
 '''
-from typing import Optional
+from typing import Optional, Union
 from fparser.two import Fortran2003
 from fparser.two import utils as fp_utils
 
@@ -66,19 +66,17 @@ class CommonArgMetadata(CommonMetadata):
                 f"'{type(value).__name__}'.")
 
     @staticmethod
-    def check_nargs(fparser2_tree, nargs):
+    def check_nargs(fparser2_tree: Union[Fortran2003.Part_Ref,
+                                         Fortran2003.Structure_Constructor],
+                    nargs: Union[int, tuple[int, int]]) -> None:
         '''Checks that the metadata has the number of arguments specified
         by the 'nargs' argument, otherwise an exception is raised.
 
         :param fparser2_tree: fparser2 tree capturing a metadata argument.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
-            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
-        :param nargs: the number of expected arguments. This can \
-            either be a single value or a list containing a lower and an \
-            upper value.
-        :type nargs: int or Tuple[int, int]
+        :param nargs: the number of expected arguments. This can either be
+            a single value or a list containing a lower and an upper value.
 
-        :raises ValueError: if the kernel metadata does not contain \
+        :raises ValueError: if the kernel metadata does not contain
             the expected number of arguments (nargs).
 
         '''
@@ -159,7 +157,8 @@ class CommonArgMetadata(CommonMetadata):
         '''
         Searches the supplied metadata for 'name=value' expressions and
         returns the value corresponding to the supplied name if found.
-        Otherwise returns None.
+        Otherwise returns None. If the value is a string then it is
+        lower-cased.
 
         :param fparser2_tree: the parse tree of the metadata.
         :param name: the name of the metadata element that we want.
@@ -174,7 +173,7 @@ class CommonArgMetadata(CommonMetadata):
                               Fortran2003.Char_Literal_Constant):
                     # TODO fparser/#295 - fparser keeps the quotation marks
                     # in character strings.
-                    return text[1:-1]
+                    return text[1:-1].lower()
                 return text
         return None
 
