@@ -809,8 +809,8 @@ class LFRicArgDescriptor(Descriptor):
     @property
     def nlevels(self) -> str:
         '''
-        :returns: a label identifying the number of vertical levels
-                  associated with this argument.
+        :returns: a label (or integer, encoded as a string) identifying the
+            number of vertical levels associated with this argument.
         '''
         return self._nlevels
 
@@ -818,45 +818,41 @@ class LFRicArgDescriptor(Descriptor):
     def ndata(self) -> str:
         '''
         :returns: a label (or integer, encoded as a string) identifying the
-                  number of data values associated with each DoF of the
-                  argument.
+            number of data values associated with each DoF of the argument.
         '''
         return self._ndata
 
     @property
-    def vector_size(self):
+    def vector_size(self) -> int:
         '''
         Returns the vector size of the argument. This will be 1 if ``*n``
         has not been specified for all argument types except scalars
         (their vector size is set to 0).
 
         :returns: vector size of the argument.
-        :rtype: int
 
         '''
         return self._vector_size
 
     @property
-    def array_ndims(self):
+    def array_ndims(self) -> int:
         '''
         Returns the array rank of the argument. This will be 1 if ``*n``
         has not been specified for all argument types except scalars
         (their array rank is set to 0).
 
         :returns: array rank of the argument.
-        :rtype: int
 
         '''
         return self._array_ndims
 
-    def __str__(self):
+    def __str__(self) -> str:
         '''
         Creates a string representation of the argument descriptor. This
         is type and access for scalars with the addition of function
         space(s) for fields and operators.
 
         :returns: string representation of the argument descriptor.
-        :rtype: str
 
         :raises InternalError: if an invalid argument type is passed in.
 
