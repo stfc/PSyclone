@@ -361,7 +361,7 @@ class AdjointVisitor(PSyIRVisitor):
         new_node.step_expr = negate_expr(new_node.step_expr.copy())
 
         # Determine the adjoint of the loop body
-        new_node.children[3] = self._visit(node.loop_body)
+        new_node.children[4] = self._visit(node.loop_body)
         return new_node
 
     def ifblock_node(self, node):

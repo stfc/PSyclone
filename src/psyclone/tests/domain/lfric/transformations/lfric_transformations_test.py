@@ -3869,6 +3869,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
+            6*indent + ref + "[name:'df']\n" +
             6*indent + ref + "[name:'uninitialised_loop0_start']\n" +
             6*indent + ref + "[name:'uninitialised_loop0_stop']\n" +
             6*indent + lit_one +
@@ -3885,6 +3886,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='nannexed']\n" +
+            6*indent + ref + "[name:'df']\n" +
             6*indent + ref + "[name:'uninitialised_loop1_start']\n" +
             6*indent + ref + "[name:'uninitialised_loop1_stop']\n" +
             6*indent + lit_one +
@@ -3900,6 +3902,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
+            6*indent + ref + "[name:'df']\n" +
             6*indent + ref + "[name:'uninitialised_loop2_start']\n" +
             6*indent + ref + "[name:'uninitialised_loop2_stop']\n" +
             6*indent + lit_one +
@@ -3921,6 +3924,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
+            6*indent + ref + "[name:'df']\n" +
             6*indent + ref + "[name:'uninitialised_loop0_start']\n" +
             6*indent + ref + "[name:'uninitialised_loop0_stop']\n" +
             6*indent + lit_one +
@@ -3936,6 +3940,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
+            6*indent + ref + "[name:'df']\n" +
             6*indent + ref + "[name:'uninitialised_loop1_start']\n" +
             6*indent + ref + "[name:'uninitialised_loop1_stop']\n" +
             6*indent + lit_one +
@@ -3951,6 +3956,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
+            6*indent + ref + "[name:'df']\n" +
             6*indent + ref + "[name:'uninitialised_loop2_start']\n" +
             6*indent + ref + "[name:'uninitialised_loop2_stop']\n" +
             6*indent + lit_one +

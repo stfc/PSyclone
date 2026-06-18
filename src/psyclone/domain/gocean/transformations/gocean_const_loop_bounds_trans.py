@@ -253,7 +253,7 @@ class GOConstLoopBoundsTrans(Transformation):
                 start_expr = "1"
             psyir = fortran_reader.psyir_from_expression(
                     start_expr, node.symbol_table)
-            loop.children[0].replace_with(psyir)
+            loop.start_expr.replace_with(psyir)
 
             # Set the upper bound
             stop_expr = bounds["stop"].format(start='2', stop=stop)
@@ -262,4 +262,4 @@ class GOConstLoopBoundsTrans(Transformation):
                 stop_expr = "1"
             psyir = fortran_reader.psyir_from_expression(
                     stop_expr, node.symbol_table)
-            loop.children[1].replace_with(psyir)
+            loop.stop_expr.replace_with(psyir)

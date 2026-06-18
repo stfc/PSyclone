@@ -116,6 +116,8 @@ class LFRicLoop(PSyLoop):
             self.variable = ischedule.symbol_table.find_or_create_tag(
                 tag, root_name=suggested_name, symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+        else:
+            self.variable = DataSymbol("null", ScalarType.integer_type())
 
         # The loop bounds names are given by the number of previous LFRic loops
         # already present in the Schedule. Since this are inserted in order it
