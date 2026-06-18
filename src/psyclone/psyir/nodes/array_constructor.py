@@ -38,7 +38,7 @@
 
 from psyclone.core import VariablesAccessMap
 from psyclone.psyir.symbols import (
-    Symbol, UnresolvedType, ScalarType, ArrayType)
+    Symbol, UnresolvedType, ScalarType, ArrayType, DataTypeSymbol)
 from psyclone.psyir.nodes.datanode import DataNode
 
 
@@ -100,6 +100,9 @@ class ArrayConstructor(DataNode):
             elif isinstance(child.datatype, ScalarType):
                 elem_type = child.datatype
                 break
+            elif isinstance(child.datatype, DataTypeSymbol):
+                elem_type = child.datatype
+                break
         return ArrayType(elem_type, [ArrayType.Extent.ATTRIBUTE])
 
     def node_str(self, colour=True):
@@ -112,15 +115,12 @@ class ArrayConstructor(DataNode):
         :returns: description of this PSyIR node.
         :rtype: str
         '''
-        elems = ", ".join([child.node_str(colour=colour)
-                           for child in self.children])
-        return (f"{self.coloured_name(colour)}"
-                f"[{elems}]")
+        return f"{self.coloured_name(colour)}[]"
 
     def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
         :returns: a set of all the symbols accessed inside this
-            ArrayConsructor.
+            ArrayConstructor.
         '''
         return super().get_all_accessed_symbols()
 

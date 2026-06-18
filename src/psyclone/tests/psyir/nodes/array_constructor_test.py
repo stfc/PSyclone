@@ -90,9 +90,6 @@ def test_array_construction_reference_accesses():
 def test_array_constructor_node_str():
     ''' Check the node_str method of the ArrayConstructor class.'''
     lit = Literal("1", ScalarType.integer_single_type())
-    coloured_lit = colored("Literal", Literal._colour)
     array_cons = ArrayConstructor.create(lit)
     coloured_array_cons = colored("ArrayConstructor", ArrayConstructor._colour)
-    assert (f"{coloured_array_cons}[{coloured_lit}"
-            "[value:'1', Scalar<INTEGER, SINGLE>]]"
-            in str(array_cons))
+    assert f"{coloured_array_cons}[]" == array_cons.node_str()
