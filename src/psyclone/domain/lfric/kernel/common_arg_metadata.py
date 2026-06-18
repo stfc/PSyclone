@@ -40,7 +40,7 @@ creation, modification and Fortran output of such an argument.
 '''
 from typing import Optional
 from fparser.two import Fortran2003
-from fparser.two.utils import walk as fp_walk
+from fparser.two import utils as fp_utils
 
 from psyclone.domain.lfric.kernel.common_metadata import CommonMetadata
 
@@ -153,20 +153,21 @@ class CommonArgMetadata(CommonMetadata):
             return None
 
     @staticmethod
-    def get_named_arg(fparser2_tree: Fortran2003.Component_Spec,
-                      name: str) -> Optional[str]:
+    def get_named_arg(fparser2_tree: fp_utils.Base,
+                      name: str
+                      ) -> Optional[str]:
         '''
         Searches the supplied metadata for 'name=value' expressions and
         returns the value corresponding to the supplied name if found.
         Otherwise returns None.
 
-        :param fparser2_tree: the parse tree of the metadata element.
+        :param fparser2_tree: the parse tree of the metadata.
         :param name: the name of the metadata element that we want.
 
-        :returns: the value of the named metadata element or None.
+        :returns: the value of the named metadata element or None if not found.
 
         '''
-        for child in fp_walk(fparser2_tree, Fortran2003.Component_Spec):
+        for child in fp_utils.walk(fparser2_tree, Fortran2003.Component_Spec):
             if child.children[0].tostr().lower() == name:
                 text = child.children[1].tostr()
                 if isinstance(child.children[1],
@@ -178,13 +179,21 @@ class CommonArgMetadata(CommonMetadata):
         return None
 
     @staticmethod
-    def _validate_named_args(fparser2_tree: Fortran2003.Component_Spec,
+    def _validate_named_args(fparser2_tree: fp_utils.Base,
                              valid_names: list[str]) -> None:
         '''
+        Checks that any named arguments in the supplied parse tree match
+        with the names in `valid_names`.
+
+        :raises ValueError: if an unsupported named argument is found in
+            the supplied metadata.
         '''
-        for child in fp_walk(fparser2_tree, Fortran2003.Component_Spec):
-            if child.children[0].tostr().lower() not in valid_names:
-                raise ValueError("TODO")
+        for child in fp_utils.walk(fparser2_tree, Fortran2003.Component_Spec):
+            name = child.children[0].tostr().lower()
+            if name not in valid_names:
+                raise ValueError(
+                    f"Kernel metadata contains keyword argument '{name}' "
+                    f"which is not one of the valid options: {valid_names}.")
 
 
 __all__ = ["CommonArgMetadata"]

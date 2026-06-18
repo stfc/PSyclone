@@ -130,3 +130,41 @@ def test_get_arg():
     assert CommonArgMetadata.get_arg(fparser_tree, 1) == "GH_REAL"
     assert CommonArgMetadata.get_arg(fparser_tree, 2) == "GH_READ"
     assert CommonArgMetadata.get_arg(fparser_tree, 3) is None
+
+
+def test_get_named_arg():
+    '''Tests for the get_named_arg() method.'''
+    test_cls = CommonArgMetadata
+    fparser_tree = CommonArgMetadata.create_fparser2(
+        "arg_type(GH_FIELD, GH_REAL, GH_READ)", Fortran2003.Part_Ref)
+    # No named arguments so should return None
+    assert test_cls.get_named_arg(fparser_tree, "red") is None
+    # Named argument with a string value
+    fparser_tree2 = CommonArgMetadata.create_fparser2(
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, nlevels='crazy')",
+        Fortran2003.Component_Spec)
+    assert test_cls.get_named_arg(fparser_tree2, "red") is None
+    assert test_cls.get_named_arg(fparser_tree2, "nlevels") == "crazy"
+    # Named argument with a parameter value
+    fparser_tree3 = test_cls.create_fparser2(
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, mesh=GH_FINE)",
+        Fortran2003.Component_Spec)
+    assert test_cls.get_named_arg(fparser_tree3, "mesh") == "GH_FINE"
+
+
+def test_validate_named_args():
+    '''Test that the _validate_named_args() method behaves as expected.'''
+    fparser_tree = CommonArgMetadata.create_fparser2(
+        "arg_type(GH_FIELD, GH_REAL, GH_READ)", Fortran2003.Part_Ref)
+    # No named arguments and no valid names should be fine.
+    CommonArgMetadata._validate_named_args(fparser_tree, [])
+    # No named arguments but with list of valid names should be fine.
+    CommonArgMetadata._validate_named_args(fparser_tree, ["blue"])
+    fparser_tree2 = CommonArgMetadata.create_fparser2(
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, MESH_arg=GH_FINE)",
+        Fortran2003.Structure_Constructor)
+    CommonArgMetadata._validate_named_args(fparser_tree2, ["mesh_arg"])
+    with pytest.raises(ValueError) as err:
+        CommonArgMetadata._validate_named_args(fparser_tree2, ["mesh"])
+    assert ("metadata contains keyword argument 'mesh_arg' which is not one "
+            "of the valid options: ['mesh']" in str(err.value))
