@@ -47,8 +47,37 @@ from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 
 
 class OMPParallelLoopTrans(OMPLoopTrans):
-    ''' Adds an OpenMP PARALLEL DO directive to a loop.
+    ''' Adds an OpenMP PARALLEL DO directive to a loop. For example:
 
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.psyir.backend.fortran import FortranWriter
+    >>> psyir = FortranReader().psyir_from_source("""
+    ... program do_loop
+    ...     real, dimension(10) :: A
+    ...     integer i
+    ...     do i = 1, 10
+    ...       A(i) = i
+    ...     end do
+    ... end program do_loop
+    ... """)
+    >>> from psyclone.psyir.nodes import Loop
+    >>> from psyclone.transformations import OMPParallelLoopTrans
+    >>> trans = OMPParallelLoopTrans()
+    >>> trans.apply(psyir.walk(Loop)[0])
+    >>> print(FortranWriter()(psyir))
+    program do_loop
+      real, dimension(10) :: a
+      integer :: i
+    <BLANKLINE>
+      !$omp parallel do default(shared) private(i) schedule(auto)
+      do i = 1, 10, 1
+        a(i) = i
+      enddo
+      !$omp end parallel do
+    <BLANKLINE>
+    end program do_loop
+    <BLANKLINE>
+    
     '''
 
     def __str__(self):
