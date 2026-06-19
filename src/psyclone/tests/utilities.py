@@ -525,8 +525,8 @@ def get_base_path(api: str = "") -> str:
     try:
         dir_name = api_2_path[api]
     except KeyError as err:
-        raise RuntimeError(f"The API '{api}' is not supported. "
-                           f"Supported types are {api_2_path.keys()}.") \
+        raise ValueError(f"The API '{api}' is not supported. "
+                         f"Supported types are {api_2_path.keys()}.") \
                            from err
     return os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "test_files", dir_name)
@@ -581,12 +581,19 @@ def get_invoke(algfile: str,
         raise RuntimeError("Either the index or the name of the "
                            "requested invoke must be specified")
 
+    filepath = os.path.join(get_base_path(api), algfile)
+
+    if api == "gocean-examples":
+        # gocean-examples in this utility is a shorthand for using the gocean
+        # API but from its examples directory as a basepath
+        api = "gocean"
     config = Config.get()
     config.api = api
+
     # Ensure infrastructure module files can be discovered.
     config.include_paths.append(get_infrastructure_path(api))
 
-    _, info = parse(os.path.join(get_base_path(api), algfile), api=api)
+    _, info = parse(filepath, api=api)
     psy = PSyFactory(api, distributed_memory=dist_mem).create(info)
     if name:
         invoke = psy.invokes.get(name)
@@ -616,20 +623,9 @@ def get_psylayer_schedule(
     :returns: the associated psylayer schedule.
 
     '''
-    filepath = os.path.join(get_base_path(api), algfile)
-    config = Config.get()
-    if api == "gocean-examples":
-        # gocean-examples in this utility is a shorthand for using the gocean
-        # API but from its examples directory as a basepath
-        api = "gocean"
-    config.api = api
-
-    _, info = parse(filepath, api=api)
-    psy = PSyFactory(api, distributed_memory=dist_mem).create(info)
-    if invoke_name:
-        return psy.invokes.get(invoke_name).schedule
-    else:
-        return psy.invokes.invoke_list[0].schedule
+    idx = 0 if invoke_name == "" else None
+    _, invoke = get_invoke(algfile, api, idx, invoke_name, dist_mem)
+    return invoke.schedule
 
 
 def get_examples_path(relative_path: str):

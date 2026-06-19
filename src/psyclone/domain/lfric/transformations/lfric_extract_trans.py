@@ -47,7 +47,7 @@ from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
 class LFRicExtractTrans(ExtractTrans):
     ''' LFRic API application of ExtractTrans transformation
-    to extract code into a stand-alone program. For example:
+    to extract code into a stand-alone program.
 
     '''
 

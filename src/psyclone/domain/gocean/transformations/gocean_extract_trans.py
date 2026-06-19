@@ -46,7 +46,7 @@ from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
 
 class GOceanExtractTrans(ExtractTrans):
-    ''' GOcean1.0 API application of ExtractTrans transformation
+    ''' GOcean API application of ExtractTrans transformation
     to extract code into a stand-alone program. For example:
 
     >>> from psyclone.tests.utilities import get_psylayer_schedule
@@ -63,7 +63,7 @@ class GOceanExtractTrans(ExtractTrans):
 
     # ------------------------------------------------------------------------
     def validate(self, node_list, options=None):
-        ''' Perform GOcean1.0 API specific validation checks before applying
+        ''' Perform GOcean API specific validation checks before applying
         the transformation.
 
         :param node_list: the list of Node(s) we are checking.

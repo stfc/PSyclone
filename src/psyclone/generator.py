@@ -679,7 +679,7 @@ def main(arguments):
     # Record any profiling options.
     if args.profile:
         try:
-            Profiler.set_options(args.profile, api)
+            Profiler.set_options(args.profile, args.psykal_dsl is not None)
         except ValueError as err:
             print(f"Invalid profiling option: {err}", file=sys.stderr)
             sys.exit(1)
