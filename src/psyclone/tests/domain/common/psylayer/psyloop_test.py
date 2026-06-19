@@ -123,8 +123,8 @@ def test_psyloop_equality():
         Reference(i_sym))
     sched1.addchild(child_node)
     loop1 = PSyLoop.create(loop_sym, start, stop, step, [])
-    loop1.children[3].detach()
-    loop1.addchild(sched1, 3)
+    loop1.loop_body.detach()
+    loop1.addchild(sched1)
     start2 = start.copy()
     stop2 = stop.copy()
     step2 = step.copy()
@@ -137,8 +137,8 @@ def test_psyloop_equality():
         Reference(i_sym))
     sched2.addchild(child_node2)
     loop2 = PSyLoop.create(loop_sym, start2, stop2, step2, [])
-    loop2.children[3].detach()
-    loop2.addchild(sched2, 3)
+    loop2.loop_body.detach()
+    loop2.addchild(sched2)
     assert loop1 == loop2
 
     # Set loop type for loop2
@@ -152,8 +152,8 @@ def test_psyloop_equality():
     stop2.detach()
     start2.detach()
     loop2 = PSyLoop.create(loop_sym, start2, stop2, step2, [])
-    loop2.children[3].detach()
-    loop2.addchild(sched2, 3)
+    loop2.loop_body.detach()
+    loop2.addchild(sched2)
     loop2._field = "a"
     assert loop1 != loop2
 

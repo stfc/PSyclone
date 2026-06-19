@@ -471,23 +471,13 @@ class Loop(Statement):
         '''
         var_accesses = VariablesAccessMap()
 
-        # Only add the loop variable and start/stop/step values if this is
-        # not an LFRic domain loop. We need to access the variable directly
-        # to avoid a crash in the getter if the loop variable is not defined.
-        if self.variable:
-            # It is important to first add the WRITE access, since this way
-            # the dependency analysis for declaring openmp private variables
-            # will automatically declare the loop variables to be private
-            # (write access before read)
-            var_accesses.add_access(Signature(self.variable.name),
-                                    AccessType.WRITE, self)
-            var_accesses.add_access(Signature(self.variable.name),
-                                    AccessType.READ, self)
-
-            # Accesses of the start/stop/step expressions
-            var_accesses.update(self.start_expr.reference_accesses())
-            var_accesses.update(self.stop_expr.reference_accesses())
-            var_accesses.update(self.step_expr.reference_accesses())
+        var_accesses.add_access(Signature(self.variable.name),
+                                AccessType.WRITE, self)
+        var_accesses.add_access(Signature(self.variable.name),
+                                AccessType.READ, self)
+        var_accesses.update(self.start_expr.reference_accesses())
+        var_accesses.update(self.stop_expr.reference_accesses())
+        var_accesses.update(self.step_expr.reference_accesses())
 
         for child in self.loop_body.children:
             var_accesses.update(child.reference_accesses())
