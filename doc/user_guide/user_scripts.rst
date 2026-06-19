@@ -89,6 +89,24 @@ and/or kernels) contained within the provided tree.
 The :ref:`examples section<examples>` provides a list of psyclone user scripts
 and associated usage instructions for multiple applications.
 
+Arguments for Scripts
+---------------------
+Scripts can take optional keyword arguments specified on the command line
+using the option `--script-kwargs`. The keyword arguments are specified
+as separate `keyword:value` pairs, separate by `,`. For example:
+
+.. code-block:: shell
+
+    psyclone -s ./optimise.py input_source.f90 \
+             --scripts-kwargs "omp: True, tiling: [4,4]"
+
+This will result in the additional keyword arguments for any transformation call:
+
+.. code-block:: python
+
+    def trans(psyir, omp: bool, tiling: list[int]):
+        # Modify psyir tree
+
 
 .. _sec_script_globals:
 
