@@ -42,12 +42,12 @@ from psyclone import errors
 class DummyPSycloneError(errors.PSycloneError):
     ''' Provides a dummy PSyclone specific error class as for use in this test
     '''
-    def __init__(self):
-        super().__init__(self, "")
-        self.value = "Dummy PSyclone Error"
+    def __init__(self, value):
+        super().__init__(value)
+        self.value = f"Dummy PSyclone Error: {value}"
 
 
-def test_exception_repr():
+def test_exception_str_and_repr():
     ''' Test the properties of Exception classes defined by PSyclone. '''
 
     psy_exception_classes = [
@@ -65,3 +65,8 @@ def test_exception_repr():
         # inherited from the parent Exception class
         assert psy_except.__str__ is not Exception.__str__
         assert psy_except.__repr__ is not Exception.__repr__
+
+    # Now test that an example error class behaves as expected
+    testerror = DummyPSycloneError("my msg")
+    assert str(testerror) == "Dummy PSyclone Error: my msg"
+    assert repr(testerror) == "DummyPSycloneError()"
