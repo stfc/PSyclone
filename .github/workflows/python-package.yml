@@ -68,7 +68,11 @@ jobs:
           python-version: '3.14'
       - run: sudo apt-get install -y graphviz doxygen
       - run: python -m pip install --upgrade pip
-      - run: pip install .[doc]
+      - run: |
+          # Uncomment the below to use the submodule version of fparser rather
+          # than the latest release from pypi.
+          pip install external/fparser
+          pip install .[doc]
       # Now we can check for warnings and broken links
       - run: cd doc; make html SPHINXOPTS="-W --keep-going"
       - run: cd doc; make linkcheck
