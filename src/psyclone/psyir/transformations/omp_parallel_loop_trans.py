@@ -77,7 +77,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
     <BLANKLINE>
     end program do_loop
     <BLANKLINE>
-    
+
     '''
 
     def __str__(self):

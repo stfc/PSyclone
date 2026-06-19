@@ -1009,7 +1009,7 @@ class ACCParallelTrans(ParallelRegionTrans):
 
 class LFRicAsyncHaloExchangeTrans(Transformation):
     '''Splits a synchronous halo exchange into a halo exchange start and
-    halo exchange end. For example:
+    halo exchange end.
 
     '''
 
