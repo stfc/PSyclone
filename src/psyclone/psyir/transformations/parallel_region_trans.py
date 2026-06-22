@@ -79,8 +79,7 @@ class ParallelRegionTrans(RegionTrans, ABC):
         '''
 
     def _check_symbol_table_vars(
-            self,
-            region_node: RegionDirective,
+            self, region_node: RegionDirective,
             force_private: Iterable[str] = ()) -> set[DataSymbol]:
         '''
         Check that the symbol table of the provided region node contains the
