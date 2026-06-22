@@ -40,9 +40,8 @@ This module contains the LFRicArgDescriptor class and related constants
 and properties.
 '''
 
-# Imports
-
 import os
+from typing import Optional
 
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
@@ -807,10 +806,12 @@ class LFRicArgDescriptor(Descriptor):
                             f"'{self._argument_type}'.")
 
     @property
-    def nlevels(self) -> str:
+    def nlevels(self) -> Optional[str]:
         '''
         :returns: a label (or integer, encoded as a string) identifying the
-            number of vertical levels associated with this argument.
+            number of vertical levels associated with this argument or None
+            if the default (the number of levels associated with the first
+            kernel argument) is to be used.
         '''
         return self._nlevels
 
