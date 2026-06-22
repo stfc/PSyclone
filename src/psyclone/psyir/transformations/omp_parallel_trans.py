@@ -34,8 +34,8 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         A. B. G. Chalk STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic, J. G. Wallwork, O. Brunt and L. Turner, Met Office
-#          S. Valat, Inria / Laboratoire Jean Kuntzmann
+# Modified I. Kavcic, J. G. Wallwork, O. Brunt and L. Turner, B. Went,
+#          Met Office, S. Valat, Inria / Laboratoire Jean Kuntzmann
 #          M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean Kuntzmann
 #          J. Dendy, Met Office
 '''This module provides the OMPParallelTrans transformation.'''
@@ -140,6 +140,8 @@ class OMPParallelTrans(ParallelRegionTrans):
         Surrounds the provided node list with an OpenMP Parallel region.
 
         :param nodes: list of Nodes to put within parallel region.
+        :param force_private: list of symbols explicitly requested to
+            be private.
         '''
         # TODO #2668: Remove options.
         super().apply(nodes, options, **kwargs)
@@ -149,7 +151,7 @@ class OMPParallelTrans(ParallelRegionTrans):
         if force_private:
             new_region_directive = nodes[0].ancestor(RegionDirective)
             if new_region_directive:
-                region_set = super()._check_symbol_table_vars(
+                region_set = self._check_symbol_table_vars(
                         new_region_directive,
                         force_private)
                 if region_set:

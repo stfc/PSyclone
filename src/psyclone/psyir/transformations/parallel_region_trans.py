@@ -34,8 +34,8 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         A. B. G. Chalk, V. K. Atkinson, STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic, J. G. Wallwork, O. Brunt and L. Turner, Met Office
-#          S. Valat, Inria / Laboratoire Jean Kuntzmann
+# Modified I. Kavcic, J. G. Wallwork, O. Brunt and L. Turner, B. Went,
+#          Met Office, S. Valat, Inria / Laboratoire Jean Kuntzmann
 #          M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean Kuntzmann
 #          J. Dendy, Met Office
 
@@ -100,9 +100,9 @@ class ParallelRegionTrans(RegionTrans, ABC):
                 # This is not an error, but we will log the missed string
                 logger = logging.getLogger(__name__)
                 logger.warning(
-                    "%s has been provided with the '%s' symbol name in "
-                    "the 'force_private' option, but there is no such "
-                    "symbol in this scope.", err, symbol_name)
+                    f"Error: {err} This has been provided with the "
+                    f"'{symbol_name}' in the 'force_private' option, "
+                    "but there is no such symbol in this scope.")
             if sym:
                 explicitly_private_symbols.add(sym)
 

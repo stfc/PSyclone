@@ -34,8 +34,8 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         A. B. G. Chalk, V. K. Atkinson, STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic, J. G. Wallwork, O. Brunt and L. Turner, Met Office
-#          S. Valat, Inria / Laboratoire Jean Kuntzmann
+# Modified I. Kavcic, J. G. Wallwork, O. Brunt and L. Turner, B. Went,
+#          Met Office, S. Valat, Inria / Laboratoire Jean Kuntzmann
 #          M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean Kuntzmann
 #          J. Dendy, Met Office
 
@@ -92,9 +92,9 @@ def test_parallelregion_check_symtab_var(fortran_reader, caplog):
     with caplog.at_level(logging.WARNING,
                          logger="psyclone.psyir.transformations"):
         otrans._check_symbol_table_vars(parallel, ("j"))
-
-    long_string = \
-        "\"Could not find 'j' in the Symbol Table.\" has been "\
-        "provided with the 'j' symbol name in the 'force_private' option, "\
-        "but there is no such symbol in this scope."
-    assert (long_string in caplog.text)
+    long_string = (
+        "Error: \"Could not find 'j' in the Symbol Table.\" This has been "
+        "provided with the 'j' in the 'force_private' option, "
+        "but there is no such symbol in this scope.")
+    print(long_string)
+    assert long_string in caplog.text

@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors A. B. G. Chalk, STFC Daresbury Lab
+# Modified B. Went, Met Office
 
 '''This module contains the tests for the MaximalRegionTrans.'''
 
@@ -370,12 +371,10 @@ def test_apply_force_private(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     # Apply loop_trans to all the loops possible.
     ltrans = OMPLoopTrans(omp_schedule="static")
-    for loop in psyir.walk(Loop):
-        if loop.variable.name == "ii":
-            ltrans.apply(
-                loop,
-                ignore_dependencies_for=["array_l"],
-                nowait=True)
+    ltrans.apply(
+        psyir.walk(Loop)[0],
+        ignore_dependencies_for=["array_l"],
+        nowait=True)
     # Apply maximum transformation to code
     mtrans = MaxParTrans()
     routine = psyir.walk(Routine)
@@ -385,5 +384,5 @@ def test_apply_force_private(fortran_reader):
     assert len(psyir.walk(OMPParallelDirective)) == 1
     nodes = psyir.walk(Routine)[0].children[:]
     assert isinstance(nodes[0], OMPParallelDirective) is True
-    pdir = psyir.walk(OMPParallelDirective)
-    assert len(pdir[0].explicitly_private_symbols) == 5
+    pdir = nodes[0]
+    assert len(pdir.explicitly_private_symbols) == 5
