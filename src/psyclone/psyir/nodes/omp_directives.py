@@ -1401,6 +1401,15 @@ class OMPParallelDirective(DataSharingAttributeMixin, OMPRegionDirective):
             self._add_reduction_clauses()
 
         for call in reversed(reprod_red_call_list):
+            # Get the reduction variable to initialise and privatise.
+            tag = f"{call.name}:{call._reduction_arg.name}:templocal"
+            sym = self.scope.symbol_table.lookup_with_tag(tag)
+            call.initialise_and_privatise_scalar_store(
+                self, 0, self.scope.symbol_table
+            )
+            call.temp_to_array_assignment(
+                self.dir_body, self.scope.symbol_table
+            )
             call.reduction_sum_loop(self.parent, self.position,
                                     self.scope.symbol_table)
 
@@ -1916,8 +1925,9 @@ class OMPDoDirective(DataSharingAttributeMixin, OMPRegionDirective):
         # We only attempt to *automatically* add reduction clauses if we have a
         # high-level (DSL) reduction operation.
         reductions = self.reductions()
-        if not reductions:
-            # No high-level reduction operations.
+        if not reductions or self.reprod:
+            # No high-level reduction operations, or
+            # using reproducible reductions
             return super().lower_to_language_level()
 
         self.children[0].lower_to_language_level()

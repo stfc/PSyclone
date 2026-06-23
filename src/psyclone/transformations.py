@@ -78,6 +78,7 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.transformations.callee_transformation_mixin import (
     CalleeTransformationMixin)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
+from psyclone.psyir.transformations.omp_parallel_trans import OMPParallelTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
@@ -137,13 +138,12 @@ class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
     def __str__(self):
         return "Add an OpenMP Parallel Do directive to an LFRic loop"
 
-    def validate(self, node, options=None):
+    def validate(self, node: LFRicLoop, options=None):
         '''
         Perform LFRic-specific loop validity checks then call the `validate`
         method of the base class.
 
         :param node: the Node in the Schedule to check
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
@@ -176,6 +176,34 @@ class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
         local_options = options.copy() if options else {}
         local_options["force"] = True
         super().validate(node, options=local_options)
+
+    def apply(self, node: LFRicLoop, options=None):
+        '''
+        Applies the LFRicOMPParallelLoopTrans to the supplied Loop.
+
+        If reproducible reductions are enabled, and the specified
+        omp_directive is 'do' then this will instead apply
+        LFRicOMPLoopTrans and LFricOMPParallelTrans to the input
+        node instead.
+
+        :param node: the Node in the Schedule to transform.
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str, Any]]
+        '''
+        if (Config.get().reproducible_reductions
+                and self.omp_directive == "do"):
+            kerns = node.walk(Kern)
+            if any([kern.is_reduction for kern in kerns]):
+                ltrans = LFRicOMPLoopTrans(omp_schedule=self.omp_schedule)
+                # TODO 2668: When we move to new kwarg options we may need to
+                # split the options using the sub_transformations methods,
+                # but disable the sub transformation option inheritance.
+                ltrans.apply(node, options=options)
+                ptrans = OMPParallelTrans()
+                ptrans.apply(node.parent.parent, options=options)
+                return
+
+        super().apply(node, options)
 
 
 class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
