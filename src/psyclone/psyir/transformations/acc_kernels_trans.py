@@ -50,8 +50,7 @@ from psyclone.psyir.nodes import (
     Call, CodeBlock, Literal, Loop, Node,
     PSyDataNode, Reference, Return, Routine, Statement, WhileLoop)
 from psyclone.psyir.symbols import (
-    ArrayType, DataTypeSymbol, INTEGER_TYPE, ScalarType,
-    UnsupportedFortranType)
+    ArrayType, DataTypeSymbol, ScalarType, UnsupportedFortranType)
 from psyclone.psyir.transformations.arrayassignment2loops_trans import (
     ArrayAssignment2LoopsTrans)
 from psyclone.psyir.transformations.region_trans import RegionTrans
@@ -179,7 +178,7 @@ class ACCKernelsTrans(RegionTrans):
             # A value of True means that async is specified with no queue.
             checkval = None
         elif isinstance(async_queue, int):
-            checkval = Literal(f"{async_queue}", INTEGER_TYPE)
+            checkval = Literal(f"{async_queue}", ScalarType.integer_type())
         elif isinstance(async_queue, Reference):
             checkval = async_queue
         else:

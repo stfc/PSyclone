@@ -40,7 +40,8 @@ import pytest
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    CodeBlock, IfBlock, UnknownDirective
+    ACCRoutineDirective, CodeBlock, IfBlock, OMPDeclareTargetDirective,
+    UnknownDirective
 )
 
 
@@ -279,15 +280,15 @@ def test_unknowndirective(fortran_writer):
 
     assert len(pdirs) == 3
     assert pdirs[0].directive_string == "psy lowercase"
-    assert pdirs[1].directive_string == "psy uppercase"
-    assert pdirs[2].directive_string == "psy mixedcase"
+    assert pdirs[1].directive_string == "PSY Uppercase"
+    assert pdirs[2].directive_string == "PsY mixedCASE"
 
     # Check the output is also correct
     output = fortran_writer(psyir)
 
     assert "!$psy lowercase" in output
-    assert "!$psy uppercase" in output
-    assert "!$psy mixedcase" in output
+    assert "!$PSY Uppercase" in output
+    assert "!$PsY mixedCASE" in output
 
 
 def test_comments_on_directive_before_loop(fortran_writer):
@@ -456,4 +457,73 @@ def test_comments_on_directive_before_where(fortran_writer):
       b(widx1) = a(widx1)
     end if
   enddo"""
+    assert correct in fortran_writer(psyir)
+
+
+def test_omp_declare_target_directive(fortran_writer):
+    '''Tests that an omp declare target directive is converted to the
+    corresponding directive node.'''
+    code = """subroutine x
+    real, dimension(100) :: a, b
+    !$OMP declare target
+    a = b + 1
+    end subroutine x"""
+
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    assert isinstance(routine.children[0], OMPDeclareTargetDirective)
+    correct = """  !$omp declare target
+  a = b + 1"""
+    assert correct in fortran_writer(psyir)
+
+
+def test_acc_routine_directive(fortran_writer):
+    '''Tests that acc routine directives give the corresponding directive
+    node unless the parallel declaration isn't understood.'''
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+    # Test with undeclared parallel type.
+    code = """subroutine x
+    real, dimension(100) :: a, b
+    !$acc routine
+    a = b + 1
+    end subroutine x"""
+
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    assert isinstance(routine.children[0], ACCRoutineDirective)
+    assert routine.children[0].parallelism == "seq"
+
+    correct = """  !$acc routine seq
+  a = b + 1"""
+    assert correct in fortran_writer(psyir)
+
+    # Test with declared parallel type.
+    code = """subroutine x
+    real, dimension(100) :: a, b
+    !$acc routine vector
+    a = b + 1
+    end subroutine x"""
+
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    assert isinstance(routine.children[0], ACCRoutineDirective)
+    assert routine.children[0].parallelism == "vector"
+
+    correct = """  !$acc routine vector
+  a = b + 1"""
+    assert correct in fortran_writer(psyir)
+
+    # Test with declared parallel type.
+    code = """subroutine x
+    real, dimension(100) :: a, b
+    !$acc routine unknown
+    a = b + 1
+    end subroutine x"""
+
+    psyir = reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    assert isinstance(routine.children[0], UnknownDirective)
+    correct = """  !$acc routine unknown
+  a = b + 1"""
     assert correct in fortran_writer(psyir)

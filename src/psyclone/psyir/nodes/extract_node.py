@@ -66,7 +66,7 @@ from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
     ArrayType, ContainerSymbol, DataSymbol, DataType, ImportInterface,
-    INTEGER_TYPE, REAL8_TYPE, Symbol, SymbolTable)
+    ScalarType, Symbol, SymbolTable)
 
 if TYPE_CHECKING:
     from psyclone.psyir.tools import ReadWriteInfo
@@ -435,9 +435,9 @@ class ExtractNode(PSyDataNode):
                     f"'{structure_reference.debug_string()}' "
                     f"in the config file '{Config.get().filename}'.")
             if gocean_property.intrinsic_type == 'real':
-                scalar_type = REAL8_TYPE
+                scalar_type = ScalarType.real8_type()
             else:
-                scalar_type = INTEGER_TYPE
+                scalar_type = ScalarType.integer_type()
             if gocean_property.type == "scalar":
                 return scalar_type
             # Everything else is a 2D field
@@ -445,7 +445,7 @@ class ExtractNode(PSyDataNode):
                                            ArrayType.Extent.DEFERRED])
 
         # Everything else defaults to integer
-        return INTEGER_TYPE
+        return ScalarType.integer_type()
 
     @staticmethod
     def bring_external_symbols(read_write_info: "ReadWriteInfo",

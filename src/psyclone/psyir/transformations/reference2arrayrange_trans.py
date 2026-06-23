@@ -232,7 +232,6 @@ class Reference2ArrayRangeTrans(Transformation):
 
         '''
         self.validate(node, **kwargs)
-
         # The following cases do not need expansions
         if node.parent and isinstance(node.parent, Call):
             if node is node.parent.routine:

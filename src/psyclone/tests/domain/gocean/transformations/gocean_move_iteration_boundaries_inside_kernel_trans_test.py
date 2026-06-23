@@ -46,7 +46,7 @@ from psyclone.domain.gocean.transformations import (
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.nodes import (
     Assignment, Container, IfBlock, Return)
-from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, ScalarType
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.utilities import get_invoke
@@ -84,11 +84,11 @@ def test_go_move_iteration_boundaries_inside_kernel_trans(tmp_path):
 
     # Add some name conflicting symbols in the Invoke and the Kernel
     kernel.ancestor(Container).symbol_table.new_symbol(
-        "xstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        "xstop", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
     routines = kernel.get_callees()
     ksched = routines[0]
     ksched.symbol_table.new_symbol(
-        "ystart", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        "ystart", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
 
     # Apply the transformation
     KernelModuleInlineTrans().apply(kernel)

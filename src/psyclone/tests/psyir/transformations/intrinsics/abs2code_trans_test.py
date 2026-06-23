@@ -41,7 +41,7 @@ import warnings
 
 from psyclone.psyir.transformations import Abs2CodeTrans, TransformationError
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, \
-    ArgumentInterface, REAL_TYPE
+    ArgumentInterface, ScalarType
 from psyclone.psyir.nodes import Reference, Assignment, \
     BinaryOperation, Literal, KernelSchedule, IntrinsicCall
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -74,9 +74,10 @@ def example_psyir(create_expression):
     '''
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
-        "arg", symbol_type=DataSymbol, datatype=REAL_TYPE,
+        "arg", symbol_type=DataSymbol, datatype=ScalarType.real_type(),
         interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
-    local = symbol_table.new_symbol(symbol_type=DataSymbol, datatype=REAL_TYPE)
+    local = symbol_table.new_symbol(symbol_type=DataSymbol,
+                                    datatype=ScalarType.real_type())
     symbol_table.specify_argument_list([arg1])
     var1 = Reference(arg1)
     var2 = Reference(local)
@@ -91,7 +92,8 @@ def example_psyir(create_expression):
                          [(lambda arg: arg, "arg"),
                           (lambda arg: BinaryOperation.create(
                               BinaryOperation.Operator.MUL, arg,
-                              Literal("3.14", REAL_TYPE)), "arg * 3.14")])
+                              Literal("3.14", ScalarType.real_type())),
+                              "arg * 3.14")])
 def test_correct(func, output, tmpdir):
     '''Check that a valid example produces the expected output when the
     argument to ABS is a simple argument and when it is an expression.
@@ -137,14 +139,15 @@ def test_correct_expr(tmpdir):
     intr_call = example_psyir(
         lambda arg: BinaryOperation.create(
             BinaryOperation.Operator.MUL, arg,
-            Literal("3.14", REAL_TYPE)))
+            Literal("3.14", ScalarType.real_type())))
     root = intr_call.root
     assignment = intr_call.parent
     intr_call.detach()
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                 Literal("1.0", REAL_TYPE), intr_call)
+                                 Literal("1.0", ScalarType.real_type()),
+                                 intr_call)
     op2 = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                 op1, Literal("2.0", REAL_TYPE))
+                                 op1, Literal("2.0", ScalarType.real_type()))
     assignment.addchild(op2)
     writer = FortranWriter()
     result = writer(root)
@@ -184,11 +187,11 @@ def test_correct_2abs(tmpdir):
     intr_call = example_psyir(
         lambda arg: BinaryOperation.create(
             BinaryOperation.Operator.MUL, arg,
-            Literal("3.14", REAL_TYPE)))
+            Literal("3.14", ScalarType.real_type())))
     root = intr_call.root
     assignment = intr_call.parent
     intr_call2 = IntrinsicCall.create(IntrinsicCall.Intrinsic.ABS,
-                                      [Literal("1.0", REAL_TYPE)])
+                                      [Literal("1.0", ScalarType.real_type())])
     intr_call.detach()
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  intr_call, intr_call2)

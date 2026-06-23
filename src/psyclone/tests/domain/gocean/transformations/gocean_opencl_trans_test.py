@@ -48,8 +48,7 @@ from psyclone.domain.gocean.transformations import (
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKernelSchedule
 from psyclone.psyir.symbols import (DataSymbol, ArgumentInterface,
-                                    ScalarType, ArrayType, INTEGER_TYPE,
-                                    REAL_TYPE)
+                                    ScalarType, ArrayType)
 from psyclone.tests.gocean_build import GOceanOpenCLBuild
 from psyclone.tests.utilities import (Compile, get_base_path, get_invoke)
 from psyclone.transformations import (TransformationError,
@@ -1228,13 +1227,13 @@ def test_opencl_kernel_missing_boundary_symbol(monkeypatch):
     # symbol
     sched.symbol_table.new_symbol(
         "a", tag="xstart_compute_cu_code", symbol_type=DataSymbol,
-        datatype=INTEGER_TYPE)
+        datatype=ScalarType.integer_type())
     sched.symbol_table.new_symbol(
         "c", tag="ystart_compute_cu_code", symbol_type=DataSymbol,
-        datatype=INTEGER_TYPE)
+        datatype=ScalarType.integer_type())
     sched.symbol_table.new_symbol(
         "d", tag="ystop_compute_cu_code", symbol_type=DataSymbol,
-        datatype=INTEGER_TYPE)
+        datatype=ScalarType.integer_type())
 
     otrans = GOOpenCLTrans()
     # We skip validation as in this test we purposefully want to have the issue
@@ -1288,7 +1287,7 @@ def test_symtab_implementation_for_opencl():
             in str(err.value))
 
     # Test symbol table with 1 kernel argument
-    arg1 = DataSymbol("arg1", INTEGER_TYPE,
+    arg1 = DataSymbol("arg1", ScalarType.integer_type(),
                       interface=ArgumentInterface(
                           ArgumentInterface.Access.READ))
     kschedule.symbol_table.add(arg1)
@@ -1301,7 +1300,7 @@ def test_symtab_implementation_for_opencl():
             in str(err.value))
 
     # Test symbol table with 2 kernel argument
-    arg2 = DataSymbol("arg2", INTEGER_TYPE,
+    arg2 = DataSymbol("arg2", ScalarType.integer_type(),
                       interface=ArgumentInterface(
                           ArgumentInterface.Access.READ))
     kschedule.symbol_table.add(arg2)
@@ -1311,7 +1310,7 @@ def test_symtab_implementation_for_opencl():
     assert iteration_indices[1] is arg2
 
     # Test symbol table with 3 kernel argument
-    array_type = ArrayType(REAL_TYPE, [10, 10])
+    array_type = ArrayType(ScalarType.real_type(), [10, 10])
     arg3 = DataSymbol("buffer1", array_type,
                       interface=ArgumentInterface(
                           ArgumentInterface.Access.READ))
@@ -1332,7 +1331,7 @@ def test_symtab_implementation_for_opencl():
             in str(err.value))
 
     arg1._datatype._intrinsic = ScalarType.Intrinsic.INTEGER  # restore
-    arg2._datatype = ArrayType(INTEGER_TYPE, [10])
+    arg2._datatype = ArrayType(ScalarType.integer_type(), [10])
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean API kernels second argument should be a scalar integer"
