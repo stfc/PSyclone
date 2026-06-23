@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
+# Copyright (c) 2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,7 @@ def test_array_construction_valid():
     '''Test array construction and addition of children.'''
     expr1 = Literal("1", ScalarType.integer_type())
     expr2 = Literal("2", ScalarType.integer_type())
-    array_cons = ArrayConstructor.create(expr1, expr2)
+    array_cons = ArrayConstructor.create([expr1, expr2])
     expr3 = Literal("3", ScalarType.integer_type())
     expr4 = Literal("4", ScalarType.integer_type())
     expr5 = BinaryOperation.create(BinaryOperation.Operator.ADD,
@@ -71,7 +71,7 @@ def test_array_construction_invalid():
     ifblock = IfBlock.create(if_condition, if_body)
     # Check that IfBlock cannot be an element of an ArrayConstructor
     with pytest.raises(GenerationError) as err:
-        ArrayConstructor.create(ifblock)
+        ArrayConstructor.create([ifblock])
     assert ("Generation Error: Item 'IfBlock' can't be child 0 of "
             "'ArrayConstructor'. The valid format is: '[DataNode]*"
             in str(err.value))
@@ -80,7 +80,7 @@ def test_array_construction_invalid():
 def test_array_construction_reference_accesses():
     '''Test the reference_accesses() method of an array constructor'''
     ref = Reference(DataSymbol("tmp", ScalarType.integer_type()))
-    arr = ArrayConstructor.create(ref)
+    arr = ArrayConstructor.create([ref])
     accs = arr.reference_accesses()
     access_seq = accs[Signature("tmp")]
     assert len(access_seq) == 1
@@ -90,6 +90,6 @@ def test_array_construction_reference_accesses():
 def test_array_constructor_node_str():
     ''' Check the node_str method of the ArrayConstructor class.'''
     lit = Literal("1", ScalarType.integer_single_type())
-    array_cons = ArrayConstructor.create(lit)
+    array_cons = ArrayConstructor.create([lit])
     coloured_array_cons = colored("ArrayConstructor", ArrayConstructor._colour)
     assert f"{coloured_array_cons}[]" == array_cons.node_str()

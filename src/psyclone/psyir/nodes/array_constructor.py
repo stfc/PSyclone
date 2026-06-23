@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
+# Copyright (c) 2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,10 +36,13 @@
 
 ''' This module contains the ArrayConstructor node implementation.'''
 
-from psyclone.core import VariablesAccessMap
+from __future__ import annotations
+from typing import Union, TYPE_CHECKING
 from psyclone.psyir.symbols import (
-    Symbol, UnresolvedType, ScalarType, ArrayType, DataTypeSymbol)
+    UnresolvedType, DataType, ScalarType, ArrayType, DataTypeSymbol)
 from psyclone.psyir.nodes.datanode import DataNode
+if TYPE_CHECKING:
+    from psyclone.psyir.nodes import Node
 
 
 class ArrayConstructor(DataNode):
@@ -56,13 +59,12 @@ class ArrayConstructor(DataNode):
         super().__init__(**kwargs)
 
     @staticmethod
-    def create(*elems: DataNode):
-        '''Create and ArrayConstructor instance representing an array
+    def create(elems: list[DataNode]) -> ArrayConstructor:
+        '''Create an ArrayConstructor instance representing an array
         with the given elements.
 
         :param elems: the elements of the array being constructed.
         :returns: an ArrayConstructor instance.
-        :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
 
         :raises GenerationError: if the arguments are not of the \
             expected type.
@@ -73,22 +75,19 @@ class ArrayConstructor(DataNode):
         return array_cons
 
     @staticmethod
-    def _validate_child(position, child):
+    def _validate_child(position: int, child: Node) -> bool:
         '''
-        :param int position: the position to be validated.
+        :param position: the position to be validated.
         :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
 
         :return: whether the given child and position are valid for this node.
-        :rtype: bool
         '''
         return isinstance(child, DataNode)
 
     @property
-    def datatype(self):
+    def datatype(self) -> Union[DataType, DataTypeSymbol]:
         '''
         :returns: the type of this array constructor.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
         '''
         # The result of an array constructor is always a rank-1 array.
         # We look through the children to find the array-element type.
@@ -105,48 +104,16 @@ class ArrayConstructor(DataNode):
                 break
         return ArrayType(elem_type, [ArrayType.Extent.ATTRIBUTE])
 
-    def node_str(self, colour=True):
+    def node_str(self, colour: bool = True) -> str:
         '''
         Construct a text representation of this node, optionally containing
         colour control codes.
 
-        :param bool colour: whether or not to include colour control codes.
+        :param colour: whether or not to include colour control codes.
 
         :returns: description of this PSyIR node.
-        :rtype: str
         '''
         return f"{self.coloured_name(colour)}[]"
-
-    def get_all_accessed_symbols(self) -> set[Symbol]:
-        '''
-        :returns: a set of all the symbols accessed inside this
-            ArrayConstructor.
-        '''
-        return super().get_all_accessed_symbols()
-
-    def reference_accesses(self) -> VariablesAccessMap:
-        '''
-        :returns: a map of all the symbol accessed inside this node, the
-            keys are Signatures (unique identifiers to a symbol and its
-            structure accessors) and the values are AccessSequence
-            (a sequence of AccessTypes).
-        '''
-        return super().reference_accesses()
-
-    def replace_symbols_using(self, table_or_symbol):
-        '''
-        Replace any Symbols referred to by this object with those in the
-        supplied SymbolTable (or just the supplied Symbol instance) if they
-        have matching names. If there is no match for a given Symbol then it
-        is left unchanged.
-
-        :param table_or_symbol: the symbol table from which to get replacement
-            symbols or a single, replacement Symbol.
-        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
-
-        '''
-        super().replace_symbols_using(table_or_symbol)
 
 
 # For AutoAPI documentation generation
