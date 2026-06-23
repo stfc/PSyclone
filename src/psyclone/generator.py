@@ -302,15 +302,11 @@ def generate(filename: str,
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
         if script_name is not None:
-            # Save original path:
-            old_sys_path = sys.path.copy()
             # Apply provided recipe to PSyIR
             trans_func, _, _, kwargs = load_script(script_name, kwargs_str)
             # trans_func is always defined, otherwise an exception is raised
             assert trans_func
             trans_func(psy.container.root, **kwargs)
-            # Reset sys.path:
-            sys.path = old_sys_path
         alg_gen = None
 
     elif api in GOCEAN_API_NAMES or (api in LFRIC_API_NAMES and LFRIC_TESTING):
@@ -360,14 +356,10 @@ def generate(filename: str,
 
         if script_name is not None:
             # Call the optimisation script for algorithm optimisations
-            # Save original path:
-            old_sys_path = sys.path.copy()
-            trans_alg_func, _, _, kwargs = load_script(script_name, kwargs_str,
-                                                       "trans_alg",
-                                                       is_optional=True)
-            if trans_alg_func:
-                trans_alg_func(psyir, **kwargs)
-            sys.path = old_sys_path
+            recipe, _, _, kwargs= load_script(script_name, kwargs_str,
+                                              "trans_alg", is_optional=True)
+            if recipe:
+                recipe(psyir, **kwargs)
 
         # For each kernel called from the algorithm layer
         kernels: dict[int, dict[int, Node]] = {}
@@ -456,13 +448,10 @@ def generate(filename: str,
 
         if script_name is not None:
             # Call the optimisation script for psy-layer optimisations
-            # Save original path:
-            old_sys_path = sys.path.copy()
             trans_func, _, _, kwargs = load_script(script_name, kwargs_str)
-            # trans_func is always defined, otherwise an exception is raised
+            # recipe is always defined, otherwise an exception is raised
             assert trans_func
             trans_func(psy.container.root, **kwargs)
-            sys.path = old_sys_path
 
     # TODO issue #1618 remove Alg class and tests from PSyclone
     if api in LFRIC_API_NAMES and not LFRIC_TESTING:
@@ -956,13 +945,12 @@ def code_transformation_mode(input_file: str,
     logger = logging.getLogger(__name__)
 
     # Load script file
-    # Save original path:
-    old_sys_path = sys.path.copy()
     if script_name:
-        (trans_func, files_to_skip,
+        (trans_recipe, files_to_skip,
          resolve_mods, kwargs) = load_script(script_name, kwargs_str)
     else:
-        trans_func, files_to_skip, resolve_mods, kwargs = (None, [], False, {})
+        trans_recipe, files_to_skip, resolve_mods, kwargs = (None, [], False,
+                                                             {})
 
     _, filename = os.path.split(input_file)
     if filename not in files_to_skip:
@@ -997,9 +985,8 @@ def code_transformation_mode(input_file: str,
             sys.exit(1)
 
         # Modify file
-        if trans_func:
-            trans_func(psyir, **kwargs)
-        sys.path = old_sys_path
+        if trans_recipe:
+            trans_recipe(psyir, **kwargs)
 
         # Add profiling if automatic profiling has been requested
         for routine in psyir.walk(Routine):
