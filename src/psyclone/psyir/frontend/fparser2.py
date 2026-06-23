@@ -34,6 +34,7 @@
 #          J. Henrichs, Bureau of Meteorology
 #          I. Kavcic, Met Office
 # Modified: A. B. G. Chalk, STFC Daresbury Lab
+#           M. Naylor, University of Cambridge, UK
 # -----------------------------------------------------------------------------
 
 ''' This module provides the fparser2 to PSyIR front-end, it follows a
@@ -4977,17 +4978,17 @@ class Fparser2Reader():
 
         return assignment
 
-    def _array_constructor_handler(self, node, parent):
+    def _array_constructor_handler(
+             self,
+             node: Fortran2003.Array_Constructor,
+             parent: Node) -> ArrayConstructor:
         '''
         Transforms an fparser2 Array_Constructor to the PSyIR representation.
 
-        :param node: node in fparser2 AST.
-        :type node: :py:class:`fparser.two.Fortran2003.Array_Constructor`
-        :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+        :param node: array constructor node in fparser2 AST.
+        :param parent: parent node of the PSyIR node we are constructing.
 
-        :returns: PSyIR representation of node.
-        :rtype: :py:class:`psyclone.psyir.nodes.ArrayConstructor`
+        :returns: PSyIR representation of array constructor.
 
         :raises NotImplementedError: if the parse tree contains unsupported
             elements.

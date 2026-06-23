@@ -35,6 +35,7 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. R. Porter, A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 # Modified J. Remy, Université Grenoble Alpes, Inria
+# Modified M. Naylor, University of Cambridge, UK
 
 '''PSyIR Fortran backend. Implements a visitor that generates Fortran code
 from a PSyIR tree. '''
@@ -49,9 +50,10 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, TYPE_MAP_FROM_FORTRAN)
 from psyclone.psyir.nodes import (
-    BinaryOperation, Call, Container, CodeBlock, DataNode, IntrinsicCall,
-    Literal, Member, Node, OMPDependClause, OMPReductionClause, Operation,
-    Range, Routine, Schedule, UnaryOperation, UnknownDirective, IfBlock)
+    ArrayConstructor, BinaryOperation, Call, Container, CodeBlock,
+    DataNode, IntrinsicCall, Literal, Member, Node, OMPDependClause,
+    OMPReductionClause, Operation, Range, Routine, Schedule,
+    UnaryOperation, UnknownDirective, IfBlock)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataType,
     DataTypeSymbol, GenericInterfaceSymbol, IntrinsicSymbol,
@@ -1439,15 +1441,13 @@ class FortranWriter(LanguageWriter):
 
         return result
 
-    def arrayconstructor_node(self, node):
+    def arrayconstructor_node(self, node: ArrayConstructor) -> str:
         '''This method is called when an ArrayConstructor instance is
         found in the PSyIR tree.
 
         :param node: an ArrayConstructor PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.ArrayConstructor`
 
         :returns: the Fortran code as a string.
-        :rtype: str
 
         '''
         contents = ", ".join([self._visit(child) for child in node.children])
