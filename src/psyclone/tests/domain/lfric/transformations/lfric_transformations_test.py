@@ -3204,18 +3204,44 @@ def test_multi_builtins_fuse_error():
             "reduction") in str(excinfo.value)
 
 
-def test_loop_fuse_error(dist_mem):
-    '''Test that we raise an exception in loop fusion if one or more of
-    the loops has an any_space iteration space.'''
-    _, invoke = get_invoke("15.14.2_multiple_set_kernels.f90",
-                           TEST_API, idx=0, dist_mem=dist_mem)
+def test_loop_fuse_any_space(tmpdir, dist_mem):
+    '''Test that we correctly fuse two or more of loops that are on
+    any_space iteration space.'''
+    psy, invoke = get_invoke("15.14.2_multiple_set_kernels.f90",
+                             TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
-    with pytest.raises(TransformationError) as excinfo:
-        ftrans.apply(schedule.children[0], schedule.children[1])
-    assert ("One or more of the iteration spaces is unknown "
-            "('ANY_SPACE') so loop fusion might be "
-            "invalid") in str(excinfo.value)
+
+    # Fuses the first two loops
+    ftrans.apply(schedule.children[0], schedule.children[1])
+    code = str(psy.gen)
+    assert ("do df = loop0_start, loop0_stop, 1\n"
+        "      ! Built-in: setval_c (set a real-valued field to a real scalar value)\n"
+        "      f1_data(df) = fred\n"
+        "\n"
+        "      ! Built-in: setval_c (set a real-valued field to a real scalar value)\n"
+        "      f2_data(df) = 3.0_r_def\n"
+        "    enddo\n") in code
+    assert ("do df = loop1_start, loop1_stop, 1\n"
+        "      ! Built-in: setval_c (set a real-valued field to a real scalar value)\n"
+        "      f3_data(df) = ginger\n"
+        "    enddo\n") in code
+
+    # Fuses the combined loop with the third loop
+    ftrans.apply(schedule.children[0], schedule.children[1])
+    code = str(psy.gen)
+    assert ("do df = loop0_start, loop0_stop, 1\n"
+        "      ! Built-in: setval_c (set a real-valued field to a real scalar value)\n"
+        "      f1_data(df) = fred\n"
+        "\n"
+        "      ! Built-in: setval_c (set a real-valued field to a real scalar value)\n"
+        "      f2_data(df) = 3.0_r_def\n"
+        "\n"
+        "      ! Built-in: setval_c (set a real-valued field to a real scalar value)\n"
+        "      f3_data(df) = ginger\n"
+        "    enddo\n") in code
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 # Repeat the reduction tests for the reproducible version
