@@ -246,7 +246,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
                 lambda: f"{message}, but found:\n{node.debug_string()}"))
 
         # Do not allow to transform expressions with ArrayConstructors
-        # TODO: this could be relaxed in future
+        # This could be relaxed in future
         if node.has_descendant(ArrayConstructor):
             message = (f"{self.name} does not support array assignments that"
                        " contain an ArrayConstructor anywhere in"
