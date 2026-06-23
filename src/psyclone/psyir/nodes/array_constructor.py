@@ -102,6 +102,14 @@ class ArrayConstructor(DataNode):
             elif isinstance(child.datatype, DataTypeSymbol):
                 elem_type = child.datatype
                 break
+
+        # In general, the array size of an array constructor is not known
+        # statically, either due to use of implied do (which is not
+        # yet supported in PSyIR), or due to a Reference to an array
+        # whose size is not known statically, or due to a function/intrinsic
+        # call. It would be possible to chase down these nodes to determine
+        # a more precise size but it's not clear if it's worth the added
+        # complexity. So for now, we uniformly return a runtime-known size.
         return ArrayType(elem_type, [ArrayType.Extent.ATTRIBUTE])
 
     def node_str(self, colour: bool = True) -> str:
