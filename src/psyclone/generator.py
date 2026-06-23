@@ -362,10 +362,11 @@ def generate(filename: str,
             # Call the optimisation script for algorithm optimisations
             # Save original path:
             old_sys_path = sys.path.copy()
-            recipe, _, _, kwargs= load_script(script_name, kwargs_str,
-                                              "trans_alg", is_optional=True)
-            if recipe:
-                recipe(psyir, **kwargs)
+            trans_alg_func, _, _, kwargs = load_script(script_name, kwargs_str,
+                                                       "trans_alg",
+                                                       is_optional=True)
+            if trans_alg_func:
+                trans_alg_func(psyir, **kwargs)
             sys.path = old_sys_path
 
         # For each kernel called from the algorithm layer
@@ -458,7 +459,7 @@ def generate(filename: str,
             # Save original path:
             old_sys_path = sys.path.copy()
             trans_func, _, _, kwargs = load_script(script_name, kwargs_str)
-            # recipe is always defined, otherwise an exception is raised
+            # trans_func is always defined, otherwise an exception is raised
             assert trans_func
             trans_func(psy.container.root, **kwargs)
             sys.path = old_sys_path
@@ -958,11 +959,10 @@ def code_transformation_mode(input_file: str,
     # Save original path:
     old_sys_path = sys.path.copy()
     if script_name:
-        (trans_recipe, files_to_skip,
+        (trans_func, files_to_skip,
          resolve_mods, kwargs) = load_script(script_name, kwargs_str)
     else:
-        trans_recipe, files_to_skip, resolve_mods, kwargs = (None, [], False,
-                                                             {})
+        trans_func, files_to_skip, resolve_mods, kwargs = (None, [], False, {})
 
     _, filename = os.path.split(input_file)
     if filename not in files_to_skip:
@@ -997,8 +997,8 @@ def code_transformation_mode(input_file: str,
             sys.exit(1)
 
         # Modify file
-        if trans_recipe:
-            trans_recipe(psyir, **kwargs)
+        if trans_func:
+            trans_func(psyir, **kwargs)
         sys.path = old_sys_path
 
         # Add profiling if automatic profiling has been requested
