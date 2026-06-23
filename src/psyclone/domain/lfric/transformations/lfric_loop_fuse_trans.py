@@ -185,11 +185,11 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                 # space, we can fuse.
                 if node1_fs_name != node2_fs_name:
                     raise TransformationError(
-                        f"Error in {self.name} transformation: One or more of the "
-                        f"iteration spaces is unknown ('ANY_SPACE') so loop fusion"
-                        f" might be invalid. If you know the spaces are the same "
-                        f"then please set the 'same_space' optional argument to "
-                        f"'True'.")
+                        f"Error in {self.name} transformation: One or more of "
+                        f"the iteration spaces is unknown ('ANY_SPACE') so "
+                        f"loop fusion might be invalid. If you know the "
+                        f"spaces are the same then please set the "
+                        f"'same_space' optional argument to 'True'.")
             # 2.3.2) Check whether specific function spaces are the
             # same. If they are not, the loop fusion is still possible
             # but only when both function spaces are discontinuous

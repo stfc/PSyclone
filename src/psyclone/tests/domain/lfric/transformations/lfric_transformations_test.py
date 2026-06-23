@@ -3215,29 +3215,38 @@ def test_loop_fuse_any_space(tmpdir, dist_mem):
     # Fuses the first two loops
     ftrans.apply(schedule.children[0], schedule.children[1])
     code = str(psy.gen)
-    assert ("do df = loop0_start, loop0_stop, 1\n"
-        "      ! Built-in: setval_c (set a real-valued field to a real scalar value)\n"
+    assert (
+        "do df = loop0_start, loop0_stop, 1\n"
+        "      ! Built-in: setval_c (set a real-valued field to a real scalar "
+        "value)\n"
         "      f1_data(df) = fred\n"
         "\n"
-        "      ! Built-in: setval_c (set a real-valued field to a real scalar value)\n"
+        "      ! Built-in: setval_c (set a real-valued field to a real scalar "
+        "value)\n"
         "      f2_data(df) = 3.0_r_def\n"
         "    enddo\n") in code
-    assert ("do df = loop1_start, loop1_stop, 1\n"
-        "      ! Built-in: setval_c (set a real-valued field to a real scalar value)\n"
+    assert (
+        "do df = loop1_start, loop1_stop, 1\n"
+        "      ! Built-in: setval_c (set a real-valued field to a real scalar "
+        "value)\n"
         "      f3_data(df) = ginger\n"
         "    enddo\n") in code
 
     # Fuses the combined loop with the third loop
     ftrans.apply(schedule.children[0], schedule.children[1])
     code = str(psy.gen)
-    assert ("do df = loop0_start, loop0_stop, 1\n"
-        "      ! Built-in: setval_c (set a real-valued field to a real scalar value)\n"
+    assert (
+        "do df = loop0_start, loop0_stop, 1\n"
+        "      ! Built-in: setval_c (set a real-valued field to a real scalar "
+        "value)\n"
         "      f1_data(df) = fred\n"
         "\n"
-        "      ! Built-in: setval_c (set a real-valued field to a real scalar value)\n"
+        "      ! Built-in: setval_c (set a real-valued field to a real scalar "
+        "value)\n"
         "      f2_data(df) = 3.0_r_def\n"
         "\n"
-        "      ! Built-in: setval_c (set a real-valued field to a real scalar value)\n"
+        "      ! Built-in: setval_c (set a real-valued field to a real scalar "
+        "value)\n"
         "      f3_data(df) = ginger\n"
         "    enddo\n") in code
 
