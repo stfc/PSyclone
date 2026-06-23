@@ -168,7 +168,6 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         # 2.2) If 'same_space' is true check that both function spaces are
         # the same or that at least one of the nodes is on ANY_SPACE. The
         # former case is convenient when loop fusion is applied generically.
-
         if same_space:
             if node1_fs_name == node2_fs_name:
                 pass
@@ -182,12 +181,15 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
             # 2.3.1) Check whether one or more of the function spaces
             # is ANY_SPACE without the 'same_space' flag
             if node_on_any_space:
-                raise TransformationError(
-                    f"Error in {self.name} transformation: One or more of the "
-                    f"iteration spaces is unknown ('ANY_SPACE') so loop fusion"
-                    f" might be invalid. If you know the spaces are the same "
-                    f"then please set the 'same_space' optional argument to "
-                    f"'True'.")
+                # If the nodes are on ANY_SPACE, but those are the same
+                # space, we can fuse.
+                if node1_fs_name != node2_fs_name:
+                    raise TransformationError(
+                        f"Error in {self.name} transformation: One or more of the "
+                        f"iteration spaces is unknown ('ANY_SPACE') so loop fusion"
+                        f" might be invalid. If you know the spaces are the same "
+                        f"then please set the 'same_space' optional argument to "
+                        f"'True'.")
             # 2.3.2) Check whether specific function spaces are the
             # same. If they are not, the loop fusion is still possible
             # but only when both function spaces are discontinuous
