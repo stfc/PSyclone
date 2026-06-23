@@ -356,10 +356,10 @@ def generate(filename: str,
 
         if script_name is not None:
             # Call the optimisation script for algorithm optimisations
-            recipe, _, _, _ = load_script(script_name, kwargs_str,
-                                          "trans_alg", is_optional=True)
+            recipe, _, _, kwargs= load_script(script_name, kwargs_str,
+                                              "trans_alg", is_optional=True)
             if recipe:
-                recipe(psyir)
+                recipe(psyir, **kwargs)
 
         # For each kernel called from the algorithm layer
         kernels: dict[int, dict[int, Node]] = {}
@@ -949,7 +949,8 @@ def code_transformation_mode(input_file: str,
         (trans_recipe, files_to_skip,
          resolve_mods, kwargs) = load_script(script_name, kwargs_str)
     else:
-        trans_recipe, files_to_skip, resolve_mods = (None, [], False)
+        trans_recipe, files_to_skip, resolve_mods, kwargs = (None, [], False,
+                                                             {})
 
     _, filename = os.path.split(input_file)
     if filename not in files_to_skip:

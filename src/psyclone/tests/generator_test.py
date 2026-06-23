@@ -2121,26 +2121,115 @@ def test_config_overwrite() -> None:
                                          ("l: [1,2]", "{'l': [1, 2]}")
 
                                          ])
-def test_script_arguments(kwargs, out, tmp_path, capsys):
-    """Tests that script arguments are received as expected. This
-    test creates a dummy script that prints the arguments, which
-    we check for
+def test_script_arguments_transmute(kwargs, out, tmp_path, capsys):
+    """Tests that script arguments are received as expected with the
+    transmute approach. This test creates a dummy script that prints the
+    arguments, which we check for using capsys
+
     :param kwargs: the input string for the command line
+    :param out: the expected output of the print statement (which can be
+        different from the input if the keyword argument is not a string).
     """
     recipe = '''
 def trans(psyir, **kwargs):
-    print("ARGS:", kwargs)
+    print("XARGS:", kwargs)
     '''
-    script_path = tmp_path / "print_args.py"
+    script_path = tmp_path / "print_args_transmute.py"
     script_path.write_text(recipe)
 
-    inputfile = Path(get_base_path("lfric")) / "1_single_invoke.f90"
+    inputfile = Path(get_base_path("nemo")) / "afunction.f90"
     outputfile = tmp_path / "output.f90"
     main([str(inputfile), "-s", str(script_path),
           "--script-kwargs", kwargs,
           "-o", str(outputfile)])
     stdout, _ = capsys.readouterr()
     assert f"ARGS: {out}" in stdout
+
+
+@pytest.mark.parametrize("kwargs, out", [("", "{}"),
+                                         ("'a':1", "{'a': 1}"),
+                                         ("'b': {1: 2}", "{'b': {1: 2}}"),
+                                         ("'l': [1,2]", "{'l': [1, 2]}"),
+                                         ("a:1", "{'a': 1}"),
+                                         ("b: {1: 2}", "{'b': {1: 2}}"),
+                                         ("l: [1,2]", "{'l': [1, 2]}")
+                                         ])
+def test_script_arguments_lfric_testing(kwargs, out, tmp_path, capsys,
+                                        monkeypatch):
+    """Tests that script arguments are received as expected using the
+    LFRic API. This test creates a dummy script that prints the arguments
+    for trans and trans_alg, which we check for. This uses LFRIC_TESTING,
+    which will also call trans_alg (which by LFRic otherwise would not do).
+
+    :param kwargs: the input string for the command line
+    :param out: the expected output of the print statement (which can be
+        different from the input if the keyword argument is not a string).
+    """
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+
+    recipe = '''
+def trans(psyir, **kwargs):
+    print("trans args:", kwargs)
+
+def trans_alg(psyir, **kwargs):
+    print("trans_alg args:", kwargs)
+    '''
+    script_path = tmp_path / "print_args_lfric_testing.py"
+    script_path.write_text(recipe)
+
+    inputfile = Path(get_base_path("lfric")) / "1_single_invoke.f90"
+    psy_file = tmp_path / "psy.f90"
+    alg_file = tmp_path / "alg.f90"
+    main([str(inputfile), "-s", str(script_path), "--psykal-dsl", "lfric",
+          "--script-kwargs", kwargs,
+          "-opsy", str(psy_file),
+          "-oalg", str(alg_file)])
+    stdout, _ = capsys.readouterr()
+    assert f"trans args: {out}" in stdout
+    assert f"trans_alg args: {out}" in stdout
+
+
+@pytest.mark.parametrize("kwargs, out", [("", "{}"),
+                                         ("'a':1", "{'a': 1}"),
+                                         ("'b': {1: 2}", "{'b': {1: 2}}"),
+                                         ("'l': [1,2]", "{'l': [1, 2]}"),
+                                         ("a:1", "{'a': 1}"),
+                                         ("b: {1: 2}", "{'b': {1: 2}}"),
+                                         ("l: [1,2]", "{'l': [1, 2]}")
+                                         ])
+def test_script_arguments_lfric_default(kwargs, out, tmp_path, capsys):
+    """Tests that script arguments are received as expected using the
+    LFRic API. This test creates a dummy script that prints the arguments
+    for trans and trans_alg, which we check for. This uses default
+    LFRic handling, which does not call trans_alg.
+
+    :param kwargs: the input string for the command line
+    :param out: the expected output of the print statement (which can be
+        different from the input if the keyword argument is not a string).
+    """
+
+    recipe = '''
+def trans(psyir, **kwargs):
+    print("trans args:", kwargs)
+
+def trans_alg(psyir, **kwargs):
+    print("trans_alg args:", kwargs)
+    '''
+    script_path = tmp_path / "print_args_lfric_default.py"
+    script_path.write_text(recipe)
+
+    inputfile = Path(get_base_path("lfric")) / "1_single_invoke.f90"
+    psy_file = tmp_path / "psy.f90"
+    alg_file = tmp_path / "alg.f90"
+    main([str(inputfile), "-s", str(script_path), "--psykal-dsl", "lfric",
+          "--script-kwargs", kwargs,
+          "-opsy", str(psy_file),
+          "-oalg", str(alg_file)])
+    stdout, _ = capsys.readouterr()
+    assert f"trans args: {out}" in stdout
+    # Default LFRic API does not call trans_alg!!! This line is here to
+    # fail once we switch LFRic over.
+    assert f"trans_alg args: {out}" not in stdout
 
 
 @pytest.mark.parametrize("kwargs", ["1", "'a'", "[1,2]", "{1:2}",
@@ -2153,9 +2242,9 @@ def test_script_arguments_errors(kwargs, tmp_path):
     """
     recipe = '''
 def trans(psyir, **kwargs):
-    print("ARGS:", kwargs)
+    print("YARGS:", kwargs)
     '''
-    script_path = tmp_path / "print_args.py"
+    script_path = tmp_path / "print_args_errors.py"
     script_path.write_text(recipe)
 
     inputfile = Path(get_base_path("lfric")) / "1_single_invoke.f90"
