@@ -356,8 +356,8 @@ def generate(filename: str,
 
         if script_name is not None:
             # Call the optimisation script for algorithm optimisations
-            recipe, _, _, kwargs= load_script(script_name, kwargs_str,
-                                              "trans_alg", is_optional=True)
+            recipe, _, _, kwargs = load_script(script_name, kwargs_str,
+                                               "trans_alg", is_optional=True)
             if recipe:
                 recipe(psyir, **kwargs)
 
