@@ -102,21 +102,7 @@ class ArrayConstructor(DataNode):
             elif isinstance(child.datatype, DataTypeSymbol):
                 elem_type = child.datatype
                 break
-
-        # Currently, implied-do in array constructors is not supported
-        # so we can always determine the array size statically.
-        # With implied-do, we would need to return an ATTRIBUTE-sized
-        # array if the array constructor contains an implied-do.
-        def _count_elems(ctr: ArrayConstructor) -> int:
-            count = 0
-            for child in ctr.children:
-                if isinstance(child, ArrayConstructor):
-                    count += _count_elems(child)
-                else:
-                    count += 1
-            return count
-
-        return ArrayType(elem_type, [_count_elems(self)])
+        return ArrayType(elem_type, [ArrayType.Extent.ATTRIBUTE])
 
     def node_str(self, colour: bool = True) -> str:
         '''
