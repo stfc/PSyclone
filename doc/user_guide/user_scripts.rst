@@ -89,6 +89,8 @@ and/or kernels) contained within the provided tree.
 The :ref:`examples section<examples>` provides a list of psyclone user scripts
 and associated usage instructions for multiple applications.
 
+.. _script_kwargs:
+
 Arguments for Scripts
 ---------------------
 Scripts can take optional keyword arguments specified on the command line
@@ -160,3 +162,8 @@ associated with the merged invoke.
 
 An example of the use of a script making use of the ``trans_alg``
 function can be found in ``examples/gocean/eg7``.
+
+Note that the ``trans_alg`` function will receive the same keyword arguments
+as the ``trans`` function if the PSyclone command line option
+``--script-kwargs`` is used (see :ref:`script_kwargs`). It is therefore
+important that both functions accept the same keyword arguments.
