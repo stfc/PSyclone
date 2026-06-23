@@ -211,3 +211,42 @@ end module
 
     # Check number of CodeBlocks
     assert len(prog.walk(CodeBlock)) == 2
+
+
+def test_handling_array_constructor_size(fortran_reader):
+    '''Check that the size of a parsed ArrayConstructor is correct.
+    '''
+    code = """
+program my_prog
+  implicit none
+  integer, allocatable :: arr(:)
+  arr(:) = [1]
+  arr(:) = [1,2]
+  arr(:) = [1,2,[3,4]]
+end program my_prog
+"""
+    prog = fortran_reader.psyir_from_source(code)
+
+    # Check that the first ArrayConstructor has size 1
+    ctr = prog.walk(ArrayConstructor)[0]
+    dt = ctr.datatype
+    assert isinstance(dt, ArrayType)
+    assert len(dt.shape) == 1
+    assert dt.shape[0].lower.value == "1"
+    assert dt.shape[0].upper.value == "1"
+
+    # Check that the second ArrayConstructor has size 2
+    ctr = prog.walk(ArrayConstructor)[1]
+    dt = ctr.datatype
+    assert isinstance(dt, ArrayType)
+    assert len(dt.shape) == 1
+    assert dt.shape[0].lower.value == "1"
+    assert dt.shape[0].upper.value == "2"
+
+    # Check that the second ArrayConstructor has size 4
+    ctr = prog.walk(ArrayConstructor)[2]
+    dt = ctr.datatype
+    assert isinstance(dt, ArrayType)
+    assert len(dt.shape) == 1
+    assert dt.shape[0].lower.value == "1"
+    assert dt.shape[0].upper.value == "4"
