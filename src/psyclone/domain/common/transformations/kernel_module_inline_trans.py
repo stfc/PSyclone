@@ -366,6 +366,45 @@ class KernelModuleInlineTrans(Transformation):
                     # This routine is not module-inlined.
                     break
 
+        # Deal with the RoutineSymbol that is in scope at the call site.
+        sym_in_ctr = None
+        #shadowed_sym = None
+
+        if called_sym and (called_sym.is_import or called_sym.is_unresolved):
+            table = called_sym.find_symbol_table(node)
+            if isinstance(table.node, Container):
+                # The RoutineSymbol is declared in the ancestor Container.
+                # Therefore, we need to keep a reference to it so that we can
+                # update any other Calls to it (at the end of this method).
+                sym_in_ctr = called_sym
+
+            #self._rm_imported_routine_symbol(called_sym, codes_to_inline[0],
+            #                                 table)
+
+            # Double check that this import is not shadowing a routine we've
+            # already module-inlined.
+#            if table.node.parent:
+#                # There is a scope outside the one that contained the
+#                # RoutineSymbol.
+#                caller_cntr_table = table.node.parent.scope.symbol_table
+#                # Look to see whether it also contains a symbol matching
+#                # the name of the called routine.
+#                shadowed_sym = caller_cntr_table.lookup(called_sym.name,
+#                                                        otherwise=None)
+#                if shadowed_sym:
+#                    caller_cntr_table = shadowed_sym.find_symbol_table(
+#                        table.node.parent)
+#                    if not isinstance(caller_cntr_table.node, FileContainer):
+#                        # It is shadowing an outer symbol that is in a
+#                        # Container (not a FileContainer) so we just need to
+#                        # update the call to point to the outer symbol.
+#                        node.routine.symbol = shadowed_sym
+#                        if not (shadowed_sym.is_import or
+#                                shadowed_sym.is_unresolved):
+#                            # The outer symbol is local to this Container so
+#                            # there's nothing else to do.
+#                            return
+
         updated_routines = self._prepare_code_to_inline(codes_to_inline)
 
         # The Container into which we will inline the Routine(s).
@@ -380,11 +419,29 @@ class KernelModuleInlineTrans(Transformation):
             new_sym.copy_properties(code_to_inline.symbol,
                                     exclude_interface=True)
             new_sym.visibility = Symbol.Visibility.PRIVATE
+            # Add the routine code into this Container
             code_to_inline = code_to_inline.detach()
             code_to_inline.symbol = new_sym
             container.addchild(code_to_inline)
             # Keep a record of the new and original names.
             name_map[code_to_inline.name] = new_sym
+
+            if update_all:
+                # All Calls to a routine of the same name in the same scope as
+                # the target node must refer to the same Symbol.
+                #target_name = sym.name.lower()
+                target_sym = node.scope.symbol_table.lookup(caller_name)
+                for call in node.ancestor(Routine).walk(Call):
+                    name = call.routine.symbol.name.lower()
+                    if name == caller_name:
+                        call.routine.symbol = target_sym
+                # All Calls that referred to this Symbol must also be updated.
+                # Take care that the name matches as sym_in_ctr might be an
+                # interface.
+                if sym_in_ctr and sym_in_ctr.name == target_sym.name:
+                    for call in container.walk(Call):
+                        if call.routine.symbol is sym_in_ctr:
+                            call.routine.symbol = target_sym
 
         if interface_sym:
             # Deal with the interface symbol - create a new, local
@@ -404,17 +461,5 @@ class KernelModuleInlineTrans(Transformation):
             # Update the Call to point to the inlined routine.
             node.routine.symbol = new_sym
 
-        for call in container.walk((Call, CodedKern)):
-            if call.routine.symbol.name == caller_name:
-                break
-        else:
-            # No call to the original routine remains so we can remove it.
-            table = container.symbol_table
-            rsym = table.lookup(caller_name, otherwise=None)
-            table.remove(rsym)
-            # Check whether we can also remove the ContainerSymbol from which
-            # it was being imported.
-            csym = rsym.interface.container_symbol
-            if (not csym.wildcard_import and
-                    not table.symbols_imported_from(csym)):
-                table.remove(csym)
+        # In theory we could remove the import of the original routine but
+        # that is dangerous and unnecessary so we don't.

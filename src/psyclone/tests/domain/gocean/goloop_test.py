@@ -267,6 +267,7 @@ def test_goloop_validate_loop():
             PSyIR node'''
             # pylint: disable=super-init-not-called, non-parent-init-called
             Node.__init__(self)  # Ignore hierarchy constructors
+            self.routine = None
 
     # Test Loop containing kernels with different offsets
     gokern1 = GOKernMock()

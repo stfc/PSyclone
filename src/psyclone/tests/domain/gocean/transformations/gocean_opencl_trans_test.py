@@ -39,6 +39,7 @@
 ''' Module containing tests for the PSyclone GOcean OpenCL transformation.'''
 
 import os
+import re
 import pytest
 
 from psyclone.configuration import Config
@@ -630,18 +631,17 @@ def test_psy_init_multiple_kernels(kernel_outputdir):
     generated_code = str(psy.gen)
 
     # Check that the kernel_names has enough space for all kernels
-    assert "character(len=30), dimension(2) :: kernel_names" in generated_code
+    assert "character(len=30), dimension(3) :: kernel_names" in generated_code
 
-    # The order doesn't matter as far as the two kernels are loaded
-    assert ("kernel_names(1) = 'kernel_with_use_code'" in generated_code or
-            "kernel_names(2) = 'kernel_with_use_code'" in generated_code)
-
-    assert ("kernel_names(1) = 'kernel_with_use2_code'" in generated_code or
-            "kernel_names(2) = 'kernel_with_use2_code'" in generated_code)
-    assert "kernel_names(3)" not in generated_code
+    # The order doesn't matter as long as the three kernels are loaded
+    for name in ['kernel_with_use_code_inlined_',
+                 'kernel_with_use_code_inlined__1',
+                 'kernel_with_use2_code_inlined_']:
+        assert re.search(
+            rf"kernel_names\([1-3]\) = '{name}'", generated_code)
 
     # Check that add_kernels is provided with the total number of kernels
-    assert "call add_kernels(2, kernel_names)" in generated_code
+    assert "call add_kernels(3, kernel_names)" in generated_code
 
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(
             psy, dependencies=["model_mod.f90"])
@@ -657,7 +657,7 @@ def test_psy_init_multiple_devices_per_node(kernel_outputdir, monkeypatch):
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     mod_inline_trans = KernelModuleInlineTrans()
     for kernel in sched.coded_kernels():
-        mod_inline_trans.apply(kernel)
+        mod_inline_trans.apply(kernel, update_all=True)
         trans.apply(kernel)
 
     # Test with a different configuration value for OCL_DEVICES_PER_NODE
@@ -681,7 +681,7 @@ def test_psy_init_multiple_devices_per_node(kernel_outputdir, monkeypatch):
       initialised = .true.
       ocl_device_num = mod(get_rank() - 1, 2) + 1
       call ocl_env_init(1, ocl_device_num, .false., .false.)
-      kernel_names(1) = 'compute_cu_code'
+      kernel_names(1) = 'compute_cu_code_inlined_'
       call add_kernels(1, kernel_names)
     end if
 
@@ -753,7 +753,7 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
         # the kernel
         expected += '''
     ierr = clFinish(cmd_queues(1))
-    call check_status('Errors before compute_cu_code launch', ierr)'''
+    call check_status('Errors before compute_cu_code_inlined_ launch', ierr)'''
 
     # Cast dl_esm_inf pointers to cl_mem handlers
     expected += '''
@@ -764,7 +764,7 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
     # Call the set_args subroutine with the boundaries corrected for the
     # OpenCL 0-indexing
     expected += '''
-    call compute_cu_code_set_args(kernel_compute_cu_code, \
+    call compute_cu_code_inlined__set_args(kernel_compute_cu_code_inlined_, \
 cu_fld_cl_mem, p_fld_cl_mem, u_fld_cl_mem, \
 xstart - 1, xstop - 1, \
 ystart - 1, ystop - 1)
@@ -772,7 +772,7 @@ ystart - 1, ystop - 1)
 
     expected += '''
     ! Launch the kernel
-    ierr = clEnqueueNDRangeKernel(cmd_queues(1), kernel_compute_cu_code, \
+    ierr = clEnqueueNDRangeKernel(cmd_queues(1), kernel_compute_cu_code_inlined_, \
 2, C_NULL_PTR, C_LOC(globalsize), C_LOC(localsize), 0, C_NULL_PTR, \
 C_NULL_PTR)'''
 
@@ -780,9 +780,9 @@ C_NULL_PTR)'''
         # Check that there are no errors during the kernel launch or during
         # the execution of the kernel.
         expected += '''
-    call check_status('compute_cu_code clEnqueueNDRangeKernel', ierr)
+    call check_status('compute_cu_code_inlined_ clEnqueueNDRangeKernel', ierr)
     ierr = clFinish(cmd_queues(1))
-    call check_status('Errors during compute_cu_code', ierr)'''
+    call check_status('Errors during compute_cu_code_inlined_', ierr)'''
     assert expected in generated_code
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
@@ -928,7 +928,7 @@ def test_opencl_options_effects():
     generated_code = str(psy.gen)
     assert "localsize = (/64, 1/)" in generated_code
     assert "ierr = clEnqueueNDRangeKernel(cmd_queues(1), " \
-        "kernel_compute_cu_code, 2, C_NULL_PTR, C_LOC(globalsize), " \
+        "kernel_compute_cu_code_inlined_, 2, C_NULL_PTR, C_LOC(globalsize), " \
         "C_LOC(localsize), 0, C_NULL_PTR, C_NULL_PTR)" in generated_code
     assert "ierr = clFinish(cmd_queues(1))" in generated_code
     assert "ierr = clFinish(cmd_queues(2))" not in generated_code
@@ -962,7 +962,7 @@ def test_opencl_options_effects():
     otrans.apply(sched)
     generated_code = str(psy.gen)
     assert "ierr = clEnqueueNDRangeKernel(cmd_queues(2), " \
-        "kernel_compute_cu_code, 2, C_NULL_PTR, C_LOC(globalsize), " \
+        "kernel_compute_cu_code_inlined_, 2, C_NULL_PTR, C_LOC(globalsize), " \
         "C_LOC(localsize), 0, C_NULL_PTR, C_NULL_PTR)" in generated_code
     assert "    ierr = clFinish(cmd_queues(1))\n" \
            "    ierr = clFinish(cmd_queues(2))\n" in generated_code
@@ -1050,7 +1050,7 @@ def test_set_kern_args(kernel_outputdir):
     generated_code = str(psy.gen)
     # Check we've only generated one set-args routine with arguments:
     # kernel object + kernel arguments + boundary values
-    assert generated_code.count("subroutine compute_cu_code_set_args("
+    assert generated_code.count("subroutine compute_cu_code_inlined__set_args("
                                 "kernel_obj, cu_fld, p_fld, u_fld, xstart, "
                                 "xstop, ystart, ystop)") == 1
     # Declarations
@@ -1070,32 +1070,32 @@ def test_set_kern_args(kernel_outputdir):
     assert expected in generated_code
     expected = '''\
     ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(cu_fld), C_LOC(cu_fld))
-    call check_status('clSetKernelArg: arg 0 of compute_cu_code', ierr)
+    call check_status('clSetKernelArg: arg 0 of compute_cu_code_inlined_', ierr)
     ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(p_fld), C_LOC(p_fld))
-    call check_status('clSetKernelArg: arg 1 of compute_cu_code', ierr)
+    call check_status('clSetKernelArg: arg 1 of compute_cu_code_inlined_', ierr)
     ierr = clSetKernelArg(kernel_obj, 2, C_SIZEOF(u_fld), C_LOC(u_fld))
-    call check_status('clSetKernelArg: arg 2 of compute_cu_code', ierr)
+    call check_status('clSetKernelArg: arg 2 of compute_cu_code_inlined_', ierr)
     ierr = clSetKernelArg(kernel_obj, 3, C_SIZEOF(xstart), C_LOC(xstart))
-    call check_status('clSetKernelArg: arg 3 of compute_cu_code', ierr)
+    call check_status('clSetKernelArg: arg 3 of compute_cu_code_inlined_', ierr)
     ierr = clSetKernelArg(kernel_obj, 4, C_SIZEOF(xstop), C_LOC(xstop))
-    call check_status('clSetKernelArg: arg 4 of compute_cu_code', ierr)
+    call check_status('clSetKernelArg: arg 4 of compute_cu_code_inlined_', ierr)
     ierr = clSetKernelArg(kernel_obj, 5, C_SIZEOF(ystart), C_LOC(ystart))
-    call check_status('clSetKernelArg: arg 5 of compute_cu_code', ierr)
+    call check_status('clSetKernelArg: arg 5 of compute_cu_code_inlined_', ierr)
     ierr = clSetKernelArg(kernel_obj, 6, C_SIZEOF(ystop), C_LOC(ystop))
-    call check_status('clSetKernelArg: arg 6 of compute_cu_code', ierr)
+    call check_status('clSetKernelArg: arg 6 of compute_cu_code_inlined_', ierr)
 
-  end subroutine compute_cu_code_set_args'''
+  end subroutine compute_cu_code_inlined__set_args'''
     assert expected in generated_code
 
     # The call to the set_args matches the expected kernel signature with
     # the boundary values converted to 0-indexing
-    assert ("call compute_cu_code_set_args(kernel_compute_cu_code, "
+    assert ("call compute_cu_code_inlined__set_args(kernel_compute_cu_code_inlined_, "
             "cu_fld_cl_mem, p_fld_cl_mem, u_fld_cl_mem, "
             "xstart - 1, xstop - 1, "
             "ystart - 1, ystop - 1)" in generated_code)
 
     # There is also only one version of the set_args for the second kernel
-    assert generated_code.count("subroutine time_smooth_code_set_args("
+    assert generated_code.count("subroutine time_smooth_code_inlined__set_args("
                                 "kernel_obj, cu_fld, unew_fld, uold_fld, "
                                 "xstart_1, xstop_1, ystart_1, ystop_1)") == 1
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
@@ -1120,7 +1120,7 @@ def test_set_kern_args_real_grid_property(kernel_outputdir):
 
     generated_code = str(psy.gen)
     expected = '''\
-  subroutine compute_kernel_code_set_args(kernel_obj, out_fld, in_out_fld, \
+  subroutine compute_kernel_code_inlined__set_args(kernel_obj, out_fld, in_out_fld, \
 in_fld, dx, dx_1, gphiu, xstart, xstop, ystart, ystop)
     use clfortran, only : clSetKernelArg
     use iso_c_binding, only : C_LOC, C_SIZEOF, c_intptr_t
@@ -1159,7 +1159,7 @@ def test_set_kern_float_arg(kernel_outputdir):
     # This set_args has a name clash on xstop (one is a grid property and the
     # other a loop boundary). One of they should appear as 'xstop_1'
     expected = '''\
-  subroutine bc_ssh_code_set_args(kernel_obj, a_scalar, ssh_fld, xstop, \
+  subroutine bc_ssh_code_inlined__set_args(kernel_obj, a_scalar, ssh_fld, xstop, \
 tmask, xstart, xstop_1, ystart, ystop)
     use clfortran, only : clSetKernelArg
     use iso_c_binding, only : C_LOC, C_SIZEOF, c_intptr_t
@@ -1178,23 +1178,23 @@ tmask, xstart, xstop_1, ystart, ystop)
     assert expected in generated_code
     expected = '''\
     ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(a_scalar), C_LOC(a_scalar))
-    call check_status('clSetKernelArg: arg 0 of bc_ssh_code', ierr)
+    call check_status('clSetKernelArg: arg 0 of bc_ssh_code_inlined_', ierr)
     ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(ssh_fld), C_LOC(ssh_fld))
-    call check_status('clSetKernelArg: arg 1 of bc_ssh_code', ierr)
+    call check_status('clSetKernelArg: arg 1 of bc_ssh_code_inlined_', ierr)
     ierr = clSetKernelArg(kernel_obj, 2, C_SIZEOF(xstop), C_LOC(xstop))
-    call check_status('clSetKernelArg: arg 2 of bc_ssh_code', ierr)
+    call check_status('clSetKernelArg: arg 2 of bc_ssh_code_inlined_', ierr)
     ierr = clSetKernelArg(kernel_obj, 3, C_SIZEOF(tmask), C_LOC(tmask))
-    call check_status('clSetKernelArg: arg 3 of bc_ssh_code', ierr)
+    call check_status('clSetKernelArg: arg 3 of bc_ssh_code_inlined_', ierr)
     ierr = clSetKernelArg(kernel_obj, 4, C_SIZEOF(xstart), C_LOC(xstart))
-    call check_status('clSetKernelArg: arg 4 of bc_ssh_code', ierr)
+    call check_status('clSetKernelArg: arg 4 of bc_ssh_code_inlined_', ierr)
     ierr = clSetKernelArg(kernel_obj, 5, C_SIZEOF(xstop_1), C_LOC(xstop_1))
-    call check_status('clSetKernelArg: arg 5 of bc_ssh_code', ierr)
+    call check_status('clSetKernelArg: arg 5 of bc_ssh_code_inlined_', ierr)
     ierr = clSetKernelArg(kernel_obj, 6, C_SIZEOF(ystart), C_LOC(ystart))
-    call check_status('clSetKernelArg: arg 6 of bc_ssh_code', ierr)
+    call check_status('clSetKernelArg: arg 6 of bc_ssh_code_inlined_', ierr)
     ierr = clSetKernelArg(kernel_obj, 7, C_SIZEOF(ystop), C_LOC(ystop))
-    call check_status('clSetKernelArg: arg 7 of bc_ssh_code', ierr)
+    call check_status('clSetKernelArg: arg 7 of bc_ssh_code_inlined_', ierr)
 
-  end subroutine bc_ssh_code_set_args'''
+  end subroutine bc_ssh_code_inlined__set_args'''
 
     assert expected in generated_code
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)

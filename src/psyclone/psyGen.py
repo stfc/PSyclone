@@ -1172,11 +1172,12 @@ class CodedKern(Kern):
         self._opencl_options = {'local_size': 64, 'queue_number': 1}
         self.arg_descriptors = call.ktype.arg_descriptors
 
-        # If we have an ancestor InvokeSchedule then add the necessary
-        # symbols.
         # TODO #2054 - this 'routine' property can be replaced once this
         # class sub-classes Call.
         self.routine: Optional[Reference] = None
+
+        # If we have an ancestor InvokeSchedule then add the necessary
+        # symbols.
         container = self.ancestor(Container)
         if container:
             symtab = container.symbol_table

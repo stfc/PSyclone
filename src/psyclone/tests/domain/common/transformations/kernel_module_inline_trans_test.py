@@ -459,21 +459,22 @@ def test_module_inline_apply_transformation(tmpdir, fortran_writer):
     code = str(psy.gen).lower()
     assert 'subroutine compute_cv_code_inlined_(i, j, cv, p, v)' in code
 
-    # The import for the non-transformed Kern still exists
-    assert code.count('use compute_cv_mod') == 1
+    # The import for the original Kern is unchanged
+    assert 'use compute_cv_mod, only : compute_cv_code\n' in code
 
     # Do the check again because repeating the call resets some aspects and we
     # need to see if the second call still works as expected
     gen = str(psy.gen)
     assert 'subroutine compute_cv_code_inlined_(i, j, cv, p, v)' in gen
-    assert gen.count('use compute_cv_mod') == 1
+    assert 'use compute_cv_mod, only : compute_cv_code\n' in gen
     assert gen.count("subroutine compute_cv_code_inlined_(") == 1
 
     # And it is valid code
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
-def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
+@pytest.mark.parametrize("do_all", [True, False])
+def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir, do_all):
     ''' Check that module-inline works as expected when the same kernel
     is provided in different invokes'''
     # Use LFRic example with the kernel 'testkern_qr_mod' repeated once in
@@ -486,31 +487,38 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
     assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 1
     assert gen.count("end subroutine testkern_qr_code") == 0
 
-    # Module inline kernel in invoke 1
+    # Module inline kernel in the first invoke
     mod_inline_trans = KernelModuleInlineTrans()
     artrans = ACCRoutineTrans()
     schedule1 = psy.invokes.invoke_list[0].schedule
     for coded_kern in schedule1.walk(CodedKern):
         if coded_kern.name == "testkern_qr_code":
-            mod_inline_trans.apply(coded_kern)
+            mod_inline_trans.apply(coded_kern, update_all=do_all)
             artrans.apply(coded_kern)
+            break
     gen = str(psy.gen)
     assert gen.count("end subroutine testkern_qr_code_inlined_") == 1
 
     # After this, the other calls should still be to the original kernel.
     # Transform these next (and check that there are three of them).
-    schedule1 = psy.invokes.invoke_list[1].schedule
-    count = 0
-    for coded_kern in schedule1.walk(CodedKern):
-        if coded_kern.name == "testkern_qr_code":
-            count += 1
-            mod_inline_trans.apply(coded_kern)
-    assert count == 3
-    gen = str(psy.gen)
-    # After this, no imports are remaining and both use the same
-    # top-level implementation
-    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 0
-    assert gen.count("end subroutine testkern_qr_code_") == 4
+    if not do_all:
+        schedule1 = psy.invokes.invoke_list[1].schedule
+        count = 0
+        for coded_kern in schedule1.walk(CodedKern):
+            if coded_kern.name == "testkern_qr_code":
+                count += 1
+                mod_inline_trans.apply(coded_kern)
+        assert count == 3
+        gen = str(psy.gen)
+    # After this, the imports remain unchanged and all four calls are now
+    # to either separate, inlined versions of the routine or just a single
+    # inlined version (if do_all is True).
+    assert gen.count("use testkern_qr_mod, only : testkern_qr_code\n") == 1
+    assert gen.count("call testkern_qr_code_inlined_") == 4
+    if do_all:
+        assert gen.count("end subroutine testkern_qr_code_inlined") == 1
+    else:
+        assert gen.count("end subroutine testkern_qr_code_inlined") == 4
 
     # And it is valid code
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -1017,7 +1025,7 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     output = fortran_writer(psyir)
     assert "subroutine a_sub" in output
     assert "subroutine my_sub_inlined_" in output
-    # USE statement left unchanged.
+    # USE statement left unchanged (for safety).
     assert "use my_mod, only : my_interface, my_other_sub, my_sub\n" in output
 
     # Module inline the target of the second call.
@@ -1026,7 +1034,7 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     rsym = container.symbol_table.lookup("my_other_sub_inlined_")
     assert rsym.visibility == Symbol.Visibility.PRIVATE
     output = fortran_writer(psyir)
-    # USE statement left unchanged.
+    # USE statement should still be unmodified.
     assert "use my_mod, only : my_interface, my_other_sub, my_sub\n" in output
 
     # Finally, inline the call to the interface.
@@ -1040,7 +1048,11 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     assert "call my_sub_inlined_(a)" in output
     assert "call my_other_sub_inlined_(b)" in output
     assert "call my_interface_inlined_(b)" in output
-    assert Compile(tmpdir).string_compiles(output)
+    # The USE statement is left for safety but is actually not required so
+    # remove it to permit compilation check.
+    to_build = output.replace(
+        "use my_mod, only : my_interface, my_other_sub, my_sub\n", "")
+    assert Compile(tmpdir).string_compiles(to_build)
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
@@ -1083,8 +1095,9 @@ def test_mod_inline_no_container(fortran_reader, fortran_writer, tmpdir,
                in prog_psyir.children) == {"my_sub_inlined_", "my_prog"}
     output = fortran_writer(prog_psyir)
 
-    assert "use my_mod" in output
-    # Can't compile because of the use statement.
+    assert "use my_mod" not in output
+
+    assert Compile(tmpdir).string_compiles(output)
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
@@ -1203,11 +1216,12 @@ def test_inline_of_shadowed_import(tmpdir, monkeypatch, fortran_reader,
     # Now it should refer to another top-level, inlined RoutineSymbol.
     assert calls[1].routine.symbol is container.symbol_table.lookup(
         "my_sub_inlined__1")
-    assert "my_mod" in again.symbol_table
+    assert "my_mod" not in again.symbol_table
     assert len(container.walk(Routine)) == 4
-    # Cannot compile this because we still have a wildcard import from my_mod.
+    # Cannot compile this because we still have a wildcard import from my_mod
+    # in 'do_it'.
     output = fortran_writer(prog_psyir)
-    assert "use my_mod" in output
+    assert "use my_mod\n" in output
 
 
 def test_mod_inline_all_calls_updated(monkeypatch, fortran_reader):
