@@ -164,22 +164,22 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         # Find the largest sections we can surround with the transformation.
         all_blocks = []
         current_block = []
-        for child in node_list:
+        for child in node_list[::-1]:
             # If the child can be added to a transformed region then add it
             # to the current block of nodes.
             if self._can_be_in_region(child):
                 # Check that validation still succeeds if we add this child
                 # to the current block.
                 try:
-                    trans.validate(current_block + [child], **trans_kwargs)
-                    current_block.append(child)
+                    trans.validate([child] + current_block, **trans_kwargs)
+                    current_block.insert(0, child)
                 except TransformationError:
                     # If validation now fails, then don't add this to the
                     # current block and add the block to the allowed blocks
                     # if allowed.
                     if current_block:
                         if self._satisfies_minimum_region_rules(current_block):
-                            all_blocks.append(current_block)
+                            all_blocks.insert(0, current_block)
                         current_block = []
             else:
                 # Otherwise, if the current_block contains any children,
@@ -187,29 +187,29 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                 # the current_block.
                 if current_block:
                     if self._satisfies_minimum_region_rules(current_block):
-                        all_blocks.append(current_block)
+                        all_blocks.insert(0, current_block)
                     current_block = []
                 # Need to recurse on some node types
                 if isinstance(child, IfBlock):
-                    if_blocks = self._compute_transformable_sections(
-                            child.if_body, trans, trans_kwargs
-                    )
-                    all_blocks.extend(if_blocks)
                     if child.else_body:
                         else_blocks = self._compute_transformable_sections(
                             child.else_body, trans, trans_kwargs
                         )
-                        all_blocks.extend(else_blocks)
+                        all_blocks = else_blocks + all_blocks
+                    if_blocks = self._compute_transformable_sections(
+                            child.if_body, trans, trans_kwargs
+                    )
+                    all_blocks = if_blocks + all_blocks
                 if isinstance(child, (Loop, WhileLoop)):
                     loop_blocks = self._compute_transformable_sections(
                         child.loop_body, trans, trans_kwargs
                     )
-                    all_blocks.extend(loop_blocks)
+                    all_blocks = loop_blocks + all_blocks
         # If any nodes are left in the current block at the end of the
         # node_list, then add them to a transformed region
         if current_block:
             if self._satisfies_minimum_region_rules(current_block):
-                all_blocks.append(current_block)
+                all_blocks.insert(0, current_block)
 
         return all_blocks
 
