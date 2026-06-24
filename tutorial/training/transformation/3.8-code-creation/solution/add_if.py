@@ -38,8 +38,6 @@ A generic transformation script that creates two different versions
 of a loop, depending on iteration count.
 '''
 
-import os
-
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -49,7 +47,7 @@ from psyclone.psyir.nodes import (BinaryOperation, FileContainer, IfBlock,
                                   Literal, Loop, Routine, Schedule)
 
 
-def trans(psyir: FileContainer) -> None:
+def trans(psyir: FileContainer, parse_string: False) -> None:
     '''
     Create two versions of a loop, depending in iteration count.
 
@@ -71,7 +69,7 @@ def trans(psyir: FileContainer) -> None:
     # 1. Parsing a Fortran expression given as string
     # 2. Creating the tree representation using the PSyIR API
 
-    if os.environ.get("PARSE_STRING", False):
+    if parse_string:
         # Option 1: Create expression by parsing a Fortran string:
         writer = FortranWriter()
         expr_str = (f"{writer(outer_loop.stop_expr)} - "

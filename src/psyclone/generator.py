@@ -47,13 +47,13 @@
 '''
 
 import argparse
+import importlib
+import logging
 import os
+import shutil
 import sys
 import traceback
-import importlib
-import shutil
 from typing import Callable, Iterable, List, Optional, Tuple, Union
-import logging
 
 from fparser.api import get_reader
 from fparser.two import Fortran2003
@@ -77,13 +77,14 @@ from psyclone.parse.algorithm import parse
 from psyclone.parse.kernel import get_kernel_filepath
 from psyclone.parse.utils import ParseError, parse_fp2
 from psyclone.profiler import Profiler
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Loop, Container, Routine
+from psyclone.psyir.nodes import Container, FileContainer, Loop, Node, Routine
 from psyclone.psyir.symbols import UnresolvedInterface
 from psyclone.psyir.transformations import TransformationError
+from psyclone.utils import parse_kwargs
 from psyclone.version import __VERSION__
 
 # TODO issue #1618 remove temporary LFRIC_TESTING flag, associated
@@ -113,20 +114,26 @@ FIXED_FORM = (".f", ".for", ".fpp", ".ftn", ".F", ".FOR", ".FPP", ".FTN")
 
 
 def load_script(
-        script_name: str, function_name: str = "trans",
+        script_name: str,
+        kwargs_str: Optional[str] = None,
+        function_name: str = "trans",
         is_optional: bool = False
-) -> Tuple[Callable, List[str], Union[bool, List[str]]]:
+) -> Tuple[Optional[Callable],
+           List[str],
+           Union[bool, List[str]],
+           dict[str, str]]:
     ''' Loads the specified script containing a psyclone recipe. We also
     prepend the script path to the sys.path, so that the script itself and
     any imports that it has from the same directory can be found.
 
     :param script_name: name of the script to load.
+    :param kwargs_str: the kwargs argument from the command line.
     :param function_name: the name of the function to call in the script.
     :param is_optional: whether the function is optional or not. Defaults to
         False.
 
     :returns: callable recipe, list of files to skip, whether to resolve
-        modules (or which ones).
+        modules (or which ones), the kwargs dictionary.
 
     :raises IOError: if the file is not found.
     :raises GenerationError: if the file does not have .py extension.
@@ -134,8 +141,15 @@ def load_script(
         be called.
 
     '''
+
     filepath, filename = os.path.split(script_name)
+    if kwargs_str is not None:
+        kwargs = parse_kwargs(kwargs_str)
+    else:
+        kwargs = {}
+
     module_name, fileext = os.path.splitext(filename)
+
     # the file must either be:
     # a) at the given path or, given no path, in the current directory; or
     # b) given no path, in the system path
@@ -156,11 +170,13 @@ def load_script(
     sys.path.insert(0, filepath)
     recipe_module = importlib.import_module(module_name)
 
+    files_to_skip: list[str]
     if hasattr(recipe_module, "FILES_TO_SKIP"):
         files_to_skip = recipe_module.FILES_TO_SKIP
     else:
         files_to_skip = []
 
+    imports_to_resolve: list[str]
     if hasattr(recipe_module, "RESOLVE_IMPORTS"):
         imports_to_resolve = recipe_module.RESOLVE_IMPORTS
         # If the imports_to_resolve has the list of explicit filenames, respect
@@ -173,12 +189,13 @@ def load_script(
         imports_to_resolve = []
 
     if hasattr(recipe_module, function_name):
-        transformation_recipe = getattr(recipe_module, function_name)
+        transformation_recipe: Callable = getattr(recipe_module, function_name)
         if callable(transformation_recipe):
             # Everything is good, return recipe and files_to_skip
-            return transformation_recipe, files_to_skip, imports_to_resolve
+            return (transformation_recipe, files_to_skip,
+                    imports_to_resolve, kwargs)
     elif is_optional:
-        return None, files_to_skip, imports_to_resolve
+        return None, files_to_skip, imports_to_resolve, {}
     raise GenerationError(
         f"generator: attempted to use specified PSyclone "
         f"transformation module '{module_name}' but it does not "
@@ -189,14 +206,15 @@ def generate(filename: str,
              api: str = "",
              kernel_paths: Optional[list[str]] = None,
              script_name: Optional[str] = None,
+             kwargs_str: Optional[str] = None,
              line_length: bool = False,
-             distributed_memory: bool = None,
+             distributed_memory: Optional[bool] = None,
              kern_out_path: str = "",
              keep_comments: bool = False,
              keep_directives: bool = False,
              keep_conditional_openmp_statements: bool = False,
              free_form: bool = True
-             ) -> Tuple[str, str]:
+             ) -> Tuple[Optional[str], str]:
     # pylint: disable=too-many-arguments, too-many-statements
     # pylint: disable=too-many-branches, too-many-locals
     '''Takes a PSyclone algorithm specification as input and outputs the
@@ -285,8 +303,10 @@ def generate(filename: str,
             .create(invoke_info)
         if script_name is not None:
             # Apply provided recipe to PSyIR
-            recipe, _, _ = load_script(script_name)
-            recipe(psy.container.root)
+            trans_func, _, _, kwargs = load_script(script_name, kwargs_str)
+            # trans_func is always defined, otherwise an exception is raised
+            assert trans_func
+            trans_func(psy.container.root, **kwargs)
         alg_gen = None
 
     elif api in GOCEAN_API_NAMES or (api in LFRIC_API_NAMES and LFRIC_TESTING):
@@ -336,13 +356,13 @@ def generate(filename: str,
 
         if script_name is not None:
             # Call the optimisation script for algorithm optimisations
-            recipe, _, _ = load_script(script_name, "trans_alg",
-                                       is_optional=True)
+            recipe, _, _, kwargs = load_script(script_name, kwargs_str,
+                                               "trans_alg", is_optional=True)
             if recipe:
-                recipe(psyir)
+                recipe(psyir, **kwargs)
 
         # For each kernel called from the algorithm layer
-        kernels = {}
+        kernels: dict[int, dict[int, Node]] = {}
         for invoke in psyir.walk(AlgorithmInvokeCall):
             kernels[id(invoke)] = {}
             for kern in invoke.walk(KernelFunctor):
@@ -386,6 +406,7 @@ def generate(filename: str,
                     sys.exit(1)
 
                 # Raise to Kernel PSyIR
+                kern_trans: Transformation
                 if api in GOCEAN_API_NAMES:
                     kern_trans = RaisePSyIR2GOceanKernTrans(kern.symbol.name)
                     kern_trans.apply(kernel_psyir)
@@ -398,6 +419,7 @@ def generate(filename: str,
                 kernels[id(invoke)][id(kern)] = kernel_psyir
 
         # Transform 'invoke' calls into calls to PSy-layer subroutines
+        invoke_trans: Transformation
         if api in GOCEAN_API_NAMES:
             invoke_trans = GOceanAlgInvoke2PSyCallTrans()
         else:  # api in LFRIC_API_NAMES
@@ -426,8 +448,10 @@ def generate(filename: str,
 
         if script_name is not None:
             # Call the optimisation script for psy-layer optimisations
-            recipe, _, _ = load_script(script_name)
-            recipe(psy.container.root)
+            trans_func, _, _, kwargs = load_script(script_name, kwargs_str)
+            # recipe is always defined, otherwise an exception is raised
+            assert trans_func
+            trans_func(psy.container.root, **kwargs)
 
     # TODO issue #1618 remove Alg class and tests from PSyclone
     if api in LFRIC_API_NAMES and not LFRIC_TESTING:
@@ -441,7 +465,7 @@ def generate(filename: str,
     return alg_gen, psy.gen
 
 
-def main(arguments):
+def main(arguments: list[str]) -> None:
     '''
     Parses and checks the command line arguments, calls the generate
     function if all is well, catches any errors and outputs the
@@ -449,7 +473,6 @@ def main(arguments):
 
     :param arguments: the list of command-line arguments that PSyclone has
         been invoked with.
-    :type arguments: List[str]
 
     '''
     # pylint: disable=too-many-statements,too-many-branches
@@ -470,8 +493,11 @@ def main(arguments):
         help='display version information')
     parser.add_argument('-c', '--config', help='config file with '
                         'PSyclone specific options')
-    parser.add_argument('-s', '--script', help='filename of a PSyclone'
-                        ' optimisation recipe')
+    scripts = parser.add_argument_group("Transformation scripts")
+    scripts.add_argument('-s', '--script',
+                         help='filename of a PSyclone optimisation recipe')
+    scripts.add_argument('--script-kwargs', help='Keyword arguments for the '
+                         'transformation script.')
     parser.add_argument(
         '--enable-cache', action="store_true", default=False,
         help='whether to enable caching of imported module dependencies (if '
@@ -609,6 +635,7 @@ def main(arguments):
     args = parser.parse_args(arguments)
 
     # Set the logging system up.
+    handler: logging.Handler
     if args.log_file:
         handler = logging.FileHandler(args.log_file, mode="a",
                                       encoding="utf-8")
@@ -732,7 +759,8 @@ def main(arguments):
     if not args.psykal_dsl:
         code_transformation_mode(
             input_file=args.filename,
-            recipe_file=args.script,
+            script_name=args.script,
+            kwargs_str=args.script_kwargs,
             output_file=args.o,
             keep_comments=args.keep_comments,
             keep_directives=args.keep_directives,
@@ -764,6 +792,7 @@ def main(arguments):
                 args.filename, api=api,
                 kernel_paths=args.directory,
                 script_name=args.script,
+                kwargs_str=args.script_kwargs,
                 line_length=(args.limit == 'all'),
                 distributed_memory=args.dist_mem,
                 kern_out_path=kern_out_path,
@@ -817,12 +846,13 @@ def main(arguments):
             print(f"Generated psy layer code:\n{psy_str}")
 
 
-def check_psyir(psyir, filename):
+def check_psyir(psyir: FileContainer,
+                filename: str) -> None:
     '''Check the supplied psyir to make sure that it contains a
     single program or module.
 
     :param psyir: the psyir to check.
-    :type psyir: py:class:`psyclone.psyir.nodes.FileContainer`
+    :param filename: filename to use in error messages.
 
     :raises GenerationError: if the algorithm file contains \
         multiple modules or programs.
@@ -845,7 +875,8 @@ def check_psyir(psyir, filename):
             f"found '{type(psyir.children[0]).__name__}'.")
 
 
-def add_builtins_use(fp2_tree, name):
+def add_builtins_use(fp2_tree: Fortran2003.Program,
+                     name: str) -> None:
     '''Modify the fparser2 tree adding a 'use <name>' so that builtin kernel
     functors do not appear to be undeclared.
 
@@ -880,23 +911,26 @@ def add_builtins_use(fp2_tree, name):
                 spec_part.children.insert(0, use_stmt)
 
 
-def code_transformation_mode(input_file, recipe_file, output_file,
-                             keep_comments: bool, keep_directives: bool,
+def code_transformation_mode(input_file: str,
+                             script_name: str,
+                             output_file: str,
+                             keep_comments: bool,
+                             keep_directives: bool,
                              keep_conditional_openmp_statements: bool,
-                             free_form: bool = True, line_length="off"):
-    ''' Process the input_file with the recipe_file instructions and
-    store it in the output_file.
+                             kwargs_str: Optional[str] = None,
+                             free_form: bool = True,
+                             line_length="off"):
+    '''
+    Process the input_file with the transformations script specified in
+    `script_name` and store it in the output_file.
 
     Note: there is some duplicated logic in the PSyKAl path, we could attempt
     to merge them when adopting the LFRIC_TESTING PATH and removing the
     previous way.
 
     :param input_file: the given input file.
-    :type input_file: str | os.PathLike
-    :param recipe_file: the given transformation recipe file.
-    :type input_file: Optional[str | os.PathLike]
+    :param script_name: the given transformation recipe file.
     :param output_file: the output file where to store the resulting code.
-    :type output_file: Optional[str | os.PathLike]
     :param keep_comments: whether to keep comments from the original source.
     :param keep_directives: whether to keep directives from the original
         source.
@@ -910,11 +944,13 @@ def code_transformation_mode(input_file, recipe_file, output_file,
     '''
     logger = logging.getLogger(__name__)
 
-    # Load recipe file
-    if recipe_file:
-        trans_recipe, files_to_skip, resolve_mods = load_script(recipe_file)
+    # Load script file
+    if script_name:
+        (trans_recipe, files_to_skip,
+         resolve_mods, kwargs) = load_script(script_name, kwargs_str)
     else:
-        trans_recipe, files_to_skip, resolve_mods = (None, [], False)
+        trans_recipe, files_to_skip, resolve_mods, kwargs = (None, [], False,
+                                                             {})
 
     _, filename = os.path.split(input_file)
     if filename not in files_to_skip:
@@ -950,7 +986,7 @@ def code_transformation_mode(input_file, recipe_file, output_file,
 
         # Modify file
         if trans_recipe:
-            trans_recipe(psyir)
+            trans_recipe(psyir, **kwargs)
 
         # Add profiling if automatic profiling has been requested
         for routine in psyir.walk(Routine):

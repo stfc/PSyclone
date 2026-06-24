@@ -69,10 +69,10 @@ There are two ways of creating the if condition:
     approach, you don't need to worry about converting the start-
     and stop-expressions, you just use a copy of the tree.
 
-The ``add_if.py`` template supports both ways, and queries the
-environment variable ``PARSE_STRING`` to decide which one to use. Just
-set ``PARSE_STRING`` to a non-empty string to use string-parsing,
-otherwise (also as default) it will use the PSyIR subtree creation method.
+The ``add_if.py`` template supports both ways, and it takes a keyword
+argument to select which one to use. Use the PSyclone command line
+option ``--scripts-kwargs "parse_string: True`` (or ``False``, which
+is also the default) to select which version to use.
 
 Next, create the ``if``-statement (this time only using the PSyIR
 tree assembly, which feels more natural and faster than creating the full

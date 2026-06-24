@@ -33,13 +33,12 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 
-import os
 import pathlib
 import sys
 from typing import List, Union
 from psyclone.psyir.nodes import (
-    Assignment, IfBlock, Node, OMPDirective, OMPTargetDirective, ProfileNode,
-    Routine, Schedule)
+    Assignment, FileContainer, IfBlock, Node, OMPDirective,
+    OMPTargetDirective, ProfileNode, Routine, Schedule)
 from psyclone.psyir.transformations import OMPTargetTrans, ProfileTrans
 from psyclone.transformations import OMPLoopTrans, TransformationError
 
@@ -48,9 +47,6 @@ SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
 NEMO_SCRIPTS_DIR = SCRIPT_DIR.parent / "scripts"
 if str(NEMO_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(NEMO_SCRIPTS_DIR))
-
-
-PROFILING_ENABLED = os.environ.get("ENABLE_PROFILING", False)
 
 
 def add_omp_region_profiling_markers(children: Union[List[Node], Schedule]):
@@ -94,8 +90,16 @@ def add_omp_region_profiling_markers(children: Union[List[Node], Schedule]):
             add_omp_region_profiling_markers(child.children)
 
 
-def trans(psyir):
-    """Apply OpenMP offloading and insert profiling around target regions."""
+def trans(psyir: FileContainer, profiling=False):
+    """
+    Apply OpenMP offloading and insert profiling around target regions.
+
+    :param psyir: the PSyIR of the file container to modify.
+    :param profiling: if set to True (using the PSyclone command line option
+        --scripts-kwargs "profiling: True"), also adds profiling
+        instrumentation to the generated code.
+    """
+
     from utils import normalise_loops, insert_explicit_loop_parallelism
 
     omp_target_trans = OMPTargetTrans()
@@ -119,5 +123,5 @@ def trans(psyir):
             collapse=True,
             enable_reductions=True
         )
-        if PROFILING_ENABLED:
+        if profiling:
             add_omp_region_profiling_markers(subroutine.children)
