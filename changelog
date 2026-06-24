@@ -1,3 +1,5 @@
+   32) PR #3458 for #2721. Adds ArrayConstructor support into the PSyIR.
+
    31) PR #3442. Extends Call.get_callee() to permit implicit reshaping
    of arguments.
  
