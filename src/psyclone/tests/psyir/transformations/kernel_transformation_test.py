@@ -95,12 +95,12 @@ def test_transform_kern_with_interface(tmp_path, fortran_writer):
     invoke.setup_psy_layer_symbols()
     contents = fortran_writer(sched.ancestor(Container))
     # Check that the interface name has been updated.
-    assert "interface mixed_code" in contents
-    assert ("module procedure :: mixed_code_32, mixed_code_64"
-            in contents)
-    # Check that the subroutines themselves haven't been renamed.
-    assert "subroutine mixed_code_32" in contents
-    assert "subroutine mixed_code_64" in contents
+    assert "interface mixed_code_inlined_" in contents
+    assert ("module procedure :: mixed_code_32_inlined_, "
+            "mixed_code_64_inlined_" in contents)
+    # Check that the subroutines themselves havet been renamed.
+    assert "subroutine mixed_code_32_inlined_" in contents
+    assert "subroutine mixed_code_64_inlined_" in contents
     # But they have been transformed.
     assert ('''real*4, dimension(op_ncell_3d,ndf_w0,ndf_w0), intent(in) :: op
 
@@ -337,16 +337,17 @@ def test_1kern_trans(tmp_path):
     sched = invoke.schedule
     kernels = sched.coded_kernels()
     kern = kernels[1]
-    # We have to module-inline the kernel before we can transform it and that
-    # will affect all calls to that kernel in the invoke.
+    # We have to module-inline the kernel before we can transform it
     KernelModuleInlineTrans().apply(kern)
     rtrans = ACCRoutineTrans()
     rtrans.apply(kern)
     # Generate the code
     code = str(psy.gen).lower()
-    assert 'use testkern_mod' not in code
-    assert code.count("call testkern_code(") == 2
-    assert "private :: testkern_code" in code
+    # The original import is left unchanged
+    assert 'use testkern_mod' in code
+    # The call is now to the inlined version
+    assert code.count("call testkern_code_inlined_(") == 1
+    assert "private :: testkern_code_inlined_" in code
     assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
@@ -368,8 +369,9 @@ def test_2kern_trans(tmp_path):
     code = str(psy.gen).lower()
     # Check that the old module re-naming no longer happens.
     assert not re.match('use testkern_any_space_2(.+?)_mod', code)
-    assert "use testkern_any_space_2_mod, only" not in code
-    assert "call testkern_any_space_2_code(" in code
+    # use statements are unchanged
+    assert "use testkern_any_space_2_mod, only" in code
+    assert "call testkern_any_space_2_code_inlined_(" in code
     assert LFRicBuild(tmp_path).code_compiles(psy)
 
 

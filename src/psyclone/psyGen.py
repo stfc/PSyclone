@@ -1172,11 +1172,12 @@ class CodedKern(Kern):
         self._opencl_options = {'local_size': 64, 'queue_number': 1}
         self.arg_descriptors = call.ktype.arg_descriptors
 
-        # If we have an ancestor InvokeSchedule then add the necessary
-        # symbols.
         # TODO #2054 - this 'routine' property can be replaced once this
         # class sub-classes Call.
         self.routine: Optional[Reference] = None
+
+        # If we have an ancestor InvokeSchedule then add the necessary
+        # symbols.
         container = self.ancestor(Container)
         if container:
             symtab = container.symbol_table
@@ -1212,6 +1213,16 @@ class CodedKern(Kern):
         '''
         raise NotImplementedError(
             f"get_callees() must be overridden in class {self.__class__}")
+
+    @property
+    def name(self) -> str:
+        '''
+        Override Kern.name to use the RoutineSymbol name if one is available.
+
+        '''
+        if self.routine:
+            return self.routine.symbol.name
+        return super().name
 
     @property
     def opencl_options(self):
@@ -1309,7 +1320,7 @@ class CodedKern(Kern):
         '''
         symtab = self.ancestor(InvokeSchedule).symbol_table
 
-        rsymbol = symtab.lookup(self._name)
+        rsymbol = symtab.lookup(self.name)
 
         # Create Call to the rsymbol with the argument expressions as children
         # of the new node

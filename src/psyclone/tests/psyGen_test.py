@@ -772,7 +772,8 @@ def test_codedkern_node_str():
     assert expected_output in out
 
 
-def test_codedkern_module_inline_getter():
+@pytest.mark.parametrize("do_all", [True, False])
+def test_codedkern_module_inline_getter(do_all):
     ''' Check that the module_inline property of CodedKern. '''
     # Use LFRic example with a repeated CodedKern
     _, invoke = get_invoke("4.6_multikernel_invokes.f90", api="lfric", idx=0)
@@ -782,10 +783,10 @@ def test_codedkern_module_inline_getter():
     assert ckerns[0].name == ckerns[1].name
     assert ckerns[0].module_inline is False
     mod_inline_trans = KernelModuleInlineTrans()
-    mod_inline_trans.apply(ckerns[0])
-    # Module inlining one should have updated both.
+    mod_inline_trans.apply(ckerns[0], update_all=do_all)
+    # Module inlining one will only have updated both if `update_all` is True
     assert ckerns[0].module_inline is True
-    assert ckerns[1].module_inline is True
+    assert ckerns[1].module_inline is do_all
 
 
 def test_codedkern_lower_to_language_level(monkeypatch):
