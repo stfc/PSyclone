@@ -304,7 +304,6 @@ jobs:
             {
               ci_test: "NEMOv4 OpenACC kernels for GPU",
               nemo_version: "MEMO MO 4.0.2",
-              compiler:"'"${NVHPC_TOOLCHAIN}"'",
               compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_acc_kernels}}"',
               '"$COMMON_FIELDS"'
@@ -313,7 +312,6 @@ jobs:
               ci_test: "NEMOv4 OpenACC loops for GPU",
               nemo_version: "MEMO MO 4.0.2",
               compiler:"'"${NVHPC_TOOLCHAIN}"'",
-              compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_acc_loops}}"',
               '"$COMMON_FIELDS"'
             },
