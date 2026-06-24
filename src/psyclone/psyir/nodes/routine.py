@@ -357,7 +357,8 @@ class Routine(Schedule, CommentableMixin):
                         # Have to walk to find the subroutine_stmt as
                         # comments can appear before the subroutine stmt.
                         subroutine_stmt = walk(routine,
-                                               Fortran2003.Subroutine_Stmt)
+                                               (Fortran2003.Subroutine_Stmt,
+                                                Fortran2003.Function_Stmt))
                         name = str(subroutine_stmt[0].children[1])
                         if name == self.name:
                             raise GenerationError(

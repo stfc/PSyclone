@@ -440,6 +440,40 @@ end module"""
             "a resolved symbol with the same name."
             in str(excinfo.value))
 
+    # Repeat the test when the codeblock is a function.
+    code = """module test
+
+    contains
+
+        ! This routine will be a codeblock.
+        function routine()
+            procedure (halo_exchange_routine) :: exchange_halo_group
+        end function
+
+        subroutine routine1(a, b, c)
+            integer, intent(inout) :: a, b, c
+
+            call routine2()
+        end subroutine
+
+        subroutine routine2()
+
+        end subroutine
+
+end module"""
+
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    alt_routine = Routine.create("routine")
+
+    module = psyir.walk(Container)[1]
+    assert isinstance(module.children[0], CodeBlock)
+    with pytest.raises(GenerationError) as excinfo:
+        module.addchild(alt_routine)
+    assert ("Can't add routine 'routine' into a scope that already contains "
+            "a resolved symbol with the same name."
+            in str(excinfo.value))
+
 
 def test_routine_update_parent_symbol_table():
     ''' Test the update_parent_symbol_table function of the Routine class.
