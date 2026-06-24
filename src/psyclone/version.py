@@ -37,14 +37,16 @@
 
 ''' Single location for the current version number of PSyclone. This is
     used in setup.py and
-    doc/{user_guide,developer_guide,reference_guide/source}/conf.py '''
+    doc/{user_guide,developer_guide,reference_guide/source}/conf.py.
+
+    NOTE that it is *not* used in doc/reference_guide/doxygen.config. '''
 
 __MAJOR__ = 3
 __MINOR__ = 3
-__MICRO__ = 1
+__MICRO__ = 0
 
-# Version suffix (e.g. -rc1 or -dev)
-_VERSION_SUFFIX = "-dev"
+# Version suffix e.g. "-rc1", "-dev", or "" (for full release)
+_VERSION_SUFFIX = ""
 
 __SHORT_VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}{_VERSION_SUFFIX}"
 __VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}.{__MICRO__:d}{_VERSION_SUFFIX}"
