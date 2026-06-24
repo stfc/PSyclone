@@ -11,6 +11,7 @@ SRC_F90 = gol.f90 compute_die_mod.f90 compute_born_mod.f90 \
 		  output_field_mod.f90 time_step_mod.f90
 
 OBJ = $(SRC_F90:%.f90=%.o) $(PROCESSED_SRC:%.f90=%.o)
+PARSE_STRING?=False
 
 transform: $(PROCESSED_SRC)
 
