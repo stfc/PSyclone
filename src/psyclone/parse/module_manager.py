@@ -520,10 +520,12 @@ class ModuleManager:
         """Returns True if the file with the given filename
         doesn't need preprocessing."""
         # The current method is just to check that the file extension
-        # is a lower-case Fortran file extension.
-        return any([filename.endswith(ext)
-                    for ext in self._fortran_file_exts
-                    if ext.islower()])
+        # is a lower-case Fortran file extension and doesn't begin
+        # with '.x'. (The latter condition is present to preserve
+        # previous behaviour, although it's unclear if that behavior
+        # is indeed desired.)
+        base, ext = os.path.splittext(filename)
+        return ext.islower() and not ext.beginswith(".x")
 
     def get_module_info(self, module_name: str) -> Optional[ModuleInfo]:
         """This function returns the ModuleInfo for the specified
