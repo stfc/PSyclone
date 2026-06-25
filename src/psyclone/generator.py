@@ -151,6 +151,7 @@ def load_script(
             f"generator: expected the script file '{filename}' to have "
             f"the '.py' extension")
 
+    sys.path.insert(0, filepath)
     script_path = pathlib.Path(script_name)
     spec = importlib.util.spec_from_file_location(module_name, script_path)
     recipe_module = importlib.util.module_from_spec(spec)
@@ -287,6 +288,7 @@ def generate(filename: str,
             # Apply provided recipe to PSyIR
             recipe, _, _ = load_script(script_name)
             recipe(psy.container.root)
+            del sys.path[0]
         alg_gen = None
 
     elif api in GOCEAN_API_NAMES or (api in LFRIC_API_NAMES and LFRIC_TESTING):
@@ -340,6 +342,7 @@ def generate(filename: str,
                                        is_optional=True)
             if recipe:
                 recipe(psyir)
+            del sys.path[0]
 
         # For each kernel called from the algorithm layer
         kernels = {}
@@ -428,6 +431,7 @@ def generate(filename: str,
             # Call the optimisation script for psy-layer optimisations
             recipe, _, _ = load_script(script_name)
             recipe(psy.container.root)
+            del sys.path[0]
 
     # TODO issue #1618 remove Alg class and tests from PSyclone
     if api in LFRIC_API_NAMES and not LFRIC_TESTING:
@@ -979,3 +983,5 @@ def code_transformation_mode(input_file, recipe_file, output_file,
         else:
             print(f"File '{input_file}' skipped because it is listed in "
                   "FILES_TO_SKIP.", file=sys.stdout)
+
+    del sys.path[0]
