@@ -524,8 +524,10 @@ class ModuleManager:
         # with '.x'. (The latter condition is present to preserve
         # previous behaviour, although it's unclear if that behavior
         # is indeed desired.)
-        base, ext = os.path.splittext(filename)
-        return ext.islower() and not ext.beginswith(".x")
+        base, ext = os.path.splitext(filename)
+        return (ext in self._fortran_file_exts and
+                ext.islower() and
+                not ext.startswith(".x"))
 
     def get_module_info(self, module_name: str) -> Optional[ModuleInfo]:
         """This function returns the ModuleInfo for the specified
