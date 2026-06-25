@@ -45,7 +45,7 @@ env:
   HDF5_VERSION: "2.1"
   NETCDF_C_VERSION: "4.10"
   NETCDF_FORTRAN_VERSION: "4.6"
-  NVFORTRAN_VERSION: "26.3"
+  NVFORTRAN_VERSION: "26.5"
   NVHPC_TOOLCHAIN: nvhpc26_3_openmpi
   INTEL_TOOLCHAIN: intel25_3_openmpi
   PERL_VERSION: "5.42"
@@ -304,7 +304,6 @@ jobs:
             {
               ci_test: "NEMOv4 OpenACC kernels for GPU",
               nemo_version: "MEMO MO 4.0.2",
-              compiler:"'"${NVHPC_TOOLCHAIN}"'",
               compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_acc_kernels}}"',
               '"$COMMON_FIELDS"'
@@ -313,7 +312,6 @@ jobs:
               ci_test: "NEMOv4 OpenACC loops for GPU",
               nemo_version: "MEMO MO 4.0.2",
               compiler:"'"${NVHPC_TOOLCHAIN}"'",
-              compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_acc_loops}}"',
               '"$COMMON_FIELDS"'
             },
