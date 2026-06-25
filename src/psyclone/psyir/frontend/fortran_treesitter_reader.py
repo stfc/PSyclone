@@ -39,7 +39,7 @@ import codecs
 import logging
 from typing import TYPE_CHECKING, Iterable, Union, Callable
 
-from psyclone.psyir import nodes
+from psyclone.psyir import nodes, symbols
 from psyclone.psyir.nodes.codeblock import TreeSitterCodeBlock, CodeBlock
 
 if TYPE_CHECKING:
@@ -122,15 +122,6 @@ class FortranTreeSitterReader():
         self._ignore_comments = ignore_comments
         self._free_form = free_form
         self._conditional_openmp = conditional_openmp
-        # TODO #3038: Currently this reader uses a cursor pointer instead of
-        # passing around a parent argument all the time (like fparser's), but
-        # this can be re-evaluated if necessary.
-        self._psyir_cursor = None
-        # Map from treesitter node types to their handler routine
-        self.handlers = {
-            'translation_unit': self._translation_unit,
-            'module': self._module_handler,
-        }
 
     def generate_parse_tree_from_file(self, file_path) -> 'TSNode':
         '''
@@ -193,7 +184,11 @@ class FortranTreeSitterReader():
         '''
         return self.process_nodes(parse_tree)[0]
 
-    def process_nodes(self, tsnodes: Union["TSNode", Iterable["TSNode"]]):
+    def process_nodes(
+        self,
+        tsnodes: Union["TSNode", Iterable["TSNode"]],
+        symtab: Optional[symbols.SymbolTable] = None,
+    ):
         '''
         Create the PSyIR that represents the supplied treesitter nodes.
 
@@ -202,12 +197,14 @@ class FortranTreeSitterReader():
 
         :returns: the equivalent PSyIR Node.
         '''
+        if symtab is None:
+            symtab = symbols.SymbolTable()
         list_of_nodes = tsnodes if isinstance(tsnodes, Iterable) else [tsnodes]
         children = []
         for tsnode in list_of_nodes:
             try:
                 handler = self.get_handler(tsnode)
-                children.append(handler(tsnode))
+                children.append(handler(tsnode, symtab))
             except NotImplementedError as err:
                 # TODO #3038: Add support for expression codeblocks and
                 # aggregating contiguous codeblocks into a single one.
@@ -229,13 +226,14 @@ class FortranTreeSitterReader():
         :raises NotImplementedError: if the given node type does not have a
             handler for it.
         '''
-        handler = self.handlers.get(tsnode.type)
-        if not handler:
+        try:
+            handler = getattr(self, f"_{tsnode.type}_handler")
+        except AttributeError:
             raise NotImplementedError(
                 f"Unsupported '{tsnode.type}' tree-sitter node.")
         return handler
 
-    def _translation_unit(self, tsnode: 'TSNode') -> nodes.Node:
+    def _translation_unit_handler(self, tsnode: 'TSNode', _) -> nodes.Node:
         ''' Handle treesitter 'translation_unit' node.
 
         :param tsnode: the treesitter node the process.
@@ -243,11 +241,12 @@ class FortranTreeSitterReader():
         :returns: the equivalent PSyIR Node.
         '''
         file_container = nodes.FileContainer("")
-        self._psyir_cursor = file_container
-        file_container.children.extend(self.process_nodes(tsnode.children))
+        file_container.children.extend(
+            self.process_nodes(tsnode.children, file_container.symbol_table)
+        )
         return file_container
 
-    def _module_handler(self, tsnode: 'TSNode') -> nodes.Node:
+    def _module_handler(self, tsnode: 'TSNode', symtab: symbols.SymbolTable) -> nodes.Node:
         ''' Handle a treesitter 'module' node.
 
         :param tsnode: the treesitter node the process.
@@ -260,9 +259,14 @@ class FortranTreeSitterReader():
         module_name = None
         internal_proc = None
         implicit_statement = False
-        for child in tsnode.children:
-            if child.type == "module_statement":
-                _module_keyword, module_name = child.children
+
+        # The first node is always the module statement
+        _module_keyword, module_name = tsnode.children[0].children
+        container = nodes.Container(to_str(module_name) if module_name else "")
+
+        for child in tsnode.children[1:]:
+            if child.type == "variable_declaration":
+                self.process_nodes(child, container.symbol_table)
             elif child.type == "end_module_statement":
                 pass
             elif child.type == "internal_procedures":
@@ -276,8 +280,106 @@ class FortranTreeSitterReader():
         if not implicit_statement:
             raise NotImplementedError(
                 "Modules that allow implicit variables are not supported")
-        container = nodes.Container(to_str(module_name) if module_name else "")
-        self._psyir_cursor = container
         if internal_proc:
-            container.children.extend(self.process_nodes(internal_proc))
+            container.children.extend(self.process_nodes(internal_proc, container.symbol_table))
         return container
+
+    def _subroutine_handler(self, tsnode: 'TSNode', symtab: symbols.SymbolTable) -> nodes.Node:
+        ''' Handle a treesitter 'subroutine' node.
+
+        :param tsnode: the treesitter node the process.
+
+        :returns: the equivalent PSyIR Node.
+        '''
+        for child in tsnode.children:
+            if child.type == "subroutine_statement":
+                sub_name = child.children[1]
+            elif child.type == "end_subroutine_statement":
+                pass
+        rsymbol = symbols.RoutineSymbol(to_str(sub_name))
+        subroutine = nodes.Routine(symbol=rsymbol)
+        return subroutine
+
+    def _number_literal_handler(self, tsnode: 'TSNode', symtab: symbols.SymbolTable) -> None:
+        ''' Handle a treesitter 'variable_declaration' node.
+
+        :param tsnode: the treesitter node the process.
+
+        '''
+        # For now only integers
+        return nodes.Literal(to_str(tsnode), symbols.ScalarType.integer_type())
+
+    def _variable_declaration_handler(self, tsnode: 'TSNode', symtab: symbols.SymbolTable) -> None:
+        ''' Handle a treesitter 'variable_declaration' node.
+
+        :param tsnode: the treesitter node the process.
+
+        '''
+        map_intrinsic_type = {
+            'integer': symbols.ScalarType.Intrinsic.INTEGER,
+            'real': symbols.ScalarType.Intrinsic.REAL,
+            'logical': symbols.ScalarType.Intrinsic.BOOLEAN,
+            'character': symbols.ScalarType.Intrinsic.CHARACTER,
+        }
+
+        # Initialise none mandatory attibutes to their defaults
+        type_qualifier = None
+        unknown = None
+
+        for child in tsnode.children:
+            if child.type == "intrinsic_type":
+                intrinsic_type, kind = unpack2(child)
+                intrinsic_type = map_intrinsic_type[intrinsic_type.type]
+                if kind:
+                    _left_parens, kind_expr, _right_parens = kind.children
+                    km = self.optional_name_equals(kind_expr, symtab, ("kind", ))
+                    precision = km['kind']
+                    # If it is 4 or 8 it has special values, but a precison expression
+                    # is also supported
+                    if isinstance(precision, nodes.Literal):
+                        if precision.value == "4":
+                            precision = symbols.ScalarType.Precision.SINGLE
+                        elif precision.value == "8":
+                            precision = symbols.ScalarType.Precision.DOUBLE
+                else:
+                    precision = symbols.ScalarType.Precision.UNDEFINED
+
+            elif child.type == "identifier":
+                identifier = to_str(child)
+            elif child.type == "::":
+                pass
+            elif child.type == "type_qualifier":
+                import pdb; pdb.set_trace()
+            else:
+                unknown = child
+
+        if unknown:
+            # Add as a declaration comment
+            print(f"Unrecognised: {unknown.type}: {to_str(unknown)}")
+            import pdb; pdb.set_trace()
+            datatype = symbols.UnsupportedFortranType(to_str(tsnode))
+        else:
+            datatype = symbols.ScalarType(intrinsic_type, precision)
+        symbol = symbols.DataSymbol(identifier, datatype)
+        symtab.add(symbol)
+
+    def optional_name_equals(self, tsnode, symtab, names):
+        result = {}
+        if tsnode.type == "keyword_argument":
+            identifier, _equals, expr = tsnode.children
+            string_id = to_str(identifier)
+            if string_id not in names:
+                raise NotImplementedError("Unexpected")
+            result[string_id] = self.process_nodes(expr, symtab)[0]
+        else:
+            string_id = names[0]
+            result[string_id] = self.process_nodes(tsnode, symtab)[0]
+        return result
+
+
+def unpack2(child):
+    if len(child.children) == 1:
+        return child.children[0], None
+    if len(child.children) == 2:
+        return child.children[0], child.children[1]
+    raise NotImplementedError("Unexpected")
