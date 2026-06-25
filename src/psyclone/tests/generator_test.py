@@ -540,11 +540,12 @@ def test_script_null_trans(script_factory):
         '\n'.join(str(psy2).split('\n')[1:])
 
 
-def test_script_null_trans_relative(script_factory):
+def test_script_null_trans_relative(script_factory, monkeypatch, tmpdir):
     '''Checks that generator.py works correctly when the trans() function
     in a valid script file does no transformations (it simply passes
     input to output). In this case the valid script file contains no
-    path and must therefore be found via the PYTHOPATH path list.
+    path, but is invoked from the script's directory, as a relative
+    path.
 
     '''
     alg1, psy1 = generate(os.path.join(BASE_PATH, "lfric",
@@ -552,14 +553,14 @@ def test_script_null_trans_relative(script_factory):
                           api="lfric")
     empty_script = script_factory("def trans(psyir):\n  pass")
     basename = os.path.basename(empty_script)
-    path = os.path.dirname(empty_script)
-    # Set the script directory in the PYTHONPATH
-    os.sys.path.append(path)
+
+    # Change into the script's directory so it's found as a relative import.
+    monkeypatch.chdir(tmpdir)
+
     alg2, psy2 = generate(os.path.join(BASE_PATH, "lfric",
                                        "1_single_invoke.f90"),
                           api="lfric", script_name=basename)
-    # Remove the path from PYTHONPATH
-    os.sys.path.pop()
+
     # we need to remove the first line before comparing output as
     # this line is an instance specific header
     assert '\n'.join(str(alg1).split('\n')[1:]) == \
