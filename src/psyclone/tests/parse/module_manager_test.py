@@ -568,3 +568,9 @@ def test_mod_manager_fortran_file_exts() -> None:
     assert '.f90' in mod_man.fortran_file_exts
     mod_man.fortran_file_exts = {".f95"}
     assert mod_man.fortran_file_exts == {".f95"}
+
+    # Check that type errors are spotted
+    with pytest.raises(TypeError) as err:
+        mod_man.fortran_file_exts = True
+    assert ("'fortran_file_exts' must be a set, but found bool"
+            in str(err.value))

@@ -232,7 +232,8 @@ class ModuleManager:
         '''
         if not isinstance(exts, set):
             raise TypeError(
-                f"'fortran_file_exts' must be a set, but found {type(exts)}")
+                f"'fortran_file_exts' must be a set, but found "
+                f"{type(exts).__name__}")
         self._fortran_file_exts = exts
 
     # ------------------------------------------------------------------------
