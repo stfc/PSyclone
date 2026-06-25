@@ -315,7 +315,7 @@ def get_mesh(metadata, valid_mesh_types):
     :return: the name of the mesh
     :rtype: string
 
-    :raises ParseError: if the supplied meta-data is not a recognised \
+    :raises ParseError: if the supplied meta-data is not a recognised
                         mesh identifier.
     :raises ParseError: if the mesh type is unsupported.
 
@@ -398,6 +398,34 @@ def get_stencil(metadata, valid_types):
             "Kernels with fixed stencil extents are not currently "
             "supported")
     return {"type": stencil_type, "extent": stencil_extent}
+
+
+def get_char_value(metadata: expr.NamedArg,
+                   keyword: str) -> str:
+    '''
+    :param metadata: node in fparser1 ast holding the meta-data.
+    :param keyword: the name of the meta-data entry to extract.
+
+    :returns: a label or int (as a string) representing the value
+              of the metadata element.
+
+    :raises ParseError: if the supplied metadata doesn't represent
+        a named argument for the specified keyword.
+    :raises ParseError: if the value associated with the keyword is
+        not provided as a string.
+
+    '''
+    if (not isinstance(metadata, expr.NamedArg) or
+            metadata.name.lower() != keyword):
+        raise ParseError(
+            f"{metadata} is not a valid {keyword} specifier (expected "
+            f"{keyword}='label | int')")
+    if not metadata.is_string:
+        raise ParseError(
+            f"The value of {keyword} must be specified as a quoted string "
+            f"but got {metadata}")
+
+    return metadata.value.lower()
 
 
 class Descriptor():

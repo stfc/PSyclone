@@ -37,6 +37,7 @@
 the values for the LFRic kernel meta_args metadata.
 
 '''
+from __future__ import annotations
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
 
@@ -85,20 +86,16 @@ class MetaArgsMetadata(CommonDeclarationMetadata):
             "ARG_TYPE", "META_ARGS", self._meta_args_args)
 
     @staticmethod
-    def create_from_fparser2(fparser2_tree):
-        '''Create an instance of MetaArgsMetadata from an fparser2
-        tree.
+    def create_from_fparser2(
+            fparser2_tree: Fortran2003.Data_Component_Def_Stmt
+    ) -> MetaArgsMetadata:
+        '''Create an instance of MetaArgsMetadata from an fparser2 tree.
 
-        :param fparser2_tree: fparser2 tree capturing the meta \
-            args metadata.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.\
-            Data_Component_Def_Stmt`
+        :param fparser2_tree: fparser2 tree capturing the meta args metadata.
 
         :returns: an instance of MetaArgsMetadata.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.\
-            MetaArgsMetadata`
 
-        :raises ParseError: if an unknown MetaArgsArgMetadata argument \
+        :raises ParseError: if an unknown MetaArgsArgMetadata argument
             is found.
 
         '''
@@ -121,11 +118,8 @@ class MetaArgsMetadata(CommonDeclarationMetadata):
                 nargs = len(meta_arg.children[1].children)
                 intergrid_arg = False
                 if nargs == 5:
-                    fifth_arg = meta_arg.children[1].children[4]
-                    intergrid_arg = (
-                        fifth_arg.children and
-                        fifth_arg.children[0].string.lower() == "mesh_arg")
-
+                    intergrid_arg = FieldArgMetadata.get_named_arg(meta_arg,
+                                                                   "mesh_arg")
                 if intergrid_arg and vector_arg:
                     arg = InterGridVectorArgMetadata.create_from_fparser2(
                         meta_arg)

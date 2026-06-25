@@ -162,23 +162,33 @@ least rank (number of dimensions) one. Scalar arrays are identified with
 Field
 +++++
 
-LFRic API fields, identified with ``GH_FIELD`` metadata, represent
-FEM discretisations of various dynamical core prognostic and diagnostic
+LFRic API fields, identified with ``GH_FIELD`` metadata, represent FEM
+discretisations of various dynamical core prognostic and diagnostic
 variables. In FEM, variables are discretised by placing them into a
 function space (see :ref:`lfric-function-space`) from which they
 inherit a polynomial expansion via the basis functions of that space.
 Field values at points within a cell are evaluated as the sum of a set
-of basis functions multiplied by coefficients which are the data points.
-Points of evaluation are determined by a quadrature object
+of basis functions multiplied by coefficients which are the data
+points.  Points of evaluation are determined by a quadrature object
 (:ref:`lfric-quadrature`) and are independent of the function space
-the field is on. Placement of field data points, also called degrees of
-freedom (hereafter "DoFs"), is determined by the function space the field
-is on.
+the field is on. Placement of field data points, also called degrees
+of freedom (hereafter "DoFs"), is determined by the function space the
+field is on. An LFRic multi-data field can have more than one value
+associated with each data point.
+
 LFRic fields passed as arguments to any :ref:`LFRic kernel
 <lfric-kernel-valid-data-type>` can be of ``real`` or ``integer``
 primitive type. In the LFRic infrastructure, these fields are
 represented by instances of the ``field_type`` and ``integer_field_type``
 classes, respectively.
+
+Different fields may be defined on different numbers of vertical layers.
+The number of layers can be as few as one (a 2D field). Additionally,
+LFRic has the concet of multi-data fields where multiple data values can be
+associated with each DoF. Unfortunately, both the number of layers and the
+number of data values affects the numbering of the DoFs of a field. Therefore,
+a distinct DoF map is required for each unique combination of function
+space, number of vertical levels and number of data values.
 
 .. _lfric-field-vector:
 
@@ -919,8 +929,8 @@ All three CMA-related kernel types must obey the following rules:
 1) Since a CMA operator only acts within a single column of data,
    stencil operations are not permitted.
 
-2) No vector quantities (e.g. ``GH_FIELD*3`` - see below) are
-   permitted as arguments.
+2) No vector quantities (e.g. ``GH_FIELD*3`` - see below) or
+   multi-data fields are permitted as arguments.
 
 3) The kernel must operate on cell-columns.
 
@@ -1450,7 +1460,7 @@ Supported Function Spaces
 As mentioned in the :ref:`lfric-field` and :ref:`lfric-field-vector`
 sections, the function space of an argument specifies how it maps
 onto the underlying topology and, additionally, whether the data at a
-point is a vector. In LFRic API the dimension of the basis function
+point is a vector. In the LFRic API the dimension of the basis function
 set for the scalar function spaces is 1 and for the vector function spaces
 is 3 (see the table in :ref:`lfric-stub-generation-rules` for the
 dimensions of the basis and differential basis functions).
@@ -1636,7 +1646,7 @@ to have stencil accesses, these two options are mutually exclusive.
 The metadata for each case is described in the following sections.
 
 Stencil Metadata
-________________
+""""""""""""""""
 
 
 Stencil metadata specifies that the corresponding field argument is accessed
@@ -1716,8 +1726,7 @@ be found in ``examples/lfric/eg5``.
 .. _lfric-intergrid-mdata:
 
 Inter-Grid Metadata
-___________________
-
+"""""""""""""""""""
 
 The alternative form of the optional fifth metadata argument for a
 field specifies which mesh the associated field is on.  This is
@@ -1746,6 +1755,52 @@ Note that an inter-grid kernel must have at least one field (or field-
 vector) argument on each mesh type. Fields that are on different
 meshes cannot be on the same function space while those on the same
 mesh must also be on the same function space.
+
+
+Number of Layers Metadata
+"""""""""""""""""""""""""
+
+If a particular field/operator kernel argument has a number of vertical
+levels that is *not* the same as the first field/operator argument then
+this must be specified using the ``NLAYERS`` option to ``GH_FIELD``/
+``GH_OPERATOR``. The value specified for ``NLAYERS`` may be an integer
+literal encoded as a string if it is known at compile time, e.g.::
+
+  arg_type(GH_FIELD, GH_REAL, GH_READ, W3, NLAYERS="1")
+
+Alternatively, it may be given a name, e.g.::
+
+  arg_type(GH_FIELD, GH_REAL, GH_READ, W3, NLAYERS="some name")
+
+If two or more field/operator arguments are on the same function space
+and have the same number of layers (whether a literal or a name) then
+only one dofmap (that of the first such field listed in the metadata)
+is passed to the kernel for those arguments.
+
+(Since the value of ``NLAYERS`` is looked-up from the corresponding kernel
+argument at run time, the labels given in the kernel metadata are just that
+- they do not have to correspond to anything in the LFRic infrastructure.)
+
+Multi-Data Metadata
+"""""""""""""""""""
+
+A multi-data field is the same as a standard field apart from having multiple
+values associated with each DoF. This is indicated in the field metadata by
+the optional ``NDATA`` argument to GH_FIELD, e.g.::
+
+  arg_type(GH_FIELD, GH_REAL, GH_READ, W2, NDATA="4")
+
+The value contained in the string specified for ``NDATA`` may be a literal if
+it is known at compile time. Alternatively, it may be a name in which
+case the number of data values at each DoF is determined at runtime by
+querying the field object (in the generated PSy layer). As with ``NLAYERS``,
+this name is just a label and does not have to correspond to anything in the
+LFRic infrastructure.
+
+Since the data in an LFRic field object is stored as a 1D array, having more
+than one data value associated with each DoF affects the dofmap. This is
+handled by passing the appropriate dofmap to the kernel - see
+:ref:`lfric-stub-generation-rules`.
 
 
 Column-wise Operators (CMA)
@@ -2080,7 +2135,12 @@ conventions, are:
       4) If the field entry stencil access is of type ``XORY1D`` then
          add an additional ``integer`` direction argument of kind
          ``i_def`` and with intent ``in``.
-
+      5) If the field is multi-data then the kernel must be passed the
+	 value of ``NDATA``: add an additional ``integer``, scalar
+	 argument of kind ``i_def`` and intent ``in``.
+      6) If the field has a custom number of vertical levels then pass this as
+	 an additional ``integer``, scalar argument of kind ``i_def`` and
+	 intent ``in``.
    3) If the current entry is a field vector then for each dimension
       of the vector, include a field array. The field array name is
       specified as
@@ -2106,21 +2166,26 @@ conventions, are:
       the data type and kind specified in the metadata. The ScalarArray
       must be denoted with intent ``in`` to match its read-only nature.
 
-4) For each function space in the order they appear in the metadata arguments
-   (the ``to`` function space of an operator is considered to be before the
-   ``from`` function space of the same operator as it appears first in
-   lexicographic order)
+4) DoF maps for function spaces are handled in the order they appear in the
+   metadata arguments (the ``to`` function space of an operator is considered
+   to be before the ``from`` function space of the same operator as it appears
+   first in lexicographic order). Note that if two fields on a given function
+   space have differing numbers of vertical layers and/or ``NDATA`` values,
+   then each requires that a dofmap be supplied (because both the number of
+   vertical layers *and* the number of data values per DoF alter the
+   *values* within the map). For each required DoF map:
 
    1) Include the number of local degrees of freedom (i.e. number per-cell)
       for the function space. This is an ``integer`` of kind ``i_def`` and
       has intent ``in``. The name of this argument is
       ``"ndf_"<field_function_space>``.
+
    2) If there is a field on this space
 
       1) Include the unique number of degrees of freedom for the function
          space. This is an ``integer`` of kind ``i_def`` and has intent ``in``.
          The name of this argument is ``"undf_"<field_function_space>``.
-      2) Include the **dofmap** for this function space. This is an ``integer``
+      2) Include the **dofmap** itself. This is an ``integer``
          array of kind ``i_def`` with intent ``in``. It has one dimension
          sized by the local degrees of freedom for the function space.
 
@@ -2443,8 +2508,9 @@ dofmap for both the to- and from-function spaces of the CMA
 operator. Since it does not have any LMA operator arguments it does
 not require the ``ncell_3d`` and ``nlayers`` scalar arguments. (Since a
 column-wise operator is, by definition, assembled for a whole column,
-there is no loop over levels when applying it.)
-The full set of rules is then:
+there is no loop over levels when applying it.) Note that fields with
+non-standard ``nlayers`` or ``ndata > 1`` cannot be supplied as
+arguments to CMA kernels. The full set of rules is:
 
 1) Include the ``cell`` argument. ``cell`` is an ``integer`` of kind
    ``i_def`` and has intent ``in``.
