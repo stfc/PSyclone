@@ -47,13 +47,14 @@
 '''
 
 import argparse
+import importlib
+import logging
 import os
+import pathlib
+import shutil
 import sys
 import traceback
-import importlib
-import shutil
 from typing import Callable, Iterable, List, Optional, Tuple, Union
-import logging
 
 from fparser.api import get_reader
 from fparser.two import Fortran2003
@@ -149,12 +150,11 @@ def load_script(
         raise GenerationError(
             f"generator: expected the script file '{filename}' to have "
             f"the '.py' extension")
-    # prepend file path - if none, the empty string equates to the current
-    # working directory - to the system path to guarantee we find the user
-    # provided module instead of a similarly named module that might
-    # already exist elsewhere in the system path
-    sys.path.insert(0, filepath)
-    recipe_module = importlib.import_module(module_name)
+
+    script_path = pathlib.Path(script_name)
+    spec = importlib.util.spec_from_file_location(module_name, script_path)
+    recipe_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(recipe_module)
 
     if hasattr(recipe_module, "FILES_TO_SKIP"):
         files_to_skip = recipe_module.FILES_TO_SKIP
