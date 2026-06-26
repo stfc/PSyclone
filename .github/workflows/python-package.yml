@@ -82,7 +82,7 @@ jobs:
       - run: |
           # Uncomment the below to use the submodule version of fparser rather
           # than the latest release from pypi.
-          pip install external/fparser
+          # pip install external/fparser
           pip install .[doc]
       # Now we can check for warnings and broken links
       - run: cd doc; make html SPHINXOPTS="-W --keep-going"
@@ -119,7 +119,7 @@ jobs:
           pip install jupyter
           # Uncomment the below to use the submodule version of fparser rather
           # than the latest release from pypi.
-          pip install external/fparser
+          # pip install external/fparser
           # We need to install sphinx to get correct doc testing
           pip install .[doc]
           pip install .[test,treesitter]
