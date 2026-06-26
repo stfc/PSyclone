@@ -62,33 +62,24 @@ class OMPParallelTrans(ParallelRegionTrans):
     Create an OpenMP PARALLEL region by inserting directives. For
     example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.parse.utils import ParseError
-    >>> from psyclone.psyGen import PSyFactory
-    >>> from psyclone.errors import GenerationError
-    >>> api = "gocean"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "nemolite2d_alg_mod.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>>
     >>> from psyclone.psyGen import TransInfo
     >>> t = TransInfo()
     >>> ltrans = t.get_trans_name('GOceanOMPLoopTrans')
-    >>> rtrans = t.get_trans_name('OMPParallelTrans')
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
+    >>> from psyclone.psyir.transformations import OMPParallelTrans
+    >>> rtrans = OMPParallelTrans()
     >>>
     >>> # Apply the OpenMP Loop transformation to *every* loop
     >>> # in the schedule
     >>> for child in schedule.children:
-    >>>     ltrans.apply(child)
+    ...     ltrans.apply(child)
     >>>
     >>> # Enclose all of these loops within a single OpenMP
     >>> # PARALLEL region
     >>> rtrans.apply(schedule.children)
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
 
     '''
     # The types of node that this transformation cannot enclose
