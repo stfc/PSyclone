@@ -1679,18 +1679,41 @@ class ACCDataTrans(RegionTrans):
     >>>
     >>> from psyclone.transformations import ACCDataTrans
     >>> from psyclone.psyir.transformations import ACCKernelsTrans
+    >>> from psyclone.psyir.nodes import Loop
     >>> ktrans = ACCKernelsTrans()
     >>> dtrans = ACCDataTrans()
     >>>
-    >>> schedule = psyir.children[0]
+    >>> # Get the first outer-loop
+    >>> loop = psyir.children[0].walk(Loop)[0]
     >>>
     >>> # Add a kernels construct for execution on the device
-    >>> kernels = schedule.children[26]
-    >>> ktrans.apply(kernels)
+    >>> ktrans.apply(loop)
     >>>
     >>> # Enclose the kernels in a data construct
-    >>> kernels = schedule.children[26]
-    >>> dtrans.apply(kernels)
+    >>> kernel = loop.parent.parent
+    >>> dtrans.apply(kernel)
+    >>>
+    >>> # Print the resulting code
+    >>> print(kernel.parent.parent.debug_string())
+    !$acc data copyout(mydomain,pun,pvn,pwn,tmask,tsn,umask,vmask)
+    !$acc kernels
+    do jk = 1, jpk, 1
+      do jj = 1, jpj, 1
+        do ji = 1, jpi, 1
+          umask(ji,jj,jk) = ji * jj * jk / r
+          mydomain(ji,jj,jk) = ji * jj * jk / r
+          pun(ji,jj,jk) = ji * jj * jk / r
+          pvn(ji,jj,jk) = ji * jj * jk / r
+          pwn(ji,jj,jk) = ji * jj * jk / r
+          vmask(ji,jj,jk) = ji * jj * jk / r
+          tsn(ji,jj,jk) = ji * jj * jk / r
+          tmask(ji,jj,jk) = ji * jj * jk / r
+        enddo
+      enddo
+    enddo
+    !$acc end kernels
+    !$acc end data
+    <BLANKLINE>
 
     '''
     excluded_node_types = (CodeBlock, Return, PSyDataNode)
