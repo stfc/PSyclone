@@ -48,7 +48,7 @@ authors = [
     { name = "Aidan Chalk", email = "aidan.chalk@stfc.ac.uk" },
     { name = "Joerg Henrichs", email = "joerg.henrichs@bom.gov.au" }
 ]
-license = { text = "BSD 3-Clause License" }
+license = "BSD-3-Clause"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
