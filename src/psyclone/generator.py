@@ -151,7 +151,13 @@ def load_script(
             f"generator: expected the script file '{filename}' to have "
             f"the '.py' extension")
 
+    # Add the script directory to sys.path, so scripts can easily import
+    # helper scripts in the same directory (this step is not needed to
+    # import the script itself, but it maintains backwards compatibility).
     sys.path.insert(0, filepath)
+
+    # This will import the module, but not make it part of the
+    # system list of all modules, i.e. it can be used elsewhere.
     script_path = pathlib.Path(script_name)
     spec = importlib.util.spec_from_file_location(module_name, script_path)
     recipe_module = importlib.util.module_from_spec(spec)
