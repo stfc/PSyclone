@@ -35,6 +35,10 @@
 # Modified: S. Siso, STFC Daresbury Lab
 
 ''' Test exception classes to ensure consistent __repr__ & __str__ methods. '''
+import inspect
+import importlib
+import psyclone
+import pkgutil
 
 from psyclone import errors
 
@@ -50,21 +54,26 @@ class DummyPSycloneError(errors.PSycloneError):
 def test_exception_str_and_repr():
     ''' Test the properties of Exception classes defined by PSyclone. '''
 
-    psy_exception_classes = [
-        errors.UnresolvedDependencyError,
-        errors.GenerationError,
-        errors.FieldNotFoundError,
-        errors.InternalError,
-        errors.DocParseError,
-    ]
+    for module_info in pkgutil.walk_packages(psyclone.__path__,
+                                             psyclone.__name__ + "."):
+        module = importlib.import_module(module_info.name)
 
-    for psy_except in psy_exception_classes:
-        # Ensure PSyclone exceptions inherit from PSycloneError
-        assert issubclass(psy_except, errors.PSycloneError)
-        # Ensure there are __str__ & __repr__ methods implemented which are not
-        # inherited from the parent Exception class
-        assert psy_except.__str__ is not Exception.__str__
-        assert psy_except.__repr__ is not Exception.__repr__
+        for name, obj in inspect.getmembers(module, inspect.isclass):
+            # Only classes defined in this module, not imported
+            if obj.__module__ != module_info.name:
+                continue
+            # Only check Exceptions
+            if not issubclass(obj, Exception):
+                continue
+            # That are not the base exception class
+            if name == "PSycloneError":
+                continue
+            # Ensure PSyclone exceptions inherit from PSycloneError
+            assert issubclass(obj, errors.PSycloneError)
+            # Ensure there are __str__ & __repr__ methods implemented which
+            # are not inherited from the parent Exception class
+            assert obj.__str__ is not Exception.__str__
+            assert obj.__repr__ is not Exception.__repr__
 
     # Now test that an example error class behaves as expected
     testerror = DummyPSycloneError("my msg")
