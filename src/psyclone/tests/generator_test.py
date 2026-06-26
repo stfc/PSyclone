@@ -50,7 +50,6 @@ from pathlib import Path
 import re
 import shutil
 import stat
-from sys import modules
 from typing import Optional
 import pytest
 
@@ -84,37 +83,18 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "test_files", "gocean1p0")
 
 
-@pytest.fixture(name="script_factory", scope="function")
-def create_script_factor(tmpdir):
-    ''' Fixture that creates a psyclone optimisation script given the string
+def script_factory(tmpdir, code: str) -> Path:
+    """
+    Function that creates a psyclone optimisation script given the string
     representing the body of the script:
 
         script_path = script_factory("def trans(psyir):\n  pass")
 
-    It has a 'function' scope and a tear down section because using a script
-    imports the file and this is kept in the python interpreter state, so we
-    delete it for future tests.
-
-    '''
+    """
     tmpfile = os.path.join(tmpdir, "test_script.py")
-
-    def populate_script(string):
-        with open(tmpfile, 'w+', encoding="utf8") as script:
-            script.write(string)
-        return tmpfile
-
-    yield populate_script
-    # Tear down section executed after each test that uses the fixture
-    # If the created script was used, then its module (file) was imported
-    # into the interpreter runtime, we need to make sure it is deleted
-    modname = "test_script"
-    if modname in modules:
-        del modules[modname]
-    for mod in modules.values():
-        try:
-            delattr(mod, modname)
-        except AttributeError:
-            pass
+    with open(tmpfile, 'w+', encoding="utf8") as script:
+        script.write(code)
+    return tmpfile
 
 
 def test_script_file_not_found():
@@ -165,14 +145,14 @@ def test_script_file_wrong_extension():
             "extension" in str(error.value))
 
 
-def test_script_invalid_content(script_factory):
+def test_script_invalid_content(tmpdir):
     '''Checks that load_script() in generator.py raises the expected
     exception when a script file does not contain valid python. This
     test uses the generate() function to call load_script as this is
     a simple way to create its required arguments.
 
     '''
-    error_syntax = script_factory("""
+    error_syntax = script_factory(tmpdir, """
 this is invalid python
     """)
     with pytest.raises(Exception) as err:
@@ -181,7 +161,7 @@ this is invalid python
             api="lfric", script_name=error_syntax)
     assert "invalid syntax (test_script.py, line 2)" in str(err.value)
 
-    error_import = script_factory("""
+    error_import = script_factory(tmpdir, """
 import non_existent
     """)
     with pytest.raises(Exception) as err:
@@ -191,7 +171,7 @@ import non_existent
     assert "No module named 'non_existent'" in str(err.value)
 
 
-def test_script_invalid_content_runtime(script_factory):
+def test_script_invalid_content_runtime(tmpdir):
     '''Checks that load_script() function in generator.py raises the
     expected exception when a script file contains valid python
     syntactically but produces a runtime exception. This test uses the
@@ -199,7 +179,7 @@ def test_script_invalid_content_runtime(script_factory):
     to create its required arguments.
 
     '''
-    runtime_error = script_factory("""
+    runtime_error = script_factory(tmpdir, """
 def trans(psyir):
     # this will produce a runtime error as b has not been assigned
     psyir = b
@@ -211,7 +191,7 @@ def trans(psyir):
     assert "name 'b' is not defined" in str(error.value)
 
 
-def test_script_no_trans(script_factory):
+def test_script_no_trans(tmpdir):
     '''Checks that load_script() function in generator.py raises the
     expected exception when a script file does not contain a trans()
     function. This test uses the generate() function to call
@@ -219,7 +199,7 @@ def test_script_no_trans(script_factory):
     arguments.
 
     '''
-    no_trans_script = script_factory("""
+    no_trans_script = script_factory(tmpdir, """
 def nottrans(psyir):
     pass
 
@@ -235,7 +215,7 @@ def tran():
             in str(error.value))
 
 
-def test_script_no_trans_alg(capsys, script_factory):
+def test_script_no_trans_alg(capsys, tmpdir):
     '''Checks that load_script() function in generator.py does not raise
     an exception when a script file does not contain a trans_alg()
     function as these are optional. At the moment this function is
@@ -244,7 +224,7 @@ def test_script_no_trans_alg(capsys, script_factory):
     its required arguments.
 
     '''
-    no_alg_script = script_factory("def trans(psyir):\n  pass")
+    no_alg_script = script_factory(tmpdir, "def trans(psyir):\n  pass")
     _, _ = generate(
         os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
         api="gocean", script_name=no_alg_script)
@@ -254,7 +234,7 @@ def test_script_no_trans_alg(capsys, script_factory):
     assert "Deprecation warning:" not in captured.err
 
 
-def test_script_with_legacy_trans_signature(capsys, script_factory):
+def test_script_with_legacy_trans_signature(capsys, tmpdir):
     '''Checks that load_script() function in generator.py does not raise
     an exception when a script file uses the legacy trans signature.
 
@@ -264,7 +244,7 @@ def test_script_with_legacy_trans_signature(capsys, script_factory):
     This will eventually be deprecated.
 
     '''
-    legacy_script = script_factory("""
+    legacy_script = script_factory(tmpdir, """
 def trans(psy):
     # The following are backwards-compatible expressions with legacy scripts
     _ = psy.invokes.invoke_list
@@ -440,13 +420,13 @@ def test_no_script_gocean():
     assert "module psy_single_invoke_test" in str(psy)
 
 
-def test_script_gocean(script_factory):
+def test_script_gocean(tmpdir):
     '''Test that the generate function in generator.py returns
     successfully if a script (containing both trans_alg() and trans()
     functions) is specified.
 
     '''
-    alg_script = script_factory("""
+    alg_script = script_factory(tmpdir, """
 def trans_alg(psyir):
     pass
 
@@ -496,12 +476,12 @@ def test_invalid_gocean_alg(monkeypatch, caplog, capsys):
         assert "Failed to create PSyIR from file '" in err
 
 
-def test_script_attr_error(script_factory):
+def test_script_attr_error(tmpdir):
     '''Checks that generator.py raises an appropriate error when a script
     file contains a trans() function which raises an attribute error.
 
     '''
-    error_script = script_factory("""
+    error_script = script_factory(tmpdir, """
 from psyclone.psyGen import Loop
 from psyclone.transformations import ColourTrans
 
@@ -520,12 +500,12 @@ def trans(psyir):
     assert 'object has no attribute' in str(excinfo.value)
 
 
-def test_script_null_trans(script_factory):
+def test_script_null_trans(tmpdir):
     '''Checks that generator.py works correctly when the trans() function
     in a valid script file does no transformations.
 
     '''
-    empty_script = script_factory("def trans(psyir):\n  pass")
+    empty_script = script_factory(tmpdir, "def trans(psyir):\n  pass")
     alg1, psy1 = generate(os.path.join(BASE_PATH, "lfric",
                                        "1_single_invoke.f90"),
                           api="lfric")
@@ -540,26 +520,27 @@ def test_script_null_trans(script_factory):
         '\n'.join(str(psy2).split('\n')[1:])
 
 
-def test_script_null_trans_relative(script_factory):
+def test_script_null_trans_relative(monkeypatch, tmpdir):
     '''Checks that generator.py works correctly when the trans() function
     in a valid script file does no transformations (it simply passes
     input to output). In this case the valid script file contains no
-    path and must therefore be found via the PYTHOPATH path list.
+    path, but is invoked from the script's directory, as a relative
+    path.
 
     '''
     alg1, psy1 = generate(os.path.join(BASE_PATH, "lfric",
                                        "1_single_invoke.f90"),
                           api="lfric")
-    empty_script = script_factory("def trans(psyir):\n  pass")
+    empty_script = script_factory(tmpdir, "def trans(psyir):\n  pass")
     basename = os.path.basename(empty_script)
-    path = os.path.dirname(empty_script)
-    # Set the script directory in the PYTHONPATH
-    os.sys.path.append(path)
+
+    # Change into the script's directory so it's found as a relative import.
+    monkeypatch.chdir(tmpdir)
+
     alg2, psy2 = generate(os.path.join(BASE_PATH, "lfric",
                                        "1_single_invoke.f90"),
                           api="lfric", script_name=basename)
-    # Remove the path from PYTHONPATH
-    os.sys.path.pop()
+
     # we need to remove the first line before comparing output as
     # this line is an instance specific header
     assert '\n'.join(str(alg1).split('\n')[1:]) == \
@@ -567,13 +548,13 @@ def test_script_null_trans_relative(script_factory):
     assert str(psy1) == str(psy2)
 
 
-def test_script_trans_lfric(script_factory):
+def test_script_trans_lfric(tmpdir):
     '''Checks that generator.py works correctly when a transformation is
     provided as a script, i.e. it applies the transformations
     correctly.
 
     '''
-    fuse_loop_script = script_factory("""
+    fuse_loop_script = script_factory(tmpdir, """
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 def trans(psyir):
     module = psyir.children[0]
@@ -1896,7 +1877,7 @@ def test_no_script_lfric_new(monkeypatch):
     assert "use _psyclone_builtins" not in alg
 
 
-def test_script_lfric_new(monkeypatch, script_factory):
+def test_script_lfric_new(monkeypatch, tmpdir):
     '''Test that the generate function in generator.py returns
     successfully if a script (containing both trans_alg() and trans()
     functions) is specified. This test uses the new PSyIR approach to
@@ -1905,7 +1886,7 @@ def test_script_lfric_new(monkeypatch, script_factory):
     monkeypatching.
 
     '''
-    alg_script = script_factory("""
+    alg_script = script_factory(tmpdir, """
 def trans_alg(psyir):
     pass
 
