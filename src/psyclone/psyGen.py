@@ -68,7 +68,7 @@ from psyclone.psyir.nodes import (
     IntrinsicCall, BinaryOperation, FileContainer)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, ScalarType,
-    UnresolvedType, ImportInterface, INTEGER_TYPE, RoutineSymbol)
+    UnresolvedType, ImportInterface, RoutineSymbol)
 from psyclone.psyir.symbols.symbol_table import SymbolTable
 
 # The types of 'intent' that an argument to a Fortran subroutine
@@ -147,6 +147,7 @@ class PSyFactory():
     :raises TypeError: if the distributed_memory argument is not a bool.
 
     '''
+
     def __init__(self, api="", distributed_memory=None):
 
         if distributed_memory is None:
@@ -213,6 +214,7 @@ class PSy():
     >>> print(psy.gen)
 
     '''
+
     def __init__(self, invoke_info):
         self._name = invoke_info.name
         self._invokes = None
@@ -301,6 +303,7 @@ class Invokes():
     :type psy: subclass of :py:class`psyclone.psyGen.PSy`
 
     '''
+
     def __init__(self, alg_calls, invoke_cls, psy):
         self._psy = psy
         self.invoke_map = {}
@@ -367,6 +370,7 @@ class Invoke():
     :type invokes: :py:class:`psyclone.psyGen.Invokes`
 
     '''
+
     def __init__(self, alg_invocation, idx, schedule_class, invokes):
         '''Construct an invoke object.'''
 
@@ -989,9 +993,9 @@ class Kern(Statement):
         nthreads = symtab.lookup_with_tag("omp_num_threads")
         do_loop = Loop.create(
                     thread_idx,
-                    start=Literal("1", INTEGER_TYPE),
+                    start=Literal("1", ScalarType.integer_type()),
                     stop=Reference(nthreads),
-                    step=Literal("1", INTEGER_TYPE),
+                    step=Literal("1", ScalarType.integer_type()),
                     children=[])
         parent.addchild(do_loop, position+1)
         var_symbol = table.lookup_with_tag(
@@ -1002,7 +1006,7 @@ class Kern(Statement):
                BinaryOperation.Operator.ADD,
                Reference(var_symbol),
                ArrayReference.create(local_symbol,
-                                     [Literal("1", INTEGER_TYPE),
+                                     [Literal("1", ScalarType.integer_type()),
                                       Reference(thread_idx)]))))
         do_loop.append_preceding_comment(
                     "sum the partial results sequentially")
@@ -1030,7 +1034,7 @@ class Kern(Statement):
                 f"{self.name}:{self._reduction_arg.name}:local")
             # Return a multi-valued ArrayReference for a reproducible reduction
             array_dim = [
-                Literal("1", INTEGER_TYPE),
+                Literal("1", ScalarType.integer_type()),
                 Reference(symtab.lookup_with_tag("omp_thread_index"))]
             return ArrayReference.create(local_var, array_dim)
         # Return a single-valued Reference for a non-reproducible reduction
@@ -1095,7 +1099,8 @@ class Kern(Statement):
                     f"REPROD_PAD_SIZE in {Config.get().filename} should be a "
                     f"positive integer, but it is set to "
                     f"'{Config.get().reprod_pad_size}'.")
-            pad_size = Literal(str(Config.get().reprod_pad_size), INTEGER_TYPE)
+            pad_size = Literal(str(Config.get().reprod_pad_size),
+                               ScalarType.integer_type())
 
             array_type = ArrayType(arg_sym.datatype,
                                    2*[ArrayType.Extent.DEFERRED])
@@ -2534,7 +2539,7 @@ class Transformation(metaclass=abc.ABCMeta):
                 except TypeError:
                     # Type checking for Generics, e.g. Union[...], doesn't
                     # work so we skip this check - it is done in the
-                    # relevant function instead.
+                    # validate method of the transformation instead.
                     pass
 
         if len(invalid_options) > 0:

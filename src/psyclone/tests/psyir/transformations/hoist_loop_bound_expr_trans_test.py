@@ -39,7 +39,7 @@
 import pytest
 
 from psyclone.psyir.nodes import Literal, Loop, Routine
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations import HoistLoopBoundExprTrans, \
     TransformationError
 from psyclone.transformations import OMPParallelLoopTrans
@@ -167,13 +167,15 @@ def test_validate():
     '''
     trans = HoistLoopBoundExprTrans()
     with pytest.raises(TransformationError) as err:
-        trans.apply(Literal("3", INTEGER_TYPE))
+        trans.apply(Literal("3", ScalarType.integer_type()))
     assert ("Target of HoistLoopBoundExprTrans transformation must be a "
             "sub-class of Loop but got 'Literal'" in str(err.value))
     with pytest.raises(TransformationError) as err:
         trans.apply(Loop.create(
-            DataSymbol("i", INTEGER_TYPE), Literal("1", INTEGER_TYPE),
-            Literal("10", INTEGER_TYPE), Literal("1", INTEGER_TYPE), []))
+            DataSymbol("i", ScalarType.integer_type()),
+            Literal("1", ScalarType.integer_type()),
+            Literal("10", ScalarType.integer_type()),
+            Literal("1", ScalarType.integer_type()), []))
     assert ("The loop provided to HoistLoopBoundExprTrans must belong to a "
             "Routine into which the hoisted expressions can be placed."
             in str(err.value))

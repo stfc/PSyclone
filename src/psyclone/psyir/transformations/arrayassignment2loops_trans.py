@@ -47,12 +47,12 @@ from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     Assignment, Call, IntrinsicCall, Loop, Literal, Node, Range, Reference,
-    CodeBlock, Routine, BinaryOperation)
+    CodeBlock, Routine, BinaryOperation, ArrayConstructor)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, ScalarType, SymbolError)
+    DataSymbol, ScalarType, SymbolError)
 from psyclone.utils import transformation_documentation_wrapper
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
@@ -145,7 +145,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
             loop_variable_symbol = symbol_table.new_symbol(
                                         root_name="idx",
                                         symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
+                                        datatype=ScalarType.integer_type())
 
             # Replace one range for each top-level array expression in the
             # assignment
@@ -240,6 +240,17 @@ class ArrayAssignment2LoopsTrans(Transformation):
         if node.has_descendant(CodeBlock):
             message = (f"{self.name} does not support array assignments that"
                        f" contain a CodeBlock anywhere in the expression")
+            if verbose:
+                node.append_preceding_comment(message)
+            raise TransformationError(LazyString(
+                lambda: f"{message}, but found:\n{node.debug_string()}"))
+
+        # Do not allow to transform expressions with ArrayConstructors
+        # This could be relaxed in future
+        if node.has_descendant(ArrayConstructor):
+            message = (f"{self.name} does not support array assignments that"
+                       " contain an ArrayConstructor anywhere in"
+                       " the expression")
             if verbose:
                 node.append_preceding_comment(message)
             raise TransformationError(LazyString(

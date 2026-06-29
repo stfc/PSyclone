@@ -41,8 +41,7 @@
 import pytest
 from psyclone.psyir.nodes import BinaryOperation, Literal, Reference, \
     IntrinsicCall
-from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE, \
-    REAL_SINGLE_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.tests.utilities import check_links
 
 
@@ -55,9 +54,9 @@ def test_type_convert_intrinsic_create(intrinsic, intr_str, fortran_writer):
     operations..
 
     '''
-    sym = DataSymbol("tmp1", REAL_SINGLE_TYPE)
+    sym = DataSymbol("tmp1", ScalarType.real_single_type())
     lhs = Reference(sym)
-    wp_sym = DataSymbol("wp", INTEGER_SINGLE_TYPE)
+    wp_sym = DataSymbol("wp", ScalarType.integer_single_type())
     # Reference to a kind parameter
     rhs = Reference(wp_sym)
     intr_call = IntrinsicCall.create(intrinsic, [lhs, ("kind", rhs)])
@@ -66,15 +65,16 @@ def test_type_convert_intrinsic_create(intrinsic, intr_str, fortran_writer):
     result = fortran_writer(intr_call)
     assert intr_str + "(tmp1, kind=wp)" in result.lower()
     # Kind specified with an integer literal
-    rhs = Literal("4", INTEGER_SINGLE_TYPE)
+    rhs = Literal("4", ScalarType.integer_single_type())
     intr_call = IntrinsicCall.create(intrinsic, [lhs.detach(), ("kind", rhs)])
     check_links(intr_call, [intr_call.routine, lhs, rhs])
     result = fortran_writer(intr_call)
     assert intr_str + "(tmp1, kind=4)" in result.lower()
     # Kind specified as an arithmetic expression
-    rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                 Reference(wp_sym),
-                                 Literal("2", INTEGER_SINGLE_TYPE))
+    rhs = BinaryOperation.create(
+         BinaryOperation.Operator.ADD,
+         Reference(wp_sym),
+         Literal("2", ScalarType.integer_single_type()))
     intr_call = IntrinsicCall.create(intrinsic, [lhs.detach(), ("kind", rhs)])
     check_links(intr_call, [intr_call.routine, lhs, rhs])
     result = fortran_writer(intr_call)
@@ -86,17 +86,18 @@ def test_type_convert_intrinsic_create(intrinsic, intr_str, fortran_writer):
                    "method - TODO #658.")
 def test_real_intrinsic_invalid():
     ''' Test that the create method rejects invalid precisions. '''
-    sym = DataSymbol("tmp1", REAL_SINGLE_TYPE)
+    sym = DataSymbol("tmp1", ScalarType.real_single_type())
     intrinsic = IntrinsicCall.Intrinsic.REAL
     with pytest.raises(TypeError) as err:
         _ = IntrinsicCall.create(
             intrinsic,
-            [Reference(sym), ("kind", Literal("1.0", REAL_SINGLE_TYPE))])
+            [Reference(sym),
+             ("kind", Literal("1.0", ScalarType.real_single_type()))])
     assert ("Precision argument to REAL operation must be specified using a "
             "DataSymbol, ScalarType.PRECISION or integer Literal but got "
             "xxxx" in str(err.value))
     # A Symbol of REAL type cannot be used to specify a precision
-    wrong_kind = DataSymbol("not_wp", REAL_SINGLE_TYPE)
+    wrong_kind = DataSymbol("not_wp", ScalarType.real_single_type())
     with pytest.raises(TypeError) as err:
         _ = IntrinsicCall.create(
             intrinsic,

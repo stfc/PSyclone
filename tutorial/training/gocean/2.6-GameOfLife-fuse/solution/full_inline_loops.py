@@ -46,7 +46,7 @@ from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.nodes import Call, FileContainer, Loop, Reference, Routine
-from psyclone.psyir.symbols import AutomaticInterface, DataSymbol, REAL8_TYPE
+from psyclone.psyir.symbols import AutomaticInterface, DataSymbol, ScalarType
 from psyclone.psyir.transformations import InlineTrans
 
 
@@ -170,7 +170,7 @@ def trans(psyir: FileContainer) -> None:
                 symbol_table.find_or_create(f"{sig[0]}_scalar",
                                             symbol_type=DataSymbol,
                                             interface=AutomaticInterface(),
-                                            datatype=REAL8_TYPE)
+                                            datatype=ScalarType.real8_type())
             for ref in schedule.walk(Reference):
                 ref_sig, _ = ref.get_signature_and_indices()
                 if ref_sig == sig_data:

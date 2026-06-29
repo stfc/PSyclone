@@ -50,7 +50,7 @@ from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 from psyclone.psyir.nodes import (CodeBlock, Literal, Loop)
 from psyclone.psyir.transformations import OMPParallelTrans
-from psyclone.psyir.symbols import (DataSymbol, INTEGER_TYPE)
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 
 
 def test_parallelregion_refuse_codeblock():
@@ -59,10 +59,10 @@ def test_parallelregion_refuse_codeblock():
     is abstract. '''
     otrans = OMPParallelTrans()
     # Construct a valid Loop in the PSyIR with a CodeBlock in its body
-    parent = Loop.create(DataSymbol("ji", INTEGER_TYPE),
-                         Literal("1", INTEGER_TYPE),
-                         Literal("10", INTEGER_TYPE),
-                         Literal("1", INTEGER_TYPE),
+    parent = Loop.create(DataSymbol("ji", ScalarType.integer_type()),
+                         Literal("1", ScalarType.integer_type()),
+                         Literal("10", ScalarType.integer_type()),
+                         Literal("1", ScalarType.integer_type()),
                          [CodeBlock([], CodeBlock.Structure.STATEMENT,
                                     None)])
     with pytest.raises(TransformationError) as err:
