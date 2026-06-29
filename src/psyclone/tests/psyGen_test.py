@@ -220,6 +220,7 @@ def test_transformation_get_options():
     # Check that we allow the fetching of the TestTrans option.
     assert trans.get_option("valid", valid=True)
 
+
 def test_transformation_split_kwargs():
     ''' Test that the kwargs can be split when they can be propagated to
     multiple sub-transformations. '''
