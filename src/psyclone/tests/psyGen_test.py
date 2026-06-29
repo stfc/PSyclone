@@ -206,6 +206,19 @@ def test_transformation_get_options():
     assert ("option 'invalid' is not a valid option for 'TestTrans'. "
             "Valid options are '['valid']." in str(excinfo.value))
 
+    # Test that we allow _SUB_TRANSFORMATIONS_OPTIONS
+
+    class TestTrans2(Transformation):
+        '''Utility transformation to test methods of the abstract
+        Transformation class with _SUB_TRANSFORMATIONS.'''
+        _SUB_TRANSFORMATIONS = [TestTrans]
+
+        def apply(self, node, **kwargs):
+            ...
+
+    trans = TestTrans2()
+    # Check that we allow the fetching of the TestTrans option.
+    assert trans.get_option("valid", valid=True)
 
 def test_transformation_split_kwargs():
     ''' Test that the kwargs can be split when they can be propagated to

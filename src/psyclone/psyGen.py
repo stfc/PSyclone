@@ -2460,7 +2460,12 @@ class Transformation(metaclass=abc.ABCMeta):
         :raises ValueError: if option_name is not found in the valid options
                             for the Transformation.
         '''
-        valid_options = type(self).get_valid_options()
+        valid_options = {}
+        # dict.update keeps the last value if multiple dicts contain the
+        # same key, so we do the type(self) update last.
+        for subtrans in type(self)._SUB_TRANSFORMATIONS:
+            valid_options.update(subtrans.get_valid_options())
+        valid_options.update(type(self).get_valid_options())
         if option_name not in valid_options.keys():
             raise ValueError(f"option '{option_name}' is not a valid option "
                              f"for '{type(self).__name__}'. Valid options "
