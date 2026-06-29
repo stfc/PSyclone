@@ -68,7 +68,7 @@ def test_ompcpuroutinetrans_apply_without_nowait(fortran_reader,
     end subroutine x"""
 
     psyir = fortran_reader.psyir_from_source(code)
-    
+
     trans = OMPCPURoutineTrans()
 
     trans.apply(psyir.children[0])
