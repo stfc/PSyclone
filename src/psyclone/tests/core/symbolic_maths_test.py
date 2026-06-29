@@ -251,7 +251,7 @@ def test_symbolic_maths_never_equal_error(fortran_reader):
     source = (
         "program test_prog\n"
         "  integer :: a(2)\n"
-        "  a(:) = (/1, 2/)\n"
+        "  a(:) = (/integer :: 1, 2/)\n"
         "end program test_prog\n")
     psyir = fortran_reader.psyir_from_source(source)
     assignment = psyir.children[0][0]

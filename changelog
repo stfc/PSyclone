@@ -1,3 +1,9 @@
+   34) PR #3440. Update to use release 0.2.4 of fparser.
+ 
+   33) PR #3467. Update CI compilers.
+
+   32) PR #3458 for #2721. Adds ArrayConstructor support into the PSyIR.
+
    31) PR #3442. Extends Call.get_callee() to permit implicit reshaping
    of arguments.
  
