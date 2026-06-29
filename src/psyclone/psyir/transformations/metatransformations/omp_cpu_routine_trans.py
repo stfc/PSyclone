@@ -81,31 +81,32 @@ class OMPCPURoutineTrans(Transformation):
 
         # Find all of the loops.
         loops = node.walk(Loop)
+        ltrans = OMPLoopTrans()
         for loop in loops:
             if loop.ancestor(Directive):
                 continue  # Skip if an outer loop is already parallelised
             try:
                 # Validate that this loop can be parallelised.
-                OMPLoopTrans.validate(self, loop, **loop_kwargs)
+                ltrans.validate(loop, **loop_kwargs)
                 # If it is, then apply the OMPLoopTrans
-                OMPLoopTrans.apply(self, loop, **loop_kwargs)
+                ltrans.apply(loop, **loop_kwargs)
             except TransformationError:
                 # If we fail to parallelise a loop we just skip it.
                 continue
 
         # Apply the maximal openMP parallel region transformation to the
         # routine.
-        MaximalOMPParallelRegionTrans.validate(self, node.children[:],
-                                               **maxpar_kwargs)
-        MaximalOMPParallelRegionTrans.apply(self, node.children[:],
-                                            **maxpar_kwargs)
+        momprtrans = MaximalOMPParallelRegionTrans()
+        momprtrans.validate(node.children[:], **maxpar_kwargs)
+        momprtrans.apply(node.children[:], **maxpar_kwargs)
 
         nowait = self.get_option("nowait", **kwargs)
         # If the asynchronous option was specified, then we need to apply the
         # OMPMinimiseSyncTrans as well.
         if nowait:
-            OMPMinimiseSyncTrans.validate(self, node, **minsync_kwargs)
-            OMPMinimiseSyncTrans.apply(self, node, **minsync_kwargs)
+            minstrans = OMPMinimiseSyncTrans()
+            minstrans.validate(node, **minsync_kwargs)
+            minstrans.apply(node, **minsync_kwargs)
 
 
 # For Sphinx AutoAPI documentation generation

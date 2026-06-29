@@ -31,15 +31,48 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. B. G. Chalk, STFC Daresbury Lab
+# Author: A. B. G. Chalk, STFC Daresbury Lab
 
-'''Transformation metatransformation module, containing all generic
-metatransformations.
-'''
+'''Contains the tests for the OMPCPURoutineTrans metatransformation.'''
 
-from psyclone.psyir.transformations.metatransformations.omp_cpu_routine_trans\
-    import OMPCPURoutineTrans
+from psyclone.psyir.transformations.metatransformations import (
+        OMPCPURoutineTrans
+)
 
-__all__ = [
-    "OMPCPURoutineTrans",
-]
+
+def test_ompcpuroutinetrans_validate():
+    '''
+    Test the OMPCPURoutineTrans validate works correctly when
+    provided an options dict.
+    '''
+    # If we provide an options dict we shouldn't get a failure due
+    # to the new code in psyGen, since its not included in
+    # inherited valid kwargs.
+    OMPCPURoutineTrans().validate(None, options={})
+
+
+def test_ompcpuroutinetrans_apply_without_nowait(fortran_reader,
+                                                 fortran_writer):
+    '''Test the behaviour of the OMPCPURoutineTrans works correctly
+    when nowait isn't supplied.'''
+
+    code = """subroutine x
+
+    do i = 1, 100
+        a(i) = i
+    end do
+
+    do i = 1, 100
+        b(i) = a(i) * 4 + i
+    end do
+    end subroutine x"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    
+    trans = OMPCPURoutineTrans()
+
+    trans.apply(psyir.children[0])
+
+    out = fortran_writer(psyir)
+    print(out)
+    assert False
