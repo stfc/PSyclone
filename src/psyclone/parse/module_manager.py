@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modifications: M. Naylor, University of Cambridge, UK
 
 '''This module contains a singleton class that manages information about
 which module is contained in which file (including full location). '''
@@ -143,7 +144,8 @@ class ModuleManager:
 
         # Files with an extension from this set will be considered
         # when searching for Fortran files
-        self._fortran_file_exts = {".F90", ".f90", ".X90", ".x90"}
+        self._fortran_file_exts = {".F90", ".f90", ".X90", ".x90",
+                                   ".F95", ".f95", ".F03", ".f03"}
 
     @property
     def cache_active(self) -> bool:
