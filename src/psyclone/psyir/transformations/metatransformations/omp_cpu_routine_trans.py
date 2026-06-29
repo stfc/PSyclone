@@ -72,12 +72,14 @@ class OMPCPURoutineTrans(Transformation):
 
         :param node: The Routine node to transform
         '''
-        self.validate(node, **kwargs)
 
         # Split the options for the subtransformations.
-        _, loop_kwargs, maxpar_kwargs, minsync_kwargs = self.split_kwargs(
-            **kwargs
-        )
+        local_kwargs, loop_kwargs, maxpar_kwargs, minsync_kwargs = \
+            self.split_kwargs(
+                **kwargs
+            )
+
+        self.validate(node, **local_kwargs)
 
         # Find all of the loops.
         loops = node.walk(Loop)
