@@ -235,8 +235,6 @@ def test_transformation_get_options():
     assert not trans.get_option("valid", **opts)
 
 
-
-
 def test_transformation_split_kwargs():
     ''' Test that the kwargs can be split when they can be propagated to
     multiple sub-transformations. '''
