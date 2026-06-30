@@ -965,7 +965,6 @@ def test_node_dag(tmpdir, have_graphviz):
     assert isinstance(dag, graphviz.Digraph)
 
     result = my_file.read()
-    print(result)
     assert EXPECTED2.match(result)
     my_file = tmpdir.join('test.svg')
     result = my_file.read()
