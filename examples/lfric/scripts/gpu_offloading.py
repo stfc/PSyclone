@@ -96,10 +96,12 @@ MANUALLY_ANNOTATED = [
     'panel_neighbour', 'rotated_panel_neighbour',
     'qsaturation', 'interpolate_u_to_x',
     'rotation_vector_fplane', 'vert_vector_sphere', 'rotation_vector_sphere',
+    'monotonic_edge', 'fourth_order_vertical_edge', 'ffsl_flux_xy_1d',
 
-    # Subroutines with GPU annotation but that cause runtime faliures
+    # Subroutines with GPU annotations but offloading them cause runtime issues
     # 'native_jacobian',  # Runtime invalid address access
     # 'rehabilitate',     # Different results
+    # 'subgrid_quadratic_recon'  # Not enough heap memory on the gpu?
 ]
 
 def _replace_matmuls(sched: Schedule):

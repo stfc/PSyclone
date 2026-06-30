@@ -1631,6 +1631,7 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin,
     '''
     def apply(self, node, options=None, force: bool = False,
               parallelism: str = "seq", device_string: str = "",
+              assume_valid_on_device: Optional[list] = None,
               **kwargs):
         '''
         Add the '!$acc routine' OpenACC directive into the code of the
@@ -1654,6 +1655,7 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin,
         self.validate(node, options, force=force,
                       parallelism=parallelism,
                       device_string=device_string,
+                      assume_valid_on_device=assume_valid_on_device,
                       **kwargs)
 
         # TODO 2668: options are now deprecated:
@@ -1676,7 +1678,9 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin,
             routine.children.insert(
                 0, ACCRoutineDirective(parallelism=para))
 
-    def validate(self, node, options=None, **kwargs):
+    def validate(self, node, options=None,
+                 assume_valid_on_device: Optional[list] = None,
+                 **kwargs):
         '''
         Perform checks that the supplied kernel or routine can be transformed.
 
@@ -1706,7 +1710,9 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin,
         self.validate_options(**kwargs)
         super().validate(node, options, **kwargs)
 
-        self.validate_it_can_run_on_gpu(node, options, **kwargs)
+        self.validate_it_can_run_on_gpu(
+            node, options, assume_valid_on_device=assume_valid_on_device,
+            **kwargs)
 
         if isinstance(node, Kern):
             self._check_callee_implementation_is_local(node)

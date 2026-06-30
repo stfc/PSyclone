@@ -152,16 +152,23 @@ class MarkRoutineForGPUMixin:
             # to override this check.
             cblocks = sched.walk(CodeBlock)
             if not force:
-                if cblocks:
-                    cblock_txt = (
-                        "\n  " + "\n  ".join(cblocks[0].get_fortran_lines())
-                        + "\n")
-                    option_txt = "options={'force': True}"
-                    raise TransformationError(
-                        f"Cannot safely apply {type(self).__name__} to "
-                        f"{k_or_r} '{node.name}' because its PSyIR contains "
-                        f"one or more CodeBlocks:{cblock_txt}You may use "
-                        f"'{option_txt}' to override this check.")
+                from fparser.two import Fortran2003
+                from fparser.two.utils import walk
+
+                for block in cblocks:
+                    for fpnode in block.parse_tree_nodes:
+                        if isinstance(fpnode, Fortran2003.Exit_Stmt):
+                            # These are valid on the GPU
+                            continue
+                        cblock_txt = (
+                            "\n  " + "\n  ".join(block.get_fortran_lines())
+                            + "\n")
+                        option_txt = "options={'force': True}"
+                        raise TransformationError(
+                            f"Cannot safely apply {type(self).__name__} to "
+                            f"{k_or_r} '{node.name}' because its PSyIR contains "
+                            f"one or more CodeBlocks:{cblock_txt}You may use "
+                            f"'{option_txt}' to override this check.")
 
             for call in sched.walk(Call):
                 if device_safe and call.routine.symbol.name in device_safe:
