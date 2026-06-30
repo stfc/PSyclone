@@ -34,6 +34,7 @@
 #          J. Henrichs, Bureau of Meteorology
 #          I. Kavcic, Met Office
 # Modified: A. B. G. Chalk, STFC Daresbury Lab
+#           M. Naylor, University of Cambridge, UK
 # -----------------------------------------------------------------------------
 
 ''' This module provides the fparser2 to PSyIR front-end, it follows a
@@ -60,11 +61,13 @@ from psyclone.configuration import Config
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.nodes import (
-    ArrayMember, ArrayOfStructuresReference, ArrayReference, Assignment,
-    BinaryOperation, Call, CodeBlock, Container, DataNode, Directive,
-    FileContainer, IfBlock, IntrinsicCall, Literal, Loop, Member, Node, Range,
-    Reference, Return, Routine, Schedule, StructureReference, UnaryOperation,
-    WhileLoop, Fparser2CodeBlock, ScopingNode, UnknownDirective)
+    ArrayConstructor,
+    ArrayMember, ACCRoutineDirective, ArrayOfStructuresReference,
+    ArrayReference, Assignment, BinaryOperation, Call, CodeBlock, Container,
+    DataNode, Directive, FileContainer, IfBlock, IntrinsicCall, Literal, Loop,
+    Member, Node, OMPDeclareTargetDirective, Range, Reference, Return,
+    Routine, Schedule, StructureReference, UnaryOperation, WhileLoop,
+    Fparser2CodeBlock, ScopingNode, UnknownDirective)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, AutomaticInterface, ScalarType,
@@ -990,6 +993,7 @@ class Fparser2Reader():
             Fortran2003.Allocate_Stmt: self._allocate_handler,
             Fortran2003.Allocate_Shape_Spec: self._allocate_shape_spec_handler,
             Fortran2003.Assignment_Stmt: self._assignment_handler,
+            Fortran2003.Array_Constructor: self._array_constructor_handler,
             Fortran2003.Structure_Constructor: self._call_handler,
             Fortran2003.Data_Pointer_Object: self._structure_accessor_handler,
             Fortran2003.Data_Ref: self._structure_accessor_handler,
@@ -4974,6 +4978,43 @@ class Fparser2Reader():
 
         return assignment
 
+    def _array_constructor_handler(
+             self,
+             node: Fortran2003.Array_Constructor,
+             parent: Node) -> ArrayConstructor:
+        '''
+        Transforms an fparser2 Array_Constructor to the PSyIR representation.
+
+        :param node: array constructor node in fparser2 AST.
+        :param parent: parent node of the PSyIR node we are constructing.
+
+        :returns: PSyIR representation of array constructor.
+
+        :raises NotImplementedError: if the parse tree contains unsupported
+            elements.
+        '''
+        ac_spec = node.items[1]
+        if isinstance(ac_spec, Fortran2003.Ac_Value_List):
+            elems = node.items[1].items
+            # Check that no elements are 'Ac_Implied_Do'
+            for elem in elems:
+                if isinstance(elem, Fortran2003.Ac_Implied_Do):
+                    raise NotImplementedError(
+                        "Array constructors with implied do loops cannot be "
+                        "handled in the PSyIR")
+            array_cons = ArrayConstructor(ast=node, parent=parent)
+            self.process_nodes(parent=array_cons, nodes=elems)
+            return array_cons
+        elif isinstance(ac_spec, Fortran2003.Ac_Spec):
+            raise NotImplementedError(
+                "Array constructors with type specifications cannot be "
+                "handled in the PSyIR")
+        else:  # pragma: no cover
+            # This should never be reached, but we defensively raise
+            # an exception just in case.
+            raise NotImplementedError(
+                "Unexpected array constructor form encountered")
+
     def _structure_accessor_handler(self, node, parent):
         '''
         Create the PSyIR for structure accessors found in fparser2 Data_Ref,
@@ -6145,18 +6186,21 @@ class Fparser2Reader():
 
     def _directive_handler(
         self, node: Fortran2003.Directive, parent: Node
-    ) -> Union[CodeBlock, UnknownDirective]:
+    ) -> Union[CodeBlock, UnknownDirective, Directive]:
         '''
         Process a directive and add it to the tree. The current behaviour
         places most directives into a CodeBlock.
 
         Directives starting with !$psy are turned into a UnknownDirective.
 
+        ACC Routine directives and OMP declare target directives are converted
+        to the corresponding PSyIR Directives.
+
         :param node: Directive to process.
         :param parent: The parent to add the PSyIR node to.
 
-        :returns: a CodeBlock containing the input Directive or a
-                  UnknownDirective.
+        :returns: a CodeBlock containing the input Directive, an
+                  UnknownDirective or a specialised PSyIR Directive.
         '''
         # We don't turn OpenMP extensions or directives we can't output
         # correctly into Directive nodes. PSyclone currently always
@@ -6168,6 +6212,30 @@ class Fparser2Reader():
             not lcase.startswith(prefix) for prefix in dont_match
         ])
         if to_direc:
+            # We first try to specialise some directives.
+            # PSyclone doesn't support clauses on Declare Target so
+            # we can just look for exact string.
+            if lcase == "!$omp declare target":
+                return OMPDeclareTargetDirective(parent=parent)
+
+            if lcase.startswith("!$acc routine"):
+                # If we have an acc routine we need to see if there is
+                # a parallelism clause
+                parallel_clause = lcase[13:].lstrip()
+                if parallel_clause:
+                    try:
+                        directive = ACCRoutineDirective(
+                            parallelism=parallel_clause, parent=parent
+                        )
+                        return directive
+                    except ValueError:
+                        # Fall back to an Unknown Directive if the parallel
+                        # clause isn't understood by PSyclone.
+                        return UnknownDirective(str_rep[2:].lstrip(),
+                                                parent=parent)
+                # If we have no parallel clause then return the default.
+                return ACCRoutineDirective(parent=parent)
+            # Otherwise return an UnknownDirective for the node.
             content = str_rep[2:].lstrip()
             return UnknownDirective(content, parent=parent)
         code_block = Fparser2CodeBlock(

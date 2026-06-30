@@ -218,7 +218,7 @@ class DataSymbol(TypedSymbol):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import (
             Assignment, Node, Literal, Operation, Reference,
-            CodeBlock, IntrinsicCall)
+            CodeBlock, IntrinsicCall, ArrayConstructor)
         from psyclone.psyir.symbols.datatypes import (ScalarType, ArrayType,
                                                       UnsupportedType)
 
@@ -239,7 +239,8 @@ class DataSymbol(TypedSymbol):
             if isinstance(new_value, Node):
                 for node in new_value.walk(Node):
                     if not isinstance(node, (Literal, Operation, Reference,
-                                             CodeBlock, IntrinsicCall)):
+                                             CodeBlock, IntrinsicCall,
+                                             ArrayConstructor)):
                         raise ValueError(
                             f"Error setting initial value for symbol "
                             f"'{self.name}'. PSyIR static expressions can only"

@@ -110,8 +110,9 @@ for var in varinfo:
                 stop_position = node.ancestor(Statement).abs_position
             else:
                 stop_position = node.abs_position
-            chain = DefinitionUseChain(node, stop_point=stop_position)
-            all_prev = chain.find_backward_accesses()
+            chain = DefinitionUseChain([node], stop_point=stop_position)
+            sig = node.get_signature_and_indices()[0]
+            all_prev = chain.find_backward_accesses()[sig]
 
             # Keep track if a write was found (if not, we will add the
             # variable as a node by itself)

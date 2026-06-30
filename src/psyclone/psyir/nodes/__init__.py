@@ -39,6 +39,7 @@
 
 ''' PSyIR nodes package module '''
 
+from psyclone.psyir.nodes.array_constructor import ArrayConstructor
 from psyclone.psyir.nodes.acc_clauses import (
     ACCAsyncQueueClause, ACCCopyClause, ACCCopyInClause,
     ACCCopyOutClause)
@@ -113,6 +114,7 @@ from psyclone.psyir.nodes.while_loop import WhileLoop
 # this package e.g. 'from psyclone.psyir.nodes import Literal'
 __all__ = [
         'colored',
+        'ArrayConstructor',
         'ArrayMember',
         'ArrayReference',
         'ArrayOfStructuresMember',

@@ -186,11 +186,11 @@ def test_codeblock_get_fortran_lines():
     frontends)
     '''
     code = "\nsubroutine mytest\nend subroutine"
-    tree = Fparser2Reader().generate_parse_tree_from_source(code)
+    tree = Fparser2Reader(free_form=True).generate_parse_tree_from_source(code)
     block = Fparser2CodeBlock(tree.children, CodeBlock.Structure.STATEMENT)
     assert isinstance(block.get_fortran_lines(), list)
-    assert "subroutine mytest" in block.get_fortran_lines()
-    assert "end subroutine" in block.get_fortran_lines()
+    assert "SUBROUTINE mytest" in block.get_fortran_lines()
+    assert "END SUBROUTINE" in block.get_fortran_lines()
 
     tree = FortranTreeSitterReader().generate_parse_tree_from_source(code)
     block = TreeSitterCodeBlock(tree, CodeBlock.Structure.STATEMENT)

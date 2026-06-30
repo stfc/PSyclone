@@ -2213,10 +2213,10 @@ def test_validate_array_reshape(fortran_reader):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
-    assert ("Cannot inline routine 's' because the target of the call cannot "
-            "be found:" in str(err.value))
-    assert ("Rank mismatch of call argument 'a(:,:)' (rank 2) and routine "
-            "argument 'x' (rank 1)" in str(err.value))
+    assert ("Cannot inline routine 's' because it reshapes an argument"
+            in str(err.value))
+    assert ("actual argument 'a(:,:)' has rank 2 but the corresponding "
+            "formal argument, 'x', has rank 1" in str(err.value))
     # Check that _validate_inline_of_call_and_routine_argument_pairs() also
     # catches this error. (Necessary in case type-checking has been disabled
     # in the call to get_callee().)

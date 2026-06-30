@@ -123,9 +123,9 @@ end module test_mod
 
 MULTI_ROUTINE_CODE = (
     f"module test_mod\n"
-    f"  implicit none\n"
     f"  use kernel_mod\n"
     f"  use argument_mod\n"
+    f"  implicit none\n"
     f"{METADATA}"
     f"  public test_code\n"
     f"  interface test_code\n"
@@ -187,9 +187,9 @@ def test_generate_lfric_adjoint_multi_routine_logging(fortran_reader, caplog):
 
 SINGLE_ROUTINE_CODE = (
     "module test_mod\n"
-    "  implicit none\n"
     "  use kernel_mod\n"
     "  use argument_mod\n"
+    "  implicit none\n"
     "  type, extends(kernel_type) :: test_type\n"
     "     type(arg_type), dimension(2) :: meta_args = (/  &\n"
     "          arg_type(gh_field,  gh_real, gh_inc, w0),  &\n"

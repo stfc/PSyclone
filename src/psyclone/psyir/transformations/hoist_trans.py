@@ -239,9 +239,9 @@ class HoistTrans(Transformation):
             written_node = accesses_in_statement[0].node
             accesses_in_loop = all_loop_vars[written_sig]
             chains = DefinitionUseChain(
-                written_node, parent_loop.children[:]
+                [written_node], parent_loop.children[:]
             )
-            if chains.find_backward_accesses():
+            if chains.find_backward_accesses()[written_sig]:
                 code = statement.debug_string().strip()
                 raise TransformationError(f"The statement '{code}' can't be "
                                           f"hoisted as variable "
