@@ -58,6 +58,9 @@ check_above() {
         echo
         echo "Error: Number of $1 is below $2"
         exit 1
+    elif [[ $value -gt $2 ]]; then
+        echo
+        echo "Improvement: Number of $1 has increased to $value"
     fi
 }
 
