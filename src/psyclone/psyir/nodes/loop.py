@@ -402,7 +402,8 @@ class Loop(Statement):
 
         '''
         result = f"{self.coloured_name(colour)}["
-        result += f"variable='{self.variable.name}'"
+        if len(self.children) > 0:
+            result += f"variable='{self.variable.name}'"
         if self.loop_type:
             result += f", loop_type='{self.loop_type}'"
         return result + "]"
@@ -438,10 +439,10 @@ class Loop(Statement):
         # Give Loop sub-classes a specialised name
         name = self.__class__.__name__
         result = name + "["
-        if self.variable:
-            result += f"variable:'{self.variable.name}'"
-        else:
+        if len(self.children) < 1:
             result += "variable:None"
+        else:
+            result += f"variable:'{self.variable.name}'"
         if self.loop_type:
             result += f", loop_type:'{self.loop_type}'"
         result += "]\n"

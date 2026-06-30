@@ -191,6 +191,10 @@ def test_loop_node_str(monkeypatch):
     assert "yes[variable='i', loop_type='i-loop']" in out
     Loop.set_loop_type_inference_rules({})
 
+    # Test an incomplete loop
+    incomplete_loop = Loop()
+    assert incomplete_loop.node_str() == "Loop[]"
+
 
 @pytest.mark.parametrize("table", [None, SymbolTable()])
 def test_loop_replace_symbols_using(table):
@@ -223,6 +227,10 @@ def test_loop_str():
     out = str(loop)
     assert "Loop[variable:'i', loop_type:'i-loop']\n" in out
     Loop.set_loop_type_inference_rules({})
+
+    # Test an incomplete loop
+    incomplete_loop = Loop()
+    assert str(incomplete_loop) == "Loop[variable:None]\nEnd Loop"
 
 
 def test_loop_independent_iterations():
@@ -553,6 +561,10 @@ def test_loop_type(fortran_reader):
     Loop.set_loop_type_inference_rules(None)
     assert outer_loop.loop_type is None
     assert inner_loop.loop_type is None
+
+    # Test an incomplete loop
+    incomplete_loop = Loop()
+    assert incomplete_loop.loop_type is None
 
 
 def test_loops_enters_scope():
