@@ -164,7 +164,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         # Find the largest sections we can surround with the transformation.
         all_blocks = []
         current_block = []
-        for child in node_list[::-1]:
+        for child in reversed(node_list):
             # If the child can be added to a transformed region then add it
             # to the current block of nodes.
             if self._can_be_in_region(child):
