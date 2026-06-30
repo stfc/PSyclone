@@ -264,9 +264,28 @@ the input and output parameters for the two invokes in this example:
 .. code-block:: bash
 
     cd full_example_extraction
-    TYPE=netcdf make compile
-    ./extract.netcdf
-    ncdump ./main-update.nc | less
+    TYPE=ascii make compile
+    ...
+    ./extract.ascii
+    ...
+    make driver-main-init
+    ./driver-main-init
+    ...
+    make driver-main-update
+    ./driver-main-update
+
+Example 17.4: Value Range Check
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The example in the subdirectory ``value_range_check`` shows the
+use of PSyclone's :ref:`Value Range Check<psydata_value_range_check>`
+transformation. You can compile and execute the code like this:
+
+.. code-block:: bash
+
+  cd value_range_change
+  make compile
+  PSY_VALUE_RANGE="field1_data=0:7" ./value_range_check
+
 
 
 Example 18: Special Accesses of Continuous Fields - Incrementing After Reading and Writing Before (Potentially) Reading

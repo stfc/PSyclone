@@ -41,7 +41,7 @@ import pytest
 
 from psyclone.psyir.nodes import (
     Routine, Container, FileContainer, IntrinsicCall, Literal)
-from psyclone.psyir.symbols import ArrayType, Symbol, INTEGER_TYPE
+from psyclone.psyir.symbols import ArrayType, Symbol, ScalarType
 from psyclone.psyir.transformations import (HoistLocalArraysTrans,
                                             TransformationError)
 from psyclone.tests.utilities import Compile
@@ -577,7 +577,9 @@ def test_validate_acc_routine_directive(fortran_reader):
     assert ("supplied routine 'test' contains an ACC Routine directive "
             "which implies" in str(err.value))
     # This check can be disabled.
+    # TODO #2668: deprecate options dict.
     hoist_trans.validate(routine, options={"allow_accroutine": True})
+    hoist_trans.validate(routine, allow_accroutine=True)
 
 
 def test_validate_tagged_symbol_clash(fortran_reader):
@@ -717,7 +719,7 @@ def test_apply_with_allocatables(fortran_reader, fortran_writer, tmpdir):
     # the fparser reader always puts ranges in the allocate indices, but for
     # 'a' force it to be something else
     alloc1.arguments[0].children[0].replace_with(
-        Literal("10", INTEGER_TYPE)
+        Literal("10", ScalarType.integer_type())
     )
     routine = psyir.walk(Routine)[0]
     hoist_trans = HoistLocalArraysTrans()

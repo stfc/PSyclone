@@ -42,10 +42,16 @@ from psyclone.psyir.nodes import (
     Assignment,
     Call,
     DataNode,
+    IfBlock,
     IntrinsicCall,
+    Literal,
+    Loop,
     Range,
     Reference,
+    Routine,
     Statement,
+    Schedule,
+    UnaryOperation,
 )
 from psyclone.psyir.symbols.datatypes import (
     ArrayType,
@@ -111,6 +117,7 @@ class DataNodeToTempTrans(Transformation):
         """
         # Validate the input options and types.
         self.validate_options(**kwargs)
+        verbose = self.get_option("verbose", **kwargs)
 
         if not isinstance(node, DataNode):
             raise TypeError(
@@ -123,21 +130,31 @@ class DataNodeToTempTrans(Transformation):
         calls = node.walk(Call)
         for call in calls:
             if not call.is_pure:
-                raise TransformationError(
+                message = (
                     f"Input node to {self.name} contains a call "
                     f"'{call.debug_string().strip()}' that is not guaranteed "
                     f"to be pure. Input node is "
                     f"'{node.debug_string().strip()}'."
                 )
+                if verbose:
+                    node.ancestor(Statement).append_preceding_comment(
+                        f"PSyclone Warning: {message}"
+                    )
+                raise TransformationError(message)
         if isinstance(dtype, ArrayType):
             for element in dtype.shape:
                 if element in [ArrayType.Extent.DEFERRED,
                                ArrayType.Extent.ATTRIBUTE]:
-                    raise TransformationError(
+                    message = (
                         f"Input node's datatype is an array of unknown size, "
                         f"so the {self.name} cannot be applied. "
                         f"Input node was '{node.debug_string().strip()}'."
                     )
+                    if verbose:
+                        node.ancestor(Statement).append_preceding_comment(
+                            f"PSyclone Warning: {message}"
+                        )
+                    raise TransformationError(message)
                 # The shape must now be set by ArrayBounds, we need to
                 # examine the symbols used to define those bounds.
                 symbols = set()
@@ -147,9 +164,11 @@ class DataNodeToTempTrans(Transformation):
                     symbols.update(element.upper.get_all_accessed_symbols())
                 # Compare the symbols in the array bounds with the symbols
                 # already in the scope.
-                scope_symbols = node.scope.symbol_table.get_symbols()
+                scope_table = node.scope.symbol_table
                 for sym in symbols:
-                    scoped_name_sym = scope_symbols.get(sym.name, None)
+                    scoped_name_sym = scope_table.lookup(
+                        sym.name, otherwise=None
+                    )
                     # If sym is not scoped_name_sym, then there is a
                     # symbol collision from an imported symbol.
                     if scoped_name_sym and sym is not scoped_name_sym:
@@ -157,38 +176,54 @@ class DataNodeToTempTrans(Transformation):
                         # container then we can skip this.
                         if scoped_name_sym.interface == sym.interface:
                             continue
-                        raise TransformationError(
+                        message = (
                             f"The type of the node supplied to {self.name} "
                             f"depends upon an imported symbol '{sym.name}' "
                             f"which has a name clash with a symbol in the "
                             f"current scope."
                         )
+                        if verbose:
+                            node.ancestor(Statement).append_preceding_comment(
+                                f"PSyclone Warning: {message}"
+                            )
+                        raise TransformationError(message)
                     # If its not in the current scope, and its visibility is
                     # private then we can't import it.
                     if (not scoped_name_sym and sym.visibility ==
                             Symbol.Visibility.PRIVATE):
-                        raise TransformationError(
+                        message = (
                             f"The datatype of the node suppled to "
                             f"{self.name} depends upon an imported symbol "
                             f"'{sym.name}' that is declared as private in "
                             f"its containing module, so cannot be imported."
                         )
+                        if verbose:
+                            node.ancestor(Statement).append_preceding_comment(
+                                f"PSyclone Warning: {message}"
+                            )
+                        raise TransformationError(message)
                     # If its an imported symbol we need to check if its
                     # the same import interface.
                     if isinstance(sym.interface, ImportInterface):
-                        scoped_name_sym = scope_symbols.get(
-                                sym.interface.container_symbol.name,
-                                None
+                        scoped_name_sym = scope_table.lookup(
+                            sym.interface.container_symbol.name,
+                            otherwise=None
                         )
                         if scoped_name_sym and not isinstance(
                                 scoped_name_sym, ContainerSymbol):
-                            raise TransformationError(
+                            message = (
                                 f"Input node contains an imported symbol "
                                 f"'{sym.name}' whose containing module "
                                 f"collides with an existing symbol. Colliding "
                                 f"name is "
                                 f"'{sym.interface.container_symbol.name}'."
                                 )
+                            if verbose:
+                                node.ancestor(Statement).\
+                                    append_preceding_comment(
+                                    f"PSyclone Warning: {message}"
+                                )
+                            raise TransformationError(message)
 
         if node.ancestor(Statement) is None:
             raise TransformationError(
@@ -196,7 +231,10 @@ class DataNodeToTempTrans(Transformation):
                 f"Statement node which is not supported."
             )
 
-        if isinstance(dtype, (UnresolvedType, UnsupportedFortranType)):
+        if (isinstance(dtype, (UnresolvedType, UnsupportedFortranType))
+                or (isinstance(dtype, ArrayType) and
+                    isinstance(dtype.elemental_type,
+                               (UnresolvedType, UnsupportedFortranType)))):
             failing_symbols = []
             symbols = node.get_all_accessed_symbols()
             for sym in symbols:
@@ -217,18 +255,26 @@ class DataNodeToTempTrans(Transformation):
                     f"RESOLVE_IMPORTS in the transformation script may "
                     f"enable resolution of these symbols."
                 )
+            if verbose:
+                node.ancestor(Statement).append_preceding_comment(
+                    f"PSyclone Warning: {message}"
+                )
             raise TransformationError(message)
 
-    def apply(self, node: DataNode, storage_name: str = "", **kwargs):
+    def apply(self, node: DataNode, storage_name: str = "",
+              verbose: bool = False, **kwargs):
         """Applies the DataNodeToTempTrans to the input arguments.
 
         :param node: The datanode to extract.
         :param storage_name: The base name of the temporary variable to store
             the result of the input node in. The default is tmp(_...)
             based on the rules defined in the SymbolTable class.
+        :param verbose: Whether to add comments to the input node if
+                        the transformation fails.
         """
         # Call validate to check inputs are valid.
-        self.validate(node, storage_name=storage_name, **kwargs)
+        self.validate(node, storage_name=storage_name, verbose=verbose,
+                      **kwargs)
 
         # Find the datatype
         datatype = node.datatype
@@ -248,18 +294,20 @@ class DataNodeToTempTrans(Transformation):
                     symbols.update(element.lower.get_all_accessed_symbols())
                 if isinstance(element.upper, DataNode):
                     symbols.update(element.upper.get_all_accessed_symbols())
-                scope_symbols = node.scope.symbol_table.get_symbols()
+                scope_table = node.scope.symbol_table
                 for sym in symbols:
-                    scoped_name_sym = scope_symbols.get(sym.name, None)
+                    scoped_name_sym = scope_table.lookup(
+                        sym.name, otherwise=None
+                    )
                     # If no symbol with the name exists then create one.
                     if not scoped_name_sym:
                         sym_copy = sym.copy()
                         if isinstance(sym_copy.interface, ImportInterface):
                             # Check if the ContainerSymbol is already in the
                             # interface
-                            container = scope_symbols.get(
+                            container = scope_table.lookup(
                                 sym_copy.interface.container_symbol.name,
-                                None
+                                otherwise=None
                             )
                             if container is None:
                                 # Add the container symbol to the symbol table
@@ -276,23 +324,42 @@ class DataNodeToTempTrans(Transformation):
             # the datatype to use the in-scope symbols
             datatype.replace_symbols_using(node.scope.symbol_table)
 
-            # We want to create an allocatable symbol for Array entities, so
-            # create a new datatype for the symbol and keep the
-            # datatype around for the ALLOCATE statement later.
-            allocatable_datatype = datatype
-            datatype = ArrayType(allocatable_datatype.elemental_type,
-                                 [ArrayType.Extent.DEFERRED for x in
-                                  allocatable_datatype.shape])
+            # If any of the bound information aren't static then we need
+            # to create an allocatable array.
+            has_static_bounds = True
+            for element in datatype.shape:
+                if not isinstance(element.lower, Literal):
+                    has_static_bounds = False
+                    break
+                if not isinstance(element.upper, Literal):
+                    has_static_bounds = False
+                    break
+            if has_static_bounds:
+                datatype = ArrayType(datatype.elemental_type,
+                                     [x.copy() for x in datatype.shape])
+            else:
+                # We want to create an allocatable symbol for Array entities,
+                # so create a new datatype for the symbol and keep the
+                # datatype around for the ALLOCATE statement later.
+                allocatable_datatype = datatype
+                datatype = ArrayType(allocatable_datatype.elemental_type,
+                                     [ArrayType.Extent.DEFERRED for x in
+                                      allocatable_datatype.shape])
 
         # Create a symbol of the relevant type.
+        containing_routine = node.ancestor(Routine)
+        if containing_routine:
+            sym_tab = containing_routine.symbol_table
+        else:
+            sym_tab = node.scope.symbol_table
         if not storage_name:
-            symbol = node.scope.symbol_table.new_symbol(
+            symbol = sym_tab.new_symbol(
                 root_name="tmp",
                 symbol_type=DataSymbol,
                 datatype=datatype
             )
         else:
-            symbol = node.scope.symbol_table.new_symbol(
+            symbol = sym_tab.new_symbol(
                 root_name=storage_name,
                 symbol_type=DataSymbol,
                 datatype=datatype
@@ -300,10 +367,11 @@ class DataNodeToTempTrans(Transformation):
         # Create a Reference to the new symbol
         new_ref = Reference(symbol)
 
-        # Find the parent and position of the statement containing the
-        # DataNode.
-        parent = node.ancestor(Statement).parent
-        pos = node.ancestor(Statement).position
+        # Find the containing schedule and position of the statement
+        # containing the DataNode.
+        schedule = node.ancestor(Schedule)
+        path = node.path_from(schedule)
+        pos = path[0]
 
         # Replace the datanode with the new reference
         node.replace_with(new_ref)
@@ -312,11 +380,11 @@ class DataNodeToTempTrans(Transformation):
         assign = Assignment.create(new_ref.copy(), node)
 
         # Add the assignment into the tree.
-        parent.addchild(assign, pos)
+        schedule.addchild(assign, pos)
 
         # If the datatype is an array, we need to allocate the array
-        # before the statement too.
-        if isinstance(datatype, ArrayType):
+        # before the statement too if its not already allocated.
+        if isinstance(datatype, ArrayType) and not has_static_bounds:
             # Create an array reference to the symbol with the dimensions
             # returned by the datatype call earlier.
             ref = ArrayReference.create(
@@ -329,9 +397,42 @@ class DataNodeToTempTrans(Transformation):
                 IntrinsicCall.Intrinsic.ALLOCATE,
                 (ref,)
             )
-            # Add the allocate statement into the tree immediately before
-            # its use.
-            parent.addchild(intrinsic, pos)
+            allocated = IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.ALLOCATED,
+                (Reference(symbol),)
+            )
+
+            ifblock = IfBlock.create(
+                UnaryOperation.create(
+                    UnaryOperation.Operator.NOT,
+                    allocated),
+                [intrinsic]
+            )
+            # If the shape doesn't contain array references then we can hoist
+            # the allocate statement outside of any ancestor loops.
+            hoistable = True
+            for shape in ref.indices:
+                for ref2 in shape.walk(Reference):
+                    if isinstance(ref2, ArrayReference):
+                        hoistable = False
+            # If we can hoist the allocate, find the highest level Loop
+            # ancestor and set the schedule and position to place the
+            # allocate before this loop.
+            # TODO #1445: Use HositTrans to do this if its extended to support
+            # more node types.
+            if hoistable:
+                loop_anc = schedule.ancestor(Loop)
+                cursor = loop_anc
+                while cursor:
+                    loop_anc = cursor
+                    cursor = cursor.ancestor(Loop)
+                if loop_anc:
+                    pos = loop_anc.position
+                    schedule = loop_anc.ancestor(Schedule)
+
+            # Add the allocate statement and the containing ifblock into the
+            # tree immediately before its use.
+            schedule.addchild(ifblock, pos)
 
 
 __all__ = ["DataNodeToTempTrans"]

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2026, Science and Technology Facilities Council
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,54 +31,31 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
+# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
-'''A simple test script showing basic usage of the PSyclone API.
-In order to use it you must first install PSyclone like so:
-
- >>> pip install --user psyclone
-
-(or see the Getting Going section in the User Guide). Once PSyclone
-is installed this script may be run by doing:
-
- >>> python runme.py
-
-This should generate a lot of output, ending with a view of the
-Schedules:
-
- >>> ...
- >>> Schedule[invoke='invoke_0']
- >>>    Loop[type='outer',field_space='cu',it_space='internal_pts']
- >>>        Loop[type='inner',field_space='cu',it_space='internal_pts']
- >>>            CodedKern compute_cu_code(cu_fld,p_fld,u_fld)
- >>>    Loop[type='outer',field_space='cv',it_space='internal_pts']
- >>>        Loop[type='inner',field_space='cv',it_space='internal_pts']
- >>>            CodedKern compute_cv_code(cv_fld,p_fld,v_fld)
- >>>...
-
+'''Python script intended to be passed to PSyclone via the -s option.
+It adds kernel extraction code to
+the invokes. When the transformed program is compiled and run, it
+will create one NetCDF file for each of the two invokes. A separate
+driver program is also created for each invoke which can read the
+created NetCDF files, execute the invokes and then compare the results.
 '''
 
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.nodes import Routine
+from psyclone.psyir.transformations import ValueRangeCheckTrans
 
-API = "gocean"
-_, INVOKEINFO = parse("shallow_alg.f90", api=API)
-PSY = PSyFactory(API).create(INVOKEINFO)
 
-# Print the 'vanilla' generated Fortran
-writer = FortranWriter()
-print(writer(PSY.container))
+def trans(psyir):
+    '''
+    Add kernel extraction code.
 
-# Print a list of all of the invokes found
-print(PSY.invokes.names)
+    :param psyir: the PSyIR of the PSy-layer.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
-# Print the Schedule of each of these Invokes
-SCHEDULE = PSY.invokes.get('invoke_0').schedule
-print(SCHEDULE.view())
+    '''
+    vrc = ValueRangeCheckTrans()
 
-SCHEDULE = PSY.invokes.get('invoke_1').schedule
-print(SCHEDULE.view())
-
-SCHEDULE = PSY.invokes.get('invoke_2').schedule
-print(SCHEDULE.view())
+    for subroutine in psyir.walk(Routine):
+        vrc.apply(subroutine)

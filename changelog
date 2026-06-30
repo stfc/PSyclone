@@ -1,3 +1,137 @@
+   34) PR #3440. Update to use release 0.2.4 of fparser.
+ 
+   33) PR #3467. Update CI compilers.
+
+   32) PR #3458 for #2721. Adds ArrayConstructor support into the PSyIR.
+
+   31) PR #3442. Extends Call.get_callee() to permit implicit reshaping
+   of arguments.
+ 
+   30) PR #3451	towards #3449. Adds support for keeping 'ACC routine' and
+   'OMP declare target' directives in existing code.
+
+   29) PR #3399 towards #3367. Extends the DefinitionUseChain functionality
+   to handle multiple inputs and thus Assignment statements.
+
+   28) PR #3417 towards #3398. Move LFRicRedundantComputationTrans into the
+   LFRic transformations module.
+
+   27) PR #3438 for #3435. Add support for sub_transformations in the kwargs
+   documentation functionality.
+
+   26) PR #3443 for #3243. Unifies NEMO parallelisation scripts to reduce the
+   amount of code duplication between all the parallelisation scripts, and
+   adds a README for the NEMO scripts directory.
+
+   25) PR #3447 for #3250. Add missing tests to achieve 100% code coverage.
+
+   24) PR #3429 for #3412. Generalise hoist_arguments_to_temporaries in NEMO utils
+   to all arguments with array operations.
+
+   23) PR #3436 for #3135. Fixes some cyclic dependencies by replacing
+   the ScalarType import-time instantiations.
+
+   22) PR #3439 for #3415. Fix datatype method for StructureReference nodes
+   that return arrays.
+
+   21) PR #3434 for #2813. Migrates the setup files to use a
+   pyproject.toml rather than setup.py.
+
+   20) PR #3433 for #3432. Introduces initial support for sub transformations
+   and option handling.
+
+   19) PR #3404 for #3403. Modernises the remaining runme examples.
+
+   18) PR #3410 towards #2668. Update more Transformations to use kwargs.
+
+   17) PR #3427. Preserve directive format casing.
+
+   16) PR #3422 for #440. Updates tests to use the Fortran backend to generate
+   GOLoops in test suite.
+   
+   15) PR #3066 towards #2971. Moves ACCLoopTrans and OMPParallelLoopTrans
+   into psyir.transformations. 
+
+   14) PR #3419 for #3418. Adds elseif output to the Fortran backend.
+
+   13) PR #3373 towards #3412. Extract argument expressions from NEMO iom_put
+   calls in order to parallelise/offload their implicit loops.
+
+   12) PR #3408 for #2812. Updates the Min/Max to code transformations so
+   that they use the datatype of their arguments rather than assuming real.
+   Also skips treesitter tests for Python < 3.10.
+
+   11) PR #3414 for #3279. Update the lists of exclusions to improve GPU
+   performance for NEMO.
+
+   10) PR #3413 for #3411. Remove OpenMP SUB reduction operator and relpace
+   with ADD as is required by OpenMP 5.2.
+
+   9) PR #3406 for #3406. Fix issue with comment before a subroutine that
+   turns into a CodeBlock.
+
+   8) PR #3371 towards #3012. Add workaround to bypass psyclonefc fixed-from
+   issues.
+
+   7) PR #3374 for 3366. Removes LFRicSymbolTable.
+
+   6) PR #3369 towards #1658. Switches NEMO scripts to use all of the
+   supported reduction intrinsic expansion transformations.
+
+   5) PR #3377 for #2612. Add support for Fortran character length.
+
+   4) PR #3388 for #3334. Remove the functionality to write (and rename)
+   kernel files from the invoke. Now to modify kernels they must be inlinded
+   first or modified directy in their file (e.g. with lfric transmute pass).
+
+   3) PR #3351 towards #3083. Adds scaffolding for new Treesitter-based
+   frontend.
+
+   2) PR #3401 for #3400. Fixes a frontend issue causing issues with NEMO
+   master branch.
+
+   1) PR #3393 for #2917 and #2887 - updates test to show that symbols with
+   explicit precision in common blocks now work OK. Also corrects tutorial
+   text relating to dl-timer.
+
+Release 3.3.0-rc1 9th April 2026
+
+   75) PR #3394. Added .NOT. support for sympy.
+
+   74) PR #3391 towards #3364. Update PSyclone to use fparser 0.2.2.
+
+   73) PR #3387. Update CI to use nvhpc 26.3.
+
+   72) PR #3382 towards #1570. Removes the unnecessary check on the precision
+   of a scalar used in a reduction in the LFRic API.
+ 
+   71) PR #3381. Update integration tests to LFRic_apps 3.1.1
+
+   70) PR #3358 for #1734, #2975 and #2949. Improve symbol table consistency
+   with better copies, validation checks and symbol localisation operations.
+
+   69) PR #3384 for #3383. Adds a pytest fixture to set the logging level
+   in fparser to CRITICAL. This simplifies the error messages produced
+   when a test fails.
+ 
+   68) PR #3378 towards #3252. Add a value_range_check example for LFRic.
+
+   67) PR #3380 for #3379. Fixes import for graphviz.Digraph.
+ 
+   66) PR #3359 for #3022. Uses the improved datatype functionality to
+   correctly transform reduction intrinsics into native code.
+ 
+   65) PR #3365 towards #2668. Updates more transformations to accept
+   keyword arguments instead of options.
+ 
+   64) PR #3376. Update CI to use character module versions to avoid fp
+   conversions.
+
+   63) PR #3372 for #3369. Extends NEMOv5 integration tests to do output
+   and compares the resulting files with KGOs.   
+
+   62) PR #3363 towards #2971. Move MoveTrans into psyir.transformations.
+ 
    61) PR #3336 for #3325. Improve datatype method to prevent returning
    array Extents and select better operand type when possible.
 

@@ -47,12 +47,12 @@ from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     Assignment, Call, IntrinsicCall, Loop, Literal, Node, Range, Reference,
-    CodeBlock, Routine, BinaryOperation)
+    CodeBlock, Routine, BinaryOperation, ArrayConstructor)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, ScalarType, SymbolError)
+    DataSymbol, ScalarType, SymbolError)
 from psyclone.utils import transformation_documentation_wrapper
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
@@ -145,7 +145,7 @@ class ArrayAssignment2LoopsTrans(Transformation):
             loop_variable_symbol = symbol_table.new_symbol(
                                         root_name="idx",
                                         symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
+                                        datatype=ScalarType.integer_type())
 
             # Replace one range for each top-level array expression in the
             # assignment
@@ -215,11 +215,9 @@ class ArrayAssignment2LoopsTrans(Transformation):
             not have Range specifying the access to at least one of its
             dimensions.
         :raises TransformationError: if two or more of the loop ranges
-            in the assignment are different or are not known to be the
-            same.
+            in the assignment are different or are not known to be the same.
         :raises TransformationError: if node contains a character type
-                                     child and the allow_strings option is
-                                     not set.
+            child and the allow_strings option is not set.
 
         '''
         super().validate(node, **kwargs)
@@ -242,6 +240,17 @@ class ArrayAssignment2LoopsTrans(Transformation):
         if node.has_descendant(CodeBlock):
             message = (f"{self.name} does not support array assignments that"
                        f" contain a CodeBlock anywhere in the expression")
+            if verbose:
+                node.append_preceding_comment(message)
+            raise TransformationError(LazyString(
+                lambda: f"{message}, but found:\n{node.debug_string()}"))
+
+        # Do not allow to transform expressions with ArrayConstructors
+        # This could be relaxed in future
+        if node.has_descendant(ArrayConstructor):
+            message = (f"{self.name} does not support array assignments that"
+                       " contain an ArrayConstructor anywhere in"
+                       " the expression")
             if verbose:
                 node.append_preceding_comment(message)
             raise TransformationError(LazyString(
@@ -424,19 +433,13 @@ class ArrayAssignment2LoopsTrans(Transformation):
 
         '''
         for child in node.walk((Literal, Reference)):
-            try:
-                forbidden = ScalarType.Intrinsic.CHARACTER
-                if (child.is_character(unknown_as=False) or
-                        (child.symbol.datatype.intrinsic == forbidden)):
-                    if verbose:
-                        node.append_preceding_comment(message)
-                    # pylint: disable=cell-var-from-loop
-                    raise TransformationError(LazyString(
-                        lambda: f"{message}, but found:"
-                        f"\n{node.debug_string()}"))
-            except (NotImplementedError, AttributeError):
-                # We cannot always get the datatype, we ignore this for now
-                pass
+            if child.is_character(unknown_as=False):
+                if verbose:
+                    node.append_preceding_comment(message)
+                # pylint: disable=cell-var-from-loop
+                raise TransformationError(LazyString(
+                    lambda: f"{message}, but found:"
+                    f"\n{node.debug_string()}"))
 
 
 def _walk_until_non_elemental_call(

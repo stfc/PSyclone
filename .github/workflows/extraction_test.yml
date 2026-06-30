@@ -50,7 +50,7 @@ jobs:
     env:
       LFRIC_APPS_REV: 7536
       LFRIC_CORE_REV: 52054
-      PYTHON_VERSION: 3.13
+      PYTHON_VERSION: "3.13"
 
     steps:
     - uses: actions/checkout@v3
@@ -74,7 +74,7 @@ jobs:
         python -m pip install --upgrade pip
         # Uncomment the below to use the submodule version of fparser rather
         # than the latest release from pypi.
-        pip install external/fparser
+        # pip install external/fparser
         pip install .[test]
         # Install BAF, and its version of Fab:
         # ------------------------------------

@@ -78,13 +78,6 @@ def test_scalararizationtrans_is_local_array(fortran_reader):
     assert ScalarisationTrans._is_local_array(Signature("local"),
                                               var_accesses)
 
-    # Test b - the RHS of the assignment is a codeblock so we do not
-    # count it as a local array and invalidate it, as otherwise the
-    # local array test can fail. Also we can't safely transform the
-    # CodeBlock anyway.
-    assert not ScalarisationTrans._is_local_array(Signature("b"),
-                                                  var_accesses)
-
     # Test x - the return value is not classed as a local array.
     assert not ScalarisationTrans._is_local_array(Signature("x"),
                                                   var_accesses)
@@ -103,8 +96,9 @@ def test_scalararizationtrans_is_local_array(fortran_reader):
             lambda sig: ScalarisationTrans._is_local_array(sig, var_accesses),
             var_accesses)
     local_arrays = list(local_arrays)
-    assert len(local_arrays) == 1
-    assert local_arrays[0].var_name == "local"
+    assert len(local_arrays) == 2
+    assert local_arrays[0].var_name == "b"
+    assert local_arrays[1].var_name == "local"
 
 
 def test_scalarisationtrans_have_same_unmodified_index(fortran_reader):

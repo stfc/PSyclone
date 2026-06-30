@@ -38,7 +38,7 @@
 !! ValueRangeCheckBaseType (from which it inherits the handling of the
 !! basic Fortran data types and 2d-arrays, as specified in the Makefile),
 !! and just extends it with a dummy implementation to provide the same
-!! module name as the domain-specific implemenations
+!! module name as the domain-specific implementations.
 
 module value_range_check_psy_data_mod
 

@@ -501,21 +501,22 @@ def test_operator_different_spaces(tmpdir):
 
     assert """\
 module operator_example_psy
-  use constants_mod
   use operator_mod, only : operator_proxy_type, operator_type
   use field_mod, only : field_proxy_type, field_type
+  use assemble_weak_derivative_w3_w2_kernel_mod, only : \
+assemble_weak_derivative_w3_w2_kernel_code
+  use constants_mod, only : r_def
   implicit none
   public
 
   contains
   subroutine invoke_0_assemble_weak_derivative_w3_w2_kernel_type(mapping, \
 coord, qr)
-    use mesh_mod, only : mesh_type
-    use function_space_mod, only : BASIS, DIFF_BASIS
     use quadrature_xyoz_mod, only : quadrature_xyoz_proxy_type, \
 quadrature_xyoz_type
-    use assemble_weak_derivative_w3_w2_kernel_mod, only : \
-assemble_weak_derivative_w3_w2_kernel_code
+    use mesh_mod, only : mesh_type
+    use function_space_mod, only : BASIS, DIFF_BASIS
+    use constants_mod, only : i_def
     type(operator_type), intent(in) :: mapping
     type(field_type), dimension(3), intent(in) :: coord
     type(quadrature_xyoz_type), intent(in) :: qr
@@ -981,6 +982,14 @@ ndf_ads1_op_13), intent(in) :: op_13
 
 end module dummy_mod
 """ == generated_code
+
+    # Try with unsupported types
+    lma_args = args_filter(kernel.arguments.args, arg_types=["gh_operator"])
+    lma_args[0]._intrinsic_type = "integer"
+    generated_code = fortran_writer(kernel.gen_stub)
+    assert "dimension(op_1_ncell_3d,ndf_w0,ndf_w0), intent(inout) :: op_1" \
+        in generated_code
+    assert "integer(kind=" in generated_code
 
     # Try with unsupported types
     lma_args = args_filter(kernel.arguments.args, arg_types=["gh_operator"])

@@ -43,7 +43,7 @@ from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import (
     ACCAsyncQueueClause, ACCCopyClause, ACCCopyInClause, ACCCopyOutClause,
     Literal, Reference, Return)
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, Symbol
+from psyclone.psyir.symbols import DataSymbol, ScalarType, Symbol
 
 
 def test_acc_async_queue_clause():
@@ -80,6 +80,7 @@ def test_acccopyclause(cls, string):
     assert clause._children_valid_format == "Reference"
     assert clause.clause_string == string
     # The only permitted child type is Reference.
-    assert not clause._validate_child(0, Literal("1", INTEGER_TYPE))
-    assert clause._validate_child(0, Reference(DataSymbol("var",
-                                                          INTEGER_TYPE)))
+    assert not clause._validate_child(
+        0, Literal("1", ScalarType.integer_type()))
+    assert clause._validate_child(
+        0, Reference(DataSymbol("var", ScalarType.integer_type())))

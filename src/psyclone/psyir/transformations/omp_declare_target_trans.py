@@ -38,14 +38,21 @@
 This module provides the implementation of OMPDeclareTargetTrans
 
 '''
+from typing import Any, Optional, Union
 
-from psyclone.psyir.nodes import OMPDeclareTargetDirective
+from psyclone.psyir.nodes import OMPDeclareTargetDirective, Routine
+from psyclone.psyir.transformations.callee_transformation_mixin import (
+    CalleeTransformationMixin)
 from psyclone.psyGen import Transformation, Kern
 from psyclone.psyir.transformations.mark_routine_for_gpu_mixin import (
-        MarkRoutineForGPUMixin)
+    MarkRoutineForGPUMixin)
+from psyclone.utils import transformation_documentation_wrapper
 
 
-class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
+@transformation_documentation_wrapper
+class OMPDeclareTargetTrans(Transformation,
+                            MarkRoutineForGPUMixin,
+                            CalleeTransformationMixin):
     '''
     Adds an OpenMP declare target directive to the specified routine.
 
@@ -87,28 +94,27 @@ class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
         end subroutine
 
     '''
-    def apply(self, node, options=None):
+    def apply(self,
+              node: Union[Routine, Kern],
+              options: Optional[dict[str, Any]] = None,
+              force: bool = False,
+              device_string: str = "",
+              **kwargs) -> None:
         ''' Insert an OMPDeclareTargetDirective inside the provided routine or
         associated PSyKAl kernel.
 
         :param node: the kernel or routine which is the target of this
-            transformation.
-        :type node: :py:class:`psyclone.psyir.nodes.Routine` |
-                    :py:class:`psyclone.psyGen.Kern`
+                     transformation.
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["force"]: whether to allow routines with
-            CodeBlocks to run on the GPU.
-        :param str options["device_string"]: provide a compiler-platform
-                    identifier.
+        :param force: whether to allow routines with CodeBlocks to run on
+                      the GPU.
+        :param device_string: provide a compiler-platform identifier.
 
         '''
-        self.validate(node, options)
+        self.validate(node, options, force=force, device_string=device_string,
+                      **kwargs)
 
         if isinstance(node, Kern):
-            # Flag that the kernel has been modified
-            node.modified = True
-
             # Get the schedule representing the kernel subroutine
             routines = node.get_callees()
         else:
@@ -119,30 +125,23 @@ class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
                        child in routine.children):
                 routine.children.insert(0, OMPDeclareTargetDirective())
 
-    def validate(self, node, options=None):
+    def validate(self,
+                 node: Union[Kern, Routine],
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs) -> None:
         ''' Check that an OMPDeclareTargetDirective can be inserted.
 
         :param node: the kernel or routine which is the target of this
             transformation.
-        :type node: :py:class:`psyclone.psyGen.Kern` |
-                    :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["force"]: whether to allow routines with
-                    CodeBlocks to run on the GPU.
-        :param str options["device_string"]: provide a compiler-platform
-            identifier.
-
-        :raises TransformationError: if the node is not a kernel or a routine.
-        :raises TransformationError: if the target is a built-in kernel.
-        :raises TransformationError: if it is a kernel but without an
-                                     associated PSyIR.
-        :raises TransformationError: if any of the symbols in the kernel are
-                                     accessed via a module use statement.
-        :raises TransformationError: if the kernel contains any calls to other
-                                     routines.
 
         '''
-        super().validate(node, options=options)
+        # TODO #2668 Depracate options dict.
+        if not options:
+            self.validate_options(**kwargs)
+        super().validate(node, options=options, **kwargs)
 
-        self.validate_it_can_run_on_gpu(node, options)
+        self.validate_it_can_run_on_gpu(node, options, **kwargs)
+
+        if isinstance(node, Kern):
+            self._check_callee_implementation_is_local(node)

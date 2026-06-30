@@ -49,9 +49,11 @@ from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 from psyclone import psyGen
 from psyclone.psyir.transformations.region_trans import RegionTrans
-from psyclone.psyir.nodes import CodeBlock, Return
+from psyclone.psyir.nodes import CodeBlock, Node, Return
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class ParallelRegionTrans(RegionTrans, ABC):
     '''
     Base class for transformations that create a parallel region.
@@ -74,24 +76,20 @@ class ParallelRegionTrans(RegionTrans, ABC):
 
         '''
 
-    def validate(self, node_list, options=None):
+    def validate(self, nodes: list[Node], options=None, **kwargs):
         # pylint: disable=arguments-renamed
         '''
         Check that the supplied list of Nodes are eligible to be
         put inside a parallel region.
 
-        :param list node_list: list of nodes to put into a parallel region
-        :param options: a dictionary with options for transformations.\
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["node-type-check"]: this flag controls whether \
-            or not the type of the nodes enclosed in the region should be \
-            tested to avoid using unsupported nodes inside a region.
+        :param list nodes: list of nodes to put into a parallel region
+        :param options: a dictionary with options for transformations.
 
-        :raises TransformationError: if the supplied nodes are not all \
+        :raises TransformationError: if the supplied nodes are not all
             children of the same parent (siblings).
 
         '''
-        node_list = self.get_node_list(node_list)
+        node_list = self.get_node_list(nodes)
 
         node_parent = node_list[0].parent
 
@@ -100,30 +98,28 @@ class ParallelRegionTrans(RegionTrans, ABC):
                 raise TransformationError(
                     f"Error in {self.name} transformation: supplied nodes are "
                     f"not children of the same parent.")
-        super().validate(node_list, options)
+        # TODO #2668: Remove options.
+        super().validate(node_list, options, **kwargs)
 
-    def apply(self, target_nodes, options=None):
+    def apply(self, nodes: list[Node], options=None, **kwargs):
         # pylint: disable=arguments-renamed
         '''
         Apply this transformation to a subset of the nodes within a
         schedule - i.e. enclose the specified Loops in the
         schedule within a single parallel region.
 
-        :param target_nodes: a single Node or a list of Nodes.
-        :type target_nodes: (list of) :py:class:`psyclone.psyir.nodes.Node`
+        :param nodes: a single Node or a list of Nodes.
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param bool options["node-type-check"]: this flag controls if the \
-                type of the nodes enclosed in the region should be tested \
-                to avoid using unsupported nodes inside a region.
 
         '''
 
         # Check whether we've been passed a list of nodes or just a
         # single node. If the latter then we create ourselves a
         # list containing just that node.
-        node_list = self.get_node_list(target_nodes)
-        self.validate(node_list, options)
+        node_list = self.get_node_list(nodes)
+        # TODO #2668: Remove options.
+        self.validate(node_list, options, **kwargs)
 
         # Keep a reference to the parent of the nodes that are to be
         # enclosed within a parallel region. Also keep the index of

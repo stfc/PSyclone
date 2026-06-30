@@ -128,6 +128,10 @@ from psyclone.psyir.transformations.omp_taskloop_trans import \
     OMPTaskloopTrans
 from psyclone.psyir.transformations.omp_declare_target_trans import \
     OMPDeclareTargetTrans
+from psyclone.psyir.transformations.acc_loop_trans import \
+    ACCLoopTrans
+from psyclone.psyir.transformations.omp_parallel_loop_trans import \
+    OMPParallelLoopTrans
 from psyclone.psyir.transformations.maximal_omp_parallel_region_trans import (
     MaximalOMPParallelRegionTrans
 )
@@ -136,6 +140,9 @@ from psyclone.psyir.transformations.omp_parallel_trans import (
 )
 from psyclone.psyir.transformations.datanode_to_temp_trans import (
     DataNodeToTempTrans
+)
+from psyclone.psyir.transformations.move_trans import (
+    MoveTrans
 )
 
 # For AutoAPI documentation generation
@@ -187,6 +194,8 @@ __all__ = [
     "ParallelRegionTrans",
     "OMPTaskloopTrans",
     "OMPDeclareTargetTrans",
+    "ACCLoopTrans",
+    "OMPParallelLoopTrans",
     "MaximalRegionTrans",
     "OMPCriticalTrans",
     "MaximalOMPParallelRegionTrans",

@@ -49,7 +49,7 @@ from psyclone.psyir.nodes import (
 )
 from psyclone.psyir.symbols import (
     ContainerSymbol, SymbolError, Symbol, DataSymbol, AutomaticInterface,
-    INTEGER_SINGLE_TYPE, ScalarType, RoutineSymbol)
+    ScalarType, RoutineSymbol)
 
 
 def test_use_return(fortran_reader):
@@ -333,8 +333,9 @@ def test_use_local_symbol_error():
     # In practise this situation is hard to trigger as USE statements must
     # come before local declarations. Therefore we manually add a symbol
     # to the table first.
-    fake_parent.symbol_table.add(DataSymbol("fred", INTEGER_SINGLE_TYPE,
-                                            interface=AutomaticInterface()))
+    fake_parent.symbol_table.add(DataSymbol(
+        "fred", ScalarType.integer_single_type(),
+        interface=AutomaticInterface()))
     processor = Fparser2Reader()
     reader = FortranStringReader("use mod2, only: fred\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
