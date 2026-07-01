@@ -147,7 +147,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         return False
 
     def _compute_transformable_sections(
-            self, node_list: list[Node],
+            self, node_list: Union[list[Node], Schedule],
             trans: Transformation,
             trans_kwargs: dict[str, Any]
     ) -> list[list[Node]]:
@@ -164,7 +164,8 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         # Find the largest sections we can surround with the transformation.
         all_blocks = []
         current_block = []
-        for child in reversed(node_list):
+        n_list = self.get_node_list(node_list)
+        for child in reversed(n_list):
             # If the child can be added to a transformed region then add it
             # to the current block of nodes.
             if self._can_be_in_region(child):
