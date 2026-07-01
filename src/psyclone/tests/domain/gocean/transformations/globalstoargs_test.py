@@ -247,7 +247,7 @@ def test_kernelimportstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
             in str(err.value))
 
 
-def test_kernelimportstoarguments_multiple_kernels(fortran_writer):
+def test_kernelimportstoarguments_multiple_kernels():
     ''' Check the KernelImportsToArguments transformation with an invoke with
     three kernel calls, two of them duplicated and the third one sharing the
     same imported module'''
@@ -288,9 +288,9 @@ def test_kernelimportstoarguments_multiple_kernels(fortran_writer):
         for part in expected[num]:
             assert part in generated_code, part
 
-    # Kernels not imported anymore.
-    assert "use kernel_with_use_mod" not in generated_code
-    assert "use kernel_with_use2_mod" not in generated_code
+    # The original imports are left unchanged.
+    assert "use kernel_with_use_mod, only : " in generated_code
+    assert "use kernel_with_use2_mod, only : " in generated_code
 
 
 def test_kernelimportstoarguments_noimports(fortran_writer):

@@ -1095,7 +1095,8 @@ def test_mod_inline_no_container(fortran_reader, fortran_writer, tmpdir,
                in prog_psyir.children) == {"my_sub_inlined_", "my_prog"}
     output = fortran_writer(prog_psyir)
 
-    assert "use my_mod" not in output
+    # The original import is unchanged
+    assert "use my_mod, only : my_sub" in output
 
     assert Compile(tmpdir).string_compiles(output)
 
@@ -1158,7 +1159,7 @@ subroutine my_sub_inlined_(arg)''' in output)
     # We can't compile this because of the use statement.
 
 
-def test_inline_of_shadowed_import(tmpdir, monkeypatch, fortran_reader,
+def test_inline_of_shadowed_import(tmp_path, monkeypatch, fortran_reader,
                                    fortran_writer):
     '''
     Test that Symbols are managed correctly when doing a module import for a
@@ -1216,12 +1217,15 @@ def test_inline_of_shadowed_import(tmpdir, monkeypatch, fortran_reader,
     # Now it should refer to another top-level, inlined RoutineSymbol.
     assert calls[1].routine.symbol is container.symbol_table.lookup(
         "my_sub_inlined__1")
-    assert "my_mod" not in again.symbol_table
+    # ContainerSymbol should still be present.
+    assert "my_mod" in again.symbol_table
     assert len(container.walk(Routine)) == 4
     # Cannot compile this because we still have a wildcard import from my_mod
     # in 'do_it'.
     output = fortran_writer(prog_psyir)
     assert "use my_mod\n" in output
+    output2 = output.replace("use my_mod, only : my_sub\n", "")
+    assert Compile(tmp_path).string_compiles(output2)
 
 
 def test_mod_inline_all_calls_updated(monkeypatch, fortran_reader):

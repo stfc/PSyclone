@@ -368,7 +368,6 @@ class KernelModuleInlineTrans(Transformation):
 
         # Deal with the RoutineSymbol that is in scope at the call site.
         sym_in_ctr = None
-        #shadowed_sym = None
 
         if called_sym and (called_sym.is_import or called_sym.is_unresolved):
             table = called_sym.find_symbol_table(node)
@@ -378,33 +377,6 @@ class KernelModuleInlineTrans(Transformation):
                 # update any other Calls to it (at the end of this method).
                 sym_in_ctr = called_sym
 
-            #self._rm_imported_routine_symbol(called_sym, codes_to_inline[0],
-            #                                 table)
-
-            # Double check that this import is not shadowing a routine we've
-            # already module-inlined.
-#            if table.node.parent:
-#                # There is a scope outside the one that contained the
-#                # RoutineSymbol.
-#                caller_cntr_table = table.node.parent.scope.symbol_table
-#                # Look to see whether it also contains a symbol matching
-#                # the name of the called routine.
-#                shadowed_sym = caller_cntr_table.lookup(called_sym.name,
-#                                                        otherwise=None)
-#                if shadowed_sym:
-#                    caller_cntr_table = shadowed_sym.find_symbol_table(
-#                        table.node.parent)
-#                    if not isinstance(caller_cntr_table.node, FileContainer):
-#                        # It is shadowing an outer symbol that is in a
-#                        # Container (not a FileContainer) so we just need to
-#                        # update the call to point to the outer symbol.
-#                        node.routine.symbol = shadowed_sym
-#                        if not (shadowed_sym.is_import or
-#                                shadowed_sym.is_unresolved):
-#                            # The outer symbol is local to this Container so
-#                            # there's nothing else to do.
-#                            return
-
         updated_routines = self._prepare_code_to_inline(codes_to_inline)
 
         # The Container into which we will inline the Routine(s).
@@ -413,6 +385,7 @@ class KernelModuleInlineTrans(Transformation):
         name_map = {}
         for code_to_inline in updated_routines:
 
+            # Create a new name for the routine.
             new_name = code_to_inline.name+"_inlined_"
             new_sym = container.symbol_table.new_symbol(
                 new_name, symbol_type=RoutineSymbol)
@@ -427,21 +400,27 @@ class KernelModuleInlineTrans(Transformation):
             name_map[code_to_inline.name] = new_sym
 
             if update_all:
-                # All Calls to a routine of the same name in the same scope as
-                # the target node must refer to the same Symbol.
-                #target_name = sym.name.lower()
-                target_sym = node.scope.symbol_table.lookup(caller_name)
-                for call in node.ancestor(Routine).walk(Call):
-                    name = call.routine.symbol.name.lower()
-                    if name == caller_name:
+                all_calls = container.walk(type(node))
+            else:
+                all_calls = [node]
+            # All Calls to a routine of the same name in the same scope as
+            # the target node must refer to the same Symbol.
+            target_sym = node.scope.symbol_table.lookup(caller_name)
+            for call in all_calls:
+                name = call.routine.symbol.name.lower()
+                if name == caller_name:
+                    if isinstance(node, Call):
                         call.routine.symbol = target_sym
-                # All Calls that referred to this Symbol must also be updated.
-                # Take care that the name matches as sym_in_ctr might be an
-                # interface.
-                if sym_in_ctr and sym_in_ctr.name == target_sym.name:
-                    for call in container.walk(Call):
-                        if call.routine.symbol is sym_in_ctr:
-                            call.routine.symbol = target_sym
+                    else:
+                        call.routine = Reference(new_sym)
+                        call._schedules = updated_routines
+            # All Calls that referred to this Symbol must also be updated.
+            # Take care that the name matches as sym_in_ctr might be an
+            # interface.
+            if sym_in_ctr and sym_in_ctr.name == target_sym.name:
+                for call in container.walk(Call):
+                    if call.routine.symbol is sym_in_ctr:
+                        call.routine.symbol = target_sym
 
         if interface_sym:
             # Deal with the interface symbol - create a new, local
