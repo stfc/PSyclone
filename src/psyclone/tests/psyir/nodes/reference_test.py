@@ -230,6 +230,9 @@ def test_reference_next_accesses(fortran_reader):
     assert len(b.next_accesses()) == 1
     assert b.next_accesses()[0] == b
 
+    # Check the next_access of the loop variable
+    assert loop.children[0].next_accesses() == [loop.loop_body.children[0].rhs]
+
     # Check that a loop accessing a variable before
     # the reference doesn't result in a false positive.
     code = '''subroutine my_sub()
