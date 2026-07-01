@@ -511,7 +511,7 @@ class ScalarType(DataType):
             # pylint: disable=import-outside-toplevel
             from psyclone.psyir.nodes.literal import Literal
             # Default length of a character string is 1.
-            self._length = Literal("1", INTEGER_TYPE)
+            self._length = Literal("1", ScalarType.integer_type())
             return
 
         # pylint: disable=import-outside-toplevel
@@ -524,7 +524,7 @@ class ScalarType(DataType):
                     f"If the length of a character ScalarType is specified "
                     f"using an int then it must be >= 0 but got: {value}")
             from psyclone.psyir.nodes.literal import Literal
-            self._length = Literal(str(value), INTEGER_TYPE)
+            self._length = Literal(str(value), ScalarType.integer_type())
         elif isinstance(value, DataNode):
             self._length = value
         else:
@@ -651,6 +651,75 @@ class ScalarType(DataType):
         if self._length:
             return ScalarType(self.intrinsic, precision, self._length.copy())
         return ScalarType(self.intrinsic, precision)
+
+    # Create common scalar datatypes
+    @staticmethod
+    def real_type() -> "ScalarType":
+        ''' :returns: a REAL scalartype '''
+        return ScalarType(ScalarType.Intrinsic.REAL,
+                          ScalarType.Precision.UNDEFINED)
+
+    @staticmethod
+    def real_single_type() -> "ScalarType":
+        ''' :returns: a REAL single scalartype '''
+        return ScalarType(ScalarType.Intrinsic.REAL,
+                          ScalarType.Precision.SINGLE)
+
+    @staticmethod
+    def real_double_type() -> "ScalarType":
+        ''' :returns: a REAL double scalartype '''
+        return ScalarType(ScalarType.Intrinsic.REAL,
+                          ScalarType.Precision.DOUBLE)
+
+    @staticmethod
+    def real4_type() -> "ScalarType":
+        ''' :returns: a REAL 4-byte scalartype '''
+        return ScalarType(ScalarType.Intrinsic.REAL, 4)
+
+    @staticmethod
+    def real8_type() -> "ScalarType":
+        ''' :returns: a REAL 8-byte scalartype '''
+        return ScalarType(ScalarType.Intrinsic.REAL, 8)
+
+    @staticmethod
+    def integer_type() -> "ScalarType":
+        ''' :returns: a INTEGER scalartype '''
+        return ScalarType(ScalarType.Intrinsic.INTEGER,
+                          ScalarType.Precision.UNDEFINED)
+
+    @staticmethod
+    def integer_single_type() -> "ScalarType":
+        ''' :returns: a INTEGER single scalartype '''
+        return ScalarType(ScalarType.Intrinsic.INTEGER,
+                          ScalarType.Precision.SINGLE)
+
+    @staticmethod
+    def integer_double_type() -> "ScalarType":
+        ''' :returns: a INTEGER double scalartype '''
+        return ScalarType(ScalarType.Intrinsic.INTEGER,
+                          ScalarType.Precision.DOUBLE)
+
+    @staticmethod
+    def integer4_type() -> "ScalarType":
+        ''' :returns: a INTEGER 4-byte scalartype '''
+        return ScalarType(ScalarType.Intrinsic.INTEGER, 4)
+
+    @staticmethod
+    def integer8_type() -> "ScalarType":
+        ''' :returns: a INTEGER 8-byte scalartype '''
+        return ScalarType(ScalarType.Intrinsic.INTEGER, 8)
+
+    @staticmethod
+    def boolean_type() -> "ScalarType":
+        ''' :returns: a BOOLEAN scalartype '''
+        return ScalarType(ScalarType.Intrinsic.BOOLEAN,
+                          ScalarType.Precision.UNDEFINED)
+
+    @staticmethod
+    def character_type() -> "ScalarType":
+        ''' :returns: a BOOLEAN scalartype '''
+        return ScalarType(ScalarType.Intrinsic.CHARACTER,
+                          ScalarType.Precision.UNDEFINED, 1)
 
 
 class ArrayType(DataType):
@@ -798,7 +867,7 @@ class ArrayType(DataType):
 
             '''
             if isinstance(var, int):
-                return Literal(str(var), INTEGER_TYPE)
+                return Literal(str(var), ScalarType.integer_type())
             return var
 
         if isinstance(elemental_type, DataType):
@@ -821,7 +890,7 @@ class ArrayType(DataType):
         # Replace any ints in shape with a Literal. int's are only supported
         # as they allow a more concise dimension declaration.
         self._shape = []
-        one = Literal("1", INTEGER_TYPE)
+        one = Literal("1", ScalarType.integer_type())
         for dim in shape:
             if isinstance(dim, (DataNode, int)):
                 # The lower bound is 1 by default.
@@ -1425,29 +1494,6 @@ class StructureType(DataType):
                 symbols.update(
                     cmpt.initial_value.get_all_accessed_symbols())
         return symbols
-
-
-# Create common scalar datatypes
-REAL_TYPE = ScalarType(ScalarType.Intrinsic.REAL,
-                       ScalarType.Precision.UNDEFINED)
-REAL_SINGLE_TYPE = ScalarType(ScalarType.Intrinsic.REAL,
-                              ScalarType.Precision.SINGLE)
-REAL_DOUBLE_TYPE = ScalarType(ScalarType.Intrinsic.REAL,
-                              ScalarType.Precision.DOUBLE)
-REAL4_TYPE = ScalarType(ScalarType.Intrinsic.REAL, 4)
-REAL8_TYPE = ScalarType(ScalarType.Intrinsic.REAL, 8)
-INTEGER_TYPE = ScalarType(ScalarType.Intrinsic.INTEGER,
-                          ScalarType.Precision.UNDEFINED)
-INTEGER_SINGLE_TYPE = ScalarType(ScalarType.Intrinsic.INTEGER,
-                                 ScalarType.Precision.SINGLE)
-INTEGER_DOUBLE_TYPE = ScalarType(ScalarType.Intrinsic.INTEGER,
-                                 ScalarType.Precision.DOUBLE)
-INTEGER4_TYPE = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
-INTEGER8_TYPE = ScalarType(ScalarType.Intrinsic.INTEGER, 8)
-BOOLEAN_TYPE = ScalarType(ScalarType.Intrinsic.BOOLEAN,
-                          ScalarType.Precision.UNDEFINED)
-CHARACTER_TYPE = ScalarType(ScalarType.Intrinsic.CHARACTER,
-                            ScalarType.Precision.UNDEFINED, 1)
 
 
 # For automatic documentation generation

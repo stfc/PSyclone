@@ -57,10 +57,9 @@ from psyclone.psyad.domain.lfric.lfric_adjoint_harness import (
     _lfric_create_real_comparison,
     generate_lfric_adjoint_harness)
 from psyclone.psyir import nodes
-from psyclone.psyir.symbols import (DataSymbol, REAL_TYPE, BOOLEAN_TYPE,
-                                    ArrayType, DataTypeSymbol, UnresolvedType,
-                                    INTEGER_TYPE, ContainerSymbol,
-                                    ImportInterface, ScalarType, SymbolTable)
+from psyclone.psyir.symbols import (
+    DataSymbol, ScalarType, ArrayType, DataTypeSymbol, UnresolvedType,
+    ContainerSymbol, ImportInterface, SymbolTable)
 
 
 # _compute_lfric_inner_products
@@ -71,13 +70,14 @@ def test_compute_inner_products_scalars(fortran_writer):
     table = SymbolTable()
     prog = nodes.Routine.create("test_prog", table, [], is_program=True)
     sum_sym = table.new_symbol(root_name="my_sum",
-                               symbol_type=DataSymbol, datatype=REAL_TYPE)
+                               symbol_type=DataSymbol,
+                               datatype=ScalarType.real_type())
     sym1 = table.new_symbol(root_name="var1", symbol_type=DataSymbol,
-                            datatype=REAL_TYPE)
+                            datatype=ScalarType.real_type())
     sym2 = table.new_symbol(root_name="var2", symbol_type=DataSymbol,
-                            datatype=REAL_TYPE)
+                            datatype=ScalarType.real_type())
     sym3 = table.new_symbol(root_name="var3", symbol_type=DataSymbol,
-                            datatype=BOOLEAN_TYPE)
+                            datatype=ScalarType.boolean_type())
     _compute_lfric_inner_products(
         prog, [(sym1, sym1), (sym1, sym2), (sym3, sym3)], [], sum_sym)
     gen = fortran_writer(prog)
@@ -94,13 +94,14 @@ def test_compute_inner_products_fields(fortran_writer):
     table = SymbolTable()
     prog = nodes.Routine.create("test_prog", table, [], is_program=True)
     sum_sym = table.new_symbol(root_name="my_sum",
-                               symbol_type=DataSymbol, datatype=REAL_TYPE)
+                               symbol_type=DataSymbol,
+                               datatype=ScalarType.real_type())
     sym1 = table.new_symbol(root_name="ip1", symbol_type=DataSymbol,
-                            datatype=REAL_TYPE)
+                            datatype=ScalarType.real_type())
     sym2 = table.new_symbol(root_name="ip2", symbol_type=DataSymbol,
-                            datatype=REAL_TYPE)
+                            datatype=ScalarType.real_type())
     # For field vectors we have an array of inner-product values to sum.
-    atype = ArrayType(REAL_TYPE, [3])
+    atype = ArrayType(ScalarType.real_type(), [3])
     sym3 = table.new_symbol(root_name="ip3", symbol_type=DataSymbol,
                             datatype=atype)
     _compute_lfric_inner_products(prog, [], [sym1, sym2, sym3], sum_sym)
@@ -210,7 +211,7 @@ def test_compute_field_inner_products_errors(type_map):
     assert ("Each pair of fields/field-vectors must be supplied as "
             "DataSymbols but got:" in str(err.value))
     # Break the datatype of one of the fields
-    fld1.datatype = INTEGER_TYPE
+    fld1.datatype = ScalarType.integer_type()
     with pytest.raises(InternalError) as err:
         _compute_field_inner_products(prog, [(fld1, fld1)])
     assert ("Expected a field symbol to either be of ArrayType or have a type "
@@ -285,7 +286,7 @@ def test_init_fields_random_error():
     field is not of the correct type.
 
     '''
-    fld1 = DataSymbol("field1", datatype=INTEGER_TYPE)
+    fld1 = DataSymbol("field1", datatype=ScalarType.integer_type())
     fields = [fld1]
     inputs = {"field1": fld1}
     with pytest.raises(InternalError) as err:
@@ -356,6 +357,7 @@ def test_init_scalar_value(monkeypatch):
 
     class BrokenType:
         '''Utility class to provide an unsupported type.'''
+
         def __init__(self):
             self.name = "wrong"
     monkeypatch.setattr(sym4.datatype, "intrinsic", BrokenType())
@@ -440,9 +442,9 @@ def test_lfric_create_real_comparison(fortran_writer):
     '''Test for the _lfric_create_real_comparison method.'''
     symbol_table = SymbolTable()
     var1_symbol = symbol_table.new_symbol(
-        "var1", symbol_type=DataSymbol, datatype=REAL_TYPE)
+        "var1", symbol_type=DataSymbol, datatype=ScalarType.real_type())
     var2_symbol = symbol_table.new_symbol(
-        "var2", symbol_type=DataSymbol, datatype=REAL_TYPE)
+        "var2", symbol_type=DataSymbol, datatype=ScalarType.real_type())
     routine = nodes.Routine.create("test", symbol_table, [])
     stmt_list = _lfric_create_real_comparison(
         symbol_table, routine, var1_symbol, var2_symbol)
@@ -482,9 +484,9 @@ def test_lfric_log_write(fortran_writer):
     '''Test for the _lfric_log_write method.'''
     symbol_table = SymbolTable()
     var1_symbol = symbol_table.new_symbol(
-        "var1", symbol_type=DataSymbol, datatype=REAL_TYPE)
+        "var1", symbol_type=DataSymbol, datatype=ScalarType.real_type())
     var2_symbol = symbol_table.new_symbol(
-        "var2", symbol_type=DataSymbol, datatype=REAL_TYPE)
+        "var2", symbol_type=DataSymbol, datatype=ScalarType.real_type())
     routine = nodes.Routine.create("test", symbol_table, [])
     stmt_list = _lfric_create_real_comparison(
         symbol_table, routine, var1_symbol, var2_symbol)

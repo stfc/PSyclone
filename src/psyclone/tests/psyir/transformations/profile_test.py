@@ -52,7 +52,7 @@ from psyclone.psyir.nodes import (
     colored, ProfileNode, Loop, Literal, Assignment, Return, Reference,
     OMPDoDirective, KernelSchedule, Routine, Schedule)
 from psyclone.psyir.symbols import (
-    SymbolTable, REAL_TYPE, DataSymbol, INTEGER_TYPE)
+    SymbolTable, DataSymbol, ScalarType)
 from psyclone.psyir.transformations import (
     ACCKernelsTrans, ProfileTrans, TransformationError,
     OMPParallelTrans)
@@ -397,7 +397,7 @@ def test_profile_with_symbols_declared_in_the_profiler_scope(tmpdir):
     # In addition to the OpenMP symbols, manually add one in that scope
     schedule.children[0].psy_data_body.symbol_table.new_symbol(
         "profiler_scoped_symbol", symbol_type=DataSymbol,
-        datatype=INTEGER_TYPE)
+        datatype=ScalarType.integer_type())
     code = str(psy.gen)
 
     assert "omp_lib, only : omp_get_max_threads, omp_get_thread_num" in code
@@ -793,8 +793,8 @@ def test_auto_invoke_return_last_stmt():
     in the routine. '''
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
-        symbol_type=DataSymbol, datatype=REAL_TYPE)
-    zero = Literal("0.0", REAL_TYPE)
+        symbol_type=DataSymbol, datatype=ScalarType.real_type())
+    zero = Literal("0.0", ScalarType.real_type())
     assign1 = Assignment.create(Reference(arg1), zero)
     kschedule = KernelSchedule.create(
         "work", symbol_table, [assign1, Return()])
@@ -816,8 +816,8 @@ def test_auto_invoke_no_return(capsys):
     Profiler.set_options([Profiler.INVOKES], "nemo")
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
-        symbol_type=DataSymbol, datatype=REAL_TYPE)
-    zero = Literal("0.0", REAL_TYPE)
+        symbol_type=DataSymbol, datatype=ScalarType.real_type())
+    zero = Literal("0.0", ScalarType.real_type())
     assign1 = Assignment.create(Reference(arg1), zero)
     assign2 = Assignment.create(Reference(arg1), zero.copy())
 

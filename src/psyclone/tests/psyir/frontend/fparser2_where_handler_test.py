@@ -49,8 +49,7 @@ from psyclone.psyir.nodes import (
     ArrayMember, ArrayReference, Assignment, BinaryOperation,
     Call, CodeBlock, Container, IfBlock, IntrinsicCall, Literal, Loop, Range,
     Reference, Routine, Schedule, UnaryOperation)
-from psyclone.psyir.symbols import (
-    DataSymbol, ScalarType, INTEGER_TYPE)
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.tests.utilities import Compile
 
 
@@ -77,17 +76,18 @@ def process_where(
     '''
     sched = Schedule()
     # Always add the 'wp' kind parameter as this must have specific properties.
-    sched.symbol_table.new_symbol("wp", symbol_type=DataSymbol,
-                                  datatype=INTEGER_TYPE,
-                                  initial_value=Literal("8", INTEGER_TYPE),
-                                  is_constant=True)
+    sched.symbol_table.new_symbol(
+        "wp", symbol_type=DataSymbol,
+        datatype=ScalarType.integer_type(),
+        initial_value=Literal("8", ScalarType.integer_type()),
+        is_constant=True)
     if symbols:
         for sym_name in symbols:
             sched.symbol_table.new_symbol(sym_name)
     if scalars:
         for sym_name in scalars:
             sched.symbol_table.new_symbol(sym_name, symbol_type=DataSymbol,
-                                          datatype=INTEGER_TYPE)
+                                          datatype=ScalarType.integer_type())
     processor = Fparser2Reader()
     reader = FortranStringReader(code)
     fparser2spec = fparser_cls(reader)
@@ -914,8 +914,8 @@ def test_import_in_where_clause(fortran_reader):
     '''
     code = '''
     program where_test
-    implicit none
     use some_module, only: a, b, c, d
+    implicit none
 
     where(a(:) + b > 1)
        b = c + d
@@ -927,8 +927,8 @@ def test_import_in_where_clause(fortran_reader):
 
     code2 = '''
     program where_test
-    implicit none
     use some_module, only: c, d
+    implicit none
     integer, dimension(100) :: a, b
 
     where(a(:) + b > 1)
