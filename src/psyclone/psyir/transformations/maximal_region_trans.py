@@ -76,7 +76,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
     #: only barriers doesn't need to be transformed). Defaults to any Node.
     _required_nodes = (Node)
 
-    def _node_allowed(self, node: Node) -> bool:
+    def _node_allowed(self, node: Node, current_block: list[Node]) -> bool:
         '''Returns whether the provided node is allowed in the _transformation.
 
         The default implementation checks whether the node is an instance
@@ -85,6 +85,8 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         function is pure).
 
         :param node: the candidate node to be in the transformation region.
+        :param current_block: The current block that node would be added into.
+
         :returns: whether the node is allowed to be in the transformed region.
         '''
         return isinstance(node, self._allowed_contiguous_statements)
@@ -108,17 +110,20 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                 return True
         return False
 
-    def _can_be_in_region(self, node: Node) -> bool:
+    def _can_be_in_region(
+        self, node: Node, current_block: list[Node]
+    ) -> bool:
         '''Returns whether the provided node can be included in a
         region. Loops and if statements are recursed into to check if their
         children can be.
 
         :param node: the candidate Node to be placed into a transformed
             region.
+        :param current_block: The current block that node would be added into.
 
         :returns: whether it is safe to add the node to a transformed region.
         '''
-        if self._node_allowed(node):
+        if self._node_allowed(node, current_block):
             return True
 
         if isinstance(node, (Loop, WhileLoop)):
@@ -167,7 +172,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         for child in reversed(node_list):
             # If the child can be added to a transformed region then add it
             # to the current block of nodes.
-            if self._can_be_in_region(child):
+            if self._can_be_in_region(child, current_block):
                 # Check that validation still succeeds if we add this child
                 # to the current block.
                 try:
@@ -242,6 +247,22 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                     f"{prev_position}.")
             prev_position = child.position
 
+
+    def _apply_transformation(self, block: list[Node],
+                              **kwargs):
+        '''
+        Applies the transformation defined by self._transformation to the
+        block supplied, with the kwargs provided.
+
+        The default implementation does nothing else, however the
+        functionality is provided so subclasses can perform specific
+        operations (or provide additional specific options) as required for
+        their transformations.
+
+        :param block: The block to apply the transformations to.
+        '''
+        self._transformation.apply(block, **kwargs)
+
     def apply(self, nodes: Union[Node, Schedule, list[Node]], **kwargs):
         '''Applies the transformation to the nodes provided.
 
@@ -260,4 +281,4 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
 
         # Apply the transformation to all of the blocks found.
         for block in all_blocks:
-            par_trans.apply(block, **tr_kwargs)
+            self._apply_transformation(block, **tr_kwargs)
