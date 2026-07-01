@@ -1,3 +1,6 @@
+   35) PR #3476 for #3475. Fixes OMPParallelLoopTrans to support the
+   force_private keyword argument.
+
    34) PR #3440. Update to use release 0.2.4 of fparser.
  
    33) PR #3467. Update CI compilers.
