@@ -96,5 +96,4 @@ def test_parallelregion_check_symtab_var(fortran_reader, caplog):
         "Error: \"Could not find 'j' in the Symbol Table.\" This has been "
         "provided with the 'j' in the 'force_private' option, "
         "but there is no such symbol in this scope.")
-    print(long_string)
     assert long_string in caplog.text
