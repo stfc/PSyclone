@@ -46,7 +46,7 @@ __MINOR__ = 3
 __MICRO__ = 0
 
 # Version suffix e.g. "-rc1", "-dev" or "" (for a full release)
-_VERSION_SUFFIX = ""
+_VERSION_SUFFIX = "-dev"
 
 __SHORT_VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}{_VERSION_SUFFIX}"
 __VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}.{__MICRO__:d}{_VERSION_SUFFIX}"
