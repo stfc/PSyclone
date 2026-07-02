@@ -915,6 +915,50 @@ def test_parallellooptrans_refuse_codeblock():
             "by a OMPParallelLoopTrans transformation" in str(err.value))
 
 
+@pytest.mark.parametrize("use_options_dict", [True, False])
+def test_ompparallellooptrans_reductions(fortran_reader, fortran_writer,
+                                         caplog, use_options_dict):
+    '''Check that OMPParallelLoopTrans behaves correctly with reductions.'''
+
+    code = """subroutine test
+    integer :: a, i
+
+    do i = 1, 100
+        a = a + i
+    end do
+    end subroutine test"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    if use_options_dict:
+        OMPParallelLoopTrans().apply(
+            loop, options={
+                "enable_reductions": True, "reduction_ops": []
+            })
+    else:
+        # If not using the options dict we should have a logged message too.
+        caplog.clear()
+        with caplog.at_level(logging.WARNING,
+                             "psyclone.psyir.transformations."
+                             "omp_parallel_loop_trans"):
+            OMPParallelLoopTrans().apply(loop, enable_reductions=True,
+                                         reduction_ops=[])
+            assert caplog.records[0].levelname == "WARNING"
+            assert ("OMPParallelLoopTrans overriddes the provided "
+                    "reduction_ops keyword argument to those supported by "
+                    "PSyclone." in caplog.text)
+
+    correct = """!$omp parallel do default(shared) private(i) schedule(auto) \
+reduction(+: a)
+  do i = 1, 100, 1
+    a = a + i
+  enddo
+  !$omp end parallel do
+"""
+    out = fortran_writer(psyir)
+    assert correct in out
+
+
 # Tests for OMPSingleTrans
 def test_ompsingle():
     ''' Generic tests for the OMPSingleTrans transformation class '''
