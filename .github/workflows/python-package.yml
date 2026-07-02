@@ -83,7 +83,7 @@ jobs:
           # Uncomment the below to use the submodule version of fparser rather
           # than the latest release from pypi.
           # pip install external/fparser
-          pip install .[test,doc]
+          pip install -e .[test,doc]
       # Now we can check for warnings and broken links
       - run: cd doc; make doctest
       - run: cd doc; make html SPHINXOPTS="-W --keep-going"
