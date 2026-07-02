@@ -1,3 +1,6 @@
+   2) PR #3450 for #3262. Updates the LFRic GPU scripts and aggregates
+   the transformation statistics.
+
    1) PR #3469. Extends the Module manager to have an extensible list
    of file extensions and includes x95 and x03 suffixes by default.
 
