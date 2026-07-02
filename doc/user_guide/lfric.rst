@@ -162,17 +162,14 @@ least rank (number of dimensions) one. Scalar arrays are identified with
 Field
 +++++
 
-LFRic API fields, identified with ``GH_FIELD`` metadata, represent FEM
+LFRic API `fields <https://metoffice.github.io/lfric_core/how_to_use_it/lfric_datamodel/field.html>`_, identified with ``GH_FIELD`` metadata, represent FEM
 discretisations of various dynamical core prognostic and diagnostic
 variables. In FEM, variables are discretised by placing them into a
 function space (see :ref:`lfric-function-space`) from which they
-inherit a polynomial expansion via the basis functions of that space.
-Field values at points within a cell are evaluated as the sum of a set
-of basis functions multiplied by coefficients which are the data
-points.  Points of evaluation are determined by a quadrature object
-(:ref:`lfric-quadrature`) and are independent of the function space
-the field is on. Placement of field data points, also called degrees
-of freedom (hereafter "DoFs"), is determined by the function space the
+inherit a polynomial expansion via the basis functions of that space. Placement
+of field data points, also called
+`degrees of freedom <https://metoffice.github.io/lfric_core/how_it_works/core_data_model/science_model_architecture.html#dofs-dof-maps-and-function-spaces>`_
+(hereafter "DoFs"), is determined by the function space the
 field is on. An LFRic multi-data field can have more than one value
 associated with each data point.
 
@@ -184,9 +181,9 @@ classes, respectively.
 
 Different fields may be defined on different numbers of vertical layers.
 The number of layers can be as few as one (a 2D field). Additionally,
-LFRic has the concet of multi-data fields where multiple data values can be
-associated with each DoF. Unfortunately, both the number of layers and the
-number of data values affects the numbering of the DoFs of a field. Therefore,
+LFRic has the concept of multi-data fields where multiple data values can be
+associated with each DoF. Since both the number of layers and the
+number of data values affects the numbering of the DoFs of a field,
 a distinct DoF map is required for each unique combination of function
 space, number of vertical levels and number of data values.
 
@@ -929,7 +926,8 @@ All three CMA-related kernel types must obey the following rules:
 1) Since a CMA operator only acts within a single column of data,
    stencil operations are not permitted.
 
-2) No vector quantities (e.g. ``GH_FIELD*3`` - see below) or
+2) No vector quantities (e.g. ``GH_FIELD*3`` - see
+   :ref:`lfric-field-vector`) or
    multi-data fields are permitted as arguments.
 
 3) The kernel must operate on cell-columns.
@@ -1583,7 +1581,7 @@ Since the LFRic API operates on columns of data, function spaces
 are categorised as continuous or discontinuous with regard to their
 **continuity in the horizontal**. For example, a ``GH_FIELD`` that
 specifies ``GH_INC`` as its access pattern (see
-:ref:lfric-kernel-valid-access: above) may be continuous in the vertical
+:ref:`lfric-kernel-valid-access` above) may be continuous in the vertical
 (and discontinuous in the horizontal), continuous in the horizontal
 (and discontinuous in the vertical), or continuous in both. In each
 case the code is the same. This principle of horizontal continuity also
@@ -1774,8 +1772,7 @@ Alternatively, it may be given a name, e.g.::
 
 If two or more field/operator arguments are on the same function space
 and have the same number of layers (whether a literal or a name) then
-only one dofmap (that of the first such field listed in the metadata)
-is passed to the kernel for those arguments.
+only one dofmap is passed to the kernel for those arguments.
 
 (Since the value of ``NLAYERS`` is looked-up from the corresponding kernel
 argument at run time, the labels given in the kernel metadata are just that
@@ -1785,7 +1782,10 @@ Multi-Data Metadata
 """""""""""""""""""
 
 A multi-data field is the same as a standard field apart from having multiple
-values associated with each DoF. This is indicated in the field metadata by
+values associated with each DoF. (Note that this is not the same as a
+:ref:`field vector <lfric-field-vector>` which corresponds to a bundle of
+fields, all on the same function space and each with a single value at each
+DoF.) This is indicated in the field metadata by
 the optional ``NDATA`` argument to GH_FIELD, e.g.::
 
   arg_type(GH_FIELD, GH_REAL, GH_READ, W2, NDATA="4")
@@ -2170,7 +2170,7 @@ conventions, are:
    metadata arguments (the ``to`` function space of an operator is considered
    to be before the ``from`` function space of the same operator as it appears
    first in lexicographic order). Note that if two fields on a given function
-   space have differing numbers of vertical layers and/or ``NDATA`` values,
+   space have differing ``NLAYERS`` and/or ``NDATA`` values,
    then each requires that a dofmap be supplied (because both the number of
    vertical layers *and* the number of data values per DoF alter the
    *values* within the map). For each required DoF map:
@@ -2725,11 +2725,9 @@ Kernel type name:
 Subroutine name:
     ``<base_name>_code``
 
-The latest version of the LFRic coding style guidelines are available in this
-`LFRic wiki page
-<https://code.metoffice.gov.uk/trac/lfric/wiki/LFRicTechnical/FortranCodingStandards>`_
-(requires login access to MOSRS, see the above :ref:`introduction <lfric-api>`
-to the LFRic API).
+The latest version of the LFRic coding style guidelines are available in the
+`LFRic github pages
+<https://metoffice.github.io/lfric_core/how_to_contribute/coding_standards/fortran_coding_standards.html>`_.
 
 .. _lfric-built-ins:
 
