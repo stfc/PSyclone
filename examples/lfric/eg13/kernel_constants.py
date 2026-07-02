@@ -83,13 +83,9 @@ def trans(psyir: FileContainer):
 
     for kernel in psyir.coded_kernels():
         print(f"  kernel '{kernel.name.lower()}'")
-        try:
-            mod_inline_trans.apply(kernel)
-            const_trans.apply(kernel,
-                              {"number_of_layers": NUMBER_OF_LAYERS,
-                               "element_order_h": ELEMENT_ORDER_H,
-                               "element_order_v": ELEMENT_ORDER_V,
-                               "quadrature": CONSTANT_QUADRATURE})
-        except TransformationError as err:
-            print(f"    Failed to modify kernel '{kernel.name}'. "
-                  f"Error was:\n{err}")
+        mod_inline_trans.apply(kernel)
+        const_trans.apply(kernel,
+                          {"number_of_layers": NUMBER_OF_LAYERS,
+                           "element_order_h": ELEMENT_ORDER_H,
+                           "element_order_v": ELEMENT_ORDER_V,
+                           "quadrature": CONSTANT_QUADRATURE})
