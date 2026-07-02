@@ -54,8 +54,7 @@ $ psyclone -api lfric -s ./kernel_constants.py \
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import FileContainer
-from psyclone.transformations import LFRicKernelConstTrans, \
-    TransformationError
+from psyclone.transformations import LFRicKernelConstTrans
 
 # The number of layers to use when modifying a kernel to make the
 # associated kernel value constant (rather than passing it in by
