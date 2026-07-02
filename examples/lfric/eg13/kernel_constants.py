@@ -44,10 +44,6 @@ In the case where a space is defined as "any_space" in a kernel, the
 associated ndofs value will not be modified (as the actual value could
 change from one call to the next).
 
-The LFRicKernelConstTrans transformation is work in progress and the
-current version is limited to printing out the arguments that would be
-transformed and the values they would take.
-
 This script can be applied via the '-s' option when running PSyclone:
 
 $ psyclone -api lfric -s ./kernel_constants.py \
@@ -56,6 +52,8 @@ $ psyclone -api lfric -s ./kernel_constants.py \
 
 '''
 
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.psyir.nodes import FileContainer
 from psyclone.transformations import LFRicKernelConstTrans, \
     TransformationError
 
@@ -73,23 +71,25 @@ ELEMENT_ORDER_V = 0
 CONSTANT_QUADRATURE = True
 
 
-def trans(psyir):
+def trans(psyir: FileContainer):
     '''PSyclone transformation script for the LFRic API to make the
     kernel values of ndofs, nlayers and nquadrature-point sizes constant.
 
     :param psyir: the PSyIR of the PSy-layer.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
+    mod_inline_trans = KernelModuleInlineTrans()
     const_trans = LFRicKernelConstTrans()
 
     for kernel in psyir.coded_kernels():
         print(f"  kernel '{kernel.name.lower()}'")
         try:
+            mod_inline_trans.apply(kernel)
             const_trans.apply(kernel,
                               {"number_of_layers": NUMBER_OF_LAYERS,
                                "element_order_h": ELEMENT_ORDER_H,
                                "element_order_v": ELEMENT_ORDER_V,
                                "quadrature": CONSTANT_QUADRATURE})
-        except TransformationError:
-            print(f"    Failed to modify kernel '{kernel.name}'")
+        except TransformationError as err:
+            print(f"    Failed to modify kernel '{kernel.name}'. "
+                  f"Error was:\n{err}")
