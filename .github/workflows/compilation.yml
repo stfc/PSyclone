@@ -56,7 +56,7 @@ env:
   HDF5_VERSION: "2.1"
   NETCDF_C_VERSION: "4.10"
   NETCDF_FORTRAN_VERSION: "4.6"
-  NVFORTRAN_VERSION: "26.3"
+  NVFORTRAN_VERSION: "26.5"
   OPENMPI_VERSION: "5.0"
   PYTHON_VERSION: "3.14"
   NUM_PARALLEL: 16
@@ -87,7 +87,7 @@ jobs:
         python -m pip install --upgrade pip
         # Uncomment the below to use the submodule version of fparser rather
         # than the latest release from pypi.
-        pip install external/fparser
+        # pip install external/fparser
         pip install .[test,psydata,doc,treesitter]
     - name: Unit tests with compilation - gfortran
       run: |
