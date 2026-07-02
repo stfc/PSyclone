@@ -231,6 +231,7 @@ def generate(filename: str,
     :param script_name: a script file that can apply optimisations
         to the PSy layer (can be a path to a file or a filename that
         relies on the PYTHONPATH to find the module). Defaults to None.
+    :param kwargs_str: the kwargs argument from the command line.
     :param line_length: a logical flag specifying whether we care
         about line lengths being longer than 132 characters. If so,
         the input (algorithm and kernel) code is checked to make sure
@@ -918,8 +919,8 @@ def code_transformation_mode(input_file: str,
                              keep_directives: bool,
                              keep_conditional_openmp_statements: bool,
                              kwargs_str: Optional[str] = None,
-                             free_form: bool = True,
-                             line_length="off"):
+                             free_form: Optional[bool] = True,
+                             line_length: Optional[str] = "off"):
     '''
     Process the input_file with the transformations script specified in
     `script_name` and store it in the output_file.
@@ -936,10 +937,11 @@ def code_transformation_mode(input_file: str,
         source.
     :param keep_conditional_openmp_statements: whether to keep OpenMP
         conditional compilation statements.
-    :param str line_length: set to "output" to break the output into lines
-        of 123 chars, and to "all", to additionally check the input code.
+    :param kwargs_str: the kwargs argument from the command line.
     :param free_form: whether the original source is free form Fortran or
                       not.
+    :param str line_length: set to "output" to break the output into lines
+        of 123 chars, and to "all", to additionally check the input code.
 
     '''
     logger = logging.getLogger(__name__)

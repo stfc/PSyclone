@@ -95,12 +95,13 @@ Arguments for Scripts
 ---------------------
 Scripts can take optional keyword arguments specified on the command line
 using the option `--script-kwargs`. The keyword arguments are specified
-as separate `keyword:value` pairs, separate by `,`. For example:
+in a string containing comma-delimited keyword:value pairs. For example:
+
 
 .. code-block:: shell
 
     psyclone -s ./optimise.py input_source.f90 \
-             --scripts-kwargs "omp: True, tiling: [4,4]"
+             --script-kwargs "omp: True, tiling: [4,4]"
 
 This will result in the additional keyword arguments for any transformation call:
 

@@ -38,6 +38,7 @@ A generic transformation script that creates two different versions
 of a loop, depending on iteration count.
 '''
 
+from typing import Optional
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -47,11 +48,13 @@ from psyclone.psyir.nodes import (BinaryOperation, FileContainer, IfBlock,
                                   Literal, Loop, Routine, Schedule)
 
 
-def trans(psyir: FileContainer, parse_string: False) -> None:
+def trans(psyir: FileContainer, parse_string: Optional[bool] = False) -> None:
     '''
     Create two versions of a loop, depending in iteration count.
 
     :param psyir: the PSyIR of the provided file.
+    :param parse_string: whether the node code is created by parsing a
+        Fortran string (True), or by assembling a PSyIR subtree (False).
 
     '''
     for routine in psyir.walk(Routine):

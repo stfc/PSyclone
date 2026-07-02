@@ -90,7 +90,7 @@ def add_omp_region_profiling_markers(children: Union[List[Node], Schedule]):
             add_omp_region_profiling_markers(child.children)
 
 
-def trans(psyir: FileContainer, profiling=False):
+def trans(psyir: FileContainer, profiling: bool = False):
     """
     Apply OpenMP offloading and insert profiling around target regions.
 

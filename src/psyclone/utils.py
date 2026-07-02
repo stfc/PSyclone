@@ -262,11 +262,11 @@ def parse_kwargs(kwargs: str) -> dict[str, Any]:
     # re-raise them as a ValueError
     try:
         # Make it look like a dict literal
-        wrapped = "{" + kwargs.strip().rstrip(",") + "}"
+        wrapped = "{" + kwargs.strip() + "}"
         expr = ast.parse(wrapped, mode="eval")
 
         # Convert bare-name keys to string keys
-        transformer = NameKeysToStr()
+        transformer = _NameKeysToStr()
         expr = transformer.visit(expr)
         # This call will update line-number, column, ... information in
         # the modified tree, since the newly created nodes won't have
@@ -286,14 +286,12 @@ def parse_kwargs(kwargs: str) -> dict[str, Any]:
     return result
 
 
-class NameKeysToStr(ast.NodeTransformer):
+class _NameKeysToStr(ast.NodeTransformer):
     """
     This is a helper class to convert dictionary keys that are
     an ast.Name (i.e. not a string) into an ast.Constant (a string).
 
     It will effectively change `{a:1}` to `{'a':1}`
-
-    :param node: the dictionary node.
     """
 
     # pylint: disable=invalid-name

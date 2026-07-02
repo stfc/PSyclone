@@ -477,9 +477,11 @@ def test_transformation_doc_wrapper_subtrans():
 @pytest.mark.parametrize("kwargs, expected",
                          [("", {}),
                           ("'a':1", {'a': 1}),
+                          ("'a':1,", {'a': 1}),
                           ("'b': {1: 2}", {'b': {1: 2}}),
                           ("'l': [1,2]", {'l': [1, 2]}),
                           ("a:1", {'a': 1}),
+                          ("a:1,", {'a': 1}),
                           ("b: {1: 2}", {'b': {1: 2}}),
                           ("l: [1,2]", {'l': [1, 2]}),
                           ])
@@ -499,7 +501,7 @@ def test_parse_kwargs(kwargs, expected):
 def test_parse_kwargs_errors(kwargs):
     """
     Test that the parsing function for user-specific script options
-    work as expected.
+    raises the expected errors for malformed arguments.
 
     :param kwargs: the input string for the command line
     """

@@ -2119,7 +2119,6 @@ def test_config_overwrite() -> None:
                                          ("a:1", "{'a': 1}"),
                                          ("b: {1: 2}", "{'b': {1: 2}}"),
                                          ("l: [1,2]", "{'l': [1, 2]}")
-
                                          ])
 def test_script_arguments_transmute(kwargs, out, tmp_path, capsys):
     """Tests that script arguments are received as expected with the
@@ -2159,7 +2158,8 @@ def test_script_arguments_lfric_testing(kwargs, out, tmp_path, capsys,
     """Tests that script arguments are received as expected using the
     LFRic API. This test creates a dummy script that prints the arguments
     for trans and trans_alg, which we check for. This uses LFRIC_TESTING,
-    which will also call trans_alg (which by LFRic otherwise would not do).
+    which will also call trans_alg (which by default LFRic otherwise would
+    not do).
 
     :param kwargs: the input string for the command line
     :param out: the expected output of the print statement (which can be
