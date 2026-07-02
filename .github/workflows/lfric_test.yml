@@ -85,7 +85,7 @@ jobs:
         python -m pip install --upgrade pip
         # Uncomment the below to use the submodule version of fparser rather
         # than the latest release from pypi.
-        pip install external/fparser
+        # pip install external/fparser
         pip install .[test]
         # Fetch the specified version of LFRic apps
         cd /archive/psyclone-tests/latest-run
@@ -149,8 +149,13 @@ jobs:
         rm -rf working-gh-ompoffload
         export BUILD_START="${SECONDS}"
         LFRIC_OFFLOAD_DIRECTIVES=omp ./build/local_build.py -v -j ${NUM_PARALLEL} -p psyclone-test \
-          -w working-gh-ompoffload gungho_model
+          -w working-gh-ompoffload gungho_model |& tee output.txt
+        # Piping to tee ignores the errcode of the first command, make sure we account for it
+        if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+            exit ${PIPESTATUS[0]}
+        fi
         export BUILD_ELAPSED=$((${SECONDS}-${BUILD_START}))
+        ${PSYCLONE_LFRIC_DIR}/aggregate_gpu_stats.sh output.txt
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
         export OMP_NUM_THREADS=12

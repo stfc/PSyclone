@@ -478,13 +478,13 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
         for symbol_name in force_private:
             try:
                 sym = node.scope.symbol_table.lookup(symbol_name)
+                explicitly_private_symbols.add(sym)
             except KeyError:
                 # This is not an error, but we will log the missed string
                 logger.warning(
                     "%s has been provided with the '%s' symbol name in "
                     "the 'force_private' option, but there is no such "
                     "symbol in this scope.", self.name, symbol_name)
-            explicitly_private_symbols.add(sym)
 
         list_of_signatures = [Signature(name) for name in list_of_names]
         dtools = DependencyTools()

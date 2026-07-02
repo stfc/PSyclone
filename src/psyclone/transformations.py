@@ -117,6 +117,7 @@ def check_intergrid(node):
                 f" is such a kernel.")
 
 
+@transformation_documentation_wrapper
 class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
 
     ''' LFRic-specific OpenMP loop transformation. Adds LFRic specific
@@ -137,7 +138,7 @@ class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
     def __str__(self):
         return "Add an OpenMP Parallel Do directive to an LFRic loop"
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''
         Perform LFRic-specific loop validity checks then call the `validate`
         method of the base class.
@@ -175,7 +176,20 @@ class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
         # correct sharing attributes).
         local_options = options.copy() if options else {}
         local_options["force"] = True
-        super().validate(node, options=local_options)
+        super().validate(node, options=local_options, **kwargs)
+
+    def apply(self, node, options=None, **kwargs):
+        '''
+        Add OpenMP Parallel for LFRic PSy-layer loops.
+
+        :param node: the given loop node.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param options: a dictionary with options for transformations
+            and validation.
+        :type options: Optional[Dict[str, Any]]
+
+        '''
+        super().apply(node, options=options, **kwargs)
 
 
 class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
