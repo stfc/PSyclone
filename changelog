@@ -1,3 +1,6 @@
+   1) PR #3469. Extends the Module manager to have an extensible list
+   of file extensions and includes x95 and x03 suffixes by default.
+
 Release 3.3.0 29th June 2026
 
    35) PR #3476 for #3475. Fixes OMPParallelLoopTrans to support the
