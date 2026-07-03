@@ -38,7 +38,6 @@ Python script intended to be passed to PSyclone via the -s option.
 It adds OpenMP offload directives to all kernels.
 '''
 
-from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.gocean1p0 import GOKern
 from psyclone.psyir.nodes import Directive, FileContainer, Loop, Routine
 from psyclone.psyir.transformations import TransformationError, OMPTargetTrans
@@ -58,14 +57,11 @@ def trans(psyir: FileContainer) -> None:
 
     declare_target = OMPDeclareTargetTrans()
 
-    # Use existing fuse script to fuse all loops
+    # Use existing fuse script to inline all kernels and fuse all loops
     fuse_trans(psyir)
 
-    # Module inline all kernels (so they can be modified)
-    # Then add an OpenMP routine statement to each of them:
-    module_inline = KernelModuleInlineTrans()
+    # Add an OpenMP routine statement to each of the kernels
     for kern in psyir.walk(GOKern):
-        module_inline.apply(kern)
         # Put a ``declare target`` directive inside each kernel
         try:
             declare_target.apply(kern)

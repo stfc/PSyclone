@@ -39,8 +39,7 @@ It adds module inlining and loop fusion, then adds OpenMP parallelisation
 to the code.
 '''
 
-from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.gocean1p0 import GOKern, GOLoop
+from psyclone.gocean1p0 import GOLoop
 from psyclone.transformations import OMPParallelLoopTrans
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.nodes import FileContainer
@@ -58,16 +57,11 @@ def trans(psyir: FileContainer) -> None:
     '''
     omp_parallel = OMPParallelLoopTrans(omp_schedule="dynamic")
     omp_parallel.omp_schedule = "static"
-    module_inline = KernelModuleInlineTrans()
 
     # We know that there is only one schedule
     schedule = psyir.walk(InvokeSchedule)[0]
 
-    # Inline all kernels to help gfortran with inlining.
-    for kern in schedule.walk(GOKern):
-        module_inline.apply(kern)
-
-    # Optional:
+    # Inline all kernels and fuse loops
     fuse_trans(psyir)
 
     for loop in schedule.walk(GOLoop):

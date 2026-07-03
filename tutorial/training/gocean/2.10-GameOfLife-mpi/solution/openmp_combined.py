@@ -39,7 +39,6 @@ It adds standalone OpenMP loop directives for each outer loop, and then
 encloses them all in an OpenMP parallel directive.
 '''
 
-from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.nodes import FileContainer
@@ -61,15 +60,12 @@ def trans(psyir: FileContainer) -> None:
     omp_parallel = OMPParallelTrans()
     # Optional argument: schedule
     omp_do = OMPLoopTrans(omp_schedule="dynamic")
-    module_inline = KernelModuleInlineTrans()
 
     # We know that there is only one schedule
     schedule = psyir.walk(InvokeSchedule)[0]
 
-    # Module inline all kernels to help gfortran with inlining.
-    for kern in schedule.kernels():
-        module_inline.apply(kern)
-
+    # Module inline all kernels to help gfortran with inlining
+    # and fuse loops.
     fuse_trans(psyir)
 
     for loop in schedule.walk(GOLoop):
