@@ -464,7 +464,7 @@ def test_profile_gocean():
     information if this has been specified.
 
     '''
-    Profiler.set_options(['invokes'], "gocean")
+    Profiler.set_options(['invokes'], is_psykal=True)
     _, psy = generate(
         os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
         api="gocean")

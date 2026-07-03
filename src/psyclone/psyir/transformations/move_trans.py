@@ -55,20 +55,12 @@ class MoveTrans(Transformation):
     '''Provides a transformation to move a node in the tree. For
     example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> ast,invokeInfo=parse("lfric.F90")
-    >>> psy=PSyFactory("lfric").create(invokeInfo)
-    >>> schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>>
-    >>> from psyclone.transformations import MoveTrans
-    >>> trans=MoveTrans()
-    >>> trans.apply(schedule.children[0], schedule.children[2],
-    ...             options = {"position":"after")
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
+    .. code-block :: python
+
+        from psyclone.transformations import MoveTrans
+        trans=MoveTrans()
+        trans.apply(schedule.children[0], schedule.children[2],
+                    options = {"position":"after")
 
     Nodes may only be moved to a new location with the same parent
     and must not break any dependencies otherwise an exception is
