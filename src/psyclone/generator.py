@@ -303,10 +303,9 @@ def generate(filename: str,
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
         if script_name is not None:
-            # Apply provided recipe to PSyIR
+            # Apply provided recipe to PSyIR. Note that trans_func is always
+            # defined, otherwise an exception is raised.
             trans_func, _, _, kwargs = load_script(script_name, kwargs_str)
-            # trans_func is always defined, otherwise an exception is raised
-            assert trans_func
             trans_func(psy.container.root, **kwargs)
         alg_gen = None
 
@@ -448,10 +447,10 @@ def generate(filename: str,
             .create(invoke_info)
 
         if script_name is not None:
-            # Call the optimisation script for psy-layer optimisations
+            # Call the optimisation script for psy-layer optimisations. Note
+            # that trans_func is always defined, otherwise an exception is
+            # raised.
             trans_func, _, _, kwargs = load_script(script_name, kwargs_str)
-            # recipe is always defined, otherwise an exception is raised
-            assert trans_func
             trans_func(psy.container.root, **kwargs)
 
     # TODO issue #1618 remove Alg class and tests from PSyclone

@@ -110,6 +110,15 @@ This will result in the additional keyword arguments for any transformation call
     def trans(psyir, omp: bool, tiling: list[int]):
         # Modify psyir tree
 
+The arguments specified will be converted into a Python-style dictionary, e.g.
+``omp: True, tiling: [4,4]`` will be parsed as ``{omp: True, tiling: [4,4]}``.
+Therefore, the specified keyword arguments must be make a valid dictionary.
+For example, ``[1,2]`` is not a valid keyword argument, because ``{[1,2]}``
+is not valid Python (a list is not hashable), and ``1:2`` would not be valid,
+because the keys of keyword arguments must be strings.
+
+Obviously, the called transformation functions (``trans``, but also
+``trans_alg``, see below) must accept the specified keyword arguments.
 
 .. _sec_script_globals:
 
