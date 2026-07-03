@@ -49,17 +49,16 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
     in order to fuse two GOcean loops after performing validity checks (e.g.
     that the loops are over the same grid-point type). For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> ast, invokeInfo = parse("shallow_alg.f90")
-    >>> psy = PSyFactory("gocean").create(invokeInfo)
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> print(schedule.view())
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "eg1/shallow_alg.f90"
+    >>> schedule = get_psylayer_schedule(filename, "gocean-examples")
     >>>
-    >>> from psyclone.transformations import GOceanLoopFuseTrans
+    >>> from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
     >>> ftrans = GOceanLoopFuseTrans()
-    >>> ftrans.apply(schedule[0], schedule[1])
-    >>> print(schedule.view())
+
+    # Currently produces an error with  "Cannot fuse loops that are over "
+    # "different grid-point types: go_cu and go_cv"
+    # >>> ftrans.apply(schedule[0], schedule[1])
 
     '''
     def __str__(self):
