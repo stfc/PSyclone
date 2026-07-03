@@ -1245,7 +1245,7 @@ class CodedKern(Kern):
             self._opencl_options[key] = value
 
     def __str__(self):
-        return "kern call: " + self._name
+        return f"kern call: {self.name}"
 
     @property
     def module_name(self):
