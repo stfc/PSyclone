@@ -1,12 +1,29 @@
-   34) PR #3440. Update to use release 0.2.4 of fparser.
+   4) PR #3441 for #2936, #1220 and #2088. Fixes the doctests and adds
+   them to the GHA CI.
  
+   3) PR #3456 for #3446. Fix issues with CodeBlocks and routine names
+   in the presence of comments.
+
+   2) PR #3450 for #3262. Updates the LFRic GPU scripts and aggregates
+   the transformation statistics.
+
+   1) PR #3469. Extends the Module manager to have an extensible list
+   of file extensions and includes x95 and x03 suffixes by default.
+
+Release 3.3.0 29th June 2026
+
+   35) PR #3476 for #3475. Fixes OMPParallelLoopTrans to support the
+   force_private keyword argument.
+
+   34) PR #3440. Update to use release 0.2.4 of fparser.
+
    33) PR #3467. Update CI compilers.
 
    32) PR #3458 for #2721. Adds ArrayConstructor support into the PSyIR.
 
    31) PR #3442. Extends Call.get_callee() to permit implicit reshaping
    of arguments.
- 
+
    30) PR #3451	towards #3449. Adds support for keeping 'ACC routine' and
    'OMP declare target' directives in existing code.
 
@@ -48,9 +65,9 @@
 
    16) PR #3422 for #440. Updates tests to use the Fortran backend to generate
    GOLoops in test suite.
-   
+
    15) PR #3066 towards #2971. Moves ACCLoopTrans and OMPParallelLoopTrans
-   into psyir.transformations. 
+   into psyir.transformations.
 
    14) PR #3419 for #3418. Adds elseif output to the Fortran backend.
 

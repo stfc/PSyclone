@@ -66,39 +66,32 @@ class OMPTaskwaitTrans(Transformation):
 
     For example:
 
-    >>> from pysclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean"
-    >>> filename = "nemolite2d_alg.f90"
-    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
-    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "nemolite2d_alg_mod.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>>
     >>> from psyclone.transformations import OMPSingleTrans
     >>> from psyclone.psyir.transformations import OMPParallelTrans
-    >>> from psyclone.transformations import OMPTaskloopTrans
+    >>> from psyclone.psyir.transformations import OMPTaskloopTrans
     >>> from psyclone.psyir.transformations import OMPTaskwaitTrans
     >>> singletrans = OMPSingleTrans()
     >>> paralleltrans = OMPParallelTrans()
     >>> tasklooptrans = OMPTaskloopTrans()
     >>> taskwaittrans = OMPTaskwaitTrans()
     >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> print(schedule.view())
-    >>>
     >>> # Apply the OpenMP Taskloop transformation to *every* loop
     >>> # in the schedule.
     >>> # This ignores loop dependencies. These are handled by the
     >>> # taskwait transformation.
     >>> for child in schedule.children:
-    >>>     tasklooptrans.apply(child, nogroup = true)
+    ...     tasklooptrans.apply(child, nogroup = True)
     >>> # Enclose all of these loops within a single OpenMP
     >>> # SINGLE region
     >>> singletrans.apply(schedule.children)
     >>> # Enclose all of these loops within a single OpenMP
     >>> # PARALLEL region
     >>> paralleltrans.apply(schedule.children)
-    >>> taskwaittrans.apply(schedule.children)
-    >>> print(schedule.view())
+    >>> taskwaittrans.apply(schedule.children[0])
 
     '''
     def __str__(self):
