@@ -772,9 +772,9 @@ ystart - 1, ystop - 1)
 
     expected += '''
     ! Launch the kernel
-    ierr = clEnqueueNDRangeKernel(cmd_queues(1), kernel_compute_cu_code_inlined_, \
-2, C_NULL_PTR, C_LOC(globalsize), C_LOC(localsize), 0, C_NULL_PTR, \
-C_NULL_PTR)'''
+    ierr = clEnqueueNDRangeKernel(cmd_queues(1), \
+kernel_compute_cu_code_inlined_, 2, C_NULL_PTR, C_LOC(globalsize), \
+C_LOC(localsize), 0, C_NULL_PTR, C_NULL_PTR)'''
 
     if debug_mode:
         # Check that there are no errors during the kernel launch or during
@@ -1070,34 +1070,43 @@ def test_set_kern_args(kernel_outputdir):
     assert expected in generated_code
     expected = '''\
     ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(cu_fld), C_LOC(cu_fld))
-    call check_status('clSetKernelArg: arg 0 of compute_cu_code_inlined_', ierr)
+    call check_status('clSetKernelArg: arg 0 of compute_cu_code_inlined_', \
+ierr)
     ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(p_fld), C_LOC(p_fld))
-    call check_status('clSetKernelArg: arg 1 of compute_cu_code_inlined_', ierr)
+    call check_status('clSetKernelArg: arg 1 of compute_cu_code_inlined_', \
+ierr)
     ierr = clSetKernelArg(kernel_obj, 2, C_SIZEOF(u_fld), C_LOC(u_fld))
-    call check_status('clSetKernelArg: arg 2 of compute_cu_code_inlined_', ierr)
+    call check_status('clSetKernelArg: arg 2 of compute_cu_code_inlined_', \
+ierr)
     ierr = clSetKernelArg(kernel_obj, 3, C_SIZEOF(xstart), C_LOC(xstart))
-    call check_status('clSetKernelArg: arg 3 of compute_cu_code_inlined_', ierr)
+    call check_status('clSetKernelArg: arg 3 of compute_cu_code_inlined_', \
+ierr)
     ierr = clSetKernelArg(kernel_obj, 4, C_SIZEOF(xstop), C_LOC(xstop))
-    call check_status('clSetKernelArg: arg 4 of compute_cu_code_inlined_', ierr)
+    call check_status('clSetKernelArg: arg 4 of compute_cu_code_inlined_', \
+ierr)
     ierr = clSetKernelArg(kernel_obj, 5, C_SIZEOF(ystart), C_LOC(ystart))
-    call check_status('clSetKernelArg: arg 5 of compute_cu_code_inlined_', ierr)
+    call check_status('clSetKernelArg: arg 5 of compute_cu_code_inlined_', \
+ierr)
     ierr = clSetKernelArg(kernel_obj, 6, C_SIZEOF(ystop), C_LOC(ystop))
-    call check_status('clSetKernelArg: arg 6 of compute_cu_code_inlined_', ierr)
+    call check_status('clSetKernelArg: arg 6 of compute_cu_code_inlined_', \
+ierr)
 
   end subroutine compute_cu_code_inlined__set_args'''
     assert expected in generated_code
 
     # The call to the set_args matches the expected kernel signature with
     # the boundary values converted to 0-indexing
-    assert ("call compute_cu_code_inlined__set_args(kernel_compute_cu_code_inlined_, "
+    assert ("call compute_cu_code_inlined__set_args("
+            "kernel_compute_cu_code_inlined_, "
             "cu_fld_cl_mem, p_fld_cl_mem, u_fld_cl_mem, "
             "xstart - 1, xstop - 1, "
             "ystart - 1, ystop - 1)" in generated_code)
 
     # There is also only one version of the set_args for the second kernel
-    assert generated_code.count("subroutine time_smooth_code_inlined__set_args("
-                                "kernel_obj, cu_fld, unew_fld, uold_fld, "
-                                "xstart_1, xstop_1, ystart_1, ystop_1)") == 1
+    assert generated_code.count(
+        "subroutine time_smooth_code_inlined__set_args("
+        "kernel_obj, cu_fld, unew_fld, uold_fld, "
+        "xstart_1, xstop_1, ystart_1, ystop_1)") == 1
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
@@ -1120,8 +1129,8 @@ def test_set_kern_args_real_grid_property(kernel_outputdir):
 
     generated_code = str(psy.gen)
     expected = '''\
-  subroutine compute_kernel_code_inlined__set_args(kernel_obj, out_fld, in_out_fld, \
-in_fld, dx, dx_1, gphiu, xstart, xstop, ystart, ystop)
+  subroutine compute_kernel_code_inlined__set_args(kernel_obj, out_fld, \
+in_out_fld, in_fld, dx, dx_1, gphiu, xstart, xstop, ystart, ystop)
     use clfortran, only : clSetKernelArg
     use iso_c_binding, only : C_LOC, C_SIZEOF, c_intptr_t
     use ocl_utils_mod, only : check_status
@@ -1159,8 +1168,8 @@ def test_set_kern_float_arg(kernel_outputdir):
     # This set_args has a name clash on xstop (one is a grid property and the
     # other a loop boundary). One of they should appear as 'xstop_1'
     expected = '''\
-  subroutine bc_ssh_code_inlined__set_args(kernel_obj, a_scalar, ssh_fld, xstop, \
-tmask, xstart, xstop_1, ystart, ystop)
+  subroutine bc_ssh_code_inlined__set_args(kernel_obj, a_scalar, ssh_fld, \
+xstop, tmask, xstart, xstop_1, ystart, ystop)
     use clfortran, only : clSetKernelArg
     use iso_c_binding, only : C_LOC, C_SIZEOF, c_intptr_t
     use ocl_utils_mod, only : check_status
