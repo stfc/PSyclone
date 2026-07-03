@@ -2194,7 +2194,7 @@ def trans_alg(psyir, **kwargs):
     assert "trans args: {'c': [1, 2, 3]}" in stdout
     # Default LFRic API does not call trans_alg!!! This line is here to
     # fail once we switch LFRic over.
-    assert f"trans_alg args: 'c': [1, 2, 3]" not in stdout
+    assert "trans_alg args: 'c': [1, 2, 3]" not in stdout
 
 
 @pytest.mark.parametrize("kwargs", ["1", "'a'", "[1,2]", "{1:2}",
@@ -2212,3 +2212,16 @@ def test_script_arguments_errors(kwargs):
               "--script-kwargs", kwargs,
               "-o", "will_not_be_created.f90"])
     assert "Invalid syntax for keyword arguments" in str(err.value)
+
+
+def test_script_args_with_no_script(capsys):
+    '''Checks that PSyclone does not accept `--script-kwargs` without
+    a `--script` option.
+    '''
+
+    with pytest.raises(SystemExit):
+        main(["--script-kwargs", "a:1", "does_not_exist.f90"])
+    out, _ = capsys.readouterr()
+
+    assert ("The '--script-kwargs' argument is only valid if a script is "
+            "specified using the '--script' option" in out)

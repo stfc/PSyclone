@@ -676,6 +676,15 @@ def main(arguments: list[str]) -> None:
                   "specify the output destination of each psykal layer.")
             sys.exit(1)
 
+    if args.script_kwargs and not args.script:
+        msg = ("The '--script-kwargs' argument is only valid if a "
+               "script is specified using the '--script' option.")
+        logger.error(msg)
+        # By default the logger is off, so make sure the user actually sees
+        # this message by printing it as well:
+        print(msg)
+        sys.exit(1)
+
     # Set ModuleManager properties from flags
     mod_manager = ModuleManager.get()
     mod_manager.cache_active = args.enable_cache
