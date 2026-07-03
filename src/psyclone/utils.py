@@ -234,15 +234,14 @@ def transformation_documentation_wrapper(*args,
         return cls
     if len(args) > 0:
         return wrapper(*args)
-    else:
-        return wrapper
+    return wrapper
 
 
 # ----------------------------------------------------------------------------
 def parse_kwargs(kwargs: str) -> dict[str, Any]:
     """
     This function safely parses a user string provided on the command line
-    using '--kwargs ...` into a python dictionary. It especially simplifies
+    using '--kwargs ...' into a python dictionary. It especially simplifies
     the syntax for the user by not requiring the keys to be escaped, e.g.
     --kwargs "'a':1,'b':2" and --kwargs "a:1,b:2" will both work as expected.
 
@@ -276,12 +275,14 @@ def parse_kwargs(kwargs: str) -> dict[str, Any]:
         # Safely evaluate literals/containers
         result = ast.literal_eval(expr)
     # pylint: disable=broad-exception-caught
-    except Exception:
-        # This will trigger an exception in the next statement
-        result = None
+    except Exception as err:
+        raise (ValueError(f"Invalid syntax for keyword arguments "
+                          f"'{kwargs}'.")) from err
 
     if not isinstance(result, dict):
-        raise ValueError(f"Invalid syntax for keyword arguments '{kwargs}' ")
+        raise ValueError(f"Invalid syntax for keyword arguments '{kwargs}'. "
+                         f"It was parsed as '{type(result).__name__}', not "
+                         f"as a dictionary.")
 
     return result
 

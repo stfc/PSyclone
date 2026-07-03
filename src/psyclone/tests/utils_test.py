@@ -496,16 +496,35 @@ def test_parse_kwargs(kwargs, expected):
     assert result == expected
 
 
-@pytest.mark.parametrize("kwargs", ["1", "'a'", "[1,2]", "{1:2}",
-                                    "a=1", 123])
-def test_parse_kwargs_errors(kwargs):
+@pytest.mark.parametrize("kwargs", ["[1,2]", "{1:2}", "a=1", 123])
+def test_parse_kwargs_errors_invalid(kwargs):
     """
     Test that the parsing function for user-specific script options
-    raises the expected errors for malformed arguments.
+    raises the expected errors for malformed arguments. Note that e.g.
+    '{[1,2]}' (which is what kwargs are parsed as) is not a valid python
+    expression since the list is not hash-able.
 
     :param kwargs: the input string for the command line
     """
     with pytest.raises(ValueError) as err:
         parse_kwargs(kwargs)
 
-    assert "Invalid syntax for keyword arguments" in str(err.value)
+    assert (f"Invalid syntax for keyword arguments '{kwargs}'."
+            == str(err.value))
+
+
+@pytest.mark.parametrize("kwargs", ["1", "'a'"])
+def test_parse_kwargs_errors_wrong_type(kwargs):
+    """
+    Test that the parsing function for user-specific script options
+    raises the expected errors for arguments that are valid python,
+    but do not represent a dictionary (e.g. {1} represents a set,
+    while {1:1} would be a dictionary).
+
+    :param kwargs: the input string for the command line
+    """
+    with pytest.raises(ValueError) as err:
+        parse_kwargs(kwargs)
+
+    assert (f"Invalid syntax for keyword arguments '{kwargs}'. It was parsed "
+            f"as 'set', not as a dictionary." == str(err.value))
