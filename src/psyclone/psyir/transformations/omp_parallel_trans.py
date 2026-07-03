@@ -34,12 +34,13 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         A. B. G. Chalk STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic, J. G. Wallwork, O. Brunt and L. Turner, Met Office
-#          S. Valat, Inria / Laboratoire Jean Kuntzmann
+# Modified I. Kavcic, J. G. Wallwork, O. Brunt and L. Turner, B. Went,
+#          Met Office, S. Valat, Inria / Laboratoire Jean Kuntzmann
 #          M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean Kuntzmann
 #          J. Dendy, Met Office
 '''This module provides the OMPParallelTrans transformation.'''
 
+from collections.abc import Iterable
 from psyclone import psyGen
 from psyclone.psyir.nodes import (
     ACCDirective,
@@ -48,6 +49,7 @@ from psyclone.psyir.nodes import (
     OMPParallelDirective,
     OMPDirective,
     Return,
+    RegionDirective,
 )
 from psyclone.psyir.transformations.parallel_region_trans import (
     ParallelRegionTrans)
@@ -121,14 +123,31 @@ class OMPParallelTrans(ParallelRegionTrans):
         # TODO #2668: Remove options.
         super().validate(nodes, options, **kwargs)
 
-    def apply(self, nodes: list[Node], options=None, **kwargs):
+    def apply(
+            self, nodes: list[Node],
+            options=None, force_private: Iterable[str] = (),
+            **kwargs):
         '''
         Surrounds the provided node list with an OpenMP Parallel region.
 
         :param nodes: list of Nodes to put within parallel region.
+        :param force_private: list of symbols explicitly requested to
+            be private.
         '''
         # TODO #2668: Remove options.
         super().apply(nodes, options, **kwargs)
+
+        # Privatise the provided variables for the new RegionDirective, if they
+        # are found within the symbol table of the ancestor Routine.
+        if force_private:
+            new_region_directive = nodes[0].ancestor(RegionDirective)
+            if new_region_directive:
+                region_set = self._check_symbol_table_vars(
+                        new_region_directive,
+                        force_private)
+                if region_set:
+                    new_region_directive.explicitly_private_symbols.update(
+                        region_set)
 
 
 __all__ = ["OMPParallelTrans"]
