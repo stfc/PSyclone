@@ -2122,7 +2122,7 @@ def test_script_arguments_transform(tmp_path, capsys):
 def trans(psyir, **kwargs):
     print("ARGS:", kwargs)
     '''
-    script_path = tmp_path / "print_args_transmute.py"
+    script_path = tmp_path / "print_args_transform.py"
     script_path.write_text(recipe)
 
     inputfile = Path(get_base_path("nemo")) / "afunction.f90"
@@ -2140,6 +2140,8 @@ def test_script_arguments_lfric_testing(tmp_path, capsys, monkeypatch):
     for trans and trans_alg, which we check for. This uses LFRIC_TESTING,
     which will also call trans_alg (which by default LFRic otherwise would
     not do).
+
+    TODO #1618
 
     """
     monkeypatch.setattr(generator, "LFRIC_TESTING", True)
@@ -2194,6 +2196,7 @@ def trans_alg(psyir, **kwargs):
     assert "trans args: {'c': [1, 2, 3]}" in stdout
     # Default LFRic API does not call trans_alg!!! This line is here to
     # fail once we switch LFRic over.
+    # TODO 1618
     assert "trans_alg args: 'c': [1, 2, 3]" not in stdout
 
 
