@@ -461,7 +461,7 @@ thread-private. Note that this code does not handle the usage of
       # the access information as well as from the symbol table
       # into account.
       access_sequence = var_accesses[signature]
-      if symbol.is_array_access(access_info=access_info):
+      if symbol.is_array_access(access_info=access_sequence):
           # It's not a scalar variable, so it will not be private
           continue
 
@@ -504,7 +504,7 @@ until we find accesses that would prevent parallelisation:
    for next_statement in statements:
        # Add the variable accesses of the next statement to
        # the existing accesses:
-       next_statement.reference_accesses(accesses)
+       accesses = next_statement.reference_accesses()
        # Stop when the next statement can not be parallelised
        # together with the previous accesses:
        if not can_be_parallelised(accesses):
@@ -581,7 +581,7 @@ can be parallelised:
 .. testoutput::
     :hide:
 
-    Error: The write access to 'a(i,i)' and the read access to 'a(i + 1,i + 1)' are dependent and cannot be parallelised. Variable: 'a'.
+    Error: The write access to 'a(i,i)' in 'a(i,i) = j + k' and the read access to 'a(i + 1,i + 1)' in 'a(i,i) = a(i + 1,i + 1)' are dependent and cannot be parallelised. Variable: 'a'.
 
 .. _defusechain:
 
