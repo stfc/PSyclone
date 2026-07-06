@@ -52,7 +52,7 @@ from psyclone.utils import transformation_documentation_wrapper
 @transformation_documentation_wrapper
 class OMPCPURoutineTrans(Transformation):
     '''This metatransformation applies the OMPLoopTrans, the
-    MaximalOMPParallelRegionTrans, and (optionally) the 
+    MaximalOMPParallelRegionTrans, and (optionally) the
     OMPMinimiseSyncTrans to the supplied Routine.
 
     This metatransformation can be used as an all-in-one method
