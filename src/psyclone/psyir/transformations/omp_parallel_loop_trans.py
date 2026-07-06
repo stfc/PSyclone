@@ -116,11 +116,13 @@ class OMPParallelLoopTrans(OMPLoopTrans):
                 if "reduction_ops" in kwargs:
                     del kwargs["reduction_ops"]
                     logger.warning(
-                        f"{self.name} overriddes the provided reduction_ops "
+                        f"{self.name} overrides the provided reduction_ops "
                         f"keyword argument to those supported by PSyclone."
                     )
                 reduction_ops = list(MAP_REDUCTION_OP_TO_OMP.keys())
 
+        # reduction_ops is the argument used by the superclass to determine
+        # whether to allow reductions, so we don't pass enable_reductions.
         self.validate(node, options=local_options, force_private=force_private,
                       reduction_ops=reduction_ops, **kwargs)
 
