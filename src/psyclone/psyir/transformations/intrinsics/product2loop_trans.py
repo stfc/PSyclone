@@ -127,13 +127,15 @@ class Product2LoopTrans(ArrayReductionBaseTrans):
       real :: result
       integer :: idx
       integer :: idx_1
+      real :: reduction_var
     <BLANKLINE>
-      result = 1.0
+      reduction_var = 1.0
       do idx = 1, 10, 1
         do idx_1 = 1, 10, 1
-          result = result * array(idx_1,idx)
+          reduction_var = reduction_var * array(idx_1,idx)
         enddo
       enddo
+      result = reduction_var
     <BLANKLINE>
     end subroutine product_test
     <BLANKLINE>
