@@ -37,7 +37,7 @@
 
 '''This module provides generic utility functions.'''
 
-from typing import Type, TYPE_CHECKING, Union, TypeAliasType
+from typing import Type, TYPE_CHECKING, Union
 from collections import OrderedDict
 import sys
 from psyclone.errors import InternalError
@@ -79,11 +79,12 @@ def a_or_an(string):
     return "a"
 
 
-def stringify_annotation(annotation: Union[Type, TypeAliasType]) -> str:
+def stringify_annotation(annotation) -> str:
     ''' Simple PSyclone method to turn a Python type annotation to a string
     when sphinx is not available.
 
     :param annotation: the type annotation to convert to a string.
+    :type annotation: Union[Type, TypeAliasType]
 
     :returns: The string representation of annotation.
     '''
