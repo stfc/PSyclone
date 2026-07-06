@@ -608,10 +608,12 @@ def test_psy_init_defaults(kernel_outputdir):
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-def test_psy_init_multiple_kernels(kernel_outputdir):
+@pytest.mark.parametrize("do_all", [True, False])
+def test_psy_init_multiple_kernels(kernel_outputdir, do_all):
     ''' Check that we create a psy_init() routine that sets-up the
     kernel_names correctly when there are multiple kernels, some of
-    them repeated. '''
+    them repeated. Tests both with and without the 'update_all' flag
+    to KernelModuleInlineTrans. '''
     # This example has 2 unique kernels, one of them repeated twice
     psy, _ = get_invoke("single_invoke_three_kernels_with_use.f90",
                         API, idx=0, dist_mem=True)
@@ -622,7 +624,10 @@ def test_psy_init_multiple_kernels(kernel_outputdir):
     trans2 = KernelImportsToArguments()
     mod_inline_trans = KernelModuleInlineTrans()
     for kernel in sched.coded_kernels():
-        mod_inline_trans.apply(kernel)
+        try:
+            mod_inline_trans.apply(kernel, update_all=do_all)
+        except TransformationError:
+            pass
         trans1.apply(kernel)
         trans2.apply(kernel)
 
@@ -630,18 +635,28 @@ def test_psy_init_multiple_kernels(kernel_outputdir):
     otrans.apply(sched)
     generated_code = str(psy.gen)
 
+    if do_all:
+        # When update_all is True, all calls to a given kernel point to
+        # a single, module-inlined routine. Therefore there are only
+        # two distinct routines.
+        num_kernels = 2
+    else:
+        num_kernels = 3
     # Check that the kernel_names has enough space for all kernels
-    assert "character(len=30), dimension(3) :: kernel_names" in generated_code
+    assert (f"character(len=30), dimension({num_kernels}) :: kernel_names"
+            in generated_code)
 
-    # The order doesn't matter as long as the three kernels are loaded
-    for name in ['kernel_with_use_code_inlined_',
-                 'kernel_with_use_code_inlined__1',
-                 'kernel_with_use2_code_inlined_']:
+    inlined_names = ['kernel_with_use_code_inlined_',
+                     'kernel_with_use2_code_inlined_']
+    if not do_all:
+        inlined_names.append('kernel_with_use_code_inlined__1')
+    # The order doesn't matter as long as the 2 or 3 kernels are loaded
+    for name in inlined_names:
         assert re.search(
             rf"kernel_names\([1-3]\) = '{name}'", generated_code)
 
     # Check that add_kernels is provided with the total number of kernels
-    assert "call add_kernels(3, kernel_names)" in generated_code
+    assert f"call add_kernels({num_kernels}, kernel_names)" in generated_code
 
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(
             psy, dependencies=["model_mod.f90"])
