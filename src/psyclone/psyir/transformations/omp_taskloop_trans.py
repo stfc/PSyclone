@@ -47,31 +47,25 @@ class OMPTaskloopTrans(ParallelLoopTrans):
 
     For example:
 
-    >>> from pysclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "nemolite2d_alg_mod.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>>
     >>> from psyclone.transformations import OMPSingleTrans
     >>> from psyclone.psyir.transformations import OMPParallelTrans
-    >>> from psyclone.transformations import OMPTaskloopTrans
+    >>> from psyclone.psyir.transformations import OMPTaskloopTrans
     >>> from psyclone.psyir.transformations import OMPTaskwaitTrans
     >>> singletrans = OMPSingleTrans()
     >>> paralleltrans = OMPParallelTrans()
     >>> tasklooptrans = OMPTaskloopTrans()
     >>> taskwaittrans = OMPTaskwaitTrans()
     >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>>
     >>> # Apply the OpenMP Taskloop transformation to *every* loop
     >>> # in the schedule.
     >>> # This ignores loop dependencies. These can be handled
     >>> # by the OMPTaskwaitTrans
     >>> for child in schedule.children:
-    >>>     tasklooptrans.apply(child)
+    ...     tasklooptrans.apply(child)
     >>> # Enclose all of these loops within a single OpenMP
     >>> # SINGLE region
     >>> singletrans.apply(schedule.children)
@@ -79,11 +73,10 @@ class OMPTaskloopTrans(ParallelLoopTrans):
     >>> # PARALLEL region
     >>> paralleltrans.apply(schedule.children)
     >>> # Ensure loop dependencies are satisfied
-    >>> taskwaittrans.apply(schedule.children)
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
+    >>> taskwaittrans.apply(schedule.children[0])
 
     '''
+
     def __init__(self, grainsize=None, num_tasks=None, nogroup=False):
         self._grainsize = None
         self._num_tasks = None
