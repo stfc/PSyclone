@@ -93,8 +93,12 @@ class MaximalOMPParallelRegionTrans(MaximalRegionTrans):
 
     def _node_allowed(self, node: Node, current_block: list[Node]) -> bool:
         '''Returns whether the provided node is allowed in the _transformation.
-        
-        FIXME document why this differs.
+
+        Nodes defined in the _allowed_contiguous_statements are always allowed
+        to be in the region to be transformed. All other nodes are rejected
+        apart from Assignment nodes. These can be accepted if the lhs is an
+        assignment to a local, scalar variable and there is read access
+        to the symbol outside of the current_block.
 
         :param node: the candidate node to be in the transformation region.
         :param current_block: The current block that node would be added into.
@@ -107,9 +111,14 @@ class MaximalOMPParallelRegionTrans(MaximalRegionTrans):
         if not isinstance(node, Assignment):
             return False
 
+        # If the current_block is empty there's no need to add the Assignment
+        # into the parallel region.
+        if not current_block:
+            return False
+
         # Assignments are a special case.
         # If the lhs is an array or a non-local symbol then it is not allowed.
-        if node.lhs.is_array or not node.lhs.symbol.is_automatic:
+        if node.lhs.symbol.is_array or not node.lhs.symbol.is_automatic:
             return False
 
         # If the lhs symbol appears on the rhs then its read first so we
@@ -163,10 +172,19 @@ class MaximalOMPParallelRegionTrans(MaximalRegionTrans):
 
         :param block: The block to apply the transformations to.
         '''
-        # FIXME privatisation.
         # If we have any assignments directly in the block then we need to
-        # do privatisation
-        self._transformation.apply(block, **kwargs)
+        # do privatisation of the lhs variable
+        force_private = []
+        if "force_private" in kwargs:
+            force_private.extend(kwargs["force_private"])
+            del kwargs["force_private"]
+        for node in block:
+            if isinstance(node, Assignment):
+                if node.lhs.symbol.name not in force_private:
+                    force_private.append(node.lhs.symbol.name)
+
+        self._transformation().apply(block, force_private=force_private,
+                                     **kwargs)
 
     def apply(self, nodes: Union[Node, Schedule, list[Node]], **kwargs):
         '''Applies the transformation to the nodes provided.
