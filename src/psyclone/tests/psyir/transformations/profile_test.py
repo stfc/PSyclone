@@ -74,7 +74,7 @@ def teardown_function():
 def test_profile_basic():
     '''Check basic functionality: node names, schedule view.
     '''
-    Profiler.set_options([Profiler.INVOKES], api="gocean")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean", idx=0, dist_mem=False)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
@@ -132,7 +132,7 @@ def test_profile_errors2():
 def test_profile_invokes_gocean1p0(fortran_writer):
     '''Check that an invoke is instrumented correctly
     '''
-    Profiler.set_options([Profiler.INVOKES], "gocean")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
@@ -199,7 +199,7 @@ def test_unique_region_names(fortran_writer):
     '''Test that unique region names are created even when the kernel
     names are identical.'''
 
-    Profiler.set_options([Profiler.KERNELS], "gocean")
+    Profiler.set_options([Profiler.KERNELS], is_psykal=True)
     _, invoke = get_invoke("single_invoke_two_identical_kernels.f90",
                            "gocean", 0, dist_mem=False)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
@@ -242,7 +242,7 @@ def test_unique_region_names(fortran_writer):
 def test_profile_kernels_gocean1p0(fortran_writer):
     '''Check that all kernels are instrumented correctly
     '''
-    Profiler.set_options([Profiler.KERNELS], "gocean")
+    Profiler.set_options([Profiler.KERNELS], is_psykal=True)
     _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean",
                            idx=0, dist_mem=False)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
@@ -309,7 +309,7 @@ def test_profile_named_gocean1p0(fortran_writer):
 def test_profile_invokes_lfric(fortran_writer):
     '''Check that an LFRic invoke is instrumented correctly
     '''
-    Profiler.set_options([Profiler.INVOKES], "lfric")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
 
     # First test for a single invoke with a single kernel work as expected:
     _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
@@ -410,7 +410,7 @@ def test_profile_kernels_lfric(fortran_writer):
     '''Check that all kernels are instrumented correctly in a
     LFRic invoke.
     '''
-    Profiler.set_options([Profiler.KERNELS], "lfric")
+    Profiler.set_options([Profiler.KERNELS], is_psykal=True)
     _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
@@ -461,7 +461,7 @@ def test_profile_fused_kernels_lfric():
     invoke which has had them fused (i.e. there is more than
     one Kernel inside a loop).
     '''
-    Profiler.set_options([Profiler.KERNELS], "lfric")
+    Profiler.set_options([Profiler.KERNELS], is_psykal=True)
     psy, invoke = get_invoke("1.2_multi_invoke.f90", "lfric", idx=0,
                              dist_mem=False)
 
@@ -492,7 +492,7 @@ def test_profile_kernels_without_loop_lfric():
     impossible so we construct an artificial Schedule to test.
 
     '''
-    Profiler.set_options([Profiler.KERNELS], "lfric")
+    Profiler.set_options([Profiler.KERNELS], is_psykal=True)
     _, invoke = get_invoke("1.2_multi_invoke.f90", "lfric", idx=0,
                            dist_mem=False)
 
@@ -512,7 +512,7 @@ def test_profile_kernels_in_directive_lfric():
     '''
     Check that a kernel is instrumented correctly if it is within a directive.
     '''
-    Profiler.set_options([Profiler.KERNELS], "lfric")
+    Profiler.set_options([Profiler.KERNELS], is_psykal=True)
     psy, invoke = get_invoke("1_single_invoke_w3.f90", "lfric", idx=0,
                              dist_mem=False)
     ktrans = ACCKernelsTrans()
@@ -801,7 +801,7 @@ def test_auto_invoke_return_last_stmt():
     # Double-check that the tree is as we expect
     assert isinstance(kschedule[-1], Return)
 
-    Profiler.set_options([Profiler.INVOKES], "nemo")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
     Profiler.add_profile_nodes(kschedule, Loop)
     # The Return should be a sibling of the ProfileNode rather than a child
     assert isinstance(kschedule[0], ProfileNode)
@@ -813,7 +813,7 @@ def test_auto_invoke_no_return(capsys):
     ''' Check that using the auto-invoke profiling option does not add any
     profiling if the invoke contains a Return anywhere other than as the
     last statement. '''
-    Profiler.set_options([Profiler.INVOKES], "nemo")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
         symbol_type=DataSymbol, datatype=ScalarType.real_type())
@@ -857,7 +857,7 @@ def test_auto_invoke_no_return(capsys):
 def test_auto_invoke_empty_schedule(capsys):
     ''' Check the auto-invoke profiling option rejects an empty Schedule, i.e
     the routine has no statements. '''
-    Profiler.set_options([Profiler.INVOKES], "nemo")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
     symbol_table = SymbolTable()
     # Create Schedule with Return at the start.
     kschedule = KernelSchedule.create(

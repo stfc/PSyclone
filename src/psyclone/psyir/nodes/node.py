@@ -1808,10 +1808,14 @@ class Node():
         The result of this method can be used to find the node from its
         ancestor for example by:
 
-        >>> index_list = node.path_from(ancestor)
-        >>> cursor = ancestor
+        >>> from psyclone.psyir.frontend.fortran import FortranReader
+        >>> from psyclone.psyir.nodes import Literal
+        >>> psyir = FortranReader().psyir_from_statement("a = b + c + 1")
+        >>> node = psyir.walk(Literal)[0]
+        >>> index_list = node.path_from(psyir)
+        >>> cursor = psyir
         >>> for index in index_list:
-        >>>    cursor = cursor.children[index]
+        ...    cursor = cursor.children[index]
         >>> assert cursor is node
 
         :param ancestor: an ancestor node of self to find the path from.
