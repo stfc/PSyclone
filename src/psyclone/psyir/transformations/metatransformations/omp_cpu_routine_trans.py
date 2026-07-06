@@ -51,7 +51,16 @@ from psyclone.utils import transformation_documentation_wrapper
 
 @transformation_documentation_wrapper
 class OMPCPURoutineTrans(Transformation):
-    '''FIXME Docstring'''
+    '''This metatransformation applies the OMPLoopTrans, the
+    MaximalOMPParallelRegionTrans, and (optionally) the 
+    OMPMinimiseSyncTrans to the supplied Routine.
+
+    This metatransformation can be used as an all-in-one method
+    to parallelise routines with OpenMP CPU parallelism, and will
+    attempt to maximise the amount of parallelism available. If the
+    nowait option is set to True, it will also attempt to minimise the
+    number of synchronisation points added into the parallel region.
+    '''
     _SUB_TRANSFORMATIONS = [OMPLoopTrans, MaximalOMPParallelRegionTrans,
                             OMPMinimiseSyncTrans]
 
