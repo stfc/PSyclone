@@ -176,9 +176,9 @@ end module my_mod'''
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         rtrans.validate(routine)
-    assert ("Transformation Error: routine 'my_sub' accesses the symbol "
-            "'some_data: Symbol<Import(container='other_mod')>' which is "
-            "imported. If this symbol represents data "
+    assert ("Transformation Error: routine 'my_sub' accesses the imported "
+            "symbol 'some_data: Symbol<Import(container='other_mod')>'. "
+            "If this symbol represents data "
             "then it must first be converted to a routine argument using the "
             "KernelImportsToArguments transformation." in str(err.value))
     # Specialise the imported symbol and make it constant.
@@ -239,8 +239,8 @@ end module my_mod'''
     routine = psyir.walk(Routine)[0]
     with pytest.raises(TransformationError) as err:
         rtrans.validate(routine, options={'force': True})
-    assert ("Transformation Error: routine 'my_sub' accesses the symbol "
-            "'some_data: Symbol<Import" in str(err.value))
+    assert ("Transformation Error: routine 'my_sub' accesses the imported "
+            "symbol 'some_data: Symbol<Import" in str(err.value))
 
 
 def test_gpumixin_validate_no_call():
