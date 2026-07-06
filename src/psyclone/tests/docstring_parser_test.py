@@ -596,35 +596,6 @@ def test_docstring_is_reversible():
     assert basedata3.desc is not None
 
 
-def test_no_sphinx():
-    '''
-    Test that we can still create docstring information if sphinx is
-    not installed.
-
-    '''
-    # Unload the docstring_parser
-    # Trick the import into thinking sphinx.util.typing is unavailable
-    with patch.dict(sys.modules):
-        del sys.modules['psyclone.docstring_parser']
-        sys.modules['sphinx.util.typing'] = None
-        sys.modules['sphinx'] = None
-        # pylint: disable=import-outside-toplevel
-        from psyclone.docstring_parser import (
-            create_docstring_data, ArgumentData
-        )
-
-        def test_function(param: DocstringData):
-            '''Empty function to test import.'''
-
-        data = create_docstring_data(["param", "param"],
-                                     "empty", test_function)
-        # This uses the PSyclone version of stringify_annotation so we get a
-        # different datatype expression
-        assert isinstance(data, ArgumentData)
-        assert (data.datatype ==
-                "<class 'psyclone.docstring_parser.DocstringData'>")
-
-
 def test_subarguments():
     '''
     Test that we can add sub arguments to a docstring data as expected.

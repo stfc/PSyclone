@@ -346,7 +346,7 @@ def test_stringify_annotation():
         # For first parameter temp
         if "temp" == k:
             anno = stringify_annotation(v.annotation)
-            assert "<class 'bool'>" == anno
+            assert "bool" == anno
 
         # For second parameter temp2
         if "temp2" == k:
