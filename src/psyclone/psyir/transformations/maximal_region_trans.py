@@ -130,7 +130,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
             # Check that all contents of the loop body can be part
             # of the region.
             for child in node.loop_body:
-                if not self._can_be_in_region(child):
+                if not self._can_be_in_region(child, current_block):
                     break
             else:
                 return True
@@ -141,11 +141,12 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
             # of the region.
             allowed = True
             for child in node.if_body:
-                allowed = (allowed and self._can_be_in_region(child))
+                allowed = (allowed and self._can_be_in_region(child,
+                                                              current_block))
             if node.else_body and allowed:
                 for child in node.else_body:
                     allowed = (allowed and
-                               self._can_be_in_region(child))
+                               self._can_be_in_region(child, current_block))
             return allowed
 
         # All other node types we default to False.
@@ -198,16 +199,16 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                 if isinstance(child, IfBlock):
                     if child.else_body:
                         else_blocks = self._compute_transformable_sections(
-                            child.else_body, trans, trans_kwargs
+                            child.else_body[:], trans, trans_kwargs
                         )
                         all_blocks = else_blocks + all_blocks
                     if_blocks = self._compute_transformable_sections(
-                            child.if_body, trans, trans_kwargs
+                            child.if_body[:], trans, trans_kwargs
                     )
                     all_blocks = if_blocks + all_blocks
                 if isinstance(child, (Loop, WhileLoop)):
                     loop_blocks = self._compute_transformable_sections(
-                        child.loop_body, trans, trans_kwargs
+                        child.loop_body[:], trans, trans_kwargs
                     )
                     all_blocks = loop_blocks + all_blocks
         # If any nodes are left in the current block at the end of the
@@ -246,7 +247,6 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                     f"{child.position}, but previous child had position "
                     f"{prev_position}.")
             prev_position = child.position
-
 
     def _apply_transformation(self, block: list[Node],
                               **kwargs):
