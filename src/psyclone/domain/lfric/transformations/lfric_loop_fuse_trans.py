@@ -48,28 +48,21 @@ from psyclone.utils import transformation_documentation_wrapper
 
 @transformation_documentation_wrapper
 class LFRicLoopFuseTrans(LoopFuseTrans):
-    ''' LFRic API specialisation of the
-    :py:class:`base class <LoopFuseTrans>` in order to fuse two LFRic
-    loops after performing validity checks. For example:
+    ''' LFRic API specialisation of the :py:class:`base class <LoopFuseTrans>`
+    in order to fuse two LFRic loops after performing validity checks. For
+    example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>>
-    >>> API = "lfric"
-    >>> FILENAME = "alg.x90"
-    >>> ast, invokeInfo = parse(FILENAME, api=API)
-    >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>>
-    >>> from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-    >>> ftrans =  LFRicLoopFuseTrans()
-    >>>
-    >>> ftrans.apply(schedule[0], schedule[1])
-    >>> print(schedule.view())
+    .. code-block :: python
+
+        from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+        ftrans =  LFRicLoopFuseTrans()
+        ftrans.apply(schedule[0], schedule[1])
 
     The optional argument `same_space` can be set as
 
-    >>> ftrans.apply(schedule[0], schedule[1], {"same_space": True})
+    .. code-block :: python
+
+        ftrans.apply(schedule[0], schedule[1], {"same_space": True})
 
     when applying the transformation.
 

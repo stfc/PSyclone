@@ -1,3 +1,8 @@
+   5) PR #3431. Adds the force_private option to the OMPParallelTrans.
+
+   4) PR #3441 for #2936, #1220 and #2088. Fixes the doctests and adds
+   them to the GHA CI.
+ 
    3) PR #3456 for #3446. Fix issues with CodeBlocks and routine names
    in the presence of comments.
 
