@@ -40,9 +40,7 @@
 
 
 import os
-import sys
 import logging
-from unittest.mock import patch
 import warnings
 
 import pytest

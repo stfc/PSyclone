@@ -36,8 +36,6 @@
 '''This module contains the tests for the docstring_parser module.'''
 
 from collections import OrderedDict
-import sys
-from unittest.mock import patch
 import pytest
 
 from psyclone.docstring_parser import (
