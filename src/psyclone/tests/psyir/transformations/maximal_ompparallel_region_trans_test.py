@@ -37,6 +37,7 @@
 
 from psyclone.psyir.nodes import (
     Loop,
+    Routine,
     OMPBarrierDirective,
     OMPParallelDirective,
 )
@@ -153,3 +154,77 @@ def test_maximal_ompparallel_region_trans_apply(fortran_reader):
     assert isinstance(psyir.children[0].children[0], OMPParallelDirective)
     assert isinstance(psyir.children[0].children[2], OMPBarrierDirective)
     assert isinstance(psyir.children[0].children[3], OMPBarrierDirective)
+
+
+def test_maximal_ompparallel_region_trans_apply_provided_forceprivate(
+    fortran_reader, fortran_writer
+):
+    '''Test that the provided force_private option is correctly passed
+    to the subtransformation.'''
+    psyir = fortran_reader.psyir_from_source('''
+        module my_mod
+            contains
+            subroutine my_subroutine()
+                integer :: ji, jj, jk, jpkm1, jpjm1, jpim1, scalar1
+                real, dimension(10, 10, 10) :: array1, array2
+                array2 = 1
+                do jk = 2, jpkm1, 1
+                  do jj = 2, jpjm1, 1
+                    do ji = 2, jpim1, 1
+                       array2(ji,jj,jk) = array2(ji,jj,jk) + 1
+                       array1(ji,jj,jk) = array2(ji,jj,jk)
+                    enddo
+                  enddo
+                enddo
+            end subroutine
+        end module my_mod''')
+    ltrans = OMPLoopTrans()
+    loops = psyir.walk(Loop)
+    ltrans.apply(loops[0])
+    maxpartrans = MaximalOMPParallelRegionTrans()
+    routine = psyir.walk(Routine)[0]
+
+    maxpartrans.apply(routine, force_private=['array2'])
+    # array2 is requested private, the shared_attibute_inference promotes it to
+    # firstprivate because it is read first
+    expected = '''\
+    !$omp parallel default(shared) private(ji,jj,jk) firstprivate(array2)
+    !$omp do schedule(auto)
+    do jk = 2, jpkm1, 1\n'''
+
+    gen = fortran_writer(psyir)
+    assert expected in gen
+
+
+def test_maximal_ompparallel_region_trans_apply_assignment(
+    fortran_reader, fortran_writer
+):
+    '''Test that assignments to scalars can appear in the
+    parallel region as expected.'''
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+    use omp_lib, only: omp_get_thread_num
+    integer :: tid, i
+    integer, dimension(100) :: arr
+
+    tid = omp_get_thread_num()
+    do i = 1, 100
+        arr(i) = i + tid
+    end do
+    end subroutine test''')
+    ltrans = OMPLoopTrans()
+    loops = psyir.walk(Loop)
+    ltrans.apply(loops[0])
+    maxpartrans = MaximalOMPParallelRegionTrans()
+    routine = psyir.walk(Routine)[0]
+    maxpartrans.apply(routine)
+    out = fortran_writer(psyir)
+    correct = """  !$omp parallel default(shared) private(i,tid)
+  tid = omp_get_thread_num()
+  !$omp do schedule(auto)
+  do i = 1, 100, 1
+    arr(i) = i + tid
+  enddo
+  !$omp end do
+  !$omp end parallel"""
+    assert correct in out
