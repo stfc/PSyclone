@@ -1121,6 +1121,7 @@ class LFRicLoop(PSyLoop):
                                     AccessType.WRITE, self)
             # This READ is needed for the OpenMP infering attributes
             # to work as expected
+            # TODO #3486: Ideally it should be WRITE-only
             var_accesses.add_access(Signature(self.variable.name),
                                     AccessType.READ, self)
             var_accesses.update(self.start_expr.reference_accesses())

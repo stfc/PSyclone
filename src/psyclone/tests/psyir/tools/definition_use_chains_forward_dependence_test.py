@@ -682,8 +682,9 @@ def test_definition_use_chain_find_forward_accesses_loop_example(
     chains = DefinitionUseChain(ref)
     reaches = chains.find_forward_accesses()[sig]
     # We should have 1 reaches
-    # It should be the loop
     assert len(reaches) == 1
+    # TODO #3486: Currently it is the whole loop, but now the loop variable
+    # is in the tree, so it should point to it
     assert reaches[0] is routine.walk(Loop)[0]
 
 

@@ -610,3 +610,7 @@ At the moment the DefinitionUseChain assumes that any control flow could not be 
 any code inside a Loop or If statement is not guaranteed to occur. These dependencies
 will be found, but will not limit further searching into the tree.
 Additionally, GOTO statements are not supported and if found, will throw an Exception.
+
+Also, the DefinitionUseChain does reference the whole Loop when there is a dependency
+to the loop variable (because we didn't have it on the tree before). This will be
+fixed by #3486.
