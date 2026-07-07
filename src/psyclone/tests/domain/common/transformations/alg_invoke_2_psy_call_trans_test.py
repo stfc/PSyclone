@@ -502,7 +502,7 @@ def test_ai2psycall_add_arg():
     # Invalid argument exception (Node parent is not a KernelFunctor)
     arg = UnaryOperation.create(
         UnaryOperation.Operator.PLUS, Literal("1.0", ScalarType.real_type()))
-    with pytest.raises(TypeError) as info:
+    with pytest.raises(GenerationError) as info:
         AlgInvoke2PSyCallTrans._add_arg(arg, [])
     assert ("Expected Algorithm-layer kernel arguments to be a Literal, "
             "Reference, type-bound Call or a CodeBlock but '+1.0' is of type "
@@ -512,7 +512,7 @@ def test_ai2psycall_add_arg():
     # Invalid argument exception (Node parent is a KernelFunctor)
     _ = KernelFunctor.create(
         DataTypeSymbol("my_kernel", ScalarType.real_type()), [arg])
-    with pytest.raises(TypeError) as info:
+    with pytest.raises(GenerationError) as info:
         AlgInvoke2PSyCallTrans._add_arg(arg, [])
     assert ("Expected Algorithm-layer kernel arguments to be a Literal, "
             "Reference, type-bound Call or a CodeBlock but '+1.0' passed "

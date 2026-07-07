@@ -713,16 +713,6 @@ def main(arguments):
                 keep_conditional_openmp_statements=args.
                 keep_conditional_openmp_statements,
                 free_form=free_form)
-        # except GenerationError:
-        #     _, exc_value, _ = sys.exc_info()
-        #     print(f"Warning: {exc_value}")
-        #     # no invoke calls were found in the algorithm file so we do
-        #     # not need to process it, or generate any psy layer code, so
-        #     # output the original algorithm file and set the psy file to
-        #     # be empty
-        #     with open(args.filename, encoding="utf8") as alg_file:
-        #         alg = alg_file.read()
-        #     psy = ""
         except (OSError, IOError, ParseError, GenerationError,
                 RuntimeError):
             _, exc_value, _ = sys.exc_info()

@@ -92,7 +92,6 @@ class AlgTrans(Transformation):
                     f"rewriting the algorithm file with the invoke outside "
                     f" this construct.")
 
-
     def apply(self, node, options=None, **kwargs):
         ''' Apply transformation to the supplied PSyIR node.
 
