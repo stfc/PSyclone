@@ -35,6 +35,7 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. R. Porter, A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 # Modified J. Remy, Université Grenoble Alpes, Inria
+# Modified M. Naylor, University of Cambridge, UK
 
 '''PSyIR Fortran backend. Implements a visitor that generates Fortran code
 from a PSyIR tree. '''
@@ -49,9 +50,10 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, TYPE_MAP_FROM_FORTRAN)
 from psyclone.psyir.nodes import (
-    BinaryOperation, Call, Container, CodeBlock, DataNode, IntrinsicCall,
-    Literal, Member, Node, OMPDependClause, OMPReductionClause, Operation,
-    Range, Routine, Schedule, UnaryOperation, UnknownDirective)
+    ArrayConstructor, BinaryOperation, Call, Container, CodeBlock,
+    DataNode, IntrinsicCall, Literal, Member, Node, OMPDependClause,
+    OMPReductionClause, Operation, Range, Routine, Schedule,
+    UnaryOperation, UnknownDirective, IfBlock)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataType,
     DataTypeSymbol, GenericInterfaceSymbol, IntrinsicSymbol,
@@ -1442,6 +1444,18 @@ class FortranWriter(LanguageWriter):
 
         return result
 
+    def arrayconstructor_node(self, node: ArrayConstructor) -> str:
+        '''This method is called when an ArrayConstructor instance is
+        found in the PSyIR tree.
+
+        :param node: an ArrayConstructor PSyIR node.
+
+        :returns: the Fortran code as a string.
+
+        '''
+        contents = ", ".join([self._visit(child) for child in node.children])
+        return "[" + contents + "]"
+
     def ifblock_node(self, node):
         '''This method is called when an IfBlock instance is found in the
         PSyIR tree.
@@ -1459,26 +1473,49 @@ class FortranWriter(LanguageWriter):
         if_body = ""
         for child in node.if_body:
             if_body += self._visit(child)
-        else_body = ""
-        # node.else_body is None if there is no else clause.
-        if node.else_body:
-            for child in node.else_body:
-                else_body += self._visit(child)
         self._depth -= 1
 
-        if else_body:
-            result = (
-                f"{self._nindent}if ({condition}) then\n"
-                f"{if_body}"
-                f"{self._nindent}else\n"
-                f"{else_body}"
-                f"{self._nindent}end if\n")
-        else:
-            result = (
-                f"{self._nindent}if ({condition}) then\n"
-                f"{if_body}"
-                f"{self._nindent}end if\n")
-        return result
+        else_block = ""
+        # node.else_body is None if there is no else clause.
+        if node.else_body:
+            if (
+                len(node.else_body.children) == 1 and
+                isinstance(node.else_body.children[0], IfBlock)
+            ):
+                # This can be an elseif block, so we continue without
+                # additional indentation
+
+                # For the keyword substitution to work we have to handle
+                # any preceding comment separately
+                comment = node.else_body.children[0].preceding_comment
+                node.else_body.children[0].preceding_comment = ""
+
+                # Get the else body text
+                else_block += self._visit(node.else_body)
+                # Replace the first if with an elseif
+                else_block = else_block.replace("if", "elseif", 1)
+                # And remove the final (endif) line, as it will be merged
+                # with the current if construct
+                else_block = "\n".join(else_block.split('\n')[:-2]) + "\n"
+                # Prepend back the comment at the elseif level
+                if comment:
+                    for line in reversed(comment.splitlines()):
+                        else_block = (
+                            f"{self._nindent}{self._COMMENT_PREFIX}{line}\n"
+                            f"{else_block}"
+                        )
+            else:
+                else_block = f"{self._nindent}else\n"
+                self._depth += 1
+                for child in node.else_body:
+                    else_block += self._visit(child)
+                self._depth -= 1
+
+        return (
+            f"{self._nindent}if ({condition}) then\n"
+            f"{if_body}"
+            f"{else_block}"
+            f"{self._nindent}end if\n")
 
     def whileloop_node(self, node):
         '''This method is called when a WhileLoop instance is found in the

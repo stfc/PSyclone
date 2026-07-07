@@ -39,6 +39,7 @@
 ''' Performs py.test tests on the CodeBlock PSyIR node. '''
 
 import pytest
+
 from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -50,8 +51,12 @@ from psyclone.psyir.nodes.codeblock import (
 )
 from psyclone.psyir.nodes.node import colored
 from psyclone.errors import GenerationError, InternalError
+from psyclone.tests.utilities import min_version_3_10
 
 
+# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
+# treesitter.
+@min_version_3_10
 def test_codeblock_create():
     ''' Check the create method of the Code Block class.'''
 
@@ -65,6 +70,13 @@ def test_codeblock_create():
     assert isinstance(cb, Fparser2CodeBlock)
     assert "a => b" in cb.get_fortran_lines()
 
+    # Use a different fronted value
+    Config.get()._frontend = "newfrontend"
+    with pytest.raises(InternalError) as err:
+        cb = CodeBlock.create("3 + 3", partial_code="expression")
+    assert ("The 'newfrontend' frontend does not have an associated CodeBlock "
+            "subclass" in str(err.value))
+
     # Use the treesitter frontend (the frontend doesn't support partial
     # expressions yet, but it gets an appropriate error)
     Config.get()._frontend = "treesitter"
@@ -76,13 +88,6 @@ def test_codeblock_create():
     with pytest.raises(ValueError) as err:
         cb = CodeBlock.create("a => b", partial_code="pointer_assignment")
     assert "Syntax Error found at line 1: a => b" in str(err.value)
-
-    # Use a different fronted value
-    Config.get()._frontend = "newfrontend"
-    with pytest.raises(InternalError) as err:
-        cb = CodeBlock.create("3 + 3", partial_code="expression")
-    assert ("The 'newfrontend' frontend does not have an associated CodeBlock "
-            "subclass" in str(err.value))
 
 
 def test_codeblock_node_str():
@@ -170,6 +175,9 @@ def test_abstract_methods():
     assert "Use appropriate CodeBlock subclass" in str(err.value)
 
 
+# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
+# treesitter.
+@min_version_3_10
 def test_codeblock_get_fortran_lines():
     '''
     Test the get_fortran_lines method for fparser and treesiteer codeblocks.
@@ -178,11 +186,11 @@ def test_codeblock_get_fortran_lines():
     frontends)
     '''
     code = "\nsubroutine mytest\nend subroutine"
-    tree = Fparser2Reader().generate_parse_tree_from_source(code)
+    tree = Fparser2Reader(free_form=True).generate_parse_tree_from_source(code)
     block = Fparser2CodeBlock(tree.children, CodeBlock.Structure.STATEMENT)
     assert isinstance(block.get_fortran_lines(), list)
-    assert "subroutine mytest" in block.get_fortran_lines()
-    assert "end subroutine" in block.get_fortran_lines()
+    assert "SUBROUTINE mytest" in block.get_fortran_lines()
+    assert "END SUBROUTINE" in block.get_fortran_lines()
 
     tree = FortranTreeSitterReader().generate_parse_tree_from_source(code)
     block = TreeSitterCodeBlock(tree, CodeBlock.Structure.STATEMENT)

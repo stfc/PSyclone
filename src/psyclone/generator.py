@@ -225,15 +225,6 @@ def generate(filename: str,
     :raises IOError: if the filename or search path do not exist.
     :raises GenerationError: if no invokes are found in the algorithm file.
 
-    For example:
-
-    >>> from psyclone.generator import generate
-    >>> alg, psy = generate("algspec.f90")
-    >>> alg, psy = generate("algspec.f90", kernel_paths=["src/kernels"])
-    >>> alg, psy = generate("algspec.f90", script_name="optimise.py")
-    >>> alg, psy = generate("algspec.f90", line_length=True)
-    >>> alg, psy = generate("algspec.f90", distributed_memory=False)
-
     '''
     writer = FortranWriter()
     logger = logging.getLogger(__name__)
@@ -638,7 +629,7 @@ def main(arguments):
     # Record any profiling options.
     if args.profile:
         try:
-            Profiler.set_options(args.profile, api)
+            Profiler.set_options(args.profile, args.psykal_dsl is not None)
         except ValueError as err:
             print(f"Invalid profiling option: {err}", file=sys.stderr)
             sys.exit(1)

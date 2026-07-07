@@ -58,7 +58,8 @@ from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import (lfric_builtins,
                                    LFRicInvokeSchedule,
                                    LFRicKern, LFRicKernMetadata)
-from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+from psyclone.domain.lfric.transformations import (
+    LFRicLoopFuseTrans, LFRicRedundantComputationTrans)
 from psyclone.lfric import LFRicKernelArguments
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.generator import generate
@@ -71,15 +72,14 @@ from psyclone.psyGen import (TransInfo, PSyFactory,
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
                                   Literal, Loop, Node, KernelSchedule, Call,
                                   colored, Schedule)
-from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, REAL_TYPE,
+from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, ScalarType,
                                     ImportInterface, ContainerSymbol, Symbol,
-                                    INTEGER_TYPE, UnresolvedType, SymbolTable)
+                                    UnresolvedType, SymbolTable)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.test_files import dummy_transformations
 from psyclone.tests.test_files.dummy_transformations import LocalTransformation
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import (LFRicRedundantComputationTrans,
-                                      LFRicColourTrans,
+from psyclone.transformations import (LFRicColourTrans,
                                       LFRicOMPLoopTrans,
                                       Transformation)
 from psyclone.psyir.transformations import OMPParallelTrans
@@ -180,6 +180,7 @@ def test_transformation_init_name():
         transformation methods.
 
         '''
+
         def apply(self, _1):
             '''Dummy apply method to ensure this transformation is not
             abstract.'''
@@ -194,6 +195,7 @@ def test_transformation_get_options():
     class TestTrans(Transformation):
         '''Utility transformation to test methods of the abstract
         Transformation class.'''
+
         def apply(self, node, valid: bool = True):
             ...
     trans = TestTrans()
@@ -204,12 +206,146 @@ def test_transformation_get_options():
     assert ("option 'invalid' is not a valid option for 'TestTrans'. "
             "Valid options are '['valid']." in str(excinfo.value))
 
+    # Test that we allow _SUB_TRANSFORMATIONS_OPTIONS
+
+    class TestTrans2(Transformation):
+        '''Utility transformation to test methods of the abstract
+        Transformation class with _SUB_TRANSFORMATIONS.'''
+        _SUB_TRANSFORMATIONS = [TestTrans]
+
+        def apply(self, node, **kwargs):
+            ...
+
+    trans = TestTrans2()
+    # Check that we allow the fetching of the TestTrans option.
+    assert trans.get_option("valid", valid=True)
+
+    # Test that we use current transformations default value
+    # over an inherited value.
+    class TestTrans3(Transformation):
+        '''Utility transformation to test methods of the abstract
+        Transformation class with _SUB_TRANSFORMATIONS.'''
+        _SUB_TRANSFORMATIONS = [TestTrans]
+
+        def apply(self, node, valid=False, **kwargs):
+            ...
+    opts = {}
+    trans = TestTrans3()
+    # Check that we get the default False for the valid option.
+    assert not trans.get_option("valid", **opts)
+
+
+def test_transformation_split_kwargs():
+    ''' Test that the kwargs can be split when they can be propagated to
+    multiple sub-transformations. '''
+
+    class Called1Trans(Transformation):
+        ''' Transformation Example'''
+        def apply(
+            self,
+            node,
+            test_option: bool = True,
+            common_option: bool = True,
+            **kwargs
+        ):
+            self.validate(
+                node,
+                test_option=test_option,
+                common_option=common_option,
+                **kwargs
+            )
+            # Asserts to prove that the True value was propagated until here
+            assert test_option
+            assert common_option
+
+        def validate(self, node, **kwargs):
+            self.validate_options(**kwargs)
+
+    class Called2Trans(Transformation):
+        ''' Transformation Example'''
+        def apply(
+            self,
+            node,
+            test2_option: bool = False,
+            common_option: bool = False,
+            **kwargs
+        ):
+            self.validate(
+                node,
+                test2_option=test2_option,
+                common_option=common_option,
+                **kwargs
+            )
+            # Asserts to prove that the True value was propagated until here
+            assert test2_option
+            assert common_option
+
+        def validate(self, node, **kwargs):
+            self.validate_options(**kwargs)
+
+    class TestMetaTrans(Transformation):
+        ''' MetaTrans Example'''
+        _trans1 = Called1Trans
+        _trans2 = Called2Trans
+        _SUB_TRANSFORMATIONS = [Called1Trans, Called2Trans]
+
+        def validate(self, node, **kwargs):
+            self_kwargs, tr1_kwargs, tr2_kwargs = self.split_kwargs(**kwargs)
+            self._trans1().validate(node, **tr1_kwargs)
+            self._trans2().validate(node, **tr2_kwargs)
+            self.validate_options(**self_kwargs)
+
+            super().validate(node, **self_kwargs)
+
+        def apply(
+            self,
+            node,
+            meta_option: bool = True,
+            common_option: bool = True,
+            **kwargs
+        ):
+            # If we want to consume it use it by name
+            self.validate(
+                node,
+                meta_option=meta_option,
+                common_option=common_option,
+                **kwargs)
+            _, tr1_kwargs, tr2_kwargs = self.split_kwargs(
+                meta_option=meta_option, common_option=common_option, **kwargs)
+
+            self._trans1().apply(node, **tr1_kwargs)
+            self._trans2().apply(node, **tr2_kwargs)
+
+            # Asserts to prove that the True value was propagated until here
+            assert meta_option
+            assert common_option
+
+    test = TestMetaTrans()
+    test.apply(Node(), meta_option=True, common_option=True,
+               test_option=True, test2_option=True)
+    test.validate(Node(), meta_option=True, common_option=True,
+                  test_option=True, test2_option=True)
+
+    with pytest.raises(ValueError) as err:
+        test.apply(Node(), invalid=True)
+    assert ("'TestMetaTrans' received invalid options ['invalid']. Valid "
+            "options are ['meta_option', 'common_option'] or any other "
+            "options supported in ['Called1Trans', 'Called2Trans']."
+            == str(err.value))
+    with pytest.raises(ValueError) as err:
+        test.validate(Node(), invalid=True)
+    assert ("'TestMetaTrans' received invalid options ['invalid']. Valid "
+            "options are ['meta_option', 'common_option'] or any other "
+            "options supported in ['Called1Trans', 'Called2Trans']."
+            == str(err.value))
+
 
 def test_transformation_apply_deprecation_message(capsys):
     '''Test that passing the options dict to the Transformation.apply
     function gets the expected deprecation message.'''
     class TestTrans(Transformation):
         '''Utility transformation to test methods.'''
+
         def apply(self, node=None, options=None):
             super().apply(node, options=options)
 
@@ -233,6 +369,7 @@ def test_transformation_get_valid_options():
     class TestTrans(Transformation):
         '''Utility transformation to test methods of the abstract
         Transformation class.'''
+
         def apply(self, node, valid: bool = True, untyped=False, options={}):
             '''Apply method of TestTrans.'''
 
@@ -248,6 +385,7 @@ def test_transformation_get_valid_options():
 
     class InheritTrans(TestTrans):
         '''Utility transformation to test inheriting arguments'''
+
         def apply(self, node, valid2: int = 1):
             '''Apply method of InheritTrans.'''
 
@@ -279,6 +417,7 @@ def test_transformation_get_valid_options_no_sphinx():
         class TestTrans(Transformation):
             '''Utility transformation to test methods of the abstract
             Transformation class.'''
+
             def apply(self, node, valid: bool = True, untyped=False):
                 '''Apply method of TestTrans.'''
 
@@ -296,6 +435,7 @@ def test_transformation_validate_options():
     class TestTrans(Transformation):
         '''Utility transformation to test methods of the abstract
         Transformation class.'''
+
         def apply(self, node, valid: bool = True, options=None):
             ...
 
@@ -313,7 +453,7 @@ def test_transformation_validate_options():
     with pytest.raises(ValueError) as excinfo:
         instance.validate_options(not_valid=True)
     assert ("'TestTrans' received invalid options ['not_valid']. "
-            "Valid options are '['valid', 'options']." in str(excinfo.value))
+            "Valid options are ['valid', 'options']." in str(excinfo.value))
 
 
 # TransInfo class unit tests
@@ -621,8 +761,10 @@ def test_invokeschedule_lowering_with_preexisting_globals():
     schedule = psy.invokes.invoke_list[0].schedule
     my_mod = ContainerSymbol("my_mod")
     schedule.symbol_table.add(my_mod)
-    global1 = DataSymbol('gvar1', REAL_TYPE, interface=ImportInterface(my_mod))
-    global2 = DataSymbol('gvar2', REAL_TYPE, interface=ImportInterface(my_mod))
+    global1 = DataSymbol('gvar1', ScalarType.real_type(),
+                         interface=ImportInterface(my_mod))
+    global2 = DataSymbol('gvar2', ScalarType.real_type(),
+                         interface=ImportInterface(my_mod))
     schedule.symbol_table.add(global1)
     schedule.symbol_table.add(global2)
 
@@ -705,7 +847,7 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     # TODO #1085 LFRic Arguments do not have a translation to PSyIR
     # yet, we monkeypatch a dummy expression for now:
     monkeypatch.setattr(LFRicKernelArguments, "psyir_expressions",
-                        lambda x: [Literal("1", INTEGER_TYPE)])
+                        lambda x: [Literal("1", ScalarType.integer_type())])
 
     # In DSL-level it is a CodedKern with no children
     assert isinstance(kern, CodedKern)
@@ -766,7 +908,7 @@ def test_kern_children_validation():
     kern.load_meta(metadata)
 
     with pytest.raises(GenerationError) as excinfo:
-        kern.addchild(Literal("2", INTEGER_TYPE))
+        kern.addchild(Literal("2", ScalarType.integer_type()))
     assert ("Item 'Literal' can't be child 0 of 'CodedKern'. CodedKern "
             "is a LeafNode and doesn't accept children.") in str(excinfo.value)
 
@@ -799,7 +941,7 @@ def test_inlinedkern_children_validation():
     ikern = InlinedKern(None)
 
     with pytest.raises(GenerationError) as excinfo:
-        ikern.addchild(Literal("2", INTEGER_TYPE))
+        ikern.addchild(Literal("2", ScalarType.integer_type()))
     assert ("Item 'Literal' can't be child 1 of 'InlinedKern'. The valid "
             "format is: 'Schedule'.") in str(excinfo.value)
 
@@ -876,21 +1018,24 @@ def test_kern_is_coloured2():
     # Create the loop variables
     for idx in range(3):
         table.new_symbol(f"cell{idx}", symbol_type=DataSymbol,
-                         datatype=INTEGER_TYPE)
+                         datatype=ScalarType.integer_type())
     # Create a loop nest of depth 3 containing the kernel, innermost first
     my_kern = LFRicKern()
     loops = [PSyLoop.create(table.lookup("cell0"),
-                            Literal("1", INTEGER_TYPE),
-                            Literal("10", INTEGER_TYPE),
-                            Literal("1", INTEGER_TYPE), [my_kern])]
+                            Literal("1", ScalarType.integer_type()),
+                            Literal("10", ScalarType.integer_type()),
+                            Literal("1", ScalarType.integer_type()),
+                            [my_kern])]
     loops.append(PSyLoop.create(table.lookup("cell1"),
-                                Literal("1", INTEGER_TYPE),
-                                Literal("10", INTEGER_TYPE),
-                                Literal("1", INTEGER_TYPE), [loops[-1]]))
+                                Literal("1", ScalarType.integer_type()),
+                                Literal("10", ScalarType.integer_type()),
+                                Literal("1", ScalarType.integer_type()),
+                                [loops[-1]]))
     loops.append(PSyLoop.create(table.lookup("cell2"),
-                                Literal("1", INTEGER_TYPE),
-                                Literal("10", INTEGER_TYPE),
-                                Literal("1", INTEGER_TYPE), [loops[-1]]))
+                                Literal("1", ScalarType.integer_type()),
+                                Literal("10", ScalarType.integer_type()),
+                                Literal("1", ScalarType.integer_type()),
+                                [loops[-1]]))
     # As we're using the generic Loop class, we have to manually set the list
     # of valid Loop types
     for loop in loops:
@@ -1518,7 +1663,7 @@ def test_haloexchange_children_validation():
     '''
     haloex = HaloExchange(None)
     with pytest.raises(GenerationError) as excinfo:
-        haloex.addchild(Literal("2", INTEGER_TYPE))
+        haloex.addchild(Literal("2", ScalarType.integer_type()))
     assert ("Item 'Literal' can't be child 0 of 'HaloExchange'. HaloExchange "
             "is a LeafNode and doesn't accept children.") in str(excinfo.value)
 

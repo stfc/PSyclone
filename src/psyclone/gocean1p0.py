@@ -74,9 +74,9 @@ from psyclone.psyir.nodes import (
     ACCKernelsDirective, Container, ACCUpdateDirective, Routine,
     BinaryOperation, Node)
 from psyclone.psyir.symbols import (
-    ImportInterface, INTEGER_TYPE, DataSymbol, RoutineSymbol, ContainerSymbol,
-    ScalarType, UnresolvedType, DataTypeSymbol, UnresolvedInterface,
-    BOOLEAN_TYPE, REAL_TYPE, StructureType, ArrayType, Symbol)
+    ImportInterface, ScalarType, DataSymbol, RoutineSymbol, ContainerSymbol,
+    UnresolvedType, DataTypeSymbol, UnresolvedInterface,
+    StructureType, ArrayType, Symbol)
 from psyclone.psyir.tools import DependencyTools
 
 
@@ -92,6 +92,7 @@ class GOPSy(PSy):
     :type invoke_info: :py:class:`psyclone.parse.FileInfo`
 
     '''
+
     def __init__(self, invoke_info):
         Config.get().api = "gocean"
         PSy.__init__(self, invoke_info)
@@ -120,6 +121,7 @@ class GOInvokes(Invokes):
     :type psy: :py:class:`psyclone.gocean1p0.GOPSy`
 
     '''
+
     def __init__(self, alg_calls, psy):
         Invokes.__init__(self, alg_calls, GOInvoke, psy)
 
@@ -164,6 +166,7 @@ class GOInvoke(Invoke):
     :type invokes: :py:class:`psyclone.gocean1p0.GOInvokes`
 
     '''
+
     def __init__(self, alg_invocation, idx, invokes):
         self._schedule = GOInvokeSchedule.create('name')
         Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule, invokes)
@@ -288,7 +291,7 @@ class GOLoop(PSyLoop):
         # Add start, stop, step and body and Loop children
         node.addchild(node.lower_bound())
         node.addchild(node.upper_bound())
-        node.addchild(Literal("1", INTEGER_TYPE))
+        node.addchild(Literal("1", ScalarType.integer_type()))
         node.addchild(Schedule())
 
         return node
@@ -563,12 +566,16 @@ class GOLoop(PSyLoop):
         the loop boundaries for the outer and inner loop. The format is a
         ":" separated tuple:
 
-        >>> bound_info = offset-type:field-type:iteration-space:outer-start:
+        .. code-block::
+
+            bound_info = offset-type:field-type:iteration-space:outer-start:
                          outer-stop:inner-start:inner-stop
 
         Example:
 
-        >>> bound_info = go_offset_ne:go_ct:go_all_pts:
+        .. code-block::
+
+            bound_info = go_offset_ne:go_ct:go_all_pts:
                          {start}-1:{stop}+1:{start}:{stop}
 
         The expressions {start} and {stop} will be replaced with the loop
@@ -736,7 +743,8 @@ class GOLoop(PSyLoop):
                 sym = self.scope.symbol_table.lookup(members[0])
             except KeyError:
                 sym = self.scope.symbol_table.new_symbol(
-                    members[0], symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+                    members[0], symbol_type=DataSymbol,
+                    datatype=ScalarType.integer_type())
             return Reference(sym, parent=self)
 
         if members[0] != "{0}":
@@ -766,9 +774,11 @@ class GOLoop(PSyLoop):
                 api_config.grid_properties["go_grid_data"].fortran)
             stop.addchild(sref)
             if self._loop_type == "inner":
-                stop.addchild(Literal("1", INTEGER_TYPE, parent=stop))
+                stop.addchild(Literal("1", ScalarType.integer_type(),
+                                      parent=stop))
             elif self._loop_type == "outer":
-                stop.addchild(Literal("2", INTEGER_TYPE, parent=stop))
+                stop.addchild(Literal("2", ScalarType.integer_type(),
+                                      parent=stop))
             return stop
 
         # Loop bounds are pulled from a infrastructure call from a field
@@ -796,7 +806,7 @@ class GOLoop(PSyLoop):
         '''
         if self.field_space == "go_every":
             # Bounds are independent of the grid-offset convention in use
-            return Literal("1", INTEGER_TYPE)
+            return Literal("1", ScalarType.integer_type())
 
         # Loop bounds are pulled from a infrastructure call from a field
         # object. For 'go_internal_pts' and 'go_all_points' we use the
@@ -898,10 +908,10 @@ class GOKernCallFactory():
         # All loops in GOcean iterate over 2D, prepare the iteration symbols
         outer_symbol = symtab.find_or_create_tag(
                 "noncontiguous_kidx", root_name="j", symbol_type=DataSymbol,
-                datatype=INTEGER_TYPE)
+                datatype=ScalarType.integer_type())
         inner_symbol = symtab.find_or_create_tag(
                 "contiguous_kidx", root_name="i", symbol_type=DataSymbol,
-                datatype=INTEGER_TYPE)
+                datatype=ScalarType.integer_type())
 
         # Add temporary parent as the GOKern constructor needs to find its
         # way to the top-level InvokeSchedule but we still don't have the
@@ -952,6 +962,7 @@ class GOKern(CodedKern):
     :param parent: optional node where the kernel call will be inserted.
 
     '''
+
     def __init__(
         self,
         call: KernelCall,
@@ -1017,7 +1028,8 @@ class GOKern(CodedKern):
             else:
                 return Reference(symbol)
             return BinaryOperation.create(
-                op, Reference(symbol), Literal(str(offset), INTEGER_TYPE))
+                op, Reference(symbol),
+                Literal(str(offset), ScalarType.integer_type()))
 
         config = Config.get().api_conf("gocean")
         field_for_grid_property = None
@@ -1073,7 +1085,7 @@ class GOKern(CodedKern):
         if not read_accesses:
             # There can be write-only kernels, in this case we just put
             # a constant literal
-            rhs = Literal("1", INTEGER_TYPE)
+            rhs = Literal("1", ScalarType.integer_type())
         else:
             rhs = read_accesses.pop(0)
             while read_accesses:
@@ -1152,6 +1164,7 @@ class GOKernelArguments(Arguments):
         True. Currently does nothing in this API.
 
     '''
+
     def __init__(self, call, parent_call, check=True):
         # pylint: disable=unused-argument
         Arguments.__init__(self, parent_call)
@@ -1299,6 +1312,7 @@ class GOKernelArguments(Arguments):
 class GOKernelArgument(KernelArgument):
     ''' Provides information about individual GOcean kernel call arguments
         as specified by the kernel argument metadata. '''
+
     def __init__(self, arg, arg_info, call):
 
         self._arg = arg
@@ -1319,12 +1333,12 @@ class GOKernelArgument(KernelArgument):
         # If the argument name is just a number (e.g. '0') we return a
         # constant Literal expression
         if self.name.isnumeric():
-            return Literal(self.name, INTEGER_TYPE)
+            return Literal(self.name, ScalarType.integer_type())
 
         # Now try for a real value. The constructor will raise an exception
         # if the string is not a valid floating point number.
         try:
-            return Literal(self.name, REAL_TYPE)
+            return Literal(self.name, ScalarType.real_type())
         except ValueError:
             pass
 
@@ -1368,17 +1382,24 @@ class GOKernelArgument(KernelArgument):
             # the meantime, we can declare a representative type
             public = Symbol.Visibility.PUBLIC
             region_type = StructureType()
-            region_type.add("nx", datatype=INTEGER_TYPE, visibility=public)
-            region_type.add("ny", datatype=INTEGER_TYPE, visibility=public)
-            region_type.add("xstart", datatype=INTEGER_TYPE, visibility=public)
-            region_type.add("ystart", datatype=INTEGER_TYPE, visibility=public)
-            region_type.add("xstop", datatype=INTEGER_TYPE, visibility=public)
-            region_type.add("ystop", datatype=INTEGER_TYPE, visibility=public)
+            region_type.add("nx", datatype=ScalarType.integer_type(),
+                            visibility=public)
+            region_type.add("ny", datatype=ScalarType.integer_type(),
+                            visibility=public)
+            region_type.add("xstart", datatype=ScalarType.integer_type(),
+                            visibility=public)
+            region_type.add("ystart", datatype=ScalarType.integer_type(),
+                            visibility=public)
+            region_type.add("xstop", datatype=ScalarType.integer_type(),
+                            visibility=public)
+            region_type.add("ystop", datatype=ScalarType.integer_type(),
+                            visibility=public)
             r2d_field_type = StructureType()
             r2d_field_type.add(
                 "data",
-                datatype=ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED,
-                                               ArrayType.Extent.DEFERRED]),
+                datatype=ArrayType(ScalarType.real_type(),
+                                   [ArrayType.Extent.DEFERRED,
+                                    ArrayType.Extent.DEFERRED]),
                 visibility=public)
             r2d_field_type.add(
                 "internal", datatype=region_type, visibility=public)
@@ -1401,7 +1422,7 @@ class GOKernelArgument(KernelArgument):
                     is_constant=True, interface=ImportInterface(csym))
                 return ScalarType(ScalarType.Intrinsic.REAL, Reference(go_wp))
             if self.space.lower() == "go_i_scalar":
-                return INTEGER_TYPE
+                return ScalarType.integer_type()
             raise InternalError(f"GOcean expects scalar arguments to be of "
                                 f"'go_r_scalar' or 'go_i_scalar' type but "
                                 f"found '{self.space.lower()}'.")
@@ -1467,6 +1488,7 @@ class GOKernelGridArgument(Argument):
     :raises GenerationError: if the grid property is not recognised.
 
     '''
+
     def __init__(self, arg, kernel_call):
         super().__init__(None, None, arg.access)
         # Complete the argument initialisation as in some APIs it
@@ -1597,6 +1619,7 @@ class GOStencil():
     load method
 
     '''
+
     def __init__(self):
         ''' Set up any internal variables. '''
         self._has_stencil = None
@@ -1846,6 +1869,7 @@ class GO1p0Descriptor(Descriptor):
     :raises ParseError: for an invalid access argument.
 
     '''
+
     def __init__(self, kernel_name, kernel_arg, metadata_index):
         # pylint: disable=too-many-locals
         nargs = len(kernel_arg.args)
@@ -2031,6 +2055,7 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
     specific interfaces to flag and update when data is on a device.
 
     '''
+
     def _read_from_device_routine(self):
         ''' Return the symbol of the routine that reads data from the OpenACC
         device, if it doesn't exist create the Routine and the Symbol.
@@ -2112,7 +2137,7 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
             symbol = self.scope.symbol_table.lookup(var)
             assignment = Assignment.create(
                 StructureReference.create(symbol, ['data_on_device']),
-                Literal("true", BOOLEAN_TYPE))
+                Literal("true", ScalarType.boolean_type()))
             self.parent.children.insert(self.position, assignment)
 
             # Use a CodeBlock to encode a Fortran pointer assignment
@@ -2149,6 +2174,7 @@ class GOHaloExchange(HaloExchange):
     :param parent: optional PSyIR parent node (default None) of this object.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     '''
+
     def __init__(self, field, check_dirty=False, parent=None):
         super().__init__(field, check_dirty=check_dirty, parent=parent)
 
@@ -2175,7 +2201,8 @@ class GOHaloExchange(HaloExchange):
         # having type bound routines.
         rsymbol = RoutineSymbol(self.field.name + "%" +
                                 self._halo_exchange_name)
-        call_node = Call.create(rsymbol, [Literal("1", INTEGER_TYPE)])
+        call_node = Call.create(rsymbol,
+                                [Literal("1", ScalarType.integer_type())])
         self.replace_with(call_node)
         return call_node
 

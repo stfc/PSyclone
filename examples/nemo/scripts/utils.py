@@ -41,15 +41,15 @@ from typing import List, Union
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
     Assignment, Loop, Directive, Node, Reference, CodeBlock, Call,
-    Routine, Schedule, IntrinsicCall, StructureReference, IfBlock)
-from psyclone.psyir.symbols import DataSymbol
+    Routine, Schedule, IntrinsicCall, StructureReference, IfBlock,
+    Operation)
+from psyclone.psyir.symbols import DataSymbol, ArrayType
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
     HoistTrans, InlineTrans, Maxval2LoopTrans, Sum2LoopTrans, Minval2LoopTrans,
     Product2LoopTrans, ProfileTrans, OMPMinimiseSyncTrans,
     Reference2ArrayRangeTrans, ScalarisationTrans, IncreaseRankLoopArraysTrans,
-    MaximalRegionTrans)
-from psyclone.transformations import TransformationError
+    MaximalRegionTrans, TransformationError, DataNodeToTempTrans)
 
 # USE statements to chase to gather additional symbol information.
 NEMO_MODULES_TO_IMPORT = [
@@ -83,14 +83,6 @@ PROFILING_IGNORE = ["flo_dom", "macho", "mpp_", "nemo_gcm", "dyn_ldf"
 # Currently fparser has no way of distinguishing array accesses from statement
 # functions, the following subroutines contains known statement functions
 CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
-
-# These files change the results from the baseline when psyclone adds
-# parallelisation directives
-PARALLELISATION_ISSUES = [
-    "ldfc1d_c2d.f90",
-    "tramle.f90",
-    "traqsr.f90",
-]
 
 
 def _it_should_be(symbol, of_type, instance):
@@ -181,6 +173,7 @@ def normalise_loops(
         scalarise_loops: bool = False,
         increase_array_ranks: bool = False,
         hoist_expressions: bool = True,
+        hoist_argument_expressions: bool = True,
         ):
     ''' Normalise all loops in the given schedule so that they are in an
     appropriate form for the Parallelisation transformations to analyse
@@ -201,7 +194,10 @@ def normalise_loops(
         arrays.
     :param hoist_expressions: whether to hoist bounds and loop invariant
         statements out of the loop nest.
+    :param hoist_argument_expressions: whether to hoist array expressions
+        out of the containing Call.
     '''
+
     if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
         # Apply the HoistLocalArraysTrans when possible, it cannot be applied
         # to files with statement functions because it will attempt to put the
@@ -272,6 +268,20 @@ def normalise_loops(
                 except TransformationError:
                     pass
 
+    if hoist_argument_expressions:
+        hoist_arguments_to_temporaries(schedule.walk(Call))
+        normalise_loops(
+            schedule,
+            hoist_local_arrays=hoist_local_arrays,
+            convert_array_notation=convert_array_notation,
+            loopify_array_intrinsics=loopify_array_intrinsics,
+            convert_range_loops=convert_range_loops,
+            scalarise_loops=scalarise_loops,
+            increase_array_ranks=False,
+            hoist_expressions=hoist_expressions,
+            # Make sure we never repeat this step.
+            hoist_argument_expressions=False,
+        )
     # TODO #1928: In order to perform better on the GPU, nested loops with two
     # sibling inner loops need to be fused or apply loop fission to the
     # top level. This would allow the collapse clause to be applied.
@@ -491,6 +501,7 @@ def add_profiling(children: Union[List[Node], Schedule]):
         # (which would create unclosed hooks).
         _allowed_contiguous_statements = (Assignment, Call, CodeBlock)
         _transformation = ProfileTrans
+        _SUB_TRANSFORMATIONS = [ProfileTrans]
 
         def _satisfies_minimum_region_rules(self, region: list[Node]) -> bool:
             '''Returns whether the provided node list satisfies the
@@ -530,3 +541,26 @@ def add_profiling(children: Union[List[Node], Schedule]):
     routine_name = parent_routine.name if parent_routine else ""
     if routine_name not in PROFILING_IGNORE:
         MaximalProfilingOutsideDirectivesTrans().apply(children)
+
+
+def hoist_arguments_to_temporaries(calls: list[Call]):
+    '''Extracts the arguments of all calls and puts them
+     in a temporary result if they are an Operation with an array datatype.
+
+    :param calls: The list of calls in a subroutine whose arguments
+        may be moved into temporary storage to allow additional potential
+        parallelisation.
+
+     '''
+    for call in calls:
+        for arg in call.arguments:
+            dtype = arg.datatype
+            # Only extract expressions that can potentially be loopfied,
+            # i.e. operations over arrays.
+            if (isinstance(dtype, ArrayType) and
+                (isinstance(arg, Operation) or
+                    isinstance(arg, IntrinsicCall))):
+                try:
+                    DataNodeToTempTrans().apply(arg, verbose=True)
+                except TransformationError:
+                    pass

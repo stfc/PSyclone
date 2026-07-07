@@ -50,7 +50,7 @@ from psyclone.psyir.nodes import (
     Call, Loop, Literal, Container, Reference, ArrayReference, BinaryOperation,
     UnaryOperation)
 from psyclone.psyir.symbols import (
-    RoutineSymbol, DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType,
+    RoutineSymbol, DataSymbol, ScalarType, ArrayType,
     DataTypeSymbol)
 from psyclone.psyir.transformations import TransformationError
 
@@ -467,10 +467,12 @@ def test_ai2psycall_apply_invoke_symbols_scope(fortran_reader):
     invoke = psyir.children[0][0]
     assert isinstance(invoke, AlgorithmInvokeCall)
     symbol = invoke.scope.symbol_table.new_symbol(
-        root_name="i", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        root_name="i", symbol_type=DataSymbol,
+        datatype=ScalarType.integer_type())
     loop = Loop.create(
-        symbol, Literal("0", INTEGER_TYPE), Literal("1", INTEGER_TYPE),
-        Literal("1", INTEGER_TYPE), [invoke.detach()])
+        symbol, Literal("0", ScalarType.integer_type()),
+        Literal("1", ScalarType.integer_type()),
+        Literal("1", ScalarType.integer_type()), [invoke.detach()])
     psyir.children[0].children.append(loop)
 
     assert "invoke" not in invoke.scope.symbol_table._symbols
@@ -499,8 +501,8 @@ def test_ai2psycall_add_arg():
 
     # Invalid argument exception (Node parent is not a KernelFunctor)
     arg = UnaryOperation.create(
-        UnaryOperation.Operator.PLUS, Literal("1.0", REAL_TYPE))
-    with pytest.raises(GenerationError) as info:
+        UnaryOperation.Operator.PLUS, Literal("1.0", ScalarType.real_type()))
+    with pytest.raises(TypeError) as info:
         AlgInvoke2PSyCallTrans._add_arg(arg, [])
     assert ("Expected Algorithm-layer kernel arguments to be a Literal, "
             "Reference, type-bound Call or a CodeBlock but '+1.0' is of type "
@@ -509,8 +511,8 @@ def test_ai2psycall_add_arg():
 
     # Invalid argument exception (Node parent is a KernelFunctor)
     _ = KernelFunctor.create(
-        DataTypeSymbol("my_kernel", REAL_TYPE), [arg])
-    with pytest.raises(GenerationError) as info:
+        DataTypeSymbol("my_kernel", ScalarType.real_type()), [arg])
+    with pytest.raises(TypeError) as info:
         AlgInvoke2PSyCallTrans._add_arg(arg, [])
     assert ("Expected Algorithm-layer kernel arguments to be a Literal, "
             "Reference, type-bound Call or a CodeBlock but '+1.0' passed "
@@ -519,13 +521,14 @@ def test_ai2psycall_add_arg():
 
     # literal (nothing added)
     args = []
-    AlgInvoke2PSyCallTrans._add_arg(Literal("1.0", REAL_TYPE), args)
+    AlgInvoke2PSyCallTrans._add_arg(
+        Literal("1.0", ScalarType.real_type()), args)
     assert args == []
 
     # reference (arg added)
     name = "hello1"
     AlgInvoke2PSyCallTrans._add_arg(
-        Reference(DataSymbol(name, REAL_TYPE)), args)
+        Reference(DataSymbol(name, ScalarType.real_type())), args)
     assert len(args) == 1
     assert isinstance(args[0], Reference)
     assert args[0].name == name
@@ -533,7 +536,8 @@ def test_ai2psycall_add_arg():
     # array reference (arg added)
     name = "hello2"
     AlgInvoke2PSyCallTrans._add_arg(ArrayReference.create(DataSymbol(
-        name, ArrayType(REAL_TYPE, [10])), [Literal("1", INTEGER_TYPE)]), args)
+        name, ArrayType(ScalarType.real_type(), [10])),
+                        [Literal("1", ScalarType.integer_type())]), args)
     assert len(args) == 2
     assert isinstance(args[1], ArrayReference)
     assert args[1].name == name
@@ -541,7 +545,7 @@ def test_ai2psycall_add_arg():
     # arg, same name, not added
     name = "hello1"
     AlgInvoke2PSyCallTrans._add_arg(
-        Reference(DataSymbol(name, REAL_TYPE)), args)
+        Reference(DataSymbol(name, ScalarType.real_type())), args)
     assert len(args) == 2
 
 

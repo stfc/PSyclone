@@ -45,7 +45,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Assignment, Node, Reference, Return, ArrayReference)
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, Symbol
+from psyclone.psyir.symbols import DataSymbol, ScalarType, Symbol
 from psyclone.psyGen import CodedKern
 
 
@@ -131,7 +131,8 @@ def test_access_info_description() -> None:
     assert "return" in ainfo.description.lower()
     # When it is a Symbol.
     osym = Symbol("something")
-    asym = DataSymbol("test", INTEGER_TYPE, initial_value=Reference(osym))
+    asym = DataSymbol("test", ScalarType.integer_type(),
+                      initial_value=Reference(osym))
     ainfo = AccessInfo(AccessType.INQUIRY, asym)
     assert ("definition of symbol 'test: datasymbol<scalar" in
             ainfo.description.lower())

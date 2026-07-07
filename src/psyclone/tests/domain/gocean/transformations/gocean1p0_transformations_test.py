@@ -49,12 +49,11 @@ from psyclone.gocean1p0 import GOKern
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Container, Loop
-from psyclone.psyir.transformations import (
-    LoopFuseTrans, LoopTrans, TransformationError,
-    OMPParallelTrans)
+from psyclone.psyir.transformations import LoopFuseTrans, \
+    LoopTrans, TransformationError, ACCLoopTrans, OMPParallelTrans
 from psyclone.transformations import ACCRoutineTrans, \
     GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, \
-    OMPLoopTrans, ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans
+    OMPLoopTrans, ACCParallelTrans, ACCEnterDataTrans
 from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.utilities import count_lines, get_invoke, get_base_path
@@ -1489,9 +1488,9 @@ def test_accroutinetrans_module_use():
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         rtrans.apply(kernels[0])
-    assert ("accesses the symbol 'magic: Symbol<Import(container='model_mod'"
-            ")>' which is imported. If this symbol "
-            "represents data then it must first" in str(err.value))
+    assert ("accesses the imported symbol 'magic: Symbol<Import(container="
+            "'model_mod')>'. If this symbol represents data then it must first"
+            in str(err.value))
     # Tell the ModuleManager where to find the module that is being USED by
     # the kernel.
     mod_man = ModuleManager.get()
@@ -1501,9 +1500,9 @@ def test_accroutinetrans_module_use():
     with pytest.raises(TransformationError) as err:
         rtrans.apply(kernels[0])
     assert ("Transformation Error: Kernel 'kernel_with_use_code' accesses "
-            "the symbol 'magic: DataSymbol<Scalar<REAL, Reference"
-            "[name:'go_wp']>, Import(container='model_mod')>' which is "
-            "imported. If this symbol represents data then it must first be "
+            "the imported symbol 'magic: DataSymbol<Scalar<REAL, Reference"
+            "[name:'go_wp']>, Import(container='model_mod')>'. "
+            "If this symbol represents data then it must first be "
             "converted to a Kernel argument using the "
             "KernelImportsToArguments transformation." in str(err.value))
 

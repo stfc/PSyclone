@@ -41,7 +41,7 @@ import pytest
 from fparser.two import Fortran2003
 from psyclone.psyir.nodes import (ProfileNode, Literal, Assignment, CodeBlock,
                                   Reference, Return, KernelSchedule, Loop)
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE, \
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, ScalarType, \
     ContainerSymbol, DataTypeSymbol, UnsupportedFortranType, ImportInterface
 from psyclone.profiler import Profiler
 from psyclone.errors import InternalError
@@ -116,12 +116,12 @@ def test_lower_to_lang_level_single_node():
     a single ProfileNode.
 
     '''
-    Profiler.set_options([Profiler.INVOKES], api="nemo")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
-        symbol_type=DataSymbol, datatype=REAL_TYPE)
-    zero = Literal("0.0", REAL_TYPE)
-    one = Literal("1.0", REAL_TYPE)
+        symbol_type=DataSymbol, datatype=ScalarType.real_type())
+    zero = Literal("0.0", ScalarType.real_type())
+    one = Literal("1.0", ScalarType.real_type())
     assign1 = Assignment.create(Reference(arg1), zero)
     assign2 = Assignment.create(Reference(arg1), one)
 
@@ -154,11 +154,13 @@ def test_lower_named_profile_node():
     a ProfileNode has pre-set names for the module and region.
 
     '''
-    Profiler.set_options([Profiler.INVOKES], api="nemo")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
-        symbol_type=DataSymbol, datatype=REAL_TYPE)
-    assign1 = Assignment.create(Reference(arg1), Literal("0.0", REAL_TYPE))
+        symbol_type=DataSymbol, datatype=ScalarType.real_type())
+    assign1 = Assignment.create(
+        Reference(arg1),
+        Literal("0.0", ScalarType.real_type()))
     kschedule = KernelSchedule.create(
         "work1", symbol_table, [assign1, Return()])
     Profiler.add_profile_nodes(kschedule, Loop)
@@ -178,7 +180,7 @@ def test_lower_to_lang_level_multi_node():
 
     '''
     # We use a GOcean example containing multiple kernel calls
-    Profiler.set_options([Profiler.KERNELS], api="gocean")
+    Profiler.set_options([Profiler.KERNELS], is_psykal=True)
     _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean",
                            idx=0)
     sched = invoke.schedule

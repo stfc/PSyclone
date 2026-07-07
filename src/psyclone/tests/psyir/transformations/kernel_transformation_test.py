@@ -49,7 +49,7 @@ from psyclone.generator import GenerationError
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import (Call, Container, Routine, FileContainer,
                                   IntrinsicCall)
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations import (
     TransformationError, OMPDeclareTargetTrans)
 from psyclone.transformations import ACCRoutineTrans, LFRicKernelConstTrans
@@ -176,14 +176,15 @@ end module my_mod'''
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         rtrans.validate(routine)
-    assert ("Transformation Error: routine 'my_sub' accesses the symbol "
-            "'some_data: Symbol<Import(container='other_mod')>' which is "
-            "imported. If this symbol represents data "
+    assert ("Transformation Error: routine 'my_sub' accesses the imported "
+            "symbol 'some_data: Symbol<Import(container='other_mod')>'. "
+            "If this symbol represents data "
             "then it must first be converted to a routine argument using the "
             "KernelImportsToArguments transformation." in str(err.value))
     # Specialise the imported symbol and make it constant.
     sym = psyir.children[0].symbol_table.lookup("some_data")
-    sym.specialise(DataSymbol, datatype=INTEGER_TYPE, is_constant=True)
+    sym.specialise(DataSymbol, datatype=ScalarType.integer_type(),
+                   is_constant=True)
     # Validation should now pass.
     rtrans.validate(routine)
 
@@ -238,8 +239,8 @@ end module my_mod'''
     routine = psyir.walk(Routine)[0]
     with pytest.raises(TransformationError) as err:
         rtrans.validate(routine, options={'force': True})
-    assert ("Transformation Error: routine 'my_sub' accesses the symbol "
-            "'some_data: Symbol<Import" in str(err.value))
+    assert ("Transformation Error: routine 'my_sub' accesses the imported "
+            "symbol 'some_data: Symbol<Import" in str(err.value))
 
 
 def test_gpumixin_validate_no_call():

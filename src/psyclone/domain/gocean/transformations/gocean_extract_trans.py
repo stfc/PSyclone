@@ -40,35 +40,30 @@
 
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.nodes import ExtractNode
-from psyclone.psyir.symbols import REAL8_TYPE, INTEGER_TYPE
+from psyclone.psyir.symbols import ScalarType
 from psyclone.domain.gocean import GOceanDriverCreator
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
 
 class GOceanExtractTrans(ExtractTrans):
-    ''' GOcean1.0 API application of ExtractTrans transformation \
+    ''' GOcean API application of ExtractTrans transformation
     to extract code into a stand-alone program. For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>>
-    >>> API = "gocean"
-    >>> FILENAME = "shallow_alg.f90"
-    >>> ast, invokeInfo = parse(FILENAME, api=API)
-    >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "eg1/shallow_alg.f90"
+    >>> schedule = get_psylayer_schedule(filename, "gocean-examples")
     >>>
     >>> from psyclone.domain.gocean.transformations import GOceanExtractTrans
     >>> etrans = GOceanExtractTrans()
     >>>
     >>> # Apply GOceanExtractTrans transformation to selected Nodes
     >>> etrans.apply(schedule.children[0])
-    >>> print(schedule.view())
+
     '''
 
     # ------------------------------------------------------------------------
     def validate(self, node_list, options=None):
-        ''' Perform GOcean1.0 API specific validation checks before applying
+        ''' Perform GOcean API specific validation checks before applying
         the transformation.
 
         :param node_list: the list of Node(s) we are checking.
@@ -156,6 +151,7 @@ class GOceanExtractTrans(ExtractTrans):
         new_node = nodes[0].ancestor(ExtractNode)
         if my_options.get("create_driver", False):
             region_name = my_options.get("region_name", None)
-            new_node._driver_creator = GOceanDriverCreator(INTEGER_TYPE,
-                                                           REAL8_TYPE,
-                                                           region_name)
+            new_node._driver_creator = GOceanDriverCreator(
+                ScalarType.integer_type(),
+                ScalarType.real8_type(),
+                region_name)

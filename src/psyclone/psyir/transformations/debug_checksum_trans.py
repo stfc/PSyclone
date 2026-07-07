@@ -45,7 +45,7 @@ from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin
 )
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, PreprocessorInterface, ScalarType
+    DataSymbol, PreprocessorInterface, ScalarType
 )
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
@@ -69,8 +69,7 @@ class DebugChecksumTrans(RegionTrans):
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
-    >>> from psyclone.transformations import DebugChecksumTrans
-
+    >>> from psyclone.psyir.transformations import DebugChecksumTrans
     >>> psyir = FortranReader().psyir_from_source("""
     ...     subroutine mysubroutine()
     ...     integer, dimension(10,10) :: A
@@ -78,14 +77,14 @@ class DebugChecksumTrans(RegionTrans):
     ...     integer :: j
     ...     do i = 1, 10
     ...       do j = 1, 10
-    ...         A(i,j) = A(i,k) + i-j
+    ...         A(i,j) = A(i,j) + i-j
     ...       end do
     ...     end do
     ...     end subroutine
     ...     """)
-    ... loop = psyir.children[0].children[0]
-    ... DebugChecksumTrans().apply(loop)
-    ... print(FortranWriter()(psyir))
+    >>> loop = psyir.children[0].children[0]
+    >>> DebugChecksumTrans().apply(loop)
+    >>> print(FortranWriter()(psyir))
     subroutine mysubroutine()
       integer, dimension(10,10) :: a
       integer :: i
@@ -98,14 +97,17 @@ class DebugChecksumTrans(RegionTrans):
         enddo
       enddo
       PSYCLONE_INTERNAL_line_ = __LINE__
+    <BLANKLINE>
+      ! PSyclone DebugChecksumTrans-generated checksums
       PRINT *, "PSyclone checksums from mysubroutine at line:", \
 PSYCLONE_INTERNAL_line_ + 1
-      PRINT *, "a checksum", SUM(a)
+      PRINT *, "a checksum", SUM(a(:, :))
     <BLANKLINE>
     end subroutine mysubroutine
     <BLANKLINE>
 
     '''
+
     def apply(self, node: Union[Node, List[Node]],
               **kwargs) -> None:
         '''
@@ -223,10 +225,11 @@ PSYCLONE_INTERNAL_line_ + 1
         # __LINE__, and use the internal symbol to create the print statement.
         internal_line = routine_table.find_or_create(
                 "PSYCLONE_INTERNAL_line_", symbol_type=DataSymbol,
-                datatype=INTEGER_TYPE,
+                datatype=ScalarType.integer_type(),
                 )
         line = routine_table.find_or_create(
-                "__LINE__", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                "__LINE__", symbol_type=DataSymbol,
+                datatype=ScalarType.integer_type(),
                 interface=PreprocessorInterface())
         # Tell us where we are to output the checksums.
         explanation_statement = freader.psyir_from_statement(

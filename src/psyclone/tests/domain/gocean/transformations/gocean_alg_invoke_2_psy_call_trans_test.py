@@ -44,7 +44,7 @@ from psyclone.domain.common.algorithm import (
     AlgorithmInvokeCall, KernelFunctor)
 from psyclone.psyir.nodes import Reference, Literal, ArrayReference
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
-    REAL_TYPE, Symbol, DataSymbol, ArrayType, INTEGER_TYPE
+    ScalarType, Symbol, DataSymbol, ArrayType
 from psyclone.domain.gocean.transformations import GOceanAlgInvoke2PSyCallTrans
 
 
@@ -52,17 +52,18 @@ def test_get_arguments(monkeypatch):
     '''Test the GOceanAlgInvoke2PSyCallTrans get_arguments method.'''
 
     args_in = [Reference(Symbol("arg0")),
-               Literal("1.0", REAL_TYPE),
+               Literal("1.0", ScalarType.real_type()),
                ArrayReference.create(DataSymbol(
                    "arg2", ArrayType(
-                       REAL_TYPE, [10])), [Literal("1", INTEGER_TYPE)]),
+                       ScalarType.real_type(), [10])),
+                       [Literal("1", ScalarType.integer_type())]),
                Reference(Symbol("arg3"))]
     kernel_functor1 = KernelFunctor.create(
-        DataTypeSymbol("test1", REAL_TYPE), args_in)
+        DataTypeSymbol("test1", ScalarType.real_type()), args_in)
 
     args_in = [Reference(Symbol("arg3"))]
     kernel_functor2 = KernelFunctor.create(
-        DataTypeSymbol("test2", REAL_TYPE), args_in)
+        DataTypeSymbol("test2", ScalarType.real_type()), args_in)
 
     routine = RoutineSymbol("hello")
     index = 0

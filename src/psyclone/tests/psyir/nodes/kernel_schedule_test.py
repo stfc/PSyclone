@@ -39,7 +39,7 @@
 
 from psyclone.psyir.nodes import Assignment, Reference, Literal, \
     KernelSchedule, Container
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE, \
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, ScalarType, \
     RoutineSymbol
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
@@ -77,10 +77,10 @@ def test_kernelschedule_create():
 
     '''
     symbol_table = SymbolTable()
-    symbol = DataSymbol("tmp", REAL_TYPE)
+    symbol = DataSymbol("tmp", ScalarType.real_type())
     symbol_table.add(symbol)
     assignment = Assignment.create(Reference(symbol),
-                                   Literal("0.0", REAL_TYPE))
+                                   Literal("0.0", ScalarType.real_type()))
     kschedule = KernelSchedule.create("mod_name", symbol_table, [assignment])
     assert isinstance(kschedule, KernelSchedule)
     # A KernelSchedule is not a main program and has no return value.

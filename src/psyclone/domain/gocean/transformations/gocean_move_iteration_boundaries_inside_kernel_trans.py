@@ -42,8 +42,7 @@ from psyclone.psyGen import Transformation, InvokeSchedule
 from psyclone.gocean1p0 import GOKern
 from psyclone.psyir.nodes import (BinaryOperation, Container, Reference, Loop,
                                   Assignment, IfBlock, Return)
-from psyclone.psyir.symbols import (INTEGER_TYPE, ArgumentInterface,
-                                    DataSymbol)
+from psyclone.psyir.symbols import ScalarType, ArgumentInterface, DataSymbol
 
 
 class GOMoveIterationBoundariesInsideKernelTrans(Transformation,
@@ -154,19 +153,19 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation,
             # end of the kernel argument list
             xstart_symbol = kernel_st.new_symbol(
                 "xstart", tag="xstart_arg",
-                symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                symbol_type=DataSymbol, datatype=ScalarType.integer_type(),
                 interface=ArgumentInterface(ArgumentInterface.Access.READ))
             xstop_symbol = kernel_st.new_symbol(
                 "xstop", tag="xstop_arg",
-                symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                symbol_type=DataSymbol, datatype=ScalarType.integer_type(),
                 interface=ArgumentInterface(ArgumentInterface.Access.READ))
             ystart_symbol = kernel_st.new_symbol(
                 "ystart", tag="ystart_arg",
-                symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                symbol_type=DataSymbol, datatype=ScalarType.integer_type(),
                 interface=ArgumentInterface(ArgumentInterface.Access.READ))
             ystop_symbol = kernel_st.new_symbol(
                 "ystop", tag="ystop_arg",
-                symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                symbol_type=DataSymbol, datatype=ScalarType.integer_type(),
                 interface=ArgumentInterface(ArgumentInterface.Access.READ))
             kernel_st.specify_argument_list(
                 iteration_indices + data_arguments +
@@ -228,16 +227,16 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation,
         # Make sure the boundary symbols in the PSylayer exist
         inv_xstart = invoke_st.find_or_create_tag(
             "xstart_" + node.name, root_name="xstart", symbol_type=DataSymbol,
-            datatype=INTEGER_TYPE)
+            datatype=ScalarType.integer_type())
         inv_xstop = invoke_st.find_or_create_tag(
             "xstop_" + node.name, root_name="xstop", symbol_type=DataSymbol,
-            datatype=INTEGER_TYPE)
+            datatype=ScalarType.integer_type())
         inv_ystart = invoke_st.find_or_create_tag(
             "ystart_" + node.name, root_name="ystart", symbol_type=DataSymbol,
-            datatype=INTEGER_TYPE)
+            datatype=ScalarType.integer_type())
         inv_ystop = invoke_st.find_or_create_tag(
             "ystop_" + node.name, root_name="ystop", symbol_type=DataSymbol,
-            datatype=INTEGER_TYPE)
+            datatype=ScalarType.integer_type())
 
         # If the kernel acts on the whole iteration space, the boundary values
         # are not needed. This also avoids adding duplicated arguments if this

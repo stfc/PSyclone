@@ -60,10 +60,10 @@ class DataNode(Node):
         from psyclone.psyir.nodes.loop import Loop
         from psyclone.psyir.nodes.ranges import Range
         from psyclone.psyir.symbols.datatypes import (
-            UnresolvedType, INTEGER_TYPE)
+            UnresolvedType, ScalarType)
         # If it is a direct child of Loop or Range, it can only be an Integer
         if self.parent and isinstance(self.parent, (Loop, Range)):
-            return INTEGER_TYPE
+            return ScalarType.integer_type()
         return UnresolvedType()
 
     def is_character(self, unknown_as: Optional[bool] = None) -> bool:

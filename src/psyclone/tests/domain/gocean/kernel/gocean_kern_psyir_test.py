@@ -53,7 +53,7 @@ from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import Container
-from psyclone.psyir.symbols import SymbolTable, REAL_TYPE
+from psyclone.psyir.symbols import SymbolTable, ScalarType
 
 METADATA = ("TYPE, EXTENDS(kernel_type) :: compute_cu\n"
             "  TYPE(go_arg), DIMENSION(4) :: meta_args = (/ &\n"
@@ -206,7 +206,7 @@ def test_goceankernelmetadata_create1(fortran_reader):
     assert "Expected a DataTypeSymbol but found a str." in str(info.value)
     metadata = GOceanKernelMetadata.create_from_psyir(symbol)
     assert METADATA in metadata.fortran_string()
-    symbol._datatype = REAL_TYPE
+    symbol._datatype = ScalarType.real_type()
     with pytest.raises(InternalError) as info:
         _ = GOceanKernelMetadata.create_from_psyir(symbol)
     assert ("Expected kernel metadata to be stored in the PSyIR as an "

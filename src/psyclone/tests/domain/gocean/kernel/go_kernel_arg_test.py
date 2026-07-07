@@ -52,7 +52,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import (Node, StructureReference, Member,
                                   StructureMember, Reference, Literal)
 from psyclone.psyir.symbols import (SymbolTable, UnresolvedType, DataSymbol,
-                                    ScalarType, INTEGER_TYPE, REAL_TYPE,
+                                    ScalarType,
                                     ArgumentInterface, DataTypeSymbol)
 from psyclone.tests.utilities import get_base_path, get_invoke
 
@@ -84,9 +84,9 @@ def test_gokernelarguments_append():
 
     # Append well-constructed arguments
     var1 = symtab.new_symbol("var1", symbol_type=DataSymbol,
-                             datatype=REAL_TYPE)
+                             datatype=ScalarType.real_type())
     var2 = symtab.new_symbol("var2", symbol_type=DataSymbol,
-                             datatype=INTEGER_TYPE)
+                             datatype=ScalarType.integer_type())
     argument_list.append(var1.name, "go_r_scalar")
     argument_list.append(var2.name, "go_i_scalar")
 
@@ -126,7 +126,7 @@ def test_gokernelargument_infer_datatype():
     argument_list = kernelcall.arguments
 
     # The first argument is a scalar Integer
-    assert argument_list.args[0].infer_datatype() == INTEGER_TYPE
+    assert argument_list.args[0].infer_datatype() == ScalarType.integer_type()
 
     # The second argument is a r2d_field (imported DataTypeSymbol)
     assert isinstance(argument_list.args[1].infer_datatype(), DataTypeSymbol)
@@ -280,10 +280,10 @@ def test_gokernelargument_type(monkeypatch):
     # the first two kernel arguments are nor scalar integers.
 
     symbol_table = GOSymbolTable()
-    i_var = DataSymbol("i", INTEGER_TYPE,
+    i_var = DataSymbol("i", ScalarType.integer_type(),
                        interface=ArgumentInterface(
                            ArgumentInterface.Access.READ))
-    j_var = DataSymbol("j", INTEGER_TYPE,
+    j_var = DataSymbol("j", ScalarType.integer_type(),
                        interface=ArgumentInterface(
                            ArgumentInterface.Access.READ))
     symbol_table.specify_argument_list([i_var, j_var])

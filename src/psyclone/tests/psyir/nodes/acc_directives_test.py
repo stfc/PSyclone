@@ -57,10 +57,10 @@ from psyclone.psyir.nodes import (
     ACCDirective)
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.symbols import (
-    Symbol, SymbolTable, DataSymbol, INTEGER_TYPE)
-from psyclone.psyir.transformations import ACCKernelsTrans
+    Symbol, SymbolTable, DataSymbol, ScalarType)
+from psyclone.psyir.transformations import ACCKernelsTrans, ACCLoopTrans
 from psyclone.transformations import (
-    ACCDataTrans, ACCEnterDataTrans, ACCLoopTrans,
+    ACCDataTrans, ACCEnterDataTrans,
     ACCParallelTrans, ACCRoutineTrans)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -92,17 +92,21 @@ def test_accregiondir_signatures():
     routine = Routine.create("test_prog")
     accnode = MyACCRegion()
     routine.addchild(accnode)
-    bob = DataSymbol("bob", INTEGER_TYPE)
-    richard = DataSymbol("richard", INTEGER_TYPE)
+    bob = DataSymbol("bob", ScalarType.integer_type())
+    richard = DataSymbol("richard", ScalarType.integer_type())
     routine.symbol_table.add(bob)
     accnode.dir_body.addchild(
-        Assignment.create(lhs=Reference(bob), rhs=Literal("1", INTEGER_TYPE)))
+        Assignment.create(lhs=Reference(bob),
+                          rhs=Literal("1", ScalarType.integer_type())))
     accnode.dir_body.addchild(
-        Assignment.create(lhs=Reference(bob), rhs=Literal("1", INTEGER_TYPE)))
+        Assignment.create(lhs=Reference(bob),
+                          rhs=Literal("1", ScalarType.integer_type())))
     accnode.dir_body.addchild(
-        Assignment.create(lhs=Reference(bob), rhs=Literal("1", INTEGER_TYPE)))
+        Assignment.create(lhs=Reference(bob),
+                          rhs=Literal("1", ScalarType.integer_type())))
     accnode.dir_body.addchild(
-        Assignment.create(lhs=Reference(bob), rhs=Reference(richard)))
+        Assignment.create(lhs=Reference(bob),
+                          rhs=Reference(richard)))
     # pylint: disable=unbalanced-tuple-unpacking
     reads, writes = accnode.signatures
     assert Signature("richard") in reads
@@ -116,7 +120,7 @@ def test_accenterdatadirective_init():
     the ACCAsyncMixin'''
     _ = ACCEnterDataDirective()
     directive = ACCEnterDataDirective(async_queue=1)
-    assert directive.async_queue == Literal("1", INTEGER_TYPE)
+    assert directive.async_queue == Literal("1", ScalarType.integer_type())
 
 
 # (1/4) Method lower_to_language_level
@@ -643,7 +647,7 @@ def test_directives_async_queue(directive_type, fortran_writer):
     # Value is a PSyIR expression
     directive.async_queue = BinaryOperation.create(
         BinaryOperation.Operator.ADD,
-        Literal("1", INTEGER_TYPE),
+        Literal("1", ScalarType.integer_type()),
         Reference(Symbol("stream")))
     assert 'async(1 + stream)' in fortran_writer(directive).split('\n')[0]
 

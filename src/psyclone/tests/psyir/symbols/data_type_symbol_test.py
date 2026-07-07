@@ -42,8 +42,7 @@ import pytest
 from psyclone.psyir.nodes import Reference
 from psyclone.psyir.symbols import (
     ArrayType, AutomaticInterface, DataSymbol, DataTypeSymbol,
-    INTEGER_TYPE, Symbol, UnresolvedInterface, UnresolvedType,
-    REAL_SINGLE_TYPE)
+    Symbol, UnresolvedInterface, UnresolvedType, ScalarType)
 
 
 def test_create_datatypesymbol():
@@ -80,7 +79,8 @@ def test_datatypesymbol_copy():
 
 def test_data_type_symbol_copy_properties():
     ''' Check that the copy_properties() method works as expected. '''
-    symbol = DataTypeSymbol("origin", ArrayType(REAL_SINGLE_TYPE, [1, 2]),
+    symbol = DataTypeSymbol("origin", ArrayType(ScalarType.real_single_type(),
+                                                [1, 2]),
                             interface=UnresolvedInterface())
     new_sym = DataTypeSymbol("new_name", UnresolvedType())
 
@@ -100,15 +100,15 @@ def test_data_type_symbol_copy_properties():
     assert isinstance(new_sym.interface, UnresolvedInterface)
 
     with pytest.raises(TypeError) as err:
-        new_sym.copy_properties(REAL_SINGLE_TYPE)
+        new_sym.copy_properties(ScalarType.real_single_type())
     assert ("Argument should be of type 'DataTypeSymbol' but found "
             "'ScalarType'" in str(err.value))
 
 
 def test_dts_get_all_accessed_symbols():
     '''Test the get_all_accessed_symbols() method.'''
-    ndim = DataSymbol("ndim", INTEGER_TYPE)
-    symbol = DataTypeSymbol("origin", ArrayType(REAL_SINGLE_TYPE,
+    ndim = DataSymbol("ndim", ScalarType.integer_type())
+    symbol = DataTypeSymbol("origin", ArrayType(ScalarType.real_single_type(),
                                                 [1, Reference(ndim)]))
     dependent_symbols = symbol.get_all_accessed_symbols()
     assert ndim in dependent_symbols
