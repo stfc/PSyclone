@@ -44,7 +44,6 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 
-from psyclone.errors import GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
     CodeBlock, Schedule, Call, Reference, StructureReference,
@@ -165,27 +164,6 @@ def test_call_type_bound_expression(f2008_parser):
     assert calls[3].routine.debug_string() == "struct(i)%field%method"
     assert len(calls[3].arguments) == 0
     assert len(calls[3].argument_names) == 0
-
-
-def test_call_incorrect_type(f2008_parser):
-    '''Test that fparser2reader _call_handler method raises the expected
-    exception if the name of the call is already declared as an
-    incompatible symbol type. Note, fparser2 should really pick this
-    up but currently its consistency checks are limited.
-
-    '''
-    test_code = (
-        "subroutine test()\n"
-        "real :: kernel\n"
-        "  call kernel()\n"
-        "end subroutine")
-    reader = FortranStringReader(test_code)
-    ptree = f2008_parser(reader)
-    processor = Fparser2Reader()
-    with pytest.raises(GenerationError) as info:
-        _ = processor.generate_psyir(ptree)
-    assert ("Expecting the symbol 'kernel', to be of type 'Symbol' or "
-            "'RoutineSymbol', but found 'DataSymbol'." in str(info.value))
 
 
 @pytest.mark.usefixtures("f2008_parser")

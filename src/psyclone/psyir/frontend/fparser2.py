@@ -5598,8 +5598,6 @@ class Fparser2Reader():
 
         self.process_nodes(parent=call, nodes=[node.items[0]])
         routine = call.children[0]
-        # If it's a call statement, it is unambiguously a RoutineSymbol
-        # pylint: disable=unidiomatic-typecheck
         if (
             isinstance(node, Fortran2003.Call_Stmt) and
             type(routine) is Reference
