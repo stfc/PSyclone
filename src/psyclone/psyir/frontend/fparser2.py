@@ -1801,7 +1801,10 @@ class Fparser2Reader():
         self,
         scope: ScopingNode,
         symbol_table: SymbolTable,
-        decl: Fortran2003.Type_Declaration_Stmt,
+        decl: Union[
+                Fortran2003.Type_Declaration_Stmt,
+                Fortran2003.Data_Component_Def_Stmt,
+                Fortran2003.Procedure_Stmt],
         visibility_map: Optional[dict[str, Symbol.Visibility]] = None,
         statics_list: Iterable[str] = (),
         preceding_comments: Iterable[str] = (),
@@ -1845,13 +1848,19 @@ class Fparser2Reader():
             else:
                 decln_vis = symbol_table.default_visibility
 
-            orig_children = list(decl.children[2].children[:])
-            for child in orig_children:
+            entities = walk(decl, (Fortran2003.Proc_Decl_List,
+                                   Fortran2003.Component_Decl_List,
+                                   Fortran2003.Entity_Decl_List))[0]
+            # We keep a copy of the original children because we will
+            # restore it later.
+            entities_children = entities.children[:]
+            for entity in entities_children:
                 # Modify the fparser2 parse tree so that it only
                 # declares the current entity. `items` is a tuple and
                 # thus immutable so we create a new one.
-                decl.children[2].items = (child,)
-                symbol_name = str(child.children[0]).lower()
+                decl.children[2].items = (entity,)
+                name = walk(entity, Fortran2003.Name)[0]
+                symbol_name = str(name).lower()
                 vis = visibility_map.get(symbol_name, decln_vis)
 
                 # Check whether the symbol we're about to add
@@ -1891,14 +1900,14 @@ class Fparser2Reader():
                         = (new_symbol, decl.item.span)
                     symbol_table.add(new_symbol)
                 except KeyError as err:
-                    if len(orig_children) == 1:
+                    if len(entities_children) == 1:
                         raise SymbolError(
                             f"Error while processing unsupported "
                             f"declaration ('{decl}'). An entry for "
                             f"symbol '{symbol_name}' is already in "
                             f"the symbol table.") from err
             # Restore the fparser2 parse tree
-            decl.children[2].items = tuple(orig_children)
+            decl.children[2].items = tuple(entities_children)
 
     def _process_decln(
         self,
@@ -2692,7 +2701,8 @@ class Fparser2Reader():
                 self._process_interface_block(node, parent.symbol_table,
                                               visibility_map)
 
-            elif isinstance(node, Fortran2003.Type_Declaration_Stmt):
+            elif isinstance(node, (Fortran2003.Type_Declaration_Stmt,
+                                   Fortran2003.Procedure_Declaration_Stmt)):
                 self._process_decl_or_create_unsupported(
                     parent, parent.symbol_table, node, visibility_map,
                     statics_list, preceding_comments)
@@ -5600,18 +5610,13 @@ class Fparser2Reader():
                 # Specialise routine_symbol from a Symbol to a
                 # RoutineSymbol
                 routine_symbol.specialise(RoutineSymbol)
-            elif isinstance(routine_symbol, RoutineSymbol):
-                # This symbol is already the expected type
-                pass
-            else:
-                raise GenerationError(
-                    f"Expecting the symbol '{routine_symbol.name}', to be of "
-                    f"type 'Symbol' or 'RoutineSymbol', but found "
-                    f"'{type(routine_symbol).__name__}'.")
 
             # If it is a call statement, it must be a subroutine (not a
             # function) otherwise this would be invalid Fortran.
-            if isinstance(node, Fortran2003.Call_Stmt):
+            if (
+                isinstance(routine_symbol, RoutineSymbol) and
+                isinstance(node, Fortran2003.Call_Stmt)
+            ):
                 routine_symbol.datatype = NoType()
 
         return self._process_args(node, call)
