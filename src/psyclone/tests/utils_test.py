@@ -359,7 +359,7 @@ def test_stringify_annotation():
         if "any_length" == k:
             anno = stringify_annotation(v.annotation)
             assert "tuple[int, ...]" == anno
-            
+
         if "custom_class" == k:
             anno = stringify_annotation(v.annotation)
             assert "Transformation" == anno
@@ -367,6 +367,7 @@ def test_stringify_annotation():
         if "forwardref" == k:
             anno = stringify_annotation(v.annotation)
             assert "Transformation" == anno
+
 
 def test_transformation_doc_wrapper_subtrans():
     '''Test the transformation doc wrapper works correctly for
