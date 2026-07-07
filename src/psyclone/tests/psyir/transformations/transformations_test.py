@@ -41,6 +41,7 @@
 API-agnostic tests for various transformation classes.
 '''
 
+import logging
 import sys
 import os
 import pytest
@@ -271,7 +272,7 @@ def test_ompdeclaretargettrans_detached_scope_fallback(sample_psyir,
     monkeypatch.setattr(routine, "reference_accesses", lambda: DummyVAM())
     with pytest.raises(TransformationError) as err:
         ompdeclaretargettrans.apply(routine)
-    assert "which is imported" in str(err.value)
+    assert "accesses the imported symbol" in str(err.value)
 
 
 def test_omptaskloop_no_collapse():
@@ -429,9 +430,9 @@ def test_ompdeclaretargettrans_with_globals(sample_psyir, parser):
     ref1.symbol.interface = ImportInterface(ContainerSymbol('my_mod'))
     with pytest.raises(TransformationError) as err:
         ompdeclaretargettrans.apply(routine)
-    assert ("routine 'my_subroutine' accesses the symbol 'a: DataSymbol<Array"
-            "<Scalar<INTEGER, UNDEFINED>, shape=[10, 10]>, "
-            "Import(container='my_mod')>' which is imported. If this symbol "
+    assert ("routine 'my_subroutine' accesses the imported symbol "
+            "'a: DataSymbol<Array<Scalar<INTEGER, UNDEFINED>, shape=[10, 10]>,"
+            " Import(container='my_mod')>'. If this symbol "
             "represents data then it must first be converted to a routine "
             "argument using the KernelImportsToArguments transformation."
             in str(err.value))
@@ -448,9 +449,9 @@ def test_ompdeclaretargettrans_with_globals(sample_psyir, parser):
     ref1.replace_with(block)
     with pytest.raises(TransformationError) as err:
         ompdeclaretargettrans.apply(routine)
-    assert ("routine 'my_subroutine' accesses the symbol 'a: DataSymbol<Array<"
-            "Scalar<INTEGER, UNDEFINED>, shape=[10, 10]>, "
-            "Import(container='my_mod')>' which is imported. If this symbol "
+    assert ("routine 'my_subroutine' accesses the imported symbol "
+            "'a: DataSymbol<Array<Scalar<INTEGER, UNDEFINED>, shape=[10, 10]>,"
+            " Import(container='my_mod')>'. If this symbol "
             "represents data then it must first be converted to a routine "
             "argument using the KernelImportsToArguments transformation."
             in str(err.value))
@@ -509,6 +510,53 @@ def test_omplooptrans_properties():
         omplooptrans.omp_schedule = "dynamic,"
     assert ("Supplied OpenMP schedule 'dynamic,' has an invalid chunk-size."
             in str(err.value))
+
+
+def test_omplooptrans_apply_force_private(fortran_reader, fortran_writer,
+                                          tmpdir, caplog):
+    ''' Test applying the OMPParallelLoopTrans in cases where a list of
+    explicit private variables is given. '''
+
+    psyir = fortran_reader.psyir_from_source('''
+        module my_mod
+            contains
+            subroutine my_subroutine()
+                integer :: ji, jj, jk, jpkm1, jpjm1, jpim1, scalar1
+                real, dimension(10, 10, 10) :: array1, array2
+                array2 = 1
+                do jk = 2, jpkm1, 1
+                  do jj = 2, jpjm1, 1
+                    do ji = 2, jpim1, 1
+                       array2(ji,jj,jk) = array2(ji,jj,jk) + 1
+                       array1(ji,jj,jk) = array2(ji,jj,jk)
+                    enddo
+                  enddo
+                enddo
+            end subroutine
+        end module my_mod''')
+    omplooptrans = OMPParallelLoopTrans()
+    loop = psyir.walk(Loop)[0]
+
+    caplog.clear()
+    with caplog.at_level(logging.WARNING,
+                         logger="psyclone.psyir.transformations"):
+        omplooptrans.apply(loop, force_private=['array2', 'other'])
+
+    # 'other' is not used, but this is logged
+    assert ("OMPParallelLoopTrans has been provided with the 'other' symbol "
+            "name in the 'force_private' option, but there is no such symbol "
+            "in this scope." in caplog.text)
+
+    # array2 is requested private, the shared_attibute_inference promotes it to
+    # firstprivate because it is read first
+    expected = '''\
+    !$omp parallel do default(shared) private(ji,jj,jk) firstprivate(array2) \
+schedule(auto)
+    do jk = 2, jpkm1, 1\n'''
+
+    gen = fortran_writer(psyir)
+    assert expected in gen
+    assert Compile(tmpdir).string_compiles(gen)
 
 
 def test_omplooptrans_apply_firstprivate(fortran_reader, fortran_writer,
