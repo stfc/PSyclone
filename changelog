@@ -1,3 +1,6 @@
+   1) PR #3472 for #3471. Let the transformations get_options method
+   account for sub-transformation options.
+  
 Release 3.3.1 7th July 2026
 
    5) PR #3431. Adds the force_private option to the OMPParallelTrans.
