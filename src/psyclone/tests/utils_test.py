@@ -358,7 +358,9 @@ def test_stringify_annotation():
 
         if "any_length" == k:
             anno = stringify_annotation(v.annotation)
-            assert "tuple[int, ...]" == anno
+            # Python 3.9 does not support '...', but it doesn't fail, it just
+            # truncates the resulting string
+            assert "tuple[int, ...]" == anno or "tuple" == anno
 
         if "custom_class" == k:
             anno = stringify_annotation(v.annotation)
