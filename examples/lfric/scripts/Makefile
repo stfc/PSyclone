@@ -36,9 +36,8 @@
 
 include ../../common.mk
 
-# Get all psyclone scripts in this folder, which are all python files excluding
-# the compare_output.py script
-SCRIPTS = $(filter-out compare_output.py, $(wildcard *.py))
+# Get all psyclone scripts in this folder, which are all python files
+SCRIPTS = $(wildcard *.py)
 
 # The kernel-extraction script generates driver source files.
 GENERATED_FILES += driver-*.F90

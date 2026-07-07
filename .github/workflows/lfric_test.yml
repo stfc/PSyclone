@@ -125,7 +125,7 @@ jobs:
         export OMP_NUM_THREADS=1
         export START_TIME=$SECONDS
         mpirun -n 12 ../bin/gungho_model configuration.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_output.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
+        diff ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums-gnu-12r-1t.txt gungho_model-checksums.txt
         export VAR_TIME=$((${SECONDS}-${START_TIME}))
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
@@ -162,7 +162,7 @@ jobs:
         export CUDA_VISIBLE_DEVICES=1
         export START_TIME=$SECONDS
         mpirun -n 1 ../bin/gungho_model configuration.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_output.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
+        diff ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums-nvhpc-1r-12t.txt gungho_model-checksums.txt
         export VAR_TIME=$((${SECONDS}-${START_TIME}))
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
         echo "build_time=${BUILD_ELAPSED}" >> "${GITHUB_OUTPUT}"
@@ -193,7 +193,7 @@ jobs:
         export CUDA_VISIBLE_DEVICES=1
         export START_TIME=$SECONDS
         mpirun -n 1 ../bin/gungho_model configuration.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_output.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
+        diff ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums-nvhpc-1r-12t.txt gungho_model-checksums.txt
         export VAR_TIME=$((${SECONDS}-${START_TIME}))
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
@@ -219,10 +219,10 @@ jobs:
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
-        export OMP_NUM_THREADS=2
+        export OMP_NUM_THREADS=4
         export START_TIME=$SECONDS
         mpirun -n 6 ../bin/gungho_model configuration.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_output.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
+        diff ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums-gnu-6r-4t.txt gungho_model-checksums.txt
         export VAR_TIME=$((${SECONDS}-${START_TIME}))
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
@@ -248,10 +248,10 @@ jobs:
         # Run
         cd applications/gungho_model/example
         rm -f timer.txt gungho_model-checksums.txt  # In case there were from a previous run
-        export OMP_NUM_THREADS=2
+        export OMP_NUM_THREADS=4
         export START_TIME=$SECONDS
         mpirun -n 6 ../bin/gungho_model configuration.nml
-        python ${PSYCLONE_LFRIC_DIR}/compare_output.py ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums.txt gungho_model-checksums.txt
+        diff ${PSYCLONE_LFRIC_DIR}/KGOs/gungho_model-checksums-gnu-6r-4t.txt gungho_model-checksums.txt
         export VAR_TIME=$((${SECONDS}-${START_TIME}))
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
@@ -279,7 +279,7 @@ jobs:
         OMP_NUM_THREADS=8 mpirun -n 1 ../bin/lfric_atm configuration.nml
 
         # And compare the results
-        python ${PSYCLONE_LFRIC_DIR}/compare_output.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_atm-checksums.txt lfric_atm-checksums.txt
+        diff ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_atm-checksums-gnu-1r-8t.txt lfric_atm-checksums.txt
         export VAR_TIME=$((${SECONDS}-${START_TIME}))
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
         echo "build_time=${BUILD_ELAPSED}" >> "${GITHUB_OUTPUT}"
