@@ -42,11 +42,12 @@ LFRic field arguments.
 '''
 
 import os
+import pytest
 
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import get_invoke, get_psylayer_schedule
 
 
 # Constants
@@ -1211,3 +1212,15 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         assert halo2_flags in generated_code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_field_nlevels():
+    '''Test for a kernel that has an argument with a non-default value of
+    NLAYERS.
+
+    '''
+    with pytest.raises(NotImplementedError) as err:
+        _ = get_psylayer_schedule("1.5.6_single_invoke_nlevels.f90",
+                                  TEST_API)
+    assert ("Cannot generate arguments for kernel 'testkern_nlevels_code'"
+            in str(err.value))

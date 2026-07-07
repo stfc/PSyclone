@@ -42,7 +42,7 @@ kernel calls.
 import abc
 
 from psyclone import psyGen
-from psyclone.core import AccessType, Signature
+from psyclone.core import AccessType, Signature, VariablesAccessMap
 # The next two imports cannot be merged, since this would create
 # a circular dependency.
 from psyclone.domain.lfric import LFRicConstants
@@ -354,7 +354,7 @@ class ArgOrdering:
         '''
         return self._arg_index_to_metadata_index[idx]
 
-    def generate(self, var_accesses=None):
+    def generate(self, var_accesses: VariablesAccessMap = None):
         # pylint: disable=too-many-statements, too-many-branches
         '''
         Specifies which arguments appear in an argument list, their type
@@ -365,12 +365,10 @@ class ArgOrdering:
         (i.e. that is not explicitly listed in kernel metadata) that is
         added. These accesses will be marked as read.
 
-        :param var_accesses: optional VariablesAccessMap instance that \
+        :param var_accesses: optional VariablesAccessMap instance that
             stores the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
-        :raises GenerationError: if the kernel arguments break the \
+        :raises GenerationError: if the kernel arguments break the
                                  rules for the LFRic API.
 
         '''
