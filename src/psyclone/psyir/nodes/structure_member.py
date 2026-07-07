@@ -67,6 +67,7 @@ class StructureMember(StructureAccessorMixin, Member):
         the 'xstart' component of it. We would therefore create the
         `StructureMember` for this by calling:
 
+        >>> from psyclone.psyir.nodes import StructureMember, Member
         >>> smem = StructureMember.create("subdomain", Member("xstart"))
 
         :param str member_name: name of the structure member.
