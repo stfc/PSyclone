@@ -2135,7 +2135,7 @@ def trans_alg(psyir, **kwargs):
 @pytest.mark.parametrize("kwargs", ["1", "'a'", "[1,2]", "{1:2}",
                                     "a=1"])
 def test_script_arguments_errors(kwargs):
-    """Tests that script arguments errors are handled as correctly. We need
+    """Tests that script arguments errors are handled correctly. We need
     to specify a script name on the command line (in order to trigger the
     parsing of the script options), but the actual script does not need to
     exist, since the code will abort earlier (same for input or output
@@ -2156,7 +2156,7 @@ def test_script_args_with_no_script(capsys):
 
     with pytest.raises(SystemExit):
         main(["--script-kwargs", "a:1", "does_not_exist.f90"])
-    out, _ = capsys.readouterr()
+    _, err = capsys.readouterr()
 
     assert ("The '--script-kwargs' argument is only valid if a script is "
-            "specified using the '--script' option" in out)
+            "specified using the '--script' option" in err)

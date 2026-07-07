@@ -112,13 +112,23 @@ This will result in the additional keyword arguments for any transformation call
 
 The arguments specified will be converted into a Python-style dictionary, e.g.
 ``omp: True, tiling: [4,4]`` will be parsed as ``{omp: True, tiling: [4,4]}``.
-Therefore, the specified keyword arguments must be make a valid dictionary.
+Therefore, the specified keyword arguments must make a valid dictionary.
 For example, ``[1,2]`` is not a valid keyword argument, because ``{[1,2]}``
 is not valid Python (a list is not hashable), and ``1:2`` would not be valid,
 because the keys of keyword arguments must be strings.
 
 Obviously, the called transformation functions (``trans``, but also
-``trans_alg``, see below) must accept the specified keyword arguments.
+``trans_alg``, see below) must accept the specified keyword arguments. If
+an undeclared keyword argument is specified on the command line, the following
+error will be raised:
+
+.. code-block:: shell
+
+    psyclone -s ./omp_gpu_profile_trans.py --script-kwargs "undeclared: True" ...
+    Traceback (most recent call last):
+    ...
+    TypeError: trans() got an unexpected keyword argument 'undeclared'
+
 
 .. _sec_script_globals:
 

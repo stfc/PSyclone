@@ -248,12 +248,14 @@ def transformation_documentation_wrapper(*args,
 # ----------------------------------------------------------------------------
 def parse_kwargs(kwargs: str) -> dict[str, Any]:
     """
-    This function safely parses a user string provided on the command line
-    using '--kwargs ...' into a python dictionary. It especially simplifies
-    the syntax for the user by not requiring the keys to be escaped, e.g.
-    --kwargs "'a':1,'b':2" and --kwargs "a:1,b:2" will both work as expected.
+    This function safely parses a string containing a `,` separated list of
+    `keyword: value` specifications (e.g. ``a: 1, b: [1,2]`) into a python
+    dictionary. I.e, it adds ``{}`` around the user string and then parses
+    this as a dictionary. It especially simplifies the syntax for the user by
+    not requiring the keys to be escaped, e.g. ``"'a':1,'b':2"`` and
+    ``"a:1,b:2"`` will both work as expected.
 
-    This is done by using Python'kwargs ast parser, then adding a separate
+    This is done by using Python's ast parser, then adding a separate
     transformation step that replaces keys that are an ast.Name
     with an ast.Constant, then finally calling literal_eval to
     create the dictionary.
