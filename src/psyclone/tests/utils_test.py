@@ -338,22 +338,35 @@ def test_transformation_doc_wrapper_uninheritable():
 
 def test_stringify_annotation():
     '''Test the stringify_annotation method does as expected.'''
-    def func(temp: bool, temp2: Union[bool, int]):
+    def func(basic: bool,
+             compound: Union[bool, int],
+             any_length: tuple[int, ...],
+             custom_class: Transformation,
+             forwardref: "Transformation"):
         ''' Test function for annotations.'''
 
     signature = inspect.signature(func)
     for k, v in signature.parameters.items():
-        # For first parameter temp
-        if "temp" == k:
+        if "basic" == k:
             anno = stringify_annotation(v.annotation)
             assert "bool" == anno
 
-        # For second parameter temp2
-        if "temp2" == k:
+        if "compound" == k:
             anno = stringify_annotation(v.annotation)
             # Python >= 3.14 uses the second format
             assert "typing.Union[bool, int]" == anno or "bool | int" == anno
 
+        if "any_length" == k:
+            anno = stringify_annotation(v.annotation)
+            assert "tuple[int, ...]" == anno
+            
+        if "custom_class" == k:
+            anno = stringify_annotation(v.annotation)
+            assert "Transformation" == anno
+
+        if "forwardref" == k:
+            anno = stringify_annotation(v.annotation)
+            assert "Transformation" == anno
 
 def test_transformation_doc_wrapper_subtrans():
     '''Test the transformation doc wrapper works correctly for
