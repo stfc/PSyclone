@@ -57,7 +57,8 @@ def test_ompcpuroutinetrans_apply_without_nowait(fortran_reader,
     when nowait isn't supplied.'''
 
     code = """subroutine x
-
+    integer :: i
+    integer, dimension(100) :: a, b
     do i = 1, 100
         a(i) = i
     end do
@@ -74,5 +75,55 @@ def test_ompcpuroutinetrans_apply_without_nowait(fortran_reader,
     trans.apply(psyir.children[0])
 
     out = fortran_writer(psyir)
-    print(out)
-    assert False
+    correct = """!$omp parallel default(shared) private(i)
+  !$omp do schedule(auto)
+  do i = 1, 100, 1
+    a(i) = i
+  enddo
+  !$omp end do
+  !$omp do schedule(auto)
+  do i = 1, 100, 1
+    b(i) = a(i) * 4 + i
+  enddo
+  !$omp end do
+  !$omp end parallel"""
+    assert correct in out
+
+
+def test_ompcpuroutinetrans_apply_with_nowait(fortran_reader,
+                                              fortran_writer):
+    '''Test the behaviour of the OMPCPURoutineTrans works correctly
+    when nowait is supplied.'''
+
+    code = """subroutine x
+    integer :: i
+    integer, dimension(100) :: a, b
+    do i = 1, 100
+        a(i) = i
+    end do
+
+    do i = 1, 100
+        b(i) = 4 + i
+    end do
+    end subroutine x"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+
+    trans = OMPCPURoutineTrans()
+
+    trans.apply(psyir.children[0], nowait=True)
+
+    out = fortran_writer(psyir)
+    correct = """!$omp parallel default(shared) private(i)
+  !$omp do schedule(auto)
+  do i = 1, 100, 1
+    a(i) = i
+  enddo
+  !$omp end do nowait
+  !$omp do schedule(auto)
+  do i = 1, 100, 1
+    b(i) = 4 + i
+  enddo
+  !$omp end do nowait
+  !$omp end parallel"""
+    assert correct in out
