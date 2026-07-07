@@ -1119,7 +1119,8 @@ class LFRicLoop(PSyLoop):
         if self.variable.name != "null":
             var_accesses.add_access(Signature(self.variable.name),
                                     AccessType.WRITE, self)
-            # This re
+            # This READ is needed for the OpenMP infering attributes
+            # to work as expected
             var_accesses.add_access(Signature(self.variable.name),
                                     AccessType.READ, self)
             var_accesses.update(self.start_expr.reference_accesses())

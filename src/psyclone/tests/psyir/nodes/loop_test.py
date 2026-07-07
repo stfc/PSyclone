@@ -113,7 +113,7 @@ def test_loop_navigation_properties():
     loop = Loop()
 
     # Properties return an error if the node is incomplete
-    error_str = ("Loop is incomplete. It should have exactly 4 "
+    error_str = ("Loop is incomplete. It should have exactly 5 "
                  "children, but found")
     with pytest.raises(InternalError) as err:
         _ = loop.start_expr

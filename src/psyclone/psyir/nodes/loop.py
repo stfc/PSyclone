@@ -59,7 +59,7 @@ class Loop(Statement):
      - the second one represents the loop lower bound,
      - the third one represents the loop upper bound,
      - the forth one represents the step value
-     - and the fith one is always a PSyIR Schedule node containing the
+     - and the fifth one is always a PSyIR Schedule node containing the
        statements inside the loop body.
 
     (Note: Loop only represents the equivalent to Fortran counted do loops.
@@ -269,7 +269,7 @@ class Loop(Statement):
         # (because loop bounds are evaluated dynamically).
         if len(self.children) < 5:
             raise InternalError(
-                f"Loop is incomplete. It should have exactly 4 "
+                f"Loop is incomplete. It should have exactly 5 "
                 f"children, but found loop with {len(self.children)} children:"
                 f" '{', '.join([str(child) for child in self.children])}'.")
 
