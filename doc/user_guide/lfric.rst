@@ -1758,11 +1758,17 @@ mesh must also be on the same function space.
 Number of Layers Metadata
 """""""""""""""""""""""""
 
+By default, all field/operator kernel arguments on a given function
+space are assumed to have the same number of vertical levels. The
+actual value is obtained at application runtime (by interrogating the
+first such kernel argument) and then passed to the kernel subroutine.
+
 If a particular field/operator kernel argument has a number of vertical
 levels that is *not* the same as the first field/operator argument then
 this must be specified using the ``NLAYERS`` option to ``GH_FIELD``/
-``GH_OPERATOR``. The value specified for ``NLAYERS`` may be an integer
-literal encoded as a string if it is known at compile time, e.g.::
+``GH_OPERATOR``. If the value of ``NLAYERS`` is known at compile time
+then it may be an integer literal encoded as a string, e.g. a 2D field
+would be specified as::
 
   arg_type(GH_FIELD, GH_REAL, GH_READ, W3, NLAYERS="1")
 
@@ -1770,13 +1776,15 @@ Alternatively, it may be given a name, e.g.::
 
   arg_type(GH_FIELD, GH_REAL, GH_READ, W3, NLAYERS="some name")
 
+in which case the actual value is obtained at application runtime by
+interrogating the associated LFRic field or operator object. (As a
+consequence, the name used in the metadata does not have to correspond
+to anything in the LFRic infrastructure.)
+
 If two or more field/operator arguments are on the same function space
 and have the same number of layers (whether a literal or a name) then
 only one dofmap is passed to the kernel for those arguments.
 
-(Since the value of ``NLAYERS`` is looked-up from the corresponding kernel
-argument at run time, the labels given in the kernel metadata are just that
-- they do not have to correspond to anything in the LFRic infrastructure.)
 
 Multi-Data Metadata
 """""""""""""""""""
