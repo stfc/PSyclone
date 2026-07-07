@@ -196,8 +196,8 @@ Example
 +++++++
 
 PSyclone is distributed with a full example of the use of the
-GOcean Library. See ``<PSYCLONEHOME>/examples/gocean/shallow_alg.f90``.  In what
-follows we will walk through a slightly cut-down example for a
+GOcean Library. See ``<PSYCLONEHOME>/examples/gocean/eg1/shallow_alg.f90``.
+In what follows we will walk through a slightly cut-down example for a
 different program.
 
 The following code illustrates the use of dl_esm_inf for constructing an
