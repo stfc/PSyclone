@@ -1,3 +1,6 @@
+   2) PR #3455 for #3170. Adds support for fields and operators with
+   explicit real32 and real64 kinds.
+
    1) PR #3472 for #3471. Let the transformations get_options method
    account for sub-transformation options.
   
