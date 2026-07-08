@@ -138,7 +138,8 @@ def precedence(fortran_operator):
     raise KeyError()
 
 
-def add_accessibility_to_unsupported_declaration(symbol: Symbol) -> str:
+def add_attributes_to_unsupported_declaration(
+        symbol: Symbol, include_visibility: bool) -> str:
     '''
     Utility that manipulates the UnsupportedFortranType declaration for the
     supplied Symbol so as to ensure that it has the correct accessibility
@@ -147,10 +148,10 @@ def add_accessibility_to_unsupported_declaration(symbol: Symbol) -> str:
     as is and this may or may not include accessibility information.)
 
     :param symbol: the symbol for which the declaration is required.
+    :param symbol: whether to include visibility attributes.
 
     :returns: Fortran declaration of the supplied symbol with accessibility
         information included (public/private).
-    :rtype: str
 
     :raises TypeError: if the supplied argument is not a Symbol or DerivedType
         component of UnsupportedFortranType.
@@ -187,24 +188,32 @@ def add_accessibility_to_unsupported_declaration(symbol: Symbol) -> str:
 
     parts = symbol.datatype.declaration.split("::")
     first_part = parts[0].lower()
-    if symbol.visibility == Symbol.Visibility.PUBLIC:
-        if "public" not in first_part:
-            if "private" in first_part:
-                raise InternalError(
-                    f"Symbol '{symbol.name}' of UnsupportedFortranType has "
-                    f"public visibility but its associated declaration "
-                    f"specifies that it is private: "
-                    f"'{symbol.datatype.declaration}'")
-            first_part = first_part.rstrip() + ", public "
-    else:
-        if "private" not in first_part:
-            if "public" in first_part:
-                raise InternalError(
-                    f"Symbol '{symbol.name}' of UnsupportedFortranType has "
-                    f"private visibility but its associated declaration "
-                    f"specifies that it is public: "
-                    f"'{symbol.datatype.declaration}'")
-            first_part = first_part.rstrip() + ", private "
+    components = [c.strip() for c in first_part.split(',')]
+
+    # Add save for StaticInterface
+    if symbol.is_static and "save" not in components:
+        first_part = first_part.rstrip() + ", save "
+
+    # If requested (e.g. is in a module) andd the accessibility attributes
+    if include_visibility:
+        if symbol.visibility == Symbol.Visibility.PUBLIC:
+            if "public" not in components:
+                if "private" in components:
+                    raise InternalError(
+                        f"Symbol '{symbol.name}' of UnsupportedFortranType has"
+                        f" public visibility but its associated declaration "
+                        f"specifies that it is private: "
+                        f"'{symbol.datatype.declaration}'")
+                first_part = first_part.rstrip() + ", public "
+        else:
+            if "private" not in components:
+                if "public" in components:
+                    raise InternalError(
+                        f"Symbol '{symbol.name}' of UnsupportedFortranType has"
+                        f" private visibility but its associated declaration "
+                        f"specifies that it is public: "
+                        f"'{symbol.datatype.declaration}'")
+                first_part = first_part.rstrip() + ", private "
     return "::".join([first_part]+parts[1:])
 
 
@@ -581,14 +590,15 @@ class FortranWriter(LanguageWriter):
         if isinstance(symbol.datatype, UnsupportedType):
             if isinstance(symbol.datatype, UnsupportedFortranType):
 
-                if (include_visibility and
-                        not isinstance(symbol, RoutineSymbol) and
-                        not symbol.name.startswith("_PSYCLONE_INTERNAL")):
+                if (
+                    not isinstance(symbol, RoutineSymbol) and
+                    not symbol.name.startswith("_PSYCLONE_INTERNAL")
+                ):
                     # We don't attempt to add accessibility to RoutineSymbols
                     # or to those created by PSyclone to handle named common
                     # blocks appearing in SAVE statements.
-                    decln = add_accessibility_to_unsupported_declaration(
-                                symbol)
+                    decln = add_attributes_to_unsupported_declaration(
+                        symbol, include_visibility)
                 else:
                     decln = symbol.datatype.declaration
                 result += f"{self._nindent}{decln}"
@@ -726,11 +736,8 @@ class FortranWriter(LanguageWriter):
             if isinstance(symbol.datatype, UnsupportedFortranType):
                 # This is a declaration of UnsupportedType. We have to ensure
                 # that its visibility is correctly specified though.
-                if include_visibility:
-                    decln = add_accessibility_to_unsupported_declaration(
-                                symbol)
-                else:
-                    decln = symbol.datatype.declaration
+                decln = add_attributes_to_unsupported_declaration(
+                            symbol, include_visibility)
                 return f"{self._nindent}{decln}\n"
 
             raise VisitorError(

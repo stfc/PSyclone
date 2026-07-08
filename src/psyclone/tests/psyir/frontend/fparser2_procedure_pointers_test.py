@@ -41,7 +41,7 @@ from psyclone.psyir.nodes import CodeBlock
 from psyclone.psyir.symbols import Symbol
 
 
-def test_procedure_pointers(fortran_reader, fortran_writer):
+def test_procedure_declaration_pointers(fortran_reader, fortran_writer):
 
     code = """
     module procedures
@@ -81,10 +81,8 @@ def test_procedure_pointers(fortran_reader, fortran_writer):
     pub = Symbol.Visibility.PUBLIC
     assert module.symbol_table.lookup("proc_ptr_private").visibility == priv
     assert module.symbol_table.lookup("proc_ptr_public").visibility == pub
-    
+
     # Check that the routine proc_decls exist and have the correct attributes
     routine = module.children[0]
-    # assert routine.symbol_table.lookup("proc_ptr").is_static
-    # assert not routine.symbol_table.lookup("proc_ptr_2").is_static
-    # assert routine.symbol_table.lookup("proc_ptr").initial_value is None
-    # assert routine.symbol_table.lookup("proc_ptr_2").initial_value
+    assert routine.symbol_table.lookup("proc_ptr").is_static
+    assert not routine.symbol_table.lookup("proc_ptr_2").is_static

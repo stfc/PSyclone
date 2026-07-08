@@ -367,7 +367,7 @@ def test_profile_invokes_lfric(fortran_writer):
     invoke.setup_psy_layer_symbols()
     code = fortran_writer(invoke.schedule)
     assert "use profile_psy_data_mod, only : profile_PSyDataType" in code
-    assert "type(profile_PSyDataType), save, target :: profile_psy_data" \
+    assert "type(profile_psydatatype), save, target :: profile_psy_data" \
         in code
     assert "CALL profile_psy_data % PreStart(\"single_invoke_psy\", "\
            "\"invoke_0-x_plus_y-r0\", 0, 0)" in code
@@ -443,9 +443,9 @@ def test_profile_kernels_lfric(fortran_writer):
     code = fortran_writer(invoke.schedule)
 
     # Check that the variables are different
-    assert ("type(profile_PSyDataType), save, target :: profile_psy_data\n"
+    assert ("type(profile_psydatatype), save, target :: profile_psy_data\n"
             in code)
-    assert ("type(profile_PSyDataType), save, target :: profile_psy_data_1\n"
+    assert ("type(profile_psydatatype), save, target :: profile_psy_data_1\n"
             in code)
     assert ("CALL profile_psy_data % PreStart(\"multi_invoke_psy\", "
             "\"invoke_0-testkern_code-r0\", 0, 0)" in code)
@@ -708,9 +708,9 @@ def test_multi_prefix_profile(monkeypatch):
     assert ("  use profile_psy_data_mod, only : profile_PSyDataType\n" in
             result)
     assert "  use tool1_psy_data_mod, only : tool1_PSyDataType" in result
-    assert ("  type(profile_PSyDataType), save, target :: "
+    assert ("  type(profile_psydatatype), save, target :: "
             "profile_psy_data\n" in result)
-    assert ("  type(tool1_PSyDataType), save, target :: tool1_psy_data"
+    assert ("  type(tool1_psydatatype), save, target :: tool1_psy_data"
             in result)
     assert (
             "    CALL tool1_psy_data % PreStart(\"multi_functions_multi_"

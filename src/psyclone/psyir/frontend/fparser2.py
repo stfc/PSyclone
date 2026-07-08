@@ -1860,8 +1860,15 @@ class Fparser2Reader():
                 # thus immutable so we create a new one.
                 decl.children[2].items = (entity,)
                 name = walk(entity, Fortran2003.Name)[0]
-                symbol_name = str(name).lower()
-                vis = visibility_map.get(symbol_name, decln_vis)
+                symbol_name = str(name)
+                vis = visibility_map.get(symbol_name.lower(), decln_vis)
+                declstr = str(decl)
+                # Unsupported Fortran type must have the "::" declaration
+                # format, as the token is used to insert attributes in its
+                # lhs in the backend
+                if "::" not in declstr:
+                    position = declstr.index(symbol_name)
+                    declstr = f"{declstr[:position]} :: {declstr[position:]}"
 
                 # Check whether the symbol we're about to add
                 # corresponds to the routine we're currently inside. If
@@ -1878,15 +1885,21 @@ class Fparser2Reader():
                 datatype, init = self._get_partial_datatype(
                     decl, scope, symbol_table, visibility_map)
 
+                # The interface is unknown, unless it is given by a different
+                # statement, e.g. a save statement
+                interface = UnknownInterface()
+                if symbol_name.lower() in statics_list:
+                    interface = StaticInterface()
+
                 # If a declaration declares multiple entities, it's
                 # possible that some may have already been processed
                 # successfully and thus be in the symbol table.
                 try:
                     new_symbol = DataSymbol(
                              symbol_name, UnsupportedFortranType(
-                                 str(decl),
+                                 declstr,
                                  partial_datatype=datatype),
-                             interface=UnknownInterface(),
+                             interface=interface,
                              visibility=vis,
                              initial_value=init)
                     if preceding_comments:
