@@ -432,7 +432,7 @@ Mixed Precision
 
 The LFRic API supports the ability to specify the precision required
 by the model via precision variables. To make use of this, the code
-developer must declare scalars, arrays, fields and operators in the algorithm
+developer must declare scalars, arrays, fields and operators in the Algorithm
 layer with the required LFRic-supported precision. In the current
 implementation there are two supported precisions for ``REAL`` data and
 one each for ``INTEGER`` and ``LOGICAL`` data. The actual precision used in
@@ -471,6 +471,10 @@ associated kernel metadata description and their precision:
 +--------------------------+---------------------------------------+-----------+
 | R_TRAN_FIELD_TYPE        | GH_FIELD, GH_REAL                     | R_TRAN    |
 +--------------------------+---------------------------------------+-----------+
+| FIELD_REAL32_TYPE        | GH_FIELD, GH_REAL                     | REAL32    |
++--------------------------+---------------------------------------+-----------+
+| FIELD_REAL64_TYPE        | GH_FIELD, GH_REAL                     | REAL64    |
++--------------------------+---------------------------------------+-----------+
 | INTEGER_FIELD_TYPE       | GH_FIELD, GH_INTEGER                  | I_DEF     |
 +--------------------------+---------------------------------------+-----------+
 | OPERATOR_TYPE            | GH_OPERATOR, GH_REAL                  | R_DEF     |
@@ -479,13 +483,18 @@ associated kernel metadata description and their precision:
 +--------------------------+---------------------------------------+-----------+
 | R_TRAN_OPERATOR_TYPE     | GH_OPERATOR, GH_REAL                  | R_TRAN    |
 +--------------------------+---------------------------------------+-----------+
+| OPERATOR_REAL32_TYPE     | GH_OPERATOR, GH_REAL                  | REAL32    |
++--------------------------+---------------------------------------+-----------+
+| OPERATOR_REAL64_TYPE     | GH_OPERATOR, GH_REAL                  | REAL64    |
++--------------------------+---------------------------------------+-----------+
 | COLUMNWISE_OPERATOR_TYPE | GH_COLUMNWISE_OPERATOR, GH_REAL       | R_SOLVER  |
 +--------------------------+---------------------------------------+-----------+
 
 As can be seen from the above table, the kernel metadata does not
 capture all of the precision options. For example, from the metadata
 it is not possible to determine whether a ``REAL`` scalar, ``REAL`` field
-or ``REAL`` operator has precision ``R_DEF``, ``R_SOLVER`` or ``R_TRAN``.
+or ``REAL`` operator has precision ``R_DEF``, ``R_SOLVER``, ``R_TRAN``
+or one of the Fortran intrinsic precisions (``REAL32``, ``REAL64``).
 
 If a scalar, array, field, or operator is specified with a particular
 precision in the algorithm layer then any associated kernels that it
@@ -601,6 +610,10 @@ outlined in the table below:
 +-------------------------+------------------+--------------+
 | ``r_tran_field_type``   | ``real``         | ``r_tran``   |
 +-------------------------+------------------+--------------+
+| ``field_real32_type``   | ``real``         | ``real32``   |
++-------------------------+------------------+--------------+
+| ``field_real64_type``   | ``real``         | ``real64``   |
++-------------------------+------------------+--------------+
 | ``integer_field_type``  | ``integer``      | ``i_def``    |
 +-------------------------+------------------+--------------+
 
@@ -701,7 +714,8 @@ a message that indicates the problem.
 | Fortran Datatype | Supported Precision      |
 +==================+==========================+
 | ``real``         | ``r_def``, ``r_bl``,     |
-|                  | ``r_solver``, ``r_tran`` |
+|                  | ``r_solver``, ``r_tran``,|
+|                  | ``real32``, ``real64``   |
 +------------------+--------------------------+
 | ``integer``      | ``i_def``                |
 +------------------+--------------------------+
@@ -730,6 +744,10 @@ outlined in the table below:
 | ``r_solver_operator_type`` | ``real``         | ``r_solver`` |
 +----------------------------+------------------+--------------+
 | ``r_tran_operator_type``   | ``real``         | ``r_tran``   |
++----------------------------+------------------+--------------+
+| ``operator_real32_type``   | ``real``         | ``real32``   |
++----------------------------+------------------+--------------+
+| ``operator_real64_type``   | ``real``         | ``real64``   |
 +----------------------------+------------------+--------------+
 
 .. _lfric-mixed-precision-cma-operators:
