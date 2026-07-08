@@ -175,7 +175,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                 # Test validation for the whole region, and if successful
                 # then we can finish.
                 trans.validate(n_list)
-                all_blocks.insert(n_list)
+                all_blocks.append(n_list)
                 return all_blocks
             except TransformationError:
                 pass
