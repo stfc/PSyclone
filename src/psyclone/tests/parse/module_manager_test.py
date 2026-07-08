@@ -547,3 +547,30 @@ def test_mod_manager_load_all_module_trigger_error_file_read_twice() -> None:
         mod_man.load_all_module_infos(error_if_file_already_processed=True)
 
     assert "File 't_mod.f90' already processed" in str(einfo.value)
+
+
+@pytest.mark.usefixtures("clear_module_manager_instance")
+def test_mod_manager_fortran_file_exts() -> None:
+    '''Tests functionality for modifying managing Fortran file etensions.'''
+    mod_man = ModuleManager.get()
+
+    # Check that the default extensions include '.f90' and '.F90'
+    assert '.f90' in mod_man.fortran_file_exts
+    assert '.F90' in mod_man.fortran_file_exts
+
+    # Check that we can add and remove a new Fortran file extension
+    assert '.foo' not in mod_man.fortran_file_exts
+    mod_man.fortran_file_exts.add(".foo")
+    assert '.foo' in mod_man.fortran_file_exts
+    assert '.f90' in mod_man.fortran_file_exts
+    mod_man.fortran_file_exts.remove(".foo")
+    assert '.foo' not in mod_man.fortran_file_exts
+    assert '.f90' in mod_man.fortran_file_exts
+    mod_man.fortran_file_exts = {".f95"}
+    assert mod_man.fortran_file_exts == {".f95"}
+
+    # Check that type errors are spotted
+    with pytest.raises(TypeError) as err:
+        mod_man.fortran_file_exts = True
+    assert ("'fortran_file_exts' must be a set, but found bool"
+            in str(err.value))

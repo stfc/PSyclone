@@ -107,26 +107,34 @@ def transformation_documentation_wrapper(*args,
     transformation_docstring_wrapper that is handled by python. The length 0
     set would happen with a case like this:
 
-    >>> @transformation_documentation_wrapper(inherit=True)
-    ... class mytrans(Transformation):
-    ...     pass
+    .. code-block:: python
+
+        @transformation_documentation_wrapper(inherit=True)
+        class mytrans(Transformation):
+            pass
 
     as this code is equivalent to:
 
-    >>> mytrans = transformation_documentation_wrapper(inherit=True)(mytrans)
+    .. code-block:: python
+
+        mytrans = transformation_documentation_wrapper(inherit=True)(mytrans)
 
     For this case *args is empty, as only the inherit argument is provided
     to the transformation_documentation_wrapper call and is through kwargs.
 
     Without arguments to the decorator:
 
-    >>> @transformation_documentation_wrapper
-    ... class mytrans(Transformation):
-    ...    pass
+    .. code-block:: python
+
+        @transformation_documentation_wrapper
+        class mytrans(Transformation):
+            pass
 
     the resultant code is the same as writing:
 
-    >>> mytrans = transformation_documentation_wrapper(mytrans)
+    .. code-block:: python
+
+        mytrans = transformation_documentation_wrapper(mytrans)
 
     In this case *args contains the wrapped class in *args, which needs to be
     passed manually to the sub-function inside the wrapper.
