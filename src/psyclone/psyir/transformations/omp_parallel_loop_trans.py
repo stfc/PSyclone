@@ -40,36 +40,56 @@
 #          J. Dendy, Met Office
 
 
+import logging
+from typing import Iterable
 from psyclone.psyir.nodes import (
     OMPParallelDoDirective, OMPReductionClause)
 from psyclone.psyir.nodes.omp_directives import MAP_REDUCTION_OP_TO_OMP
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper(inherit=False)
 class OMPParallelLoopTrans(OMPLoopTrans):
-    ''' Adds an OpenMP PARALLEL DO directive to a loop.
+    ''' Adds an OpenMP PARALLEL DO directive to a loop. For example:
 
-        For example:
-
-        >>> from psyclone.parse.algorithm import parse
-        >>> from psyclone.psyGen import PSyFactory
-        >>> ast, invokeInfo = parse("lfric.F90")
-        >>> psy = PSyFactory("lfric").create(invokeInfo)
-        >>> schedule = psy.invokes.get('invoke_v3_kernel_type').schedule
-        >>> # Uncomment the following line to see a text view of the schedule
-        >>> # print(schedule.view())
-        >>>
-        >>> from psyclone.transformations import OMPParallelLoopTrans
-        >>> trans = OMPParallelLoopTrans()
-        >>> trans.apply(schedule.children[0])
-        >>> # Uncomment the following line to see a text view of the schedule
-        >>> # print(schedule.view())
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.psyir.backend.fortran import FortranWriter
+    >>> psyir = FortranReader().psyir_from_source("""
+    ... program do_loop
+    ...     real, dimension(10) :: A
+    ...     integer i
+    ...     do i = 1, 10
+    ...       A(i) = i
+    ...     end do
+    ... end program do_loop
+    ... """)
+    >>> from psyclone.psyir.nodes import Loop
+    >>> from psyclone.transformations import OMPParallelLoopTrans
+    >>> trans = OMPParallelLoopTrans()
+    >>> trans.apply(psyir.walk(Loop)[0])
+    >>> print(FortranWriter()(psyir))
+    program do_loop
+      real, dimension(10) :: a
+      integer :: i
+    <BLANKLINE>
+      !$omp parallel do default(shared) private(i) schedule(auto)
+      do i = 1, 10, 1
+        a(i) = i
+      enddo
+      !$omp end parallel do
+    <BLANKLINE>
+    end program do_loop
+    <BLANKLINE>
 
     '''
+
     def __str__(self):
         return "Add an 'OpenMP PARALLEL DO' directive"
 
-    def apply(self, node, options=None, **kwargs):
+    def apply(self, node,
+              force_private: Iterable[str] = tuple(),
+              options=None, **kwargs):
         ''' Apply an OMPParallelLoop Transformation to the supplied node
         (which must be a Loop). In the generated code this corresponds to
         wrapping the Loop with directives:
@@ -84,6 +104,8 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         :param node: the node (loop) to which to apply the transformation.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param Iterable[str] force_private: specify a list of symbol names
+            explicitly requested to be private.
         :param options: a dictionary with options for transformations
             and validation.
         :type options: Optional[Dict[str, Any]]
@@ -93,7 +115,8 @@ class OMPParallelLoopTrans(OMPLoopTrans):
             local_options["reduction_ops"] = \
                 list(MAP_REDUCTION_OP_TO_OMP.keys())
 
-        self.validate(node, options=local_options, **kwargs)
+        self.validate(node, options=local_options, force_private=force_private,
+                      **kwargs)
 
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location
@@ -113,6 +136,22 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         # add the OpenMP loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
+
+        # Add explicit private variables
+        logger = logging.getLogger(__name__)
+        explicitly_private_symbols = set()
+        for symbol_name in force_private:
+            try:
+                sym = node.scope.symbol_table.lookup(symbol_name)
+                explicitly_private_symbols.add(sym)
+            except KeyError:
+                # This is not an error, but we will log the missed string
+                logger.warning(
+                    "%s has been provided with the '%s' symbol name in "
+                    "the 'force_private' option, but there is no such "
+                    "symbol in this scope.", self.name, symbol_name)
+        directive.explicitly_private_symbols.update(
+            explicitly_private_symbols)
 
 
 # For Sphinx AutoAPI documentation generation

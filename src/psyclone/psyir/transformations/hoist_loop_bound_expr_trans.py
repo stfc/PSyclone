@@ -62,7 +62,7 @@ class HoistLoopBoundExprTrans(LoopTrans):
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.nodes import Loop
-    >>> from psyclone.psyir.transformations import HoistTrans
+    >>> from psyclone.psyir.transformations import HoistLoopBoundExprTrans
     >>> code = ("program test\\n"
     ...         "  use mymod, only: mytype\\n"
     ...         "  integer :: i,j,n\\n"
@@ -81,12 +81,12 @@ class HoistLoopBoundExprTrans(LoopTrans):
       integer :: j
       integer :: n
       real, dimension(n) :: a
-      integer :: loop_bound
-      integer :: loop_bound_1
+      integer :: loop_start
+      integer :: loop_stop
     <BLANKLINE>
-      loop_bound_1 = UBOUND(a, 1)
-      loop_bound = mytype%start
-      do i = loop_bound, loop_bound_1, 1
+      loop_stop = UBOUND(a, dim=1)
+      loop_start = mytype%start
+      do i = loop_start, loop_stop, 1
         a(i) = 1.0
       enddo
     <BLANKLINE>
