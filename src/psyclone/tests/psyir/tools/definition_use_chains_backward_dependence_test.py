@@ -905,3 +905,91 @@ def test_backward_accesses_nested_loop(fortran_reader):
     chains = DefinitionUseChain([lhs])
     reaches = chains.find_backward_accesses()[sig]
     assert len(reaches) == 1
+
+
+def test_backward_accesses_unsupported_type(fortran_reader):
+    """Test that if we have an unsupported type we get the expected
+    worst-case behaviour from the DUCs."""
+    # Test the result for assignments
+    code = """
+    subroutine x
+    integer :: a
+    integer, pointer :: c
+    integer, target :: b
+
+    c = 1
+    b = c
+    a = 1
+    end subroutine x"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assign = routine.walk(Assignment)[-1]
+    sig = assign.lhs.get_signature_and_indices()[0]
+    chains = DefinitionUseChain(assign.lhs)
+    reaches = chains.find_backward_accesses()[sig]
+    # The result should be the access to b in the b = c
+    # assignment.
+    assert len(reaches) == 1
+    assert reaches[0] is routine.walk(Assignment)[1].lhs
+
+    code = """
+    subroutine x
+    integer :: a
+    integer, pointer :: c
+    integer :: b
+
+    c = 1
+    b = c
+    a = 1
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assign = routine.walk(Assignment)[-1]
+    sig = assign.lhs.get_signature_and_indices()[0]
+    chains = DefinitionUseChain(assign.lhs)
+    reaches = chains.find_backward_accesses()[sig]
+
+    # The result should be the two accesses to c in b = C
+    # and C = 1.
+    assert len(reaches) == 2
+    assert reaches[0] is routine.walk(Assignment)[1].rhs
+    assert reaches[1] is routine.walk(Assignment)[0].lhs
+
+    # Test that unsupported type arguments to pure subroutines
+    # is always counted as an access.
+    code = """
+    pure subroutine test(a)
+        integer :: a
+        a = a * 2
+    end subroutine test
+    subroutine test2
+        integer :: a
+        integer, pointer :: b
+        a = 1
+        call test(b)
+        a = 2
+    end subroutine test2"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assign = routine.walk(Assignment)[-1]
+    sig = assign.lhs.get_signature_and_indices()[0]
+    chains = DefinitionUseChain(assign.lhs)
+    reaches = chains.find_backward_accesses()[sig]
+
+    # The result should be the b argument to call test(b)
+    assert len(reaches) == 1
+    assert reaches[0] is routine.walk(Call)[0].arguments[0]
+
+    # Test that unsupported type references in non assignment
+    # non-Call locations are counted as a read.
+    code = """subroutine test
+    integer :: a
+    logical, pointer :: b
+
+    a = 1
+    if (b) then
+    end if
+    a = 2
+    end subroutine test"""
+    assert False

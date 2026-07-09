@@ -63,6 +63,7 @@ from psyclone.psyir.nodes import (
     WhileLoop,
     PSyDataNode,
 )
+from psyclone.psyir.symbols import UnsupportedType, UnresolvedType
 
 
 class DefinitionUseChain:
@@ -590,6 +591,30 @@ class DefinitionUseChain:
                                 self._defsout[sig].append(defs_out[sig])
                         return
                     for i, ref in enumerate(self._references[:]):
+                        # If the DUC's searched Reference is to an
+                        # UnsupportedType then
+                        # it needs to assume the worst case
+                        # for the CodeBlock if it contains an
+                        # UnsupportedType or UnresolvedType
+                        if isinstance(ref.datatype, UnsupportedType):
+                            for sym in reference.get_symbol_names():
+                                symbol = reference.scope.symbol_table.lookup(
+                                    sym
+                                )
+                                if isinstance(symbol.datatype,
+                                              (UnsupportedType,
+                                               UnresolvedType)):
+                                    # Assume the worst for a CodeBlock and we
+                                    # count them as killed and defsout and
+                                    # uses.
+                                    sig = self._reference_signatures[i]
+                                    if defs_out[sig] is not None:
+                                        self._killed[sig].append(
+                                            defs_out[sig]
+                                        )
+                                    defs_out[sig] = reference
+                            continue
+                        # Otherwise we check if ref appears in the CodeBlock.
                         if (
                             ref.symbol.name
                             in reference.get_symbol_names()
@@ -671,6 +696,67 @@ class DefinitionUseChain:
                         # condition for example.
                         if defs_out[sig] is None:
                             self._uses[sig].append(reference)
+                # If we have a reference whose datatype is an
+                # UnsupportedType then we must assume it is aliased and
+                # therefore can access any other UnsupportedType Reference.
+                elif isinstance(reference.datatype, UnsupportedType):
+                    # If its accessed on the lhs of an assignment or as an
+                    # argument of a call then its
+                    # a write to every signature, otherwise its a read to
+                    # every signature.
+                    assign = reference.ancestor(Assignment)
+                    if assign is not None:
+                        if assign.lhs is reference:
+                            for i, sig in enumerate(
+                                    self._reference_signatures
+                            ):
+                                if not isinstance(
+                                    self._references[i].datatype,
+                                    UnsupportedType
+                                ):
+                                    continue
+                                if defs_out[sig] is not None:
+                                    self._killed[sig].append(defs_out[sig])
+                                defs_out[sig] = reference
+                        # If the reference is on the rhs of an assignment
+                        # where the lhs is a write to any of the signatures
+                        # then this should be added to the uses for that
+                        # signature if its also an UnsupportedType.
+                        elif (
+                            any((defs_out[sig] is assign.lhs and
+                                 len(self._killed[sig]) == 0) for sig in
+                                self._reference_signatures)
+                        ):
+                            for i, sig in enumerate(
+                                    self._reference_signatures
+                            ):
+                                if not isinstance(
+                                    self._references[i].datatype,
+                                    UnsupportedType
+                                ):
+                                    continue
+                                if (defs_out[sig] is assign.lhs and
+                                        len(self._killed[sig]) == 0):
+                                    self._uses[sig].append(reference)
+                    elif reference.ancestor(Call):
+                        # If its an argument to a Call then it is a read to
+                        # all UnsupportedType references.
+                        for i, sig in enumerate(self._reference_signatures):
+                            if not isinstance(self._references[i].datatype,
+                                              UnsupportedType):
+                                continue
+                            if defs_out[sig] is not None:
+                                self._killed[sig].append(defs_out[sig])
+                            defs_out[sig] = reference
+                    else:
+                        # Otherwise all other UnsupportedType References
+                        # count as a read to all UnsupportedType inputs.
+                        for i, sig in enumerate(self._reference_signatures):
+                            if not isinstance(self._references[i].datatype,
+                                              UnsupportedType):
+                                continue
+                            if defs_out[sig] is None:
+                                self._uses[sig].append(reference)
         for sig in self._reference_signatures:
             if defs_out[sig] is not None:
                 self._defsout[sig].append(defs_out[sig])
@@ -994,6 +1080,41 @@ class DefinitionUseChain:
                         # condition for example.
                         if defs_out[sig] is None:
                             self._uses[sig].append(reference)
+                # FIXME We need this block still.
+                # elif isinstance(reference.datatype, UnsupportedType):
+                #    # If its accessed on the lhs of an assignment or as an
+                #    # argument of a call then its
+                #    # a write to every signature, otherwise its a read to
+                #    # every signature.
+                #    assign = reference.ancestor(Assignment)
+                #    if assign is not None:
+                #        if assign.lhs is reference:
+                #            for sig in self._reference_signatures:
+                #                if defs_out[sig] is not None:
+                #                    self._killed[sig].append(defs_out[sig])
+                #                defs_out[sig] = reference
+                #        # If the reference is on the rhs of an assignment
+                #        # where the lhs is a write to any of the signatures
+                #        # then this should be added to the uses for that
+                #        # signature.
+                #        elif (
+                #            any((defs_out[sig] is assign.lhs and
+                #                 len(self._killed[sig]) == 0) for sig in
+                #                self._reference_signatures)
+                #        ):
+                #            for sig in self._reference_signatures:
+                #                if (defs_out[sig] is assign.lhs and
+                #                        len(self._killed[sig]) == 0):
+                #                    self._uses[sig].append(reference)
+                #    elif reference.ancestor(Call):
+                #        for sig in self._reference_signatures:
+                #            if defs_out[sig] is not None:
+                #                self._killed[sig].append(defs_out[sig])
+                #            defs_out[sig] = reference
+                #    else:
+                #        for sig in self._reference_signatures:
+                #            if defs_out[sig] is None:
+                #                self._uses[sig].append(reference)
         for sig in self._reference_signatures:
             if defs_out[sig] is not None:
                 self._defsout[sig].append(defs_out[sig])
