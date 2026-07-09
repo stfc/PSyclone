@@ -148,13 +148,12 @@ def add_attributes_to_unsupported_declaration(
     as is and this may or may not include accessibility information.)
 
     :param symbol: the symbol for which the declaration is required.
-    :param symbol: whether to include visibility attributes.
+    :param include_visibility: whether to include visibility attributes.
 
     :returns: Fortran declaration of the supplied symbol with accessibility
         information included (public/private).
 
-    :raises TypeError: if the supplied argument is not a Symbol or DerivedType
-        component of UnsupportedFortranType.
+    :raises TypeError: if the supplied arguments are not of the expected type.
     :raises InternalError: if the declaration associated with the Symbol is
         empty.
     :raises NotImplementedError: if the original declaration does not use
@@ -167,6 +166,10 @@ def add_attributes_to_unsupported_declaration(
     if not isinstance(symbol, (Symbol, StructureType.ComponentType)):
         raise TypeError(f"Expected a Symbol or DerivedType component but got "
                         f"'{type(symbol).__name__}'")
+
+    if not isinstance(include_visibility, bool):
+        raise TypeError(f"Expected 'include_visibility' to be a 'bool' but got"
+                        f" '{type(include_visibility).__name__}'")
 
     if not isinstance(symbol.datatype, UnsupportedFortranType):
         raise TypeError(f"Expected a Symbol of UnsupportedFortranType but "

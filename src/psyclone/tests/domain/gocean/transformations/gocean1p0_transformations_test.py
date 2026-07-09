@@ -1345,7 +1345,7 @@ def test_acc_enter_directive_infrastructure_setup():
     use iso_c_binding, only : c_ptr
     use kind_params_mod, only : go_wp
     type(c_ptr), intent(in) :: from
-    REAL(KIND = go_wp), DIMENSION(:, :), INTENT(INOUT), TARGET :: to
+    real(kind = go_wp), dimension(:, :), intent(inout), target :: to
     integer, intent(in) :: startx
     integer, intent(in) :: starty
     integer, intent(in) :: nx

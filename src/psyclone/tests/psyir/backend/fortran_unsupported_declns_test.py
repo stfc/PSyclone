@@ -149,18 +149,23 @@ def test_fw_add_attributes_errors():
     ''' Check that the add_attributes_to_unsupported_declaration() method
     raises the expected errors. '''
     with pytest.raises(TypeError) as err:
-        add_attributes_to_unsupported_declaration("hello")
+        add_attributes_to_unsupported_declaration("hello", True)
     assert str(err.value) == (
         "Expected a Symbol or DerivedType component but got 'str'")
     with pytest.raises(TypeError) as err:
         add_attributes_to_unsupported_declaration(
-            DataSymbol("var", ScalarType.integer_type()))
+            DataSymbol("var", UnsupportedFortranType("real var")), 3)
+    assert str(err.value) == (
+        "Expected 'include_visibility' to be a 'bool' but got 'int'")
+    with pytest.raises(TypeError) as err:
+        add_attributes_to_unsupported_declaration(
+            DataSymbol("var", ScalarType.integer_type()), True)
     assert ("Expected a Symbol of UnsupportedFortranType but symbol 'var' has "
             "type 'Scalar<INTEGER, UNDEFINED>'" in str(err.value))
     # Missing :: separator in declaration
     sym = DataSymbol("var", UnsupportedFortranType("real var"))
     with pytest.raises(NotImplementedError) as err:
-        add_attributes_to_unsupported_declaration(sym)
+        add_attributes_to_unsupported_declaration(sym, True)
     assert ("Cannot add accessibility information to an UnsupportedFortranType"
             " that does not have '::' in its original declaration: 'real var'"
             in str(err.value))
@@ -168,7 +173,7 @@ def test_fw_add_attributes_errors():
     sym = DataSymbol("var", UnsupportedFortranType("real, puBlic :: var"),
                      visibility=Symbol.Visibility.PRIVATE)
     with pytest.raises(InternalError) as err:
-        add_attributes_to_unsupported_declaration(sym)
+        add_attributes_to_unsupported_declaration(sym, True)
     assert ("Symbol 'var' of UnsupportedFortranType has private visibility but"
             " its associated declaration specifies that it is public: 'real, "
             "puBlic :: var'" in str(err.value))
@@ -176,7 +181,7 @@ def test_fw_add_attributes_errors():
     sym = DataSymbol("var", UnsupportedFortranType("real, pRivate :: var"),
                      visibility=Symbol.Visibility.PUBLIC)
     with pytest.raises(InternalError) as err:
-        add_attributes_to_unsupported_declaration(sym)
+        add_attributes_to_unsupported_declaration(sym, True)
     assert ("Symbol 'var' of UnsupportedFortranType has public visibility but "
             "its associated declaration specifies that it is private: 'real, "
             "pRivate :: var'" in str(err.value))
@@ -184,7 +189,7 @@ def test_fw_add_attributes_errors():
     sym = DataSymbol("var", UnsupportedFortranType(""),
                      visibility=Symbol.Visibility.PUBLIC)
     with pytest.raises(InternalError) as err:
-        add_attributes_to_unsupported_declaration(sym)
+        add_attributes_to_unsupported_declaration(sym, True)
     assert ("Symbol 'var' is of UnsupportedFortranType but the "
             "associated declaration text is empty." in str(err.value))
 
@@ -194,11 +199,11 @@ def test_fw_add_attributes():
     works as expected. '''
     sym = DataSymbol("var", UnsupportedFortranType("real, target :: var"),
                      visibility=Symbol.Visibility.PUBLIC)
-    result = add_attributes_to_unsupported_declaration(sym)
+    result = add_attributes_to_unsupported_declaration(sym, True)
     assert result == "real, target, public :: var"
     sym = DataSymbol("var", UnsupportedFortranType("real, target :: var"),
                      visibility=Symbol.Visibility.PRIVATE)
-    result = add_attributes_to_unsupported_declaration(sym)
+    result = add_attributes_to_unsupported_declaration(sym, True)
     assert result == "real, target, private :: var"
     sym = DataSymbol("var", UnsupportedFortranType(
                                  "type :: var\n"
@@ -206,7 +211,7 @@ def test_fw_add_attributes():
                                  "  integer :: flag\n"
                                  "end type var"),
                      visibility=Symbol.Visibility.PRIVATE)
-    result = add_attributes_to_unsupported_declaration(sym)
+    result = add_attributes_to_unsupported_declaration(sym, True)
     assert result == ("type, private :: var\n"
                       "  public\n"
                       "  integer :: flag\n"
@@ -217,7 +222,7 @@ def test_fw_add_attributes():
                                  "  integer, public :: flag\n"
                                  "end type var"),
                      visibility=Symbol.Visibility.PRIVATE)
-    result = add_attributes_to_unsupported_declaration(sym)
+    result = add_attributes_to_unsupported_declaration(sym, True)
     assert result == ("type, private :: var\n"
                       "  integer, private :: id\n"
                       "  integer, public :: flag\n"
