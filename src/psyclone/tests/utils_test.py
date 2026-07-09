@@ -35,7 +35,6 @@
 
 '''This module implements tests for the generic utility functions.'''
 
-import inspect
 import pytest
 import sys
 
@@ -338,37 +337,21 @@ def test_transformation_doc_wrapper_uninheritable():
 
 def test_stringify_annotation():
     '''Test the stringify_annotation method does as expected.'''
-    def func(basic: bool,
-             compound: Union[bool, int],
-             any_length: tuple[int, ...],
-             custom_class: Transformation,
-             forwardref: "Transformation"):
-        ''' Test function for annotations.'''
 
-    signature = inspect.signature(func)
-    for k, v in signature.parameters.items():
-        if "basic" == k:
-            anno = stringify_annotation(v.annotation)
-            assert "bool" == anno
-
-        if "compound" == k:
-            anno = stringify_annotation(v.annotation)
-            # Python >= 3.14 uses the second format
-            assert "typing.Union[bool, int]" == anno or "bool | int" == anno
-
-        if "any_length" == k:
-            anno = stringify_annotation(v.annotation)
-            # Python 3.9 does not support '...', but it doesn't fail, it just
-            # truncates the resulting string
-            assert "tuple[int, ...]" == anno or "tuple" == anno
-
-        if "custom_class" == k:
-            anno = stringify_annotation(v.annotation)
-            assert "Transformation" == anno
-
-        if "forwardref" == k:
-            anno = stringify_annotation(v.annotation)
-            assert "Transformation" == anno
+    # Basic type
+    assert stringify_annotation(bool) == "bool"
+    # Compound type (depends of the Python version)
+    assert stringify_annotation(Union[bool, int]) in [
+        "typing.Union[bool, int]", "bool | int"
+    ]
+    # Type elipses (Python 3.9 truncates them)
+    assert stringify_annotation(tuple[int, ...]) in [
+        "tuple[int, ...]", "tuple"
+    ]
+    # Custom class
+    assert stringify_annotation(Transformation) == "Transformation"
+    # Fordward declaration of custom class
+    assert stringify_annotation("Transformation") == "Transformation"
 
 
 def test_transformation_doc_wrapper_subtrans():

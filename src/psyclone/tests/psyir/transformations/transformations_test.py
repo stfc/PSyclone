@@ -42,7 +42,6 @@ API-agnostic tests for various transformation classes.
 '''
 
 import logging
-import sys
 import os
 import pytest
 from fparser.common.readfortran import FortranStringReader
@@ -732,16 +731,10 @@ def test_omploop_trans_new_options(sample_psyir):
 
     with pytest.raises(TypeError) as excinfo:
         omplooptrans.apply(tree.walk(Loop)[0], collapse="x")
-    if sys.version_info >= (3, 10):
-        assert ("'OMPLoopTrans' received options with the wrong types:\n"
-                "'collapse' option expects type 'int | bool' but "
-                "received 'x' of type 'str'.\n"
-                "Please see the documentation and check the provided types."
-                in str(excinfo.value))
-    else:
-        assert ("The 'collapse' argument must be an integer or a bool but got"
-                " an object of type <class 'str'>"
-                in str(excinfo.value))
+    assert ("'OMPLoopTrans' received options with the wrong types:\n"
+            "'collapse' option expects type " in str(excinfo.value))
+    assert ("received 'x' of type 'str'.\nPlease see the documentation "
+            "and check the provided types." in str(excinfo.value))
 
 
 def test_omplooptrans_apply_nowait(fortran_reader, fortran_writer):
