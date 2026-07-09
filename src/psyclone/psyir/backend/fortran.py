@@ -194,8 +194,9 @@ def add_attributes_to_unsupported_declaration(
     components = [c.strip() for c in first_part.split(',')]
 
     # Add save for StaticInterface
-    if symbol.is_static and "save" not in components:
-        first_part = first_part.rstrip() + ", save "
+    if isinstance(symbol, Symbol) and symbol.is_static:
+        if "save" not in components:
+            first_part = first_part.rstrip() + ", save "
 
     # If requested (e.g. is in a module) andd the accessibility attributes
     if include_visibility:
