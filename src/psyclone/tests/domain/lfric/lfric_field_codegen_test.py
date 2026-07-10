@@ -645,7 +645,20 @@ def test_int_field_fs(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
 
     generated_code = str(psy.gen)
-    assert """module single_invoke_fs_int_field_psy
+    # Shorten the test by generating some of the expected output.
+    fld_names = ["f1", "f2", "m1", "m2", "f3", "f4", "m3", "m4", "f5", "f6",
+                 "m5", "m6", "f7", "f8", "m7"]
+    declarations = []
+    data_ptrs = []
+    for fld in fld_names:
+        declarations.append(
+            f"    type(integer_field_type), intent(in) :: {fld}")
+        data_ptrs.append(
+            f"    integer(kind=i_def), pointer, dimension(:) :: {fld}_data "
+            f"=> null()")
+    decln_text = "\n".join(declarations)
+    ptrs_text = "\n".join(data_ptrs)
+    assert f"""module single_invoke_fs_int_field_psy
   use integer_field_mod, only : integer_field_proxy_type, integer_field_type
   use testkern_fs_int_field_mod, only : testkern_fs_int_field_code
   use constants_mod, only : i_def
@@ -653,42 +666,13 @@ def test_int_field_fs(tmpdir):
   public
 
   contains
-  subroutine invoke_0_testkern_fs_int_field_type(f1, f2, m1, m2, f3, f4, m3, \
-m4, f5, f6, m5, m6, f7, f8, m7)
+  subroutine invoke_0_testkern_fs_int_field_type({', '.join(fld_names)})
     use mesh_mod, only : mesh_type
-    type(integer_field_type), intent(in) :: f1
-    type(integer_field_type), intent(in) :: f2
-    type(integer_field_type), intent(in) :: m1
-    type(integer_field_type), intent(in) :: m2
-    type(integer_field_type), intent(in) :: f3
-    type(integer_field_type), intent(in) :: f4
-    type(integer_field_type), intent(in) :: m3
-    type(integer_field_type), intent(in) :: m4
-    type(integer_field_type), intent(in) :: f5
-    type(integer_field_type), intent(in) :: f6
-    type(integer_field_type), intent(in) :: m5
-    type(integer_field_type), intent(in) :: m6
-    type(integer_field_type), intent(in) :: f7
-    type(integer_field_type), intent(in) :: f8
-    type(integer_field_type), intent(in) :: m7
+{decln_text}
     integer(kind=i_def) :: cell
     type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: max_halo_depth_mesh
-    integer(kind=i_def), pointer, dimension(:) :: f1_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: f2_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: m1_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: m2_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: f3_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: f4_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: m3_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: m4_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: f5_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: f6_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: m5_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: m6_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: f7_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: f8_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: m7_data => null()
+{ptrs_text}
     integer(kind=i_def) :: nlayers_f1
     integer(kind=i_def) :: ndf_w1
     integer(kind=i_def) :: undf_w1
@@ -1215,12 +1199,13 @@ def test_int_real_field_fs(dist_mem, tmpdir):
 
 
 def test_field_nlevels():
-    '''Test for a kernel that has an argument with a non-default value of
-    NLAYERS.
+    '''Test for a kernel that has arguments with non-default values of
+    NLEVELS and NDATA.
 
     '''
     with pytest.raises(NotImplementedError) as err:
-        _ = get_psylayer_schedule("1.5.6_single_invoke_nlevels.f90",
+        _ = get_psylayer_schedule("1.5.6_single_invoke_nlevels_ndata.f90",
                                   TEST_API)
-    assert ("Cannot generate arguments for kernel 'testkern_nlevels_code'"
-            in str(err.value))
+    # TODO #868 - code generation yet to be implemented.
+    assert ("Cannot generate arguments for kernel "
+            "'testkern_nlevels_ndata_code'" in str(err.value))

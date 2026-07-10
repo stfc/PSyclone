@@ -31,9 +31,9 @@
 ! -----------------------------------------------------------------------------
 ! Author: A. R. Porter, STFC Daresbury Lab
 
-!> An example LFRic kernel which has an argument with a non-default value
-!! of NLEVELS.
-module testkern_nlevels_mod
+!> An example LFRic kernel which has arguments with non-default values
+!! of NLEVELS and NDATA.
+module testkern_nlevels_ndata_mod
 
   use argument_mod
   use fs_continuity_mod
@@ -42,29 +42,30 @@ module testkern_nlevels_mod
 
   implicit none
 
-  type, extends(kernel_type) :: testkern_nlevels_type
-     type(arg_type), dimension(5) :: meta_args =                     &
-          (/ arg_type(gh_scalar, gh_real, gh_read),                  &
-             arg_type(gh_field,  gh_real, gh_inc,  w1),              &
-             arg_type(gh_field,  gh_real, gh_read, w2),              &
-             ! This is a 2D field and thus has a different nlevels
-             arg_type(gh_field,  gh_real, gh_read, w2, nlevels="1"), &
-             ! ndata="1" is the default so this has no effect.
-             arg_type(gh_field,  gh_real, gh_read, w3, ndata="1")    &
+  type, extends(kernel_type) :: testkern_nlevels_ndata_type
+     type(arg_type), dimension(5) :: meta_args =                           &
+          (/ arg_type(gh_scalar, gh_real, gh_read),                        &
+             arg_type(gh_field,  gh_real, gh_inc,  w1),                    &
+             arg_type(gh_field,  gh_real, gh_read, w2),                    &
+             ! Non-default number of levels.
+             arg_type(gh_field,  gh_real, gh_read, w2, nlevels="shallow"), &
+             ! Non-default number of data values per dof.
+             arg_type(gh_field,  gh_real, gh_read, w3, ndata="precip")     &
            /)
      integer :: operates_on = cell_column
    contains
-     procedure, nopass :: code => testkern_nlevels_code
-  end type testkern_nlevels_type
+     procedure, nopass :: code => testkern_nlevels_ndata_code
+  end type testkern_nlevels_ndata_type
 
 contains
 
-  subroutine testkern_nlevels_code(nlayers, ascalar,          &
-                                   fld1, fld2, fld3, fld4,    &
-                                   ndf_w1, undf_w1, map_w1,   &
-                                   ndf_w2, undf_w2, map_w2,   &
-                                   nlayers_fld3, ndf_fld3, undf_fld3, map_w2_fld3, &
-                                   ndf_w3, undf_w3, map_w3)
+  subroutine testkern_nlevels_ndata_code(nlayers, ascalar,          &
+                                         fld1, fld2, fld3, fld4,    &
+                                         ndf_w1, undf_w1, map_w1,   &
+                                         ndf_w2, undf_w2, map_w2,   &
+                                         nlayers_fld3, ndf_fld3,    &
+                                         undf_fld3, map_w2_fld3,    &
+                                         ndf_w3, undf_w3, map_w3)
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
@@ -84,6 +85,6 @@ contains
     real(kind=r_def), intent(in), dimension(undf_fld3)  :: fld3
     real(kind=r_def), intent(in), dimension(undf_w3)    :: fld4
 
-  end subroutine testkern_nlevels_code
+  end subroutine testkern_nlevels_ndata_code
 
-end module testkern_nlevels_mod
+end module testkern_nlevels_ndata_mod
