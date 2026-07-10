@@ -738,6 +738,20 @@ class DefinitionUseChain:
                                 if (defs_out[sig] is assign.lhs and
                                         len(self._killed[sig]) == 0):
                                     self._uses[sig].append(reference)
+                        else:
+                            # If the reference is on a rhs it is a use for
+                            # any unkilled unsupported type.
+                            for i, sig in enumerate(
+                                self._reference_signatures
+                            ):
+                                if not isinstance(
+                                    self._references[i].datatype,
+                                    UnsupportedType
+                                ):
+                                    continue
+                                if defs_out[sig] is None:
+                                    self._uses[sig].append(reference)
+
                     elif reference.ancestor(Call):
                         # If its an argument to a Call then it is a read to
                         # all UnsupportedType references.
