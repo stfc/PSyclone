@@ -45,6 +45,7 @@ from psyclone.psyir.nodes import (
     Routine,
     Reference,
     WhileLoop,
+    IfBlock
 )
 from psyclone.psyir.tools.definition_use_chains import DefinitionUseChain
 from psyclone.psyir.transformations import ProfileTrans
@@ -913,13 +914,12 @@ def test_backward_accesses_unsupported_type(fortran_reader):
     # Test the result for assignments
     code = """
     subroutine x
-    integer :: a
     integer, pointer :: c
     integer, target :: b
 
     c = 1
     b = c
-    a = 1
+    b = 1
     end subroutine x"""
 
     psyir = fortran_reader.psyir_from_source(code)
@@ -935,7 +935,7 @@ def test_backward_accesses_unsupported_type(fortran_reader):
 
     code = """
     subroutine x
-    integer :: a
+    integer, target :: a
     integer, pointer :: c
     integer :: b
 
@@ -956,6 +956,31 @@ def test_backward_accesses_unsupported_type(fortran_reader):
     assert reaches[0] is routine.walk(Assignment)[1].rhs
     assert reaches[1] is routine.walk(Assignment)[0].lhs
 
+    # Test that we don't get the lhs of the assignment when
+    # searching backwards from an UnsupportedType on the rhs
+    # of the assignment.
+    code = """
+    subroutine test
+    integer :: a
+    integer, pointer :: b, c
+
+    b = 1
+    c = 2
+    a = b + c
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assign = routine.walk(Assignment)[-1]
+    # Start from a = b + C.
+    sig = assign.rhs.children[1].get_signature_and_indices()[0]
+    chains = DefinitionUseChain(assign.rhs.children[1])
+    reaches = chains.find_backward_accesses()[sig]
+
+    # The result should be a = B + c and C = 2.
+    assert len(reaches) == 2
+    assert reaches[0] is routine.walk(Assignment)[2].rhs.children[0]
+    assert reaches[1] is routine.walk(Assignment)[1].lhs
+
     # Test that unsupported type arguments to pure subroutines
     # is always counted as an access.
     code = """
@@ -966,12 +991,13 @@ def test_backward_accesses_unsupported_type(fortran_reader):
     subroutine test2
         integer :: a
         integer, pointer :: b
+        integer, target :: c
         a = 1
         call test(b)
-        a = 2
+        c = 2
     end subroutine test2"""
     psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Routine)[0]
+    routine = psyir.walk(Routine)[1]
     assign = routine.walk(Assignment)[-1]
     sig = assign.lhs.get_signature_and_indices()[0]
     chains = DefinitionUseChain(assign.lhs)
@@ -984,7 +1010,7 @@ def test_backward_accesses_unsupported_type(fortran_reader):
     # Test that unsupported type references in non assignment
     # non-Call locations are counted as a read.
     code = """subroutine test
-    integer :: a
+    integer, pointer :: a
     logical, pointer :: b
 
     a = 1
@@ -992,4 +1018,53 @@ def test_backward_accesses_unsupported_type(fortran_reader):
     end if
     a = 2
     end subroutine test"""
-    assert False
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assign = routine.walk(Assignment)[-1]
+    sig = assign.lhs.get_signature_and_indices()[0]
+    chains = DefinitionUseChain(assign.lhs)
+    reaches = chains.find_backward_accesses()[sig]
+
+    # The result should be the b argument to call test(b)
+    assert len(reaches) == 2
+    assert reaches[0] is routine.walk(IfBlock)[0].condition
+    assert reaches[1] is routine.walk(Assignment)[0].lhs
+
+    # Test that unsupported type references in CodeBlocks are
+    # hit for UnsupportedType inputs.
+    code = """subroutine test
+    integer, pointer :: a, b
+    a = 1
+    print *, b
+    a = 2
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assign = routine.walk(Assignment)[-1]
+    sig = assign.lhs.get_signature_and_indices()[0]
+    chains = DefinitionUseChain(assign.lhs)
+    reaches = chains.find_backward_accesses()[sig]
+
+    assert len(reaches) == 1
+    assert reaches[0] is routine.walk(CodeBlock)[0]
+
+    # Test that if we are in a loop we see the lhs of an assignment
+    # correctly.
+    code = """subroutine test
+    integer :: i
+    integer, target :: a
+    integer, target :: b
+
+    do i = 1, 100
+        a = b * 2
+    end do
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assign = routine.walk(Assignment)[-1]
+    sig = assign.rhs.children[0].get_signature_and_indices()[0]
+    chains = DefinitionUseChain(assign.rhs.children[0])
+    reaches = chains.find_backward_accesses()[sig]
+    assert len(reaches) == 2
+    assert reaches[0] is assign.rhs.children[0]
+    assert reaches[1] is assign.lhs
