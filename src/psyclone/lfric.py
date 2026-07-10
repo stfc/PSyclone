@@ -6182,11 +6182,11 @@ class LFRicKernelArgument(KernelArgument):
         return self._vector_size
 
     @property
-    def name_indexed(self):
+    def name_indexed(self) -> str:
         '''
-        :returns: the name for this argument with an additional index \
+        :returns: the name for this argument with an additional index
                   which accesses the first element for a vector argument.
-        :rtype: str
+
         '''
         if self._vector_size > 1:
             return self._name+"(1)"
@@ -6194,10 +6194,23 @@ class LFRicKernelArgument(KernelArgument):
 
     @property
     def nlevels(self) -> Optional[str]:
+        '''
+        :returns: the number of vertical levels of this (field/operator)
+            argument, as specified in the Kernel metadata. Default is None
+            in which case the value is the same as that of the first
+            field/operator argument.
+
+        '''
         return self._nlevels
 
     @property
     def ndata(self) -> str:
+        '''
+        :returns: the number of data values per dof of this (field/operator)
+            argument, as specified in the Kernel metadata. The default
+            value is "1".
+
+        '''
         return self._ndata
 
     def psyir_expression(self):
