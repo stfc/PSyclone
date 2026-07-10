@@ -1,3 +1,6 @@
+   3) PR #3480 for #3478. Updates OMPParallelLoopTrans to correctly
+   use the kwargs approach.
+
    2) PR #3455 for #3170. Adds support for fields and operators with
    explicit real32 and real64 kinds.
 
