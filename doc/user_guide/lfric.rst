@@ -1809,10 +1809,9 @@ Multi-Data Metadata
 
 A multi-data field is the same as a standard field apart from having multiple
 values associated with each DoF. (Note that this is not the same as a
-:ref:`field vector <lfric-field-vector>` which corresponds to a bundle of
-fields, all on the same function space and each with a single value at each
-DoF.) This is indicated in the field metadata by
-the optional ``NDATA`` argument to GH_FIELD, e.g.::
+:ref:`field vector <lfric-field-vector>` which corresponds to a set of fields,
+each with a single value at each DoF.) This is indicated in the field metadata
+by the optional ``NDATA`` argument to GH_FIELD, e.g.::
 
   arg_type(GH_FIELD, GH_REAL, GH_READ, W2, NDATA="4")
 
