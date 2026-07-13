@@ -79,10 +79,11 @@ class ScalarisationTrans(LoopTrans):
       integer :: j
       real, dimension(100) :: a
       real, dimension(100) :: b
+      real :: a_scalar
     <BLANKLINE>
       do i = 1, 100, 1
-        a(i) = i
-        b(i) = a(i) * a(i)
+        a_scalar = i
+        b(i) = a_scalar * a_scalar
       enddo
       do j = 1, 100, 1
         if (b(i) > 200) then

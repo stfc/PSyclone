@@ -56,11 +56,10 @@ from psyclone.psyir.symbols import (
 
 class CodeBlock(Statement, DataNode):
     '''Node representing any generic Fortran code that PSyclone does not
-    attempt to manipulate. As such it is a leaf in the PSyIR. A CodeBlock
-    can still answer limited questions about the enclosed code. For
-    this reason it keeps reference to the underlying parse_tree, and each
-    frontend parser needs to subclass CodeBlock with the concrete
-    implementation.
+    attempt to manipulate. A CodeBlock can still answer limited questions
+    about the enclosed code. For this reason it keeps reference to the
+    underlying parse_tree, and each frontend parser needs to subclass
+    CodeBlock with the concrete implementation.
 
     :param parse_tree: the parse-tree nodes representing the
         Fortran code constituting the code block.

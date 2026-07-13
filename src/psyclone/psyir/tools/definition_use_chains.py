@@ -571,6 +571,16 @@ class DefinitionUseChain:
                         reference.parent.is_inquiry and
                         reference.parent.arguments[0] is reference):
                     continue
+                if isinstance(reference.parent, CodeBlock):
+                    for i, ref in enumerate(self._references[:]):
+                        if ref.symbol.is_automatic:
+                            continue  # We use the standard reference logic
+                        # If not, assume the worst for a CodeBlock and we count
+                        # them as killed and defsout and uses.
+                        sig = self._reference_signatures[i]
+                        if defs_out[sig] is not None:
+                            self._killed[sig].append(defs_out[sig])
+                        defs_out[sig] = reference
                 if isinstance(reference, CodeBlock):
                     # CodeBlocks only find symbols, so we can only do as good
                     # as checking the symbol - this means we can get false
@@ -589,14 +599,6 @@ class DefinitionUseChain:
                             if defs_out[sig] is not None:
                                 self._defsout[sig].append(defs_out[sig])
                         return
-                elif isinstance(reference.parent, CodeBlock):
-                    for i, _ in enumerate(self._references[:]):
-                        # Assume the worst for a CodeBlock and we count
-                        # them as killed and defsout and uses.
-                        sig = self._reference_signatures[i]
-                        if defs_out[sig] is not None:
-                            self._killed[sig].append(defs_out[sig])
-                        defs_out[sig] = reference
                 elif isinstance(reference, Call):
                     # If its a local variable we can ignore it as we'll catch
                     # the Reference later if its passed into the Call.
@@ -626,7 +628,12 @@ class DefinitionUseChain:
                     sig = reference.get_signature_and_indices()[0]
                     # Work out if its read only or not.
                     assign = reference.ancestor(Assignment)
-                    if assign is not None:
+                    if reference.ancestor((Call, CodeBlock)):
+                        # Otherwise we assume read/write access for now.
+                        if defs_out[sig] is not None:
+                            self._killed[sig].append(defs_out[sig])
+                        defs_out[sig] = reference
+                    elif assign is not None:
                         if assign.lhs is reference:
                             # This is a write to the reference, so kill the
                             # previous defs_out and set this to be the
@@ -657,11 +664,6 @@ class DefinitionUseChain:
                             # previous assignments.
                             if defs_out[sig] is None:
                                 self._uses[sig].append(reference)
-                    elif reference.ancestor(Call):
-                        # Otherwise we assume read/write access for now.
-                        if defs_out[sig] is not None:
-                            self._killed[sig].append(defs_out[sig])
-                        defs_out[sig] = reference
                     else:
                         # Reference outside an Assignment - read only
                         # This could be References inside a While loop
@@ -876,6 +878,16 @@ class DefinitionUseChain:
                         reference.parent.is_inquiry and
                         reference.parent.arguments[0] is reference):
                     continue
+                if isinstance(reference.parent, CodeBlock):
+                    for i, ref in enumerate(self._references[:]):
+                        if ref.symbol.is_automatic:
+                            continue  # We use the standard reference logic
+                        # If not, assume the worst for a CodeBlock and we count
+                        # them as killed and defsout and uses.
+                        sig = self._reference_signatures[i]
+                        if defs_out[sig] is not None:
+                            self._killed[sig].append(defs_out[sig])
+                        defs_out[sig] = reference
                 if isinstance(reference, CodeBlock):
                     # CodeBlocks only find symbols, so we can only do as good
                     # as checking the symbol - this means we can get false
@@ -885,14 +897,6 @@ class DefinitionUseChain:
                             "DefinitionUseChains can't handle code containing"
                             " GOTO statements."
                         )
-                elif isinstance(reference.parent, CodeBlock):
-                    for i, _ in enumerate(self._references[:]):
-                        # Assume the worst for a CodeBlock and we count
-                        # them as killed and defsout and uses.
-                        sig = self._reference_signatures[i]
-                        if defs_out[sig] is not None:
-                            self._killed[sig].append(defs_out[sig])
-                        defs_out[sig] = reference
                 elif isinstance(reference, Call):
                     # If its a local variable we can ignore it as we'll catch
                     # the Reference later if its passed into the Call.
