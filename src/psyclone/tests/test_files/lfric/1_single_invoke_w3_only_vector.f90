@@ -39,11 +39,13 @@ program single_invoke_w3_only_vector
   ! Description: single function in an invoke iterating over and
   ! reading from w3 field vectors (discontinuous)
   use field_mod,                   only: field_type
+  use field_real64_mod,            only: field_real64_type
   use testkern_w3_only_vector_mod, only: testkern_w3_only_vector_type
 
   implicit none
 
-  type(field_type) :: f1(3), f2(3)
+  type(field_type) :: f1(3)
+  type(field_real64_type) :: f2(3)
 
   call invoke(                              &
        testkern_w3_only_vector_type(f1, f2) &

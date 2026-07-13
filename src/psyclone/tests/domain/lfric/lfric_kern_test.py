@@ -412,8 +412,8 @@ def test_validate_kernel_code_arg(monkeypatch):
         "following error was found: An argument to an LFRic kernel must have a"
         " precision defined by either a recognised LFRic type parameter (one "
         "of ['i_def', 'l_def', 'r_bl', 'r_def', 'r_double', 'r_ncdf', "
-        "'r_quad', 'r_second', 'r_single', 'r_solver', 'r_tran', "
-        "'r_um']) or an integer number of bytes but argument "
+        "'r_quad', 'r_second', 'r_single', 'r_solver', 'r_tran', 'r_um', "
+        "'real32', 'real64']) or an integer number of bytes but argument "
         "'generic_int_scalar' to kernel 'dummy' has precision "
         "Precision.UNDEFINED" in str(info.value))
 

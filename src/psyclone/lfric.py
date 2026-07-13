@@ -5954,22 +5954,22 @@ class LFRicKernelArgument(KernelArgument):
             self._precision = const.SCALAR_PRECISION_MAP[
                 self.intrinsic_type]
 
-    def _init_field_properties(self, alg_datatype, check=True):
+    def _init_field_properties(self,
+                               alg_datatype: Optional[str],
+                               check: bool = True) -> None:
         '''Set up the properties of this field using algorithm datatype
         information if it is available.
 
-        :param alg_datatype: the datatype of this argument as \
-            specified in the algorithm layer or None if it is not \
-            known.
-        :type alg_datatype: str or NoneType
-        :param bool check: whether to use the algorithm \
+        :param alg_datatype: the datatype of this argument as
+            specified in the algorithm layer or None if it is not known.
+        :param check: whether to use the algorithm
             information. Optional argument that defaults to True.
 
-        :raises GenerationError: if the datatype for a gh_field \
+        :raises GenerationError: if the datatype for a gh_field
             could not be found in the algorithm layer.
-        :raises GenerationError: if the datatype specified in the \
+        :raises GenerationError: if the datatype specified in the
             algorithm layer is inconsistent with the kernel metadata.
-        :raises InternalError: if the intrinsic type of the field is \
+        :raises InternalError: if the intrinsic type of the field is
             not supported (i.e. is not real or integer).
 
         '''
@@ -5990,20 +5990,14 @@ class LFRicKernelArgument(KernelArgument):
             if not check:
                 # Use the default as we are ignoring any algorithm info
                 argtype = "field"
-            elif alg_datatype == "field_type":
-                argtype = "field"
-            elif alg_datatype == "r_bl_field_type":
-                argtype = "r_bl_field"
-            elif alg_datatype == "r_solver_field_type":
-                argtype = "r_solver_field"
-            elif alg_datatype == "r_tran_field_type":
-                argtype = "r_tran_field"
             else:
-                raise GenerationError(
-                    f"The metadata for argument '{self.name}' in kernel "
-                    f"'{self._call.name}' specifies that this is a real "
-                    f"field, however it is declared as a "
-                    f"'{alg_datatype}' in the algorithm code.")
+                argtype = const.REAL_DATA_TYPE_RMAP.get(alg_datatype, None)
+                if not argtype:
+                    raise GenerationError(
+                        f"The metadata for argument '{self.name}' in kernel "
+                        f"'{self._call.name}' specifies that this is a real "
+                        f"field, however it is declared as a "
+                        f"'{alg_datatype}' in the algorithm code.")
 
         elif self.intrinsic_type == "integer":
             if check and alg_datatype != "integer_field_type":
@@ -6023,20 +6017,21 @@ class LFRicKernelArgument(KernelArgument):
         self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
         self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
 
-    def _init_operator_properties(self, alg_datatype, check=True):
+    def _init_operator_properties(self,
+                                  alg_datatype: Optional[str],
+                                  check: bool = True) -> None:
         '''Set up the properties of this operator using algorithm datatype
         information if it is available.
 
-        :param alg_datatype: the datatype of this argument as \
-            specified in the algorithm layer or None if it is not \
-            known.
-        :type alg_datatype: str or NoneType
-        :param bool check: whether to use the algorithm \
-            information. Optional argument that defaults to True.
-        :raises GenerationError: if the datatype for a gh_operator \
-            could not be found in the algorithm layer (and check is \
+        :param alg_datatype: the datatype of this argument as specified in
+            the algorithm layer or None if it is not known.
+        :param check: whether to use the algorithm information. Optional
+            argument that defaults to True.
+
+        :raises GenerationError: if the datatype for a gh_operator
+            could not be found in the algorithm layer (and check is
             True).
-        :raises GenerationError: if the datatype specified in the \
+        :raises GenerationError: if the datatype specified in the
             algorithm layer is inconsistent with the kernel metadata.
         :raises InternalError: if this argument is not an operator.
 
@@ -6048,9 +6043,8 @@ class LFRicKernelArgument(KernelArgument):
                 # Use the default as we are ignoring any algorithm info
                 argtype = "operator"
             elif not alg_datatype:
-                # Raise an exception as we require algorithm
-                # information to determine the precision of the
-                # operator
+                # Raise an exception as we require algorithm information
+                # to determine the precision of the operator
                 raise GenerationError(
                     f"It was not possible to determine the operator type "
                     f"from the algorithm layer for argument '{self.name}' "
@@ -6061,6 +6055,10 @@ class LFRicKernelArgument(KernelArgument):
                 argtype = "r_solver_operator"
             elif alg_datatype == "r_tran_operator_type":
                 argtype = "r_tran_operator"
+            elif alg_datatype == "operator_real64_type":
+                argtype = "r_64_operator"
+            elif alg_datatype == "operator_real32_type":
+                argtype = "r_32_operator"
             else:
                 raise GenerationError(
                     f"The metadata for argument '{self.name}' in kernel "
@@ -6480,17 +6478,25 @@ class LFRicKernelArgument(KernelArgument):
                 raise NotImplementedError(
                     f"Unsupported scalar type '{self.intrinsic_type}'")
 
+            const = LFRicConstants()
             kind_name = self.precision
             try:
                 kind_symbol = symtab.lookup(kind_name)
             except KeyError:
-                mod_map = LFRicConstants().UTILITIES_MOD_MAP
-                const_mod = mod_map["constants"]["module"]
-                constants_container = symtab.find_or_create(
-                    const_mod, symbol_type=ContainerSymbol)
-                kind_symbol = DataSymbol(
-                    kind_name, ScalarType.integer_type(),
-                    interface=ImportInterface(constants_container))
+                if kind_name.lower() in const.INTRINSIC_KINDS:
+                    # This is an intrinsic kind (e.g. real32) so it comes
+                    # from the intrinsic ISO module.
+                    cntr_sym = symtab.find_or_create(
+                        const.FORTRAN_ISO_MOD_NAME,
+                        symbol_type=ContainerSymbol,
+                        is_intrinsic=True)
+                else:
+                    mod_map = const.UTILITIES_MOD_MAP
+                    const_mod = mod_map["constants"]["module"]
+                    cntr_sym = symtab.find_or_create(
+                        const_mod, symbol_type=ContainerSymbol)
+                kind_symbol = DataSymbol(kind_name, ScalarType.integer_type(),
+                                         interface=ImportInterface(cntr_sym))
                 symtab.add(kind_symbol)
             dts = ScalarType(prim_type, Reference(kind_symbol))
             if self.is_scalar_array and self._array_ndims >= 1:
