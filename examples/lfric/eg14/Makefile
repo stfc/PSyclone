@@ -51,7 +51,8 @@ GENERATED_FILES = *.o *.mod $(EXEC) main_alg.f90 main_psy.f90 \
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g
 
-OBJ = main_psy.o main_alg.o other_alg_mod_psy.o other_alg_mod_alg.o
+OBJ = main_psy.o main_alg.o other_alg_mod_psy.o other_alg_mod_alg.o \
+  testkern_w0_kernel_mod.o
 
 EXEC = example_openacc
 
@@ -92,7 +93,7 @@ $(PROFILE_LIB):
 	$(MAKE) -C $(PROFILE_PATH)
 
 # Dependencies
-main_psy.o:	other_alg_mod_psy.o
+main_psy.o:	other_alg_mod_psy.o testkern_w0_kernel_mod.o
 main_alg.o:	other_alg_mod_alg.o main_psy.o
 
 %.o: %.F90
