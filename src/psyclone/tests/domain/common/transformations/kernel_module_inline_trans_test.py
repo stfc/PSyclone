@@ -40,6 +40,7 @@
 ''' Tests of the KernelModuleInlineTrans PSyIR transformation. '''
 
 import warnings
+import re
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
@@ -1096,8 +1097,10 @@ def test_mod_inline_no_container(fortran_reader, fortran_writer, tmpdir,
 
     # The original import is unchanged
     assert "use my_mod, only : my_sub" in output
+    # but we remove it so that we can check compilation
+    fixed = output.replace("use my_mod, only : my_sub\n", "")
 
-    assert Compile(tmpdir).string_compiles(output)
+    assert Compile(tmpdir).string_compiles(fixed)
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
@@ -1222,8 +1225,11 @@ def test_inline_of_shadowed_import(tmp_path, monkeypatch, fortran_reader,
     # Cannot compile this because we still have a wildcard import from my_mod
     # in 'do_it'.
     output = fortran_writer(prog_psyir)
+    # Use statement left unchanged.
     assert "use my_mod\n" in output
-    output2 = output.replace("use my_mod, only : my_sub\n", "")
+    # The use statements are no longer required so remove them so that we
+    # can test compilation.
+    output2 = re.sub(r"^\s*use my_mod.*$", "", output, flags=re.M)
     assert Compile(tmp_path).string_compiles(output2)
 
 
