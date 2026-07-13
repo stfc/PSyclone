@@ -44,22 +44,21 @@ PSyclone User Scripts
 The standard way to transform a codebase using psyclone is through the
 :ref:`psyclone_command` tool, which has an optional ``-s <SCRIPT_NAME>``
 flag that allows users to specify a transformation user script to
-programmatically modify the input code::
+programmatically modify the input code using a relative or absolute
+path::
 
     > psyclone -s optimise.py input_source.f90
-
-In this case, the current directory is prepended to the Python search path
-``PYTHONPATH`` which will then be used to try to find the script file. Thus,
-the search begins in the current directory and continues over any pre-existing
-directories in the search path, failing if the file cannot be found.
-
-Alternatively, script files may be specified with a path. In this case
-the file must exist in the specified location. This location is then added to
-the Python search path ``PYTHONPATH`` as before. For example::
-
     > psyclone -s ./optimise.py input_source.f90
     > psyclone -s ../scripts/optimise.py input_source.f90
     > psyclone -s /home/me/PSyclone/scripts/optimise.py input_source.f90
+
+PSyclone will not take ``PYTHONPATH`` into account when importing the script,
+so the user must ensure that the script is found: For this, it must either be
+in the current working directory (if no path is specified at all), or be
+specified with a valid (relative or absolute) path. PSyclone will add the
+directory of the script to its Python's ``sys.path``, meaning the PSyclone
+script can import any helper script in the same directory without additional
+setup.
 
 A valid PSyclone user script file must contain a ``trans`` function which accepts
 a :ref:`PSyIR node<psyir-ug>` representing the root of the psy-layer

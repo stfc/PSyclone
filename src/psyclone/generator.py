@@ -47,13 +47,14 @@
 '''
 
 import argparse
+import importlib
+import logging
 import os
+import pathlib
+import shutil
 import sys
 import traceback
-import importlib
-import shutil
 from typing import Callable, Iterable, List, Optional, Tuple, Union
-import logging
 
 from fparser.api import get_reader
 from fparser.two import Fortran2003
@@ -149,12 +150,18 @@ def load_script(
         raise GenerationError(
             f"generator: expected the script file '{filename}' to have "
             f"the '.py' extension")
-    # prepend file path - if none, the empty string equates to the current
-    # working directory - to the system path to guarantee we find the user
-    # provided module instead of a similarly named module that might
-    # already exist elsewhere in the system path
+
+    # Add the script directory to sys.path, so scripts can easily import
+    # helper scripts in the same directory (this step is not needed to
+    # import the script itself, but it maintains backwards compatibility).
     sys.path.insert(0, filepath)
-    recipe_module = importlib.import_module(module_name)
+
+    # This will import the module, but not make it part of the
+    # system list of all modules, i.e. it can be used elsewhere.
+    script_path = pathlib.Path(script_name)
+    spec = importlib.util.spec_from_file_location(module_name, script_path)
+    recipe_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(recipe_module)
 
     if hasattr(recipe_module, "FILES_TO_SKIP"):
         files_to_skip = recipe_module.FILES_TO_SKIP
@@ -278,6 +285,7 @@ def generate(filename: str,
             # Apply provided recipe to PSyIR
             recipe, _, _ = load_script(script_name)
             recipe(psy.container.root)
+            del sys.path[0]
         alg_gen = None
 
     elif api in GOCEAN_API_NAMES or (api in LFRIC_API_NAMES and LFRIC_TESTING):
@@ -331,6 +339,7 @@ def generate(filename: str,
                                        is_optional=True)
             if recipe:
                 recipe(psyir)
+            del sys.path[0]
 
         # For each kernel called from the algorithm layer
         kernels = {}
@@ -419,6 +428,7 @@ def generate(filename: str,
             # Call the optimisation script for psy-layer optimisations
             recipe, _, _ = load_script(script_name)
             recipe(psy.container.root)
+            del sys.path[0]
 
     # TODO issue #1618 remove Alg class and tests from PSyclone
     if api in LFRIC_API_NAMES and not LFRIC_TESTING:
@@ -970,3 +980,5 @@ def code_transformation_mode(input_file, recipe_file, output_file,
         else:
             print(f"File '{input_file}' skipped because it is listed in "
                   "FILES_TO_SKIP.", file=sys.stdout)
+
+    del sys.path[0]
