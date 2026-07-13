@@ -127,6 +127,9 @@ def test_loop_navigation_properties():
 
     # If it's not fully complete, it still returns an error
     with pytest.raises(InternalError) as err:
+        _ = loop.variable_reference
+    assert error_str in str(err.value)
+    with pytest.raises(InternalError) as err:
         _ = loop.start_expr
     assert error_str in str(err.value)
     with pytest.raises(InternalError) as err:
@@ -143,6 +146,7 @@ def test_loop_navigation_properties():
     loop.addchild(Schedule(parent=loop))
     loop.loop_body.addchild(Return(parent=loop.loop_body))
 
+    assert loop.variable_reference.name == "i"
     assert loop.start_expr.value == "0"
     assert loop.stop_expr.value == "2"
     assert loop.step_expr.value == "1"
@@ -274,7 +278,7 @@ def test_loop_create(fortran_writer):
         Reference(DataSymbol("i", ScalarType.real_single_type())))
     loop = Loop.create(DataSymbol("i", ScalarType.integer_single_type()),
                        start, stop, step, [child_node])
-    ref = loop.children[0]
+    ref = loop.variable_reference
     schedule = loop.loop_body
     assert isinstance(schedule, Schedule)
     check_links(loop, [ref, start, stop, step, schedule])

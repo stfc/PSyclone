@@ -1362,7 +1362,7 @@ def test_replace_with_error1():
     # The first child of a loop is the loop start value which should
     # be a DataNode.
     with pytest.raises(GenerationError) as info:
-        loop.children[0].replace_with(new_node)
+        loop.variable_reference.replace_with(new_node)
     assert ("Item 'Assignment' can't be child 0 of 'Loop'. The valid "
             "format is: 'Reference, DataNode, DataNode, DataNode, Schedule'"
             in str(info.value))

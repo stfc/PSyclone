@@ -39,7 +39,7 @@
 
 ''' This module contains the Loop node implementation.'''
 
-from typing import Union
+from typing import Union, Optional
 
 from psyclone.core import VariablesAccessMap
 from psyclone.psyir.nodes.datanode import DataNode
@@ -274,22 +274,28 @@ class Loop(Statement):
                 f" '{', '.join([str(child) for child in self.children])}'.")
 
     @property
-    def variable(self):
+    def variable_reference(self) -> Reference:
+        '''
+        :returns: the control variable reference for this loop.
+        '''
+        self._check_completeness()
+        return self._children[0]
+
+    @property
+    def variable(self) -> Optional[DataSymbol]:
         '''
         :returns: the control variable for this loop.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         if len(self._children) < 1:
             return None
         return self._children[0].symbol
 
     @variable.setter
-    def variable(self, var):
+    def variable(self, var: DataSymbol):
         '''
         Setter for the variable associated with this loop.
 
         :param var: the control variable reference.
-        :type var: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
         self._check_variable(var)
