@@ -629,7 +629,7 @@ class DefinitionUseChain:
                     # Work out if its read only or not.
                     assign = reference.ancestor(Assignment)
                     if reference.ancestor((Call, CodeBlock)):
-                        # Otherwise we assume read/write access for now.
+                        # For calls and Codeblocks we assume read/write access
                         if defs_out[sig] is not None:
                             self._killed[sig].append(defs_out[sig])
                         defs_out[sig] = reference
@@ -930,10 +930,13 @@ class DefinitionUseChain:
                     sig = reference.get_signature_and_indices()[0]
                     # Work out if its read only or not.
                     assign = reference.ancestor(Assignment)
-                    # RHS reads occur "before" LHS writes, so if we
-                    # hit the LHS or an assignment then we won't have
-                    # a dependency to the value used from the LHS.
-                    if assign is not None:
+                    if reference.ancestor(Call):
+                        # For calls and Codeblocks we assume read/write access
+                        defs_out[sig] = reference
+                    elif assign is not None:
+                        # RHS reads occur "before" LHS writes, so if we
+                        # hit the LHS or an assignment then we won't have
+                        # a dependency to the value used from the LHS.
                         if assign.lhs is reference:
                             # Check if the RHS contains the self._references.
                             # Can't use in since equality is not what we want
@@ -981,11 +984,6 @@ class DefinitionUseChain:
                             # previous assignments.
                             if defs_out[sig] is None:
                                 self._uses[sig].append(reference)
-                    elif reference.ancestor(Call):
-                        # Otherwise we assume read/write access for now.
-                        if defs_out[sig] is not None:
-                            self._killed[sig].append(defs_out[sig])
-                        defs_out[sig] = reference
                     else:
                         # Reference outside an Assignment - read only
                         # This could be References inside a While loop

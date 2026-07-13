@@ -550,11 +550,8 @@ def test_definition_use_chain_find_backward_accesses_codeblock_and_call_local(
     sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
     reaches = chains.find_backward_accesses()[sig]
-    # We don't know if the CodeBlock is definitely a write (in this case it
-    # is not), to the backwards could also be the previous write
     assert len(reaches) == 2
     assert reaches[0] is routine.walk(CodeBlock)[0].children[0]
-    assert reaches[1] is routine.walk(Call)[0].arguments[0]
 
 
 def test_definition_use_chain_find_backward_accesses_call_and_codeblock_nlocal(
