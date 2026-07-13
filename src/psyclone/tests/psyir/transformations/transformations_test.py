@@ -50,7 +50,7 @@ from psyclone.psyir.nodes import (
     ACCLoopDirective, OMPMasterDirective, Fparser2CodeBlock,
     OMPDoDirective, OMPLoopDirective, Routine)
 from psyclone.psyir.symbols import (
-     ContainerSymbol, ScalarType, ImportInterface)
+     ContainerSymbol, ScalarType, ImportInterface, DataSymbol)
 from psyclone.psyir.transformations import (
     ProfileTrans, RegionTrans, TransformationError, OMPTaskloopTrans,
     OMPDeclareTargetTrans, ACCLoopTrans, OMPParallelTrans)
