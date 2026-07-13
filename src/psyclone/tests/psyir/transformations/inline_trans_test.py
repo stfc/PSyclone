@@ -2223,10 +2223,41 @@ def test_validate_array_reshape(fortran_reader):
     sub_s = psyir.walk(Routine)[1]
     with pytest.raises(TransformationError) as err:
         inline_trans._validate_inline_of_call_and_routine_argument_pairs(
-            call, call.arguments[0],
+            call.arguments[0],
             sub_s, sub_s.symbol_table.lookup("x"))
     assert ("actual argument 'a(:,:)' has rank 2 but the corresponding formal "
             "argument, 'x', has rank 1" in str(err.value))
+
+
+def test_validate_unknown_type_array_arg(fortran_reader):
+    '''Test that _validate_inline_of_call_and_routine_argument_pairs rejects
+    an attempt to inline a call when the actual argument has an unknown type
+    but the corresponding formal argument is an array.'''
+    code = """\
+module test_mod
+contains
+subroutine main
+  use some_mod, only: mystery
+  call sub(mystery)
+end subroutine
+subroutine sub(x)
+  real, dimension(10), intent(inout) :: x
+  x(:) = 0.0
+end subroutine
+end module
+"""
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    sub = psyir.walk(Routine)[1]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans._validate_inline_of_call_and_routine_argument_pairs(
+            call.arguments[0], sub, sub.symbol_table.lookup("x"))
+    assert (
+        "Routine 'sub' cannot be inlined because the type of the actual "
+        "argument 'mystery' corresponding to an array formal argument "
+        "('x') is unknown." in str(err.value)
+    )
 
 
 def test_validate_array_arg_expression(fortran_reader):
@@ -2875,3 +2906,702 @@ def test_apply_array_access_check_unresolved_override_option(
     inline_trans.apply(
         call, use_first_callee_and_no_arg_check=True)
     # TODO check results
+
+
+def test_apply_common_block_no_duplicate(
+        fortran_reader, fortran_writer, tmp_path):
+    '''Test that inlining two routines that share a COMMON block does not
+    produce duplicate COMMON declarations (which would cause a Fortran compile
+    error "Symbol X is already in a COMMON block").'''
+
+    src = """\
+module test_mod
+  implicit none
+contains
+  subroutine caller()
+    call sub1()
+    call sub2()
+  end subroutine caller
+  subroutine sub1()
+    real :: volume, lmmpi
+    COMMON /blk/ volume, lmmpi
+    volume = 1.0
+  end subroutine sub1
+  subroutine sub2()
+    real :: volume, lmmpi
+    COMMON /blk/ volume, lmmpi
+    lmmpi = 2.0
+  end subroutine sub2
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(src)
+    caller = psyir.walk(Routine)[0]
+
+    trans = InlineTrans()
+    calls = caller.walk(Call)
+    trans.apply(calls[0])
+    calls = caller.walk(Call)
+    trans.apply(calls[0])
+
+    result = fortran_writer(caller)
+    # Exactly one COMMON declaration must appear.
+    assert result.count("COMMON /blk/") == 1
+    # Both variables must still be present.
+    assert "volume" in result
+    assert "lmmpi" in result
+    assert Compile(tmp_path).string_compiles(result)
+
+
+def test_apply_common_block_no_duplicate_three_routines(
+        fortran_reader, fortran_writer, tmp_path):
+    '''Test that inlining three routines that all share the same COMMON block
+    does not produce duplicate COMMON declarations. This mirrors the real-world
+    case of inlining zetabc_tile, u2dbc_tile and v2dbc_tile (each of which
+    includes the same set of COMMON-block headers) into step2D_FB_tile.'''
+
+    src = """\
+module test_mod
+  implicit none
+contains
+  subroutine caller()
+    call sub1()
+    call sub2()
+    call sub3()
+  end subroutine caller
+  subroutine sub1()
+    real :: zeta, ubar, vbar
+    COMMON /ocean_zeta/ zeta
+    COMMON /ocean_ubar/ ubar
+    COMMON /ocean_vbar/ vbar
+    zeta = 1.0
+  end subroutine sub1
+  subroutine sub2()
+    real :: zeta, ubar, vbar
+    COMMON /ocean_zeta/ zeta
+    COMMON /ocean_ubar/ ubar
+    COMMON /ocean_vbar/ vbar
+    ubar = 2.0
+  end subroutine sub2
+  subroutine sub3()
+    real :: zeta, ubar, vbar
+    COMMON /ocean_zeta/ zeta
+    COMMON /ocean_ubar/ ubar
+    COMMON /ocean_vbar/ vbar
+    vbar = 3.0
+  end subroutine sub3
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(src)
+    caller = psyir.walk(Routine)[0]
+
+    trans = InlineTrans()
+    calls = caller.walk(Call)
+    trans.apply(calls[0])
+    calls = caller.walk(Call)
+    trans.apply(calls[0])
+    calls = caller.walk(Call)
+    trans.apply(calls[0])
+
+    result = fortran_writer(caller)
+    # Each COMMON block must appear exactly once.
+    assert result.count("COMMON /ocean_zeta/") == 1
+    assert result.count("COMMON /ocean_ubar/") == 1
+    assert result.count("COMMON /ocean_vbar/") == 1
+    # All three variables must still be present.
+    assert "zeta" in result
+    assert "ubar" in result
+    assert "vbar" in result
+    assert Compile(tmp_path).string_compiles(result)
+
+
+def test_apply_common_block_caller_has_extra_block(
+        fortran_reader, fortran_writer, tmp_path):
+    '''Test that inlining a routine whose only COMMON block is already present
+    in the caller does not produce a duplicate COMMON declaration, even when
+    the caller also has an *additional* COMMON block that the inlined routine
+    does not declare.  This is a regression test derived from the real-world
+    test.f file: the presence of the extra /comm_setup_mpi1/ block in the
+    caller was enough to confuse the earlier deduplication logic and caused
+    "Symbol 'zeta' at (1) is already in a COMMON block".'''
+
+    src = """\
+module test_mod
+  implicit none
+contains
+  subroutine caller()
+    integer :: lmmpi
+    COMMON /comm_setup_mpi1/ lmmpi
+    real :: zeta
+    COMMON /ocean_zeta/ zeta
+    call subfoo()
+  end subroutine caller
+  subroutine subfoo()
+    real :: zeta
+    COMMON /ocean_zeta/ zeta
+    zeta = zeta + 1.0
+  end subroutine subfoo
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(src)
+    caller = psyir.walk(Routine)[0]
+
+    trans = InlineTrans()
+    calls = caller.walk(Call)
+    trans.apply(calls[0])
+
+    result = fortran_writer(caller)
+    # /ocean_zeta/ must appear exactly once – not duplicated.
+    assert result.count("COMMON /ocean_zeta/") == 1
+    # The extra block from the caller must be preserved.
+    assert result.count("COMMON /comm_setup_mpi1/") == 1
+    assert "zeta" in result
+    assert "lmmpi" in result
+    assert Compile(tmp_path).string_compiles(result)
+
+
+def test_apply_common_block_accept_different_names(
+        fortran_reader, fortran_writer, tmp_path):
+    '''Test that inlining is accepted when the same COMMON block is declared
+    in both the caller and the callee with different variable names but the
+    same type.  The callee's variable ('height') is an alias of the caller's
+    variable ('depth') at the same block position, so all references to
+    'height' inside the inlined body must be replaced by 'depth'.
+    '''
+
+    src = """\
+module test_mod
+  implicit none
+contains
+  subroutine caller()
+    COMMON /ocean/ depth
+    real :: depth
+    integer :: b
+    call subfoo(b)
+  end subroutine caller
+  subroutine subfoo(a)
+    COMMON /ocean/ height
+    real :: height
+    integer :: a
+
+    a = height
+  end subroutine subfoo
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(src)
+    caller = psyir.walk(Routine)[0]
+
+    trans = InlineTrans()
+    calls = caller.walk(Call)
+    trans.apply(calls[0])
+
+    result = fortran_writer(psyir)
+    # 'height' must have been replaced by 'depth' (the caller's alias).
+    assert """\
+  subroutine caller()
+    real :: depth
+    integer :: b
+    COMMON /ocean/ depth
+
+    b = depth
+
+  end subroutine caller
+""" in result
+    assert Compile(tmp_path).string_compiles(result)
+
+
+def test_apply_common_block_reject_due_to_different_types(
+        fortran_reader, fortran_writer, tmp_path):
+    '''Test that inlining is rejected when the same COMMON block is declared
+    in both the caller and the callee with different variable names and
+    different types.
+    '''
+
+    src = """\
+module test_mod
+  implicit none
+contains
+  subroutine caller()
+    COMMON /ocean/ depth
+    real(kind=4) :: depth
+    integer :: b
+    call subfoo(b)
+  end subroutine caller
+  subroutine subfoo(a)
+    COMMON /ocean/ height
+    real(kind=8) :: height
+    integer :: a
+
+    a = 3
+  end subroutine subfoo
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(src)
+    caller = psyir.walk(Routine)[0]
+
+    trans = InlineTrans()
+    calls = caller.walk(Call)
+    with pytest.raises(TransformationError) as err:
+        # Should raise a TransformationError because
+        # the types of the common-block variables differ.
+        trans.apply(calls[0])
+    assert ("Cannot inline 'subfoo' because COMMON block '/ocean/' maps"
+            " 'depth' (type 'Scalar<REAL, Literal[value:'4',"
+            " Scalar<INTEGER, UNDEFINED>]>') in the caller to 'height'"
+            " (type 'Scalar<REAL, Literal[value:'8', Scalar<INTEGER,"
+            " UNDEFINED>]>') in the routine being inlined - the types"
+            " are incompatible.") in str(err.value)
+
+
+def test_apply_parameter_cloning_default(
+        fortran_reader, fortran_writer, tmp_path):
+    '''Test that the default behaviour (parameter_cloning=True) clones a
+    constant from the inlined routine into the call-site table, even when
+    an identical constant already exists there, potentially renaming it.'''
+    code = """\
+module test_mod
+contains
+  subroutine bar(b)
+    real, parameter :: constval = 123.0
+    integer :: b
+    call foo(b)
+  end subroutine bar
+  subroutine foo(a)
+    real, parameter :: constval = 123.0
+    integer :: a
+    a = int(constval)
+  end subroutine foo
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(code)
+    bar = psyir.walk(Routine)[0]
+    foo = psyir.walk(Routine)[1]
+    call = bar.walk(Call)[0]
+
+    InlineTrans().apply(call, routine=foo)
+
+    result = fortran_writer(bar)
+    # With cloning enabled the inlined constant must appear at least once;
+    # it may be renamed to avoid the clash.
+    assert "constval" in result
+    assert Compile(tmp_path).string_compiles(result)
+
+
+def test_apply_parameter_cloning_false_identical(fortran_reader,
+                                                 fortran_writer, tmp_path):
+    '''Test that parameter_cloning=False suppresses the duplicate when the
+    call-site already has an identical constant (same name, type, value).
+    This is the main use-case from the user request.'''
+    code = """\
+module test_mod
+contains
+  subroutine bar(b)
+    real, parameter :: constval = 123.0
+    integer :: b
+    call foo(b)
+  end subroutine bar
+  subroutine foo(a)
+    real, parameter :: constval = 123.0
+    integer :: a
+    a = int(constval)
+  end subroutine foo
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(code)
+    bar = psyir.walk(Routine)[0]
+    foo = psyir.walk(Routine)[1]
+    call = bar.walk(Call)[0]
+
+    InlineTrans().apply(call, routine=foo, parameter_cloning=False)
+
+    result = fortran_writer(bar)
+    # constval should be declared exactly once (no duplicate parameter).
+    assert result.count("parameter :: constval") == 1
+    # The inlined assignment should still use constval correctly.
+    assert "constval" in result
+    assert Compile(tmp_path).string_compiles(result)
+
+
+def test_apply_parameter_cloning_false_different_value(
+        fortran_reader, fortran_writer, tmp_path):
+    '''Test that parameter_cloning=False does NOT suppress a parameter when
+    the values differ between the call site and the inlined routine.'''
+    code = """\
+module test_mod
+contains
+  subroutine bar(b)
+    real, parameter :: constval = 42.0
+    integer :: b
+    call foo(b)
+  end subroutine bar
+  subroutine foo(a)
+    real, parameter :: constval = 123.0
+    integer :: a
+    a = int(constval)
+  end subroutine foo
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(code)
+    bar = psyir.walk(Routine)[0]
+    foo = psyir.walk(Routine)[1]
+    call = bar.walk(Call)[0]
+
+    InlineTrans().apply(call, routine=foo, parameter_cloning=False)
+
+    result = fortran_writer(bar)
+    # Both constant declarations must survive since they have different values.
+    assert result.count("constval") >= 2
+    assert Compile(tmp_path).string_compiles(result)
+
+
+def test_apply_parameter_cloning_false_no_match_in_caller(
+        fortran_reader, fortran_writer, tmp_path):
+    '''Test that parameter_cloning=False still adds a constant that does not
+    exist at the call site.'''
+    code = """\
+module test_mod
+contains
+  subroutine bar(b)
+    integer :: b
+    call foo(b)
+  end subroutine bar
+  subroutine foo(a)
+    real, parameter :: constval = 123.0
+    integer :: a
+    a = int(constval)
+  end subroutine foo
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(code)
+    bar = psyir.walk(Routine)[0]
+    foo = psyir.walk(Routine)[1]
+    call = bar.walk(Call)[0]
+
+    InlineTrans().apply(call, routine=foo, parameter_cloning=False)
+
+    result = fortran_writer(bar)
+    # constval from foo must be added to bar because bar didn't have it.
+    assert "constval" in result
+    assert Compile(tmp_path).string_compiles(result)
+
+
+def test_apply_parameter_cloning_false_used_in_array_dim(
+        fortran_reader, fortran_writer, tmp_path):
+    '''Test that parameter_cloning=False correctly handles a constant that
+    is used as an array-dimension bound inside the inlined routine.'''
+    code = """\
+module test_mod
+contains
+  subroutine bar(b)
+    integer, parameter :: n = 5
+    integer :: b
+    call foo(b)
+  end subroutine bar
+  subroutine foo(a)
+    integer, parameter :: n = 5
+    real, dimension(n) :: tmp
+    integer :: a
+    tmp(1) = real(a)
+    a = int(tmp(1))
+  end subroutine foo
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(code)
+    bar = psyir.walk(Routine)[0]
+    foo = psyir.walk(Routine)[1]
+    call = bar.walk(Call)[0]
+
+    InlineTrans().apply(call, routine=foo, parameter_cloning=False)
+
+    result = fortran_writer(bar)
+    # n should appear only once as a parameter declaration.
+    assert result.count(", parameter ::", result.lower().find("n =")) <= 1 \
+        or result.count("n = 5") == 1
+    # The inlined array tmp should still be present and use n.
+    assert "tmp" in result
+    assert "n" in result
+    assert Compile(tmp_path).string_compiles(result)
+
+
+def test_apply_parameter_cloning_false_multiple_params(
+        fortran_reader, fortran_writer, tmp_path):
+    '''Test parameter_cloning=False with multiple constants, some matching
+    and some not.'''
+    code = """\
+module test_mod
+contains
+  subroutine bar(b)
+    integer, parameter :: shared = 10
+    integer :: b
+    call foo(b)
+  end subroutine bar
+  subroutine foo(a)
+    integer, parameter :: shared = 10
+    integer, parameter :: local_only = 99
+    integer :: a
+    a = shared + local_only
+  end subroutine foo
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(code)
+    bar = psyir.walk(Routine)[0]
+    foo = psyir.walk(Routine)[1]
+    call = bar.walk(Call)[0]
+
+    InlineTrans().apply(call, routine=foo, parameter_cloning=False)
+
+    result = fortran_writer(bar)
+    # shared must be declared exactly once (no duplicate parameter).
+    assert result.count("parameter :: shared") == 1
+    # local_only is unique to foo, so it must be added to bar.
+    assert "local_only" in result
+    assert Compile(tmp_path).string_compiles(result)
+
+
+def test_apply_parameter_cloning_false_complex_rhs_identical(
+        fortran_reader, fortran_writer, tmp_path):
+    '''Test parameter_cloning=False with constants whose value is a complex
+    PSyIR expression (BinaryOperation) that is identical in the caller and the
+    routine. The duplicate should be suppressed.'''
+    code = """\
+module test_mod
+contains
+  subroutine bar(b)
+    integer, parameter :: base_val = 10
+    integer, parameter :: constval = 123 + base_val
+    integer :: b
+    call foo(b)
+  end subroutine bar
+  subroutine foo(a)
+    integer, parameter :: base_val = 10
+    integer, parameter :: constval = 123 + base_val
+    integer :: a
+    a = constval
+  end subroutine foo
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(code)
+    bar = psyir.walk(Routine)[0]
+    foo = psyir.walk(Routine)[1]
+    call = bar.walk(Call)[0]
+
+    InlineTrans().apply(call, routine=foo, parameter_cloning=False)
+
+    result = fortran_writer(bar)
+    # Neither base_val nor constval should be duplicated.
+    assert result.count("parameter :: constval") == 1
+    assert result.count("parameter :: base_val") == 1
+    # The inlined body should still reference constval.
+    assert "constval" in result
+    assert Compile(tmp_path).string_compiles(result)
+
+
+def test_apply_parameter_cloning_false_complex_rhs_different(
+        fortran_reader, fortran_writer, tmp_path):
+    '''Test parameter_cloning=False with constants that have identical names
+    but different complex RHS expressions. Both declarations must be kept.'''
+    code = """\
+module test_mod
+contains
+  subroutine bar(b)
+    integer, parameter :: base_val = 10
+    integer, parameter :: constval = 100 + base_val
+    integer :: b
+    call foo(b)
+  end subroutine bar
+  subroutine foo(a)
+    integer, parameter :: base_val = 10
+    integer, parameter :: constval = 123 + base_val
+    integer :: a
+    a = constval
+  end subroutine foo
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(code)
+    bar = psyir.walk(Routine)[0]
+    foo = psyir.walk(Routine)[1]
+    call = bar.walk(Call)[0]
+
+    InlineTrans().apply(call, routine=foo, parameter_cloning=False)
+
+    result = fortran_writer(bar)
+    # constval has different values in bar and foo, so both must appear.
+    assert result.count("parameter :: constval") >= 2 or (
+        "constval" in result and "constval_1" in result)
+    # base_val is identical and should be deduplicated.
+    assert result.count("parameter :: base_val") == 1
+    assert Compile(tmp_path).string_compiles(result)
+
+
+def test_apply_parameter_cloning_false_unary_op_different_base(
+        fortran_reader, fortran_writer, tmp_path):
+    '''Test parameter_cloning=False where .NOT. parameters share a name but
+    their base parameter differs. The derived constant must NOT be deduplicated
+    because the structural match is only nominal (the base has different
+    values), and using the caller's copy would produce wrong semantics.'''
+    code = """\
+module test_mod
+contains
+  subroutine bar(b)
+    logical, parameter :: flag = .true.
+    logical, parameter :: negflag = .not. flag
+    integer :: b
+    call foo(b)
+  end subroutine bar
+  subroutine foo(a)
+    logical, parameter :: flag = .false.
+    logical, parameter :: negflag = .not. flag
+    integer :: a
+    if (negflag) a = 42
+  end subroutine foo
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(code)
+    bar = psyir.walk(Routine)[0]
+    foo = psyir.walk(Routine)[1]
+    call = bar.walk(Call)[0]
+
+    InlineTrans().apply(call, routine=foo, parameter_cloning=False)
+
+    result = fortran_writer(bar)
+    # flag has different values so both must appear (foo's renamed).
+    assert result.count("parameter :: flag") >= 2 or "flag_1" in result
+    # negflag depends on flag which differs, so foo's negflag must also
+    # appear (renamed), and the inlined if must use foo's (renamed) negflag.
+    assert "negflag_1" in result
+    assert "if (negflag_1)" in result
+    assert Compile(tmp_path).string_compiles(result)
+
+
+def test_apply_parameter_type_clash(
+        fortran_reader, fortran_writer):
+    '''Test with parameter types that don't match.'''
+    code = """\
+module test_mod
+contains
+  subroutine bar(b)
+    integer, parameter :: wp = kind(1.0d0)
+    real(kind=wp), parameter :: pi = 3.14592
+    real :: tmp
+    integer :: b
+
+    tmp = wp
+    call foo(b)
+  end subroutine bar
+  subroutine foo(a)
+    integer, parameter :: wp = kind(1.0)
+    integer :: a
+
+    a = 42 * wp
+  end subroutine foo
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(code)
+    bar = psyir.walk(Routine)[0]
+    foo = psyir.walk(Routine)[1]
+    call = bar.walk(Call)[0]
+
+    InlineTrans().apply(call, routine=foo, parameter_cloning=False)
+
+    result = fortran_writer(bar)
+    assert """\
+subroutine bar(b)
+  integer, parameter :: wp = KIND(1.0d0)
+  real(kind=wp), parameter :: pi = 3.14592
+  integer, parameter :: wp_1 = KIND(1.0)
+  integer :: b
+  real :: tmp
+
+  tmp = wp
+  b = 42 * wp_1
+
+end subroutine bar""" in result
+
+
+def test_apply_parameter_cloning_false_caller_has_non_constant(
+        fortran_reader, fortran_writer, tmp_path):
+    '''Test that parameter_cloning=False does NOT suppress a routine constant
+    when the call-site has a symbol with the same name that is not a constant
+    (i.e. tsym.is_constant is False). This exercises the
+    ``if not tsym.is_constant or tsym.initial_value is None`` branch in
+    _redirect_duplicate_parameters.'''
+    code = """\
+module test_mod
+contains
+  subroutine bar(b)
+    integer :: constval
+    integer :: b
+    constval = 7
+    call foo(b)
+  end subroutine bar
+  subroutine foo(a)
+    integer, parameter :: constval = 10
+    integer :: a
+    a = constval
+  end subroutine foo
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(code)
+    bar = psyir.walk(Routine)[0]
+    foo = psyir.walk(Routine)[1]
+    call = bar.walk(Call)[0]
+
+    InlineTrans().apply(call, routine=foo, parameter_cloning=False)
+
+    result = fortran_writer(bar)
+    # bar's constval is a variable; foo's is a parameter. They are not
+    # duplicates, so foo's parameter constant must appear (possibly renamed).
+    assert """\
+subroutine bar(b)
+  integer, parameter :: constval_1 = 10
+  integer :: b
+  integer :: constval
+
+  constval = 7
+  b = constval_1
+
+end subroutine bar""" in result
+    assert Compile(tmp_path).string_compiles(result)
+
+
+def test_apply_parameter_cloning_false_different_datatype(
+        fortran_reader, fortran_writer, tmp_path):
+    '''Test that parameter_cloning=False does NOT suppress a routine constant
+    when the call-site has a constant with the same name but a different
+    datatype. This exercises the ``if rsym.datatype != tsym.datatype``
+    branch in _redirect_duplicate_parameters.'''
+    code = """\
+module test_mod
+contains
+  subroutine bar(b)
+    integer, parameter :: constval = 10
+    integer :: b
+    call foo(b)
+  end subroutine bar
+  subroutine foo(a)
+    real, parameter :: constval = 10.0
+    integer :: a
+    a = int(constval)
+  end subroutine foo
+end module test_mod
+"""
+    psyir = fortran_reader.psyir_from_source(code)
+    bar = psyir.walk(Routine)[0]
+    foo = psyir.walk(Routine)[1]
+    call = bar.walk(Call)[0]
+
+    InlineTrans().apply(call, routine=foo, parameter_cloning=False)
+
+    result = fortran_writer(bar)
+    # bar has integer constval=10, foo has real constval=10.0. Different
+    # types so the routine's parameter must be added (renamed) rather than
+    # deduplicated.
+    assert """\
+subroutine bar(b)
+  integer, parameter :: constval = 10
+  real, parameter :: constval_1 = 10.0
+  integer :: b
+
+  b = INT(constval_1)
+
+end subroutine bar""" in result
+    assert Compile(tmp_path).string_compiles(result)

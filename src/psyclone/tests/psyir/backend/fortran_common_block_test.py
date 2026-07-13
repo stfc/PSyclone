@@ -61,6 +61,8 @@ def test_fw_common_blocks(fortran_reader, fortran_writer, tmpdir):
     routine = psyir.walk(Routine)[0]
 
     assert routine.symbol_table.lookup("a").is_commonblock  # Sanity check
+    assert routine.symbol_table.lookup("d").is_commonblock  # Sanity check
+    assert routine.symbol_table.lookup("e").is_commonblock  # Sanity check
 
     code = fortran_writer(routine)
     assert code == (

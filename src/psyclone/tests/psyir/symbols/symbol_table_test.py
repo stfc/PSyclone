@@ -1337,6 +1337,95 @@ def test_handle_symbol_clash_imported_symbols():
             "of the same name imported from 'Ridcully'" in str(err.value))
 
 
+def test_handle_symbol_clash_commonblock_same_declaration():
+    '''Test that _handle_symbol_clash() ignores duplicate COMMON-block
+    markers with identical declarations.'''
+    table1 = symbols.SymbolTable()
+    table2 = symbols.SymbolTable()
+    decl = "common /keep_me/ a"
+    marker_name = "_PSYCLONE_INTERNAL_COMMONBLOCK_1"
+    table1.add(symbols.DataSymbol(
+        marker_name, symbols.UnsupportedFortranType(decl)))
+    table2.add(symbols.DataSymbol(
+        marker_name, symbols.UnsupportedFortranType(decl)))
+
+    old_sym = table2.lookup(marker_name)
+    table1._handle_symbol_clash(old_sym, table2)
+
+    assert len(table1.symbols) == 1
+    assert old_sym.name == marker_name
+
+
+def test_add_symbols_from_table_commonblock_same_decl_different_name():
+    '''Test that _add_symbols_from_table() silently skips an incoming
+    COMMON-block marker whose declaration is identical to one already in the
+    table but under a *different* marker name.
+
+    This is the regression case for the bug where add() raises a KeyError
+    for the duplicate declaration, _add_symbols_from_table() forwards it to
+    _handle_symbol_clash(), and _handle_symbol_clash() previously crashed
+    because it called self.lookup(old_sym.name) before checking for
+    COMMON-block markers — and the name was absent from the table.'''
+    table1 = symbols.SymbolTable()
+    table2 = symbols.SymbolTable()
+    decl = "COMMON /ocean/ u, v"
+    # table1 already has the COMMON block under marker number 10.
+    table1.add(symbols.DataSymbol(
+        "_PSYCLONE_INTERNAL_COMMONBLOCK_10",
+        symbols.UnsupportedFortranType(decl)))
+    # table2 has the *same* COMMON block under marker number 33 (different
+    # number, as happens when two routines are independently parsed).
+    table2.add(symbols.DataSymbol(
+        "_PSYCLONE_INTERNAL_COMMONBLOCK_33",
+        symbols.UnsupportedFortranType(decl)))
+
+    table1._add_symbols_from_table(table2)
+
+    # The COMMON block must be present exactly once (no duplicate).
+    matching = [sym for sym in table1.symbols
+                if isinstance(sym.datatype, symbols.UnsupportedFortranType)
+                and sym.datatype.declaration == decl]
+    assert len(matching) == 1
+
+
+def test_handle_symbol_clash_commonblock_distinct_blocks_renamed():
+    '''Test that _handle_symbol_clash() renames and adds an incoming
+    COMMON-block marker when block names do not overlap.'''
+    table1 = symbols.SymbolTable()
+    table2 = symbols.SymbolTable()
+    marker_name = "_PSYCLONE_INTERNAL_COMMONBLOCK_1"
+    table1.add(symbols.DataSymbol(
+        marker_name, symbols.UnsupportedFortranType("common /first/ a")))
+    table2.add(symbols.DataSymbol(
+        marker_name, symbols.UnsupportedFortranType("common /second/ b")))
+
+    old_sym = table2.lookup(marker_name)
+    table1._handle_symbol_clash(old_sym, table2)
+
+    assert old_sym.name != marker_name
+    assert any(sym.datatype.declaration == "common /second/ b"
+               for sym in table1.symbols)
+
+
+def test_handle_symbol_clash_unsupported_fortran_non_commonblock_name():
+    '''Test that a clash between UnsupportedFortranType symbols with names
+    unrelated to common-block markers takes the standard rename-and-add path.
+    '''
+    table1 = symbols.SymbolTable()
+    table2 = symbols.SymbolTable()
+    table1.add(symbols.DataSymbol(
+        "clash", symbols.UnsupportedFortranType("type(t1) :: clash")))
+    table2.add(symbols.DataSymbol(
+        "clash", symbols.UnsupportedFortranType("type(t2) :: clash")))
+
+    old_sym = table2.lookup("clash")
+    table1._handle_symbol_clash(old_sym, table2)
+
+    assert old_sym.name != "clash"
+    assert any(sym.datatype.declaration == "type(t2) :: clash"
+               for sym in table1.symbols)
+
+
 def test_swap_symbol_properties():
     ''' Test the symboltable swap_properties method '''
     # pylint: disable=too-many-statements
