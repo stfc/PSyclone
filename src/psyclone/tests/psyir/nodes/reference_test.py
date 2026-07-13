@@ -620,6 +620,8 @@ def test_reference_is_write(fortran_reader):
        a = SIN(c)
        call somecall(a)
        a = b
+       do i=1,2
+       enddo
        end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
     references = psyir.walk(Reference)
@@ -640,6 +642,8 @@ def test_reference_is_write(fortran_reader):
     # a = b has a as write and b as not
     assert references[10].is_write
     assert not references[11].is_write
+    # Loop control variable
+    assert references[12].is_write
 
 
 def test_reference_component_indices(fortran_reader):
