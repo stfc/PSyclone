@@ -4695,7 +4695,7 @@ class Fparser2Reader():
             was_single_stmt = True
             annotations = ["was_where", "was_single_stmt"]
             logical_expr = [node.items[0]]
-            # There are no comments in the items list for a
+            # There can be no comments in the items list for a
             # Fortran2003.Where_Stmt
             first_non_comment = 0
         else:
@@ -4714,7 +4714,9 @@ class Fparser2Reader():
             if not isinstance(node.content[-1], Fortran2003.End_Where_Stmt):
                 raise InternalError(f"Failed to find closing end where "
                                     f"statement in: {node}")
-            if _contains_intrinsic_reduction(node.content[1:-1]):
+            if _contains_intrinsic_reduction(
+                    node.content[first_non_comment:-1]
+            ):
                 raise NotImplementedError(
                     f"TODO #1960 - WHERE constructs which contain an array-"
                     f"reduction intrinsic are not supported but found "
@@ -4928,7 +4930,8 @@ class Fparser2Reader():
         # Convert all uses of array syntax to indexed accesses
         self._array_syntax_to_indexed(ifblock, loop_vars)
 
-        # Compute the preceding comments
+        # Collect all the preceding comments and associate them with
+        # the outermost loop.
         preceding_comments = []
         for i in range(first_non_comment):
             self.process_comment(node.content[i], preceding_comments)
