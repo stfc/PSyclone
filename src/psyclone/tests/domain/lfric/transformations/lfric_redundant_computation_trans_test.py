@@ -1408,7 +1408,7 @@ def test_rc_unsupported_loop_type(monkeypatch):
 
     # Switch off validation
     monkeypatch.setattr(rc_trans, "validate",
-                        lambda loop, options, depth: None)
+                        lambda loop, options, depth, to_clean: None)
 
     # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
