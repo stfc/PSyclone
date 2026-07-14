@@ -237,7 +237,8 @@ def test_lfric():
     schedule = get_psylayer_schedule("1_single_invoke.f90", api="lfric")
     var_accesses = schedule.reference_accesses()
     assert str(var_accesses) == (
-        "a: READ, cell: WRITE+READ, f1_data: INC, f2_data: READ, field_type: "
+        "a: READ, cell: WRITE+READ, f1_data: INC, f2_data: READ, "
+        "field_proxy_type: CONSTANT, field_type: "
         "CONSTANT, i_def: CONSTANT, m1_data: READ, m2_data: READ, map_w1: "
         "READ, map_w2: READ, map_w3: READ, ndf_w1: READ, ndf_w2: READ, "
         "ndf_w3: READ, nlayers_f1: READ, r_def: CONSTANT, undf_w1: READ, "

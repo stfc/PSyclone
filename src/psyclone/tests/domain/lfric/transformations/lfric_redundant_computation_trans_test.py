@@ -1551,3 +1551,24 @@ def test_rc_max_colour(tmpdir):
         "    call f1_proxy%set_clean(max_halo_depth_mesh - 1)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_rc_to_clean_depth(tmp_path):
+    '''
+    Test the transformation with the option to compute only to the clean
+    halo depth.
+
+    '''
+    psy, invoke = get_invoke("1_single_invoke.f90",
+                             TEST_API, idx=0, dist_mem=True)
+    schedule = invoke.schedule
+    # Create our redundant computation transformation
+    rc_trans = LFRicRedundantComputationTrans()
+    #import pdb; pdb.set_trace()
+    print(schedule.view())
+    loop = schedule.walk(Loop)[0]
+    rc_trans.apply(loop, to_clean=True)
+    result = str(psy.gen).lower()
+    assert "integer(kind=i_def) :: clean_depth" in result
+
+    assert LFRicBuild(tmp_path).code_compiles(psy)

@@ -533,7 +533,7 @@ null()
     integer(kind=i_def) :: ndf_w2
     integer(kind=i_def) :: ndf_w0
     integer(kind=i_def) :: undf_w0
-    integer(kind=i_def), pointer :: map_w0(:,:) => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_w0 => null()
     type(field_proxy_type), dimension(3) :: coord_proxy
     type(operator_proxy_type) :: mapping_proxy
     integer(kind=i_def) :: np_xy_qr

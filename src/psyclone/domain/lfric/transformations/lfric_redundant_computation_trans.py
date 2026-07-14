@@ -45,10 +45,11 @@ from typing import Any, Optional, Union
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicInvokeSchedule, LFRicConstants
+from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.psyir.nodes import DataNode, Directive
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.symbols import DataSymbol, ScalarType
+from psyclone.psyir.symbols import DataSymbol
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
@@ -305,10 +306,17 @@ class LFRicRedundantComputationTrans(LoopTrans):
 
         if to_clean:
             # We need to get the currently-clean halo depth.
-            loop.scope.symbol_table.new_symbol(
+            table = loop.scope.symbol_table
+            table.new_symbol(
                 "clean_depth",
                 symbol_type=DataSymbol,
-                datatype=ScalarType.integer_type())
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+            # Ask the field for the depth of its clean halo
+            #import pdb; pdb.set_trace()
+            kernel_arg = loop.field
+            pname = kernel_arg.proxy_name
+            #proxy = table.lookup(pname)
+            #Call.create()
         if loop.loop_type == "":
             # Loop is over cells
             loop.set_upper_bound("cell_halo", depth)
