@@ -2505,7 +2505,7 @@ class Transformation(metaclass=abc.ABCMeta):
                 # This is needed to enable metatransformations where
                 # only some inherited classes have options set on
                 # superclasses
-                # TODO #2668: Deprecate options dict. 
+                # TODO #2668: Deprecate options dict.
                 if option == "options":
                     continue
                 invalid_options.append(option)
