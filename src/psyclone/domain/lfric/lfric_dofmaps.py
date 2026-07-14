@@ -222,12 +222,16 @@ class LFRicDofmaps(LFRicCollection):
         super().invoke_declarations()
         # Function space dofmaps
         for dmap in sorted(self._unique_fs_maps):
-            if dmap not in self.symtab:
-                dmap_sym = DataSymbol(
-                    dmap, UnsupportedFortranType(
-                        f"integer(kind=i_def), pointer :: {dmap}(:,:) "
-                        f"=> null()"))
-                self.symtab.add(dmap_sym, tag=dmap)
+            intrinsic_type = LFRicTypes("LFRicIntegerScalarDataType")()
+            dtype = UnsupportedFortranType(
+                f"{intrinsic_type.intrinsic.name.lower()}("
+                f"kind={intrinsic_type.precision.name}), pointer, "
+                f"dimension(:,:) :: {dmap} => null()",
+                partial_datatype=ArrayType(
+                    intrinsic_type,
+                    [ArrayType.Extent.DEFERRED, ArrayType.Extent.DEFERRED]))
+            dmap_sym = self.symtab.find_or_create_tag(
+              dmap, symbol_type=DataSymbol, datatype=dtype)
 
         # Column-banded dofmaps
         for dmap in sorted(self._unique_cbanded_maps):

@@ -66,7 +66,7 @@ def test_field(tmpdir):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
 
-    generated_code = psy.gen
+    generated_code = str(psy.gen)
     output = (
         "module single_invoke_psy\n"
         "  use constants_mod, only : r_def\n"
@@ -95,9 +95,9 @@ def test_field(tmpdir):
         "    integer(kind=i_def) :: undf_w2\n"
         "    integer(kind=i_def) :: ndf_w3\n"
         "    integer(kind=i_def) :: undf_w3\n"
-        "    integer(kind=i_def), pointer :: map_w1(:,:) => null()\n"
-        "    integer(kind=i_def), pointer :: map_w2(:,:) => null()\n"
-        "    integer(kind=i_def), pointer :: map_w3(:,:) => null()\n"
+        "    INTEGER(kind=i_def), pointer, dimension(:,:) :: map_w1 => null()\n"
+        "    INTEGER(kind=i_def), pointer, dimension(:,:) :: map_w2 => null()\n"
+        "    INTEGER(kind=i_def), pointer, dimension(:,:) :: map_w3 => null()\n"
         "    type(field_proxy_type) :: f1_proxy\n"
         "    type(field_proxy_type) :: f2_proxy\n"
         "    type(field_proxy_type) :: m1_proxy\n"
@@ -149,7 +149,7 @@ def test_field(tmpdir):
         "  end subroutine invoke_0_testkern_type\n"
         "\n"
         "end module single_invoke_psy\n")
-    assert output == str(generated_code)
+    assert output == generated_code
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -199,9 +199,9 @@ def test_field_deref(tmpdir, dist_mem):
         "    integer(kind=i_def) :: undf_w2\n"
         "    integer(kind=i_def) :: ndf_w3\n"
         "    integer(kind=i_def) :: undf_w3\n"
-        "    integer(kind=i_def), pointer :: map_w1(:,:) => null()\n"
-        "    integer(kind=i_def), pointer :: map_w2(:,:) => null()\n"
-        "    integer(kind=i_def), pointer :: map_w3(:,:) => null()\n"
+        "    integer(kind=i_def), pointer, dimension(:,:) :: map_w1 => null()\n"
+        "    integer(kind=i_def), pointer, dimension(:,:) :: map_w2 => null()\n"
+        "    integer(kind=i_def), pointer, dimension(:,:) :: map_w3 => null()\n"
         "    type(field_proxy_type) :: f1_proxy\n"
         "    type(field_proxy_type) :: est_f2_proxy\n"
         "    type(field_proxy_type) :: m1_proxy\n"
@@ -378,19 +378,19 @@ f6, m5, m6, m7)
     integer(kind=i_def) :: undf_wchi
     integer(kind=i_def) :: ndf_any_w2
     integer(kind=i_def) :: undf_any_w2
-    integer(kind=i_def), pointer :: map_any_w2(:,:) => null()
-    integer(kind=i_def), pointer :: map_w0(:,:) => null()
-    integer(kind=i_def), pointer :: map_w1(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2broken(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2h(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2htrace(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2trace(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2v(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2vtrace(:,:) => null()
-    integer(kind=i_def), pointer :: map_w3(:,:) => null()
-    integer(kind=i_def), pointer :: map_wchi(:,:) => null()
-    integer(kind=i_def), pointer :: map_wtheta(:,:) => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_any_w2 => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_w0 => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_w1 => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_w2 => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_w2broken => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_w2h => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_w2htrace => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_w2trace => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_w2v => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_w2vtrace => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_w3 => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_wchi => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_wtheta => null()
     type(field_proxy_type) :: f1_proxy
     type(field_proxy_type) :: f2_proxy
     type(field_proxy_type) :: m1_proxy
@@ -719,21 +719,21 @@ m4, f5, f6, m5, m6, f7, f8, m7)
     integer(kind=i_def) :: undf_as1_f8
     integer(kind=i_def) :: ndf_ads1_m7
     integer(kind=i_def) :: undf_ads1_m7
-    integer(kind=i_def), pointer :: map_ads1_m7(:,:) => null()
-    integer(kind=i_def), pointer :: map_any_w2(:,:) => null()
-    integer(kind=i_def), pointer :: map_as1_f8(:,:) => null()
-    integer(kind=i_def), pointer :: map_w0(:,:) => null()
-    integer(kind=i_def), pointer :: map_w1(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2broken(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2h(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2htrace(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2trace(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2v(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2vtrace(:,:) => null()
-    integer(kind=i_def), pointer :: map_w3(:,:) => null()
-    integer(kind=i_def), pointer :: map_wchi(:,:) => null()
-    integer(kind=i_def), pointer :: map_wtheta(:,:) => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_ads1_m7 => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_any_w2 => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_as1_f8 => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_w0 => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_w1 => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_w2 => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_w2broken => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_w2h => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_w2htrace => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_w2trace => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_w2v => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_w2vtrace => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_w3 => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_wchi => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_wtheta => null()
     type(integer_field_proxy_type) :: f1_proxy
     type(integer_field_proxy_type) :: f2_proxy
     type(integer_field_proxy_type) :: m1_proxy

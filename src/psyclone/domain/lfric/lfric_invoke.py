@@ -223,6 +223,19 @@ class LFRicInvoke(Invoke):
 
             self._alg_unique_args.extend(self._alg_unique_halo_depth_args)
 
+        # Declare all quantities required by this Invoke
+        for entities in [self.scalar_args, self. scalar_array_args,
+                         self.fields, self.lma_ops,
+                         self.stencil, self.meshes,
+                         self.function_spaces, self.dofmaps, self.cma_ops,
+                         self.boundary_conditions, self.evaluators,
+                         self.halo_depths,
+                         self.proxies, self.cell_iterators,
+                         self.reference_element_properties,
+                         self.mesh_properties, self.loop_bounds,
+                         self.run_time_checks]:
+            entities.invoke_declarations()
+
     def arg_for_funcspace(self, fspace):
         '''
         Returns an argument object which is on the requested
@@ -292,23 +305,11 @@ class LFRicInvoke(Invoke):
         return None
 
     def setup_psy_layer_symbols(self):
-        ''' Declare, initialise and deallocate all symbols required by the
-        PSy-layer Invoke subroutine.
+        ''' Initialise and deallocate all symbols required by the
+        PSy-layer Invoke subroutine (the symbols are created in the
+        constructor).
 
         '''
-        # Declare all quantities required by this PSy routine (Invoke)
-        for entities in [self.scalar_args, self. scalar_array_args,
-                         self.fields, self.lma_ops,
-                         self.stencil, self.meshes,
-                         self.function_spaces, self.dofmaps, self.cma_ops,
-                         self.boundary_conditions, self.evaluators,
-                         self.halo_depths,
-                         self.proxies, self.cell_iterators,
-                         self.reference_element_properties,
-                         self.mesh_properties, self.loop_bounds,
-                         self.run_time_checks]:
-            entities.invoke_declarations()
-
         cursor = 0
         for entities in [self.proxies, self.run_time_checks,
                          self.cell_iterators, self.meshes,

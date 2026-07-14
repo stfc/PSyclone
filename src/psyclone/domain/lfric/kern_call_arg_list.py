@@ -49,6 +49,7 @@ from typing import Optional, Tuple, TYPE_CHECKING
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
+from psyclone.domain.lfric.function_space import FunctionSpace
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
@@ -641,14 +642,16 @@ class KernCallArgList(ArgOrdering):
                                     function_space=function_space.orig_name))
 
     def fs_compulsory_field(
-            self, function_space,
-            var_accesses: Optional[VariablesAccessMap] = None):
-        '''Add compulsory arguments associated with this function space to
+            self,
+            function_space: FunctionSpace,
+            var_accesses: Optional[VariablesAccessMap] = None
+    ) -> None:
+        '''
+        Add compulsory arguments associated with this function space to
         the list. If supplied it also stores this access in var_accesses.
 
         :param function_space: the function space for which the compulsory
             arguments are added.
-        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
 
@@ -661,16 +664,7 @@ class KernCallArgList(ArgOrdering):
         self.append(sym.name, var_accesses)
 
         map_name = function_space.map_name
-        intrinsic_type = LFRicTypes("LFRicIntegerScalarDataType")()
-        dtype = UnsupportedFortranType(
-            f"{intrinsic_type.intrinsic.name}("
-            f"kind={intrinsic_type.precision.name}), pointer, "
-            f"dimension(:,:) :: {map_name} => null()",
-            partial_datatype=ArrayType(
-                intrinsic_type,
-                [ArrayType.Extent.DEFERRED, ArrayType.Extent.DEFERRED]))
-        sym = self._symtab.find_or_create_tag(
-            map_name, symbol_type=DataSymbol, datatype=dtype)
+        sym = self._symtab.lookup_with_tag(map_name)
 
         if self._kern.iterates_over == 'domain':
             # This kernel takes responsibility for iterating over cells so
