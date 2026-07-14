@@ -39,13 +39,13 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     Directive, Loop, Routine
 )
-from psyclone.psyir.transformations.transformation_error import (
-    TransformationError)
-from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.maximal_omp_parallel_region_trans import (
     MaximalOMPParallelRegionTrans)
+from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.omp_minimise_sync_trans import (
     OMPMinimiseSyncTrans)
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError)
 from psyclone.utils import transformation_documentation_wrapper
 
 
@@ -72,6 +72,9 @@ class OMPCPURoutineTrans(Transformation):
         '''
         # Validate the provided options are allowed and typed correctly.
         self.validate_options(**kwargs)
+        # Sub transformation validation is done in the apply function
+        # as the inputs are not known until computation is done
+        # in the apply.
 
     def apply(self, node: Routine, **kwargs):
         '''
@@ -82,7 +85,8 @@ class OMPCPURoutineTrans(Transformation):
         :param node: The Routine node to transform
         '''
 
-        # Split the options for the subtransformations.
+        # Split the options for the subtransformations. The options are
+        # returned in the order of the _SUB_TRANSFORMATIONS list.
         local_kwargs, loop_kwargs, maxpar_kwargs, minsync_kwargs = \
             self.split_kwargs(
                 **kwargs
@@ -97,9 +101,7 @@ class OMPCPURoutineTrans(Transformation):
             if loop.ancestor(Directive):
                 continue  # Skip if an outer loop is already parallelised
             try:
-                # Validate that this loop can be parallelised.
-                ltrans.validate(loop, **loop_kwargs)
-                # If it is, then apply the OMPLoopTrans
+                # Try to apply the OMPLoopTrans.
                 ltrans.apply(loop, **loop_kwargs)
             except TransformationError:
                 # If we fail to parallelise a loop we just skip it.
@@ -108,7 +110,6 @@ class OMPCPURoutineTrans(Transformation):
         # Apply the maximal openMP parallel region transformation to the
         # routine.
         momprtrans = MaximalOMPParallelRegionTrans()
-        momprtrans.validate(node.children[:], **maxpar_kwargs)
         momprtrans.apply(node.children[:], **maxpar_kwargs)
 
         nowait = self.get_option("nowait", **kwargs)
@@ -116,7 +117,6 @@ class OMPCPURoutineTrans(Transformation):
         # OMPMinimiseSyncTrans as well.
         if nowait:
             minstrans = OMPMinimiseSyncTrans()
-            minstrans.validate(node, **minsync_kwargs)
             minstrans.apply(node, **minsync_kwargs)
 
 
