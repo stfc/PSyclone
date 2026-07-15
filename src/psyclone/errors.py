@@ -148,3 +148,5 @@ class DocParseError(PSycloneError):
 # For Sphinx AutoAPI documentation generation
 __all__ = ["LazyString", "PSycloneError", "GenerationError",
            "FieldNotFoundError", "InternalError"]
+
+# TODO #3493: temp reference to prove closed-issue check fails
