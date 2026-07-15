@@ -35,7 +35,7 @@
 
 '''Contains the tests for the OMPCPURoutineTrans metatransformation.'''
 
-from psyclone.psyir.transformations.metatransformations import (
+from psyclone.psyir.transformations import (
         OMPCPURoutineTrans
 )
 

@@ -590,7 +590,7 @@ kwargs as in the example below:
             self.validate_options(**self_kwargs)
             super().validate(node, **self_kwargs)
     
-		def apply(self, node, my_option):
+        def apply(self, node, my_option):
 		    # Omitted code before using the subtransformations...
             _, tr1_kwargs, tr2_kwargs = self.split_kwargs(
                 my_option=my_options, **kwargs)
