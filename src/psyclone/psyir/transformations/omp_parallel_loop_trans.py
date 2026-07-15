@@ -161,7 +161,6 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         # Add explicit private variables
         explicitly_private_symbols = set()
-        print(force_private)
         for symbol_name in force_private:
             try:
                 sym = node.scope.symbol_table.lookup(symbol_name)
