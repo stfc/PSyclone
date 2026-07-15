@@ -931,7 +931,7 @@ class DefinitionUseChain:
                     # Work out if its read only or not.
                     assign = reference.ancestor(Assignment)
                     if reference.ancestor(Call):
-                        # For calls and Codeblocks we assume read/write access
+                        # For calls we always assume read/write access
                         defs_out[sig] = reference
                     elif assign is not None:
                         # RHS reads occur "before" LHS writes, so if we
