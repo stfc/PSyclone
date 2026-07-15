@@ -33,9 +33,12 @@
 # -----------------------------------------------------------------------------
 # Author H. Frost, STFC Daresbury Lab
 
-# If a pull request (PR) says it closes an issue, any TODO or comment that still points at the issue number will become a reference once the issue is closed.
-# This workflow reads the closing clause from the PR description, then greps the source tree for the corresponding issue <#number> references
-# and fails if any remain, so a reviewer no longer has to check by hand.
+# If a pull request (PR) says it closes an issue, any TODO or comment
+# that still points at the issue number will become outdated once the
+# issue is closed. This workflow reads the closing clause from the PR
+# title and description, greps the source tree for the corresponding
+# "#<number>" references, and fails if any remain, so that a reviewer
+# no longer has to check by hand.
 
 name: Check for references to closed issues
 
@@ -47,6 +50,7 @@ on:
 
 jobs:
   check_closed_issue_references:
+    if: ${{ github.repository != 'stfc/PSyclone-mirror' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
