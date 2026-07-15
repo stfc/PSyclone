@@ -477,6 +477,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.metatransformations.OMPCPURoutineTrans
+    :members: apply
+    :no-index:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.Product2LoopTrans
       :members: apply
       :no-index:
@@ -749,6 +755,17 @@ operator is applied to an OpenMP Parallel Region, and computes the dependencies
 caused by Taskloops, and adds OpenMP Taskwait statements to satisfy those
 dependencies. An example of using OpenMP tasking is available in
 `PSyclone/examples/nemo/eg1/openmp_taskloop_trans.py`.
+
+OpenMP CPU Routine Transformation
++++++++++++++++++++++++++++++++++
+The OpenMP CPU Routine transformation applies simple OpenMP parallelism to
+an entire routine. The transformation attempts to apply OpenMP loop directives
+to every loop in the routine, and then builds the largest OpenMP parallel
+region(s) possible to apply parallelism. If the ``nowait`` option is specified,
+then the transformation will attempt to maximise the number of nowait clauses
+on the loop directives, and minimise the number of barriers required to
+keep the output code correct.
+
 
 .. _opencl:
 

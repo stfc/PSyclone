@@ -589,18 +589,12 @@ kwargs as in the example below:
             self._trans2().validate(node, **tr2_kwargs)
             self.validate_options(**self_kwargs)
             super().validate(node, **self_kwargs)
-
+    
 		def apply(self, node, my_option):
 		    # Omitted code before using the subtransformations...
             _, tr1_kwargs, tr2_kwargs = self.split_kwargs(
                 my_option=my_options, **kwargs)
             self._trans1().apply(node, **tr1_kwargs)
             self._trans2().apply(node, **tr2_kwargs)
-
-Note that the TestMetaTrans docstring won't mention the SUB_TRANSFORMATIONS
-options, therefore it is currently recommended to explicitly mention the
-relevant internal transformations in the apply docstring with a
-``:py:class:`` tag (to create a link). TODO #3330 will explore automating
-this step.
 
 .. footbibliography::
