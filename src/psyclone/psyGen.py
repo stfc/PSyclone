@@ -65,7 +65,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     ArrayReference, Call, Container, Literal, Loop, Node, OMPDoDirective,
     Reference, Directive, Routine, Schedule, Statement, Assignment,
-    IntrinsicCall, BinaryOperation, FileContainer)
+    IntrinsicCall, BinaryOperation, FileContainer, OMPParallelDirective)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, ScalarType,
     UnresolvedType, ImportInterface, RoutineSymbol)
@@ -967,9 +967,10 @@ class Kern(Statement):
             insert_loc.addchild(assign, cursor)
         return new_node
 
-    def temp_to_array_assignment(self,
-                                 parent: Node,
-                                 table: SymbolTable) -> None:
+    def store_thread_private_value_to_shared_array(
+            self, parallel_region_body: Schedule,
+            table: SymbolTable
+    ) -> None:
         '''
         Generate the appropriate code to transfer the private reduction
         temporary into the shared array for reproducible reductions.
@@ -978,7 +979,8 @@ class Kern(Statement):
         This method is designed to be used *after* a Kern has been lowered
         (and thus detached) and therefore does not use `self.scope`.
 
-        :param parent: the node to which to add the assignment as a child.
+        :param parallel_region_body: the schedule to which to add the
+            assignment as a child.
         :param table: the SymbolTable to use.
         '''
         tag = f"{self.name}:{self._reduction_arg.name}:local"
@@ -998,21 +1000,22 @@ class Kern(Statement):
 
         assign.preceding_comment = (
             "Store the thread private value of the reduction into the "
-            "shared array as required for reproducible reductions."
+            "shared array."
         )
 
         # Where to put it?
-        parent.addchild(assign)
+        parallel_region_body.addchild(assign)
 
-    def initialise_and_privatise_scalar_store(
-        self, parallel_region: Node, position: int, table: SymbolTable
+    def create_thread_private_variable(
+        self, parallel_directive: OMPParallelDirective,
+        position: int, table: SymbolTable
     ) -> None:
         '''
         Generate the appropriate code to initialise the scalar reduction
         variable inside the parallel region, and add it to the private clause.
 
-        :param parent: the parallel region to which to add the initialisation
-                       as a child.
+        :param parallel_directive: the parallel region to which to add
+            the initialisation as a child.
         :param position: where in the parent's list of children to add
                         the new Loop.
         :param table: the SymbolTable to use.
@@ -1021,12 +1024,12 @@ class Kern(Statement):
             f"{self.name}:{self._reduction_arg.name}:templocal")
         assign = Assignment.create(Reference(local_var),
                                    Literal("0", local_var.datatype))
-        parallel_region.dir_body.addchild(assign, position)
+        parallel_directive.dir_body.addchild(assign, position)
         assign.preceding_comment = (
             "Initialise thread-private reduction variable"
         )
         # The local var also needs to be thread private.
-        parallel_region.private_clause.addchild(
+        parallel_directive.private_clause.addchild(
                 Reference(local_var)
         )
 
@@ -1165,11 +1168,11 @@ class Kern(Statement):
                                    2*[ArrayType.Extent.DEFERRED])
             # Create a scalar temp to store to in the loop.
             _ = table.find_or_create_tag(
-                root_name=f"local_temp_{self._reduction_arg.name}",
+                root_name=f"thread_private_{self._reduction_arg.name}",
                 tag=f"{self.name}:{self._reduction_arg.name}:templocal",
                 symbol_type=DataSymbol, datatype=arg_sym.datatype)
             local_var = table.find_or_create_tag(
-                root_name="local_"+self._reduction_arg.name,
+                root_name="array_of_partial_"+self._reduction_arg.name,
                 tag=f"{self.name}:{self._reduction_arg.name}:local",
                 symbol_type=DataSymbol, datatype=array_type)
             alloc = IntrinsicCall.create(

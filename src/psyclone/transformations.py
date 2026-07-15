@@ -321,6 +321,12 @@ class LFRicOMPLoopTrans(OMPLoopTrans):
                 By default the value from the config file will be used.
 
         '''
+        # TODO #2668: Deprecate options dict. Sicne this Transformation
+        # overrides the input options we will need to do the same with
+        # the input **kwargs, preferable with a warning or logging message
+        # explaining that the input is overridden (unless the behaviour of
+        # this Transformation is updated.
+
         # Since this function potentially modifies the user's option
         # dictionary, create a copy:
         options = options.copy() if options else {}

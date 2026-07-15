@@ -1404,10 +1404,10 @@ class OMPParallelDirective(DataSharingAttributeMixin, OMPRegionDirective):
             # Get the reduction variable to initialise and privatise.
             tag = f"{call.name}:{call._reduction_arg.name}:templocal"
             sym = self.scope.symbol_table.lookup_with_tag(tag)
-            call.initialise_and_privatise_scalar_store(
+            call.create_thread_private_variable(
                 self, 0, self.scope.symbol_table
             )
-            call.temp_to_array_assignment(
+            call.store_thread_private_value_to_shared_array(
                 self.dir_body, self.scope.symbol_table
             )
             call.reduction_sum_loop(self.parent, self.position,
