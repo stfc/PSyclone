@@ -1416,7 +1416,7 @@ def test_multiline_where_with_preceding_comment(fortran_writer, tmp_path):
     where (arr1 == 0.0) ! Here is a comment on where
         arr2 = arr1 * 3
     elsewhere ! Here is a comment on elsewhere
-        arr2 = 0
+        arr2 = 0 ! An inline comment
     end where ! Here is a comment on end where
     end subroutine test"""
     fortran_reader = FortranReader(ignore_comments=False)
@@ -1443,7 +1443,7 @@ def test_multiline_where_with_preceding_comment(fortran_writer, tmp_path):
       arr2(widx1) = arr1(widx1) * 3
     else
       ! Here is a comment on elsewhere
-      arr2(widx1) = 0
+      arr2(widx1) = 0  ! An inline comment
     end if
   enddo  ! Here is a comment on end where
 
