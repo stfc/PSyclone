@@ -178,3 +178,39 @@ def test_ompcpuroutinetrans_apply_with_nowait(fortran_reader,
   !$omp end do nowait
   !$omp end parallel"""
     assert correct in out
+
+
+def test_ompcpuroutinetrans_apply_no_parallelism(fortran_reader,
+                                                 fortran_writer):
+    '''Test the behaviour of the OMPCPURoutineTrans works correctly
+    when no parallelism is available.'''
+    code = """subroutine x
+        integer :: i, j, k
+        integer, dimension(100) :: arr
+
+        i = 1
+        arr = 0
+        j = 2
+        k = 3
+        do i = 1, 100
+            print *, arr(i)
+        end do
+    end subroutine x"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+
+    trans = OMPCPURoutineTrans()
+
+    trans.apply(psyir.children[0], nowait=True)
+
+    out = fortran_writer(psyir)
+    correct = """i = 1
+  arr = 0
+  j = 2
+  k = 3
+  do i = 1, 100, 1
+    ! PSyclone CodeBlock (unsupported code) reason:
+    !  - Unsupported statement: Print_Stmt
+    PRINT *, arr(i)
+  enddo"""
+    assert correct in out
