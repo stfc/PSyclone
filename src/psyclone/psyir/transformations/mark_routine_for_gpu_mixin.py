@@ -136,8 +136,8 @@ class MarkRoutineForGPUMixin:
                         # An import of a compile-time constant is fine.
                         continue
                     raise TransformationError(
-                        f"{k_or_r} '{node.name}' accesses the symbol "
-                        f"'{symbol}' which is imported. If this symbol "
+                        f"{k_or_r} '{node.name}' accesses the imported symbol "
+                        f"'{symbol}'. If this symbol "
                         f"represents data then it must first be converted to a"
                         f" {k_or_r} argument using the "
                         f"KernelImportsToArguments transformation.")

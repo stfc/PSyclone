@@ -45,7 +45,7 @@ from psyclone.psyir.nodes import CodeBlock, Loop
 from psyclone.psyir.symbols import ContainerSymbol
 from psyclone.psyir.transformations import LoopSwapTrans, TransformationError
 from psyclone.tests.gocean_build import GOceanBuild
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import get_invoke, get_psylayer_schedule
 
 
 def test_loop_swap_apply(tmpdir):
@@ -278,10 +278,8 @@ def test_loop_swap_schedule_is_kept():
     contain annotations).
     '''
 
-    psy, _ = get_invoke("test27_loop_swap.f90", "gocean", idx=0,
-                        dist_mem=False)
-    invoke = psy.invokes.get("invoke_loop1")
-    schedule = invoke.schedule
+    schedule = get_psylayer_schedule(
+        "test27_loop_swap.f90", api="gocean", invoke_name="invoke_loop1")
     schedule_str = str(schedule)
 
     # First make sure to throw an early error if the source file

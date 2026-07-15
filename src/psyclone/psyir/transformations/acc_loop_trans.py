@@ -52,22 +52,15 @@ class ACCLoopTrans(ParallelLoopTrans):
 
     For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.parse.utils import ParseError
-    >>> from psyclone.psyGen import PSyFactory
-    >>> from psyclone.errors import GenerationError
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "nemolite2d_alg_mod.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
+    >>>
     >>> from psyclone.psyir.transformations import ACCLoopTrans
     >>> from psyclone.transformations import ACCParallelTrans
-    >>> api = "gocean"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> ltrans = ACCLoopTrans()
     >>> rtrans = ACCParallelTrans()
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
     >>>
     >>> # Apply the OpenACC Loop transformation to *every* loop in the schedule
     >>> for child in schedule.children[:]:
@@ -75,7 +68,6 @@ class ACCLoopTrans(ParallelLoopTrans):
     >>>
     >>> # Enclose all of these loops within a single OpenACC parallel region
     >>> rtrans.apply(schedule)
-    >>>
 
     '''
     # The types of node that must be excluded from the section of PSyIR

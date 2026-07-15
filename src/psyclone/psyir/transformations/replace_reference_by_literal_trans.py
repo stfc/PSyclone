@@ -68,10 +68,12 @@ class ReplaceReferenceByLiteralTrans(Transformation):
     For example:
 
 
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.symbols import ScalarType
+    >>> from psyclone.psyir.nodes import Routine
     >>> from psyclone.psyir.transformations import (
-        ReplaceReferenceByLiteralTrans)
+    ... ReplaceReferenceByLiteralTrans)
     >>> source = """program test
     ... use mymod
     ... type(my_type):: t1, t2, t3, t4
@@ -115,7 +117,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
       integer :: ic2
       integer :: ic3
       real, dimension(10) :: a
-      <BLANKLINE>
+    <BLANKLINE>
       invariant = 1
       do i = 1, 10, 1
         t1%a = 13
@@ -124,11 +126,12 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         a(ic3) = 3 + (ic3 + 13) * ic3
         a(t1%a) = 4 + (t1%a + 4 * 13) * t1%a
       enddo
-      <BLANKLINE>
+    <BLANKLINE>
     end program test
     <BLANKLINE>
 
     '''
+
     def __init__(self) -> None:
         super().__init__()
         # Dictionary with Literal values of the corresponding symbol

@@ -55,15 +55,12 @@ class PSyDataTrans(RegionTrans):
     >>> from psyclone.parse.utils import ParseError
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean"
-    >>> ast, invoke_info = parse(SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invoke_info)
-    >>>
+
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "test11_different_iterates_over_one_invoke.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>> from psyclone.psyir.transformations import PSyDataTrans
     >>> data_trans = PSyDataTrans()
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
     >>>
     >>> # Enclose all children within a single PSyData region
     >>> data_trans.apply(schedule.children)

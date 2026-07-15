@@ -914,8 +914,8 @@ def test_import_in_where_clause(fortran_reader):
     '''
     code = '''
     program where_test
-    implicit none
     use some_module, only: a, b, c, d
+    implicit none
 
     where(a(:) + b > 1)
        b = c + d
@@ -927,8 +927,8 @@ def test_import_in_where_clause(fortran_reader):
 
     code2 = '''
     program where_test
-    implicit none
     use some_module, only: c, d
+    implicit none
     integer, dimension(100) :: a, b
 
     where(a(:) + b > 1)

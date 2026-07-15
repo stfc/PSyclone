@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors A. B. G. Chalk, STFC Daresbury Lab
+# Modified B. Went, Met Office
 
 '''This module contains the tests for the MaximalRegionTrans.'''
 
@@ -42,12 +43,14 @@ from psyclone.psyir.nodes import (
     Assignment,
     IfBlock,
     Routine,
+    Loop,
     OMPParallelDirective,
 )
 from psyclone.psyir.transformations import (
     MaximalRegionTrans,
     TransformationError,
-    OMPParallelTrans
+    OMPParallelTrans,
+    OMPLoopTrans,
 )
 
 
@@ -345,3 +348,41 @@ def test_validation_failure_during_compute_transformable_sections(
     assert isinstance(routine.children[0], OMPParallelDirective)
     assert isinstance(routine.children[1], Assignment)
     assert isinstance(routine.children[2], OMPParallelDirective)
+
+
+def test_apply_force_private(fortran_reader):
+    '''Test the apply function of MaxParallelRegionTrans
+       with force privates.'''
+    code = """subroutine x
+    integer :: i, ii, k, l, block
+    integer :: array_l(8)
+    block = 2
+    do ii = 1, 4
+        do k = 4, 1, -1
+            l = 0
+            do i = ii, min(ii+block -1, 4)
+                l = l + 1
+                array_l(l) = 1 + 2
+            end do
+        end do
+    end do
+    end subroutine x
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    # Apply loop_trans to all the loops possible.
+    ltrans = OMPLoopTrans(omp_schedule="static")
+    ltrans.apply(
+        psyir.walk(Loop)[0],
+        ignore_dependencies_for=["array_l"],
+        nowait=True)
+    # Apply maximum transformation to code
+    mtrans = MaxParTrans()
+    routine = psyir.walk(Routine)
+    # Note, i, ii, k, l seem to be set as first private
+    mtrans.apply(routine, force_private=["i", "ii", "k", "l", "array_l"])
+    # assertions
+    assert len(psyir.walk(OMPParallelDirective)) == 1
+    nodes = psyir.walk(Routine)[0].children[:]
+    assert isinstance(nodes[0], OMPParallelDirective) is True
+    pdir = nodes[0]
+    assert len(pdir.explicitly_private_symbols) == 5

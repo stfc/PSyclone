@@ -124,7 +124,7 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
       integer, dimension(100) :: b
       integer :: i
     <BLANKLINE>
-      !$omp parallel default(shared), private(i)
+      !$omp parallel default(shared) private(i)
       !$omp do schedule(auto)
       do i = 1, 100, 1
         a(i) = i
@@ -146,13 +146,13 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
         a(i) = a(i) + 1
       enddo
       !$omp end do nowait
-      !$omp barrier
       !$omp end parallel
     <BLANKLINE>
     end subroutine test
     <BLANKLINE>
 
     '''
+
     def __str__(self) -> str:
         '''Returns the string representation of this OMPMinimiseSyncTrans
         object.'''
@@ -192,12 +192,14 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
         '''
         Removes excess adjacent bar_type barriers from the input routine, i.e:
 
-        >>> !$omp taskwait
-        >>> !$omp taskwait
+        .. code-block:: fortran
+            !$omp taskwait
+            !$omp taskwait
 
         will be simplified to just:
 
-        >>> !$omp taskwait
+        .. code-block:: fortran
+            !$omp taskwait
 
         :param routine: the routine to remove duplicate barriers from.
         :param bar_type: the barrier type to remove.

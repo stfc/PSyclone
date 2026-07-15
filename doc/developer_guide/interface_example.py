@@ -35,11 +35,4 @@ def some_function(filename, kernel_path, node=None):
                              it can be raised by different errors.
     :raises GenerationError: same exception, raised by a different error.
 
-    For example:
-
-    >>> from psyclone.generator import generate
-    >>> API="gocean"
-    >>> alg, psy = generate(SOURCE_FILE, api=API)
-    >>> alg, psy = generate(SOURCE_FILE, api=API, kernel_paths=[KERNEL_PATH])
-
     '''

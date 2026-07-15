@@ -40,7 +40,7 @@
 .. testsetup::
 
     from psyclone.psyir.symbols import DataSymbol, ScalarType, ArrayType
-	from psyclone.psyir.nodes import Reference
+    from psyclone.psyir.nodes import Reference
 
 .. _psyir-ug:
 
@@ -268,7 +268,7 @@ example:
     ...                       ScalarType.Precision.SINGLE)
     >>> bool_type = ScalarType(ScalarType.Intrinsic.BOOLEAN, 4)
     >>> symbol = DataSymbol("rdef", int_type, initial_value=4)
-    >>> scalar_type = ScalarType(ScalarType.Intrinsic.REAL, symbol)
+    >>> scalar_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(symbol))
 
 For convenience ScalarType has static methods to create a number of
 common scalar datatypes:

@@ -77,17 +77,15 @@ class Reference2ArrayRangeTrans(Transformation):
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.nodes import Reference
     >>> from psyclone.psyir.transformations import TransformationError
-    >>> CODE = ("program example\\n"
-    ...         "real :: a(:)\\n"
-    ...         "a = 0.0\\n"
-    ...         "end program\\n")
+    >>> from psyclone.psyir.transformations import Reference2ArrayRangeTrans
     >>> trans = Reference2ArrayRangeTrans()
-    >>> psyir = FortranReader().psyir_from_source(CODE)
+    >>> psyir = FortranReader().psyir_from_source("""
+    ...    program example
+    ...        real :: a(:)
+    ...        a = 0.0
+    ...    end program""")
     >>> for reference in psyir.walk(Reference):
-    ...    try:
-    ...        trans.apply(reference)
-    ...    except TransformationError:
-    ...        pass
+    ...    trans.apply(reference)
     >>> print(FortranWriter()(psyir))
     program example
       real, dimension(:) :: a

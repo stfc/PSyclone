@@ -117,7 +117,7 @@ class OMPLoopTrans(ParallelLoopTrans):
       integer :: i
       integer :: j
     <BLANKLINE>
-      !$omp parallel do default(shared), private(i,j), schedule(dynamic)
+      !$omp parallel do default(shared) private(i,j) schedule(dynamic)
       do i = 1, 10, 1
         do j = 1, 10, 1
           a(i,j) = 0
@@ -129,6 +129,7 @@ class OMPLoopTrans(ParallelLoopTrans):
     <BLANKLINE>
 
     '''
+
     def __init__(self, omp_directive="do", omp_schedule="auto"):
         super().__init__()
         # Whether or not to generate code for (run-to-run on n threads)

@@ -164,7 +164,7 @@ end module my_mod''')
         "integer(kind=an_int), parameter :: a_second_int = 5_i_def\n"
         "integer, parameter :: nfieldnames3d = 4\n"
         "integer, dimension(nfieldnames3d), parameter :: "
-        "interpolationlevels = [2, 0, HUGE(InterpolationLevels) / 3, 0]\n")
+        "InterpolationLevels = [2, 0, HUGE(InterpolationLevels) / 3, 0]\n")
 
 
 def test_gen_decls(fortran_writer):

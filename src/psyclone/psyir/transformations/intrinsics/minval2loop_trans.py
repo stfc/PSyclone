@@ -126,13 +126,15 @@ class Minval2LoopTrans(ArrayReductionBaseTrans):
       real :: result
       integer :: idx
       integer :: idx_1
+      real :: reduction_var
     <BLANKLINE>
-      result = HUGE(result)
+      reduction_var = HUGE(reduction_var)
       do idx = 1, 10, 1
         do idx_1 = 1, 10, 1
-          result = MIN(result, array(idx_1,idx))
+          reduction_var = MIN(reduction_var, array(idx_1,idx))
         enddo
       enddo
+      result = reduction_var
     <BLANKLINE>
     end subroutine minval_test
     <BLANKLINE>

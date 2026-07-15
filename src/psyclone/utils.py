@@ -37,9 +37,11 @@
 
 '''This module provides generic utility functions.'''
 
-from typing import Type, TYPE_CHECKING, Union
+import ast
 from collections import OrderedDict
 import sys
+from typing import Any, Type, TYPE_CHECKING, Union
+
 from psyclone.errors import InternalError
 from psyclone.docstring_parser import (
     DocstringData, ReturnsData
@@ -107,26 +109,34 @@ def transformation_documentation_wrapper(*args,
     transformation_docstring_wrapper that is handled by python. The length 0
     set would happen with a case like this:
 
-    >>> @transformation_documentation_wrapper(inherit=True)
-    ... class mytrans(Transformation):
-    ...     pass
+    .. code-block:: python
+
+        @transformation_documentation_wrapper(inherit=True)
+        class mytrans(Transformation):
+            pass
 
     as this code is equivalent to:
 
-    >>> mytrans = transformation_documentation_wrapper(inherit=True)(mytrans)
+    .. code-block:: python
+
+        mytrans = transformation_documentation_wrapper(inherit=True)(mytrans)
 
     For this case *args is empty, as only the inherit argument is provided
     to the transformation_documentation_wrapper call and is through kwargs.
 
     Without arguments to the decorator:
 
-    >>> @transformation_documentation_wrapper
-    ... class mytrans(Transformation):
-    ...    pass
+    .. code-block:: python
+
+        @transformation_documentation_wrapper
+        class mytrans(Transformation):
+            pass
 
     the resultant code is the same as writing:
 
-    >>> mytrans = transformation_documentation_wrapper(mytrans)
+    .. code-block:: python
+
+        mytrans = transformation_documentation_wrapper(mytrans)
 
     In this case *args contains the wrapped class in *args, which needs to be
     passed manually to the sub-function inside the wrapper.
@@ -232,5 +242,85 @@ def transformation_documentation_wrapper(*args,
         return cls
     if len(args) > 0:
         return wrapper(*args)
-    else:
-        return wrapper
+    return wrapper
+
+
+# ----------------------------------------------------------------------------
+def parse_kwargs(kwargs: str) -> dict[str, Any]:
+    """
+    This function safely parses a string containing a `,` separated list of
+    `keyword: value` specifications (e.g. ``a: 1, b: [1,2]`) into a python
+    dictionary. I.e, it adds ``{}`` around the user string and then parses
+    this as a dictionary. It especially simplifies the syntax for the user by
+    not requiring the keys to be escaped, e.g. ``"'a':1,'b':2"`` and
+    ``"a:1,b:2"`` will both work as expected.
+
+    This is done by using Python's ast parser, then adding a separate
+    transformation step that replaces keys that are an ast.Name
+    with an ast.Constant, then finally calling literal_eval to
+    create the dictionary.
+
+    :param kwargs: the string to parse.
+
+    :raises ValueError: if the string cannot be converted to a kwargs-style
+        dictionary.
+    """
+
+    # Parse as an expression. Note that various ast functions can
+    # raise different exceptions, so we catch all exceptions and
+    # re-raise them as a ValueError
+    try:
+        # Make it look like a dict literal
+        wrapped = "{" + kwargs.strip() + "}"
+        expr = ast.parse(wrapped, mode="eval")
+
+        # Convert bare-name keys to string keys
+        transformer = _NameKeysToStr()
+        expr = transformer.visit(expr)
+        # This call will update line-number, column, ... information in
+        # the modified tree, since the newly created nodes won't have
+        # this information
+        ast.fix_missing_locations(expr)
+
+        # Safely evaluate literals/containers
+        result = ast.literal_eval(expr)
+    # pylint: disable=broad-exception-caught
+    except Exception as err:
+        raise (ValueError(f"Invalid syntax for keyword arguments "
+                          f"'{kwargs}'.")) from err
+
+    if not isinstance(result, dict):
+        raise ValueError(f"Invalid syntax for keyword arguments '{kwargs}'. "
+                         f"It was parsed as '{type(result).__name__}', not "
+                         f"as a dictionary.")
+
+    return result
+
+
+class _NameKeysToStr(ast.NodeTransformer):
+    """
+    This is a helper class to convert dictionary keys that are
+    an ast.Name (i.e. not a string) into an ast.Constant (a string).
+
+    It will effectively change `{a:1}` to `{'a':1}`
+    """
+
+    # pylint: disable=invalid-name
+    def visit_Dict(self, node: ast.Dict):
+        """Function to replace non-string keys in a dictionary
+        with strings representing the same name.
+
+        :param node: the dictionary node in Python AST.
+        """
+
+        # Transform keys: Name(...)  -> Constant("name")
+        new_keys = []
+        for k in node.keys:
+            if isinstance(k, ast.Name):
+                new_keys.append(ast.Constant(k.id))
+            else:
+                new_keys.append(self.visit(k))
+        node.keys = new_keys
+        # Still visit values normally
+        node.values = [self.visit(v) for v in node.values]
+        return node

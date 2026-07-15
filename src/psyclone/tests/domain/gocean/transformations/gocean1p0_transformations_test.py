@@ -1488,9 +1488,9 @@ def test_accroutinetrans_module_use():
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         rtrans.apply(kernels[0])
-    assert ("accesses the symbol 'magic: Symbol<Import(container='model_mod'"
-            ")>' which is imported. If this symbol "
-            "represents data then it must first" in str(err.value))
+    assert ("accesses the imported symbol 'magic: Symbol<Import(container="
+            "'model_mod')>'. If this symbol represents data then it must first"
+            in str(err.value))
     # Tell the ModuleManager where to find the module that is being USED by
     # the kernel.
     mod_man = ModuleManager.get()
@@ -1500,9 +1500,9 @@ def test_accroutinetrans_module_use():
     with pytest.raises(TransformationError) as err:
         rtrans.apply(kernels[0])
     assert ("Transformation Error: Kernel 'kernel_with_use_code' accesses "
-            "the symbol 'magic: DataSymbol<Scalar<REAL, Reference"
-            "[name:'go_wp']>, Import(container='model_mod')>' which is "
-            "imported. If this symbol represents data then it must first be "
+            "the imported symbol 'magic: DataSymbol<Scalar<REAL, Reference"
+            "[name:'go_wp']>, Import(container='model_mod')>'. "
+            "If this symbol represents data then it must first be "
             "converted to a Kernel argument using the "
             "KernelImportsToArguments transformation." in str(err.value))
 
