@@ -54,12 +54,13 @@ jobs:
 
       - name: Check for lingering references to closed issues
         env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           # Pull issue numbers of any "Closes #<number>" clause (case insensitive)
           # "|| true" stops the step failing when pr closes nothing
 
-          issues=$(printf '%s' "$PR_BODY" | grep -oiE 'closes #([0-9]+)' | grep -oE '[0-9]+' | sort -u || true)
+          issues=$(printf '%s\n%s' "$PR_TITLE" "$PR_BODY" | grep -oiE 'closes #([0-9]+)' | grep -oE '[0-9]+' | sort -u || true)
 
           if [ -z "$issues" ]; then
             echo "No issues closed by this PR."
