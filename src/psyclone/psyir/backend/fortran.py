@@ -142,10 +142,11 @@ def add_attributes_to_unsupported_declaration(
         symbol: Symbol, include_visibility: bool) -> str:
     '''
     Utility that manipulates the UnsupportedFortranType declaration for the
-    supplied Symbol so as to ensure that it has the correct accessibility
-    specifier.
+    supplied Symbol so as to ensure that it has the correct attributes.
+
     (This is required because we capture an UnsupportedFortranType declaration
-    as is and this may or may not include accessibility information.)
+    as is and this may or may not include accessibility or static attributes
+    when this came from separate statements.)
 
     :param symbol: the symbol for which the declaration is required.
     :param include_visibility: whether to include visibility attributes.
@@ -198,7 +199,7 @@ def add_attributes_to_unsupported_declaration(
         if "save" not in components:
             first_part = first_part.rstrip() + ", save "
 
-    # If requested (e.g. is in a module) andd the accessibility attributes
+    # If requested (e.g. is in a module) add the accessibility attributes
     if include_visibility:
         if symbol.visibility == Symbol.Visibility.PUBLIC:
             if "public" not in components:
@@ -739,7 +740,7 @@ class FortranWriter(LanguageWriter):
         if isinstance(symbol.datatype, UnsupportedType):
             if isinstance(symbol.datatype, UnsupportedFortranType):
                 # This is a declaration of UnsupportedType. We have to ensure
-                # that its visibility is correctly specified though.
+                # that its attributes are correctly specified though.
                 decln = add_attributes_to_unsupported_declaration(
                             symbol, include_visibility)
                 return f"{self._nindent}{decln}\n"

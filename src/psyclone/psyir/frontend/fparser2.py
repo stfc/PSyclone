@@ -5622,13 +5622,19 @@ class Fparser2Reader():
                 # RoutineSymbol
                 routine_symbol.specialise(RoutineSymbol)
 
-            # If it is a call statement, it must be a subroutine (not a
-            # function) otherwise this would be invalid Fortran.
+            # If it is a call statement, we know that the RoutineSymbol does
+            # not have a return type, we can store that informations. (We don't
+            # attempt to modify DataSymbols since this already have an explicit
+            # declaration defining the signature)
             if (
                 isinstance(routine_symbol, RoutineSymbol) and
                 isinstance(node, Fortran2003.Call_Stmt)
             ):
                 routine_symbol.datatype = NoType()
+
+            # Note that we also let DataSymbols through because procedure
+            # pointers (which are represented by DataSymbols) can also be
+            # found as the Call_Stmt called symbol.
 
         return self._process_args(node, call)
 
