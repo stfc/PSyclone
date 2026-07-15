@@ -344,9 +344,12 @@ def test_any_space_1(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "integer(kind=i_def), pointer :: map_as1_a(:,:) => null()" in code
-    assert "integer(kind=i_def), pointer :: map_as2_b(:,:) => null()" in code
-    assert "integer(kind=i_def), pointer :: map_w0(:,:) => null()" in code
+    assert ("integer(kind=i_def), pointer, dimension(:,:) :: map_as1_a => "
+            "null()" in code)
+    assert ("integer(kind=i_def), pointer, dimension(:,:) :: map_as2_b => "
+            "null()" in code)
+    assert ("integer(kind=i_def), pointer, dimension(:,:) :: map_w0 => null()"
+            in code)
     assert "real(kind=r_def), allocatable :: basis_as1_a_qr(:,:,:,:)" in code
     assert "real(kind=r_def), allocatable :: basis_as2_b_qr(:,:,:,:)" in code
     assert ("ALLOCATE(basis_as1_a_qr(dim_as1_a,ndf_as1_a,"
@@ -380,8 +383,8 @@ def test_any_space_2(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert "integer(kind=i_def), intent(in) :: istp" in generated_code
-    assert ("integer(kind=i_def), pointer :: map_as1_a(:,:) => null()"
-            in generated_code)
+    assert ("integer(kind=i_def), pointer, dimension(:,:) :: map_as1_a => "
+            "null()" in generated_code)
     assert "integer(kind=i_def) :: ndf_as1_a" in generated_code
     assert "integer(kind=i_def) :: undf_as1_a" in generated_code
     assert "ndf_as1_a = a_proxy%vspace%get_ndf()" in generated_code
@@ -460,8 +463,8 @@ def test_op_any_discontinuous_space_1(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert "real(kind=r_def), intent(in) :: rdt" in generated_code
-    assert ("integer(kind=i_def), pointer :: map_ads1_f1(:,:) => null()"
-            in generated_code)
+    assert ("integer(kind=i_def), pointer, dimension(:,:) :: map_ads1_f1 => "
+            "null()" in generated_code)
     assert "integer(kind=i_def) :: ndf_ads1_f1" in generated_code
     assert "integer(kind=i_def) :: undf_ads1_f1" in generated_code
     assert "ndf_ads1_f1 = f1_proxy(1)%vspace%get_ndf()" in generated_code
@@ -893,8 +896,10 @@ def test_2kern_invoke_any_space(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "integer(kind=i_def), pointer :: map_as1_f1(:,:) => null()" in gen
-    assert "integer(kind=i_def), pointer :: map_as1_f2(:,:) => null()" in gen
+    assert ("integer(kind=i_def), pointer, dimension(:,:) :: map_as1_f1 => "
+            "null()" in gen)
+    assert ("integer(kind=i_def), pointer, dimension(:,:) :: map_as1_f2 => "
+            "null()" in gen)
     assert "map_as1_f1 => f1_proxy%vspace%get_whole_dofmap()\n" in gen
     assert "map_as1_f2 => f2_proxy%vspace%get_whole_dofmap()\n" in gen
     assert (
@@ -921,10 +926,14 @@ def test_multikern_invoke_any_space(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "integer(kind=i_def), pointer :: map_as1_f1(:,:) => null()" in gen
-    assert "integer(kind=i_def), pointer :: map_as1_f2(:,:) => null()" in gen
-    assert "integer(kind=i_def), pointer :: map_as2_f1(:,:) => null()" in gen
-    assert "integer(kind=i_def), pointer :: map_w0(:,:) => null()" in gen
+    assert ("integer(kind=i_def), pointer, dimension(:,:) :: map_as1_f1 => "
+            "null()" in gen)
+    assert ("integer(kind=i_def), pointer, dimension(:,:) :: map_as1_f2 => "
+            "null()" in gen)
+    assert ("integer(kind=i_def), pointer, dimension(:,:) :: map_as2_f1 => "
+            "null()" in gen)
+    assert ("integer(kind=i_def), pointer, dimension(:,:) :: map_w0 => "
+            "null()" in gen)
     assert (
         "real(kind=r_def), allocatable :: basis_as1_f1_qr(:,:,:,:)") in gen
     assert (
@@ -1025,11 +1034,13 @@ def test_loopfuse(dist_mem, tmpdir):
     # only one loop
     assert str(generated_code).count("do cell") == 1
     # only one map for each space
-    assert str(generated_code).count("map_w1 =>") == 1
-    assert str(generated_code).count("map_w2 =>") == 1
-    assert str(generated_code).count("map_w3 =>") == 1
+    assert str(generated_code).count("map_w1 => f1_proxy%") == 1
+    assert str(generated_code).count("map_w2 => f2_proxy%") == 1
+    assert str(generated_code).count("map_w3 => m2_proxy%") == 1
     # kernel call tests
     kern_idxs = []
+    do_idx = -1
+    enddo_idx = -1
     for idx, line in enumerate(str(generated_code).split('\n')):
         if "do cell" in line:
             do_idx = idx
@@ -3944,7 +3955,7 @@ operator_real64_local_stencil => null()
     integer(kind=i_def) :: ndf_w3
     integer(kind=i_def) :: undf_w3
     integer(kind=i_def) :: ndf_w0
-    integer(kind=i_def), pointer :: map_w3(:,:) => null()
+    integer(kind=i_def), pointer, dimension(:,:) :: map_w3 => null()
     type(field_proxy_type) :: field_r_def_proxy
     type(r_solver_field_proxy_type) :: field_r_solver_proxy
     type(r_tran_field_proxy_type) :: field_r_tran_proxy

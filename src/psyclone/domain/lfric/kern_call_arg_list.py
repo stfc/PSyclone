@@ -56,9 +56,8 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import (
     ArrayReference, Reference, StructureReference)
 from psyclone.psyir.symbols import (
-    DataSymbol, DataTypeSymbol, UnresolvedType, ContainerSymbol,
-    ImportInterface, ScalarType, ArrayType, Symbol, UnsupportedFortranType,
-    ArgumentInterface)
+    ArgumentInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,
+    ImportInterface, ScalarType, Symbol, UnresolvedType)
 if TYPE_CHECKING:
     from psyclone.lfric import LFRicKernelArgument
 

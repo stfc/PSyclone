@@ -60,7 +60,6 @@ from psyclone.domain.lfric import (lfric_builtins,
                                    LFRicKern, LFRicKernMetadata)
 from psyclone.domain.lfric.transformations import (
     LFRicLoopFuseTrans, LFRicRedundantComputationTrans)
-from psyclone.lfric import LFRicKernelArguments
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.generator import generate
 from psyclone.gocean1p0 import GOKern
@@ -71,9 +70,9 @@ from psyclone.psyGen import (TransInfo, PSyFactory,
                              InvokeSchedule)
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
                                   Literal, Loop, Node, KernelSchedule, Call,
-                                  colored, Schedule)
+                                  colored, Reference, Schedule)
 from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, ScalarType,
-                                    ImportInterface, ContainerSymbol, Symbol,
+                                    ImportInterface, ContainerSymbol,
                                     UnresolvedType, SymbolTable)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.test_files import dummy_transformations
@@ -816,7 +815,7 @@ def test_codedkern_module_inline_getter():
     assert ckerns[1].module_inline is True
 
 
-def test_codedkern_lower_to_language_level(monkeypatch):
+def test_codedkern_lower_to_language_level():
     ''' Check that a generic CodedKern can be lowered to a subroutine call
     with the appropriate arguments'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -824,28 +823,6 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.children[0].loop_body[0]
-
-    # TODO 1010: LFRic still needs psy.gen to create symbols. But these must
-    # eventually be created automatically before the gen() call, for now we
-    # manually create the symbols that appear in the PSyIR tree.
-    schedule.symbol_table.add(Symbol("f1_proxy"))
-    schedule.symbol_table.add(Symbol("f2_proxy"))
-    schedule.symbol_table.add(Symbol("m1_proxy"))
-    schedule.symbol_table.add(Symbol("m2_proxy"))
-    schedule.symbol_table.add(Symbol("ndf_w1"))
-    schedule.symbol_table.add(Symbol("undf_w1"))
-    schedule.symbol_table.add(Symbol("map_w1"))
-    schedule.symbol_table.add(Symbol("ndf_w2"))
-    schedule.symbol_table.add(Symbol("undf_w2"))
-    schedule.symbol_table.add(Symbol("map_w2"))
-    schedule.symbol_table.add(Symbol("ndf_w3"))
-    schedule.symbol_table.add(Symbol("undf_w3"))
-    schedule.symbol_table.add(Symbol("map_w3"))
-
-    # TODO #1085 LFRic Arguments do not have a translation to PSyIR
-    # yet, we monkeypatch a dummy expression for now:
-    monkeypatch.setattr(LFRicKernelArguments, "psyir_expressions",
-                        lambda x: [Literal("1", ScalarType.integer_type())])
 
     # In DSL-level it is a CodedKern with no children
     assert isinstance(kern, CodedKern)
@@ -861,7 +838,7 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     assert isinstance(call, Call)
     assert call.routine.name == 'testkern_code'
     assert len(call.arguments) == number_of_arguments
-    assert isinstance(call.arguments[0], Literal)
+    assert isinstance(call.arguments[0], Reference)
 
     # A RoutineSymbol and the ContainerSymbol from where it is imported are
     # in the symbol table

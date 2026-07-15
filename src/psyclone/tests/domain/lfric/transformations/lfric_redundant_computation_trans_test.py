@@ -1564,11 +1564,11 @@ def test_rc_to_clean_depth(tmp_path):
     schedule = invoke.schedule
     # Create our redundant computation transformation
     rc_trans = LFRicRedundantComputationTrans()
-    #import pdb; pdb.set_trace()
-    print(schedule.view())
     loop = schedule.walk(Loop)[0]
     rc_trans.apply(loop, to_clean=True)
     result = str(psy.gen).lower()
     assert "integer(kind=i_def) :: clean_depth" in result
+    assert "clean_depth = f1_proxy%get_clean_depth()" in result
+    assert "loop0_stop = mesh%get_last_halo_cell(clean_depth)" in result
 
     assert LFRicBuild(tmp_path).code_compiles(psy)

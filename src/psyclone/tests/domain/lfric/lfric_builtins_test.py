@@ -2206,7 +2206,8 @@ def test_field_access_info_for_arrays_in_builtins():
     assert Signature("f2_data") in vam
 
     assert (
-        "a: READ, df: WRITE+READ, f1_data: READ, f2_data: WRITE, field_proxy_type: CONSTANT, field_type: "
+        "a: READ, df: WRITE+READ, f1_data: READ, f2_data: WRITE, "
+        "field_proxy_type: CONSTANT, field_type: "
         "CONSTANT, i_def: CONSTANT, r_def: CONSTANT, "
         "uninitialised_loop0_start: READ, uninitialised_loop0_stop: READ"
         == str(vam))
