@@ -39,5 +39,3 @@ if `dvipng` is available on a system,
 Sphinx's math support can be enabled for the PSyclone documentation by
 setting the environment variable `$SPHINXTAG` to `-t has_dvipng`.
 The pdf output will always use Sphinx's math support.
-
-<!-- TODO #3493 temp reference to prove checks fail on .md files correctly>
