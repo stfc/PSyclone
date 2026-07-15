@@ -35,12 +35,10 @@
 
 '''This module implements tests for the generic utility functions.'''
 
-import inspect
 import pytest
 import sys
 from typing import Union
 
-import pytest
 
 from psyclone.errors import InternalError
 from psyclone.transformations import Transformation
