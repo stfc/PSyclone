@@ -1,0 +1,85 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2026, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author H. Frost, STFC Daresbury Lab
+
+# If a pull request (PR) says it closes an issue, any TODO or comment that still points at the issue number will become a reference once the issue is closed.
+# This workflow reads the closing clause from the PR description, then greps the source tree for the corresponding issue <#number> references
+# and fails if any remain, so a reviewer no longer has to check by hand.
+
+name: Check for references to closed issues
+
+on:
+  pull_request:
+    branches:
+      - master
+      - 'release_candidate_*'
+
+jobs:
+  check_closed_issue_references:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for lingering references to closed issues
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          # Pull issue numbers of any "Closes #<number>" clause (case insensitive)
+          # "|| true" stops the step failing when pr closes nothing
+
+          issues=$(printf '%s' "$PR_BODY" | grep -oiE 'closes #([0-9]+)' | grep -oE '[0-9]+' | sort -u || true)
+
+          if [ -z "$issues" ]; then
+            echo "No issues closed by this PR."
+            exit 0
+          fi
+
+          status=0
+          for issue in $issues; do
+            echo "Searching for references to closed issue #$issue..."
+            # \b is a word boundary, so we don't match e.g. #1234 when looking for #123
+            # grep exits 0 when it finds a match - hit means we must fail
+            if grep -rnE "#$issue\b" \
+                --include='*.py' \
+                --include='*.md' \
+                --include='*.rst' \
+                --include='Makefile' . ; then
+              echo "::error::This PR closes issue #$issue, but the references above still point to it. Please resolve them before merging."
+              status=1
+            else
+              echo "No references to issue #$issue found."
+            fi
+          done
+          exit $status
