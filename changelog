@@ -1,3 +1,6 @@
+   4) PR #3465 for #2757. Adds the --script-kwargs command line
+   option to pass arguments to transformation scripts.
+ 
    3) PR #3480 for #3478. Updates OMPParallelLoopTrans to correctly
    use the kwargs approach.
 
