@@ -419,7 +419,7 @@ def test_full_region_doesnt_meet_minimum_rules_compute_transformable_section(
         nowait=True)
 
     # Create a transformation that always validates correctly
-    class testTrans(Transformation):
+    class TestTrans(Transformation):
         '''Dummy transformation that never fails validation.'''
 
         def validate(self, nodes, **kwargs):
@@ -434,8 +434,8 @@ def test_full_region_doesnt_meet_minimum_rules_compute_transformable_section(
     class TestRegTrans(MaximalRegionTrans):
         ''' Dummy class to test MaxParallelRegionTrans' functionality. '''
         # The apply function will do OMPParallelTrans around allowed regions.
-        _transformation = testTrans
-        _SUB_TRANSFORMATIONS = [testTrans]
+        _transformation = TestTrans
+        _SUB_TRANSFORMATIONS = [TestTrans]
         # We're allowing any Node.
         _allowed_contiguous_statements = (Node, )
         # Should parallelise any found region.
@@ -449,5 +449,5 @@ def test_full_region_doesnt_meet_minimum_rules_compute_transformable_section(
     mtrans = TestRegTrans()
     routine = psyir.walk(Routine)[0]
     rval = mtrans._compute_transformable_sections(routine.children[:],
-                                                  testTrans(), {})
+                                                  TestTrans(), {})
     assert len(rval) == 0
