@@ -238,14 +238,14 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
             return sym
 
         if table.wildcard_imports(scope_limit=table.node):
-            # There's a wildcard import into this scope so we stop
-            # searching and create an unresolved symbol (below). This is
-            # permitted to shadow a declaration in an outer scope because
-            # it may be a different entity (coming from the import).
-            # TODO #2915 - it may be that we've already resolved all symbols
-            # from this import but currently we have no way of recording that.
-            kargs["shadowing"] = True
-            break
+            # There's a wildcard import into this scope. If the symbol
+            # table is not complete, i.e. not all (transitively) imported
+            # symbols are reachable, then we stop searching and create an
+            # unresolved symbol (below). This is because the wildcard
+            # import may shadow a declaration in an outer scope.
+            if not table.is_complete(ignore_non_wildcard=True):
+                kargs["shadowing"] = True
+                break
         table = table.parent_symbol_table(scope_limit)
 
     # Find the closest ancestor symbol table attached to a Routine or

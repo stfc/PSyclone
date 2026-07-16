@@ -2168,6 +2168,44 @@ class SymbolTable():
                 scope_limit=scope_limit)
         return list(wildcards.values())
 
+    def is_complete(self,
+                    ignore_private: bool = False,
+                    ignore_non_wildcard: bool = False) -> bool:
+        '''Determines whether or not all imported symbols are
+        currently reachable. It works by checking that all container
+        symbols have been resolved and, recursively, that the symbol
+        tables of all those containers are also complete.
+
+        :param ignore_private: whether or not to ignore private imports.
+        :param ignore_non_wildcard: whether or not to ignore
+            non-wildcard imports.
+
+        :returns: whether or not all imported symbols are reachable.
+        '''
+        # Get the container symbols from the symbol table
+        con_syms = []
+        for sym in self.containersymbols:
+            # Filter out non-wildcard imports
+            if ignore_non_wildcard and not sym.wildcard_import:
+                continue
+            # Filter out private imports
+            if ignore_private and sym.visibility == Symbol.Visibility.PRIVATE:
+                continue
+            con_syms.append(sym)
+
+        # Return early if any imports have not been resolved
+        for sym in con_syms:
+            if sym._reference is None:
+                return False
+
+        # Now recurse into the symbols tables of imported modules to check
+        # that they are complete too
+        for sym in con_syms:
+            symtab = sym._reference.symbol_table
+            if not symtab.is_complete(ignore_private=True):
+                return False
+        return True
+
     def view(self):
         '''
         :returns: a representation of this Symbol Table.
