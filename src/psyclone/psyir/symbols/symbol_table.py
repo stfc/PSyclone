@@ -2202,7 +2202,8 @@ class SymbolTable():
         # that they are complete too
         for sym in con_syms:
             symtab = sym._reference.symbol_table
-            if not symtab.is_complete(ignore_private=True):
+            if not symtab.is_complete(ignore_private=True,
+                                      ignore_non_wildcard=ignore_non_wildcard):
                 return False
         return True
 
