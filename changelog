@@ -1,3 +1,9 @@
+   9) PR #3473 for #3124. Adds the loop variable as a Reference child of
+   Loop nodes.
+
+   8) PR #3483 for #3482. Removes the dependency on sphinx's
+   stringify_annotations by implementing our own.
+
    7) PR #3491 for #2533. Adds better support for procedure pointers in
    the PSyIR Fortran frontend/backend (plus other improvements for
    unsupported declarations).
