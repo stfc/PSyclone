@@ -766,7 +766,7 @@ then the transformation will attempt to maximise the number of nowait clauses
 on the loop directives, and minimise the number of barriers required to
 keep the output code correct.
 
-See the transformation's (``OpenMPCPURoutineTrans``) documentation for more details.
+See the transformation's (``OMPCPURoutineTrans``) documentation for more details.
 
 
 .. _opencl:
