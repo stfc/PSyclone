@@ -4715,7 +4715,7 @@ class Fparser2Reader():
                 raise InternalError(f"Failed to find closing end where "
                                     f"statement in: {node}")
             if _contains_intrinsic_reduction(
-                    node.content[first_non_comment:-1]
+                    node.content[first_non_comment+1:-1]
             ):
                 raise NotImplementedError(
                     f"TODO #1960 - WHERE constructs which contain an array-"
