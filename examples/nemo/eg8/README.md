@@ -18,7 +18,8 @@ make transform
 or explicitly:
 
 ```sh
-ENABLE_PROFILING=1 ${PSYCLONE} -s ./omp_gpu_profile_trans.py ../code/tra_adv.F90 -o traadv_instrumented.F90
+${PSYCLONE} -s ./omp_gpu_profile_trans.py --script-kwargs "profiling: True"  \
+            ../code/tra_adv.F90 -o traadv_instrumented.F90
 ```
 
 This emits transformed Fortran code with PSyData profiling around OpenMP target
