@@ -35,11 +35,10 @@
 
 '''This module implements tests for the generic utility functions.'''
 
-import inspect
+import pytest
 import sys
 from typing import Union
 
-import pytest
 
 from psyclone.errors import InternalError
 from psyclone.transformations import Transformation
@@ -338,21 +337,21 @@ def test_transformation_doc_wrapper_uninheritable():
 
 def test_stringify_annotation():
     '''Test the stringify_annotation method does as expected.'''
-    def func(temp: bool, temp2: Union[bool, int]):
-        ''' Test function for annotations.'''
 
-    signature = inspect.signature(func)
-    for k, v in signature.parameters.items():
-        # For first parameter temp
-        if "temp" == k:
-            anno = stringify_annotation(v.annotation)
-            assert "<class 'bool'>" == anno
-
-        # For second parameter temp2
-        if "temp2" == k:
-            anno = stringify_annotation(v.annotation)
-            # Python >= 3.14 uses the second format
-            assert "typing.Union[bool, int]" == anno or "bool | int" == anno
+    # Basic type
+    assert stringify_annotation(bool) == "bool"
+    # Compound type (depends of the Python version)
+    assert stringify_annotation(Union[bool, int]) in [
+        "typing.Union[bool, int]", "bool | int"
+    ]
+    # Type elipses (Python 3.9 truncates them)
+    assert stringify_annotation(tuple[int, ...]) in [
+        "tuple[int, ...]", "tuple"
+    ]
+    # Custom class
+    assert stringify_annotation(Transformation) == "Transformation"
+    # Fordward declaration of custom class
+    assert stringify_annotation("Transformation") == "Transformation"
 
 
 def test_transformation_doc_wrapper_subtrans():

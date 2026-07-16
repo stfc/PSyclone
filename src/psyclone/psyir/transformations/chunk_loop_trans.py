@@ -265,11 +265,10 @@ class ChunkLoopTrans(LoopTrans):
 
         # Create the outerloop as a bare Loop construct
         outerloop = Loop(variable=outer_loop_variable)
-        outerloop.children = [start, stop,
-                              Literal(f"{chunksize}",
-                                      outer_loop_variable.datatype),
-                              Schedule(parent=outerloop,
-                                       children=[])]
+        outerloop.children.extend(
+            [start, stop,
+             Literal(f"{chunksize}", outer_loop_variable.datatype),
+             Schedule(parent=outerloop, children=[])])
         # Add the chunked annotation
         outerloop.annotations.append('chunked')
         node.annotations.append('chunked')

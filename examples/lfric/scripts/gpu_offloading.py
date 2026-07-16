@@ -113,7 +113,7 @@ def trans(psyir):
     mod_inline_trans = KernelModuleInlineTrans()
     inline_trans = InlineTrans()
 
-    if OFFLOAD_DIRECTIVES == "omp":
+    if OFFLOAD_DIRECTIVES.startswith("omp"):
         # Use OpenMP offloading
         loop_offloading_trans = OMPLoopTrans(
             omp_directive="teamsdistributeparalleldo",
@@ -124,7 +124,7 @@ def trans(psyir):
         kernels_trans = None
         gpu_region_trans = OMPTargetTrans()
         gpu_annotation_trans = OMPDeclareTargetTrans()
-    elif OFFLOAD_DIRECTIVES == "acc":
+    elif OFFLOAD_DIRECTIVES.startswith("acc"):
         # Use OpenACC offloading
         loop_offloading_trans = ACCLoopTrans()
         kernels_trans = ACCKernelsTrans()
@@ -132,8 +132,8 @@ def trans(psyir):
         gpu_annotation_trans = ACCRoutineTrans()
     else:
         print(f"The PSyclone transformation script expects the "
-              f"LFRIC_OFFLOAD_DIRECTIVES to be set to 'omp' or 'acc' "
-              f"but found '{OFFLOAD_DIRECTIVES}'.")
+              f"LFRIC_OFFLOAD_DIRECTIVES to be set to 'omp', 'omp_uniform', "
+              f"'acc' or 'acc_uniform' but found '{OFFLOAD_DIRECTIVES}'.")
         sys.exit(-1)
 
     print(f"PSy name = '{psyir.name}'")
