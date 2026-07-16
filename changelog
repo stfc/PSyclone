@@ -1,3 +1,13 @@
+   7) PR #3491 for #2533. Adds better support for procedure pointers in
+   the PSyIR Fortran frontend/backend (plus other improvements for
+   unsupported declarations).
+ 
+   6) PR #3496 for #3493. Adds a new GHA workflow to check for remaining
+   references to issues that a PR claims to close.
+ 
+   5) PR #3464 towards #3463. Reverse the construction order of maximal
+   regions and use the full-region as starting candidate.
+
    4) PR #3465 for #2757. Adds the --script-kwargs command line
    option to pass arguments to transformation scripts.
  

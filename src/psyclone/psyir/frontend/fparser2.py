@@ -1800,7 +1800,10 @@ class Fparser2Reader():
         self,
         scope: ScopingNode,
         symbol_table: SymbolTable,
-        decl: Fortran2003.Type_Declaration_Stmt,
+        decl: Union[
+                Fortran2003.Type_Declaration_Stmt,
+                Fortran2003.Data_Component_Def_Stmt,
+                Fortran2003.Procedure_Stmt],
         visibility_map: Optional[dict[str, Symbol.Visibility]] = None,
         statics_list: Iterable[str] = (),
         preceding_comments: Iterable[str] = (),
@@ -1844,14 +1847,27 @@ class Fparser2Reader():
             else:
                 decln_vis = symbol_table.default_visibility
 
-            orig_children = list(decl.children[2].children[:])
-            for child in orig_children:
+            entities = walk(decl, (Fortran2003.Proc_Decl_List,
+                                   Fortran2003.Component_Decl_List,
+                                   Fortran2003.Entity_Decl_List))[0]
+            # We keep a copy of the original children because we will
+            # restore it later.
+            entities_children = entities.children[:]
+            for entity in entities_children:
                 # Modify the fparser2 parse tree so that it only
                 # declares the current entity. `items` is a tuple and
                 # thus immutable so we create a new one.
-                decl.children[2].items = (child,)
-                symbol_name = str(child.children[0]).lower()
-                vis = visibility_map.get(symbol_name, decln_vis)
+                decl.children[2].items = (entity,)
+                name = walk(entity, Fortran2003.Name)[0]
+                symbol_name = str(name)
+                vis = visibility_map.get(symbol_name.lower(), decln_vis)
+                declstr = str(decl)
+                # Unsupported Fortran type must have the "::" declaration
+                # format, as the token is used to insert attributes in its
+                # lhs in the backend
+                if "::" not in declstr:
+                    position = declstr.index(symbol_name)
+                    declstr = f"{declstr[:position]} :: {declstr[position:]}"
 
                 # Check whether the symbol we're about to add
                 # corresponds to the routine we're currently inside. If
@@ -1868,15 +1884,21 @@ class Fparser2Reader():
                 datatype, init = self._get_partial_datatype(
                     decl, scope, symbol_table, visibility_map)
 
+                # The interface is unknown, unless it is given by a different
+                # statement, e.g. a save statement
+                interface = UnknownInterface()
+                if symbol_name.lower() in statics_list:
+                    interface = StaticInterface()
+
                 # If a declaration declares multiple entities, it's
                 # possible that some may have already been processed
                 # successfully and thus be in the symbol table.
                 try:
                     new_symbol = DataSymbol(
                              symbol_name, UnsupportedFortranType(
-                                 str(decl),
+                                 declstr,
                                  partial_datatype=datatype),
-                             interface=UnknownInterface(),
+                             interface=interface,
                              visibility=vis,
                              initial_value=init)
                     if preceding_comments:
@@ -1890,14 +1912,14 @@ class Fparser2Reader():
                         = (new_symbol, decl.item.span)
                     symbol_table.add(new_symbol)
                 except KeyError as err:
-                    if len(orig_children) == 1:
+                    if len(entities_children) == 1:
                         raise SymbolError(
                             f"Error while processing unsupported "
                             f"declaration ('{decl}'). An entry for "
                             f"symbol '{symbol_name}' is already in "
                             f"the symbol table.") from err
             # Restore the fparser2 parse tree
-            decl.children[2].items = tuple(orig_children)
+            decl.children[2].items = tuple(entities_children)
 
     def _process_decln(
         self,
@@ -2691,7 +2713,8 @@ class Fparser2Reader():
                 self._process_interface_block(node, parent.symbol_table,
                                               visibility_map)
 
-            elif isinstance(node, Fortran2003.Type_Declaration_Stmt):
+            elif isinstance(node, (Fortran2003.Type_Declaration_Stmt,
+                                   Fortran2003.Procedure_Declaration_Stmt)):
                 self._process_decl_or_create_unsupported(
                     parent, parent.symbol_table, node, visibility_map,
                     statics_list, preceding_comments)
@@ -5608,8 +5631,6 @@ class Fparser2Reader():
 
         self.process_nodes(parent=call, nodes=[node.items[0]])
         routine = call.children[0]
-        # If it's a call statement, it is unambiguously a RoutineSymbol
-        # pylint: disable=unidiomatic-typecheck
         if (
             isinstance(node, Fortran2003.Call_Stmt) and
             type(routine) is Reference
@@ -5620,19 +5641,20 @@ class Fparser2Reader():
                 # Specialise routine_symbol from a Symbol to a
                 # RoutineSymbol
                 routine_symbol.specialise(RoutineSymbol)
-            elif isinstance(routine_symbol, RoutineSymbol):
-                # This symbol is already the expected type
-                pass
-            else:
-                raise GenerationError(
-                    f"Expecting the symbol '{routine_symbol.name}', to be of "
-                    f"type 'Symbol' or 'RoutineSymbol', but found "
-                    f"'{type(routine_symbol).__name__}'.")
 
-            # If it is a call statement, it must be a subroutine (not a
-            # function) otherwise this would be invalid Fortran.
-            if isinstance(node, Fortran2003.Call_Stmt):
+            # If it is a call statement, we know that the RoutineSymbol does
+            # not have a return type, we can store that informations. (We don't
+            # attempt to modify DataSymbols since this already have an explicit
+            # declaration defining the signature)
+            if (
+                isinstance(routine_symbol, RoutineSymbol) and
+                isinstance(node, Fortran2003.Call_Stmt)
+            ):
                 routine_symbol.datatype = NoType()
+
+            # Note that we also let DataSymbols through because procedure
+            # pointers (which are represented by DataSymbols) can also be
+            # found as the Call_Stmt called symbol.
 
         return self._process_args(node, call)
 
