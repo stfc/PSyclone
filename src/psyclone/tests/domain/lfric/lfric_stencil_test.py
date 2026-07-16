@@ -835,7 +835,7 @@ def test_single_stencil_cross2d(dist_mem, tmpdir):
     assert "integer(kind=i_def) :: f2_max_branch_length\n" in result
     assert ("integer(kind=i_def), pointer, dimension(:,:) :: "
             "f2_stencil_size => null()\n" in result)
-    assert ("type(stencil_2D_dofmap_type), pointer :: f2_stencil_map => "
+    assert ("type(stencil_2d_dofmap_type), pointer :: f2_stencil_map => "
             "null()\n" in result)
     output5 = (
         "\n"
