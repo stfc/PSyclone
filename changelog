@@ -1,3 +1,5 @@
+   10) PR #3495 for #3207. Updates the LFRic integration tests.
+ 
    9) PR #3473 for #3124. Adds the loop variable as a Reference child of
    Loop nodes.
 
