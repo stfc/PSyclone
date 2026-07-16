@@ -2168,6 +2168,26 @@ class SymbolTable():
                 scope_limit=scope_limit)
         return list(wildcards.values())
 
+    def is_complete(self) -> bool:
+        '''Determines whether are not all imported symbols are
+        currently reachable. It works by checking that all container
+        symbols have been resolved, and recursively, that the symbol
+        tables of all those containers are also complete.
+
+        :returns: whether or not all imported symbols are present in the
+            symbol table.
+        '''
+        # Return early if any imports have not been resolved
+        for sym in self.containersymbols:
+            if sym._reference is None:
+                return False
+        # Now recurse into the symbols tables of imported modules to check
+        # that they are complete too
+        for sym in self.containersymbols:
+            if not sym._reference.symbol_table.is_complete():
+                return False
+        return True
+
     def view(self):
         '''
         :returns: a representation of this Symbol Table.
