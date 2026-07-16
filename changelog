@@ -1,3 +1,7 @@
+   7) PR #3491 for #2533. Adds better support for procedure pointers in
+   the PSyIR Fortran frontend/backend (plus other improvements for
+   unsupported declarations).
+ 
    6) PR #3496 for #3493. Adds a new GHA workflow to check for remaining
    references to issues that a PR claims to close.
  
