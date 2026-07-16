@@ -84,7 +84,7 @@ def test_loop_trans_validate(monkeypatch):
     with pytest.raises(TransformationError) as err:
         trans.validate(loop)
     assert ("Error in OMPParallelLoopTrans transformation. The target loop "
-            "must have four children but found:" in
+            "must have five children but found:" in
             str(err.value))
 
 

@@ -50,7 +50,7 @@ from psyclone.psyir.nodes import (
     ACCLoopDirective, OMPMasterDirective, Fparser2CodeBlock,
     OMPDoDirective, OMPLoopDirective, Routine)
 from psyclone.psyir.symbols import (
-     ContainerSymbol, ScalarType, ImportInterface)
+     ContainerSymbol, ScalarType, ImportInterface, DataSymbol)
 from psyclone.psyir.transformations import (
     ProfileTrans, RegionTrans, TransformationError, OMPTaskloopTrans,
     OMPDeclareTargetTrans, ACCLoopTrans, OMPParallelTrans)
@@ -248,7 +248,7 @@ def test_ompdeclaretargettrans_detached_scope_fallback(sample_psyir,
     '''
     ompdeclaretargettrans = OMPDeclareTargetTrans()
     routine = sample_psyir.walk(Routine)[0]
-    ref1 = sample_psyir.walk(Reference)[0]
+    ref1 = sample_psyir.walk(Reference)[2]
     ref1.symbol.interface = ImportInterface(ContainerSymbol('my_mod'))
 
     class DummySig:  # pylint: disable=too-few-public-methods
@@ -422,7 +422,7 @@ def test_ompdeclaretargettrans_with_globals(sample_psyir, parser):
     symbol'''
     ompdeclaretargettrans = OMPDeclareTargetTrans()
     routine = sample_psyir.walk(Routine)[0]
-    ref1 = sample_psyir.walk(Reference)[0]
+    ref1 = sample_psyir.walk(Reference)[2]
 
     # Symbols that come from an import can not be in the GPU
     ref1.symbol.interface = ImportInterface(ContainerSymbol('my_mod'))
@@ -747,7 +747,7 @@ def test_regiontrans_wrong_children():
     # RegionTrans is abstract so use a concrete sub-class
     rtrans = ACCParallelTrans()
     # Construct a valid Loop in the PSyIR
-    parent = Loop()
+    parent = Loop(DataSymbol("ji", ScalarType.integer_type()))
     parent.addchild(Literal("1", ScalarType.integer_type()))
     parent.addchild(Literal("10", ScalarType.integer_type()))
     parent.addchild(Literal("1", ScalarType.integer_type()))
