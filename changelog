@@ -1,3 +1,6 @@
+   6) PR #3496 for #3493. Adds a new GHA workflow to check for remaining
+   references to issues that a PR claims to close.
+ 
    5) PR #3464 towards #3463. Reverse the construction order of maximal
    regions and use the full-region as starting candidate.
 
