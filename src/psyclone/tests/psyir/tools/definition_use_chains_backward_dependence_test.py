@@ -981,6 +981,42 @@ def test_backward_accesses_unsupported_type(fortran_reader):
     assert reaches[0] is routine.walk(Assignment)[2].rhs.children[0]
     assert reaches[1] is routine.walk(Assignment)[1].lhs
 
+    # Test that we don't add an UnsupportedType on the lhs
+    # of an assignment for a non-UnsupportedType
+    code = """subroutine test
+    integer :: a
+    integer, pointer :: b
+
+    b = 1
+    b = a
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assign = routine.walk(Assignment)[-1]
+    sig = assign.rhs.get_signature_and_indices()[0]
+    chains = DefinitionUseChain(assign.rhs)
+    reaches = chains.find_backward_accesses()[sig]
+    assert len(reaches) == 0
+
+    # Test that if the lhs of a found assignment is an
+    # UnsupportedType then we skip any UnsupportedTypes
+    # on the rhs
+    code = """subroutine test
+
+    integer, pointer :: b, a
+
+    a = b
+    a = 1
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assign = routine.walk(Assignment)[-1]
+    sig = assign.lhs.get_signature_and_indices()[0]
+    chains = DefinitionUseChain(assign.lhs)
+    reaches = chains.find_backward_accesses()[sig]
+    assert len(reaches) == 1
+    assert reaches[0] is routine.walk(Assignment)[0].lhs
+
     # Test that unsupported type arguments to pure subroutines
     # is always counted as an access.
     code = """
@@ -1012,28 +1048,32 @@ def test_backward_accesses_unsupported_type(fortran_reader):
     code = """subroutine test
     integer, pointer :: a
     logical, pointer :: b
+    integer :: c
 
     a = 1
     if (b) then
     end if
-    a = 2
+    a = c
     end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     assign = routine.walk(Assignment)[-1]
     sig = assign.lhs.get_signature_and_indices()[0]
-    chains = DefinitionUseChain(assign.lhs)
-    reaches = chains.find_backward_accesses()[sig]
+    sig2 = assign.rhs.get_signature_and_indices()[0]
+    chains = DefinitionUseChain([assign.lhs, assign.rhs])
+    reaches = chains.find_backward_accesses()
 
     # The result should be the b argument to call test(b)
-    assert len(reaches) == 2
-    assert reaches[0] is routine.walk(IfBlock)[0].condition
-    assert reaches[1] is routine.walk(Assignment)[0].lhs
+    assert len(reaches[sig]) == 2
+    assert reaches[sig][0] is routine.walk(IfBlock)[0].condition
+    assert reaches[sig][1] is routine.walk(Assignment)[0].lhs
+    assert len(reaches[sig2]) == 0
 
     # Test that unsupported type references in CodeBlocks are
     # hit for UnsupportedType inputs.
     code = """subroutine test
     integer, pointer :: a, b
+    print *, b
     a = 1
     print *, b
     a = 2
@@ -1046,7 +1086,7 @@ def test_backward_accesses_unsupported_type(fortran_reader):
     reaches = chains.find_backward_accesses()[sig]
 
     assert len(reaches) == 1
-    assert reaches[0] is routine.walk(CodeBlock)[0]
+    assert reaches[0] is routine.walk(CodeBlock)[1]
 
     # Test that if we are in a loop we see the lhs of an assignment
     # correctly.
@@ -1068,3 +1108,34 @@ def test_backward_accesses_unsupported_type(fortran_reader):
     assert len(reaches) == 2
     assert reaches[0] is assign.rhs.children[0]
     assert reaches[1] is assign.lhs
+
+    # Test that if we have a pure call argument that is an
+    # UnsupportedType it is found for UnsupportedType and
+    # not for supported types.
+    code = """
+    pure subroutine x(b)
+        integer, target :: b
+        b = 1
+    end subroutine
+    subroutine test
+    integer :: i
+    integer, target :: a
+    integer, target :: b
+
+    call x(b) !2 copies to test only the closest is found.
+    call x(b)
+    i = a + i
+    end subroutine test"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[1]
+    assign = routine.walk(Assignment)[-1]
+    sig = assign.rhs.children[0].get_signature_and_indices()[0]
+    sig2 = assign.rhs.children[1].get_signature_and_indices()[0]
+    chains = DefinitionUseChain([assign.rhs.children[0],
+                                 assign.rhs.children[1]])
+    reaches = chains.find_backward_accesses()
+
+    assert len(reaches[sig]) == 1
+    assert reaches[sig][0] is routine.walk(Call)[1].arguments[0]
+    assert len(reaches[sig2]) == 0

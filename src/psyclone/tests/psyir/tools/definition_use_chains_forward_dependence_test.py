@@ -1249,7 +1249,7 @@ def test_definition_use_chains_forward_accesses_unsupported_type(
     a = 1
     print *, b, c
     a = 2
-    print *, b
+    print *, c
     end subroutine x"""
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
