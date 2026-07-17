@@ -80,11 +80,17 @@ def trans(psyir: FileContainer):
     mod_inline_trans = KernelModuleInlineTrans()
     const_trans = LFRicKernelConstTrans()
 
+    done = set()
     for kernel in psyir.coded_kernels():
-        print(f"  kernel '{kernel.name.lower()}'")
+        kname = kernel.name.lower()
+        if kname in done:
+            # We only need to transform each distinct kernel once.
+            continue
+        print(f"  kernel '{kname}'")
         mod_inline_trans.apply(kernel)
         const_trans.apply(kernel,
                           {"number_of_layers": NUMBER_OF_LAYERS,
                            "element_order_h": ELEMENT_ORDER_H,
                            "element_order_v": ELEMENT_ORDER_V,
                            "quadrature": CONSTANT_QUADRATURE})
+        done.add(kname)
