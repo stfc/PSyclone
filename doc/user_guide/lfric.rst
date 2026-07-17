@@ -2160,12 +2160,14 @@ conventions, are:
       4) If the field entry stencil access is of type ``XORY1D`` then
          add an additional ``integer`` direction argument of kind
          ``i_def`` and with intent ``in``.
-      5) If the field is multi-data then add the value of ``NDATA``as an
+      5) If the field is multi-data then add the value of ``NDATA`` as an
          additional ``integer``, scalar argument of kind ``i_def`` and
-         intent ``in``.
+         intent ``in``. If the ``NDATA`` value is common to more than one
+	 kernel argument, it is only added for the first such argument.
       6) If the field has a custom number of vertical levels then pass this as
          an additional ``integer``, scalar argument of kind ``i_def`` and
-         intent ``in``.
+         intent ``in``. If the number of vertical levels is common to more than
+	 one kernel argument, it is only added for the first such argument.
    3) If the current entry is a field vector then for each dimension
       of the vector, include a field array. The field array name is
       specified as

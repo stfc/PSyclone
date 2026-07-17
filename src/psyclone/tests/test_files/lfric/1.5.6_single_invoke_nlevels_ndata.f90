@@ -44,8 +44,8 @@ program single_invoke_fs
 
   implicit none
   real(kind=r_def) :: a
-  type(field_type) :: f1, f2, f3, f4, f5
+  type(field_type) :: f1, f2, f3, f4, f5, f6
 
-  call invoke( testkern_nlevels_ndata_type(a, f1, f2, f3, f4, f5) )
+  call invoke( testkern_nlevels_ndata_type(a, f1, f2, f3, f4, f5, f6) )
 
 end program single_invoke_fs
