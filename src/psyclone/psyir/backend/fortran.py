@@ -823,18 +823,16 @@ class FortranWriter(LanguageWriter):
             f"either 'Symbol.Visibility.PUBLIC' or "
             f"'Symbol.Visibility.PRIVATE'\n")
 
-    def gen_access_stmts(self, symbol_table):
+    def gen_access_stmts(self, symbol_table: SymbolTable) -> str:
         '''
         Creates the accessibility statements (R518) for any routine or
         imported symbols in the supplied symbol table.
 
-        :param symbol_table: the symbol table for which to generate \
+        :param symbol_table: the symbol table for which to generate
                              accessibility statements.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
-        :returns: the accessibility statements for any routine or imported \
+        :returns: the accessibility statements for any routine or imported
                   symbols.
-        :rtype: str
 
         '''
         public_symbols = []
@@ -866,10 +864,11 @@ class FortranWriter(LanguageWriter):
 
         result = "\n"
         if public_symbols:
-            result += f"{self._nindent}public :: {', '.join(public_symbols)}\n"
+            result += (f"{self._nindent}public :: "
+                       f"{', '.join(sorted(public_symbols))}\n")
         if private_symbols:
             result += (f"{self._nindent}private :: "
-                       f"{', '.join(private_symbols)}\n")
+                       f"{', '.join(sorted(private_symbols))}\n")
 
         if len(result) > 1:
             return result
