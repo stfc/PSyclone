@@ -128,7 +128,10 @@ def test_init_invalid_stencil():
      ("arg_type(GH_FIELD, GH_REAL, GH_READ, W0, stencil(region))",
       "region", None, None),
      ('arg_type(GH_FIELD, GH_REAL, GH_READ, W0, nlevels="big")',
-      None, "big", None)])
+      None, "big", None),
+     ('arg_type(GH_FIELD, GH_REAL, GH_READ, W0, stencil(region), '
+      'nlevels="big", ndata="4")',
+      "region", "big", "4")])
 def test_get_metadata(metadata, expected_stencil, expected_nlevels,
                       expected_ndata):
     '''Test that the _get_metadata class method works as expected, with

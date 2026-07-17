@@ -70,9 +70,9 @@ class FieldArgMetadata(ScalarArgMetadata):
     stencil_arg_index = 4
     # The name to use for any exceptions.
     check_name = "field"
-    # The number of positional arguments in the language-level metadata (min
+    # The number of arguments in the language-level metadata (min
     # and max values).
-    nargs = (4, 5)
+    nargs = (4, 7)
 
     fparser2_class = (Fortran2003.Structure_Constructor, Fortran2003.Part_Ref)
 
