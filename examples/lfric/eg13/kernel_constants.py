@@ -88,6 +88,8 @@ def trans(psyir: FileContainer):
             continue
         print(f"  kernel '{kname}'")
         mod_inline_trans.apply(kernel)
+        # TODO #3498 update to use keyword arguments and extend support
+        # to NLEVELS/NDATA.
         const_trans.apply(kernel,
                           {"number_of_layers": NUMBER_OF_LAYERS,
                            "element_order_h": ELEMENT_ORDER_H,
