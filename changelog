@@ -1,3 +1,5 @@
+   12) PR #3497 for #3457. Ensures reproducible order of declarations.
+
    11) PR #3345 for #3330. Adds the OMPCPURoutineTrans meta-transformation.
  
    10) PR #3495 for #3207. Updates the LFRic integration tests.
