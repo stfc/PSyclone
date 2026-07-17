@@ -1109,8 +1109,6 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
     # ndofs per 3D cell for different function spaces on a quadrilateral
     # element for different orders. Formulas kindly provided by Tom Melvin and
     # Thomas Gibson (modified in 2024 to reflect splitting of element orders).
-    # See the Qr table at http://femtable.org/background.html,
-    # for computed values of w0, w1, w2 and w3 up to order 7.
     # Note: w2*trace spaces have dofs only on cell faces and no volume dofs.
     # As there is currently no dedicated structure for face dofs in kernel
     # constants, w2*trace dofs are included here. w2*trace ndofs formulas
