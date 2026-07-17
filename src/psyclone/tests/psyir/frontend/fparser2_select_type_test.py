@@ -423,7 +423,7 @@ def test_derived(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n"
         "end module\n")
     expected1 = (
-        "    CLASS(*), TARGET :: type\n"
+        "    class(*), target :: type\n"
         "    type :: field_type\n"
         "      integer :: x\n"
         "    end type field_type\n"

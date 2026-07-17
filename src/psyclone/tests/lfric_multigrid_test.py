@@ -300,16 +300,20 @@ def test_field_prolong(tmpdir, dist_mem):
     assert "integer(kind=i_def) :: ncell_field1" in code
     assert "integer(kind=i_def) :: ncpc_field1_field2_x" in code
     assert "integer(kind=i_def) :: ncpc_field1_field2_y" in code
-    assert ("integer(kind=i_def), pointer :: "
-            "cell_map_field2(:,:,:) => null()\n" in code)
-    assert ("type(mesh_map_type), pointer :: "
-            "mmap_field1_field2 => null()\n" in code)
+    assert ("type(mesh_map_type), pointer :: mmap_field1_field2 => null()\n"
+            in code)
+
+    assert ("integer(kind=i_def), pointer :: cell_map_field2(:,:,:) => "
+            "null()\n" in code)
+
     if dist_mem:
-        assert "integer(kind=i_def) :: max_halo_depth_mesh_field2" in code
-    assert "type(mesh_type), pointer :: mesh_field2 => null()\n" in code
-    if dist_mem:
-        assert "integer(kind=i_def) :: max_halo_depth_mesh_field1" in code
-    assert "type(mesh_type), pointer :: mesh_field1 => null()\n" in code
+        expected = ("    integer(kind=i_def) :: max_halo_depth_mesh_field1\n"
+                    "    integer(kind=i_def) :: max_halo_depth_mesh_field2\n")
+        assert expected in code
+
+    expected = ("    type(mesh_type), pointer :: mesh_field1 => null()\n"
+                "    type(mesh_type), pointer :: mesh_field2 => null()\n")
+    assert expected in code
 
     expected = (
         "    ! Look-up mesh objects and loop limits for inter-grid "
