@@ -176,8 +176,8 @@ class DefinitionUseChain:
         # - The uses collects every possible read reached from the start of the
         # region (until we find any guaranteed write).
         self._uses = {}
-        # - The defout collects the nodes that could represent end points of the
-        # signature use chain (all writes before the guaranteed write).
+        # - The defout collects the nodes that could represent end points of
+        # the signature use chain (all writes before the guaranteed write).
         self._defsout = {}
         # - The killed is a working collection used by compute_x_uses to store
         # writes found that are defenitely are not the final write.
