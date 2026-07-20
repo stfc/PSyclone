@@ -228,3 +228,81 @@ def test_maximal_ompparallel_region_trans_apply_assignment(
   !$omp end do
   !$omp end parallel"""
     assert correct in out
+
+
+def test_maximal_ompparallel_region_trans_node_allowed(
+    fortran_reader
+):
+    '''Test the _node_allowed function of MaximalOMPParallelRegionTrans.'''
+
+    maxpartrans = MaximalOMPParallelRegionTrans()
+    # Any of the _allowed_contiguous_statements are always allowed.
+    barrier = OMPBarrierDirective()
+    assert maxpartrans._node_allowed(barrier, [])
+
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+
+    integer :: a
+    integer :: b, i
+
+    print *, a
+    a = 1
+    do i = 1, 100
+       b = a
+    end do
+    a = 2
+
+    end subroutine test''')
+
+    # Other non-assignments are never allowed.
+    print_stmt = psyir.children[0].children[0]
+    assert not maxpartrans._node_allowed(print_stmt, [])
+
+    # Assignment is not allowed if current block is empty.
+    assignment = psyir.children[0].children[1]
+    assert not maxpartrans._node_allowed(assignment, [])
+
+    loop = psyir.children[0].children[2]
+    # Assignment is allowed if the current_block only reads
+    # from it.
+    assert maxpartrans._node_allowed(assignment, [loop])
+
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+
+    integer :: a
+    integer :: b, i
+
+    a = a + 1
+    do i = 1, 100
+       b = a
+    end do
+    a = 2
+
+    end subroutine test''')
+    assign = psyir.children[0].children[0]
+    loop = psyir.children[0].children[1]
+    # Assignment is not allowed if there is a read of the lhs on the rhs of
+    # the assignment.
+    assert not maxpartrans._node_allowed(assign, [loop])
+
+    # Assignment is not allowed if the next access is a read.
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+
+    integer :: a
+    integer :: b, i
+
+    a =  1
+    do i = 1, 100
+       b = a
+    end do
+    b = a
+
+    end subroutine test''')
+    assign = psyir.children[0].children[0]
+    loop = psyir.children[0].children[1]
+    # Assignment is not allowed if there is a read of the lhs on the rhs of
+    # the assignment.
+    assert not maxpartrans._node_allowed(assign, [loop])
