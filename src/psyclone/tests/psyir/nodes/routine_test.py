@@ -414,7 +414,9 @@ def test_routine_update_parent_symbol_table_with_comments(routine_type):
 
         ! This routine will be a codeblock.
         {routine_type} routine()
-            procedure (halo_exchange_routine) :: exchange_halo_group
+            contains
+                subroutine subr()
+                end subroutine
         end {routine_type}
 
         subroutine routine1(a, b, c)

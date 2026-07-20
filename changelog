@@ -1,3 +1,28 @@
+   13) PR #3490 for #3488. Fixes an issue with WHERE statements preceeded
+   by comments.
+ 
+   12) PR #3497 for #3457. Ensures reproducible order of declarations.
+
+   11) PR #3345 for #3330. Adds the OMPCPURoutineTrans meta-transformation.
+ 
+   10) PR #3495 for #3207. Updates the LFRic integration tests.
+ 
+   9) PR #3473 for #3124. Adds the loop variable as a Reference child of
+   Loop nodes.
+
+   8) PR #3483 for #3482. Removes the dependency on sphinx's
+   stringify_annotations by implementing our own.
+
+   7) PR #3491 for #2533. Adds better support for procedure pointers in
+   the PSyIR Fortran frontend/backend (plus other improvements for
+   unsupported declarations).
+ 
+   6) PR #3496 for #3493. Adds a new GHA workflow to check for remaining
+   references to issues that a PR claims to close.
+ 
+   5) PR #3464 towards #3463. Reverse the construction order of maximal
+   regions and use the full-region as starting candidate.
+
    4) PR #3465 for #2757. Adds the --script-kwargs command line
    option to pass arguments to transformation scripts.
  

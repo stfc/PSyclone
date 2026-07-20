@@ -132,6 +132,7 @@ class Reference(DataNode):
         from psyclone.psyir.nodes.call import Call
         from psyclone.psyir.nodes.codeblock import CodeBlock
         from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
+        from psyclone.psyir.nodes.loop import Loop
         parent = self.parent
         # pure or inquiry IntrinsicCall nodes do not write to their arguments.
         if (isinstance(parent, IntrinsicCall) and (parent.is_inquiry or
@@ -147,6 +148,9 @@ class Reference(DataNode):
             return True
         # Assume the worst for CodeBlocks
         if isinstance(parent, CodeBlock):
+            return True
+        # Loop control variable is also a write
+        if isinstance(parent, Loop) and parent.variable_reference is self:
             return True
         return False
 
