@@ -171,13 +171,21 @@ class DefinitionUseChain:
                 )
             self._scope = control_flow_region
 
-        # The uses, defsout and killed sets as defined for each basic block.
+        # These are maps of signatures to node for the region of code provided
+        # to the DUC, for every singature:
+        # - The uses collects every possible read reached from the start of the
+        # region (until we find any guaranteed write).
         self._uses = {}
+        # - The defout collects the nodes that could represent end points of the
+        # signature use chain (all writes before the guaranteed write).
         self._defsout = {}
+        # - The killed is a working collection used by compute_x_uses to store
+        # writes found that are defenitely are not the final write.
         self._killed = {}
-
-        # The output map, mapping between nodes and the reach of that node.
+        # - The reaches collects all nodes that can be reach for each signature
+        # from the start of the region.
         self._reaches = {}
+
         # Initialise the maps.
         for sig in self._reference_signatures:
             self._uses[sig] = []
@@ -930,8 +938,10 @@ class DefinitionUseChain:
                     sig = reference.get_signature_and_indices()[0]
                     # Work out if its read only or not.
                     assign = reference.ancestor(Assignment)
-                    if reference.ancestor(Call):
+                    if reference.ancestor((Call, CodeBlock)):
                         # For calls we always assume read/write access
+                        if defs_out[sig] is not None:
+                            self._killed[sig].append(defs_out[sig])
                         defs_out[sig] = reference
                     elif assign is not None:
                         # RHS reads occur "before" LHS writes, so if we
