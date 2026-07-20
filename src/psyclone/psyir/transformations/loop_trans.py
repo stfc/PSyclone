@@ -109,10 +109,10 @@ class LoopTrans(Transformation, metaclass=abc.ABCMeta):
                 f"Loop but got '{type(node).__name__}'")
 
         # The loop must be fully-formed.
-        if len(node.children) != 4:
+        if len(node.children) != 5:
             raise TransformationError(
                 f"Error in {self.name} transformation. The target loop "
-                f"must have four children but found: "
+                f"must have five children but found: "
                 f"{[type(child).__name__ for child in node.children]}.")
 
         # TODO 2668: options are now deprecated.
