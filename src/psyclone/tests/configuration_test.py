@@ -71,7 +71,6 @@ _CONFIG_CONTENT = '''\
 [DEFAULT]
 DISTRIBUTED_MEMORY = true
 REPRODUCIBLE_REDUCTIONS = false
-REPROD_PAD_SIZE = 8
 VALID_PSY_DATA_PREFIXES = profile, extract
 OCL_DEVICES_PER_NODE = 1
 IGNORE_MODULES = netcdf, mpi
@@ -141,7 +140,7 @@ def bool_entry_fixture(request):
 
 @pytest.fixture(name="int_entry",
                 scope="function",
-                params=["REPROD_PAD_SIZE", "OCL_DEVICES_PER_NODE"])
+                params=["OCL_DEVICES_PER_NODE"])
 def int_entry_fixture(request):
     '''
     Parameterised fixture that returns the names of integer members of the
@@ -338,10 +337,6 @@ def test_read_values():
     reprod = _config.reproducible_reductions
     assert isinstance(reprod, bool)
     assert not reprod
-    # How much to pad arrays by when doing reproducible reductions
-    pad = _config.reprod_pad_size
-    assert isinstance(pad, int)
-    assert pad == 7
     # The filename of the config file which was parsed to produce
     # the Config object
     assert _config.filename == str(TEST_CONFIG)

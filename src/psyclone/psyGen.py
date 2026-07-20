@@ -969,10 +969,8 @@ class Kern(Statement):
             f"{self.name}:{self._reduction_arg.name}:templocal")
         thread_idx = table.lookup_with_tag("omp_thread_index")
         arr_ref = ArrayReference.create(
-            array_symbol, [
-                Literal("1", ScalarType.integer_type()),
-                Reference(thread_idx)
-            ])
+            array_symbol, [Reference(thread_idx)]
+        )
 
         assign = Assignment.create(
             arr_ref, Reference(local_var)
@@ -983,7 +981,7 @@ class Kern(Statement):
             "shared array."
         )
 
-        # Where to put it?
+        # Add the assignment at the end of the parallel region.
         parallel_region_body.addchild(assign)
 
     def create_thread_private_variable(
@@ -993,6 +991,9 @@ class Kern(Statement):
         '''
         Generate the appropriate code to initialise the scalar reduction
         variable inside the parallel region, and add it to the private clause.
+
+        This method is designed to be used *after* a Kern has been lowered
+        (and thus detached) and therefore does not use `self.scope`.
 
         :param parallel_directive: the parallel region to which to add
             the initialisation as a child.
@@ -1052,8 +1053,7 @@ class Kern(Statement):
                BinaryOperation.Operator.ADD,
                Reference(var_symbol),
                ArrayReference.create(local_symbol,
-                                     [Literal("1", ScalarType.integer_type()),
-                                      Reference(thread_idx)]))))
+                                     [Reference(thread_idx)]))))
         do_loop.append_preceding_comment(
                     "sum the partial results sequentially")
         do_loop.parent.addchild(
@@ -1136,16 +1136,9 @@ class Kern(Statement):
             # For reproducible reductions, we need a rank-2 array to store
             # the thread-local results.
             nthreads = table.lookup_with_tag("omp_num_threads")
-            if Config.get().reprod_pad_size < 1:
-                raise GenerationError(
-                    f"REPROD_PAD_SIZE in {Config.get().filename} should be a "
-                    f"positive integer, but it is set to "
-                    f"'{Config.get().reprod_pad_size}'.")
-            pad_size = Literal(str(Config.get().reprod_pad_size),
-                               ScalarType.integer_type())
 
             array_type = ArrayType(arg_sym.datatype,
-                                   2*[ArrayType.Extent.DEFERRED])
+                                   [ArrayType.Extent.DEFERRED])
             # Create a scalar temp to store to in the loop.
             _ = table.find_or_create_tag(
                 root_name=f"thread_private_{self._reduction_arg.name}",
@@ -1158,7 +1151,7 @@ class Kern(Statement):
             alloc = IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.ALLOCATE,
                 [ArrayReference.create(local_var,
-                                       [pad_size, Reference(nthreads)])])
+                                       [Reference(nthreads)])])
             # Find a safe location to allocate it.
             insert_loc = self.ancestor((Loop, Directive))
             while insert_loc:

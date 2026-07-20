@@ -499,14 +499,12 @@ def test_config_flag(tmpdir):
     main([filename_in, "-a", "field", "-api", "lfric"])
     assert Config.get().api == "lfric"
     assert Config.has_config_been_initialised() is True
-    assert Config.get().reprod_pad_size == 8
 
     # Test with with -c
     Config._HAS_CONFIG_BEEN_INITIALISED = False
     main([filename_in, "-a", "field", "-c", config_name, "-api", "lfric"])
     assert Config.get().api == "lfric"
     assert Config.has_config_been_initialised() is True
-    assert Config.get().reprod_pad_size == 7
 
     # Test with with --config
     Config._HAS_CONFIG_BEEN_INITIALISED = False
@@ -514,7 +512,6 @@ def test_config_flag(tmpdir):
          "-api", "lfric"])
     assert Config.get().api == "lfric"
     assert Config.has_config_been_initialised() is True
-    assert Config.get().reprod_pad_size == 7
 
 
 @pytest.mark.parametrize("extra_args", [[], ["-t"]])

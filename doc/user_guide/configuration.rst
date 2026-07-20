@@ -92,7 +92,6 @@ section e.g.:
     [DEFAULT]
     DISTRIBUTED_MEMORY = true
     REPRODUCIBLE_REDUCTIONS = false
-    REPROD_PAD_SIZE = 8
     PSYIR_ROOT_NAME = psyir_tmp
     VALID_PSY_DATA_PREFIXES = profile, extract
     FORTRAN_STANDARD = f2008
@@ -155,11 +154,6 @@ DISTRIBUTED_MEMORY           Whether or not to generate code for distributed-mem
                              only supported for the LFRic API.
 REPRODUCIBLE_REDUCTIONS      Whether or not to generate code for reproducible OpenMP bool
                              reductions (see :ref:`openmp-reductions`) by default.
-REPROD_PAD_SIZE              If generating code for reproducible OpenMP reductions,  int
-                             this setting controls the amount of padding used
-                             between elements of the array in which each thread
-                             accumulates its local reduction. (This prevents false
-                             sharing of cache lines by different threads.)
 PSYIR_ROOT_NAME              The root for generated PSyIR symbol names if one is not str
                              supplied when creating a symbol. Defaults to
                              "psyir_tmp".
@@ -251,9 +245,9 @@ The option takes a space-separated list of ``key=value`` pairs, for
 example:
 ::
 
-    psyclone --config-opts="run_time_checks=warn reprod_pad_size=27" ...
+    psyclone --config-opts="run_time_checks=warn ...
 
-This will overwrite the settings for ``run_time_checks`` and ``reprod_pad_size``
+This will overwrite the settings for ``run_time_checks``
 in the configuration file. You can overwrite any setting in any section (without
 having to specify the section). Capitalisation of the keys is ignored.
 If an invalid key is specified, an exception will be raised and
