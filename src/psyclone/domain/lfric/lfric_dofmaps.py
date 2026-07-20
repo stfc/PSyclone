@@ -225,8 +225,8 @@ class LFRicDofmaps(LFRicCollection):
             intrinsic_type = LFRicTypes("LFRicIntegerScalarDataType")()
             dtype = UnsupportedFortranType(
                 f"{intrinsic_type.intrinsic.name.lower()}("
-                f"kind={intrinsic_type.precision.name}), pointer, "
-                f"dimension(:,:) :: {dmap} => null()",
+                f"kind={intrinsic_type.precision.name}), pointer "
+                f":: {dmap}(:,:) => null()",
                 partial_datatype=ArrayType(
                     intrinsic_type,
                     [ArrayType.Extent.DEFERRED, ArrayType.Extent.DEFERRED]))

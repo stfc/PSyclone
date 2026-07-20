@@ -1407,7 +1407,7 @@ def test_rc_unsupported_loop_type(monkeypatch):
 
     # Switch off validation
     monkeypatch.setattr(rc_trans, "validate",
-                        lambda loop, options, depth, to_clean: None)
+                        lambda loop, options, depth: None)
 
     # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
@@ -1550,24 +1550,3 @@ def test_rc_max_colour(tmpdir):
         "    call f1_proxy%set_clean(max_halo_depth_mesh - 1)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_rc_to_clean_depth(tmp_path):
-    '''
-    Test the transformation with the option to compute only to the clean
-    halo depth.
-
-    '''
-    psy, invoke = get_invoke("1_single_invoke.f90",
-                             TEST_API, idx=0, dist_mem=True)
-    schedule = invoke.schedule
-    # Create our redundant computation transformation
-    rc_trans = LFRicRedundantComputationTrans()
-    loop = schedule.walk(Loop)[0]
-    rc_trans.apply(loop, to_clean=True)
-    result = str(psy.gen).lower()
-    assert "integer(kind=i_def) :: clean_depth" in result
-    assert "clean_depth = f1_proxy%get_clean_depth()" in result
-    assert "loop0_stop = mesh%get_last_halo_cell(clean_depth)" in result
-
-    assert LFRicBuild(tmp_path).code_compiles(psy)

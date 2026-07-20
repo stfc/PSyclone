@@ -45,12 +45,9 @@ from typing import Any, Optional, Union
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicInvokeSchedule, LFRicConstants
-from psyclone.domain.lfric.lfric_types import LFRicTypes
-from psyclone.psyir.nodes import (Assignment, Call, DataNode, Directive,
-                                  Reference, StructureReference)
+from psyclone.psyir.nodes import DataNode, Directive
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.symbols import DataSymbol
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
@@ -90,9 +87,8 @@ class LFRicRedundantComputationTrans(LoopTrans):
         :param node: the supplied node on which we are performing
                      validity checks.
 
-        :raises ValueError: if both `depth` and `clean_only` are supplied.
-        :raises TransformationError: if the loop has a
-            :py:class:`psyclone.psyir.nodes.Directive` ancestor.
+        :raises TransformationError: if the parent of the loop is a
+            :py:class:`psyclone.psyir.nodes.Directive`.
         :raises TransformationError: if the parent of the loop is not a
             :py:class:`psyclone.psyir.nodes.Loop` or a
             :py:class:`psyclone.psyGen.LFRicInvokeSchedule`.
@@ -137,16 +133,6 @@ class LFRicRedundantComputationTrans(LoopTrans):
         else:
             # TODO #2668: Deprecate options dictionary.
             depth = options.get("depth")
-
-        # It doesn't make sense to specify a depth *and* request that redundant
-        # computation be performed only on the clean halo.
-        to_clean_depth = self.get_option("to_clean", **kwargs)
-        if to_clean_depth and depth:
-            raise ValueError(
-                "Incompatible options provided to "
-                "LFRicRedundantComputationTrans: only one of 'depth' or "
-                "'to_clean' may be specified.")
-
         # pylint: disable=too-many-branches
         # check node is a loop
         super().validate(node, options=options)
@@ -275,7 +261,6 @@ class LFRicRedundantComputationTrans(LoopTrans):
               node: Loop,
               options: Optional[dict[str, Any]] = None,
               depth: Optional[Union[int, DataNode]] = None,
-              to_clean: Optional[bool] = False,
               **kwargs):
         # pylint:disable=arguments-renamed
         '''Apply the redundant computation transformation to the loop
@@ -284,15 +269,12 @@ class LFRicRedundantComputationTrans(LoopTrans):
         value will be the depth of the field's halo over which redundant
         computation will be performed. If :py:obj:`depth` is not set to a
         value then redundant computation will be performed to the full depth
-        of the field's halo unless `:py:obj:`to_clean` is set in which case
-        the limit is the depth of the currently-clean halo.
+        of the field's halo.
 
         :param node: the loop to transform.
         :param options: a dictionary with options for transformations.
         :param depth: the depth to which to perform redundant computation.
             Default is None in which case the full halo depth is used.
-        :param to_clean: if True then the redundant computation is
-            performed only to the currently-clean halo depth.
 
         '''
         if options:
@@ -300,29 +282,9 @@ class LFRicRedundantComputationTrans(LoopTrans):
             depth = options.get("depth")
 
         # TODO #2668: remove options dictionary.
-        self.validate(node, options=options, depth=depth, to_clean=to_clean,
-                      **kwargs)
+        self.validate(node, options=options, depth=depth, **kwargs)
 
         loop = node
-
-        if to_clean:
-            # We need to get the currently-clean halo depth.
-            table = loop.scope.symbol_table
-            clean_depth = table.new_symbol(
-                "clean_depth",
-                symbol_type=DataSymbol,
-                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-            # Ask the field for the depth of its clean halo
-            kernel_arg = loop.field
-            pname = kernel_arg.proxy_name
-            proxy = table.lookup(pname)
-            callee_ref = StructureReference.create(proxy, ["get_clean_depth"])
-            assign = Assignment.create(lhs=Reference(clean_depth),
-                                       rhs=Call.create(callee_ref))
-            # Add the assignment before the loop.
-            loop.parent.children.insert(loop.position, assign)
-            depth = Reference(clean_depth)
-
         if loop.loop_type == "":
             # Loop is over cells
             loop.set_upper_bound("cell_halo", depth)

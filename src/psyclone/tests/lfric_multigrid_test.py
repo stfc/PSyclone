@@ -410,10 +410,10 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
             "null()\n" in output)
     assert "type(field_proxy_type) :: field1_proxy\n" in output
     assert "type(field_proxy_type) :: field2_proxy\n" in output
-    assert ("integer(kind=i_def), pointer, dimension(:,:) :: map_as1_field1 "
-            "=> null()" in output)
-    assert ("integer(kind=i_def), pointer, dimension(:,:) :: map_as2_field2 "
-            "=> null()" in output)
+    assert ("integer(kind=i_def), pointer :: map_as1_field1(:,:) => "
+            "null()" in output)
+    assert ("integer(kind=i_def), pointer :: map_as2_field2(:,:) => "
+            "null()" in output)
     assert "integer(kind=i_def) :: ndf_as1_field1\n" in output
     assert "integer(kind=i_def) :: undf_as1_field1\n" in output
     assert "integer(kind=i_def) :: ndf_as2_field2\n" in output

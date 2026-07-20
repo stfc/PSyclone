@@ -219,9 +219,9 @@ def test_single_kern_eval(tmpdir):
             in code)
     assert "    type(field_proxy_type) :: f0_proxy" in code
     assert "    type(field_proxy_type) :: cmap_proxy" in code
-    assert ("integer(kind=i_def), pointer, dimension(:,:) :: map_w0 => null()"
+    assert ("    integer(kind=i_def), pointer :: map_w0(:,:) => null()"
             in code)
-    assert ("integer(kind=i_def), pointer, dimension(:,:) :: map_w1 => null()"
+    assert ("    integer(kind=i_def), pointer :: map_w1(:,:) => null()"
             in code)
     assert "    integer(kind=i_def) :: ndf_w0" in code
     assert "    integer(kind=i_def) :: undf_w0" in code
@@ -330,8 +330,7 @@ def test_single_kern_eval_op(tmpdir):
     assert ("real(kind=r_def), pointer, dimension(:) :: f1_data => null()"
             in code)
     assert "type(field_proxy_type) :: f1_proxy" in code
-    assert ("integer(kind=i_def), pointer, dimension(:,:) :: map_w3 => null()"
-            in code)
+    assert "integer(kind=i_def), pointer :: map_w3(:,:) => null()" in code
     assert "integer(kind=i_def) :: ndf_w0" in code
     assert "integer(kind=i_def) :: ndf_w2" in code
     assert "integer(kind=i_def) :: ndf_w3" in code
@@ -464,18 +463,18 @@ def test_two_qr_same_shape(tmpdir):
     assert "type(field_proxy_type) :: n2_proxy" in code
     assert "type(quadrature_xyoz_proxy_type) :: qr_proxy" in code
     assert "type(quadrature_xyoz_proxy_type) :: qr2_proxy" in code
-    assert ("integer(kind=i_def), pointer, dimension(:,:) :: map_w1 => null()"
-            in code)
-    assert ("integer(kind=i_def), pointer, dimension(:,:) :: map_w2 => null()"
-            in code)
-    assert ("integer(kind=i_def), pointer, dimension(:,:) :: map_w3 => null()"
-            in code)
+    assert "integer(kind=i_def), pointer :: map_w1(:,:) => null()" in code
+    assert "integer(kind=i_def), pointer :: map_w2(:,:) => null()" in code
+    assert "integer(kind=i_def), pointer :: map_w3(:,:) => null()" in code
     assert "integer(kind=i_def) :: ndf_w1" in code
     assert "integer(kind=i_def) :: undf_w1" in code
     assert "integer(kind=i_def) :: ndf_w2" in code
     assert "integer(kind=i_def) :: undf_w2" in code
     assert "integer(kind=i_def) :: ndf_w3" in code
     assert "integer(kind=i_def) :: undf_w3" in code
+    assert "integer(kind=i_def), pointer :: map_w1(:,:) => null()" in code
+    assert "integer(kind=i_def), pointer :: map_w2(:,:) => null()" in code
+    assert "integer(kind=i_def), pointer :: map_w3(:,:) => null()" in code
     expected_code = (
         "    ! Look-up quadrature variables\n"
         "    qr_proxy = qr%get_quadrature_proxy()\n"
@@ -778,14 +777,10 @@ def test_qr_plus_eval(tmpdir):
     assert "type(field_proxy_type) :: m1_proxy" in code
     assert "type(field_proxy_type) :: m2_proxy" in code
     assert "type(quadrature_xyoz_proxy_type) :: qr_proxy" in code
-    assert ("integer(kind=i_def), pointer, dimension(:,:) :: map_w0 => null()"
-            in code)
-    assert ("integer(kind=i_def), pointer, dimension(:,:) :: map_w1 => null()"
-            in code)
-    assert ("integer(kind=i_def), pointer, dimension(:,:) :: map_w2 => null()"
-            in code)
-    assert ("integer(kind=i_def), pointer, dimension(:,:) :: map_w3 => null()"
-            in code)
+    assert "integer(kind=i_def), pointer :: map_w0(:,:) => null()" in code
+    assert "integer(kind=i_def), pointer :: map_w1(:,:) => null()" in code
+    assert "integer(kind=i_def), pointer :: map_w2(:,:) => null()" in code
+    assert "integer(kind=i_def), pointer :: map_w3(:,:) => null()" in code
     assert "integer(kind=i_def) :: ndf_w0" in code
     assert "integer(kind=i_def) :: undf_w0" in code
     assert "integer(kind=i_def) :: ndf_w1" in code

@@ -112,9 +112,9 @@ def test_field_xyoz(tmpdir):
     integer(kind=i_def) :: undf_w2
     integer(kind=i_def) :: ndf_w3
     integer(kind=i_def) :: undf_w3
-    integer(kind=i_def), pointer, dimension(:,:) :: map_w1 => null()
-    integer(kind=i_def), pointer, dimension(:,:) :: map_w2 => null()
-    integer(kind=i_def), pointer, dimension(:,:) :: map_w3 => null()
+    integer(kind=i_def), pointer :: map_w1(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2(:,:) => null()
+    integer(kind=i_def), pointer :: map_w3(:,:) => null()
     type(field_proxy_type) :: f1_proxy
     type(field_proxy_type) :: f2_proxy
     type(field_proxy_type) :: m1_proxy
@@ -330,9 +330,9 @@ def test_face_qr(tmpdir, dist_mem):
     integer(kind=i_def) :: undf_w2
     integer(kind=i_def) :: ndf_w3
     integer(kind=i_def) :: undf_w3
-    integer(kind=i_def), pointer, dimension(:,:) :: map_w1 => null()
-    integer(kind=i_def), pointer, dimension(:,:) :: map_w2 => null()
-    integer(kind=i_def), pointer, dimension(:,:) :: map_w3 => null()
+    integer(kind=i_def), pointer :: map_w1(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2(:,:) => null()
+    integer(kind=i_def), pointer :: map_w3(:,:) => null()
     type(field_proxy_type) :: f1_proxy
     type(field_proxy_type) :: f2_proxy
     type(field_proxy_type) :: m1_proxy
