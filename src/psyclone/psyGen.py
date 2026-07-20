@@ -51,11 +51,6 @@ import abc
 from typing import Any, Dict, Optional, Union
 import warnings
 
-try:
-    from sphinx.util.typing import stringify_annotation
-except ImportError:
-    # No Sphinx available so use our own, simpler version.
-    from psyclone.utils import stringify_annotation
 
 from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
 from psyclone.core import AccessType
@@ -70,6 +65,7 @@ from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, ScalarType,
     UnresolvedType, ImportInterface, RoutineSymbol)
 from psyclone.psyir.symbols.symbol_table import SymbolTable
+from psyclone.utils import stringify_annotation
 
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
@@ -2562,6 +2558,12 @@ class Transformation(metaclass=abc.ABCMeta):
         wrong_types = {}
         for option in kwargs:
             if option not in valid_options:
+                # This is needed to enable metatransformations where
+                # only some inherited classes have options set on
+                # superclasses
+                # TODO #2668: Deprecate options dict.
+                if option == "options":
+                    continue
                 invalid_options.append(option)
                 continue
             if valid_options[option].type is not None:

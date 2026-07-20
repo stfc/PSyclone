@@ -1994,14 +1994,13 @@ class LFRicMeshes():
         self._add_mesh_symbols(list(_name_set))
 
     @property
-    def symtab(self):
+    def symtab(self) -> SymbolTable:
         '''
         :returns: associated symbol table.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
         '''
         return self._invoke.schedule.symbol_table
 
-    def _add_mesh_symbols(self, mesh_tags):
+    def _add_mesh_symbols(self, mesh_tags: list[str]) -> None:
         '''
         Add DataSymbols for the supplied list of mesh names and store the
         corresponding list of tags.
@@ -2011,7 +2010,6 @@ class LFRicMeshes():
         to hold the maximum halo depth is created for each mesh.
 
         :param mesh_tags: tag names for every mesh object required.
-        :type mesh_tags: list of str
 
         '''
         if not mesh_tags:
@@ -2034,7 +2032,8 @@ class LFRicMeshes():
             interface=ImportInterface(csym))
 
         name_list = []
-        for name in mesh_tags:
+        # Use the sorted list of names to ensure reproducible output.
+        for name in self._mesh_tag_names:
             dt = UnsupportedFortranType(
                 f"type({mtype_sym.name}), pointer :: {name} => null()")
             name_list.append(self.symtab.find_or_create_tag(
@@ -2043,7 +2042,7 @@ class LFRicMeshes():
         if Config.get().distributed_memory:
             # If distributed memory is enabled then we require a variable
             # holding the maximum halo depth for each mesh.
-            for name in mesh_tags:
+            for name in self._mesh_tag_names:
                 var_name = f"max_halo_depth_{name}"
                 self.symtab.find_or_create(
                     var_name, tag=var_name,

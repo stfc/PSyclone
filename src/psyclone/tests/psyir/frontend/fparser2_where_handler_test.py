@@ -45,6 +45,7 @@ from fparser.two import Fortran2003, utils
 
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     ArrayMember, ArrayReference, Assignment, BinaryOperation,
     Call, CodeBlock, Container, IfBlock, IntrinsicCall, Literal, Loop, Range,
@@ -718,6 +719,30 @@ def test_where_stmt(fortran_reader):
     assert isinstance(routine[0], Loop)
 
 
+def test_where_stmt_comment(fortran_writer, tmp_path):
+    ''' Check that we handle a single line WHERE statement correctly
+    when it is preceded by a comment and keep-comments is enabled.'''
+    code = '''program where_test
+      implicit none
+      integer :: jl
+      real, dimension(:,:), allocatable :: at_i, rn_amax_2d
+      real, dimension(:,:,:), allocatable :: a_i
+      a_i = 0
+      ! Here is a comment.
+      WHERE( at_i(:,:) > rn_amax_2d(:,:) ) &
+            a_i(:,:,jl) = a_i(:,:,jl) * rn_amax_2d(:,:) / at_i(:,:)
+    end program where_test
+    '''
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert len(routine.children) == 2
+    assert isinstance(routine[1], Loop)
+    assert routine[1].preceding_comment == "Here is a comment."
+    code = fortran_writer(psyir)
+    assert Compile(tmp_path).string_compiles(code)
+
+
 def test_where_stmt_no_reduction(fortran_reader, fortran_writer):
     '''
     Test that a WHERE statement containing an intrinsic reduction is put
@@ -1355,3 +1380,97 @@ SQRT(p_dal%D11(widx1,widx2,1) * p_dal%D22(widx1,widx2,1))
       enddo
     enddo""" in code
     assert Compile(tmp_path).string_compiles(code)
+
+
+def test_multiline_where_with_preceding_comment(fortran_writer, tmp_path):
+    '''Test that if we have a multiline where statement (resulting in
+    a node containing a Fortran2003.Where_Construct_Stmt) with a
+    preceding comment we get the expected result.'''
+    code = """subroutine test()
+    real, dimension(100) :: arr1, arr2
+    arr1 = 0.0
+    ! Here is a comment
+    ! Here is another comment
+    where (arr1 == 0.0)
+        arr2  = arr1 * 3
+    elsewhere
+        arr2 = 0
+    end where
+    end subroutine test"""
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert len(routine.children) == 2
+    assert isinstance(routine[1], Loop)
+    assert routine[1].preceding_comment == (
+        "Here is a comment\nHere is another comment"
+    )
+    code = fortran_writer(psyir)
+    assert Compile(tmp_path).string_compiles(code)
+
+    # Check that we produce the correct output when
+    # there are comments inline on the various where statements.
+    code = """subroutine test()
+    real, dimension(100) :: arr1, arr2
+    arr1 = 0.0
+    where (arr1 == 0.0) ! Here is a comment on where
+        arr2 = arr1 * 3
+    elsewhere ! Here is a comment on elsewhere
+        arr2 = 0 ! An inline comment
+    end where ! Here is a comment on end where
+    end subroutine test"""
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert len(routine.children) == 2
+    loop = routine[1]
+    assert isinstance(loop, Loop)
+    where_body = loop.loop_body[0].if_body[0]
+    assert where_body.preceding_comment == "Here is a comment on where"
+    elsewhere_body = loop.loop_body[0].else_body[0]
+    assert elsewhere_body.preceding_comment == "Here is a comment on elsewhere"
+    # The end where comment is classed as the inline comment.
+    assert loop.inline_comment == "Here is a comment on end where"
+    correct = """subroutine test()
+  real, dimension(100) :: arr1
+  real, dimension(100) :: arr2
+  integer :: widx1
+
+  arr1 = 0.0
+  do widx1 = 1, 100, 1
+    if (arr1(widx1) == 0.0) then
+      ! Here is a comment on where
+      arr2(widx1) = arr1(widx1) * 3
+    else
+      ! Here is a comment on elsewhere
+      arr2(widx1) = 0  ! An inline comment
+    end if
+  enddo  ! Here is a comment on end where
+
+end subroutine test"""
+    code = fortran_writer(psyir)
+    assert correct in code
+    assert Compile(tmp_path).string_compiles(code)
+
+
+def test_where_with_preceding_comment_and_reduction_intrinsic():
+    '''Test that when we have a where statement with preceding comments
+    and a reduction intrinsic we flag the NotImplementedError correctly.'''
+    # TODO #1960: Reduction intrinsics in where statements are not yet
+    # supported. This also loses any preceding comment.
+    code = """subroutine x
+  real, dimension(100) :: arr1, arr3
+  real, dimension(100) :: arr2
+
+    ! Here is a comment.
+    where (arr1 == 0.0)
+        arr2  = MAXVAL(arr1, 1) * 3
+    end where
+    end subroutine x"""
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert isinstance(routine.children[0], CodeBlock)
+    pytest.xfail(
+        "Xfail #1960: Reduction intrinsics in where's are not supported"
+        "when they return an array.")
