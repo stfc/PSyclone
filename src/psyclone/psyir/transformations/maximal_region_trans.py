@@ -174,7 +174,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         # Initially test if the entire region can be transformed without
         # breaking it up into pieces.
         for child in n_list:
-            if not self._can_be_in_region(child):
+            if not self._can_be_in_region(child, current_block):
                 break
         else:
             try:
@@ -279,7 +279,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
 
         :param block: The block to apply the transformations to.
         '''
-        self._transformation.apply(block, **kwargs)
+        self._transformation().apply(block, **kwargs)
 
     def apply(self, nodes: Union[Node, Schedule, list[Node]], **kwargs):
         '''Applies the transformation to the nodes provided.

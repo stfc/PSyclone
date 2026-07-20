@@ -91,7 +91,7 @@ def test_can_be_in_region(fortran_reader, statement, expected):
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     trans = MaxParTrans()
-    assert trans._can_be_in_region(routine.children[0]) == expected
+    assert trans._can_be_in_region(routine.children[0], []) == expected
 
 
 def test_validate(fortran_reader):
