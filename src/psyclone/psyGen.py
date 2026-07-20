@@ -2498,6 +2498,12 @@ class Transformation(metaclass=abc.ABCMeta):
         wrong_types = {}
         for option in kwargs:
             if option not in valid_options:
+                # This is needed to enable metatransformations where
+                # only some inherited classes have options set on
+                # superclasses
+                # TODO #2668: Deprecate options dict.
+                if option == "options":
+                    continue
                 invalid_options.append(option)
                 continue
             if valid_options[option].type is not None:
