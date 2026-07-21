@@ -2161,15 +2161,15 @@ conventions, are:
          add an additional ``integer`` direction argument of kind
          ``i_def`` and with intent ``in``.
       5) If the field is multi-data and the value of ``NDATA`` is unknown
-	 (i.e. it is specified in the metadata using a label)
-	 then add an additional ``integer``, scalar argument of kind ``i_def``
-	 and intent ``in``. If the ``NDATA`` value is common to more than one
-	 kernel argument, it is only added for the first such argument.
+         (i.e. it is specified in the metadata using a label)
+         then add an additional ``integer``, scalar argument of kind ``i_def``
+         and intent ``in``. If the ``NDATA`` value is common to more than one
+	     kernel argument, it is only added for the first such argument.
       6) If the field has an unknown (i.e. specified in the metadata using a
-	 label), custom number of vertical levels then pass this as an
-	 additional ``integer``, scalar argument of kind ``i_def`` and
+	     label), custom number of vertical levels then pass this as an
+	     additional ``integer``, scalar argument of kind ``i_def`` and
          intent ``in``. If the number of vertical levels is common to more than
-	 one kernel argument, it is only added for the first such argument.
+	     one kernel argument, it is only added for the first such argument.
    3) If the current entry is a field vector then for each dimension
       of the vector, include a field array. The field array name is
       specified as
