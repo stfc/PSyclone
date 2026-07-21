@@ -1,3 +1,9 @@
+   14) PR #3452 for #3409. LFRic reproducible reduction store partial results
+   in a threadprivate scalar instead of a padded array.
+
+   13) PR #3490 for #3488. Fixes an issue with WHERE statements preceeded
+   by comments.
+ 
    12) PR #3497 for #3457. Ensures reproducible order of declarations.
 
    11) PR #3345 for #3330. Adds the OMPCPURoutineTrans meta-transformation.
