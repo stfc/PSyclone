@@ -894,8 +894,6 @@ class Kern(Statement):
         reductions, if specified.
 
         :raises GenerationError: if the variable to initialise is not a scalar.
-        :raises GenerationError: if the reprod_pad_size (read from the
-            configuration file) is less than 1.
         :raises GenerationError: for a reduction into a scalar that is
             neither 'real' nor 'integer'.
 

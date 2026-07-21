@@ -288,8 +288,9 @@ class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
                 and self.omp_directive == "do"):
             kerns = node.walk(Kern)
             if any([kern.is_reduction for kern in kerns]):
-                # TODO 2668: LFRicOMPLoopTrans doesn't yet use keyword
+                # TODO #2668: LFRicOMPLoopTrans doesn't yet use keyword
                 # arguments, so we don't pull them out with split_kwargs.
+                # TODO #3257: Is the option behaviour consistent?
                 _, _, par_kwargs = self.split_kwargs(**kwargs)
                 ltrans = LFRicOMPLoopTrans(omp_schedule=self.omp_schedule)
                 ltrans.apply(node, options=options)

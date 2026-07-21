@@ -489,7 +489,7 @@ def test_config_flag(tmpdir):
     with open(filename_in, "w", encoding='utf-8') as my_file:
         my_file.write(TEST_LFRIC_KERNEL)
 
-    # dummy_config has a non-default REPROD_PAD_SIZE of 7
+    # Reference to dummy_config
     config_name = os.path.join(
         os.path.split(os.path.dirname(os.path.abspath(__file__)))[0],
         "test_files", "dummy_config.cfg")

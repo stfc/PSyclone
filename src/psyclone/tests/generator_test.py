@@ -2029,7 +2029,7 @@ def test_config_overwrite() -> None:
     assert Config.get().ocl_devices_per_node == 1
     filename = str(LFRIC_BASE_PATH / "1_single_invoke.f90")
 
-    # Overwrite the config file's reprod_pad_size setting:
+    # Overwrite a config setting
     main([filename, "--config-opts", "OCL_DEVICES_PER_NODE=27"])
     assert Config.get().ocl_devices_per_node == 27
 

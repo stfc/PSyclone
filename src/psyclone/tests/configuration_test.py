@@ -321,7 +321,6 @@ def test_read_values():
     Check that we get the expected values from the test config file.
     '''
     _config = Config.get()
-    # The dummy_config.cfg has a non-default REPROD_PAD_SIZE of 7
     _config.load(config_file=TEST_CONFIG)
     # Whether distributed memory is enabled
     dist_mem = _config.distributed_memory

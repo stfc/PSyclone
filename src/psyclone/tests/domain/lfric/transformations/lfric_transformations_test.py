@@ -6756,6 +6756,9 @@ def test_reprod_red_with_parallel_do(tmpdir, monkeypatch, annexed,
     # Apply an OpenMP do to the loop
     for child in schedule.children:
         if isinstance(child, Loop):
+            # TODO #3257: This could use the reprod transformation option,
+            # but it is currently ignored (superseded by the configuration
+            # value). This is inconsistent with other transformations.
             otrans.apply(child)
     result = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
