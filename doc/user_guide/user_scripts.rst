@@ -89,6 +89,46 @@ and/or kernels) contained within the provided tree.
 The :ref:`examples section<examples>` provides a list of psyclone user scripts
 and associated usage instructions for multiple applications.
 
+.. _script_kwargs:
+
+Arguments for Scripts
+---------------------
+Scripts can take optional keyword arguments specified on the command line
+using the option `--script-kwargs`. The keyword arguments are specified
+in a string containing comma-delimited keyword:value pairs. For example:
+
+
+.. code-block:: shell
+
+    psyclone -s ./optimise.py input_source.f90 \
+             --script-kwargs "omp: True, tiling: [4,4]"
+
+This will result in the additional keyword arguments for any transformation call:
+
+.. code-block:: python
+
+    def trans(psyir, omp: bool, tiling: list[int]):
+        # Modify psyir tree
+
+The arguments specified will be converted into a Python-style dictionary, e.g.
+``omp: True, tiling: [4,4]`` will be parsed as ``{omp: True, tiling: [4,4]}``.
+Therefore, the specified keyword arguments must make a valid dictionary.
+For example, ``[1,2]`` is not a valid keyword argument, because ``{[1,2]}``
+is not valid Python (a list is not hashable), and ``1:2`` would not be valid,
+because the keys of keyword arguments must be strings.
+
+Obviously, the called transformation functions (``trans``, but also
+``trans_alg``, see below) must accept the specified keyword arguments. If
+an undeclared keyword argument is specified on the command line, the following
+error will be raised:
+
+.. code-block:: shell
+
+    psyclone -s ./omp_gpu_profile_trans.py --script-kwargs "undeclared: True" ...
+    Traceback (most recent call last):
+    ...
+    TypeError: trans() got an unexpected keyword argument 'undeclared'
+
 
 .. _sec_script_globals:
 
@@ -142,3 +182,8 @@ associated with the merged invoke.
 
 An example of the use of a script making use of the ``trans_alg``
 function can be found in ``examples/gocean/eg7``.
+
+Note that the ``trans_alg`` function will receive the same keyword arguments
+as the ``trans`` function if the PSyclone command line option
+``--script-kwargs`` is used (see :ref:`script_kwargs`). It is therefore
+important that both functions accept the same keyword arguments.

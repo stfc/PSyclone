@@ -96,11 +96,6 @@ def parse(alg_filename, api="", invoke_name="invoke", kernel_paths=None,
     :rtype: (:py:class:`fparser.two.Fortran2003.Program`, \
              :py:class:`psyclone.parse.FileInfo`)
 
-    For example:
-
-    >>> from psyclone.parse.algorithm import parse
-    >>> ast, info = parse(SOURCE_FILE)
-
     '''
     if kernel_paths is None:
         kernel_paths = []
@@ -128,12 +123,6 @@ class Parser():
         the input (algorithm and kernel) code is checked to make sure \
         that it conforms and an error raised if not. The default is \
         False.
-
-    For example:
-
-    >>> from psyclone.parse.algorithm import Parser
-    >>> parser = Parser(api="gocean")
-    >>> ast, info = parser.parse(SOURCE_FILE)
 
     '''
 

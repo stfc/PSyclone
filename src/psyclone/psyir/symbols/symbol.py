@@ -482,8 +482,11 @@ class Symbol(CommentableMixin):
         If a `loop_variable` is specified, a variable access will only be
         considered an array access if the specified variable is used in
         at least one of the indices. For example:
-        >>> do i=1, n
-        >>>     a(j) = 2
+
+        .. code-block:: fortran
+
+            do i=1, n
+                a(j) = 2
 
         the access to `a` is not considered an array if `loop_variable` is
         set to `i`. If `loop_variable` is specified, `access_information`

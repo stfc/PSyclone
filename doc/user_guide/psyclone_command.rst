@@ -74,8 +74,6 @@ by the command:
       -v, --version         display version information
       -c CONFIG, --config CONFIG
                             config file with PSyclone specific options
-      -s SCRIPT, --script SCRIPT
-                            filename of a PSyclone optimisation recipe
       --enable-cache        whether to enable caching of imported module dependencies (if
                             enabled, it will generate a .psycache file of each imported module in
                             the same location as the imported source file).
@@ -114,6 +112,12 @@ by the command:
                             at the input file extension).
       --fixed-form          forces PSyclone to parse this file as fixed format (default is to
                             look at the input file extension).
+
+    Transformation scripts:
+      -s SCRIPT, --script SCRIPT
+                            filename of a PSyclone optimisation recipe
+      --script-kwargs SCRIPT_KWARGS
+                            Keyword arguments for the transformation script.
 
     Directory management:
       -I INCLUDE, --include INCLUDE

@@ -881,7 +881,8 @@ def test_gen_access_stmts(fortran_writer):
     # Accessibility should also be generated for a GenericInterfaceSymbol.
     symbol_table.add(GenericInterfaceSymbol("overloaded", [(sub2, True)]))
     code = fortran_writer.gen_access_stmts(symbol_table)
-    assert code.strip() == "public :: my_sub1, some_var, overloaded"
+    # Symbols should be in alpha order (for reproducibility).
+    assert code.strip() == "public :: my_sub1, overloaded, some_var"
 
 
 def test_gen_access_stmts_avoids_internal(fortran_reader, fortran_writer):

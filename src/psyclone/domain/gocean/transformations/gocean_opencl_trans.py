@@ -64,16 +64,24 @@ class GOOpenCLTrans(Transformation):
     InvokeSchedule. Additionally, it will generate OpenCL kernels for
     each of the kernels referenced by the Invoke. For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> API = "gocean"
-    >>> FILENAME = "shallow_alg.f90" # examples/gocean/eg1
-    >>> ast, invoke_info = parse(FILENAME, api=API)
-    >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "eg1/shallow_alg.f90"
+    >>> schedule = get_psylayer_schedule(filename, "gocean-examples")
+    >>>
+    >>> from psyclone.domain.gocean.transformations import (
+    ...     GOMoveIterationBoundariesInsideKernelTrans,
+    ...     GOOpenCLTrans)
+    >>> from psyclone.domain.common.transformations import (
+    ...     KernelModuleInlineTrans)
+    >>> move_trans = GOMoveIterationBoundariesInsideKernelTrans()
+    >>> mod_inline_trans = KernelModuleInlineTrans()
     >>> ocl_trans = GOOpenCLTrans()
-    >>> ocl_trans.apply(schedule)
-    >>> print(schedule.view())
+    >>> for kern in schedule.kernels():
+    ...    # Put kernels in same container and iterate the whole space
+    ...    mod_inline_trans.apply(kern)
+    ...    move_trans.apply(kern)
+    >>> # Commented to prevent generating doctest output .cl files
+    >>> # ocl_trans.apply(schedule)
 
     '''
     # Specify which OpenCL command queue to use for management operations like

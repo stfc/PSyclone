@@ -61,7 +61,7 @@ class HoistLocalArraysTrans(Transformation):
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
-    >>> from psyclone.psyir.nodes import Assignment
+    >>> from psyclone.psyir.nodes import Assignment, Routine
     >>> from psyclone.psyir.transformations import HoistLocalArraysTrans
     >>> code = ("module test_mod\\n"
     ...         "contains\\n"
@@ -85,21 +85,19 @@ class HoistLocalArraysTrans(Transformation):
       real, allocatable, dimension(:,:), private :: a
       public
     <BLANKLINE>
-      public :: test_sub
-    <BLANKLINE>
       contains
       subroutine test_sub(n)
         integer :: n
         integer :: i
         integer :: j
-        real :: value = 1.0
+        real, save :: value = 1.0
     <BLANKLINE>
-        if (.not.allocated(a) .or. ubound(a, 1) /= n .or. ubound(a, 2) /= n) \
-then
+        if (.not.allocated(a) .or. ubound(a, dim=1) /= n .or. \
+ubound(a, dim=2) /= n) then
           if (allocated(a)) then
             deallocate(a)
           end if
-          allocate(a(1 : n, 1 : n))
+          allocate(a(1:n,1:n))
         end if
         do i = 1, n, 1
           do j = 1, n, 1

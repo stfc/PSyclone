@@ -41,7 +41,7 @@
     '''
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType
+from psyclone.core import AccessType, VariablesAccessMap, Signature
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.lfric_kern import LFRicKern
@@ -116,6 +116,8 @@ class LFRicLoop(PSyLoop):
             self.variable = ischedule.symbol_table.find_or_create_tag(
                 tag, root_name=suggested_name, symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+        else:
+            self.variable = DataSymbol("null", ScalarType.integer_type())
 
         # The loop bounds names are given by the number of previous LFRic loops
         # already present in the Schedule. Since this are inserted in order it
@@ -185,11 +187,11 @@ class LFRicLoop(PSyLoop):
                 child.lower_to_language_level()
 
             # Finally create the new lowered Loop and replace the domain one
-            loop = Loop.create(self._variable, start, stop, step, [])
+            loop = Loop.create(self.variable, start, stop, step, [])
             loop.preceding_comment = self.preceding_comment
             loop.loop_body._symbol_table = \
                 self.loop_body.symbol_table.shallow_copy()
-            loop.children[3] = self.loop_body.copy()
+            loop.children[4] = self.loop_body.copy()
             self.replace_with(loop)
             lowered_node = loop
         else:
@@ -1103,6 +1105,34 @@ class LFRicLoop(PSyLoop):
 
         raise InternalError(f"independent_iterations: loop of type "
                             f"'{self.loop_type}' is not supported.")
+
+    def reference_accesses(self) -> VariablesAccessMap:
+        '''
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure accessors) and the values are AccessSequence
+            (a sequence of AccessTypes).
+
+        '''
+        var_accesses = VariablesAccessMap()
+
+        if self.variable.name != "null":
+            var_accesses.add_access(Signature(self.variable.name),
+                                    AccessType.WRITE, self)
+            # This READ is needed for the OpenMP infering attributes
+            # to work as expected
+            # TODO #3486: Ideally it should be WRITE-only
+            var_accesses.add_access(Signature(self.variable.name),
+                                    AccessType.READ, self)
+            var_accesses.update(self.start_expr.reference_accesses())
+            var_accesses.update(self.stop_expr.reference_accesses())
+            var_accesses.update(self.step_expr.reference_accesses())
+
+        # LFRic loops ignore the loop variable reference and loop bounds
+        # because it has placeholders until the DSL loop is lowered.
+        for child in self.loop_body.children:
+            var_accesses.update(child.reference_accesses())
+        return var_accesses
 
 
 # ---------- Documentation utils -------------------------------------------- #

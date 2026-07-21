@@ -64,13 +64,13 @@ class Profiler():
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def set_options(options, api=""):
+    def set_options(options, is_psykal: bool = False):
         '''Sets the option the user required.
 
         :param options: options selected by the user, or None to
                         disable all automatic profiling.
         :type options: Optional[list[str]]
-        :param str api: the PSyclone API that is in use.
+        :param is_psykal: whether this is profiling a psykal application.
 
         :raises ValueError: if an invalid option is supplied.
 
@@ -86,8 +86,8 @@ class Profiler():
                                  f"must be one of {allowed_options} but "
                                  f"found '{option}' at {index}")
 
-        if not api and (Profiler.KERNELS in options or
-                        Profiler.INVOKES in options):
+        if not is_psykal and (Profiler.KERNELS in options or
+                              Profiler.INVOKES in options):
             raise ValueError(
                 f"The profiling '{Profiler.KERNELS}' and '{Profiler.INVOKES}'"
                 f" options are only available when using PSyKAl DSLs.")

@@ -165,9 +165,9 @@ def test_create_function_spaces(prog, fortran_writer):
         sym = prog.symbol_table.lookup(space)
         assert sym.interface.container_symbol is fs_mod_sym
     # Checking function space ordering is consistent.
-    assert ("TYPE(function_space_type), POINTER :: "
+    assert ("type(function_space_type), pointer :: "
             "vector_space_w1_ptr\n  "
-            "TYPE(function_space_type), POINTER :: "
+            "type(function_space_type), pointer :: "
             "vector_space_w3_ptr" in gen)
     assert ("vector_space_w1_ptr => function_space_collection%"
             "get_fs(mesh,element_order_h,element_order_v,w1)\n  "

@@ -131,6 +131,7 @@ class Reference(DataNode):
         from psyclone.psyir.nodes.assignment import Assignment
         from psyclone.psyir.nodes.call import Call
         from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
+        from psyclone.psyir.nodes.loop import Loop
         parent = self.parent
         # pure or inquiry IntrinsicCall nodes do not write to their arguments.
         if (isinstance(parent, IntrinsicCall) and (parent.is_inquiry or
@@ -143,6 +144,9 @@ class Reference(DataNode):
             return True
         # The reference that is the LHS of an assignment is a write.
         if isinstance(parent, Assignment) and parent.lhs is self:
+            return True
+        # Loop control variable is also a write
+        if isinstance(parent, Loop) and parent.variable_reference is self:
             return True
         return False
 

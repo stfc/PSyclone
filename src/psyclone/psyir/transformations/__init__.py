@@ -145,6 +145,10 @@ from psyclone.psyir.transformations.move_trans import (
     MoveTrans
 )
 
+# Metatransformations
+from psyclone.psyir.transformations.metatransformations.omp_cpu_routine_trans\
+    import OMPCPURoutineTrans
+
 # For AutoAPI documentation generation
 __all__ = [
     "ACCKernelsTrans",
@@ -175,6 +179,7 @@ __all__ = [
     "LoopTrans",
     "Maxval2LoopTrans",
     "Minval2LoopTrans",
+    "OMPCPURoutineTrans"
     "OMPLoopTrans",
     "OMPMinimiseSyncTrans",
     "OMPTargetTrans",

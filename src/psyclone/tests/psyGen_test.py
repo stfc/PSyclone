@@ -40,9 +40,7 @@
 
 
 import os
-import sys
 import logging
-from unittest.mock import patch
 import warnings
 
 import pytest
@@ -205,6 +203,34 @@ def test_transformation_get_options():
         trans.get_option("invalid")
     assert ("option 'invalid' is not a valid option for 'TestTrans'. "
             "Valid options are '['valid']." in str(excinfo.value))
+
+    # Test that we allow _SUB_TRANSFORMATIONS_OPTIONS
+
+    class TestTrans2(Transformation):
+        '''Utility transformation to test methods of the abstract
+        Transformation class with _SUB_TRANSFORMATIONS.'''
+        _SUB_TRANSFORMATIONS = [TestTrans]
+
+        def apply(self, node, **kwargs):
+            ...
+
+    trans = TestTrans2()
+    # Check that we allow the fetching of the TestTrans option.
+    assert trans.get_option("valid", valid=True)
+
+    # Test that we use current transformations default value
+    # over an inherited value.
+    class TestTrans3(Transformation):
+        '''Utility transformation to test methods of the abstract
+        Transformation class with _SUB_TRANSFORMATIONS.'''
+        _SUB_TRANSFORMATIONS = [TestTrans]
+
+        def apply(self, node, valid=False, **kwargs):
+            ...
+    opts = {}
+    trans = TestTrans3()
+    # Check that we get the default False for the valid option.
+    assert not trans.get_option("valid", **opts)
 
 
 def test_transformation_split_kwargs():
@@ -373,33 +399,6 @@ def test_transformation_get_valid_options():
     assert options['valid2'].typename == "int"
     # Check options isn't inherited from the superclass.
     assert options.get('options', None) is None
-
-
-def test_transformation_get_valid_options_no_sphinx():
-    '''Test that the get_valid_options method behaves in the expected
-    way when sphinx isn't available.'''
-    # Test that importing stringify_annotations works without sphinx.
-    # Trick the import into thinking sphinx.util.typing is unavailable
-    with patch.dict(sys.modules, {'sphinx.util.typing': None}):
-        # Unload the previously imported Transformation class
-        # pylint: disable=import-outside-toplevel
-        del sys.modules['psyclone.psyGen']
-        from psyclone.psyGen import Transformation
-
-        class TestTrans(Transformation):
-            '''Utility transformation to test methods of the abstract
-            Transformation class.'''
-
-            def apply(self, node, valid: bool = True, untyped=False):
-                '''Apply method of TestTrans.'''
-
-        options = TestTrans.get_valid_options()
-        assert options['valid'].default
-        assert options['valid'].type is bool
-        assert options['valid'].typename == "<class 'bool'>"
-        assert options['untyped'].default is False
-        assert options['untyped'].type is None
-        assert options['untyped'].typename is None
 
 
 def test_transformation_validate_options():

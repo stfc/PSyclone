@@ -1935,7 +1935,7 @@ def test_validate_unknowninterface(fortran_reader, fortran_writer, tmp_path):
     inline_trans.apply(routine)
     assert fortran_writer(psyir.walk(Routine)[0]) == """\
 subroutine main()
-  REAL, POINTER :: x
+  real, pointer :: x
 
   x = x + 1.0
 

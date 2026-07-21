@@ -35,18 +35,17 @@
 
 '''This module implements tests for the generic utility functions.'''
 
-import inspect
 import pytest
 import sys
-
 from typing import Union
+
 
 from psyclone.errors import InternalError
 from psyclone.transformations import Transformation
 from psyclone.utils import (
-    within_virtual_env, a_or_an,
+    a_or_an, parse_kwargs,
     transformation_documentation_wrapper,
-    stringify_annotation,
+    stringify_annotation, within_virtual_env,
 )
 
 
@@ -338,21 +337,21 @@ def test_transformation_doc_wrapper_uninheritable():
 
 def test_stringify_annotation():
     '''Test the stringify_annotation method does as expected.'''
-    def func(temp: bool, temp2: Union[bool, int]):
-        ''' Test function for annotations.'''
 
-    signature = inspect.signature(func)
-    for k, v in signature.parameters.items():
-        # For first parameter temp
-        if "temp" == k:
-            anno = stringify_annotation(v.annotation)
-            assert "<class 'bool'>" == anno
-
-        # For second parameter temp2
-        if "temp2" == k:
-            anno = stringify_annotation(v.annotation)
-            # Python >= 3.14 uses the second format
-            assert "typing.Union[bool, int]" == anno or "bool | int" == anno
+    # Basic type
+    assert stringify_annotation(bool) == "bool"
+    # Compound type (depends of the Python version)
+    assert stringify_annotation(Union[bool, int]) in [
+        "typing.Union[bool, int]", "bool | int"
+    ]
+    # Type elipses (Python 3.9 truncates them)
+    assert stringify_annotation(tuple[int, ...]) in [
+        "tuple[int, ...]", "tuple"
+    ]
+    # Custom class
+    assert stringify_annotation(Transformation) == "Transformation"
+    # Fordward declaration of custom class
+    assert stringify_annotation("Transformation") == "Transformation"
 
 
 def test_transformation_doc_wrapper_subtrans():
@@ -472,3 +471,59 @@ def test_transformation_doc_wrapper_subtrans():
     :type opt3: int
     :param int opt3: (Option provided for SubTrans2) opt3 docstring."""
     assert correct in BaseTrans.apply.__doc__
+
+
+@pytest.mark.parametrize("kwargs, expected",
+                         [("", {}),
+                          ("'a':1", {'a': 1}),
+                          ("'a':1,", {'a': 1}),
+                          ("'b': {1: 2}", {'b': {1: 2}}),
+                          ("'l': [1,2]", {'l': [1, 2]}),
+                          ("a:1", {'a': 1}),
+                          ("a:1,", {'a': 1}),
+                          ("b: {1: 2}", {'b': {1: 2}}),
+                          ("l: [1,2]", {'l': [1, 2]}),
+                          ])
+def test_parse_kwargs(kwargs, expected):
+    """
+    Test that the parsing function for user-specific script options
+    work as expected.
+
+    :param kwargs: the input string for the command line
+    """
+    result = parse_kwargs(kwargs)
+    assert result == expected
+
+
+@pytest.mark.parametrize("kwargs", ["[1,2]", "{1:2}", "a=1", 123])
+def test_parse_kwargs_errors_invalid(kwargs):
+    """
+    Test that the parsing function for user-specific script options
+    raises the expected errors for malformed arguments. Note that e.g.
+    '{[1,2]}' (which is what kwargs are parsed as) is not a valid python
+    expression since the list is not hash-able.
+
+    :param kwargs: the input string for the command line
+    """
+    with pytest.raises(ValueError) as err:
+        parse_kwargs(kwargs)
+
+    assert (f"Invalid syntax for keyword arguments '{kwargs}'."
+            == str(err.value))
+
+
+@pytest.mark.parametrize("kwargs", ["1", "'a'"])
+def test_parse_kwargs_errors_wrong_type(kwargs):
+    """
+    Test that the parsing function for user-specific script options
+    raises the expected errors for arguments that are valid python,
+    but do not represent a dictionary (e.g. {1} represents a set,
+    while {1:1} would be a dictionary).
+
+    :param kwargs: the input string for the command line
+    """
+    with pytest.raises(ValueError) as err:
+        parse_kwargs(kwargs)
+
+    assert (f"Invalid syntax for keyword arguments '{kwargs}'. It was parsed "
+            f"as 'set', not as a dictionary." == str(err.value))

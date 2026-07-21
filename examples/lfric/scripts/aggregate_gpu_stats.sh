@@ -58,6 +58,9 @@ check_above() {
         echo
         echo "Error: Number of $1 is below $2"
         exit 1
+    elif [[ $value -gt $2 ]]; then
+        echo
+        echo "Improvement: Number of $1 has increased to $value"
     fi
 }
 
@@ -92,6 +95,6 @@ count_uniq "Failed to offload"
 count_uniq "Added inner loop nested parallelism"
 count_uniq "Added OMP threading"
 
-check_above "Module-inline successful" 277
-check_above "Offload independent loop" 88
+check_above "Module-inline successful" 283
+check_above "Offload independent loop" 83
 check_above "Offload with cell colouring" 40

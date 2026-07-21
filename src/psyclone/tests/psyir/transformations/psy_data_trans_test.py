@@ -136,7 +136,7 @@ def test_class_definitions(fortran_writer):
 
     # By default, no prefix should be used:
     assert "use psy_data_mod, only : PSyDataType" in code
-    assert "type(PSyDataType), save, target :: psy_data" in code
+    assert "type(psydatatype), save, target :: psy_data" in code
     assert "CALL psy_data" in code
 
     # This puts the new PSyDataNode with prefix "extract" around the
@@ -144,13 +144,13 @@ def test_class_definitions(fortran_writer):
     data_trans.apply(schedule, {"prefix": "extract"})
     code = fortran_writer(schedule.root)
     assert "use extract_psy_data_mod, only : extract_PSyDataType" in code
-    assert ("type(extract_PSyDataType), save, target :: "
+    assert ("type(extract_psydatatype), save, target :: "
             "extract_psy_data" in code)
     assert "CALL extract_psy_data" in code
     # The old call must still be there (e.g. not somehow be changed
     # by setting the prefix)
     assert "use psy_data_mod, only : PSyDataType" in code
-    assert "type(PSyDataType), save, target :: psy_data" in code
+    assert "type(psydatatype), save, target :: psy_data" in code
     assert "CALL psy_data" in code
 
     # Now add a third class: "profile", and make sure all previous
@@ -161,10 +161,10 @@ def test_class_definitions(fortran_writer):
     assert "use extract_psy_data_mod, only : extract_PSyDataType" in code
     assert "use profile_psy_data_mod, only : profile_PSyDataType" in code
 
-    assert "type(PSyDataType), save, target :: psy_data" in code
-    assert ("type(extract_PSyDataType), save, target :: "
+    assert "type(psydatatype), save, target :: psy_data" in code
+    assert ("type(extract_psydatatype), save, target :: "
             "extract_psy_data" in code)
-    assert ("type(profile_PSyDataType), save, target :: "
+    assert ("type(profile_psydatatype), save, target :: "
             "profile_psy_data" in code)
 
     assert "CALL psy_data" in code

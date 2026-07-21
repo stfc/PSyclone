@@ -63,7 +63,7 @@ def test_fusetrans_error_incomplete():
     with pytest.raises(TransformationError) as err:
         fuse.validate(loop1, loop2)
     assert ("Error in LoopFuseTrans transformation. The target loop must have "
-            "four children but found: []" in str(err.value))
+            "five children but found: " in str(err.value))
 
     loop1.addchild(Literal("1", ScalarType.integer_type()))
     loop1.addchild(Literal("3", ScalarType.integer_type()))
@@ -75,7 +75,7 @@ def test_fusetrans_error_incomplete():
     with pytest.raises(TransformationError) as err:
         fuse.validate(loop1, loop2)
     assert ("Error in LoopFuseTrans transformation. The target loop must have "
-            "four children but found: []" in str(err.value))
+            "five children but found: " in str(err.value))
 
     loop2.addchild(Literal("1", ScalarType.integer_type()))
     loop2.addchild(Literal("3", ScalarType.integer_type()))

@@ -60,7 +60,8 @@ PSYCLONE_PROFILING_LIB ?= ${PSYCLONE_PROFILING_DIR}/libsimple_timing.a
 PSYCLONE_PROFILING_LIBS ?= -L${PSYCLONE_PROFILING_DIR} -lsimple_timing
 
 transform:
-	ENABLE_PROFILING=1 ${PSYCLONE} -s ./omp_gpu_profile_trans.py ../code/tra_adv.F90 -o traadv_instrumented.F90
+	${PSYCLONE} -s ./omp_gpu_profile_trans.py --script-kwargs "profiling: True" \
+		../code/tra_adv.F90 -o traadv_instrumented.F90
 
 compile: transform traadv.exe
 

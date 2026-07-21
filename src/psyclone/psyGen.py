@@ -51,11 +51,6 @@ import abc
 from typing import Any, Dict, Optional, Union
 import warnings
 
-try:
-    from sphinx.util.typing import stringify_annotation
-except ImportError:
-    # No Sphinx available so use our own, simpler version.
-    from psyclone.utils import stringify_annotation
 
 from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
 from psyclone.core import AccessType
@@ -70,6 +65,7 @@ from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, ScalarType,
     UnresolvedType, ImportInterface, RoutineSymbol)
 from psyclone.psyir.symbols.symbol_table import SymbolTable
+from psyclone.utils import stringify_annotation
 
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
@@ -203,15 +199,6 @@ class PSy():
                                  optimisation and generation. Produced \
                                  by the function :func:`parse.algorithm.parse`.
     :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo`
-
-    For example:
-
-    >>> from psyclone.parse.algorithm import parse
-    >>> ast, info = parse("argspec.F90")
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "..."
-    >>> psy = PSyFactory(api).create(info)
-    >>> print(psy.gen)
 
     '''
 
@@ -630,21 +617,10 @@ class InvokeSchedule(Routine):
     Stores schedule information for an invocation call. Schedules can be
     optimised using transformations.
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> ast, info = parse("algorithm.f90")
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "..."
-    >>> psy = PSyFactory(api).create(info)
-    >>> invokes = psy.invokes
-    >>> invokes.names
-    >>> invoke = invokes.get("name")
-    >>> schedule = invoke.schedule
-    >>> print(schedule.view())
-
     :param symbol: RoutineSymbol representing the invoke.
     :type symbol: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
-    :param type KernFactory: class instance of the factory to use when \
-     creating Kernels. e.g. \
+    :param type KernFactory: class instance of the factory to use when
+        creating Kernels. e.g. \
      :py:class:`psyclone.domain.lfric.LFRicKernCallFactory`.
     :param type BuiltInFactory: class instance of the factory to use when \
      creating built-ins. e.g. \
@@ -2209,18 +2185,6 @@ class TransInfo():
         This utility will not find Transformations under the new file
         structure (TODO #620) and is deprecated.
 
-    For example:
-
-    >>> from psyclone.psyGen import TransInfo
-    >>> t = TransInfo()
-    >>> print(t.list)
-    There is 1 transformation available:
-      1: SwapTrans, A test transformation
-    >>> # accessing a transformation by index
-    >>> trans = t.get_trans_num(1)
-    >>> # accessing a transformation by name
-    >>> trans = t.get_trans_name("SwapTrans")
-
     '''
 
     def __init__(self, module=None, base_class=None):
@@ -2460,7 +2424,12 @@ class Transformation(metaclass=abc.ABCMeta):
         :raises ValueError: if option_name is not found in the valid options
                             for the Transformation.
         '''
-        valid_options = type(self).get_valid_options()
+        valid_options = {}
+        # dict.update keeps the last value if multiple dicts contain the
+        # same key, so we do the type(self) update last.
+        for subtrans in type(self)._SUB_TRANSFORMATIONS:
+            valid_options.update(subtrans.get_valid_options())
+        valid_options.update(type(self).get_valid_options())
         if option_name not in valid_options.keys():
             raise ValueError(f"option '{option_name}' is not a valid option "
                              f"for '{type(self).__name__}'. Valid options "
@@ -2529,6 +2498,12 @@ class Transformation(metaclass=abc.ABCMeta):
         wrong_types = {}
         for option in kwargs:
             if option not in valid_options:
+                # This is needed to enable metatransformations where
+                # only some inherited classes have options set on
+                # superclasses
+                # TODO #2668: Deprecate options dict.
+                if option == "options":
+                    continue
                 invalid_options.append(option)
                 continue
             if valid_options[option].type is not None:

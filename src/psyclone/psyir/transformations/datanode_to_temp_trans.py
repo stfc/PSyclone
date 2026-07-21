@@ -88,13 +88,12 @@ class DataNodeToTempTrans(Transformation):
     >>> DataNodeToTempTrans().apply(assign.rhs, storage_name="temp")
     >>> print(FortranWriter()(psyir))
     subroutine my_subroutine()
-      integer, dimension(10,10) :: a
       integer :: i
       integer :: j
       integer :: temp
     <BLANKLINE>
-        temp = j * 2
-        i = temp
+      temp = j * 2
+      i = temp
     <BLANKLINE>
     end subroutine my_subroutine
     <BLANKLINE>

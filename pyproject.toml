@@ -48,7 +48,7 @@ authors = [
     { name = "Aidan Chalk", email = "aidan.chalk@stfc.ac.uk" },
     { name = "Joerg Henrichs", email = "joerg.henrichs@bom.gov.au" }
 ]
-license = { text = "BSD 3-Clause License" }
+license = "BSD-3-Clause"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
@@ -68,7 +68,7 @@ dependencies = [
     "pyparsing",
     "fparser==0.2.4",
     "configparser",
-    "sympy",
+    "sympy<=1.13.3",  # TODO #3474: Adjoint fails with sympy >= 1.14
     "Jinja2",
     "termcolor",
     "graphviz"

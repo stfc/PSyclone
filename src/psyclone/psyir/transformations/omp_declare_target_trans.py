@@ -59,8 +59,9 @@ class OMPDeclareTargetTrans(Transformation,
     For example:
 
     >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.nodes import Loop
-    >>> from psyclone.transformations import OMPDeclareTargetTrans
+    >>> from psyclone.psyir.transformations import OMPDeclareTargetTrans
     >>>
     >>> tree = FortranReader().psyir_from_source("""
     ...     subroutine my_subroutine(A)
@@ -73,25 +74,24 @@ class OMPDeclareTargetTrans(Transformation,
     ...             end do
     ...         end do
     ...     end subroutine
-    ...     """
+    ...     """)
     >>> omptargettrans = OMPDeclareTargetTrans()
     >>> omptargettrans.apply(tree.walk(Routine)[0])
-
-    will generate:
-
-    .. code-block:: fortran
-
-        subroutine my_subroutine(A)
-            integer, dimension(10, 10), intent(inout) :: A
-            integer :: i
-            integer :: j
-            !$omp declare target
-            do i = 1, 10
-                do j = 1, 10
-                    A(i, j) = 0
-                end do
-            end do
-        end subroutine
+    >>> print(FortranWriter()(tree))
+    subroutine my_subroutine(a)
+      integer, dimension(10,10), intent(inout) :: a
+      integer :: i
+      integer :: j
+    <BLANKLINE>
+      !$omp declare target
+      do i = 1, 10, 1
+        do j = 1, 10, 1
+          a(i,j) = 0
+        enddo
+      enddo
+    <BLANKLINE>
+    end subroutine my_subroutine
+    <BLANKLINE>
 
     '''
     def apply(self,

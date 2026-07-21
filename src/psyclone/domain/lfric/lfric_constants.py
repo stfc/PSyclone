@@ -384,6 +384,11 @@ class LFRicConstants():
 
         # ---------- Infrastructure module maps -------------------------------
 
+        # Those kind symbols used in LFRic that are actually
+        # Fortran intrinsics (and thus don't come from constants_mod).
+        LFRicConstants.INTRINSIC_KINDS = ("real32", "real64")
+        LFRicConstants.FORTRAN_ISO_MOD_NAME = "iso_fortran_env"
+
         # Dictionary allowing us to look-up the name of the Fortran module,
         # type and proxy-type associated with each LFRic data structure type.
         # Data structure type mandates its proxy name, Fortran intrinsic type
@@ -420,6 +425,18 @@ class LFRicConstants():
                            "proxy_type": "r_bl_field_proxy_type",
                            "intrinsic": "real",
                            "kind": "r_bl"},
+            # 'real'-valued field with explicit 32-bit precision
+            "r_32_field": {"module": "field_real32_mod",
+                           "type": "field_real32_type",
+                           "proxy_type": "field_real32_proxy_type",
+                           "intrinsic": "real",
+                           "kind": "real32"},
+            # 'real'-valued field with explicit 64-bit precision
+            "r_64_field": {"module": "field_real64_mod",
+                           "type": "field_real64_type",
+                           "proxy_type": "field_real64_proxy_type",
+                           "intrinsic": "real",
+                           "kind": "real64"},
             # 'integer'-valued field with data of kind 'i_def'
             "integer_field": {"module": "integer_field_mod",
                               "type": "integer_field_type",
@@ -432,6 +449,18 @@ class LFRicConstants():
                          "proxy_type": "operator_proxy_type",
                          "intrinsic": "real",
                          "kind": "r_def"},
+            # 'real'-valued operator with real32 data
+            "r_32_operator": {"module": "operator_real32_mod",
+                              "type": "operator_real32_type",
+                              "proxy_type": "operator_real32_proxy_type",
+                              "intrinsic": "real",
+                              "kind": "real32"},
+            # 'real'-valued operator with real32 data
+            "r_64_operator": {"module": "operator_real64_mod",
+                              "type": "operator_real64_type",
+                              "proxy_type": "operator_real64_proxy_type",
+                              "intrinsic": "real",
+                              "kind": "real64"},
             # 'real'-valued operator with data of kind 'r_solver'
             "r_solver_operator": {
                 "module": "r_solver_operator_mod",
@@ -453,6 +482,13 @@ class LFRicConstants():
                 "proxy_type": "columnwise_operator_proxy_type",
                 "intrinsic": "real",
                 "kind": "r_solver"}}
+
+        # Construct a reverse map from type to the name of the LFRic
+        # data type for all real field types.
+        LFRicConstants.REAL_DATA_TYPE_RMAP = {}
+        for key, value in LFRicConstants.DATA_TYPE_MAP.items():
+            if value["intrinsic"] == "real" and "field" in key:
+                LFRicConstants.REAL_DATA_TYPE_RMAP[value["type"]] = key
 
         # Mapping from a vector type used in the algorithm-layer to
         # the actual type used in the PSy-layer.

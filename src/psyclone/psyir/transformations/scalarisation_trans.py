@@ -201,10 +201,12 @@ class ScalarisationTrans(LoopTrans):
         '''
         Compute a list of index values for a given node. Looks at loop bounds
         and range declarations to attempt to convert loop variables to an
-        explicit range, i.e. an access like
+        explicit range, i.e. an access like:
+
         .. code-block:: fortran
+
             do i = 1, 100
-            array(i) = ...
+                array(i) = ...
             end do
 
         the returned list would contain a range object for [1:100].

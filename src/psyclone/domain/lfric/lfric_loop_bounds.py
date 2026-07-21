@@ -78,7 +78,7 @@ class LFRicLoopBounds(LFRicCollection):
             assignment = Assignment.create(
                     lhs=Reference(lbound),
                     rhs=loop.lower_bound_psyir())
-            loop.children[0] = Reference(lbound)
+            loop.start_expr = Reference(lbound)
             self._invoke.schedule.addchild(assignment, cursor)
             cursor += 1
             if first:
@@ -99,10 +99,10 @@ class LFRicLoopBounds(LFRicCollection):
                         rhs=loop.upper_bound_psyir()
                     ), cursor)
                 cursor += 1
-                loop.children[1] = Reference(ubound)
+                loop.stop_expr = Reference(ubound)
             else:
                 # If it needs a color look-up, it has to be in-place
-                loop.children[1] = loop.upper_bound_psyir()
+                loop.stop_expr = loop.upper_bound_psyir()
 
         return cursor
 

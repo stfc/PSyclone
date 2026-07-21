@@ -334,8 +334,7 @@ def test_get_invoke():
     with pytest.raises(ValueError) as excinfo:
         get_invoke("test11_different_iterates_over_one_invoke.f90",
                    "invalid-api", name="invalid_name")
-    assert "'invalid-api' is not a valid API," in str(excinfo.value)
-    # assert "The API 'invalid-api' is not supported" in str(excinfo.value)
+    assert "'invalid-api' is not supported" in str(excinfo.value)
 
     # Test that invalid parameter combinations raise an exception:
     with pytest.raises(RuntimeError) as excinfo:
@@ -376,10 +375,10 @@ def test_get_base_path() -> None:
     assert "tests/test_files/gocean1p0" in gocean
     lfric = get_base_path("lfric")
     assert "tests/test_files/lfric" in lfric
-    nemo = get_base_path("nemo")
+    nemo = get_base_path()
     assert "nemo/test_files" in nemo
 
-    with pytest.raises(RuntimeError) as err:
+    with pytest.raises(ValueError) as err:
         _ = get_base_path("INVALID")
     assert "The API 'INVALID' is not supported" in str(err.value)
 

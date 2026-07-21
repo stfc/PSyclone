@@ -121,7 +121,8 @@ which prints the filenames of all modules used in ``tl_testkern_mod``:
 .. testcode ::
 
     mod_manager = ModuleManager.get()
-    # Add the path to the PSyclone LFRic example codes:
+    # Add the path to the LFRic module directories:
+    mod_manager.add_search_path("../external/lfric_infrastructure/")
     mod_manager.add_search_path("../src/psyclone/tests/test_files/"
                                 "lfric")
 
@@ -134,14 +135,13 @@ which prints the filenames of all modules used in ``tl_testkern_mod``:
         mod_info = mod_manager.get_module_info(module_name)
         print("Module:", module_name, os.path.basename(mod_info.filename))
 
+
 .. testoutput::
 
     Module: argument_mod argument_mod.f90
     Module: constants_mod constants_mod.f90
     Module: fs_continuity_mod fs_continuity_mod.f90
     Module: kernel_mod kernel_mod.f90
-
-
 
 FileInfo
 ========

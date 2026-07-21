@@ -459,9 +459,9 @@ def test_symbol_array_handling():
     assert ("index variable 'i' specified, but no access information given"
             in str(err.value))
     # Supply some access information.
-    svinfo = AccessSequence(Signature("i"))
-    svinfo.add_access(AccessType.READ, Reference(asym))
-    assert not asym.is_array_access("i", svinfo)
+    access_seq = AccessSequence(Signature("i"))
+    access_seq.add_access(AccessType.READ, Reference(asym))
+    assert not asym.is_array_access("i", access_seq)
 
 
 @pytest.mark.parametrize("table", [None, SymbolTable()])
