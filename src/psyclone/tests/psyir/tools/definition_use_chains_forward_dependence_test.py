@@ -55,6 +55,7 @@ from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.psyir.symbols import (
     DataSymbol,
     ScalarType,
+    UnsupportedType
 )
 from psyclone.psyir.tools.definition_use_chains import DefinitionUseChain
 
@@ -1073,6 +1074,235 @@ def test_definition_use_chains_return_statement(
     assert reaches[1] is routine.walk(Assignment)[1].lhs
     assert reaches[2] is routine.walk(Assignment)[2].lhs
     assert reaches[3] is routine.walk(Assignment)[4].rhs.children[0]
+
+
+def test_forward_accesses_unsupported_type_assignments(fortran_reader):
+    """Test the code works as expected for unsupported types in an
+    assignment."""
+    code = """subroutine test
+    integer, pointer :: a
+    integer, pointer :: b
+    integer, target :: c
+    integer :: d
+    a = 1
+    d = 1
+    b => c
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    # Start the chain from a = 1.
+    assigns = psyir.walk(Assignment)
+    ref = assigns[0].lhs
+    sig = ref.get_signature_and_indices()[0]
+    chains = DefinitionUseChain(ref)
+    reaches = chains.find_forward_accesses()[sig]
+    # Check datatypes.
+    assert isinstance(ref.datatype, UnsupportedType)
+    assert isinstance(assigns[2].rhs.datatype, UnsupportedType)
+    assert isinstance(assigns[2].lhs.datatype, UnsupportedType)
+    assert len(reaches) == 2
+    # First reached is the rhs of the b => c assignment.
+    assert reaches[0] is assigns[2].rhs
+    # Second reached is the lhs of the b => c assignment.
+    assert reaches[1] is assigns[2].lhs
+    # Check that we don't find the UnsupportedType if we start from a
+    # known datatype
+    ref = assigns[1].lhs
+    sig = ref.get_signature_and_indices()[0]
+    chains = DefinitionUseChain(ref)
+    reaches = chains.find_forward_accesses()[sig]
+    assert not isinstance(ref.datatype, UnsupportedType)
+    assert len(reaches) == 0
+
+
+def test_forward_accesses_unsupported_type_pure_call_arg(fortran_reader):
+    """Test the behaviour for a pure Call with an Unsupported type as an
+    argument."""
+    code = """
+    pure subroutine y(in)
+        integer :: in
+        in = in + 1
+    end subroutine y
+    subroutine x(a, b)
+    integer, target:: a
+    integer :: b
+    integer, pointer :: c
+    a = 2
+    b = 1
+    call y(c)
+    a = a + 2
+    c = 2
+    call y(c)
+    end subroutine"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[1]
+    # Start the chain from a = 2.
+    assigns = routine.walk(Assignment)
+    ref = assigns[0].lhs
+    a_sig = ref.get_signature_and_indices()[0]
+    chains = DefinitionUseChain(ref)
+    reaches = chains.find_forward_accesses()
+    # Check the datatypes
+    assert isinstance(ref.datatype, UnsupportedType)
+    assert isinstance(routine.walk(Call)[0].arguments[0].datatype,
+                      UnsupportedType)
+    assert len(reaches[a_sig]) == 1
+    # The result is the c argument of the pure call.
+    assert reaches[a_sig][0] is routine.walk(Call)[0].arguments[0]
+    # Test also from b = 1
+    ref2 = assigns[1].lhs
+    b_sig = ref2.get_signature_and_indices()[0]
+    chains = DefinitionUseChain(ref2)
+    reaches = chains.find_forward_accesses()
+    assert not isinstance(ref2.datatype, UnsupportedType)
+    assert len(reaches[b_sig]) == 0
+
+
+def test_forward_accesses_lhs_unsupported_type_rhs_supported_type(
+    fortran_reader
+):
+    """Check that an access on the lhs still gets found if the rhs is a
+    supported type."""
+    code = """subroutine x
+    integer :: i
+    integer, pointer :: b, c
+
+    b = 1
+    i = c
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    # Start the chain from a = 1.
+    assigns = psyir.walk(Assignment)
+    ref = assigns[0].lhs
+    sig = ref.get_signature_and_indices()[0]
+    chains = DefinitionUseChain(ref)
+    reaches = chains.find_forward_accesses()[sig]
+    # Check datatypes
+    assert isinstance(ref.datatype, UnsupportedType)
+    assert isinstance(assigns[1].rhs.datatype, UnsupportedType)
+    assert len(reaches) == 1
+    assert reaches[0] is assigns[1].rhs
+
+
+def test_forward_accesses_supported_types_ignore_unsupported_types(
+    fortran_reader
+):
+    """Test that we don't update non-unsupported type uses with
+    unsupported types."""
+    code = """subroutine x
+    integer :: i, j
+    integer, pointer :: b, c
+
+    i = 1
+    b = 1
+    j = c
+    b = c
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    # Start the chain from a = 1.
+    assigns = psyir.walk(Assignment)
+    ref = assigns[0].lhs
+    sig = ref.get_signature_and_indices()[0]
+    chains = DefinitionUseChain(ref)
+    reaches = chains.find_forward_accesses()[sig]
+
+    # Check the unsupported datatypes.
+    assert isinstance(assigns[1].lhs.datatype, UnsupportedType)
+    assert isinstance(assigns[2].rhs.datatype, UnsupportedType)
+    assert len(reaches) == 0
+
+
+def test_forward_accesses_multiple_supported_types_ignore_unsupported_types(
+    fortran_reader
+):
+    """Test that we don't update non-unsupported type uses with unsupported
+    types with multiple inputs"""
+    code = """subroutine x
+    integer :: i, j
+    integer, pointer :: b, c
+
+    j = i + b
+    b = c
+    j = c
+    b = c
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    # Start the chain from a = 1.
+    assigns = psyir.walk(Assignment)
+    ref = assigns[0].rhs.children[0]
+    sig = ref.get_signature_and_indices()[0]
+    ref2 = assigns[0].rhs.children[1]
+    chains = DefinitionUseChain([ref, ref2])
+    reaches = chains.find_forward_accesses()[sig]
+    # Check unsupported type datatypes.
+    assert isinstance(assigns[1].lhs.datatype, UnsupportedType)
+    assert isinstance(assigns[1].rhs.datatype, UnsupportedType)
+    assert len(reaches) == 0
+
+
+def test_forward_accesses_unsupported_types_if_condition(fortran_reader):
+    """Test we get the correct unsupported type access when we have a
+    reference not as a child of an Assignment or Call, e.g. an if condition."""
+    code = """subroutine x
+    integer, target :: a
+    integer :: b
+    logical, pointer :: c
+
+    a = 1
+    b = 2
+    if(c) then
+       b = 1
+       a = 2
+    end if
+    end subroutine x
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    # Start the chain from a = 1.
+    assigns = psyir.walk(Assignment)
+    ref = assigns[0].lhs
+    sig = ref.get_signature_and_indices()[0]
+    chains = DefinitionUseChain(ref)
+    reaches = chains.find_forward_accesses()[sig]
+    # Check datatypes
+    assert isinstance(ref.datatype, UnsupportedType)
+    assert isinstance(psyir.walk(IfBlock)[0].condition.datatype,
+                      UnsupportedType)
+    assert len(reaches) == 2
+    # The first reached is the condition of the if statement.
+    assert reaches[0] is psyir.walk(IfBlock)[0].condition
+    # The second reached is the a = 2 assignment lhs
+    assert reaches[1] is assigns[3].lhs
+    # Test also from b = 2
+    ref = assigns[1].lhs
+    sig = ref.get_signature_and_indices()[0]
+    chains = DefinitionUseChain(ref)
+    reaches = chains.find_forward_accesses()[sig]
+    assert len(reaches) == 1
+    assert reaches[0] is assigns[2].lhs
+
+
+def test_forward_accesses_unsupported_types_in_codeblock(fortran_reader):
+    """Test that if we have an unsupported type in a Codeblock then we count
+    as a read/write for all the unsupported type input references."""
+    code = """subroutine x
+    integer, target :: a
+    integer :: b
+    logical, pointer :: c
+
+    a = 1
+    print *, b, c
+    a = 2
+    print *, c
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    # Start the chain from a = 1.
+    ref = psyir.walk(Assignment)[0].lhs
+    sig = ref.get_signature_and_indices()[0]
+    chains = DefinitionUseChain(ref)
+    reaches = chains.find_forward_accesses()[sig]
+    # Check the datatype of a
+    assert isinstance(ref.datatype, UnsupportedType)
+    assert len(reaches) == 1
+    assert reaches[0] is psyir.walk(CodeBlock)[0]
 
 
 def test_definition_use_chains_forward_accesses_multiple_routines(
