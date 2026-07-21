@@ -180,10 +180,10 @@ class DefinitionUseChain:
         # the signature use chain (all writes before the guaranteed write).
         self._defsout = {}
         # - The killed is a working collection used by compute_x_uses to store
-        # writes found that are defenitely are not the final write.
+        # writes found that are defenitely not the final write.
         self._killed = {}
-        # - The reaches collects all nodes that can be reach for each signature
-        # from the start of the region.
+        # - The reaches collects all nodes that can be reached for each
+        # signature from the start of the region.
         self._reaches = {}
 
         # Initialise the maps.
@@ -939,7 +939,7 @@ class DefinitionUseChain:
                     # Work out if its read only or not.
                     assign = reference.ancestor(Assignment)
                     if reference.ancestor((Call, CodeBlock)):
-                        # For calls we always assume read/write access
+                        # For Calls and CodeBlocks we always assume read-write
                         if defs_out[sig] is not None:
                             self._killed[sig].append(defs_out[sig])
                         defs_out[sig] = reference
