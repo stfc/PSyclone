@@ -358,15 +358,6 @@ the parallel loop and these partial sums are then added together
 serially at the end. This is a more complicated solution but PSyclone
 takes care of it without the user needing to worry.
 
-If you look at the allocation of the `l_sum array`, you will see that it
-is padded by `8`. This is to avoid false sharing between the threads. If
-this value needs to be changed it can be modified in the
-configuration file. A copy of the configuration file is provided in
-this directory if you would like to try this. Modify, the
-`REPROD_PAD_SIZE` to whatever value you think appropriate. You can
-select to use this configuration file by adding `--config psyclone.cfg`
-to the `psyclone` command i.e.
-
 ```bash
     $ psyclone --psykal-dsl lfric -oalg /dev/null -opsy psy.f90 -s ./omp_script.py helmholtz_solver_alg_mod.x90 -d ../code --config psyclone.cfg
 ```

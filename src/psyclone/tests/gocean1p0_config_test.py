@@ -116,7 +116,6 @@ def test_invalid_config_files(tmpdir):
     [DEFAULT]
     DISTRIBUTED_MEMORY = true
     REPRODUCIBLE_REDUCTIONS = false
-    REPROD_PAD_SIZE = 8
     [gocean]
     '''
     # Create a config files with gocean section, but an
@@ -254,7 +253,6 @@ def test_debug_mode(tmpdir):
     [DEFAULT]
     DISTRIBUTED_MEMORY = true
     REPRODUCIBLE_REDUCTIONS = false
-    REPROD_PAD_SIZE = 8
     [gocean]
     '''
 
