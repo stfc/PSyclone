@@ -47,6 +47,7 @@ from psyclone.psyir.nodes import (
     WhileLoop,
     IfBlock
 )
+from psyclone.psyir.symbols.datatypes import UnsupportedType
 from psyclone.psyir.tools.definition_use_chains import DefinitionUseChain
 from psyclone.psyir.transformations import ProfileTrans
 
@@ -900,15 +901,14 @@ def test_backward_accesses_nested_loop(fortran_reader):
     end do
     end subroutine x"""
     psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Routine)[0]
-    lhs = routine.walk(Assignment)[0].lhs
+    lhs = psyir.walk(Assignment)[0].lhs
     sig = lhs.get_signature_and_indices()[0]
     chains = DefinitionUseChain([lhs])
     reaches = chains.find_backward_accesses()[sig]
     assert len(reaches) == 1
 
 
-def test_backward_accesses_unsupported_type(fortran_reader):
+def test_backward_accesses_unsupported_type_simple_assignment(fortran_reader):
     """Test that if we have an unsupported type we get the expected
     worst-case behaviour from the DUCs."""
     # Test the result for assignments
@@ -923,16 +923,24 @@ def test_backward_accesses_unsupported_type(fortran_reader):
     end subroutine x"""
 
     psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Routine)[0]
-    assign = routine.walk(Assignment)[-1]
+    assign = psyir.walk(Assignment)[-1]
     sig = assign.lhs.get_signature_and_indices()[0]
     chains = DefinitionUseChain(assign.lhs)
     reaches = chains.find_backward_accesses()[sig]
+    # Check the datatypes of the input and output are as expected.
+    assert isinstance(assign.lhs.datatype, UnsupportedType)
+    assert isinstance(psyir.walk(Assignment)[1].lhs.datatype,
+                      UnsupportedType)
     # The result should be the access to b in the b = c
     # assignment.
     assert len(reaches) == 1
-    assert reaches[0] is routine.walk(Assignment)[1].lhs
+    assert reaches[0] is psyir.walk(Assignment)[1].lhs
 
+
+def test_backward_accesses_unsupported_type_assignment_lhs(fortran_reader):
+    """Test that for an unsupported type on the lhs of an assignment it
+    correctly points to unsupported types on the rhs of the same assignment.
+    """
     code = """
     subroutine x
     integer, target :: a
@@ -944,18 +952,27 @@ def test_backward_accesses_unsupported_type(fortran_reader):
     a = 1
     end subroutine x"""
     psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Routine)[0]
-    assign = routine.walk(Assignment)[-1]
+    assigns = psyir.walk(Assignment)
+    assign = assigns[-1]
     sig = assign.lhs.get_signature_and_indices()[0]
     chains = DefinitionUseChain(assign.lhs)
     reaches = chains.find_backward_accesses()[sig]
 
-    # The result should be the two accesses to c in b = C
-    # and C = 1.
-    assert len(reaches) == 2
-    assert reaches[0] is routine.walk(Assignment)[1].rhs
-    assert reaches[1] is routine.walk(Assignment)[0].lhs
+    # Check the datatypes of the input and outputs are as expected.
+    assert isinstance(assign.lhs.datatype, UnsupportedType)
+    assert isinstance(assigns[1].rhs.datatype, UnsupportedType)
+    assert isinstance(assigns[0].lhs.datatype, UnsupportedType)
 
+    # The result should be the two accesses to c in b = C
+    # and C = 1 (as C is an UnsupportedType).
+    assert len(reaches) == 2
+    assert reaches[0] is assigns[1].rhs
+    assert reaches[1] is assigns[0].lhs
+
+
+def test_backward_accesses_unsupported_type_assignment_rhs(fortran_reader):
+    """Test that for an unsupported type on the rhs of an assignment the
+    backward search doesn't point to the lhs of the same assignment."""
     # Test that we don't get the lhs of the assignment when
     # searching backwards from an UnsupportedType on the rhs
     # of the assignment.
@@ -969,20 +986,27 @@ def test_backward_accesses_unsupported_type(fortran_reader):
     a = b + c
     end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Routine)[0]
-    assign = routine.walk(Assignment)[-1]
+    assigns = psyir.walk(Assignment)
+    assign = assigns[-1]
     # Start from a = b + C.
     sig = assign.rhs.children[1].get_signature_and_indices()[0]
     chains = DefinitionUseChain(assign.rhs.children[1])
     reaches = chains.find_backward_accesses()[sig]
 
-    # The result should be a = B + c and C = 2.
-    assert len(reaches) == 2
-    assert reaches[0] is routine.walk(Assignment)[2].rhs.children[0]
-    assert reaches[1] is routine.walk(Assignment)[1].lhs
+    # Check the datatype of the input and outputs are as expected.
+    assert isinstance(assign.rhs.children[1].datatype, UnsupportedType)
+    assert isinstance(assign.rhs.children[0].datatype, UnsupportedType)
 
-    # Test that we don't add an UnsupportedType on the lhs
-    # of an assignment for a non-UnsupportedType
+    # The result should be a = B + c and C = 2 (both are UnsupportedTypes so
+    # could reference the same memory).
+    assert len(reaches) == 2
+    assert reaches[0] is assigns[2].rhs.children[0]
+    assert reaches[1] is assigns[1].lhs
+
+
+def test_backward_accesses_supported_unsupported_assignments(fortran_reader):
+    """Test that we don't add an UnsupportedType on the lhs of an assignment
+    for a supported datatype"""
     code = """subroutine test
     integer :: a
     integer, pointer :: b
@@ -991,11 +1015,16 @@ def test_backward_accesses_unsupported_type(fortran_reader):
     b = a
     end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Routine)[0]
-    assign = routine.walk(Assignment)[-1]
+    assign = psyir.walk(Assignment)[-1]
     sig = assign.rhs.get_signature_and_indices()[0]
     chains = DefinitionUseChain(assign.rhs)
     reaches = chains.find_backward_accesses()[sig]
+    # Check the datatypes are as expected
+    assert not isinstance(assign.rhs, UnsupportedType)
+    assert isinstance(psyir.walk(Assignment)[0].lhs.datatype,
+                      UnsupportedType)
+    # Supported datatypes cannot be referenced by UnsupportedType
+    # nodes.
     assert len(reaches) == 0
 
     # Check that the known type Reference a doesn't hit
@@ -1009,19 +1038,25 @@ def test_backward_accesses_unsupported_type(fortran_reader):
     b = a
     end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Routine)[0]
-    assign = routine.walk(Assignment)[-1]
-    sig = assign.rhs.get_signature_and_indices()[0]
-    lhs_sig = assign.lhs.get_signature_and_indices()[0]
+    assigns = psyir.walk(Assignment)
+    assign = assigns[-1]
+    a_sig = assign.rhs.get_signature_and_indices()[0]
+    b_sig = assign.lhs.get_signature_and_indices()[0]
     chains = DefinitionUseChain([assign.rhs, assign.lhs])
     reaches = chains.find_backward_accesses()
-    assert len(reaches[sig]) == 0
-    assert len(reaches[lhs_sig]) == 1
-    assert reaches[lhs_sig][0] is routine.walk(Assignment)[0].rhs
+    # Check the datatypes
+    assert not isinstance(assign.rhs.datatype, UnsupportedType)
+    assert isinstance(assign.lhs.datatype, UnsupportedType)
+    assert isinstance(assigns[0].rhs.datatype, UnsupportedType)
+    assert len(reaches[a_sig]) == 0
+    # b and c could be aliased as both are UnsupportedTypes.
+    assert len(reaches[b_sig]) == 1
+    assert reaches[b_sig][0] is assigns[0].rhs
 
-    # Test that if the lhs of a found assignment is an
-    # UnsupportedType then we skip any UnsupportedTypes
-    # on the rhs
+
+def test_backward_accesses_unsupported_type_lhs_ends_chain(fortran_reader):
+    """Test that if the lhs of a found assignment is an UnsupportedType
+    then we skip any UnsupportedTypes on the rhs"""
     code = """subroutine test
 
     integer, pointer :: b, a
@@ -1030,16 +1065,21 @@ def test_backward_accesses_unsupported_type(fortran_reader):
     a = 1
     end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Routine)[0]
-    assign = routine.walk(Assignment)[-1]
+    assigns = psyir.walk(Assignment)
+    assign = assigns[-1]
     sig = assign.lhs.get_signature_and_indices()[0]
     chains = DefinitionUseChain(assign.lhs)
     reaches = chains.find_backward_accesses()[sig]
+    assert isinstance(assign.lhs.datatype, UnsupportedType)
+    assert isinstance(assigns[0].lhs.datatype, UnsupportedType)
+    assert isinstance(assigns[0].rhs.datatype, UnsupportedType)
     assert len(reaches) == 1
-    assert reaches[0] is routine.walk(Assignment)[0].lhs
+    assert reaches[0] is assigns[0].lhs
 
-    # Test that unsupported type arguments to pure subroutines
-    # is always counted as an access.
+
+def test_backward_accesses_unsupported_type_puresub_arguments(fortran_reader):
+    """Test that unsupported type arguments to pure subroutines are always
+    counted as an access."""
     code = """
     pure subroutine test(a)
         integer :: a
@@ -1055,17 +1095,24 @@ def test_backward_accesses_unsupported_type(fortran_reader):
     end subroutine test2"""
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[1]
-    assign = routine.walk(Assignment)[-1]
+    assigns = routine.walk(Assignment)
+    assign = assigns[-1]
     sig = assign.lhs.get_signature_and_indices()[0]
     chains = DefinitionUseChain(assign.lhs)
     reaches = chains.find_backward_accesses()[sig]
 
+    # Check the datatypes
+    assert isinstance(assign.lhs.datatype, UnsupportedType)
+    assert isinstance(routine.walk(Call)[0].arguments[0].datatype,
+                      UnsupportedType)
     # The result should be the b argument to call test(b)
     assert len(reaches) == 1
     assert reaches[0] is routine.walk(Call)[0].arguments[0]
 
-    # Test that unsupported type references in non assignment
-    # non-Call locations are counted as a read.
+
+def test_backward_accesses_unsupported_if_condition(fortran_reader):
+    """Test that unsupported type references in non assignment non-Call
+    locations are counted as a read to all unsupported type references."""
     code = """subroutine test
     integer, pointer :: a
     logical, pointer :: b
@@ -1077,21 +1124,31 @@ def test_backward_accesses_unsupported_type(fortran_reader):
     a = c
     end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Routine)[0]
-    assign = routine.walk(Assignment)[-1]
-    sig = assign.lhs.get_signature_and_indices()[0]
-    sig2 = assign.rhs.get_signature_and_indices()[0]
+    assign = psyir.walk(Assignment)[-1]
+    a_sig = assign.lhs.get_signature_and_indices()[0]
+    c_sig = assign.rhs.get_signature_and_indices()[0]
     chains = DefinitionUseChain([assign.lhs, assign.rhs])
     reaches = chains.find_backward_accesses()
 
-    # The result should be the b argument to call test(b)
-    assert len(reaches[sig]) == 2
-    assert reaches[sig][0] is routine.walk(IfBlock)[0].condition
-    assert reaches[sig][1] is routine.walk(Assignment)[0].lhs
-    assert len(reaches[sig2]) == 0
+    # Check the datatypes
+    assert isinstance(assign.lhs.datatype, UnsupportedType)
+    assert not isinstance(assign.rhs.datatype, UnsupportedType)
+    assert isinstance(psyir.walk(IfBlock)[0].condition.datatype,
+                      UnsupportedType)
+    assert isinstance(psyir.walk(Assignment)[0].lhs.datatype,
+                      UnsupportedType)
 
-    # Test that unsupported type references in CodeBlocks are
-    # hit for UnsupportedType inputs.
+    # The result should be the b argument to call test(b) and the
+    # previous access to a as both are UnsupportedTypes.
+    assert len(reaches[a_sig]) == 2
+    assert reaches[a_sig][0] is psyir.walk(IfBlock)[0].condition
+    assert reaches[a_sig][1] is psyir.walk(Assignment)[0].lhs
+    assert len(reaches[c_sig]) == 0
+
+
+def test_backward_access_unsupported_ref_in_codeblock(fortran_reader):
+    """Test that unsupported type references in CodeBlocks are hit for
+    UnsupportedType inputs."""
     code = """subroutine test
     integer, pointer :: a, b
     print *, b
@@ -1100,17 +1157,20 @@ def test_backward_accesses_unsupported_type(fortran_reader):
     a = 2
     end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Routine)[0]
-    assign = routine.walk(Assignment)[-1]
+    assign = psyir.walk(Assignment)[-1]
     sig = assign.lhs.get_signature_and_indices()[0]
     chains = DefinitionUseChain(assign.lhs)
     reaches = chains.find_backward_accesses()[sig]
+    # Check datatypes
+    assert isinstance(assign.lhs.datatype, UnsupportedType)
 
     assert len(reaches) == 1
-    assert reaches[0] is routine.walk(CodeBlock)[1]
+    assert reaches[0] is psyir.walk(CodeBlock)[1]
 
-    # Test that if we are in a loop we see the lhs of an assignment
-    # correctly.
+
+def test_backward_accesses_unsupported_lhs_in_loop(fortran_reader):
+    """ Test that if we are in a loop we see the lhs of an assignment
+    correctly when its an UnsupportedType."""
     code = """subroutine test
     integer :: i
     integer, target :: a
@@ -1121,18 +1181,21 @@ def test_backward_accesses_unsupported_type(fortran_reader):
     end do
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Routine)[0]
-    assign = routine.walk(Assignment)[-1]
-    sig = assign.rhs.children[0].get_signature_and_indices()[0]
+    assign = psyir.walk(Assignment)[-1]
+    b_sig = assign.rhs.children[0].get_signature_and_indices()[0]
     chains = DefinitionUseChain(assign.rhs.children[0])
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[b_sig]
+    # Check datatypes
+    assert isinstance(assign.rhs.children[0].datatype, UnsupportedType)
+    assert isinstance(assign.lhs.datatype, UnsupportedType)
     assert len(reaches) == 2
     assert reaches[0] is assign.rhs.children[0]
     assert reaches[1] is assign.lhs
 
-    # Test that if we have a pure call argument that is an
-    # UnsupportedType it is found for UnsupportedType and
-    # not for supported types.
+
+def test_backward_accesses_unsupportedtype_pure_call_argument(fortran_reader):
+    """Test that if we have a pure call argument that is an UnsupportedType it
+    is found for UnsupportedType and not for supported types."""
     code = """
     pure subroutine x(b)
         integer, target :: b
@@ -1151,12 +1214,18 @@ def test_backward_accesses_unsupported_type(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[1]
     assign = routine.walk(Assignment)[-1]
-    sig = assign.rhs.children[0].get_signature_and_indices()[0]
-    sig2 = assign.rhs.children[1].get_signature_and_indices()[0]
+    a_sig = assign.rhs.children[0].get_signature_and_indices()[0]
+    i_sig = assign.rhs.children[1].get_signature_and_indices()[0]
     chains = DefinitionUseChain([assign.rhs.children[0],
                                  assign.rhs.children[1]])
     reaches = chains.find_backward_accesses()
 
-    assert len(reaches[sig]) == 1
-    assert reaches[sig][0] is routine.walk(Call)[1].arguments[0]
-    assert len(reaches[sig2]) == 0
+    # Check datatypes
+    assert isinstance(assign.rhs.children[0].datatype, UnsupportedType)
+    assert not isinstance(assign.rhs.children[1].datatype, UnsupportedType)
+    assert isinstance(routine.walk(Call)[1].arguments[0].datatype,
+                      UnsupportedType)
+
+    assert len(reaches[a_sig]) == 1
+    assert reaches[a_sig][0] is routine.walk(Call)[1].arguments[0]
+    assert len(reaches[i_sig]) == 0

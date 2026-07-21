@@ -311,7 +311,7 @@ class DefinitionUseChain:
                             stop_point=sub_stop_point,
                         )
                         chains.insert(0, chain)
-                    # If its a while loop, create a basic block for the while
+                    # If it's a while loop, create a basic block for the while
                     # condition.
                     if isinstance(ancestor, WhileLoop):
                         control_flow_nodes.insert(0, None)
@@ -399,9 +399,9 @@ class DefinitionUseChain:
                                     self._reaches[sig].append(ref)
                     # If we have a defsout in the chain then we can stop for
                     # that reference as we will never get past the write
-                    # as its not conditional. Since we don't always include
+                    # as it's not conditional. Since we don't always include
                     # the LHS of an assignment into the chain we skip the
-                    # signature if its not present in the chain defsout dict.
+                    # signature if it's not present in the chain defsout dict.
                     for i, sig in enumerate(self._reference_signatures):
                         if (sig in chain.defsout and
                                 len(chain.defsout[sig]) > 0):
@@ -498,7 +498,7 @@ class DefinitionUseChain:
                             for ref in chain._reaches[sig]:
                                 self._reaches[sig].append(ref)
                     # If we have a defsout in the chain then we can stop as we
-                    # will never get past the write as its not conditional.
+                    # will never get past the write as it's not conditional.
                     for i, sig in enumerate(self._reference_signatures):
                         if len(chain.defsout[sig]) > 0:
                             self._references.pop(i)
@@ -531,6 +531,233 @@ class DefinitionUseChain:
         self._start_point = save_start_position
         self._stop_point = save_stop_position
         return self._reaches
+
+    def _check_forward_codeblock(self, reference: CodeBlock,
+                                 defs_out: dict[str, Node]) -> bool:
+        """
+        Updates the defs_out, uses, and killed dicts when a CodeBlock is
+        found during _compute_forward_uses.
+
+        :param reference: The CodeBlock being analysed.
+        :param defs_out: The local defs_out array from _compute_forward_uses
+
+        :returns: whether the calling function should terminate.
+        """
+        # CodeBlocks only find symbols, so we can only do as good
+        # as checking the symbol - this means we can get false
+        # positives for structure accesses inside CodeBlocks.
+        if isinstance(reference.parse_tree_nodes[0], Goto_Stmt):
+            raise NotImplementedError(
+                "DefinitionUseChains can't handle code containing"
+                " GOTO statements."
+            )
+        # If we find an Exit or Cycle statement, we can't
+        # reach further in this code region so we can return.
+        if isinstance(
+            reference.parse_tree_nodes[0], (Exit_Stmt, Cycle_Stmt)
+        ):
+            for sig in self._reference_signatures:
+                if defs_out[sig] is not None:
+                    self._defsout[sig].append(defs_out[sig])
+            return True
+
+        for i, ref in enumerate(self._references[:]):
+            # If the DUC's searched Reference is to an
+            # UnsupportedType then
+            # it needs to assume the worst case
+            # for the CodeBlock if it contains an
+            # UnsupportedType or UnresolvedType
+            if isinstance(ref.datatype, UnsupportedType):
+                for sym in reference.get_symbol_names():
+                    symbol = reference.scope.symbol_table.lookup(
+                        sym
+                    )
+                    if isinstance(symbol.datatype,
+                                  (UnsupportedType,
+                                   UnresolvedType)):
+                        # Assume the worst for a CodeBlock and we
+                        # count them as killed and defsout and
+                        # uses.
+                        sig = self._reference_signatures[i]
+                        if defs_out[sig] is not None:
+                            self._killed[sig].append(
+                                defs_out[sig]
+                            )
+                        defs_out[sig] = reference
+                continue
+            # Otherwise we check if ref appears in the CodeBlock.
+            if (
+                ref.symbol.name
+                in reference.get_symbol_names()
+            ):
+                # Assume the worst for a CodeBlock and we count
+                # them as killed and defsout and uses.
+                sig = self._reference_signatures[i]
+                if defs_out[sig] is not None:
+                    self._killed[sig].append(defs_out[sig])
+                defs_out[sig] = reference
+        return False
+
+    def _check_forward_call(self, reference: Call,
+                            defs_out: dict[str, Node]):
+        """
+        Updates the defs_out, uses, and killed dicts when a Call is
+        found during _compute_forward_uses.
+
+        :param reference: The Call being analysed.
+        """
+        # If it's a local variable we can ignore it as we'll catch
+        # the Reference later if it's passed into the Call.
+        for i, ref in enumerate(self._references[:]):
+            if ref.symbol.is_automatic:
+                continue
+            if isinstance(reference, IntrinsicCall):
+                # IntrinsicCall can only do stuff to arguments,
+                # these will be caught by Reference walk already.
+                # Note that this assumes two symbols are not
+                # aliases of each other.
+                continue
+            if reference.is_pure:
+                # Pure subroutines only touch their arguments, so
+                # we'll catch the arguments that are passed into
+                # the call later as References.
+                continue
+            # For now just assume calls are bad if we have a
+            # non-local variable: we treat them as though they
+            # were a write.
+            sig = self._reference_signatures[i]
+            if defs_out[sig] is not None:
+                self._killed[sig].append(defs_out[sig])
+            defs_out[sig] = reference
+
+    def _check_forward_matched_reference(self, reference: Reference,
+                                         defs_out: dict[str, Node]):
+        """
+        Updates the defs_out, uses and killed dicts when a Reference
+        is matched by name during _compute_forward_uses.
+
+        :param reference: The Reference being analysed.
+        :param defs_out: The local defs_out array from _compute_forward_uses
+        """
+        sig = reference.get_signature_and_indices()[0]
+        # Work out if it's read only or not.
+        assign = reference.ancestor(Assignment)
+        if assign is not None:
+            if assign.lhs is reference:
+                # This is a write to the reference, so kill the
+                # previous defs_out and set this to be the
+                # defs_out.
+                if defs_out[sig] is not None:
+                    self._killed[sig].append(defs_out[sig])
+                defs_out[sig] = reference
+            elif (
+                assign.lhs is defs_out[sig]
+                and len(self._killed[sig]) == 0
+                and assign.lhs.get_signature_and_indices()[0] == sig
+                and any(
+                    [assign.lhs is not ref for ref in self._references]
+                )
+            ):
+                # reference is on the rhs of an assignment such as
+                # a = a + 1. Since the PSyIR tree walk accesses
+                # the lhs of an assignment before the rhs of an
+                # assignment we need to not ignore these accesses.
+                self._uses[sig].append(reference)
+            else:
+                # Read only, so if we've not yet set written to
+                # this variable this is a use. NB. We need to
+                # check the if the write is the LHS of the parent
+                # assignment and if so check if we killed any
+                # previous assignments.
+                if defs_out[sig] is None:
+                    self._uses[sig].append(reference)
+        elif reference.ancestor(Call):
+            # Otherwise we assume read/write access for now.
+            if defs_out[sig] is not None:
+                self._killed[sig].append(defs_out[sig])
+            defs_out[sig] = reference
+        else:
+            # Reference outside an Assignment - read only
+            # This could be References inside a While loop
+            # condition for example.
+            if defs_out[sig] is None:
+                self._uses[sig].append(reference)
+
+    def _check_forward_unsupported_type(self, reference: Reference,
+                                        defs_out: dict[str, Node]):
+        """
+        Updates the defs_out, uses and killed dicts when a Reference
+        with an UnsupportedType datatype is matched
+        during _compute_forward_uses.
+
+        :param reference: The Reference being analysed.
+        :param defs_out: The local defs_out array from _compute_forward_uses
+
+        """
+        # If it's accessed on the lhs of an assignment or as an
+        # argument of a call then it's a write to every signature,
+        # otherwise it's a read to every signature.
+        assign = reference.ancestor(Assignment)
+        if assign is not None:
+            if assign.lhs is reference:
+                for i, sig in enumerate(self._reference_signatures):
+                    if not isinstance(
+                        self._references[i].datatype,
+                        UnsupportedType
+                    ):
+                        continue
+                    if defs_out[sig] is not None:
+                        self._killed[sig].append(defs_out[sig])
+                    defs_out[sig] = reference
+            # If the reference is on the rhs of an assignment
+            # where the lhs is a write to any of the signatures
+            # then this should be added to the uses for that
+            # signature if it's also an UnsupportedType.
+            elif (
+                any((defs_out[sig] is assign.lhs and
+                     len(self._killed[sig]) == 0) for sig in
+                    self._reference_signatures)
+            ):
+                for i, sig in enumerate(self._reference_signatures):
+                    if not isinstance(
+                        self._references[i].datatype,
+                        UnsupportedType
+                    ):
+                        continue
+                    if (defs_out[sig] is assign.lhs and
+                            len(self._killed[sig]) == 0):
+                        self._uses[sig].append(reference)
+            else:
+                # If the reference is on a rhs it is a use for
+                # any unkilled unsupported type.
+                for i, sig in enumerate(self._reference_signatures):
+                    if not isinstance(
+                        self._references[i].datatype,
+                        UnsupportedType
+                    ):
+                        continue
+                    if defs_out[sig] is None:
+                        self._uses[sig].append(reference)
+
+        elif reference.ancestor(Call):
+            # If it's an argument to a Call then it is a readwrite to
+            # all UnsupportedType references.
+            for i, sig in enumerate(self._reference_signatures):
+                if not isinstance(self._references[i].datatype,
+                                  UnsupportedType):
+                    continue
+                if defs_out[sig] is not None:
+                    self._killed[sig].append(defs_out[sig])
+                defs_out[sig] = reference
+        else:
+            # Otherwise all other UnsupportedType References
+            # count as a read to all UnsupportedType inputs.
+            for i, sig in enumerate(self._reference_signatures):
+                if not isinstance(self._references[i].datatype,
+                                  UnsupportedType):
+                    continue
+                if defs_out[sig] is None:
+                    self._uses[sig].append(reference)
 
     def _compute_forward_uses(self, basic_block_list: list[Node]):
         """
@@ -566,211 +793,26 @@ class DefinitionUseChain:
                         if defs_out[sig] is not None:
                             self._defsout[sig].append(defs_out[sig])
                     return
-                # If its parent is an inquiry function then its neither
-                # a read nor write if its the first argument.
+                # If its parent is an inquiry function then it's neither
+                # a read nor write if it's the first argument.
                 if (isinstance(reference.parent, IntrinsicCall) and
                         reference.parent.is_inquiry and
                         reference.parent.arguments[0] is reference):
                     continue
                 if isinstance(reference, CodeBlock):
-                    # CodeBlocks only find symbols, so we can only do as good
-                    # as checking the symbol - this means we can get false
-                    # positives for structure accesses inside CodeBlocks.
-                    if isinstance(reference.parse_tree_nodes[0], Goto_Stmt):
-                        raise NotImplementedError(
-                            "DefinitionUseChains can't handle code containing"
-                            " GOTO statements."
-                        )
-                    # If we find an Exit or Cycle statement, we can't
-                    # reach further in this code region so we can return.
-                    if isinstance(
-                        reference.parse_tree_nodes[0], (Exit_Stmt, Cycle_Stmt)
-                    ):
-                        for sig in self._reference_signatures:
-                            if defs_out[sig] is not None:
-                                self._defsout[sig].append(defs_out[sig])
+                    stop = self._check_forward_codeblock(reference, defs_out)
+                    if stop:
                         return
-                    for i, ref in enumerate(self._references[:]):
-                        # If the DUC's searched Reference is to an
-                        # UnsupportedType then
-                        # it needs to assume the worst case
-                        # for the CodeBlock if it contains an
-                        # UnsupportedType or UnresolvedType
-                        if isinstance(ref.datatype, UnsupportedType):
-                            for sym in reference.get_symbol_names():
-                                symbol = reference.scope.symbol_table.lookup(
-                                    sym
-                                )
-                                if isinstance(symbol.datatype,
-                                              (UnsupportedType,
-                                               UnresolvedType)):
-                                    # Assume the worst for a CodeBlock and we
-                                    # count them as killed and defsout and
-                                    # uses.
-                                    sig = self._reference_signatures[i]
-                                    if defs_out[sig] is not None:
-                                        self._killed[sig].append(
-                                            defs_out[sig]
-                                        )
-                                    defs_out[sig] = reference
-                            continue
-                        # Otherwise we check if ref appears in the CodeBlock.
-                        if (
-                            ref.symbol.name
-                            in reference.get_symbol_names()
-                        ):
-                            # Assume the worst for a CodeBlock and we count
-                            # them as killed and defsout and uses.
-                            sig = self._reference_signatures[i]
-                            if defs_out[sig] is not None:
-                                self._killed[sig].append(defs_out[sig])
-                            defs_out[sig] = reference
                 elif isinstance(reference, Call):
-                    # If its a local variable we can ignore it as we'll catch
-                    # the Reference later if its passed into the Call.
-                    for i, ref in enumerate(self._references[:]):
-                        if ref.symbol.is_automatic:
-                            continue
-                        if isinstance(reference, IntrinsicCall):
-                            # IntrinsicCall can only do stuff to arguments,
-                            # these will be caught by Reference walk already.
-                            # Note that this assumes two symbols are not
-                            # aliases of each other.
-                            continue
-                        if reference.is_pure:
-                            # Pure subroutines only touch their arguments, so
-                            # we'll catch the arguments that are passed into
-                            # the call later as References.
-                            continue
-                        # For now just assume calls are bad if we have a
-                        # non-local variable: we treat them as though they
-                        # were a write.
-                        sig = self._reference_signatures[i]
-                        if defs_out[sig] is not None:
-                            self._killed[sig].append(defs_out[sig])
-                        defs_out[sig] = reference
+                    self._check_forward_call(reference, defs_out)
                 elif (reference.get_signature_and_indices()[0] in
                       self._reference_signatures):
-                    sig = reference.get_signature_and_indices()[0]
-                    # Work out if its read only or not.
-                    assign = reference.ancestor(Assignment)
-                    if assign is not None:
-                        if assign.lhs is reference:
-                            # This is a write to the reference, so kill the
-                            # previous defs_out and set this to be the
-                            # defs_out.
-                            if defs_out[sig] is not None:
-                                self._killed[sig].append(defs_out[sig])
-                            defs_out[sig] = reference
-                        elif (
-                            assign.lhs is defs_out[sig]
-                            and len(self._killed[sig]) == 0
-                            and assign.lhs.get_signature_and_indices()[0]
-                            == sig
-                            and any(
-                                [assign.lhs is not ref for
-                                 ref in self._references]
-                            )
-                        ):
-                            # reference is on the rhs of an assignment such as
-                            # a = a + 1. Since the PSyIR tree walk accesses
-                            # the lhs of an assignment before the rhs of an
-                            # assignment we need to not ignore these accesses.
-                            self._uses[sig].append(reference)
-                        else:
-                            # Read only, so if we've not yet set written to
-                            # this variable this is a use. NB. We need to
-                            # check the if the write is the LHS of the parent
-                            # assignment and if so check if we killed any
-                            # previous assignments.
-                            if defs_out[sig] is None:
-                                self._uses[sig].append(reference)
-                    elif reference.ancestor(Call):
-                        # Otherwise we assume read/write access for now.
-                        if defs_out[sig] is not None:
-                            self._killed[sig].append(defs_out[sig])
-                        defs_out[sig] = reference
-                    else:
-                        # Reference outside an Assignment - read only
-                        # This could be References inside a While loop
-                        # condition for example.
-                        if defs_out[sig] is None:
-                            self._uses[sig].append(reference)
+                    self._check_forward_matched_reference(reference, defs_out)
                 # If we have a reference whose datatype is an
                 # UnsupportedType then we must assume it is aliased and
                 # therefore can access any other UnsupportedType Reference.
                 elif isinstance(reference.datatype, UnsupportedType):
-                    # If its accessed on the lhs of an assignment or as an
-                    # argument of a call then its
-                    # a write to every signature, otherwise its a read to
-                    # every signature.
-                    assign = reference.ancestor(Assignment)
-                    if assign is not None:
-                        if assign.lhs is reference:
-                            for i, sig in enumerate(
-                                    self._reference_signatures
-                            ):
-                                if not isinstance(
-                                    self._references[i].datatype,
-                                    UnsupportedType
-                                ):
-                                    continue
-                                if defs_out[sig] is not None:
-                                    self._killed[sig].append(defs_out[sig])
-                                defs_out[sig] = reference
-                        # If the reference is on the rhs of an assignment
-                        # where the lhs is a write to any of the signatures
-                        # then this should be added to the uses for that
-                        # signature if its also an UnsupportedType.
-                        elif (
-                            any((defs_out[sig] is assign.lhs and
-                                 len(self._killed[sig]) == 0) for sig in
-                                self._reference_signatures)
-                        ):
-                            for i, sig in enumerate(
-                                    self._reference_signatures
-                            ):
-                                if not isinstance(
-                                    self._references[i].datatype,
-                                    UnsupportedType
-                                ):
-                                    continue
-                                if (defs_out[sig] is assign.lhs and
-                                        len(self._killed[sig]) == 0):
-                                    self._uses[sig].append(reference)
-                        else:
-                            # If the reference is on a rhs it is a use for
-                            # any unkilled unsupported type.
-                            for i, sig in enumerate(
-                                self._reference_signatures
-                            ):
-                                if not isinstance(
-                                    self._references[i].datatype,
-                                    UnsupportedType
-                                ):
-                                    continue
-                                if defs_out[sig] is None:
-                                    self._uses[sig].append(reference)
-
-                    elif reference.ancestor(Call):
-                        # If its an argument to a Call then it is a read to
-                        # all UnsupportedType references.
-                        for i, sig in enumerate(self._reference_signatures):
-                            if not isinstance(self._references[i].datatype,
-                                              UnsupportedType):
-                                continue
-                            if defs_out[sig] is not None:
-                                self._killed[sig].append(defs_out[sig])
-                            defs_out[sig] = reference
-                    else:
-                        # Otherwise all other UnsupportedType References
-                        # count as a read to all UnsupportedType inputs.
-                        for i, sig in enumerate(self._reference_signatures):
-                            if not isinstance(self._references[i].datatype,
-                                              UnsupportedType):
-                                continue
-                            if defs_out[sig] is None:
-                                self._uses[sig].append(reference)
+                    self._check_forward_unsupported_type(reference, defs_out)
         for sig in self._reference_signatures:
             if defs_out[sig] is not None:
                 self._defsout[sig].append(defs_out[sig])
@@ -866,7 +908,7 @@ class DefinitionUseChain:
                 if node.else_body:
                     refs = node.else_body.walk(Reference)
                     for ref in refs:
-                        # If its in the else_body we don't add the if_body
+                        # If it's in the else_body we don't add the if_body
                         for ref2 in self._references:
                             if ref is ref2:
                                 in_else_body = True
@@ -918,6 +960,224 @@ class DefinitionUseChain:
             basic_blocks.append(current_block)
             control_flow_nodes.append(None)
         return control_flow_nodes, basic_blocks
+
+    def _check_backward_codeblock(self, reference: CodeBlock,
+                                  defs_out: dict[str, Node]):
+        """
+        Updates the defs_out, uses, and killed dicts when a CodeBlock is
+        found during _compute_backward_uses.
+
+        :param reference: The CodeBlock being analysed.
+        :param defs_out: The local defs_out array from _compute_backward_uses
+        """
+        for i, ref in enumerate(self._references[:]):
+            # If the DUC's searched Reference is to an
+            # UnsupportedType then
+            # it needs to assume the worst case
+            # for the CodeBlock if it contains an
+            # UnsupportedType or UnresolvedType
+            if isinstance(ref.datatype, UnsupportedType):
+                for sym in reference.get_symbol_names():
+                    symbol = reference.scope.symbol_table.lookup(sym)
+                    if isinstance(symbol.datatype,
+                                  (UnsupportedType,
+                                   UnresolvedType)):
+                        # Assume the worst for a CodeBlock and we
+                        # count them as killed and defsout and
+                        # uses.
+                        sig = self._reference_signatures[i]
+                        if defs_out[sig] is not None:
+                            self._killed[sig].append(
+                                defs_out[sig]
+                            )
+                        defs_out[sig] = reference
+                continue
+
+            if (ref.symbol.name in reference.get_symbol_names()):
+                # Assume the worst for a CodeBlock and we count
+                # them as killed and defsout and uses.
+                sig = self._reference_signatures[i]
+                if defs_out[sig] is not None:
+                    self._killed[sig].append(defs_out[sig])
+                defs_out[sig] = reference
+
+    def _check_backward_call(self, reference: Call, defs_out: dict[str, Node]):
+        """
+        Updates the defs_out, uses, and killed dicts when a Call is
+        found during _compute_backward_uses.
+
+        :param reference: The Call being analysed.
+        :param defs_out: The local defs_out array from _compute_backward_uses
+        """
+        # If it's a local variable we can ignore it as we'll catch
+        # the Reference later if it's passed into the Call.
+        for i, ref in enumerate(self._references):
+            if ref.symbol.is_automatic:
+                continue
+            # If the call is an ancestor of the Reference then
+            # we skip it for backwards accesses.
+            if ref.is_descendant_of(reference):
+                continue
+            if isinstance(reference, IntrinsicCall):
+                # IntrinsicCall can only do stuff to arguments,
+                # these will be caught by Reference walk already.
+                # Note that this assumes two symbols are not
+                # aliases of each other.
+                continue
+            if reference.is_pure:
+                # Pure subroutines only touch their arguments, so
+                # we'll catch the arguments that are passed into
+                # the call later as References.
+                continue
+            # For now just assume calls are bad if we have a
+            # non-local variable and we treat them as though
+            # they were a write.
+            sig = self._reference_signatures[i]
+            if defs_out[sig] is not None:
+                self._killed[sig].append(defs_out[sig])
+            defs_out[sig] = reference
+
+    def _check_backward_matched_reference(self, reference: Reference,
+                                          defs_out: dict[str, Node]):
+        """
+        Updates the defs_out, uses, and killed dicts when a Reference matches
+        by name is found during _compute_backward_uses.
+
+        :param reference: The Reference being analysed.
+        :param defs_out: The local defs_out array from _compute_backward_uses
+        """
+        sig = reference.get_signature_and_indices()[0]
+        # Work out if it's read only or not.
+        assign = reference.ancestor(Assignment)
+        # RHS reads occur "before" LHS writes, so if we
+        # hit the LHS or an assignment then we won't have
+        # a dependency to the value used from the LHS.
+        if assign is not None:
+            if assign.lhs is reference:
+                # Check if the RHS contains the self._references.
+                # Can't use in since equality is not what we want
+                # here.
+                # We also only stop if the stop_point of the chain
+                # is in the assignment's rhs.
+                found = False
+                for ref in assign.rhs.walk(Reference):
+                    if (
+                        any([ref is ref2 for
+                             ref2 in self._references])
+                        and self._stop_point == ref.abs_position
+                    ):
+                        found = True
+                # If the RHS contains the self._reference, then
+                # this LHS is "after" so we skip it
+                if found:
+                    return
+                # This is a write to the reference, so kill the
+                # previous defs_out and set this to be the
+                # defs_out.
+                if defs_out[sig] is not None:
+                    self._killed[sig].append(defs_out[sig])
+                defs_out[sig] = reference
+            elif (
+                assign.lhs.get_signature_and_indices()[0] == sig
+                and any(
+                    [assign.lhs is not ref for
+                     ref in self._references]
+                )
+            ):
+                # Reference is on the rhs of an assignment such as
+                # a = a + 1. Since we're looping through the tree
+                # walk in reverse, we find the a on the RHS of the
+                # statement before the a on the LHS. Since the LHS
+                # of the statement is a write to this symbol, the
+                # RHS needs to not be a dependency when working
+                # backwards.
+                return
+            else:
+                # Read only, so if we've not yet set written to
+                # this variable this is a use. NB. We need to
+                # check the if the write is the LHS of the parent
+                # assignment and if so check if we killed any
+                # previous assignments.
+                if defs_out[sig] is None:
+                    self._uses[sig].append(reference)
+        elif reference.ancestor(Call):
+            # Otherwise we assume read/write access for now.
+            if defs_out[sig] is not None:
+                self._killed[sig].append(defs_out[sig])
+            defs_out[sig] = reference
+        else:
+            # Reference outside an Assignment - read only
+            # This could be References inside a While loop
+            # condition for example.
+            if defs_out[sig] is None:
+                self._uses[sig].append(reference)
+
+    def _check_backward_unsupported_type(self, reference: Reference,
+                                         defs_out: dict[str, Node]):
+        """
+        Updates the defs_out, uses and killed dicts when a Reference
+        with an UnsupportedType datatype is matched
+        during _compute_backward_uses.
+
+        :param reference: The Reference being analysed.
+        :param defs_out: The local defs_out array from _compute_backward_uses
+
+        """
+        # If the reference is on the lhs of an Assignment it can
+        # only be in the definition use chains of other
+        # UnsupportedTypes inputs that are not on the
+        # right hand side of this assignment.
+        assign = reference.ancestor(Assignment)
+        if assign is not None:
+            if assign.lhs is reference:
+                for i, sig in enumerate(self._reference_signatures):
+                    if not isinstance(
+                        self._references[i].datatype, UnsupportedType
+                    ):
+                        continue
+                    # If the input Reference is on the rhs of this
+                    # assignment then we should skip the lhs.
+                    if (any(self._references[i] is ref for
+                            ref in assign.rhs.walk(Reference))):
+                        continue
+                    if defs_out[sig] is not None:
+                        self._killed[sig].append(defs_out[sig])
+                    defs_out[sig] = reference
+            else:
+                # If the LHS of an Assignment is an
+                # UnsupportedType then we can skip the RHS of this
+                # Assignment for UnsupportedTypes.
+                if isinstance(assign.lhs.datatype, UnsupportedType):
+                    return
+                # If it's on the RHS of an Assignment then we
+                # add it as a read of all other UnsupportedTypes
+                for i, sig in enumerate(self._reference_signatures):
+                    if not isinstance(
+                        self._references[i].datatype,
+                        UnsupportedType
+                    ):
+                        continue
+                    if defs_out[sig] is None:
+                        self._uses[sig].append(reference)
+        elif reference.ancestor(Call):
+            # If it's an argument to a Call then it is a read to
+            # all UnsupportedType references.
+            for i, sig in enumerate(self._reference_signatures):
+                if not isinstance(self._references[i].datatype,
+                                  UnsupportedType):
+                    continue
+                if defs_out[sig] is not None:
+                    self._killed[sig].append(defs_out[sig])
+                defs_out[sig] = reference
+        else:
+            # Otherwise all other UnsupportedType References
+            # count as a read to all UnsupportedType inputs.
+            for i, sig in enumerate(self._reference_signatures):
+                if not isinstance(self._references[i].datatype,
+                                  UnsupportedType):
+                    continue
+                if defs_out[sig] is None:
+                    self._uses[sig].append(reference)
 
     def _compute_backward_uses(self, basic_block_list: list[Node]):
         """
@@ -973,8 +1233,8 @@ class DefinitionUseChain:
                 abs_pos = reference.abs_position
                 if abs_pos < self._start_point or abs_pos >= stop_position:
                     continue
-                # If its parent is an inquiry function then its neither
-                # a read nor write if its the first argument.
+                # If its parent is an inquiry function then it's neither
+                # a read nor write if it's the first argument.
                 if (isinstance(reference.parent, IntrinsicCall) and
                         reference.parent.is_inquiry and
                         reference.parent.arguments[0] is reference):
@@ -988,201 +1248,17 @@ class DefinitionUseChain:
                             "DefinitionUseChains can't handle code containing"
                             " GOTO statements."
                         )
-                    for i, ref in enumerate(self._references[:]):
-                        # If the DUC's searched Reference is to an
-                        # UnsupportedType then
-                        # it needs to assume the worst case
-                        # for the CodeBlock if it contains an
-                        # UnsupportedType or UnresolvedType
-                        if isinstance(ref.datatype, UnsupportedType):
-                            for sym in reference.get_symbol_names():
-                                symbol = reference.scope.symbol_table.lookup(
-                                    sym
-                                )
-                                if isinstance(symbol.datatype,
-                                              (UnsupportedType,
-                                               UnresolvedType)):
-                                    # Assume the worst for a CodeBlock and we
-                                    # count them as killed and defsout and
-                                    # uses.
-                                    sig = self._reference_signatures[i]
-                                    if defs_out[sig] is not None:
-                                        self._killed[sig].append(
-                                            defs_out[sig]
-                                        )
-                                    defs_out[sig] = reference
-                            continue
-
-                        if (
-                            ref.symbol.name
-                            in reference.get_symbol_names()
-                        ):
-                            # Assume the worst for a CodeBlock and we count
-                            # them as killed and defsout and uses.
-                            sig = self._reference_signatures[i]
-                            if defs_out[sig] is not None:
-                                self._killed[sig].append(defs_out[sig])
-                            defs_out[sig] = reference
+                    self._check_backward_codeblock(reference, defs_out)
                 elif isinstance(reference, Call):
-                    # If its a local variable we can ignore it as we'll catch
-                    # the Reference later if its passed into the Call.
-                    for i, ref in enumerate(self._references):
-                        if ref.symbol.is_automatic:
-                            continue
-                        # If the call is an ancestor of the Reference then
-                        # we skip it for backwards accesses.
-                        if ref.is_descendant_of(reference):
-                            continue
-                        if isinstance(reference, IntrinsicCall):
-                            # IntrinsicCall can only do stuff to arguments,
-                            # these will be caught by Reference walk already.
-                            # Note that this assumes two symbols are not
-                            # aliases of each other.
-                            continue
-                        if reference.is_pure:
-                            # Pure subroutines only touch their arguments, so
-                            # we'll catch the arguments that are passed into
-                            # the call later as References.
-                            continue
-                        # For now just assume calls are bad if we have a
-                        # non-local variable and we treat them as though
-                        # they were a write.
-                        sig = self._reference_signatures[i]
-                        if defs_out[sig] is not None:
-                            self._killed[sig].append(defs_out[sig])
-                        defs_out[sig] = reference
+                    self._check_backward_call(reference, defs_out)
                 elif (reference.get_signature_and_indices()[0] in
                       self._reference_signatures):
-                    sig = reference.get_signature_and_indices()[0]
-                    # Work out if its read only or not.
-                    assign = reference.ancestor(Assignment)
-                    # RHS reads occur "before" LHS writes, so if we
-                    # hit the LHS or an assignment then we won't have
-                    # a dependency to the value used from the LHS.
-                    if assign is not None:
-                        if assign.lhs is reference:
-                            # Check if the RHS contains the self._references.
-                            # Can't use in since equality is not what we want
-                            # here.
-                            # We also only stop if the stop_point of the chain
-                            # is in the assignment's rhs.
-                            found = False
-                            for ref in assign.rhs.walk(Reference):
-                                if (
-                                    any([ref is ref2 for
-                                         ref2 in self._references])
-                                    and self._stop_point == ref.abs_position
-                                ):
-                                    found = True
-                            # If the RHS contains the self._reference, then
-                            # this LHS is "after" so we skip it
-                            if found:
-                                continue
-                            # This is a write to the reference, so kill the
-                            # previous defs_out and set this to be the
-                            # defs_out.
-                            if defs_out[sig] is not None:
-                                self._killed[sig].append(defs_out[sig])
-                            defs_out[sig] = reference
-                        elif (
-                            assign.lhs.get_signature_and_indices()[0] == sig
-                            and any(
-                                [assign.lhs is not ref for
-                                 ref in self._references]
-                            )
-                        ):
-                            # Reference is on the rhs of an assignment such as
-                            # a = a + 1. Since we're looping through the tree
-                            # walk in reverse, we find the a on the RHS of the
-                            # statement before the a on the LHS. Since the LHS
-                            # of the statement is a write to this symbol, the
-                            # RHS needs to not be a dependency when working
-                            # backwards.
-                            continue
-                        else:
-                            # Read only, so if we've not yet set written to
-                            # this variable this is a use. NB. We need to
-                            # check the if the write is the LHS of the parent
-                            # assignment and if so check if we killed any
-                            # previous assignments.
-                            if defs_out[sig] is None:
-                                self._uses[sig].append(reference)
-                    elif reference.ancestor(Call):
-                        # Otherwise we assume read/write access for now.
-                        if defs_out[sig] is not None:
-                            self._killed[sig].append(defs_out[sig])
-                        defs_out[sig] = reference
-                    else:
-                        # Reference outside an Assignment - read only
-                        # This could be References inside a While loop
-                        # condition for example.
-                        if defs_out[sig] is None:
-                            self._uses[sig].append(reference)
+                    self._check_backward_matched_reference(reference, defs_out)
                 # If we have a reference whose datatype is an
                 # UnsupportedType then we must assume it is aliased and
                 # therefore can access any other UnsupportedType Reference.
                 elif isinstance(reference.datatype, UnsupportedType):
-                    # If the reference is on the lhs of an Assignment it can
-                    # only be in the definition use chains of other
-                    # UnsupportedTypes inputs that are not on the
-                    # right hand side of this assignment.
-                    assign = reference.ancestor(Assignment)
-                    if assign is not None:
-                        if assign.lhs is reference:
-                            for i, sig in enumerate(
-                                    self._reference_signatures
-                            ):
-                                if not isinstance(
-                                    self._references[i].datatype,
-                                    UnsupportedType
-                                ):
-                                    continue
-                                # If the input Reference is on the rhs of this
-                                # assignment then we should skip the lhs.
-                                if (any(self._references[i] is ref for
-                                        ref in assign.rhs.walk(Reference))):
-                                    continue
-                                if defs_out[sig] is not None:
-                                    self._killed[sig].append(defs_out[sig])
-                                defs_out[sig] = reference
-                        else:
-                            # If the LHS of an Assignment is an
-                            # UnsupportedType then we can skip the RHS of this
-                            # Assignment for UnsupportedTypes.
-                            if isinstance(assign.lhs.datatype,
-                                          UnsupportedType):
-                                continue
-                            # If its on the RHS of an Assignment then we
-                            # add it as a read of all other UnsupportedTypes
-                            for i, sig in enumerate(
-                                    self._reference_signatures
-                            ):
-                                if not isinstance(
-                                    self._references[i].datatype,
-                                    UnsupportedType
-                                ):
-                                    continue
-                                if defs_out[sig] is None:
-                                    self._uses[sig].append(reference)
-                    elif reference.ancestor(Call):
-                        # If its an argument to a Call then it is a read to
-                        # all UnsupportedType references.
-                        for i, sig in enumerate(self._reference_signatures):
-                            if not isinstance(self._references[i].datatype,
-                                              UnsupportedType):
-                                continue
-                            if defs_out[sig] is not None:
-                                self._killed[sig].append(defs_out[sig])
-                            defs_out[sig] = reference
-                    else:
-                        # Otherwise all other UnsupportedType References
-                        # count as a read to all UnsupportedType inputs.
-                        for i, sig in enumerate(self._reference_signatures):
-                            if not isinstance(self._references[i].datatype,
-                                              UnsupportedType):
-                                continue
-                            if defs_out[sig] is None:
-                                self._uses[sig].append(reference)
+                    self._check_backward_unsupported_type(reference, defs_out)
         for sig in self._reference_signatures:
             if defs_out[sig] is not None:
                 self._defsout[sig].append(defs_out[sig])
@@ -1289,7 +1365,7 @@ class DefinitionUseChain:
                         )
                         chains.append(chain)
                         control_flow_nodes.append(ancestor)
-                    # If its a while loop, create a basic block for the while
+                    # If it's a while loop, create a basic block for the while
                     # condition.
                     if isinstance(ancestor, WhileLoop):
                         control_flow_nodes.append(None)
@@ -1352,7 +1428,7 @@ class DefinitionUseChain:
                                 if not found:
                                     self._reaches[sig].append(ref)
                     # If we have a defsout in the chain then we can stop as we
-                    # will never get past the write as its not conditional.
+                    # will never get past the write as it's not conditional.
                     for i, sig in enumerate(self._reference_signatures):
                         # Not all references are passed into all subchains.
                         if sig in chain.defsout:
