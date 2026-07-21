@@ -38,8 +38,6 @@
 [DEFAULT]
 DISTRIBUTED_MEMORY = false
 REPRODUCIBLE_REDUCTIONS = false
-# Amount to pad the local summation array when REPRODUCIBLE_REDUCTIONS is true
-REPROD_PAD_SIZE = 8
 
 [gocean]
 iteration-spaces=go_offset_sw:go_ct:internal_we_halo:1:2:3:4
