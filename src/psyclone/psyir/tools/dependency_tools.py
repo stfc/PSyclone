@@ -41,6 +41,7 @@
 
 from enum import IntEnum
 import sympy
+from typing import Optional
 
 from psyclone.configuration import Config
 from psyclone.core import (AccessType, Signature, SymbolicMaths,
@@ -125,9 +126,8 @@ class Message:
 
     # ------------------------------------------------------------------------
     @property
-    def var_names(self):
+    def var_names(self) -> list[str]:
         ''':returns: the list of variable names to which the message applies.
-        :rtype: List[str]
 
         '''
         # We convert each expression into a string to support LazyStrings
@@ -136,12 +136,10 @@ class Message:
 
     # ------------------------------------------------------------------------
     @property
-    def var_infos(self):
-        ''':returns: the Signature/AccessSequence pair for each variable to
-        which the message applies, or None if this information does not exist.
-
-        :rtype: List[Tuple[:py:class:`psyclone.core.Signature`,
-                           :py:class:`psyclone.core.AccessSequence`]]
+    def var_infos(self) -> list[tuple[Signature, AccessSequence]]:
+        '''
+        :returns: the Signature/AccessSequence pair for each variable to which
+            the message applies, or None if this information does not exist.
 
         '''
         return self._var_infos
@@ -839,27 +837,23 @@ class DependencyTools():
         return False
 
     # -------------------------------------------------------------------------
-    def can_loop_be_parallelised(self, loop,
-                                 test_all_variables=False,
-                                 signatures_to_ignore=None):
+    def can_loop_be_parallelised(
+            self,
+            loop: Loop,
+            test_all_variables: bool = False,
+            signatures_to_ignore: Optional[Signature] = None) -> bool:
         # pylint: disable=too-many-branches,too-many-locals
         '''This function analyses a loop in the PsyIR to see if
         it can be safely parallelised.
 
         :param loop: the loop node to be analysed.
-        :type loop: :py:class:`psyclone.psyir.nodes.Loop`
-        :param bool test_all_variables: if True, it will test if all variable
-                                        accesses can be parallelised,
-                                        otherwise it will stop after the first
-                                        variable is found that can not be
-                                        parallelised.
+        :param test_all_variables: if True, it will test if all variable
+            accesses can be parallelised, otherwise it will stop after the
+            first variable is found that can not be parallelised.
         :param signatures_to_ignore: list of signatures for which to skip
-                                     the access checks.
-        :type signatures_to_ignore: Optional[
-            List[:py:class:`psyclone.core.Signature`]]
+            the access checks.
 
         :returns: True if the loop can be parallelised.
-        :rtype: bool
 
         :raises TypeError: if the supplied node is not a Loop.
 
@@ -896,7 +890,7 @@ class DependencyTools():
             try:
                 symbol = var_info[0].node.symbol
             except AttributeError:
-                # If its a node without a symbol, look it up
+                # If it's a node without a symbol, look it up
                 var_name = signature.var_name
                 symbol = symbol_table.lookup(var_name, otherwise=None)
                 if symbol is None:
