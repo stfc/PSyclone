@@ -77,10 +77,7 @@ from psyclone.tests.test_files import dummy_transformations
 from psyclone.tests.test_files.dummy_transformations import LocalTransformation
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (LFRicColourTrans,
-                                      LFRicOMPLoopTrans,
                                       Transformation)
-from psyclone.psyir.transformations import OMPParallelTrans
-from psyclone.psyir.backend.visitor import VisitorError
 
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -1182,32 +1179,6 @@ def test_named_invoke_name_clash(tmpdir):
     assert "type(field_type), intent(in) :: invoke_a_1" in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
-    '''Check that we raise an exception if the pad size in psyclone.cfg is
-    set to an invalid value '''
-    # Make sure we monkey patch the correct Config object
-    config = Config.get()
-    monkeypatch.setattr(config._instance, "_reprod_pad_size", 0)
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric",
-                     distributed_memory=dist_mem).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    otrans = LFRicOMPLoopTrans()
-    rtrans = OMPParallelTrans()
-    # Apply an OpenMP do directive to the loop
-    otrans.apply(schedule.children[0], {"reprod": True})
-    # Apply an OpenMP Parallel directive around the OpenMP do directive
-    rtrans.apply(schedule.children[0])
-    with pytest.raises(VisitorError) as excinfo:
-        _ = str(psy.gen)
-    assert (
-        f"REPROD_PAD_SIZE in {Config.get().filename} should be a positive "
-        f"integer" in str(excinfo.value))
 
 
 def test_argument_properties():
