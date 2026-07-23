@@ -1,3 +1,9 @@
+   15) PR #3247 for #831 and towards #3124. Adds child References to
+   CodeBlocks for each Symbol accessed inside.
+ 
+   14) PR #3452 for #3409. LFRic reproducible reduction store partial results
+   in a threadprivate scalar instead of a padded array.
+
    13) PR #3490 for #3488. Fixes an issue with WHERE statements preceeded
    by comments.
  

@@ -54,7 +54,6 @@ _CONFIG_CONTENT = '''\
 [DEFAULT]
 DISTRIBUTED_MEMORY = true
 REPRODUCIBLE_REDUCTIONS = false
-REPROD_PAD_SIZE = 8
 [lfric]
 COMPUTE_ANNEXED_DOFS = false
 supported_fortran_datatypes = real, integer, logical

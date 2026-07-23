@@ -43,6 +43,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
 from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.nodes import Reference, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.frontend.fortran_treesitter_reader import \
     FortranTreeSitterReader
@@ -65,6 +66,7 @@ def test_codeblock_create():
     cb = CodeBlock.create("3 + 3", partial_code="expression")
     assert isinstance(cb, Fparser2CodeBlock)
     assert "3 + 3" in cb.get_fortran_lines()
+    assert cb.get_symbol_names() == []
 
     cb = CodeBlock.create("a => b", partial_code="pointer_assignment")
     assert isinstance(cb, Fparser2CodeBlock)
@@ -116,7 +118,7 @@ def test_codeblock_constructor_and_getastnodes():
 
     '''
     original = ["hello", "there"]
-    cblock = CodeBlock(original, CodeBlock.Structure.EXPRESSION)
+    cblock = Fparser2CodeBlock(original, CodeBlock.Structure.EXPRESSION)
     result = cblock.parse_tree_nodes
     assert result == original
     # Check that the list is a copy not a reference.
@@ -124,7 +126,7 @@ def test_codeblock_constructor_and_getastnodes():
 
     # If only one element is provided, this is added to a list
     original = 3
-    cblock = CodeBlock(original, CodeBlock.Structure.EXPRESSION)
+    cblock = Fparser2CodeBlock(original, CodeBlock.Structure.EXPRESSION)
     assert cblock.parse_tree_nodes == [3]
 
 
@@ -147,8 +149,8 @@ def test_codeblock_children_validation():
     cblock = CodeBlock([], "dummy")
     with pytest.raises(GenerationError) as excinfo:
         cblock.addchild(CodeBlock([], "dummy2"))
-    assert ("Item 'CodeBlock' can't be child 0 of 'CodeBlock'. CodeBlock is a"
-            " LeafNode and doesn't accept children.") in str(excinfo.value)
+    assert ("Item 'CodeBlock' can't be child 0 of 'CodeBlock'. The valid "
+            "format is: '[Reference]*'.") in str(excinfo.value)
 
 
 def test_abstract_methods():
@@ -199,15 +201,16 @@ def test_codeblock_get_fortran_lines():
     assert "end subroutine" in block.get_fortran_lines()
 
 
-def test_codeblock_get_symbol_names():
+def test_codeblock_get_symbol_names_and_representative_references(parser):
     '''Test that the get_symbol_names methods returns the names of the symbols
     used inside the CodeBlock. This is slightly subtle as we have to avoid
-    any labels on loop and branching statements.'''
-    prog = Fparser2Reader().generate_parse_tree_from_source('''
+    any labels and structure accessors names. Also check that this information
+    is used to create the appropriate symbols and representative references.'''
+    reader = FortranStringReader('''
     subroutine mytest
       myloop: DO i = 1, 10
         a = b + sqrt(c)
-        myifblock: IF(this_is_true)THEN
+        myifblock: IF(this_is_true%really_true(nested%field)%for_real)THEN
           EXIT myloop
         ELSE IF(that_is_true)THEN myifblock
           write(*,*) "Bye"
@@ -216,18 +219,35 @@ def test_codeblock_get_symbol_names():
         END IF myifblock
       END DO myloop
     end subroutine mytest''')
-    block = Fparser2CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
+    prog = parser(reader)
+    scope = Schedule()
+    block = Fparser2CodeBlock(prog.children, CodeBlock.Structure.STATEMENT,
+                              parent=scope)
     sym_names = block.get_symbol_names()
-    assert "a" in sym_names
-    assert "b" in sym_names
-    assert "c" in sym_names
-    assert "mytest" in sym_names
-    assert "subroutine" not in sym_names
-    assert "sqrt" not in sym_names
-    assert "myloop" not in sym_names
-    assert "myifblock" not in sym_names
-    assert "this_is_true" in sym_names
-    assert "that_is_true" in sym_names
+    refs = block.walk(Reference)
+
+    # Check that all refs are immediate children of the codeblock
+    for ref in refs:
+        assert ref.parent is block
+
+    # Check strings that are symbols
+    for name in ['a', 'b', 'c', 'i', 'mytest', 'this_is_true', 'nested',
+                 'that_is_true']:
+        # The name is reported by get_symbol_names
+        assert name in sym_names
+        # It has been added to the scope
+        symbol = scope.symbol_table.lookup(name)
+        # There is a virtual reference to it
+        assert Reference(symbol) in refs
+    # The 8 symbols mentioned above, this also checks references to the same
+    # symbol are not repeated, e.g. 'mytest'
+    assert len(refs) == 8
+
+    # Check strings that are not symbols, e.g. keywords, labels, accessors
+    for name in ['subroutine', 'sqrt', 'myloop', 'myifblock',
+                 'really_true', 'for_real', 'field']:
+        assert name not in sym_names
+        assert scope.symbol_table.lookup(name, otherwise=None) is None
 
 
 def test_codeblock_get_symbol_names_comments_and_directives():
@@ -318,9 +338,9 @@ def test_codeblock_equality(parser):
         a = b + sqrt(c)
     end subroutine mytest''')
     prog = parser(reader)
-    block = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
-    block2 = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
-    block3 = CodeBlock(prog.children, CodeBlock.Structure.EXPRESSION)
+    block = Fparser2CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
+    block2 = Fparser2CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
+    block3 = Fparser2CodeBlock(prog.children, CodeBlock.Structure.EXPRESSION)
     assert block == block2
     assert block != block3
     reader = FortranStringReader('''
@@ -328,7 +348,7 @@ def test_codeblock_equality(parser):
         a = b + c
     end subroutine mytest''')
     prog = parser(reader)
-    block4 = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
+    block4 = Fparser2CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
     assert block != block4
 
 
