@@ -646,8 +646,8 @@ class KernCallArgList(ArgOrdering):
             var_accesses: Optional[VariablesAccessMap] = None
     ) -> None:
         '''
-        Add compulsory arguments associated with this function space to
-        the list. If supplied it also stores this access in var_accesses.
+        Add compulsory arguments associated with this function space to this
+        argument list. If supplied it also stores this access in var_accesses.
 
         :param function_space: the function space for which the compulsory
             arguments are added.

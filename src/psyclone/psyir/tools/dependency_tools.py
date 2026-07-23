@@ -841,15 +841,16 @@ class DependencyTools():
             self,
             loop: Loop,
             test_all_variables: bool = False,
-            signatures_to_ignore: Optional[Signature] = None) -> bool:
+            signatures_to_ignore: Optional[list[Signature]] = None
+    ) -> bool:
         # pylint: disable=too-many-branches,too-many-locals
         '''This function analyses a loop in the PsyIR to see if
         it can be safely parallelised.
 
         :param loop: the loop node to be analysed.
-        :param test_all_variables: if True, it will test if all variable
+        :param test_all_variables: whether to test if *all* variable
             accesses can be parallelised, otherwise it will stop after the
-            first variable is found that can not be parallelised.
+            first variable is found that cannot be parallelised.
         :param signatures_to_ignore: list of signatures for which to skip
             the access checks.
 
