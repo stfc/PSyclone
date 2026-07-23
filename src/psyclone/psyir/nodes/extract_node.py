@@ -398,11 +398,13 @@ class ExtractNode(PSyDataNode):
                             flattened_name,
                             symbol_type=DataSymbol,
                             datatype=dtype)
-                # The new_symbol can return different names, so we cannot
-                # properly name the unsupportedtype until this point
                 is_pointer = False
+                # Now that we have a definitive name (wihtout clashes), we
+                # need to fix the UnsupportedFortranType text
                 if isinstance(dtype, UnsupportedFortranType):
-                    dtype._declaration.replace('PLACEHOLDER', symbol.name)
+                    dtype._declaration = dtype._declaration.replace(
+                        'PLACEHOLDER', symbol.name)
+                    # And record if it's a pointer type
                     if "pointer" in dtype.declaration.lower():
                         is_pointer = True
 
@@ -414,7 +416,8 @@ class ExtractNode(PSyDataNode):
                                                        is_pointer),
                                      index=self.position)
                 if not is_pointer:
-                    # If its a pointer we can omit the copy-back
+                    # If its not a pointer, we will need to copy back the
+                    # results
                     self.parent.addchild(
                         Assignment.create(structure_ref.copy(),
                                           Reference(symbol)),
