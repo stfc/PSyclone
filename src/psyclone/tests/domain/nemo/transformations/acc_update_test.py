@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@ import pytest
 from psyclone.psyir.nodes import (
     ACCKernelsDirective, CodeBlock, Routine, Schedule, Call, IntrinsicCall,
     Reference, Node)
-from psyclone.psyir.symbols import RoutineSymbol, DataSymbol, REAL_TYPE
+from psyclone.psyir.symbols import RoutineSymbol, DataSymbol, ScalarType
 from psyclone.psyir.transformations import (
     ACCKernelsTrans, TransformationError, ACCUpdateTrans)
 from psyclone.transformations import ACCEnterDataTrans
@@ -70,16 +70,16 @@ def test_may_compute():
     assert ACCUpdateTrans._may_compute(node)
     node = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.ALLOCATE,
-        [Reference(DataSymbol("x", REAL_TYPE))])
+        [Reference(DataSymbol("x", ScalarType.real_type()))])
     assert ACCUpdateTrans._may_compute(node)
     node = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.DEALLOCATE,
-        [Reference(DataSymbol("x", REAL_TYPE))])
+        [Reference(DataSymbol("x", ScalarType.real_type()))])
     assert ACCUpdateTrans._may_compute(node)
     assert not ACCUpdateTrans._may_compute(Node())
     node = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.SUM,
-        [Reference(DataSymbol("x", REAL_TYPE))])
+        [Reference(DataSymbol("x", ScalarType.real_type()))])
     assert not ACCUpdateTrans._may_compute(node)
 
 
@@ -392,7 +392,7 @@ def test_loop_host_overwriting(fortran_reader, fortran_writer):
 def test_if_host_overwriting(fortran_reader, fortran_writer):
     ''' Test the placement of update host directives when an IfBlock contains
      a host statement writing the same variable as a previous host statement
-     outside the IfBlock with no depedent device kernel in between them. '''
+     outside the IfBlock with no dependent device kernel in between them. '''
     psyir = fortran_reader.psyir_from_source(
         '''
         SUBROUTINE tra_ldf_iso()

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,23 +38,24 @@
 
 import os
 
-from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOInvokeSchedule, GOLoop
-from psyclone.psyGen import Transformation, args_filter, InvokeSchedule, \
-    HaloExchange
+from psyclone.psyGen import (
+    Transformation, args_filter, InvokeSchedule, HaloExchange)
 from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Routine, Call, Reference, Literal, \
-    Assignment, IfBlock, ArrayReference, Schedule, BinaryOperation, \
-    StructureReference, FileContainer, CodeBlock, IntrinsicCall, Container
+from psyclone.psyir.nodes import (
+    Routine, Call, Reference, Literal, Assignment, IfBlock, ArrayReference,
+    Schedule, BinaryOperation, StructureReference, FileContainer, CodeBlock,
+    IntrinsicCall, Container, DataNode)
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, RoutineSymbol, ContainerSymbol,
     UnsupportedFortranType, ArgumentInterface, ImportInterface,
-    INTEGER_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, ScalarType)
-from psyclone.transformations import TransformationError
+    ScalarType)
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError)
 
 
 class GOOpenCLTrans(Transformation):
@@ -63,16 +64,24 @@ class GOOpenCLTrans(Transformation):
     InvokeSchedule. Additionally, it will generate OpenCL kernels for
     each of the kernels referenced by the Invoke. For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> API = "gocean"
-    >>> FILENAME = "shallow_alg.f90" # examples/gocean/eg1
-    >>> ast, invoke_info = parse(FILENAME, api=API)
-    >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "eg1/shallow_alg.f90"
+    >>> schedule = get_psylayer_schedule(filename, "gocean-examples")
+    >>>
+    >>> from psyclone.domain.gocean.transformations import (
+    ...     GOMoveIterationBoundariesInsideKernelTrans,
+    ...     GOOpenCLTrans)
+    >>> from psyclone.domain.common.transformations import (
+    ...     KernelModuleInlineTrans)
+    >>> move_trans = GOMoveIterationBoundariesInsideKernelTrans()
+    >>> mod_inline_trans = KernelModuleInlineTrans()
     >>> ocl_trans = GOOpenCLTrans()
-    >>> ocl_trans.apply(schedule)
-    >>> print(schedule.view())
+    >>> for kern in schedule.kernels():
+    ...    # Put kernels in same container and iterate the whole space
+    ...    mod_inline_trans.apply(kern)
+    ...    move_trans.apply(kern)
+    >>> # Commented to prevent generating doctest output .cl files
+    >>> # ocl_trans.apply(schedule)
 
     '''
     # Specify which OpenCL command queue to use for management operations like
@@ -113,27 +122,26 @@ class GOOpenCLTrans(Transformation):
         :type node: :py:class:`psyclone.psyGen.InvokeSchedule`
         :param options: a dictionary with options for transformations.
         :type options: dict of str:value or None
-        :param bool options["enable_profiling"]: whether or not to set up the \
+        :param bool options["enable_profiling"]: whether or not to set up the
                 OpenCL environment with the profiling option enabled.
-        :param bool options["out_of_order"]: whether or not to set up the \
+        :param bool options["out_of_order"]: whether or not to set up the
                 OpenCL environment with the out_of_order option enabled.
-        :param bool options["end_barrier"]: whether or not to add an OpenCL \
+        :param bool options["end_barrier"]: whether or not to add an OpenCL
                 barrier at the end of the transformed invoke.
 
-        :raises TransformationError: if the InvokeSchedule is not for the \
-                                     GOcean1.0 API.
-        :raises TransformationError: if any of the kernels have arguments \
-                                     which are passed as a literal.
+        :raises TransformationError: if the InvokeSchedule is not for the
+                                     GOcean API.
+        :raises TransformationError: if any of the kernels have arguments
+            which are passed as a literal.
         :raises TransformationError: if any of the provided options is invalid.
-        :raises TransformationError: if any of the provided options is not \
-                                     compatible with a previous OpenCL
-                                     environment.
-        :raises TransformationError: if any kernel in this invoke has a \
-                                     global variable used by an import.
-        :raises TransformationError: if any kernel does not iterate over \
-                                     the whole grid.
-        '''
+        :raises TransformationError: if any of the provided options is not
+            compatible with a previous OpenCL environment.
+        :raises TransformationError: if any kernel in this invoke has a
+            global variable used by an import.
+        :raises TransformationError: if any kernel does not iterate over
+            the whole grid.
 
+        '''
         if isinstance(node, InvokeSchedule):
             if not isinstance(node, GOInvokeSchedule):
                 raise TransformationError(
@@ -147,17 +155,19 @@ class GOOpenCLTrans(Transformation):
 
         # Validate options map
         valid_options = ['end_barrier', 'enable_profiling', 'out_of_order']
-        for key, value in options.items():
-            if key in valid_options:
-                # All current options should contain boolean values
-                if not isinstance(value, bool):
+        if options:
+            for key, value in options.items():
+                if key in valid_options:
+                    # All current options should contain boolean values
+                    if not isinstance(value, bool):
+                        raise TransformationError(
+                            f"InvokeSchedule OpenCL option '{key}' should be "
+                            f"a boolean.")
+                else:
                     raise TransformationError(
-                        f"InvokeSchedule OpenCL option '{key}' should be a "
-                        f"boolean.")
-            else:
-                raise TransformationError(
-                    f"InvokeSchedule does not support the OpenCL option "
-                    f"'{key}'. The supported options are: {valid_options}.")
+                        f"InvokeSchedule does not support the OpenCL option "
+                        f"'{key}'. The supported options are: "
+                        f"{valid_options}.")
 
         # Validate that the options are valid with previously generated OpenCL
         if self._transformed_invokes > 0:
@@ -192,20 +202,22 @@ class GOOpenCLTrans(Transformation):
         # any form of global data (that is not a routine argument or just
         # type information).
         for kern in node.kernels():
-            KernelModuleInlineTrans().validate(kern)
-            ksched = kern.get_kernel_schedule()
-            global_variables = set(ksched.symbol_table.imported_symbols)
-            prec_symbols = set(ksched.symbol_table.precision_datasymbols)
-            if global_variables.difference(prec_symbols):
-                names = sorted([sym.name for sym in
-                                global_variables.difference(prec_symbols)])
-                raise TransformationError(
-                    f"The Symbol Table for kernel '{kern.name}' contains the "
-                    f"following symbols with 'global' scope: {names}. An "
-                    f"OpenCL kernel cannot call other kernels and all of the "
-                    f"data it accesses must be passed by argument. Use the "
-                    f"KernelImportsToArguments transformation to convert such "
-                    f"symbols to kernel arguments first.")
+            if not kern.module_inline:
+                KernelModuleInlineTrans().validate(kern)
+            for ksched in kern.get_callees():
+
+                global_variables = set(ksched.symbol_table.imported_symbols)
+                prec_symbols = set(ksched.symbol_table.precision_datasymbols)
+                if global_variables.difference(prec_symbols):
+                    names = sorted([sym.name for sym in
+                                    global_variables.difference(prec_symbols)])
+                    raise TransformationError(
+                        f"The Symbol Table for kernel '{kern.name}' contains "
+                        f"the following symbols with 'global' scope: {names}. "
+                        f"An OpenCL kernel cannot call other kernels and all "
+                        f"of the data it accesses must be passed by argument. "
+                        f"Use the KernelImportsToArguments transformation to "
+                        f"convert such symbols to kernel arguments first.")
 
         # In OpenCL all kernel loops should iterate the whole grid
         for kernel in node.kernels():
@@ -304,7 +316,7 @@ class GOOpenCLTrans(Transformation):
         c_loc = RoutineSymbol(
                 "C_LOC", interface=ImportInterface(iso_c_binding))
         c_null = DataSymbol(
-                "C_NULL_PTR", datatype=INTEGER_TYPE,
+                "C_NULL_PTR", datatype=ScalarType.integer_type(),
                 interface=ImportInterface(iso_c_binding))
         node.symbol_table.add(c_loc)
         node.symbol_table.add(c_null)
@@ -330,7 +342,7 @@ class GOOpenCLTrans(Transformation):
                                "logical, save :: first_time = .true."))
         node.symbol_table.add(first, tag="first_time")
         flag = node.symbol_table.new_symbol(
-            "ierr", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+            "ierr", symbol_type=DataSymbol, datatype=ScalarType.integer_type(),
             tag="opencl_error")
         global_size = node.symbol_table.new_symbol(
             "globalsize", symbol_type=DataSymbol,
@@ -361,9 +373,8 @@ class GOOpenCLTrans(Transformation):
         setup_block.if_body.addchild(Call.create(psy_init, []))
 
         # Set up cmd_queues pointer
-        ptree = Fortran2003.Pointer_Assignment_Stmt(
-            f"{qlist.name} => {get_cmd_queues.name}()")
-        cblock = CodeBlock([ptree], CodeBlock.Structure.STATEMENT)
+        cblock = CodeBlock.create(f"{qlist.name} => {get_cmd_queues.name}()",
+                                  "pointer_assignment")
         setup_block.if_body.addchild(cblock)
 
         # Declare and assign kernel pointers
@@ -380,7 +391,8 @@ class GOOpenCLTrans(Transformation):
                 Assignment.create(
                     Reference(kpointer),
                     Call.create(get_kernel_by_name,
-                                [Literal(kern.name, CHARACTER_TYPE)])))
+                                [Literal(kern.name,
+                                         ScalarType.character_type())])))
 
         # Traverse all arguments and make sure all the buffers are initialised
         initialised_fields = set()
@@ -470,13 +482,13 @@ class GOOpenCLTrans(Transformation):
             assig = Assignment.create(
                     Reference(global_size),
                     Literal(f"(/{num_x}, {num_y}/)",
-                            ArrayType(INTEGER_TYPE, [2])))
+                            ArrayType(ScalarType.integer_type(), [2])))
             node.children.insert(outerloop.position, assig)
             local_size_value = kern.opencl_options['local_size']
             assig = Assignment.create(
                     Reference(local_size),
                     Literal(f"(/{local_size_value}, 1/)",
-                            ArrayType(INTEGER_TYPE, [2])))
+                            ArrayType(ScalarType.integer_type(), [2])))
             node.children.insert(outerloop.position, assig)
 
             # Check that the global_size is multiple of the local_size
@@ -498,7 +510,8 @@ class GOOpenCLTrans(Transformation):
             # guaranteed.
             queue_number = kern.opencl_options['queue_number']
             cmd_queue = ArrayReference.create(
-                    qlist, [Literal(str(queue_number), INTEGER_TYPE)])
+                    qlist, [Literal(str(queue_number),
+                                    ScalarType.integer_type())])
             dependency = outerloop.backward_dependence()
 
             # If the dependency is a loop containing a kernel, add a barrier if
@@ -512,11 +525,11 @@ class GOOpenCLTrans(Transformation):
                         # previous kernel has finished before this halo
                         # exchange starts.
                         barrier = Assignment.create(
-                                    Reference(flag),
-                                    Call.create(cl_finish, [
-                                        ArrayReference.create(qlist, [
-                                            Literal(str(previous_queue),
-                                                    INTEGER_TYPE)])]))
+                            Reference(flag),
+                            Call.create(cl_finish, [
+                                ArrayReference.create(qlist, [
+                                    Literal(str(previous_queue),
+                                            ScalarType.integer_type())])]))
                         node.children.insert(outerloop.position, barrier)
 
             # If the dependency is something other than a kernel, currently we
@@ -529,7 +542,7 @@ class GOOpenCLTrans(Transformation):
                             Call.create(cl_finish, [
                                 ArrayReference.create(qlist, [
                                     Literal(str(self._OCL_MANAGEMENT_QUEUE),
-                                            INTEGER_TYPE)])]))
+                                            ScalarType.integer_type())])]))
                 node.children.insert(outerloop.position, barrier)
 
             # Check that everything has succeeded before the kernel launch
@@ -550,7 +563,7 @@ class GOOpenCLTrans(Transformation):
                             # OpenCL Kernel object
                             Reference(kernelsym),
                             # Number of work dimensions
-                            Literal("2", INTEGER_TYPE),
+                            Literal("2", ScalarType.integer_type()),
                             # Global offset (if NULL the global IDs start at
                             # offset (0,0,0))
                             Reference(c_null),
@@ -559,7 +572,7 @@ class GOOpenCLTrans(Transformation):
                             # Local work size
                             Call.create(c_loc, [Reference(local_size)]),
                             # Number of events in wait list
-                            Literal("0", INTEGER_TYPE),
+                            Literal("0", ScalarType.integer_type()),
                             # Event wait list that need to be completed before
                             # this kernel
                             Reference(c_null),
@@ -592,11 +605,11 @@ class GOOpenCLTrans(Transformation):
                         # another queue we add a barrier to make sure the
                         # previous kernel has finished before this one starts.
                         barrier = Assignment.create(
-                                    Reference(flag),
-                                    Call.create(cl_finish, [
-                                        ArrayReference.create(qlist, [
-                                            Literal(str(previous_queue),
-                                                    INTEGER_TYPE)])]))
+                            Reference(flag),
+                            Call.create(cl_finish, [
+                                ArrayReference.create(qlist, [
+                                    Literal(str(previous_queue),
+                                            ScalarType.integer_type())])]))
                         pos = possible_dependent_node.position
                         node.children.insert(pos, barrier)
 
@@ -608,7 +621,7 @@ class GOOpenCLTrans(Transformation):
 
         # And at the very end always makes sure that first_time value is False
         assign = Assignment.create(Reference(first),
-                                   Literal("false", BOOLEAN_TYPE))
+                                   Literal("false", ScalarType.boolean_type()))
         assign.preceding_comment = "Unset the first time flag"
         node.addchild(assign)
 
@@ -632,7 +645,7 @@ class GOOpenCLTrans(Transformation):
         added_comment = False
         for num in range(1, self._max_queue_number + 1):
             queue = ArrayReference.create(qlist, [Literal(str(num),
-                                                  INTEGER_TYPE)])
+                                                  ScalarType.integer_type())])
             node.addchild(
                 Assignment.create(
                     Reference(flag), Call.create(cl_finish, [queue])))
@@ -662,14 +675,14 @@ class GOOpenCLTrans(Transformation):
                     IntrinsicCall.create(
                         IntrinsicCall.Intrinsic.MOD,
                         [global_size_expr,
-                         Literal(str(local_size), INTEGER_TYPE)]
+                         Literal(str(local_size), ScalarType.integer_type())]
                         ),
-                    Literal("0", INTEGER_TYPE))
+                    Literal("0", ScalarType.integer_type()))
         message = ("Global size is not a multiple of local size ("
                    "mandatory in OpenCL < 2.0).")
         error = Call.create(check_status,
-                            [Literal(message, CHARACTER_TYPE),
-                             Literal("-1", INTEGER_TYPE)])
+                            [Literal(message, ScalarType.character_type()),
+                             Literal("-1", ScalarType.integer_type())])
         ifblock = IfBlock.create(check, [error])
         node.children.insert(position, ifblock)
 
@@ -695,7 +708,7 @@ class GOOpenCLTrans(Transformation):
         '''
         # First check the launch return value
         message = Literal(f"{kernel_name} clEnqueueNDRangeKernel",
-                          CHARACTER_TYPE)
+                          ScalarType.character_type())
         check = Call.create(check_status, [message, Reference(flag)])
         node.children.insert(position, check)
 
@@ -706,7 +719,8 @@ class GOOpenCLTrans(Transformation):
         node.children.insert(position + 1, barrier)
 
         # And check the kernel executed successfully
-        message = Literal(f"Errors during {kernel_name}", CHARACTER_TYPE)
+        message = Literal(f"Errors during {kernel_name}",
+                          ScalarType.character_type())
         check = Call.create(check_status, [message, Reference(flag)])
         node.children.insert(position + 2, check)
 
@@ -735,7 +749,7 @@ class GOOpenCLTrans(Transformation):
                     Call.create(cl_finish, [cmd_queue]))
         node.children.insert(position, barrier)
         message = Literal(f"Errors before {kernel_name} launch",
-                          CHARACTER_TYPE)
+                          ScalarType.character_type())
         check = Call.create(check_status, [message, Reference(flag)])
         node.children.insert(position + 1, check)
 
@@ -753,7 +767,9 @@ class GOOpenCLTrans(Transformation):
 
         # Create a copy of the kernel and remove precision symbols since they
         # are not supported in the OpenCL backend.
-        kernel_copy = kernel.get_kernel_schedule().copy()
+        # validate() has checked that the kernel is not polymorphic.
+        schedule = kernel.get_callees()[0]
+        kernel_copy = schedule.copy()
         symtab = kernel_copy.symbol_table
 
         # TODO #898: Removing symbols is not properly supported by PSyIR
@@ -766,7 +782,7 @@ class GOOpenCLTrans(Transformation):
             # Not all types have the 'precision' attribute (e.g.
             # UnresolvedType)
             if (hasattr(sym.datatype, "precision") and
-                    isinstance(sym.datatype.precision, DataSymbol)):
+                    isinstance(sym.datatype.precision, DataNode)):
                 sym.datatype._precision = ScalarType.Precision.DOUBLE
 
         if 'go_wp' in symtab:
@@ -782,14 +798,10 @@ class GOOpenCLTrans(Transformation):
         else:
             self._kernels_file.addchild(kernel_copy)
 
-    def _output_opencl_kernels_file(self):
+    def _output_opencl_kernels_file(self) -> None:
         ''' Write the OpenCL kernels to a file using the OpenCL backend.
 
         '''
-        # TODO 1013: The code below duplicates some logic of the CodedKern
-        # rename_and_write method. Ideally this should be moved out of
-        # the AST and transformations and put into some kind of IOManager.
-
         ocl_writer = OpenCLWriter(kernels_local_size=64)
         new_kern_code = ocl_writer(self._kernels_file)
 
@@ -864,9 +876,10 @@ class GOOpenCLTrans(Transformation):
                 if arg.name in boundaries:
                     # Boundary values are 0-indexed in OpenCL and 1-indexed in
                     # PSyIR, therefore we need to subtract 1
-                    bop = BinaryOperation.create(BinaryOperation.Operator.SUB,
-                                                 arg.psyir_expression(),
-                                                 Literal("1", INTEGER_TYPE))
+                    bop = BinaryOperation.create(
+                         BinaryOperation.Operator.SUB,
+                         arg.psyir_expression(),
+                         Literal("1", ScalarType.integer_type()))
                     arguments.append(bop)
                 else:
                     arguments.append(arg.psyir_expression())
@@ -1002,21 +1015,22 @@ class GOOpenCLTrans(Transformation):
 
         # Create the ierr local variable
         ierr = argsetter.symbol_table.new_symbol(
-            "ierr", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            "ierr", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
 
         # Call the clSetKernelArg for each argument and a check_status to
         # see if the OpenCL call has succeeded
         for index, variable in enumerate(arg_list[1:]):
             call = Call.create(clsetkernelarg,
                                [Reference(kobj),
-                                Literal(str(index), INTEGER_TYPE),
+                                Literal(str(index), ScalarType.integer_type()),
                                 Call.create(c_sizeof, [Reference(variable)]),
                                 Call.create(c_loc, [Reference(variable)])])
             assignment = Assignment.create(Reference(ierr), call)
             argsetter.addchild(assignment)
             emsg = f"clSetKernelArg: arg {index} of {kernel.name}"
-            call = Call.create(check_status, [Literal(emsg, CHARACTER_TYPE),
-                                              Reference(ierr)])
+            call = Call.create(check_status,
+                               [Literal(emsg, ScalarType.character_type()),
+                                Reference(ierr)])
             argsetter.addchild(call)
 
         argsetter.children[0].preceding_comment = \

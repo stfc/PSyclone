@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,55 +37,63 @@
 ''' Module containing pytest tests for the handling of the WHERE
 construct in the PSyIR. '''
 
+from typing import Optional
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from fparser.two import Fortran2003
+from fparser.two import Fortran2003, utils
 
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     ArrayMember, ArrayReference, Assignment, BinaryOperation,
     Call, CodeBlock, Container, IfBlock, IntrinsicCall, Literal, Loop, Range,
     Reference, Routine, Schedule, UnaryOperation)
-from psyclone.psyir.symbols import (
-    DataSymbol, ScalarType, INTEGER_TYPE)
+from psyclone.psyir.symbols import DataSymbol, ScalarType
+from psyclone.tests.utilities import Compile
 
 
-def process_where(code, fparser_cls, symbols=None):
+def process_where(
+    code: str,
+    fparser_cls: type,
+    symbols: Optional[list[str]] = None,
+    scalars: Optional[list[str]] = None
+) -> tuple[Schedule, utils.Base]:
     '''
     Utility routine to process the supplied Fortran code and return the
     PSyIR and fparser2 parse trees.
 
-    :param str code: Fortran code to process.
-    :param type fparser_cls: the fparser2 class to instantiate to
-                             represent the supplied Fortran.
+    :param code: Fortran code to process.
+    :param fparser_cls: the fparser2 class to instantiate to represent the
+        supplied Fortran.
     :param symbols: list of symbol names that must be added to the symbol
                     table before constructing the PSyIR.
-    :type symbols: List[str]
+    :param scalars: list of symbol names that must be added to the symbol
+                    table with an integer, scalar datatype.
 
     :returns: 2-tuple of a parent PSyIR Schedule and the created instance of
               the requested fparser2 class.
-    :rtype: Tuple[:py:class:`psyclone.psyir.nodes.Schedule`,
-                  :py:class:`fparser.two.utils.Base`]
     '''
     sched = Schedule()
     # Always add the 'wp' kind parameter as this must have specific properties.
-    sched.symbol_table.new_symbol("wp", symbol_type=DataSymbol,
-                                  datatype=INTEGER_TYPE,
-                                  initial_value=Literal("8", INTEGER_TYPE),
-                                  is_constant=True)
+    sched.symbol_table.new_symbol(
+        "wp", symbol_type=DataSymbol,
+        datatype=ScalarType.integer_type(),
+        initial_value=Literal("8", ScalarType.integer_type()),
+        is_constant=True)
     if symbols:
         for sym_name in symbols:
             sched.symbol_table.new_symbol(sym_name)
+    if scalars:
+        for sym_name in scalars:
+            sched.symbol_table.new_symbol(sym_name, symbol_type=DataSymbol,
+                                          datatype=ScalarType.integer_type())
     processor = Fparser2Reader()
     reader = FortranStringReader(code)
     fparser2spec = fparser_cls(reader)
 
-    if fparser_cls is Fortran2003.Execution_Part:
-        processor.process_nodes(sched, fparser2spec.content)
-    else:
-        processor.process_nodes(sched, [fparser2spec])
+    processor.process_nodes(sched, [fparser2spec])
     return sched, fparser2spec
 
 
@@ -205,7 +213,7 @@ def test_different_ranks_error():
     fake_parent, _ = process_where("WHERE (dry(:, :, :))\n"
                                    "  z1_st(:, :) = depth / ptsu(:, :, :)\n"
                                    "END WHERE\n", Fortran2003.Where_Construct,
-                                   ["dry", "z1_st", "depth", "ptsu"])
+                                   ["dry", "z1_st", "ptsu"], ["depth"])
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
@@ -271,7 +279,7 @@ def test_basic_where():
     fake_parent, _ = process_where("WHERE (dry(:, :, :))\n"
                                    "  z1_st(:, :, :) = depth / ptsu(:, :, :)\n"
                                    "END WHERE\n", Fortran2003.Where_Construct,
-                                   ["dry", "z1_st", "depth", "ptsu"])
+                                   ["dry", "z1_st", "ptsu"], ["depth"])
     # We should have a triply-nested loop with an IfBlock inside
     loops = fake_parent.walk(Loop)
     assert len(loops) == 3
@@ -300,7 +308,7 @@ def test_where_array_subsections():
     fake_parent, _ = process_where("WHERE (dry(1, :, :))\n"
                                    "  z1_st(:, 2, :) = depth / ptsu(:, :, 3)\n"
                                    "END WHERE\n", Fortran2003.Where_Construct,
-                                   ["dry", "z1_st", "depth", "ptsu"])
+                                   ["dry", "z1_st", "ptsu"], ["depth"])
     # We should have a doubly-nested loop with an IfBlock inside
     loops = fake_parent.walk(Loop)
     assert len(loops) == 2
@@ -496,8 +504,8 @@ def test_where_containing_sum_no_dim(fortran_reader, fortran_writer):
     routine = psyir.walk(Routine)[0]
     assert isinstance(routine[0], Loop)
     output = fortran_writer(psyir)
-    assert ("SUM(a_i_last_couple) / picefr(LBOUND(picefr, dim=1) + widx1 - 1,"
-            "LBOUND(picefr, dim=2) + widx2 - 1)" in output)
+    assert ("SUM(a_i_last_couple) / picefr(LBOUND(picefr, dim=1) "
+            "+ widx1 - 1,LBOUND(picefr, dim=2) + widx2 - 1)" in output)
 
 
 def test_where_mask_containing_sum_with_dim(fortran_reader):
@@ -555,8 +563,8 @@ def test_where_with_scalar_assignment(fortran_reader, fortran_writer):
   integer :: widx2
   integer :: widx1
 
-  do widx2 = 1, SIZE(dry, dim=3), 1
-    do widx1 = 1, SIZE(dry, dim=2), 1
+  do widx2 = 1, 100, 1
+    do widx1 = 1, 100, 1
       if (dry(1,widx1,widx2)) then
         var1 = depth
         z1_st(widx1,2,widx2) = var1 / ptsu(widx1,widx2,3)
@@ -579,7 +587,7 @@ def test_where_with_array_reduction_intrinsic():
         "  var1 = maxval(depth(:))\n"
         "  z1_st(:, 2, :) = var1 / ptsu(:, :, 3)\n"
         "END WHERE\n", Fortran2003.Where_Construct,
-        ["dry", "z1_st", "depth", "ptsu", "var1"])
+        ["dry", "z1_st", "ptsu", "depth"], ["var1"])
     # We should have a doubly-nested loop with an IfBlock inside
     loops = fake_parent.walk(Loop)
     assert len(loops) == 2
@@ -711,6 +719,30 @@ def test_where_stmt(fortran_reader):
     assert isinstance(routine[0], Loop)
 
 
+def test_where_stmt_comment(fortran_writer, tmp_path):
+    ''' Check that we handle a single line WHERE statement correctly
+    when it is preceded by a comment and keep-comments is enabled.'''
+    code = '''program where_test
+      implicit none
+      integer :: jl
+      real, dimension(:,:), allocatable :: at_i, rn_amax_2d
+      real, dimension(:,:,:), allocatable :: a_i
+      a_i = 0
+      ! Here is a comment.
+      WHERE( at_i(:,:) > rn_amax_2d(:,:) ) &
+            a_i(:,:,jl) = a_i(:,:,jl) * rn_amax_2d(:,:) / at_i(:,:)
+    end program where_test
+    '''
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert len(routine.children) == 2
+    assert isinstance(routine[1], Loop)
+    assert routine[1].preceding_comment == "Here is a comment."
+    code = fortran_writer(psyir)
+    assert Compile(tmp_path).string_compiles(code)
+
+
 def test_where_stmt_no_reduction(fortran_reader, fortran_writer):
     '''
     Test that a WHERE statement containing an intrinsic reduction is put
@@ -808,7 +840,8 @@ def test_where_derived_type(fortran_reader, code, size_arg):
     loops = psyir.walk(Loop)
     assert len(loops) == 2
     assert isinstance(loops[1].stop_expr, IntrinsicCall)
-    assert loops[1].stop_expr.debug_string() == f"SIZE({size_arg}, dim=1)"
+    assert (loops[1].stop_expr.debug_string() ==
+            f"SIZE({size_arg}, dim=1)")
     assert isinstance(loops[1].loop_body[0], IfBlock)
     # All Range nodes should have been replaced
     assert not loops[0].walk(Range)
@@ -906,8 +939,8 @@ def test_import_in_where_clause(fortran_reader):
     '''
     code = '''
     program where_test
-    implicit none
     use some_module, only: a, b, c, d
+    implicit none
 
     where(a(:) + b > 1)
        b = c + d
@@ -919,8 +952,8 @@ def test_import_in_where_clause(fortran_reader):
 
     code2 = '''
     program where_test
-    implicit none
     use some_module, only: c, d
+    implicit none
     integer, dimension(100) :: a, b
 
     where(a(:) + b > 1)
@@ -1164,8 +1197,7 @@ def test_elemental_function_to_loop(fortran_reader, fortran_writer):
     out = fortran_writer(psyir)
     assert correct in out
 
-    # Imported function has unknown elemental status. Only the import error
-    # is testable at the moment.
+    # Imported function has unknown elemental status.
     code = '''
     subroutine test
     use mod, only: somefunc
@@ -1177,27 +1209,10 @@ def test_elemental_function_to_loop(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir.children[0].children[0], CodeBlock)
     correct = '''! PSyclone CodeBlock (unsupported code) reason:
-  !  - PSyclone doesn't yet support reference to imported \
-symbols inside WHERE clauses.
-  WHERE (somefunc(a) < 2)
-    b = a
-  END WHERE'''
-    out = fortran_writer(psyir)
-    assert correct in out
-
-    code = '''
-    subroutine test
-    use mod
-    real, dimension(100) :: a, b
-    where(somefunc(a) < 2)
-        b = a
-    end where
-    end subroutine'''
-    psyir = fortran_reader.psyir_from_source(code)
-    assert isinstance(psyir.children[0].children[0], CodeBlock)
-    correct = '''! PSyclone CodeBlock (unsupported code) reason:
-  !  - PSyclone doesn't yet support reference to imported \
-symbols inside WHERE clauses.
+  !  - WHERE not supported because 'a' cannot be converted to an array \
+due to: Transformation Error: The supplied node is passed as an argument to \
+a Call that may or may not be elemental: 'somefunc(a)'. Consider \
+adding the function's filename to RESOLVE_IMPORTS.
   WHERE (somefunc(a) < 2)
     b = a
   END WHERE'''
@@ -1232,5 +1247,181 @@ def test_array_syntax_to_indexed_unknown_elemental(fortran_reader):
     parser = fortran_reader._processor
     with pytest.raises(NotImplementedError) as excinfo:
         parser._array_syntax_to_indexed(ifblock, ["i"])
-    assert ("Found a function call inside a where clause with unknown "
-            "elemental status: x(a(:)" in str(excinfo.value))
+    assert ("WHERE not supported because 'a' cannot be converted to an "
+            "array due to: Transformation Error: The supplied node is "
+            "passed as an argument to a Call that may or may not be elemental"
+            ": 'x(a(:))'. Consider adding the function's "
+            "filename to RESOLVE_IMPORTS." in str(excinfo.value))
+
+
+def test_nested_where(fortran_reader, fortran_writer, tmp_path):
+    ''' Test that we handle nested WHERE statements. '''
+
+    # If the types are not known it creates a codeblock with the associated
+    # reason explained
+    code = ("module my_mod\n"
+            "  use some_mod\n"
+            "contains\n"
+            "subroutine my_sub()\n"
+            "  WHERE ( z_lenp4(:,:) <= 0.0_wp )\n"
+            "    p_dal%D12(:,:,1) = 0.0_wp\n"
+            "    z_lenp2(:,:) = SQRT( p_dal%D11(:,:,1) * p_dal%D22(:,:,1) )\n"
+            "    WHERE ( z_lenp2(:,:) == 0.0_wp )\n"
+            "      p_dal%D11(:,:,1) = p_ens%D11_min(:,:)\n"
+            "      p_dal%D22(:,:,1) = p_ens%D22_min(:,:)\n"
+            "      z_lenp2(:,:) = z_lenp2_min(:,:)\n"
+            "    END WHERE\n"
+            "  END WHERE\n"
+            "end subroutine my_sub\n"
+            "end module my_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    code = fortran_writer(psyir)
+    assert ("WHERE not supported because 'p_dal' cannot be converted to an "
+            "array due to: Transformation Error: The supplied node should be "
+            "a Reference to a symbol of known type, but 'p_dal%D12(:,:,1)' is"
+            " 'UnresolvedType'. Consider adding the name of the file "
+            "containing the declaration of this quantity to RESOLVE_IMPORTS.")
+
+    # If enough information is provided, both WHEREs are resolved and nested
+    code = ("module my_mod\n"
+            "contains\n"
+            "subroutine my_sub()\n"
+            "  type :: mytype\n"
+            "    real, dimension(10,10,10) :: D11\n"
+            "    real, dimension(10,10,10) :: D12\n"
+            "    real, dimension(10,10,10) :: D22\n"
+            "  end type\n"
+            "  type :: mytype2\n"
+            "    real, dimension(10,10) :: D11_min\n"
+            "    real, dimension(10,10) :: D22_min\n"
+            "  end type\n"
+            "  type(mytype) :: p_dal\n"
+            "  type(mytype2) :: p_ens\n"
+            "  real, dimension(10,10) :: z_lenp2, z_lenp4, z_lenp2_min\n"
+            "  WHERE ( z_lenp4(:,:) <= 0.0 )\n"
+            "    p_dal%D12(:,:,1) = 0.0\n"
+            "    z_lenp2(:,:) = SQRT( p_dal%D11(:,:,1) * p_dal%D22(:,:,1) )\n"
+            "    WHERE ( z_lenp2(:,:) == 0.0 )\n"
+            "      p_dal%D11(:,:,1) = p_ens%D11_min(:,:)\n"
+            "      p_dal%D22(:,:,1) = p_ens%D22_min(:,:)\n"
+            "      z_lenp2(:,:) = z_lenp2_min(:,:)\n"
+            "    END WHERE\n"
+            "  END WHERE\n"
+            "end subroutine my_sub\n"
+            "end module my_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    code = fortran_writer(psyir)
+    assert """
+    do widx2 = 1, 10, 1
+      do widx1 = 1, 10, 1
+        if (z_lenp4(widx1,widx2) <= 0.0) then
+          p_dal%D12(widx1,widx2,1) = 0.0
+          z_lenp2(widx1,widx2) = \
+SQRT(p_dal%D11(widx1,widx2,1) * p_dal%D22(widx1,widx2,1))
+          do widx2_1 = 1, 10, 1
+            do widx1_1 = 1, 10, 1
+              if (z_lenp2(widx1_1,widx2_1) == 0.0) then
+                p_dal%D11(widx1_1,widx2_1,1) = p_ens%D11_min(widx1_1,widx2_1)
+                p_dal%D22(widx1_1,widx2_1,1) = p_ens%D22_min(widx1_1,widx2_1)
+                z_lenp2(widx1_1,widx2_1) = z_lenp2_min(widx1_1,widx2_1)
+              end if
+            enddo
+          enddo
+        end if
+      enddo
+    enddo""" in code
+    assert Compile(tmp_path).string_compiles(code)
+
+
+def test_multiline_where_with_preceding_comment(fortran_writer, tmp_path):
+    '''Test that if we have a multiline where statement (resulting in
+    a node containing a Fortran2003.Where_Construct_Stmt) with a
+    preceding comment we get the expected result.'''
+    code = """subroutine test()
+    real, dimension(100) :: arr1, arr2
+    arr1 = 0.0
+    ! Here is a comment
+    ! Here is another comment
+    where (arr1 == 0.0)
+        arr2  = arr1 * 3
+    elsewhere
+        arr2 = 0
+    end where
+    end subroutine test"""
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert len(routine.children) == 2
+    assert isinstance(routine[1], Loop)
+    assert routine[1].preceding_comment == (
+        "Here is a comment\nHere is another comment"
+    )
+    code = fortran_writer(psyir)
+    assert Compile(tmp_path).string_compiles(code)
+
+    # Check that we produce the correct output when
+    # there are comments inline on the various where statements.
+    code = """subroutine test()
+    real, dimension(100) :: arr1, arr2
+    arr1 = 0.0
+    where (arr1 == 0.0) ! Here is a comment on where
+        arr2 = arr1 * 3
+    elsewhere ! Here is a comment on elsewhere
+        arr2 = 0 ! An inline comment
+    end where ! Here is a comment on end where
+    end subroutine test"""
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert len(routine.children) == 2
+    loop = routine[1]
+    assert isinstance(loop, Loop)
+    where_body = loop.loop_body[0].if_body[0]
+    assert where_body.preceding_comment == "Here is a comment on where"
+    elsewhere_body = loop.loop_body[0].else_body[0]
+    assert elsewhere_body.preceding_comment == "Here is a comment on elsewhere"
+    # The end where comment is classed as the inline comment.
+    assert loop.inline_comment == "Here is a comment on end where"
+    correct = """subroutine test()
+  real, dimension(100) :: arr1
+  real, dimension(100) :: arr2
+  integer :: widx1
+
+  arr1 = 0.0
+  do widx1 = 1, 100, 1
+    if (arr1(widx1) == 0.0) then
+      ! Here is a comment on where
+      arr2(widx1) = arr1(widx1) * 3
+    else
+      ! Here is a comment on elsewhere
+      arr2(widx1) = 0  ! An inline comment
+    end if
+  enddo  ! Here is a comment on end where
+
+end subroutine test"""
+    code = fortran_writer(psyir)
+    assert correct in code
+    assert Compile(tmp_path).string_compiles(code)
+
+
+def test_where_with_preceding_comment_and_reduction_intrinsic():
+    '''Test that when we have a where statement with preceding comments
+    and a reduction intrinsic we flag the NotImplementedError correctly.'''
+    # TODO #1960: Reduction intrinsics in where statements are not yet
+    # supported. This also loses any preceding comment.
+    code = """subroutine x
+  real, dimension(100) :: arr1, arr3
+  real, dimension(100) :: arr2
+
+    ! Here is a comment.
+    where (arr1 == 0.0)
+        arr2  = MAXVAL(arr1, 1) * 3
+    end where
+    end subroutine x"""
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert isinstance(routine.children[0], CodeBlock)
+    pytest.xfail(
+        "Xfail #1960: Reduction intrinsics in where's are not supported"
+        "when they return an array.")

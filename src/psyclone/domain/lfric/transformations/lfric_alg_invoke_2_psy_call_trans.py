@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -64,6 +64,7 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
     transformation.
 
     '''
+
     def validate(self, node, options=None):
         '''Validate the node argument.
 

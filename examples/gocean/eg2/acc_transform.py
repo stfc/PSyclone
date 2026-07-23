@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,8 +41,9 @@ to have them compiled for an OpenACC accelerator. '''
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import Loop
 from psyclone.transformations import (
-    ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans,
+    ACCParallelTrans, ACCEnterDataTrans, ACCRoutineTrans,
     TransformationError)
+from psyclone.psyir.transformations import ACCLoopTrans
 
 
 def trans(psyir):
@@ -67,7 +68,7 @@ def trans(psyir):
                     ktrans.apply(kern)
                     itrans.apply(kern)
             except TransformationError:
-                # TODO #2856: Currenly we refuse to offload code containing
+                # TODO #2856: Currently we refuse to offload code containing
                 # the REAL intrinsic
                 continue
 

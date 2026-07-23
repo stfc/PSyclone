@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -233,9 +233,9 @@ class Container(ScopingNode, CommentableMixin):
         :raises TypeError: if the Symbol with the supplied name is not a
             RoutineSymbol, GenericInterfaceSymbol or imported Symbol.
         '''
-        try:
-            rsym = self.symbol_table.lookup(name)
-        except KeyError:
+        rsym = self.symbol_table.lookup(name, otherwise=None,
+                                        scope_limit=self)
+        if not rsym:
             return []
         if isinstance(rsym, GenericInterfaceSymbol):
             return [rt.symbol.name.lower() for rt in rsym.routines]

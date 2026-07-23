@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,7 @@
 
 ''' PSyIR nodes package module '''
 
+from psyclone.psyir.nodes.array_constructor import ArrayConstructor
 from psyclone.psyir.nodes.acc_clauses import (
     ACCAsyncQueueClause, ACCCopyClause, ACCCopyInClause,
     ACCCopyOutClause)
@@ -46,7 +47,12 @@ from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.array_of_structures_reference import (
     ArrayOfStructuresReference)
 from psyclone.psyir.nodes.assignment import Assignment
-from psyclone.psyir.nodes.codeblock import CodeBlock
+from psyclone.psyir.nodes.atomic_mixin import (
+    AtomicDirectiveType,
+    AtomicDirectiveMixin,
+)
+from psyclone.psyir.nodes.codeblock import (
+    CodeBlock, Fparser2CodeBlock, TreeSitterCodeBlock)
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.node import colored, Node
 from psyclone.psyir.nodes.scoping_node import ScopingNode
@@ -75,7 +81,7 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.structure_member import StructureMember
-from psyclone.psyir.nodes.call import Call
+from psyclone.psyir.nodes.call import Call, CallMatchingArgumentsNotFound
 from psyclone.psyir.nodes.file_container import FileContainer
 from psyclone.psyir.nodes.directive import (
     Directive, StandaloneDirective, RegionDirective)
@@ -93,8 +99,10 @@ from psyclone.psyir.nodes.omp_directives import (
     OMPStandaloneDirective, OMPRegionDirective, OMPTargetDirective,
     OMPLoopDirective, OMPDeclareTargetDirective,
     OMPTeamsDistributeParallelDoDirective, OMPAtomicDirective,
-    OMPSimdDirective, OMPTeamsLoopDirective, OMPBarrierDirective)
-from psyclone.psyir.nodes.clause import Clause, OperandClause
+    OMPSimdDirective, OMPTeamsLoopDirective, OMPBarrierDirective,
+    OMPCriticalDirective)
+from psyclone.psyir.nodes.unknown_directive import UnknownDirective
+from psyclone.psyir.nodes.clause import Clause, OperatorClause
 from psyclone.psyir.nodes.omp_clauses import (
     OMPGrainsizeClause, OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause,
     OMPPrivateClause, OMPDefaultClause, OMPReductionClause, OMPScheduleClause,
@@ -106,13 +114,17 @@ from psyclone.psyir.nodes.while_loop import WhileLoop
 # this package e.g. 'from psyclone.psyir.nodes import Literal'
 __all__ = [
         'colored',
+        'ArrayConstructor',
         'ArrayMember',
         'ArrayReference',
         'ArrayOfStructuresMember',
         'ArrayOfStructuresReference',
         'Assignment',
+        'AtomicDirectiveType',
+        'AtomicDirectiveMixin',
         'BinaryOperation',
         'Call',
+        'CallMatchingArgumentsNotFound',
         'Clause',
         'CodeBlock',
         'Container',
@@ -124,7 +136,7 @@ __all__ = [
         'Loop',
         'Member',
         'Node',
-        'OperandClause',
+        'OperatorClause',
         'Operation',
         'Range',
         'Reference',
@@ -137,6 +149,9 @@ __all__ = [
         'UnaryOperation',
         'ScopingNode',
         'WhileLoop',
+        # CodeBlock nodes
+        'Fparser2CodeBlock',
+        'TreeSitterCodeBlock',
         # PSyclone-specific nodes
         'KernelSchedule',
         # PSyData Nodes
@@ -187,6 +202,8 @@ __all__ = [
         'OMPSimdDirective',
         'OMPTeamsDistributeParallelDoDirective',
         'OMPTeamsLoopDirective',
+        'UnknownDirective',
+        'OMPCriticalDirective',
         # OMP Clause Nodes
         'OMPGrainsizeClause',
         'OMPNogroupClause',
@@ -198,5 +215,5 @@ __all__ = [
         'OMPScheduleClause',
         'OMPFirstprivateClause',
         'OMPSharedClause',
-        'OMPDependClause'
+        'OMPDependClause',
         ]

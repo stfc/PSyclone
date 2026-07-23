@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,8 +43,8 @@ transform: omp_levels
 
 omp_levels:
 	${PSYCLONE} -s ./omp_levels_trans.py ../code/traldf_iso.F90
-	${PSYCLONE} -s ../scripts/omp_cpu_trans.py ../code/traldf_iso.F90
-	${PSYCLONE} -s ../scripts/omp_gpu_trans.py ../code/traldf_iso.F90
+	PARLLEL_DIRECTIVES="omp_threading" ${PSYCLONE} -s ../scripts/insert_loop_parallelism.py ../code/traldf_iso.F90
+	PARLLEL_DIRECTIVES="omp_offloading" ${PSYCLONE} -s ../scripts/insert_loop_parallelism.py ../code/traldf_iso.F90
 
 
 compile: transform

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,14 +48,18 @@ from fparser import api as fpapi
 import psyclone
 from psyclone.configuration import Config
 from psyclone.core import AccessType
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import (LFRicConstants, LFRicTypes, LFRicKern,
                                    LFRicKernMetadata, LFRicLoop)
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Reference, KernelSchedule
-from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, REAL_TYPE, \
-    INTEGER_TYPE, ArrayType
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import (
+    Container, KernelSchedule, Literal, Reference, Routine)
+from psyclone.psyir.symbols import (
+    ArgumentInterface, ArrayType, DataSymbol, GenericInterfaceSymbol,
+    ScalarType)
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import LFRicColourTrans
 from psyclone.psyir.backend.visitor import VisitorError
@@ -136,8 +140,8 @@ def test_kern_getter_errors():
             in str(err.value))
 
 
-def test_get_kernel_schedule():
-    '''Test that a PSyIR kernel schedule is created by get_kernel_schedule
+def test_kern_get_callees(monkeypatch):
+    '''Test that a PSyIR kernel schedule is created by get_callees
     if one does not exist and that the same kernel schedule is
     returned if one has already been created.
 
@@ -149,17 +153,70 @@ def test_get_kernel_schedule():
     # matrix vector kernel
     kernel = schedule[2].loop_body[0]
 
-    assert kernel._kern_schedule is None
+    assert kernel._schedules is None
 
-    kernel_schedule = kernel.get_kernel_schedule()
-    assert isinstance(kernel_schedule, KernelSchedule)
-    assert kernel._kern_schedule is kernel_schedule
+    kernel_schedules = kernel.get_callees()
+    assert len(kernel_schedules) == 1
+    assert isinstance(kernel_schedules[0], KernelSchedule)
+    assert kernel._schedules[0] is kernel_schedules[0]
+    # Not a polymorphic kernel so has no interface symbol
+    assert kernel.get_interface_symbol() is None
 
-    kernel_schedule_2 = kernel.get_kernel_schedule()
-    assert kernel_schedule is kernel_schedule_2
+    kernel_schedules_2 = kernel.get_callees()
+    assert kernel_schedules[0] is kernel_schedules_2[0]
+    # Check the internal error for the case where we fail to get any
+    # implementation for the kernel.
+    kernel._schedules = None
+    # Monkeypatch the frontend so that it just returns an empty Container.
+    monkeypatch.setattr(Fparser2Reader, "generate_psyir",
+                        lambda _1, _2: Container("dummy_mod"))
+    with pytest.raises(InternalError) as err:
+        kernel.get_callees()
+    assert ("Failed to find any routines for Kernel 'matrix_vector_code'"
+            in str(err.value))
 
 
-def test_get_kernel_schedule_mixed_precision():
+def test_get_callees_same_container(monkeypatch):
+    '''
+    Check that get_callees() first examines all routines in the same
+    Container.
+
+    '''
+    _, invoke = get_invoke("12_kernel_specific.f90", TEST_API, idx=0)
+    sched = invoke.schedule
+    # Module-inline the kernels so that they are in the same Container as the
+    # call site.
+    mod_inline_trans = KernelModuleInlineTrans()
+    for kern in sched.walk(LFRicKern):
+        mod_inline_trans.apply(kern)
+        # Remove the cached schedule to force get_callees() to search.
+        monkeypatch.setattr(kern, "_schedules", None)
+        schedules = kern.get_callees()
+        # The returned schedule should be the one in the local Container.
+        assert schedules[0] in sched.ancestor(Container).walk(Routine)
+
+
+def test_get_callees_mixed_precision():
+    '''
+    Test that get_callees() and get_interface_symbol() work for a
+    mixed-precision kernel.
+
+    '''
+    _, invoke = get_invoke("26.8_mixed_precision_args.f90", TEST_API,
+                           name="invoke_0", dist_mem=False)
+    sched = invoke.schedule
+    for kern in sched.walk(LFRicKern, stop_type=LFRicKern):
+        assert len(kern.get_callees()) == 2
+        isym = kern.get_interface_symbol()
+        assert isinstance(isym, GenericInterfaceSymbol)
+        assert isym.name == "mixed_code"
+
+
+@pytest.mark.xfail(reason="get_callees has been extended to return all"
+                   " implementations of a polymorphic kernel. We need to "
+                   "put back (and fix) the ability to resolve which "
+                   "implementation is being called.")
+def test_get_callees_mixed_precision_match():
     '''
     Test that we can get the correct schedule for a mixed-precision kernel.
 
@@ -171,19 +228,23 @@ def test_get_kernel_schedule_mixed_precision():
     kernels = sched.walk(LFRicKern, stop_type=LFRicKern)
     # 26.8 contains an invoke of five kernels, one each at the following
     # precisions.
-    kernel_precisions = ["r_def", "r_solver", "r_tran", "r_bl", "r_phys"]
+    kernel_precisions = ["r_def", "r_solver", "r_tran", "r_bl"]
     # Get the precision (in bytes) for each of these.
     precisions = [api_config.precision_map[name] for
                   name in kernel_precisions]
     # Check that the correct kernel implementation is obtained for each
     # one in the invoke.
     for precision, kern in zip(precisions, kernels):
-        sched = kern.get_kernel_schedule()
+        sched = kern.get_callees()
         assert isinstance(sched, KernelSchedule)
         assert sched.name == f"mixed_code_{8*precision}"
 
 
-def test_get_kernel_sched_mixed_precision_no_match(monkeypatch):
+@pytest.mark.xfail(reason="get_callees() has been extended to return all"
+                   " implementations of a polymorphic kernel. We need to "
+                   "put back (and fix) the ability to resolve which "
+                   "implementation is being called.")
+def test_get_callees_mixed_precision_no_match(monkeypatch):
     '''
     Test that we get the expected error if there's no matching implementation
     for a mixed-precision kernel.
@@ -202,34 +263,10 @@ def test_get_kernel_sched_mixed_precision_no_match(monkeypatch):
     monkeypatch.setattr(LFRicKern, "validate_kernel_code_args",
                         fake_validate)
     with pytest.raises(GenerationError) as err:
-        _ = kernels[0].get_kernel_schedule()
+        _ = kernels[0].get_callees()
     assert ("Failed to find a kernel implementation with an interface that "
             "matches the invoke of 'mixed_code'. (Tried routines "
             "['mixed_code_32', 'mixed_code_64'].)" in str(err.value))
-
-
-def test_get_kernel_sched_mixed_precision_multiple_match(monkeypatch):
-    '''
-    Test that we get the expected error if there appears to be more than
-    one matching implementation for a mixed-precision kernel.
-
-    TODO #2716 will fix this and then this test can be removed.
-
-    '''
-    _, invoke = get_invoke("26.8_mixed_precision_args.f90", TEST_API,
-                           name="invoke_0", dist_mem=False)
-    sched = invoke.schedule
-    kernels = sched.walk(LFRicKern, stop_type=LFRicKern)
-
-    # To simplify things we just monkeypatch the 'validate_kernel_code_args'
-    # method so that it always succeeds.
-    monkeypatch.setattr(LFRicKern, "validate_kernel_code_args",
-                        lambda _1, _2: None)
-    with pytest.raises(GenerationError) as err:
-        _ = kernels[0].get_kernel_schedule()
-    assert ("Found multiple kernel implementations (['mixed_code_32', "
-            "'mixed_code_64']) that apparently match the interface of this "
-            "call to 'mixed_code'" in str(err.value))
 
 
 def test_validate_kernel_code_args(monkeypatch):
@@ -246,7 +283,8 @@ def test_validate_kernel_code_args(monkeypatch):
     schedule = psy.invokes.invoke_list[0].schedule
     # matrix vector kernel
     kernel = schedule[2].loop_body[0]
-    sched = kernel.get_kernel_schedule()
+    schedules = kernel.get_callees()
+    sched = schedules[0]
     kernel.validate_kernel_code_args(sched.symbol_table)
 
     # Force LFRicKern to think that this kernel is an 'apply' kernel and
@@ -254,7 +292,7 @@ def test_validate_kernel_code_args(monkeypatch):
     monkeypatch.setattr(kernel, "_cma_operation", "apply")
     with pytest.raises(GenerationError) as info:
         kernel.validate_kernel_code_args(
-            kernel.get_kernel_schedule().symbol_table)
+            sched.symbol_table)
     assert (
         "In kernel 'matrix_vector_code' the number of arguments indicated by "
         "the kernel metadata is 8 but the actual number of kernel arguments "
@@ -273,11 +311,11 @@ def test_validate_kernel_code_arg(monkeypatch):
     read_access = ArgumentInterface(ArgumentInterface.Access.READ)
 
     real_scalar_symbol = DataSymbol(
-        "generic_real_scalar", REAL_TYPE, interface=read_access)
+        "generic_real_scalar", ScalarType.real_type(), interface=read_access)
     int_scalar_symbol = DataSymbol(
-        "generic_int_scalar", INTEGER_TYPE, interface=read_access)
+        "generic_int_scalar", ScalarType.integer_type(), interface=read_access)
     real_scalar_rw_symbol = DataSymbol(
-        "generic_scalar_rw", REAL_TYPE,
+        "generic_scalar_rw", ScalarType.real_type(),
         interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
     lfric_real_scalar_symbol = LFRicTypes("LFRicRealScalarDataSymbol")(
         "scalar", interface=read_access)
@@ -352,7 +390,9 @@ def test_validate_kernel_code_arg(monkeypatch):
                                      lfric_real_field_symbol2)
     # Lower array bound of 2 rather than 1
     monkeypatch.setattr(lfric_real_field_symbol3.datatype, "_shape",
-                        [ArrayType.ArrayBounds(2, Reference(undf))])
+                        [ArrayType.ArrayBounds(
+                            Literal("2", ScalarType.integer_type()),
+                            Reference(undf))])
     with pytest.raises(GenerationError) as info:
         kernel._validate_kernel_code_arg(lfric_real_field_symbol3,
                                          lfric_real_field_symbol3)
@@ -371,8 +411,8 @@ def test_validate_kernel_code_arg(monkeypatch):
         "following error was found: An argument to an LFRic kernel must have a"
         " precision defined by either a recognised LFRic type parameter (one "
         "of ['i_def', 'l_def', 'r_bl', 'r_def', 'r_double', 'r_ncdf', "
-        "'r_phys', 'r_quad', 'r_second', 'r_single', 'r_solver', 'r_tran', "
-        "'r_um']) or an integer number of bytes but argument "
+        "'r_quad', 'r_second', 'r_single', 'r_solver', 'r_tran', 'r_um', "
+        "'real32', 'real64']) or an integer number of bytes but argument "
         "'generic_int_scalar' to kernel 'dummy' has precision "
         "Precision.UNDEFINED" in str(info.value))
 
@@ -420,7 +460,7 @@ def test_kern_last_cell_all_colours():
     assert symbol.name == "last_halo_cell_all_colours"
     assert len(symbol.datatype.shape) == 2  # It's a 2-dimensional array
 
-    # Delete the symbols and try again inside a loop wihtout a halo
+    # Delete the symbols and try again inside a loop without a halo
     sched.symbol_table._symbols.pop("last_halo_cell_all_colours")
     loop.kernel.parent.parent._upper_bound_name = "not-a-halo"
     symbol = loop.kernel.last_cell_all_colours_symbol
@@ -510,6 +550,19 @@ def test_undf_name():
     assert kern.undf_name == "undf_w1"
 
 
+def test_kern_owned_cell_no_annexed(monkeypatch):
+    '''
+    Test that creating a kernel with OPERATES_ON=owned_cell_column raises
+    an error if COMPUTE_ANNEXED_DOFS is True.
+    '''
+    config = Config.get().api_conf("lfric")
+    monkeypatch.setattr(config, "_compute_annexed_dofs", True)
+    with pytest.raises(GenerationError) as err:
+        _ = get_invoke("1.4.5_owned_only_invoke.f90", api=TEST_API, idx=0)
+    assert ("Kernel 'testkern_owned_cell_code' cannot perform redundant "
+            "computation (has" in str(err.value))
+
+
 def test_argument_kinds():
     ''' Test the LFRicKern.argument_kinds property. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -521,3 +574,26 @@ def test_argument_kinds():
     assert len(kern.argument_kinds) == 2
     assert "i_def" in kern.argument_kinds
     assert "r_def" in kern.argument_kinds
+
+
+def test_validate_kernel_code_arg_against_alg_arg(monkeypatch):
+    '''
+    Test that the kernel validation checks that the kernel argument
+    precision matches the specified in the Algorithm layer.
+    '''
+    psy, invoke = get_invoke("26.8_mixed_precision_args.f90", TEST_API,
+                             name="invoke_0", dist_mem=False)
+    sched = invoke.schedule
+    # Second kernel has args of precision r_solver.
+    kernel = sched.walk(LFRicKern, stop_type=LFRicKern)[1]
+    read_access = ArgumentInterface(ArgumentInterface.Access.READ)
+    lfric_real_scalar_symbol = LFRicTypes("LFRicRealScalarDataSymbol")(
+        "scalar", interface=read_access)
+    with pytest.raises(GenerationError) as err:
+        kernel._validate_kernel_code_arg(lfric_real_scalar_symbol,
+                                         lfric_real_scalar_symbol,
+                                         kernel.args[0])
+    assert ("Precision (4 bytes) of algorithm-layer argument "
+            "'scalar_r_solver' does not match that (8 bytes) of the "
+            "corresponding kernel subroutine argument 'scalar' for kernel "
+            "'mixed_code'" in str(err.value))

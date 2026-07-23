@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,7 @@ import pytest
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
     Intrinsic2CodeTrans)
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.nodes import (
     Reference, Assignment, Literal, IntrinsicCall)
 
@@ -56,7 +56,7 @@ def test_create():
     # Python >= 3.9 spots that 'method' should be singular. Prior to this it
     # was plural. Python >= 3.12 tweaks the error message yet again to mention
     # the lack of an implementation and to quote the method name.
-    # We split the check to accomodate for this.
+    # We split the check to accommodate for this.
     assert ("Can't instantiate abstract class Intrinsic2CodeTrans with" in msg)
     assert ("abstract method" in msg)
     assert ("apply" in msg)
@@ -93,7 +93,7 @@ def test_validate():
     dummy = DummyTrans()
     dummy._intrinsic = IntrinsicCall.Intrinsic.ABS
 
-    var = Literal("0.0", REAL_TYPE)
+    var = Literal("0.0", ScalarType.real_type())
     intrinsic = IntrinsicCall.create(IntrinsicCall.Intrinsic.ABS, [var])
 
     with pytest.raises(TransformationError) as excinfo:
@@ -102,7 +102,7 @@ def test_validate():
             "assignment statement, but no such assignment was found."
             in str(excinfo.value))
 
-    reference = Reference(DataSymbol("fred", REAL_TYPE))
+    reference = Reference(DataSymbol("fred", ScalarType.real_type()))
     _ = Assignment.create(lhs=reference, rhs=intrinsic)
 
     with pytest.raises(TransformationError) as excinfo:

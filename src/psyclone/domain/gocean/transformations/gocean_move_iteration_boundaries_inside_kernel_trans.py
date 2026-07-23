@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,16 +35,18 @@
 
 '''This module contains the GOMoveIterationBoundariesInsideKernelTrans.'''
 
+from psyclone.psyir.transformations.callee_transformation_mixin import (
+    CalleeTransformationMixin)
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyGen import Transformation, InvokeSchedule
 from psyclone.gocean1p0 import GOKern
-from psyclone.psyir.nodes import (BinaryOperation, Reference, Loop,
+from psyclone.psyir.nodes import (BinaryOperation, Container, Reference, Loop,
                                   Assignment, IfBlock, Return)
-from psyclone.psyir.symbols import (INTEGER_TYPE, ArgumentInterface,
-                                    DataSymbol)
+from psyclone.psyir.symbols import ScalarType, ArgumentInterface, DataSymbol
 
 
-class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
+class GOMoveIterationBoundariesInsideKernelTrans(Transformation,
+                                                 CalleeTransformationMixin):
     ''' Provides a transformation that moves iteration boundaries that are
     encoded in the Loops lower_bound() and upper_bound() methods to a mask
     inside the kernel with the boundaries passed as kernel arguments.
@@ -109,6 +111,8 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
                 f"can only be applied to 'GOKern' nodes, but found "
                 f"'{type(node).__name__}'.")
 
+        self._check_callee_implementation_is_local(node)
+
     def apply(self, node, options=None):
         '''Apply this transformation to the supplied node.
 
@@ -120,6 +124,100 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         '''
         self.validate(node, options)
 
+        self._boundary_values_declare_and_init(node)
+
+        # Check that this transformation hasn't already been applied to
+        # the associated kernel implementation (which has been module inlined).
+        ksched = node.get_callees()[0]
+        all_tags = ksched.symbol_table.get_tags(scope_limit=ksched)
+        if "xstart_arg" in all_tags:
+            return
+
+        # Update Kernel Call argument list. We have to do this for *every*
+        # matching Kernel since they all call the same, module-inlined,
+        # implementation.
+        for kern in node.ancestor(Container).walk(GOKern):
+            if kern.name == node.name:
+                bvalues = self._boundary_values_declare_and_init(kern)
+                for symbol in bvalues:
+                    kern.arguments.append(symbol.name, "go_i_scalar")
+
+        # Update Kernel implementation(s).
+        for kschedule in node.get_callees():
+
+            kernel_st = kschedule.symbol_table
+            iteration_indices = kernel_st.iteration_indices
+            data_arguments = kernel_st.data_arguments
+
+            # Create new symbols and insert them as kernel arguments at the
+            # end of the kernel argument list
+            xstart_symbol = kernel_st.new_symbol(
+                "xstart", tag="xstart_arg",
+                symbol_type=DataSymbol, datatype=ScalarType.integer_type(),
+                interface=ArgumentInterface(ArgumentInterface.Access.READ))
+            xstop_symbol = kernel_st.new_symbol(
+                "xstop", tag="xstop_arg",
+                symbol_type=DataSymbol, datatype=ScalarType.integer_type(),
+                interface=ArgumentInterface(ArgumentInterface.Access.READ))
+            ystart_symbol = kernel_st.new_symbol(
+                "ystart", tag="ystart_arg",
+                symbol_type=DataSymbol, datatype=ScalarType.integer_type(),
+                interface=ArgumentInterface(ArgumentInterface.Access.READ))
+            ystop_symbol = kernel_st.new_symbol(
+                "ystop", tag="ystop_arg",
+                symbol_type=DataSymbol, datatype=ScalarType.integer_type(),
+                interface=ArgumentInterface(ArgumentInterface.Access.READ))
+            kernel_st.specify_argument_list(
+                iteration_indices + data_arguments +
+                [xstart_symbol, xstop_symbol, ystart_symbol, ystop_symbol])
+
+            # Create boundary masking conditions
+            condition1 = BinaryOperation.create(
+                BinaryOperation.Operator.LT,
+                Reference(iteration_indices[0]),
+                Reference(xstart_symbol))
+            condition2 = BinaryOperation.create(
+                BinaryOperation.Operator.GT,
+                Reference(iteration_indices[0]),
+                Reference(xstop_symbol))
+            condition3 = BinaryOperation.create(
+                BinaryOperation.Operator.LT,
+                Reference(iteration_indices[1]),
+                Reference(ystart_symbol))
+            condition4 = BinaryOperation.create(
+                BinaryOperation.Operator.GT,
+                Reference(iteration_indices[1]),
+                Reference(ystop_symbol))
+
+            condition = BinaryOperation.create(
+                BinaryOperation.Operator.OR,
+                BinaryOperation.create(
+                    BinaryOperation.Operator.OR,
+                    condition1,
+                    condition2),
+                BinaryOperation.create(
+                    BinaryOperation.Operator.OR,
+                    condition3,
+                    condition4)
+                )
+
+            # Insert the conditional mask as the first statement of the kernel
+            if_statement = IfBlock.create(condition, [Return()])
+            kschedule.children.insert(0, if_statement)
+
+    def _boundary_values_declare_and_init(
+            self, node: GOKern) -> tuple[DataSymbol, DataSymbol,
+                                         DataSymbol, DataSymbol]:
+        '''
+        Declare and initialise the loop boundary values required for
+        the supplied kernel.
+
+        :param node: the GOcean kernel for which the loop boundaries are
+                     required.
+
+        :returns: a tuple of the DataSymbols representing the x-start, x-stop,
+                  y-start and y-stop loop limits, in that order.
+        '''
         # Get useful references
         invoke_st = node.ancestor(InvokeSchedule).symbol_table
         inner_loop = node.ancestor(Loop)
@@ -129,16 +227,16 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         # Make sure the boundary symbols in the PSylayer exist
         inv_xstart = invoke_st.find_or_create_tag(
             "xstart_" + node.name, root_name="xstart", symbol_type=DataSymbol,
-            datatype=INTEGER_TYPE)
+            datatype=ScalarType.integer_type())
         inv_xstop = invoke_st.find_or_create_tag(
             "xstop_" + node.name, root_name="xstop", symbol_type=DataSymbol,
-            datatype=INTEGER_TYPE)
+            datatype=ScalarType.integer_type())
         inv_ystart = invoke_st.find_or_create_tag(
             "ystart_" + node.name, root_name="ystart", symbol_type=DataSymbol,
-            datatype=INTEGER_TYPE)
+            datatype=ScalarType.integer_type())
         inv_ystop = invoke_st.find_or_create_tag(
             "ystop_" + node.name, root_name="ystop", symbol_type=DataSymbol,
-            datatype=INTEGER_TYPE)
+            datatype=ScalarType.integer_type())
 
         # If the kernel acts on the whole iteration space, the boundary values
         # are not needed. This also avoids adding duplicated arguments if this
@@ -149,7 +247,7 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
                 outer_loop.field_space == "go_every" and
                 inner_loop.iteration_space == "go_all_pts" and
                 outer_loop.iteration_space == "go_all_pts"):
-            return node.root, None
+            return (inv_xstart, inv_xstop, inv_ystart, inv_ystop)
 
         # Initialise the boundary values provided by the Loop construct
         assign1 = Assignment.create(Reference(inv_xstart),
@@ -168,10 +266,6 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
                                     outer_loop.stop_expr.copy())
         outer_loop.parent.children.insert(cursor, assign4)
 
-        # Update Kernel Call argument list
-        for symbol in [inv_xstart, inv_xstop, inv_ystart, inv_ystop]:
-            node.arguments.append(symbol.name, "go_i_scalar")
-
         # Now that the boundaries are inside the kernel, the looping should go
         # through all the field points
         inner_loop.field_space = "go_every"
@@ -179,63 +273,7 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         inner_loop.iteration_space = "go_all_pts"
         outer_loop.iteration_space = "go_all_pts"
 
-        # Update Kernel
-        kschedule = node.get_kernel_schedule()
-        kernel_st = kschedule.symbol_table
-        iteration_indices = kernel_st.iteration_indices
-        data_arguments = kernel_st.data_arguments
-
-        # Create new symbols and insert them as kernel arguments at the end of
-        # the kernel argument list
-        xstart_symbol = kernel_st.new_symbol(
-            "xstart", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-            interface=ArgumentInterface(ArgumentInterface.Access.READ))
-        xstop_symbol = kernel_st.new_symbol(
-            "xstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-            interface=ArgumentInterface(ArgumentInterface.Access.READ))
-        ystart_symbol = kernel_st.new_symbol(
-            "ystart", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-            interface=ArgumentInterface(ArgumentInterface.Access.READ))
-        ystop_symbol = kernel_st.new_symbol(
-            "ystop", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-            interface=ArgumentInterface(ArgumentInterface.Access.READ))
-        kernel_st.specify_argument_list(
-            iteration_indices + data_arguments +
-            [xstart_symbol, xstop_symbol, ystart_symbol, ystop_symbol])
-
-        # Create boundary masking conditions
-        condition1 = BinaryOperation.create(
-            BinaryOperation.Operator.LT,
-            Reference(iteration_indices[0]),
-            Reference(xstart_symbol))
-        condition2 = BinaryOperation.create(
-            BinaryOperation.Operator.GT,
-            Reference(iteration_indices[0]),
-            Reference(xstop_symbol))
-        condition3 = BinaryOperation.create(
-            BinaryOperation.Operator.LT,
-            Reference(iteration_indices[1]),
-            Reference(ystart_symbol))
-        condition4 = BinaryOperation.create(
-            BinaryOperation.Operator.GT,
-            Reference(iteration_indices[1]),
-            Reference(ystop_symbol))
-
-        condition = BinaryOperation.create(
-            BinaryOperation.Operator.OR,
-            BinaryOperation.create(
-                BinaryOperation.Operator.OR,
-                condition1,
-                condition2),
-            BinaryOperation.create(
-                BinaryOperation.Operator.OR,
-                condition3,
-                condition4)
-            )
-
-        # Insert the conditional mask as the first statement of the kernel
-        if_statement = IfBlock.create(condition, [Return()])
-        kschedule.children.insert(0, if_statement)
+        return (inv_xstart, inv_xstop, inv_ystart, inv_ystop)
 
 
 # For Sphinx AutoAPI documentation generation

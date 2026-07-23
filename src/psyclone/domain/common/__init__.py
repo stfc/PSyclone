@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council
+# Copyright (c) 2021-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,8 +35,6 @@
 
 '''A package module for domain/common.'''
 
-from psyclone.domain.common.base_driver_creator import BaseDriverCreator
-from psyclone.domain.common.extract_driver_creator import ExtractDriverCreator
+from psyclone.domain.common.driver_creator import DriverCreator
 
-__all__ = ["BaseDriverCreator",
-           "ExtractDriverCreator"]
+__all__ = ["DriverCreator"]

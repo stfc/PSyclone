@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,14 +40,13 @@ transformations to tangent-linear PSyIR to return its PSyIR adjoint.
 
 import logging
 
-from fparser.two import Fortran2003
 from psyclone.psyad.transformations import AssignmentTrans
 from psyclone.psyad.utils import node_is_passive, node_is_active, negate_expr
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.nodes import (Routine, Schedule, Reference, Node, Literal,
-                                  CodeBlock, BinaryOperation, Assignment,
-                                  IfBlock, IntrinsicCall, Call)
+from psyclone.psyir.nodes import (
+    Routine, Schedule, Reference, Node, Literal, BinaryOperation,
+    Assignment, CodeBlock, IfBlock, IntrinsicCall, Call)
 from psyclone.psyir.symbols import ArgumentInterface, GenericInterfaceSymbol
 from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
 
@@ -93,7 +92,7 @@ class AdjointVisitor(PSyIRVisitor):
         '''This method is called if the visitor finds a Schedule node. A copy
         of the schedule is returned, as this does not change when
         converting from tangent linear to adjoint and its children are
-        re-ordered and sorted dependending on whether they are active
+        re-ordered and sorted depending on whether they are active
         or passive nodes.
 
         As a schedule contains variable scoping information, i.e. a
@@ -232,11 +231,11 @@ class AdjointVisitor(PSyIRVisitor):
         :param node: an Assignment PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
 
-        :returns: a list of PSyIR nodes containing the adjoint \
+        :returns: a list of PSyIR nodes containing the adjoint
             of this node.
         :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises VisitorError: if the schedule_node method has not been \
+        :raises VisitorError: if the schedule_node method has not been
             called previously.
 
         '''
@@ -247,8 +246,9 @@ class AdjointVisitor(PSyIRVisitor):
                 "as the latter sets up the active variables.")
         assign_trans = AssignmentTrans(self._active_variables)
         new_node = node.copy()
-        # Temporary parent schedule required by the transformation.
-        dummy_schedule = Schedule()
+        # Temporary parent schedule required by the transformation. Needs
+        # access to the ancestor scoping region in order to resolve symbols.
+        dummy_schedule = Schedule(parent=node.scope)
         dummy_schedule.children.append(new_node)
         assign_trans.apply(new_node)
         return dummy_schedule.pop_all_children()
@@ -290,7 +290,7 @@ class AdjointVisitor(PSyIRVisitor):
                                   (node.stop_expr, "upper bound"),
                                   (node.step_expr, "step")]:
             # TODO #2542. References should be iterated with the
-            # reference_acess method when its issues are fixed.
+            # reference_access method when its issues are fixed.
             for ref in expr.walk(Reference):
                 if (isinstance(ref.parent, Call) and
                         ref is ref.parent.children[0]):
@@ -337,14 +337,13 @@ class AdjointVisitor(PSyIRVisitor):
                 node.step_expr.value.strip() in ["1", "-1"]):
             # The loop step might not be unitary so compute an offset:
             # stop-start mod step
+            # TODO: use language independent PSyIR, see issue #1345
             fortran_writer = FortranWriter()
             hi_str = fortran_writer(node.stop_expr)
             lo_str = fortran_writer(node.start_expr)
             step_str = fortran_writer(node.step_expr)
-            # TODO: use language independent PSyIR, see issue #1345
-            ptree = Fortran2003.Intrinsic_Function_Reference(
-                f"mod({hi_str}-{lo_str},{step_str})")
-            offset = CodeBlock([ptree], CodeBlock.Structure.EXPRESSION)
+            offset = CodeBlock.create(f"mod({hi_str}-{lo_str},{step_str})",
+                                      "expression")
 
         # We only need to copy this node and its bounds. Issue #1440
         # will address this.
@@ -362,7 +361,7 @@ class AdjointVisitor(PSyIRVisitor):
         new_node.step_expr = negate_expr(new_node.step_expr.copy())
 
         # Determine the adjoint of the loop body
-        new_node.children[3] = self._visit(node.children[3])
+        new_node.children[4] = self._visit(node.loop_body)
         return new_node
 
     def ifblock_node(self, node):

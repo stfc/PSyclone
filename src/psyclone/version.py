@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,11 +37,16 @@
 
 ''' Single location for the current version number of PSyclone. This is
     used in setup.py and
-    doc/{user_guide,developer_guide,reference_guide/source}/conf.py '''
+    doc/{user_guide,developer_guide,reference_guide/source}/conf.py
+
+    It is NOT used in doc/reference_guide/doxygen.config'''
 
 __MAJOR__ = 3
-__MINOR__ = 1
+__MINOR__ = 3
 __MICRO__ = 1
 
-__SHORT_VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}-dev"
-__VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}.{__MICRO__:d}-dev"
+# Version suffix e.g. "-rc1", "-dev" or "" (for a full release)
+_VERSION_SUFFIX = ""
+
+__SHORT_VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}{_VERSION_SUFFIX}"
+__VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}.{__MICRO__:d}{_VERSION_SUFFIX}"

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council
+# Copyright (c) 2022-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -78,6 +78,11 @@ def preprocess_trans(kernel_psyir, active_variable_names):
         try:
             reference2arrayrange_trans.apply(reference)
         except TransformationError:
+            # TODO #3269: For now we consider that everywhere this fails does
+            # not need array notation (e.g. it is a scalar or a non-elemental
+            # routine). This is unsafe, 'psyad' should not proceed if this
+            # happens, to make it sagfe we need to follow the necessary imports
+            # to guarantee the datatype of imported symbols.
             pass
 
     for call in kernel_psyir.walk(IntrinsicCall):

@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2017-2025, Science and Technology Facilities Council.
+   Copyright (c) 2017-2026, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,7 @@ DSLs following the PSyKAl model developed in the
 `GungHo project <https://www.metoffice.gov.uk/research/foundation/dynamics/next-generation>`_.
 
 PSyclone is currently used to support the
-`LFRic <https://www.metoffice.gov.uk/research/modelling-systems/lfric/>`_
+`LFRic <https://www.metoffice.gov.uk/research/approach/modelling-systems/lfric/>`_
 mixed finite-element PSyKAl DSL for the UK MetOffice's next generation
 modelling system and the
 `GOcean <https://gtr.ukri.org/projects?ref=NE%2FL01209X%2F1>`_

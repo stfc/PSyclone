@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council
+# Copyright (c) 2021-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,13 +46,13 @@ from fparser import api as fpapi
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
-from psyclone.domain.lfric import (LFRicConstants, LFRicSymbolTable,
-                                   LFRicKern, LFRicKernMetadata, LFRicLoop,
-                                   LFRicInvokeSchedule)
+from psyclone.domain.lfric import (
+    LFRicConstants, LFRicKern, LFRicKernMetadata, LFRicLoop,
+    LFRicInvokeSchedule)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, InvokeSchedule, Kern
-from psyclone.psyir.nodes import Call, ScopingNode, Loop
+from psyclone.psyir.nodes import Call, Loop
 from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.tools.dependency_tools import Message, DTCode
@@ -115,10 +115,6 @@ def test_set_lower_bound_functions(monkeypatch):
     an LFRicLoop is set to invalid values.
 
     '''
-    # Make sure we get an LFRicSymbolTable
-    # TODO #1954: Remove the protected access using a factory
-    monkeypatch.setattr(ScopingNode, "_symbol_table_class",
-                        LFRicSymbolTable)
     schedule = LFRicInvokeSchedule.create("test")
     my_loop = LFRicLoop(parent=schedule)
     schedule.children = [my_loop]
@@ -136,10 +132,6 @@ def test_set_upper_bound_functions(monkeypatch):
     an LFRicLoop is set to invalid values.
 
     '''
-    # Make sure we get an LFRicSymbolTable
-    # TODO #1954: Remove the protected access using a factory
-    monkeypatch.setattr(ScopingNode, "_symbol_table_class",
-                        LFRicSymbolTable)
     schedule = LFRicInvokeSchedule.create("test")
     my_loop = LFRicLoop(parent=schedule)
     schedule.children = [my_loop]
@@ -821,7 +813,17 @@ def test_loop_independent_iterations(monkeypatch, dist_mem):
     loop.independent_iterations(dep_tools=dtools)
     msgs = dtools.get_all_messages()
     assert msgs[0].code == DTCode.ERROR_WRITE_WRITE_RACE
-    # Colour the loop.
+    # Check if the loop does not have INC arguments, we consider it the
+    # iterations independent
+    for arg in loop.coded_kernels()[0].arguments.args:
+        arg.access = AccessType.READ
+    assert loop.independent_iterations()
+
+    # Restart but now colour the loop (the loop over colours is not
+    # independent, but the inner is)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.walk(LFRicLoop)[0]
     trans = LFRicColourTrans()
     trans.apply(loop)
     loops = schedule.walk(LFRicLoop)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council
+# Copyright (c) 2020-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@ include $(PSYROOT)/examples/common.mk
 
 GENERATED_FILES += *.o *.mod read_only_test alg.f90 psy.f90
 
-# Location of the infrastucture code (which is a submodule of the
+# Location of the infrastructure code (which is a submodule of the
 # PSyclone git repo).
 SHARED_DIR ?= $(PSYROOT)/external
 INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
@@ -67,7 +67,7 @@ compile: transform $(NAME)
 
 run: compile
 	./read_only_test 2>&1 | \
-		grep "Double precision field b_fld has been modified in main : update"
+		grep "2d Double array b_fld%data has been modified in main : update"
 
 alg.f90 psy.f90: transform
 

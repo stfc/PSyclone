@@ -15,7 +15,7 @@
 
    This Extraction base class depends on the PSyData base
    class, which will provide the other Fortran-type-specific
-   functions for PreDeclarVariable(). Any function can obviously
+   functions for PreDeclareVariable(). Any function can obviously
    be overwritten by a derived class.
 #}
 
@@ -40,7 +40,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020-2025, Science and Technology Facilities Council.
+! Copyright (c) 2020-2026, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -222,7 +222,8 @@ contains
         call this%PSyDataBaseType%PreStart(module_name, region_name, &
                                            num_pre_vars, num_post_vars)
         if (this%verbosity >= 1) then
-            write(stderr,*) "Opening ", trim(module_name//"-"//region_name//".nc")
+            write(stderr,*) "Opening ", trim(module_name) // "-" // &
+                            trim(region_name) // ".nc"
         endif
 
 
@@ -275,8 +276,8 @@ contains
 
         call this%PSyDataBaseType%PreEndDeclaration()
         if (this%verbosity >= 1) then
-            write(stderr,*) "Ending definition ", this%module_name // &
-                            "-"//this%region_name//".nc"
+            write(stderr,*) "Ending definition ", trim(this%module_name) // &
+                            "-"//trim(this%region_name)//".nc"
         endif
         retval = CheckError(nf90_enddef(this%ncid))
 
@@ -297,8 +298,8 @@ contains
 
         integer :: retval
         if (this%verbosity >= 1) then
-            write(stderr,*) "Closing ", this%module_name//"-" //&
-                            this%region_name//".nc"
+            write(stderr,*) "Closing ", trim(this%module_name) // "-" // &
+                            trim(this%region_name) // ".nc"
         endif
         retval = CheckError(nf90_close(this%ncid))
         call this%PSyDataBaseType%PostEnd()

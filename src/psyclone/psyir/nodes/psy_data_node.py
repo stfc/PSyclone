@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,11 +41,6 @@ This is the base class for nodes that e.g. create kernel extraction
 or profiling. '''
 
 from collections import namedtuple
-
-from fparser.common.readfortran import FortranStringReader
-from fparser.common.sourceinfo import FortranFormat
-from fparser.two import Fortran2003
-from fparser.two.parser import ParserFactory
 
 from psyclone.configuration import Config
 from psyclone.core import Signature
@@ -606,17 +601,14 @@ class PSyDataNode(Statement):
             argument_str = ""
             if argument_list:
                 argument_str += "("
-                argument_str += ",".join([str(arg) for arg in argument_list])
+                argument_str += ", ".join([str(arg) for arg in argument_list])
                 argument_str += ")"
 
-            ParserFactory().create(std=Config.get().fortran_standard)
-            reader = FortranStringReader(
-                f"CALL {typename}%{methodname}{argument_str}")
-            # Tell the reader that the source is free format
-            reader.set_format(FortranFormat(True, False))
-            fp2_node = Fortran2003.Call_Stmt(reader)
-            return CodeBlock([fp2_node], CodeBlock.Structure.STATEMENT,
-                             annotations=annotations)
+            return CodeBlock.create(
+                f"CALL {typename} % {methodname}{argument_str}",
+                partial_code="call",
+                annotations=annotations
+            )
 
         routine_schedule = self.ancestor(Routine)
         if routine_schedule is None:
@@ -715,6 +707,10 @@ class PSyDataNode(Statement):
         # end calls
         for child in self.psy_data_body.pop_all_children():
             self.parent.children.insert(self.position, child)
+        # If there is any symbol in the PSyData scope (it could have been
+        # added by any posterior modification writing to child.scope) it needs
+        # to be moved together with the nodes
+        self.scope.symbol_table.merge(self.psy_data_body.symbol_table)
 
         if has_var:
             # Only add PostStart() if there is at least one variable.

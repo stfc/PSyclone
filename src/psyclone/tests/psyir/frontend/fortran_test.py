@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,15 +38,19 @@
 ''' Performs py.test tests on the Fortran PSyIR front-end '''
 
 import pytest
-from fparser.two import Fortran2003
+
+from psyclone.configuration import Config
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fortran_treesitter_reader import \
+    FortranTreeSitterReader
 from psyclone.psyir.nodes import (
     Routine, FileContainer, UnaryOperation, BinaryOperation, Literal,
-    Assignment, CodeBlock, IntrinsicCall, Loop)
+    Assignment, CodeBlock, IntrinsicCall, Loop, Reference)
 from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.symbols import (
     SymbolTable, DataSymbol, ScalarType, UnresolvedType)
+from psyclone.tests.utilities import min_version_3_10
 
 
 # The 'contiguous' keyword is just valid with Fortran 2008
@@ -75,32 +79,39 @@ subroutine my_sub
     integer :: a, b
 
     ! Comment on do loop
-    !$omp parallel do
+    !$ompx parallel do
     do a = 1, 10
         ! Comment on assignment
         b = a
     end do
-    !$omp end parallel do
+    !$ompx end parallel do
 end subroutine my_sub
 '''
 
 
+# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
+# treesitter.
+@min_version_3_10
 def test_fortran_reader_constructor():
     ''' Test that the constructor initialises the _parser and _processor
     attributes. '''
     freader = FortranReader()
-    assert freader._parser is Fortran2003.Program
     assert isinstance(freader._processor, Fparser2Reader)
 
     # Check that the initialised parser can parse Fortran 2008 standard,
     # the return value of this function is tested in the following tests
     freader.psyir_from_source(ONLY_2008_CODE)
 
+    # Now repeat the process with treesitter
+    Config.get().frontend = "treesitter"
+    freader = FortranReader()
+    assert isinstance(freader._processor, FortranTreeSitterReader)
+    freader.psyir_from_source(ONLY_2008_CODE)
 
-def test_fortran_psyir_from_source():
+
+def test_fortran_psyir_from_source(fortran_reader):
     ''' Test that the psyir_from_source method parses to PSyIR
     the specified source code. '''
-    fortran_reader = FortranReader()
     file_container = fortran_reader.psyir_from_source(CODE)
     assert isinstance(file_container, FileContainer)
     subroutine = file_container.children[0]
@@ -117,6 +128,38 @@ def test_fortran_psyir_from_source_fixed_form():
     assert isinstance(file_container, FileContainer)
     subroutine = file_container.children[0]
     assert isinstance(subroutine, Routine)
+
+
+def test_fortran_psyir_from_source_invalid_cpp_directives(fortran_reader):
+    '''
+    Test that we cleanly catch and report the problem when the provided
+    source contains CPP directives which result in fparser failing.
+
+    '''
+    code = '''\
+    program problems
+      integer i, n_tracers, nmodes
+      logical :: mode_names(20)
+    DO i=1,n_tracers
+    #if defined(NAG_FORTRAN) && (NAG_FORTRAN == 7000000)
+    tracer_belongs = .FALSE.
+    DO j=1,nmodes
+      IF ( mode_names(j) ) THEN
+        tracer_belongs = .TRUE.
+      END IF
+    END DO
+    IF ( tracer_belongs ) THEN
+    #else
+    IF ( ANY(mode_names(:) == all_tracers_names(i)(1:7)) ) THEN
+    #endif
+    END IF
+    END DO
+    end program problems
+    '''
+    with pytest.raises(ValueError) as err:
+        _ = fortran_reader.psyir_from_source(code)
+    assert ("Is the input valid Fortran (note that CPP directives must be "
+            "handled by a pre-processor)?" in str(err.value))
 
 
 def test_fortran_psyir_from_expression(fortran_reader):
@@ -146,10 +189,10 @@ def test_fortran_psyir_from_expression(fortran_reader):
     psyir = fortran_reader.psyir_from_expression("3.0_r_def", table)
     assert isinstance(psyir, Literal)
     assert isinstance(psyir.datatype, ScalarType)
-    assert isinstance(psyir.datatype.precision, DataSymbol)
+    assert isinstance(psyir.datatype.precision, Reference)
     symbol = table.lookup("r_def")
     assert isinstance(symbol, DataSymbol)
-    assert psyir.datatype.precision is symbol
+    assert psyir.datatype.precision.symbol is symbol
 
     psyir = fortran_reader.psyir_from_expression("3.0 + a", table)
     assert isinstance(psyir, BinaryOperation)
@@ -233,6 +276,14 @@ def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
     assert isinstance(file_container, FileContainer)
     assert file_container.name == "empty.f90"
 
+    # Check with a file containing invalid Fortran
+    filename = str(tmpdir_factory.mktemp('frontend_test').join("wrong.f90"))
+    with open(filename, "w", encoding='utf-8') as wfile:
+        wfile.write("this is not Fortran")
+    with pytest.raises(ValueError) as err:
+        file_container = fortran_reader.psyir_from_file(filename)
+    assert "Failed to parse" in str(err.value)
+
     # Check with a file that doesn't exist
     filename = str(tmpdir_factory.mktemp('frontend_test').join("Idontexist"))
     with pytest.raises(IOError) as err:
@@ -267,13 +318,14 @@ def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
                                    ignore_directives=False)
     file_container = fortran_reader.psyir_from_file(filename)
     assert isinstance(file_container, FileContainer)
+    assignment = file_container.walk(Assignment)[0]
+    assert assignment.preceding_comment == "Comment on assignment"
+    # When keeping directives a comment before the directive
+    # goes on the directive.
+    par_direc = file_container.walk(CodeBlock)[0]
+    assert par_direc.preceding_comment == "Comment on do loop"
     for node in file_container.walk(CommentableMixin):
-        if isinstance(node, Loop):
-            assert node.preceding_comment == ("Comment on do loop\n"
-                                              "$omp parallel do")
-        elif isinstance(node, Assignment):
-            assert node.preceding_comment == "Comment on assignment"
-        else:
+        if node not in (assignment, par_direc):
             assert node.preceding_comment == ""
 
     # Check that the following combination raises an error

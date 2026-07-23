@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council
+# Copyright (c) 2018-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,32 +37,39 @@
     the first Invoke to use OpenCL. '''
 
 from psyclone.psyGen import InvokeSchedule
-from psyclone.psyir.transformations import \
-    FoldConditionalReturnExpressionsTrans
-from psyclone.domain.gocean.transformations import GOOpenCLTrans, \
-    GOMoveIterationBoundariesInsideKernelTrans
+from psyclone.psyir.transformations import (
+    FoldConditionalReturnExpressionsTrans)
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.domain.gocean.transformations import (
+    GOOpenCLTrans, GOMoveIterationBoundariesInsideKernelTrans)
+from psyclone.psyir.nodes import FileContainer
 
 
-def trans(psyir):
+def trans(psyir: FileContainer):
     '''
     Applies OpenCL to the given PSy-layer.
 
     :param psyir: the PSyIR of the PSy-layer.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
+    mod_inline_trans = KernelModuleInlineTrans()
     ocl_trans = GOOpenCLTrans()
     fold_trans = FoldConditionalReturnExpressionsTrans()
     move_boundaries_trans = GOMoveIterationBoundariesInsideKernelTrans()
 
     # Provide kernel-specific OpenCL optimization options
     for idx, kern in enumerate(psyir.kernels()):
+        # Kernel has to be module-inlined first.
+        mod_inline_trans.apply(kern)
         # Move the PSy-layer loop boundaries inside the kernel as a kernel
         # mask, this allows to iterate through the whole domain
         move_boundaries_trans.apply(kern)
         # Change the syntax to remove the return statements introduced by the
         # previous transformation
-        fold_trans.apply(kern.get_kernel_schedule())
+        kschedules = kern.get_callees()
+        # NOTE: we assume the kernel is not polymorphic and thus there is
+        # only one schedule associated with it.
+        fold_trans.apply(kschedules[0])
         # Specify the OpenCL queue and workgroup size of the kernel
         # In this case we dispatch each kernel in a different queue to check
         # that the output code has the necessary barriers to guarantee the

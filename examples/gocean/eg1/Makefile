@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,7 @@ KERNELS=compute_cu_mod.o compute_cv_mod.o compute_z_mod.o compute_h_mod.o \
 		compute_unew_mod.o compute_vnew_mod.o compute_pnew_mod.o time_smooth_mod.o \
 		infrastructure_mod.o
 
-# Location of the infrastucture code (which is a submodule of the
+# Location of the infrastructure code (which is a submodule of the
 # PSyclone git repo).
 SHARED_DIR ?= ../../../external
 INF_DIR ?= ${SHARED_DIR}/dl_esm_inf/finite_difference
@@ -91,26 +91,23 @@ run: compile
 	@echo "No run targets for example gocean/eg1"
 
 basic:
-	$(ENV) ${PYTHON} ./runme.py
+	${PSYCLONE} -api gocean -s print_schedule.py shallow_alg.f90 -oalg /dev/null -opsy /dev/null
 
 openmp:
-	$(ENV) ${PYTHON} ./runme_openmp.py
+	${PSYCLONE} -nodm -api gocean -s fuse_and_insert_openmp.py shallow_alg.f90
 
 
 mpi:
 	${PSYCLONE} -api gocean -I${INF_INC} shallow_alg.f90
 
 loop_fuse:
-	$(ENV) ${PYTHON} ./runme_loop_fuse.py
+	${PSYCLONE} -nodm -api gocean -s fuse_loops.py shallow_alg.f90
 
 dag:
-	$(ENV) ${PYTHON} ./runme_dag.py
+	${PSYCLONE} -api gocean -s generate_dag.py shallow_alg.f90 -oalg /dev/null -opsy /dev/null
 
 openacc:
-	$(ENV) ${PYTHON} ./runme_openacc.py
+	${PSYCLONE} -nodm -api gocean -s fuse_and_insert_openacc.py shallow_alg.f90
 
-# The "--kernel-renaming single" parameter avoids generating duplicate
-# versions of OpenCL kernels called multiple times.
 opencl:
-	${PSYCLONE} -nodm -s ./opencl_transformation.py --kernel-renaming single \
-		-api gocean  -I${INF_INC} shallow_alg.f90
+	${PSYCLONE} -nodm -s ./opencl_transformation.py -api gocean -I${INF_INC} shallow_alg.f90

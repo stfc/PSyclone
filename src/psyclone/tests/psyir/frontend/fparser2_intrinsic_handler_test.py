@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2025, Science and Technology Facilities Council.
+# Copyright (c) 2023-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,16 +43,14 @@
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from fparser.two import Fortran2003
 from fparser.two.Fortran2003 import Execution_Part
 
-from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import (
-    Fparser2Reader, _get_arg_names, _canonicalise_minmaxsum)
+    Fparser2Reader)
 from psyclone.psyir.nodes import (
     Schedule, Assignment, Reference, IntrinsicCall, Literal, CodeBlock)
 from psyclone.psyir.symbols import (
-    REAL_TYPE, DataSymbol, UnsupportedFortranType, INTEGER_TYPE, SymbolTable,
+    ScalarType, DataSymbol, UnsupportedFortranType, SymbolTable,
     ArrayType, RoutineSymbol, AutomaticInterface)
 
 
@@ -65,109 +63,19 @@ def make_symbol_table():
     '''
     symbol_table = SymbolTable()
     symbol_table.new_symbol("x", symbol_type=DataSymbol,
-                            datatype=REAL_TYPE)
+                            datatype=ScalarType.real_type())
     symbol_table.new_symbol("a", symbol_type=DataSymbol,
-                            datatype=REAL_TYPE)
+                            datatype=ScalarType.real_type())
     symbol_table.new_symbol("b", symbol_type=DataSymbol,
-                            datatype=REAL_TYPE)
+                            datatype=ScalarType.real_type())
     symbol_table.new_symbol("c", symbol_type=DataSymbol,
-                            datatype=REAL_TYPE)
+                            datatype=ScalarType.real_type())
     symbol_table.new_symbol("idx", symbol_type=DataSymbol,
-                            datatype=INTEGER_TYPE)
+                            datatype=ScalarType.integer_type())
     symbol_table.new_symbol("mask", symbol_type=DataSymbol,
-                            datatype=ArrayType(INTEGER_TYPE, [10]))
+                            datatype=ArrayType(ScalarType.integer_type(),
+                                               [10]))
     return symbol_table
-
-
-def _get_intrinsic_info(string):
-    '''Utility function to take a Fortran string for a Fortran intrinsic
-    call and return its fparser2 tree as well as its arguments as a
-    list and its the names of its named arguments as a list.
-
-    :param str string: Fortran instrinsic call to be processed.
-
-    :returns: the fparser2 argument nodes as a list, the names of any \
-        named arguments as a list and the fparser2 tree of the \
-        intrinsic call.
-    :rtype: Tuple[List[:py:class:`fparser.two.utils.Base`], \
-            List[Union[str, None]], \
-            :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`)
-
-    '''
-    reader = FortranStringReader(string)
-    intrinsic = Fortran2003.Intrinsic_Function_Reference(reader)
-    args = intrinsic.items[1].items
-    arg_nodes, arg_names = _get_arg_names(args)
-    return (arg_nodes, arg_names, intrinsic)
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_canonicalise_minmaxsum():
-    '''Check that the _canonicalise_minmaxsum function in fparser2.py
-    works as expected.
-
-    '''
-    # All args named a) first arg first, b) first arg not first c)
-    # array name not found.
-    for string in [
-            "sum(array=a, dim=d, mask=m)",
-            "sum(dim=d, array=a, mask=m)",
-            "sum(dim=d, mask=m, array=a)"]:
-        arg_nodes, arg_names, intrinsic = _get_intrinsic_info(string)
-        _canonicalise_minmaxsum(arg_nodes, arg_names, intrinsic)
-        assert arg_names == [None, 'dim', 'mask']
-        assert arg_nodes[0].string == "a"
-        assert arg_nodes[1].string == "d"
-        assert arg_nodes[2].string == "m"
-
-    string = "sum(arg1=a, arg2=d, arg3=m)"
-    arg_nodes, arg_names, intrinsic = _get_intrinsic_info(string)
-    with pytest.raises(InternalError) as info:
-        _canonicalise_minmaxsum(arg_nodes, arg_names, intrinsic)
-    assert ("Invalid intrinsic arguments found. Expecting one of the named "
-            "arguments to be 'array', but found 'SUM(arg1 = a, arg2 = d, "
-            "arg3 = m)'." in str(info.value))
-
-    # Two arguments and the second is not named. Returns
-    # NotImplementedError which results in a CodeBlock as we need to
-    # try to determine the datatypes to disambiguate and don't do that
-    # yet.
-    arg_nodes, arg_names, intrinsic = _get_intrinsic_info("sum(a, d)")
-    with pytest.raises(NotImplementedError) as info:
-        _canonicalise_minmaxsum(arg_nodes, arg_names, intrinsic)
-    assert (str(info.value) ==
-            "In 'SUM(a, d)' there are two arguments that are not named. "
-            "The second could be a dim or a mask so we need datatype "
-            "information to determine which and we do not determine "
-            "this information at the moment.")
-
-    # Optional arguments are not named but can be determined from
-    # their order. Canonical form has them named. The last version
-    # shows that an argument in canonical form remains unchanged. Any
-    # upper case named-argument names become lower case.
-    for string in [
-            "sum(a, d, m)",
-            "sum(a, d, mask=m)",
-            "sum(a, d, MASK=m)"]:
-        arg_nodes, arg_names, intrinsic = _get_intrinsic_info(string)
-        _canonicalise_minmaxsum(arg_nodes, arg_names, intrinsic)
-        assert arg_names == [None, 'dim', 'mask']
-        assert arg_nodes[0].string == "a"
-        assert arg_nodes[1].string == "d"
-        assert arg_nodes[2].string == "m"
-
-    # Already in canonical form so no change from input to output.
-    for string in [
-            "SUM(a)",
-            "SUM(a, dim = d)",
-            "SUM(a, dim = d, mask = m)",
-            "SUM(a, mask = m)",
-            "SUM(a, mask = m, dim = d)"]:
-        arg_nodes, arg_names, intrinsic = _get_intrinsic_info(string)
-        _canonicalise_minmaxsum(arg_nodes, arg_names, intrinsic)
-        intrinsic._children = arg_nodes
-        intrinsic.arg_names = arg_names
-        assert str(intrinsic) == string
 
 
 @pytest.mark.parametrize("arguments", ["a, dim=d, mask=m", "a, d, m"])
@@ -196,7 +104,7 @@ end subroutine
     intrinsic_call = psyir.children[0].children[0].children[1]
     assert isinstance(intrinsic_call, IntrinsicCall)
     result = fortran_writer(intrinsic_call)
-    assert result == f"{intrinsic_name}(a, dim=d, mask=m)"
+    assert result == f"{intrinsic_name}(a, d, mask=m)"
     routine_symbol = intrinsic_call.routine.symbol
 
     assert isinstance(routine_symbol, RoutineSymbol)
@@ -242,36 +150,64 @@ end subroutine
 
 
 @pytest.mark.parametrize(
-    "code, expected_intrinsic",
-    [('x = exp(a)', IntrinsicCall.Intrinsic.EXP),
-     ('x = sin(a)', IntrinsicCall.Intrinsic.SIN),
-     ('x = asin(a)', IntrinsicCall.Intrinsic.ASIN),
-     ('idx = ceiling(a)', IntrinsicCall.Intrinsic.CEILING),
-     ('x = abs(a)', IntrinsicCall.Intrinsic.ABS),
-     ('x = cos(a)', IntrinsicCall.Intrinsic.COS),
-     ('x = acos(a)', IntrinsicCall.Intrinsic.ACOS),
-     ('x = tan(a)', IntrinsicCall.Intrinsic.TAN),
-     ('x = atan(a)', IntrinsicCall.Intrinsic.ATAN),
-     ('x = real(a)', IntrinsicCall.Intrinsic.REAL),
-     ('x = real(a, 8)', IntrinsicCall.Intrinsic.REAL),
-     ('x = int(a)', IntrinsicCall.Intrinsic.INT),
-     ('x = int(a, 8)', IntrinsicCall.Intrinsic.INT),
-     ('x = log(a)', IntrinsicCall.Intrinsic.LOG),
-     ('x = log10(a)', IntrinsicCall.Intrinsic.LOG10),
-     ('x = mod(a, b)', IntrinsicCall.Intrinsic.MOD),
-     ('x = matmul(a, b)', IntrinsicCall.Intrinsic.MATMUL),
-     ('x = max(a, b)', IntrinsicCall.Intrinsic.MAX),
-     ('x = mAx(a, b, c)', IntrinsicCall.Intrinsic.MAX),
-     ('x = min(a, b)', IntrinsicCall.Intrinsic.MIN),
-     ('x = min(a, b, c)', IntrinsicCall.Intrinsic.MIN),
-     ('x = sign(a, b)', IntrinsicCall.Intrinsic.SIGN),
-     ('x = sqrt(a)', IntrinsicCall.Intrinsic.SQRT),
-     ('x = aimag(a)', IntrinsicCall.Intrinsic.AIMAG),
-     ('x = dprod(a, b)', IntrinsicCall.Intrinsic.DPROD),
-     ('x = reshape(a, b, c)', IntrinsicCall.Intrinsic.RESHAPE),
-     ('x = sin(-3.0)', IntrinsicCall.Intrinsic.SIN)])
+    "code, expected_intrinsic, arg_names",
+    [('x = exp(a)', IntrinsicCall.Intrinsic.EXP,
+      ["x"]),
+     ('x = sin(a)', IntrinsicCall.Intrinsic.SIN,
+      ["x"]),
+     ('x = asin(a)', IntrinsicCall.Intrinsic.ASIN,
+      ["x"]),
+     ('idx = ceiling(a)', IntrinsicCall.Intrinsic.CEILING,
+      ["a"]),
+     ('x = abs(a)', IntrinsicCall.Intrinsic.ABS,
+      ["a"]),
+     ('x = cos(a)', IntrinsicCall.Intrinsic.COS,
+      ["x"]),
+     ('x = acos(a)', IntrinsicCall.Intrinsic.ACOS,
+      ["x"]),
+     ('x = tan(a)', IntrinsicCall.Intrinsic.TAN,
+      ["x"]),
+     ('x = atan(a)', IntrinsicCall.Intrinsic.ATAN,
+      ["x"]),
+     ('x = real(a)', IntrinsicCall.Intrinsic.REAL,
+      ["a"]),
+     ('x = real(a, 8)', IntrinsicCall.Intrinsic.REAL,
+      ["a", "kind"]),
+     ('x = int(a)', IntrinsicCall.Intrinsic.INT,
+      ["a"]),
+     ('x = int(a, 8)', IntrinsicCall.Intrinsic.INT,
+      ["a", "kind"]),
+     ('x = log(a)', IntrinsicCall.Intrinsic.LOG,
+      ["x"]),
+     ('x = log10(a)', IntrinsicCall.Intrinsic.LOG10,
+      ["x"]),
+     ('x = mod(a, b)', IntrinsicCall.Intrinsic.MOD,
+      ["a", "p"]),
+     ('x = matmul(a, b)', IntrinsicCall.Intrinsic.MATMUL,
+      ["matrix_a", "matrix_b"]),
+     ('x = max(a, b)', IntrinsicCall.Intrinsic.MAX,
+      [None, None]),
+     ('x = mAx(a, b, c)', IntrinsicCall.Intrinsic.MAX,
+      [None, None, None]),
+     ('x = min(a, b)', IntrinsicCall.Intrinsic.MIN,
+      [None, None]),
+     ('x = min(a, b, c)', IntrinsicCall.Intrinsic.MIN,
+      [None, None, None]),
+     ('x = sign(a, b)', IntrinsicCall.Intrinsic.SIGN,
+      ["a", "b"]),
+     ('x = sqrt(a)', IntrinsicCall.Intrinsic.SQRT,
+      ["x"]),
+     ('x = aimag(a)', IntrinsicCall.Intrinsic.AIMAG,
+      ["z"]),
+     ('x = dprod(a, b)', IntrinsicCall.Intrinsic.DPROD,
+      ["x", "y"]),
+     ('x = reshape(a, b, c)', IntrinsicCall.Intrinsic.RESHAPE,
+      ["source", "shape", "pad"]),
+     ('x = sin(-3.0)', IntrinsicCall.Intrinsic.SIN,
+      ["x"])])
 @pytest.mark.usefixtures("f2008_parser")
-def test_handling_intrinsics(code, expected_intrinsic, symbol_table):
+def test_handling_intrinsics(code, expected_intrinsic, arg_names,
+                             symbol_table):
     '''Test that the fparser2 _intrinsic_handler method deals with
     Intrinsic_Function_Reference nodes that are translated to PSyIR
     IntrinsicCall nodes.
@@ -289,8 +225,8 @@ def test_handling_intrinsics(code, expected_intrinsic, symbol_table):
     assert assign.rhs.routine.symbol.intrinsic == expected_intrinsic, \
         "Fails when parsing '" + code + "'"
     assert len(assign.rhs.arguments) == len(assign.rhs.argument_names)
-    for named_arg in assign.rhs.argument_names:
-        assert named_arg is None
+    for i, named_arg in enumerate(assign.rhs.argument_names):
+        assert named_arg == arg_names[i]
 
 
 def test_handling_unsupported_intrinsics(symbol_table):
@@ -304,7 +240,7 @@ def test_handling_unsupported_intrinsics(symbol_table):
     code = "x = sin(a)"
     reader = FortranStringReader(code)
     fp2node = Execution_Part.match(reader)[0][0]
-    # Change the instrinsic string name in order to create a new
+    # Change the intrinsic string name in order to create a new
     # intrinsic which is not recognised by the PSyIR parser
     fp2node.children[2].items[0].string = "Unsupported"
     processor.process_nodes(fake_parent, [fp2node])
@@ -315,13 +251,13 @@ def test_handling_unsupported_intrinsics(symbol_table):
 @pytest.mark.parametrize(
     "code, expected_intrinsic, expected_names",
     [('x = sin(a)',
-      IntrinsicCall.Intrinsic.SIN, [None]),
-     ('x = sin(array=a)',
-      IntrinsicCall.Intrinsic.SIN, ["array"]),
+      IntrinsicCall.Intrinsic.SIN, ["x"]),
+     ('x = sin(x=a)',
+      IntrinsicCall.Intrinsic.SIN, ["x"]),
      ('x = dot_product(a, b)',
-      IntrinsicCall.Intrinsic.DOT_PRODUCT, [None, None]),
+      IntrinsicCall.Intrinsic.DOT_PRODUCT, ["vector_a", "vector_b"]),
      ('x = dot_product(a, vector_b=b)',
-      IntrinsicCall.Intrinsic.DOT_PRODUCT, [None, "vector_b"]),
+      IntrinsicCall.Intrinsic.DOT_PRODUCT, ["vector_a", "vector_b"]),
      ('x = dot_product(vector_a=a, vector_b=b)',
       IntrinsicCall.Intrinsic.DOT_PRODUCT, ["vector_a", "vector_b"]),
      ('x = max(a, b, c)',
@@ -377,16 +313,17 @@ def test_handling_nested_intrinsic():
     fake_parent = Schedule()
     # Declare all the symbols needed by the test code.
     symtab = fake_parent.symbol_table
-    symtab.add(DataSymbol("jk", INTEGER_TYPE))
-    symtab.add(DataSymbol("wp", INTEGER_TYPE,
+    symtab.add(DataSymbol("jk", ScalarType.integer_type()))
+    symtab.add(DataSymbol("wp", ScalarType.integer_type(),
                           is_constant=True,
-                          initial_value=Literal("4", INTEGER_TYPE)))
-    symtab.add(DataSymbol("rcpi", REAL_TYPE))
-    symtab.add(DataSymbol("rLfus", REAL_TYPE))
-    symtab.add(DataSymbol("ze_z", REAL_TYPE))
-    symtab.add(DataSymbol("zbbb", REAL_TYPE))
-    symtab.add(DataSymbol("zccc", REAL_TYPE))
-    symtab.add(DataSymbol("ztmelts", REAL_TYPE))
+                          initial_value=Literal(
+                              "4", ScalarType.integer_type())))
+    symtab.add(DataSymbol("rcpi", ScalarType.real_type()))
+    symtab.add(DataSymbol("rLfus", ScalarType.real_type()))
+    symtab.add(DataSymbol("ze_z", ScalarType.real_type()))
+    symtab.add(DataSymbol("zbbb", ScalarType.real_type()))
+    symtab.add(DataSymbol("zccc", ScalarType.real_type()))
+    symtab.add(DataSymbol("ztmelts", ScalarType.real_type()))
     symtab.add(DataSymbol("e1t", UnsupportedFortranType("blah :: e1t")))
     symtab.add(DataSymbol("e2t", UnsupportedFortranType("blah :: e2t")))
     symtab.add(DataSymbol(

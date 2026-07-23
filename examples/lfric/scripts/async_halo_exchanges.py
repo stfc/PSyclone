@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council
+# Copyright (c) 2018-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,8 +43,8 @@ in the generator.py script.
 
 from psyclone.lfric import LFRicHaloExchange, LFRicHaloExchangeStart
 from psyclone.psyGen import InvokeSchedule
-from psyclone.transformations import LFRicAsyncHaloExchangeTrans, \
-    MoveTrans, TransformationError
+from psyclone.transformations import LFRicAsyncHaloExchangeTrans
+from psyclone.psyir.transformations import MoveTrans, TransformationError
 
 
 def trans(psyir):

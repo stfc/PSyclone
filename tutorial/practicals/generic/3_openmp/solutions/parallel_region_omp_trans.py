@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council
+# Copyright (c) 2020-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,8 +46,9 @@ Fortran.
 
 '''
 from psyclone.psyir.nodes import Loop
+from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.transformations import OMPParallelLoopTrans, OMPLoopTrans, \
-    OMPParallelTrans, TransformationError
+    TransformationError
 
 # Set up some loop_type inference rules in order to reference useful domain
 # loop constructs by name

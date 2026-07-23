@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,8 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory.
 # Modified by J. Henrichs, Bureau of Meteorology
+#             A. Pirrie, Met Office
+
 
 '''
 Module containing tests for the LFRic constants class.
@@ -60,7 +62,9 @@ def test_config_loaded_before_constants_created(monkeypatch):
     # If the psyclone command is executed, the flag should be set. The
     # parameters specified here will immediately abort, but still the
     # flag must be set at the end, since the command has to set this flag:
-    with pytest.raises(FileNotFoundError) as err:
+    # (We check for two different exceptions as this behaviour seems to
+    # change between Python 3.9 and more recent versions.)
+    with pytest.raises((FileNotFoundError, SystemExit)) as err:
         generator.main(["some_file.f90"])
     assert Config.has_config_been_initialised() is True
 
@@ -109,14 +113,18 @@ def test_precision_for_type():
     '''Check the precision_for_type() method.'''
     const = LFRicConstants()
     for module_info in const.DATA_TYPE_MAP.values():
-        assert (const.precision_for_type(module_info["type"])
-                == LFRicTypes(module_info["kind"].upper()))
+        if module_info["type"] != "scalar_type":
+            assert (const.precision_for_type(module_info["type"])
+                    == LFRicTypes(module_info["kind"].upper()))
 
 
 def test_precision_for_type_error():
     '''Tests that exceptions are raised as expected from
     precision_for_type().
     '''
+    with pytest.raises(ValueError) as err:
+        LFRicConstants().precision_for_type("scalar_type")
+    assert "Cannot infer the precision of a 'scalar_type'." in str(err.value)
     with pytest.raises(InternalError) as err:
         LFRicConstants().precision_for_type("invalid")
     assert "Unknown data type 'invalid', expected one of" in str(err.value)

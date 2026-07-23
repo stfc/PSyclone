@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,18 +53,13 @@ from psyclone.psyir.symbols.symbol import Symbol, SymbolError
 from psyclone.psyir.symbols.symbol_table import SymbolTable
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 from psyclone.psyir.symbols.datatypes import (
-     ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE, DataType, INTEGER4_TYPE,
-     INTEGER8_TYPE, INTEGER_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, INTEGER_TYPE,
-     NoType, REAL4_TYPE, REAL8_TYPE, REAL_DOUBLE_TYPE, REAL_SINGLE_TYPE,
-     REAL_TYPE, ScalarType, StructureType, UnresolvedType,
-     UnsupportedType, UnsupportedFortranType)
+     ArrayType, NoType, ScalarType, StructureType, UnresolvedType,
+     UnsupportedType, UnsupportedFortranType, DataType)
 
 # For auto documentation generation.
 __all__ = ['ArgumentInterface',
            'ArrayType',
            'AutomaticInterface',
-           'BOOLEAN_TYPE',
-           'CHARACTER_TYPE',
            'CommonBlockInterface',
            'ContainerSymbol',
            'DataSymbol',
@@ -73,19 +68,9 @@ __all__ = ['ArgumentInterface',
            'DefaultModuleInterface',
            'GenericInterfaceSymbol',
            'ImportInterface',
-           'INTEGER_TYPE',
-           'INTEGER_SINGLE_TYPE',
-           'INTEGER_DOUBLE_TYPE',
-           'INTEGER4_TYPE',
-           'INTEGER8_TYPE',
            'IntrinsicSymbol',
            'NoType',
            'PreprocessorInterface',
-           'REAL_TYPE',
-           'REAL_SINGLE_TYPE',
-           'REAL_DOUBLE_TYPE',
-           'REAL4_TYPE',
-           'REAL8_TYPE',
            'RoutineSymbol',
            'ScalarType',
            'StaticInterface',

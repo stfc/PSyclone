@@ -1,0 +1,81 @@
+!--------------------------------------------------------------------
+! Example namelist for Planar mesh generation
+!--------------------------------------------------------------------
+! These example namelists will result in the mesh generators
+! producing an output file (<mesh_filename>) which will
+! contain <n_meshes> mesh topologies which are identified by
+! the <mesh_names>.
+!
+! Additional intergrid mappings may be produced and included
+! in the output file. Each map is specified by an item in the
+! <mesh_maps> list. Maps are specified by a string of the two
+! mesh names separated by a ":". Each item will cause a
+! map to be added to the maps source mesh, i.e.
+!
+! 'dynamics:physics' will result in a map added to the
+!
+!  *  "dynamics" mesh (source) object mapping to "physics"  (target)
+!  *  "physics"  mesh (source) object mapping to "dynamics" (target)
+!
+! Notes: 
+!  *  Only the first "n_meshes" listed in <mesh_names> will be
+!     output in the mesh file.
+!  *  All spherical co-ordinates are given the order
+!     [longitude, latitude] in the units, degrees_east, degrees_north,
+!     respectively.
+!===================================================================
+&mesh
+  mesh_file_prefix = 'planar_mesh'
+  geometry       = 'planar'
+  topology       = 'non_periodic'
+  n_meshes       = 1
+  mesh_names     = 'dynamics'
+  partition_mesh = .false.
+  coord_sys      = 'll'
+  rotate_mesh    = .false.
+/
+
+!==================================================================
+! Planar Meshes: Only used by the planar mesh generator
+!==================================================================
+! Each planar mesh is specified by the corresponding number of
+! cells on a panel edge in the x/y axes. These are listed in the
+! variables <edge_cells_x>/<edge_cells_y> and correspond to the
+! order of mesh topologies given by <mesh_names>.
+!
+! All listed meshes will occupy the same domain and periodicity.
+!
+! Note: When requesting a integrid mesh map, for a given pair of
+!       of source/target meshes, one meshes edge cell value must
+!       be a factor of the other.
+
+&planar_mesh
+  edge_cells_x    = 100
+  edge_cells_y    = 100
+  domain_size     = 100000, 100000
+  domain_centre   = 0.0, 0.0
+  periodic_x      = .false.
+  periodic_y      = .false.
+  create_lbc_mesh = .false.
+  lbc_rim_depth   = 1
+  lbc_parent_mesh = 'dynamics'
+  apply_stretch_transform = .false.
+/
+
+&partitions
+  panel_decomposition = 'auto'
+  panel_xproc         = 1
+  panel_yproc         = 1
+  max_stencil_depth   = 1
+  n_partitions        = 2
+  partition_range     = 0, 1
+/
+
+&stretch_transform
+  cell_size_inner = 2.0, 2.0
+  cell_size_outer = 3.0, 3.0
+  n_cells_outer   = 2, 2
+  n_cells_stretch = 5, 5
+  stretching_on   = 'cell_centres'
+  transform_mesh  = 'dynamics'
+/

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,8 +44,10 @@ from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.nodes import Schedule, Loop, Assignment
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class LoopTrans(Transformation, metaclass=abc.ABCMeta):
     # Avoid pylint warning about abstract method (apply) not overwritten:
     # pylint: disable=abstract-method
@@ -107,10 +109,10 @@ class LoopTrans(Transformation, metaclass=abc.ABCMeta):
                 f"Loop but got '{type(node).__name__}'")
 
         # The loop must be fully-formed.
-        if len(node.children) != 4:
+        if len(node.children) != 5:
             raise TransformationError(
                 f"Error in {self.name} transformation. The target loop "
-                f"must have four children but found: "
+                f"must have five children but found: "
                 f"{[type(child).__name__ for child in node.children]}.")
 
         # TODO 2668: options are now deprecated.

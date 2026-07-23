@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@ include ../../common.mk
 # export LDFLAGS=""
 # Currently only compatible with F90=nvfortran
 
-# Location of the infrastucture code (which is a submodule of the
+# Location of the infrastructure code (which is a submodule of the
 # PSyclone git repo).
 SHARED_DIR ?= ../../../external
 INF_DIR ?= ${SHARED_DIR}/dl_esm_inf/finite_difference

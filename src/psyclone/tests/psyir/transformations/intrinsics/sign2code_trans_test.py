@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council
+# Copyright (c) 2020-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,13 +32,16 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module containing tests for the sign2code transformation.'''
 
 import pytest
+import warnings
+
 from psyclone.psyir.transformations import Sign2CodeTrans, TransformationError
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, \
-    ArgumentInterface, REAL_TYPE
+    ArgumentInterface, ScalarType
 from psyclone.psyir.nodes import Reference, BinaryOperation, Assignment, \
     Literal, KernelSchedule, IntrinsicCall
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -61,7 +64,7 @@ def example_psyir(create_expression):
     '''Utility function that creates a PSyIR tree containing a SIGN
     intrinsic and returns it.
 
-    :param function create_expression: function used to create the \
+    :param function create_expression: function used to create the
         content of the first argument of the SIGN intrinsic.
 
     :returns: PSyIR SIGN intrinsic instance.
@@ -70,12 +73,13 @@ def example_psyir(create_expression):
     '''
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
-        "arg", symbol_type=DataSymbol, datatype=REAL_TYPE,
+        "arg", symbol_type=DataSymbol, datatype=ScalarType.real_type(),
         interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
     arg2 = symbol_table.new_symbol(
-        "arg", symbol_type=DataSymbol, datatype=REAL_TYPE,
+        "arg", symbol_type=DataSymbol, datatype=ScalarType.real_type(),
         interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
-    arg3 = symbol_table.new_symbol(symbol_type=DataSymbol, datatype=REAL_TYPE)
+    arg3 = symbol_table.new_symbol(symbol_type=DataSymbol,
+                                   datatype=ScalarType.real_type())
     symbol_table.specify_argument_list([arg1, arg2])
     var1 = Reference(arg1)
     var2 = Reference(arg2)
@@ -91,7 +95,8 @@ def example_psyir(create_expression):
                          [(lambda arg: arg, "arg"),
                           (lambda arg: BinaryOperation.create(
                               BinaryOperation.Operator.MUL, arg,
-                              Literal("3.14", REAL_TYPE)), "arg * 3.14")])
+                              Literal("3.14", ScalarType.real_type())),
+                              "arg * 3.14")])
 def test_correct(func, output, tmpdir):
     '''Check that a valid example produces the expected output when the
     first argument to SIGN is a simple argument and when it is an
@@ -110,7 +115,7 @@ def test_correct(func, output, tmpdir):
         f"  psyir_tmp = SIGN({output}, arg_1)\n\n"
         f"end subroutine sign_example\n") in result
     trans = Sign2CodeTrans()
-    trans.apply(intr_call, root.symbol_table)
+    trans.apply(intr_call)
     result = writer(root)
     assert (
         f"subroutine sign_example(arg, arg_1)\n"
@@ -145,14 +150,15 @@ def test_correct_expr(tmpdir):
     intr_call = example_psyir(
         lambda arg: BinaryOperation.create(
             BinaryOperation.Operator.MUL, arg,
-            Literal("3.14", REAL_TYPE)))
+            Literal("3.14", ScalarType.real_type())))
     root = intr_call.root
     assignment = intr_call.parent
     intr_call.detach()
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                 Literal("1.0", REAL_TYPE), intr_call)
+                                 Literal("1.0", ScalarType.real_type()),
+                                 intr_call)
     op2 = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                 op1, Literal("2.0", REAL_TYPE))
+                                 op1, Literal("2.0", ScalarType.real_type()))
     assignment.addchild(op2)
     writer = FortranWriter()
     result = writer(root)
@@ -164,7 +170,7 @@ def test_correct_expr(tmpdir):
         "  psyir_tmp = 1.0 + SIGN(arg * 3.14, arg_1) + 2.0\n\n"
         "end subroutine sign_example\n") in result
     trans = Sign2CodeTrans()
-    trans.apply(intr_call, root.symbol_table)
+    trans.apply(intr_call)
     result = writer(root)
     assert (
         "subroutine sign_example(arg, arg_1)\n"
@@ -199,13 +205,14 @@ def test_correct_2sign(tmpdir, fortran_writer):
     intr_call = example_psyir(
         lambda arg: BinaryOperation.create(
             BinaryOperation.Operator.MUL, arg,
-            Literal("3.14", REAL_TYPE)))
+            Literal("3.14", ScalarType.real_type())))
     root = intr_call.root
     assignment = intr_call.parent
     intr_call.detach()
     intr_call2 = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.SIGN,
-        [Literal("1", REAL_TYPE), Literal("1", REAL_TYPE)])
+        [Literal("1", ScalarType.real_type()),
+         Literal("1", ScalarType.real_type())])
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  intr_call2, intr_call)
     assignment.addchild(op1)
@@ -218,8 +225,8 @@ def test_correct_2sign(tmpdir, fortran_writer):
         "  psyir_tmp = SIGN(1.0, 1.0) + SIGN(arg * 3.14, arg_1)\n\n"
         "end subroutine sign_example\n") in result
     trans = Sign2CodeTrans()
-    trans.apply(intr_call, root.symbol_table)
-    trans.apply(intr_call2, root.symbol_table)
+    trans.apply(intr_call)
+    trans.apply(intr_call2)
     result = fortran_writer(root)
     assert (
         "subroutine sign_example(arg, arg_1)\n"
@@ -293,12 +300,15 @@ def test_sign_of_unknown_type(fortran_reader):
     '''
     code = '''\
     program test_prog
+      use my_mod, only: thing
       integer, parameter :: wp = kind(1.0d0)
       integer, parameter, dimension(0:4) :: A2D = (/1, 2, 3, 4, 5/)
       REAL(wp), DIMENSION(A2D(0)) :: ztmp1
       ztmp1 = 0.0
-      ! Can't handle because we don't know the type of MAX or ABS
-      ztmp1 = SIGN( MAX(ABS(ztmp1),1.E-6_wp), ztmp1 )
+      ! Can handle because MAXVAL returns an array.
+      ztmp1 = SIGN(MAX(MAXVAL(ABS(ztmp1)),1.E-6_wp), ztmp1)
+      ! Can't handle because we don't know the type of thing
+      ztmp1 = SIGN( thing, ztmp1 )
       ! Can't handle because ztmp1 is an array
       ztmp1 = SIGN( ztmp1, 1.0 )
     end program test_prog'''
@@ -306,13 +316,15 @@ def test_sign_of_unknown_type(fortran_reader):
     trans = Sign2CodeTrans()
     sgn_calls = [call for call in psyir.walk(IntrinsicCall)
                  if call.intrinsic.name == "SIGN"]
-    with pytest.raises(TransformationError) as err:
-        trans.validate(sgn_calls[0])
-    assert ("Sign2CodeTrans cannot be applied to 'SIGN(MAX(ABS(ztmp1), "
-            "1.e-6_wp), ztmp1) because the type of the argument"
-            in str(err.value))
+    # This one should work correctly.
+    trans.validate(sgn_calls[0])
     with pytest.raises(TransformationError) as err:
         trans.validate(sgn_calls[1])
+    assert ("Sign2CodeTrans cannot be applied to 'SIGN(thing, "
+            "ztmp1) because the type of the argument"
+            in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        trans.validate(sgn_calls[2])
     assert ("Sign2CodeTrans cannot be applied to SIGN calls which have an "
             "array as argument but 'ztmp1' is of array type. It may be "
             "possible to use the ArrayAssignment2LoopsTrans to convert this "
@@ -328,3 +340,25 @@ def test_invalid():
     assert (
         "Error in Sign2CodeTrans transformation. The supplied node must be "
         "an 'IntrinsicCall', but found 'NoneType'." in str(excinfo.value))
+
+
+# TODO #2668 Delete this test.
+def test_deprecation_warning():
+    '''Check that passing the options dict into the transformation results
+    in a deprecation warning.
+
+    '''
+    intr_call = example_psyir(lambda arg: arg)
+    trans = Sign2CodeTrans()
+    with warnings.catch_warnings(record=True) as w:
+        # Cause all warnings to be triggered.
+        warnings.simplefilter("always")
+        trans.apply(intr_call, options={"a": "test"})
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert ("PSyclone Deprecation Warning: The 'options' parameter to "
+                "Transformation.apply and Transformation.validate are now "
+                "deprecated. Please use "
+                "the individual arguments, or unpack the options with "
+                "**options. See the Transformations section of the "
+                "User guide for more details" in str(w[0].message))

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council
+# Copyright (c) 2020-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -64,15 +64,15 @@ class MyNode(Statement):
 def example():
     ''' Example of MyNode usage'''
     from psyclone.psyir.nodes import Schedule, Literal
-    from psyclone.psyir.symbols import INTEGER_TYPE
+    from psyclone.psyir.symbols import ScalarType
     psyir_schedule = Schedule()
 
-    mynode = MyNode(children=[Literal("1", INTEGER_TYPE)])
+    mynode = MyNode(children=[Literal("1", ScalarType.integer_type())])
 
     psyir_schedule.addchild(mynode)
 
     # The following statement is not valid as MyNode only accepts 1 child.
-    # mynode.children.append(Literal("2", INTEGER_TYPE))
+    # mynode.children.append(Literal("2", ScalarType.integer_type()))
 
     # The following statement is not valid as Assignment expects DataNodes
     # from psyclone.psyir.nodes import Assignment

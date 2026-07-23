@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@
 import pytest
 from psyclone.alg_gen import NoInvokesError
 from psyclone.psyir.nodes import Routine, FileContainer, Container
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_SINGLE_TYPE
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, ScalarType
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes.node import colored
 from psyclone.tests.utilities import get_invoke
@@ -82,7 +82,7 @@ def test_file_container_create():
 
     '''
     symbol_table = SymbolTable()
-    symbol_table.add(DataSymbol("tmp", REAL_SINGLE_TYPE))
+    symbol_table.add(DataSymbol("tmp", ScalarType.real_single_type()))
     module = Container.create("mod_1", symbol_table, [])
     program = Routine.create("prog_1", SymbolTable(), [], is_program=True)
     file_container = FileContainer.create(

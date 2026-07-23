@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,16 +43,17 @@ from importlib import import_module
 import pytest
 from psyclone.configuration import Config
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import Kern
-from psyclone.psyir.nodes import Loop
-from psyclone.psyir.transformations import (
-    LoopFuseTrans, LoopTrans, TransformationError)
+from psyclone.psyir.nodes import Container, Loop
+from psyclone.psyir.transformations import LoopFuseTrans, \
+    LoopTrans, TransformationError, ACCLoopTrans, OMPParallelTrans
 from psyclone.transformations import ACCRoutineTrans, \
-    OMPParallelTrans, GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, \
-    OMPLoopTrans, ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans
+    GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, \
+    OMPLoopTrans, ACCParallelTrans, ACCEnterDataTrans
 from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.utilities import count_lines, get_invoke, get_base_path
@@ -103,7 +104,7 @@ def test_loop_fuse_error():
     assert "Both nodes must be of the same GOLoop class." in str(err.value)
 
 
-def test_omp_parallel_loop(tmpdir, fortran_writer):
+def test_omp_paralleldo_loop(tmpdir, fortran_writer):
     '''Test that we can generate an OMP PARALLEL DO correctly,
     independent of whether or not we are generating constant loop bounds '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
@@ -116,7 +117,7 @@ def test_omp_parallel_loop(tmpdir, fortran_writer):
 
     gen = fortran_writer(psy.container)
     expected = (
-        "    !$omp parallel do default(shared), private(i,j), "
+        "    !$omp parallel do default(shared) private(i,j) "
         "schedule(static)\n"
         "    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
         "      do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
@@ -129,7 +130,7 @@ def test_omp_parallel_loop(tmpdir, fortran_writer):
 
     cbtrans.apply(schedule)
     gen = fortran_writer(psy.container)
-    expected = ("!$omp parallel do default(shared), private(i,j), "
+    expected = ("!$omp parallel do default(shared) private(i,j) "
                 "schedule(static)\n"
                 "    do j = 2, jstop, 1\n"
                 "      do i = 2, istop + 1, 1\n"
@@ -176,7 +177,7 @@ def test_omp_region_with_single_loop(tmpdir):
     within_omp_region = False
     call_count = 0
     for line in gen.split('\n'):
-        if '!$omp parallel' in line:
+        if '!$omp parallel default(shared) private(i,j)' in line:
             within_omp_region = True
         if '!$omp end parallel' in line:
             within_omp_region = False
@@ -192,7 +193,7 @@ def test_omp_region_with_single_loop(tmpdir):
     within_omp_region = False
     call_count = 0
     for line in gen.split('\n'):
-        if '!$omp parallel' in line:
+        if '!$omp parallel default(shared) private(i,j)' in line:
             within_omp_region = True
         if '!$omp end parallel' in line:
             within_omp_region = False
@@ -222,7 +223,7 @@ def test_omp_region_with_slice(tmpdir):
     within_omp_region = False
     call_count = 0
     for line in gen.split('\n'):
-        if '!$omp parallel' in line:
+        if '!$omp parallel default(shared) private(i,j)' in line:
             within_omp_region = True
         if '!$omp end parallel' in line:
             within_omp_region = False
@@ -288,7 +289,7 @@ def test_omp_region_no_slice(tmpdir):
     within_omp_region = False
     call_count = 0
     for line in gen.split('\n'):
-        if '!$omp parallel' in line:
+        if '!$omp parallel default(shared) private(i,j)' in line:
             within_omp_region = True
         if '!$omp end parallel' in line:
             within_omp_region = False
@@ -319,7 +320,7 @@ def test_omp_region_no_slice_const_bounds(tmpdir):
     within_omp_region = False
     call_count = 0
     for line in gen.split('\n'):
-        if '!$omp parallel' in line:
+        if '!$omp parallel default(shared) private(i,j)' in line:
             within_omp_region = True
         if '!$omp end parallel' in line:
             within_omp_region = False
@@ -452,6 +453,14 @@ def test_omp_region_retains_kernel_order3(tmpdir):
 
     # Kernels should be in order {compute_cu, compute_cv, time_smooth}
     assert cu_idx < cv_idx < ts_idx
+
+    # Check that the two directive are different statements in above the
+    # second loop (iterates over cv_fld internal) and that the private
+    # clause (now on the parallel directive) only has i and j.
+    assert ("!$omp parallel default(shared) private(i,j)\n"
+            "    !$omp do schedule(static)\n"
+            "    do j = cv_fld%internal%ystart" in gen)
+
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
@@ -482,7 +491,7 @@ def test_omp_region_before_loops_trans(tmpdir):
     omp_region_idx = -1
     omp_do_idx = -1
     for idx, line in enumerate(gen.split('\n')):
-        if '!$omp parallel' in line:
+        if '!$omp parallel default(shared) private(i,j)' in line:
             omp_region_idx = idx
         if '!$omp do' in line:
             omp_do_idx = idx
@@ -502,6 +511,11 @@ def test_omp_region_after_loops_trans(tmpdir):
                              dist_mem=False)
     schedule = invoke.schedule
 
+    # We test with inlining because in the past we had an error when
+    # producing the clauses if the calls were inlined.
+    for kern in schedule.kernels():
+        KernelModuleInlineTrans().apply(kern)
+
     # Put an OpenMP do directive around each loop contained
     # in the schedule
     ompl = GOceanOMPLoopTrans()
@@ -519,7 +533,7 @@ def test_omp_region_after_loops_trans(tmpdir):
     omp_region_idx = -1
     omp_do_idx = -1
     for idx, line in enumerate(gen.split('\n')):
-        if '!$omp parallel' in line:
+        if '!$omp parallel default(shared) private(i,j)' in line:
             omp_region_idx = idx
         if '!$omp do' in line:
             omp_do_idx = idx
@@ -784,6 +798,9 @@ def test_omp_parallel_region_inside_parallel_do():
 
     ompl = GOceanOMPParallelLoopTrans()
     ompr = OMPParallelTrans()
+
+    # Also test the str method of OMPParallelTrans
+    assert str(ompr) == "Insert an OpenMP Parallel region"
 
     # Put an OpenMP parallel do directive around one of the loops
     ompl.apply(schedule.children[1])
@@ -1328,7 +1345,7 @@ def test_acc_enter_directive_infrastructure_setup():
     use iso_c_binding, only : c_ptr
     use kind_params_mod, only : go_wp
     type(c_ptr), intent(in) :: from
-    REAL(KIND = go_wp), DIMENSION(:, :), INTENT(INOUT), TARGET :: to
+    real(kind = go_wp), dimension(:, :), intent(inout), target :: to
     integer, intent(in) :: startx
     integer, intent(in) :: starty
     integer, intent(in) :: nx
@@ -1374,8 +1391,13 @@ def test_acc_enter_directive_infrastructure_setup_error():
     accdata.apply(schedule)
 
     # Remove the InvokeSchedule from its Container so that OpenACC will not
-    # find where to add the read_from_device function.
+    # find where to add the read_from_device function. However, we have to
+    # put the symbol representing the Kernel routine into the local table
+    # in order to get to that error.
+    sym = schedule.ancestor(Container).symbol_table.lookup("compute_cu_code")
     schedule.detach()
+    schedule.symbol_table.add(sym.interface.container_symbol)
+    schedule.symbol_table.add(sym)
 
     # Generate the code
     with pytest.raises(GenerationError) as err:
@@ -1466,9 +1488,9 @@ def test_accroutinetrans_module_use():
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         rtrans.apply(kernels[0])
-    assert ("accesses the symbol 'magic: Symbol<Import(container='model_mod'"
-            ")>' which is imported. If this symbol "
-            "represents data then it must first" in str(err.value))
+    assert ("accesses the imported symbol 'magic: Symbol<Import(container="
+            "'model_mod')>'. If this symbol represents data then it must first"
+            in str(err.value))
     # Tell the ModuleManager where to find the module that is being USED by
     # the kernel.
     mod_man = ModuleManager.get()
@@ -1477,10 +1499,12 @@ def test_accroutinetrans_module_use():
     # (and is not a problem) but that `magic` is a variable.
     with pytest.raises(TransformationError) as err:
         rtrans.apply(kernels[0])
-    assert ("accesses the symbol 'magic: DataSymbol<Scalar<REAL, go_wp: "
-            "DataSymbol<Scalar<INTEGER, UNDEFINED>, Unresolved, "
-            "constant=True>>, Import(container='model_mod')>' which is "
-            "imported" in str(err.value))
+    assert ("Transformation Error: Kernel 'kernel_with_use_code' accesses "
+            "the imported symbol 'magic: DataSymbol<Scalar<REAL, Reference"
+            "[name:'go_wp']>, Import(container='model_mod')>'. "
+            "If this symbol represents data then it must first be "
+            "converted to a Kernel argument using the "
+            "KernelImportsToArguments transformation." in str(err.value))
 
 
 def test_accroutinetrans_with_kern(fortran_writer, monkeypatch):
@@ -1492,16 +1516,18 @@ def test_accroutinetrans_with_kern(fortran_writer, monkeypatch):
     assert isinstance(kern, GOKern)
     rtrans = ACCRoutineTrans()
     assert rtrans.name == "ACCRoutineTrans"
+    KernelModuleInlineTrans().apply(kern)
     rtrans.apply(kern)
     # Check that there is a acc routine directive in the kernel
-    code = fortran_writer(kern.get_kernel_schedule())
+    schedules = kern.get_callees()
+    code = fortran_writer(schedules[0])
     assert "!$acc routine seq\n" in code
 
     # If the kernel schedule is not accessible, the transformation fails
     def raise_gen_error():
         '''Simple function that raises GenerationError.'''
         raise GenerationError("error")
-    monkeypatch.setattr(kern, "get_kernel_schedule", raise_gen_error)
+    monkeypatch.setattr(kern, "get_callees", raise_gen_error)
     with pytest.raises(TransformationError) as err:
         rtrans.apply(kern)
     assert ("Failed to create PSyIR for kernel 'continuity_code'. Cannot "
@@ -1517,16 +1543,16 @@ def test_accroutinetrans_with_routine(fortran_writer):
     assert isinstance(kern, GOKern)
     rtrans = ACCRoutineTrans()
     assert rtrans.name == "ACCRoutineTrans"
-    routine = kern.get_kernel_schedule()
-    rtrans.apply(routine)
+    routines = kern.get_callees()
+    rtrans.apply(routines[0])
     # Check that there is a acc routine directive in the routine
-    code = fortran_writer(routine)
+    code = fortran_writer(routines[0])
     assert "!$acc routine seq\n" in code
 
     # Even if applied multiple times the Directive is only there once
-    previous_num_children = len(routine.children)
-    rtrans.apply(routine)
-    assert previous_num_children == len(routine.children)
+    previous_num_children = len(routines[0].children)
+    rtrans.apply(routines[0])
+    assert previous_num_children == len(routines[0].children)
 
 
 def test_accroutinetrans_with_invalid_node():

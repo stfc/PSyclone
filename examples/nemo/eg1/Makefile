@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,8 @@ include ../../common.mk
 transform:
 	${PSYCLONE} -s ./openmp_cpu_levels_trans.py ../code/tra_adv.F90
 	${PSYCLONE} -s ./openmp_gpu_levels_trans.py ../code/tra_adv.F90
-	${PSYCLONE} -s ../scripts/omp_cpu_trans.py ../code/tra_adv.F90
-	${PSYCLONE} -s ../scripts/omp_gpu_trans.py ../code/tra_adv.F90
+	PARLLEL_DIRECTIVES="omp_threading" ${PSYCLONE} -s ../scripts/insert_loop_parallelism.py ../code/tra_adv.F90
+	PARLLEL_DIRECTIVES="omp_offloading" ${PSYCLONE} -s ../scripts/insert_loop_parallelism.py ../code/tra_adv.F90
 
 compile: transform
 	@echo "No compilation supported for nemo/eg1"

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,18 +33,20 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Laboratory
 #          T. Vockerodt, Met Office
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module containing tests for the matmul2code transformation.'''
 
 import pytest
+import warnings
 from psyclone.psyir.transformations import Matmul2CodeTrans, \
     TransformationError
-from psyclone.psyir.transformations.intrinsics.matmul2code_trans import \
-    _create_array_ref, _get_array_bound
+from psyclone.psyir.transformations.intrinsics.matmul2code_trans import (
+    _create_array_ref)
 from psyclone.psyir.nodes import BinaryOperation, Literal, ArrayReference, \
     Assignment, Reference, Range, KernelSchedule, IntrinsicCall
-from psyclone.psyir.symbols import DataSymbol, SymbolTable, ArrayType, \
-    ScalarType, INTEGER_TYPE, REAL_TYPE
+from psyclone.psyir.symbols import (DataSymbol, SymbolTable, ArrayType,
+                                    ScalarType)
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import Compile
 
@@ -55,11 +57,12 @@ def create_matmul():
 
     '''
     symbol_table = SymbolTable()
-    one = Literal("1", INTEGER_TYPE)
-    two = Literal("2", INTEGER_TYPE)
-    index = DataSymbol("idx", INTEGER_TYPE, is_constant=True, initial_value=3)
+    one = Literal("1", ScalarType.integer_type())
+    two = Literal("2", ScalarType.integer_type())
+    index = DataSymbol("idx", ScalarType.integer_type(), is_constant=True,
+                       initial_value=3)
     symbol_table.add(index)
-    array_type = ArrayType(REAL_TYPE, [5, 10, 15])
+    array_type = ArrayType(ScalarType.real_type(), [5, 10, 15])
     mat_symbol = DataSymbol("x", array_type)
     symbol_table.add(mat_symbol)
     lbound1 = IntrinsicCall.create(
@@ -78,7 +81,7 @@ def create_matmul():
     my_mat_range2 = Range.create(lbound2, ubound2, one.copy())
     matrix = ArrayReference.create(mat_symbol, [my_mat_range1, my_mat_range2,
                                                 Reference(index)])
-    array_type = ArrayType(REAL_TYPE, [10, 20, 10])
+    array_type = ArrayType(ScalarType.real_type(), [10, 20, 10])
     vec_symbol = DataSymbol("y", array_type)
     symbol_table.add(vec_symbol)
     lbound = IntrinsicCall.create(
@@ -92,7 +95,7 @@ def create_matmul():
                                                 Reference(index), one.copy()])
     matmul = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.MATMUL, [matrix, vector])
-    lhs_type = ArrayType(REAL_TYPE, [10])
+    lhs_type = ArrayType(ScalarType.real_type(), [10])
     lhs_symbol = DataSymbol("result", lhs_type)
     symbol_table.add(lhs_symbol)
     lhs = Reference(lhs_symbol)
@@ -106,9 +109,9 @@ def test_create_array_ref_1d():
     1d array.
 
     '''
-    array_type = ArrayType(REAL_TYPE, [10])
+    array_type = ArrayType(ScalarType.real_type(), [10])
     array_symbol = DataSymbol("x", array_type)
-    i_loop_sym = DataSymbol("i", INTEGER_TYPE)
+    i_loop_sym = DataSymbol("i", ScalarType.integer_type())
     ref1 = _create_array_ref(array_symbol, [i_loop_sym], [], [0], [])
     assert isinstance(ref1, ArrayReference)
     assert ref1.symbol is array_symbol
@@ -121,10 +124,10 @@ def test_create_array_ref_trailing_indices():
     array that has an additional dimension that is not being looped over.
 
     '''
-    array_type = ArrayType(REAL_TYPE, [10, 5])
+    array_type = ArrayType(ScalarType.real_type(), [10, 5])
     array_symbol = DataSymbol("x", array_type)
-    i_loop_sym = DataSymbol("i", INTEGER_TYPE)
-    k_sym = DataSymbol("k", INTEGER_TYPE)
+    i_loop_sym = DataSymbol("i", ScalarType.integer_type())
+    k_sym = DataSymbol("k", ScalarType.integer_type())
     k_ref = Reference(k_sym)
     ref1 = _create_array_ref(array_symbol, [i_loop_sym], [k_ref], [0], [1])
     assert isinstance(ref1, ArrayReference)
@@ -141,10 +144,10 @@ def test_create_array_ref_2d():
     2d array.
 
     '''
-    array_type = ArrayType(REAL_TYPE, [10, 8])
+    array_type = ArrayType(ScalarType.real_type(), [10, 8])
     array_symbol = DataSymbol("x", array_type)
-    i_loop_sym = DataSymbol("i", INTEGER_TYPE)
-    j_loop_sym = DataSymbol("j", INTEGER_TYPE)
+    i_loop_sym = DataSymbol("i", ScalarType.integer_type())
+    j_loop_sym = DataSymbol("j", ScalarType.integer_type())
     ref2 = _create_array_ref(array_symbol,
                              [i_loop_sym, j_loop_sym],
                              [],
@@ -155,129 +158,6 @@ def test_create_array_ref_2d():
     assert len(ref2.indices) == 2
     assert ref2.indices[0].symbol is i_loop_sym
     assert ref2.indices[1].symbol is j_loop_sym
-
-
-def test_get_array_bound_error():
-    '''Test that the _get_array_bound() utility function raises the
-    expected exception if the shape of the array's symbol is not
-    supported.'''
-    array_type = ArrayType(REAL_TYPE, [10])
-    array_symbol = DataSymbol("x", array_type)
-    reference = Reference(array_symbol)
-    array_type._shape = [0.2]
-    with pytest.raises(TransformationError) as excinfo:
-        _get_array_bound(reference, 0)
-    assert ("Transformation Error: Unsupported index type found for "
-            "array 'x'" in str(excinfo.value))
-
-
-def test_get_array_bound():
-    '''Test that the _get_array_bound utility function returns the expected
-    bound values for different types of array declaration. Also checks that
-    new nodes are created each time the utility is called.
-
-    '''
-    scalar_symbol = DataSymbol("n", INTEGER_TYPE, is_constant=True,
-                               initial_value=20)
-    array_type = ArrayType(REAL_TYPE, [10, Reference(scalar_symbol)])
-    array_symbol = DataSymbol("x", array_type)
-    reference = Reference(array_symbol)
-    # literal value
-    (lower_bound, upper_bound, step) = _get_array_bound(reference, 0)
-    assert isinstance(lower_bound, Literal)
-    assert lower_bound.value == "1"
-    assert lower_bound.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert isinstance(upper_bound, Literal)
-    assert upper_bound.value == "10"
-    assert upper_bound.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert isinstance(step, Literal)
-    assert step.value == "1"
-    assert step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    # Check that the method creates new nodes each time.
-    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 0)
-    assert lower_bound2 is not lower_bound
-    assert upper_bound2 is not upper_bound
-    assert step2 is not step
-    # symbol
-    (lower_bound, upper_bound, step) = _get_array_bound(reference, 1)
-    assert isinstance(lower_bound, Literal)
-    assert lower_bound.value == "1"
-    assert lower_bound.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert isinstance(upper_bound, Reference)
-    assert upper_bound.symbol.name == "n"
-    assert isinstance(step, Literal)
-    assert step.value == "1"
-    assert step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    # Check that the method creates new nodes each time.
-    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 1)
-    assert lower_bound2 is not lower_bound
-    assert upper_bound2 is not upper_bound
-    assert step2 is not step
-
-    # deferred and attribute
-    def _check_ulbound(lower_bound, upper_bound, step, index):
-        '''Internal utility routine that checks LBOUND and UBOUND are used
-        correctly for the lower and upper array bounds
-        respectively.
-
-        '''
-        assert isinstance(lower_bound, IntrinsicCall)
-        assert lower_bound.intrinsic == IntrinsicCall.Intrinsic.LBOUND
-        assert isinstance(lower_bound.children[0], Reference)
-        assert lower_bound.arguments[0].symbol is array_symbol
-        assert isinstance(lower_bound.arguments[1], Literal)
-        assert (lower_bound.arguments[1].datatype.intrinsic ==
-                ScalarType.Intrinsic.INTEGER)
-        assert lower_bound.arguments[1].value == str(index+1)
-        assert isinstance(upper_bound, IntrinsicCall)
-        assert upper_bound.intrinsic == IntrinsicCall.Intrinsic.UBOUND
-        assert isinstance(upper_bound.arguments[0], Reference)
-        assert upper_bound.arguments[0].symbol is array_symbol
-        assert isinstance(upper_bound.arguments[1], Literal)
-        assert (upper_bound.arguments[1].datatype.intrinsic ==
-                ScalarType.Intrinsic.INTEGER)
-        assert upper_bound.arguments[1].value == str(index+1)
-        assert isinstance(step, Literal)
-        assert step.value == "1"
-        assert step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-
-    # Allocatable array.
-    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED,
-                                       ArrayType.Extent.DEFERRED])
-    array_symbol = DataSymbol("x", array_type)
-    reference = Reference(array_symbol)
-
-    (lower_bound, upper_bound, step) = _get_array_bound(reference, 0)
-    _check_ulbound(lower_bound, upper_bound, step, 0)
-    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 1)
-    assert lower_bound2 is not lower_bound
-    assert upper_bound2 is not upper_bound
-    assert step2 is not step
-
-    # Assumed shape array.
-    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE,
-                                       ArrayType.Extent.ATTRIBUTE])
-    array_symbol = DataSymbol("x", array_type)
-    reference = Reference(array_symbol)
-    (lower_bound, upper_bound, step) = _get_array_bound(reference, 0)
-    _check_ulbound(lower_bound, upper_bound, step, 0)
-    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 1)
-    assert lower_bound2 is not lower_bound
-    assert upper_bound2 is not upper_bound
-    assert step2 is not step
-
-    # Assumed-shape array with specified lower bound.
-    array_type = ArrayType(REAL_TYPE, [(3, ArrayType.Extent.ATTRIBUTE),
-                                       ArrayType.Extent.ATTRIBUTE])
-    array_symbol = DataSymbol("x", array_type)
-    reference = Reference(array_symbol)
-    (lower_bound, upper_bound, step) = _get_array_bound(reference, 0)
-    assert isinstance(lower_bound, Literal)
-    assert isinstance(upper_bound, IntrinsicCall)
-    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 1)
-    assert lower_bound2 is not lower_bound
-    assert upper_bound2 is not upper_bound
-    assert step2 is not step
 
 
 def test_initialise():
@@ -311,7 +191,8 @@ def test_validate_node_not_matmul():
     trans = Matmul2CodeTrans()
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(IntrinsicCall.create(
-            IntrinsicCall.Intrinsic.SUM, [Literal("1.0", REAL_TYPE)]))
+            IntrinsicCall.Intrinsic.SUM,
+            [Literal("1.0", ScalarType.real_type())]))
     assert ("Transformation Error: Error in Matmul2CodeTrans transformation. "
             "The supplied IntrinsicCall must be a 'MATMUL' but "
             "found: 'SUM'." in str(excinfo.value))
@@ -324,8 +205,8 @@ def test_validate_no_assignment_ancestor():
 
     '''
     trans = Matmul2CodeTrans()
-    vector_type = ArrayType(REAL_TYPE, [10])
-    array_type = ArrayType(REAL_TYPE, [10, 10])
+    vector_type = ArrayType(ScalarType.real_type(), [10])
+    array_type = ArrayType(ScalarType.real_type(), [10, 10])
     vector = Reference(DataSymbol("x", vector_type))
     array = Reference(DataSymbol("y", array_type))
     matmul = IntrinsicCall.create(
@@ -345,8 +226,8 @@ def test_validate_not_solely_matmul():
 
     '''
     trans = Matmul2CodeTrans()
-    vector_type = ArrayType(REAL_TYPE, [10])
-    array_type = ArrayType(REAL_TYPE, [10, 10])
+    vector_type = ArrayType(ScalarType.real_type(), [10])
+    array_type = ArrayType(ScalarType.real_type(), [10, 10])
     vector = Reference(DataSymbol("x", vector_type))
     array = Reference(DataSymbol("y", array_type))
     matmul = IntrinsicCall.create(
@@ -368,9 +249,9 @@ def test_validate_arg_not_ref():
 
     '''
     trans = Matmul2CodeTrans()
-    array_type = ArrayType(REAL_TYPE, [10])
+    array_type = ArrayType(ScalarType.real_type(), [10])
     array = ArrayReference.create(DataSymbol("x", array_type),
-                                  [Literal("10", INTEGER_TYPE)])
+                                  [Literal("10", ScalarType.integer_type())])
     mult = BinaryOperation.create(
         BinaryOperation.Operator.MUL, array.copy(), array.copy())
     matmul = IntrinsicCall.create(
@@ -379,8 +260,8 @@ def test_validate_arg_not_ref():
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Expected result and operands of MATMUL IntrinsicCall to be "
-            "references, but found: 'x(10) = MATMUL(x(10) * x(10), x(10) * "
-            "x(10))\n'." in str(excinfo.value))
+            "references, but found: 'x(10) = MATMUL(x(10) * x(10), "
+            "x(10) * x(10))\n'." in str(excinfo.value))
 
 
 def test_validate_arg_not_arr():
@@ -391,7 +272,7 @@ def test_validate_arg_not_arr():
 
     '''
     trans = Matmul2CodeTrans()
-    scalar = Reference(DataSymbol("x", REAL_TYPE))
+    scalar = Reference(DataSymbol("x", ScalarType.real_type()))
     matmul = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.MATMUL, [scalar, scalar.copy()])
     _ = Assignment.create(scalar.copy(), matmul)
@@ -429,7 +310,7 @@ def test_validate_mat_too_few_dims():
 
     '''
     trans = Matmul2CodeTrans()
-    array_type = ArrayType(REAL_TYPE, [10])
+    array_type = ArrayType(ScalarType.real_type(), [10])
     array = Reference(DataSymbol("x", array_type))
     matmul = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.MATMUL, [array.copy(), array.copy()])
@@ -449,7 +330,7 @@ def test_validate_mat_too_many_dims():
 
     '''
     trans = Matmul2CodeTrans()
-    array_type = ArrayType(REAL_TYPE, [10, 10, 10])
+    array_type = ArrayType(ScalarType.real_type(), [10, 10, 10])
     array = Reference(DataSymbol("x", array_type))
     matmul = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.MATMUL, [array.copy(), array.copy()])
@@ -468,9 +349,9 @@ def test_validate_vec_too_many_dims():
 
     '''
     trans = Matmul2CodeTrans()
-    array_type = ArrayType(REAL_TYPE, [10, 10])
+    array_type = ArrayType(ScalarType.real_type(), [10, 10])
     array = Reference(DataSymbol("x", array_type))
-    vector_type = ArrayType(REAL_TYPE, [10, 10, 10])
+    vector_type = ArrayType(ScalarType.real_type(), [10, 10, 10])
     vector = Reference(DataSymbol("y", vector_type))
     matmul = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.MATMUL, [array, vector])
@@ -491,7 +372,7 @@ def test_validate_mat_too_few_full_ranges():
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     matrix = matmul.arguments[0]
-    matrix.children[0] = Literal("1", INTEGER_TYPE)
+    matrix.children[0] = Literal("1", ScalarType.integer_type())
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("To use Matmul2CodeTrans on matmul, 2 indices of the "
@@ -527,8 +408,8 @@ def test_validate_mat_non_full_range():
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     matrix = matmul.arguments[0]
-    matrix.children[2] = Range.create(Literal("1", INTEGER_TYPE),
-                                      Literal("10", INTEGER_TYPE))
+    matrix.children[2] = Range.create(Literal("1", ScalarType.integer_type()),
+                                      Literal("10", ScalarType.integer_type()))
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: To use Matmul2CodeTrans on matmul, "
@@ -546,8 +427,8 @@ def test_validate_vec_non_full_range():
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     vector = matmul.arguments[1]
-    vector.children[2] = Range.create(Literal("1", INTEGER_TYPE),
-                                      Literal("5", INTEGER_TYPE))
+    vector.children[2] = Range.create(Literal("1", ScalarType.integer_type()),
+                                      Literal("5", ScalarType.integer_type()))
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: To use Matmul2CodeTrans on matmul, "
@@ -566,8 +447,8 @@ def test_validate_mat_too_many_full_ranges():
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     matrix = matmul.arguments[0]
-    matrix.children[2] = Range.create(Literal("1", INTEGER_TYPE),
-                                      Literal("15", INTEGER_TYPE))
+    matrix.children[2] = Range.create(Literal("1", ScalarType.integer_type()),
+                                      Literal("15", ScalarType.integer_type()))
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: To use Matmul2CodeTrans on matmul, "
@@ -586,10 +467,10 @@ def test_validate_vec_too_many_full_ranges():
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     vector = matmul.arguments[1]
-    vector.children[1] = Range.create(Literal("1", INTEGER_TYPE),
-                                      Literal("20", INTEGER_TYPE))
-    vector.children[2] = Range.create(Literal("1", INTEGER_TYPE),
-                                      Literal("10", INTEGER_TYPE))
+    vector.children[1] = Range.create(Literal("1", ScalarType.integer_type()),
+                                      Literal("20", ScalarType.integer_type()))
+    vector.children[2] = Range.create(Literal("1", ScalarType.integer_type()),
+                                      Literal("10", ScalarType.integer_type()))
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: To use Matmul2CodeTrans on matmul, "
@@ -756,8 +637,8 @@ def test_apply_matvect_additional_indices(tmpdir, fortran_writer):
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     root = matmul.root
-    matmul.arguments[0].children[2] = Literal("1", INTEGER_TYPE)
-    matmul.arguments[1].children[1] = Literal("2", INTEGER_TYPE)
+    matmul.arguments[0].children[2] = Literal("1", ScalarType.integer_type())
+    matmul.arguments[1].children[1] = Literal("2", ScalarType.integer_type())
     trans.apply(matmul)
     result = fortran_writer(root)
     assert (
@@ -794,9 +675,9 @@ def test_apply_matvect_no_indices(tmpdir, fortran_writer):
     lhs_vector = matrix.parent.parent.lhs
     matrix_symbol = matrix.symbol
     matmul.arguments[0].replace_with(Reference(matrix_symbol))
-    one = Literal("1", INTEGER_TYPE)
-    ten = Literal("10", INTEGER_TYPE)
-    twenty = Literal("20", INTEGER_TYPE)
+    one = Literal("1", ScalarType.integer_type())
+    ten = Literal("10", ScalarType.integer_type())
+    twenty = Literal("20", ScalarType.integer_type())
     matrix_symbol.datatype._shape = [
         ArrayType.ArrayBounds(one.copy(), ten.copy()),
         ArrayType.ArrayBounds(one.copy(), twenty.copy())]
@@ -1080,3 +961,32 @@ def test_apply_matvec_varexpr_index(tmpdir, fortran_reader, fortran_writer):
         "    enddo\n"
         "  enddo\n" in out)
     assert Compile(tmpdir).string_compiles(out)
+
+
+# TODO #2668 Remove this test.
+def test_apply_deprecation(fortran_reader):
+    '''Test that the apply gives the deprecation warning when provided an
+    options dict.'''
+
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine my_sub()\n"
+        "  real, dimension(2,4,6) :: jac\n"
+        "  real, dimension(4,6,3) :: jac_inv\n"
+        "  real, dimension(2) :: result\n"
+        "  integer, parameter :: arg = 0\n"
+        "  result = matmul(jac(:,1,:), jac_inv(2,:,arg+3))\n"
+        "end subroutine my_sub\n")
+    trans = Matmul2CodeTrans()
+    assign = psyir.walk(Assignment)[0]
+    with warnings.catch_warnings(record=True) as w:
+        # Cause all warnings to be triggered.
+        warnings.simplefilter("always")
+        trans.apply(assign.rhs, options={"a": "test"})
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert ("PSyclone Deprecation Warning: The 'options' parameter to "
+                "Transformation.apply and Transformation.validate are now "
+                "deprecated. Please use "
+                "the individual arguments, or unpack the options with "
+                "**options. See the Transformations section of the "
+                "User guide for more details" in str(w[0].message))

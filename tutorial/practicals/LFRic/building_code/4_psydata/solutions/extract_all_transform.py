@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -59,7 +59,8 @@ def trans(psyir):
 
         # Apply the transformation
         extract.apply(subroutine, {"region_name": ("time_evolution",
-                                                   subroutine.name)})
+                                                   subroutine.name),
+                                   "create_driver": True})
 
         # Just as feedback: show the modified PSyIR, which should have
         # a new node at the top:

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2025, Science and Technology Facilities Council
+! Copyright (c) 2017-2026, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -46,10 +46,10 @@ program any_space_example
 
   implicit none
 
-  type(field_type)           :: a, f
-  type(operator_type)        :: b, c, d, e
+  type(field_type)           :: a, a_field_with_a_very_long_name
+  type(operator_type)        :: b, c, an_operator_with_a_very_long_name, e
   type(quadrature_xyoz_type) :: qr
 
-  call invoke(testkern_any_space_4_type(a, b, c, d, e, f, qr))
+  call invoke(testkern_any_space_4_type(a, b, c, an_operator_with_a_very_long_name, e, a_field_with_a_very_long_name, qr))
 
 end program any_space_example

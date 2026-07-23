@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2025, Science and Technology Facilities Council.
+# Copyright (c) 2023-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,9 +42,9 @@ version: 2
 
 # Set the version of Python and other tools you might need
 build:
-  os: ubuntu-22.04
+  os: ubuntu-26.04
   tools:
-    python: "3.12"
+    python: "3.14"
   apt_packages:
     - graphviz
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,11 +50,11 @@ from psyclone.psyad.tl2ad import (
     _get_active_variables_datatype, _add_precision_symbol)
 from psyclone.psyir.nodes import (
     Container, FileContainer, Return, Routine, Assignment, BinaryOperation,
-    IntrinsicCall, Literal)
+    IntrinsicCall, Literal, Reference)
 from psyclone.psyir.symbols import (
-    DataSymbol, SymbolTable, REAL_DOUBLE_TYPE, INTEGER_TYPE, REAL_TYPE,
-    ArrayType, RoutineSymbol, ImportInterface, ScalarType, ContainerSymbol,
-    ArgumentInterface, UnsupportedFortranType, UnresolvedType)
+    DataSymbol, SymbolTable, ScalarType, ArrayType, RoutineSymbol,
+    ImportInterface, ContainerSymbol, ArgumentInterface,
+    UnsupportedFortranType, UnresolvedType)
 from psyclone.tests.utilities import Compile
 
 
@@ -97,18 +97,13 @@ def test_generate_adjoint_str(caplog, tmpdir):
 
     with caplog.at_level(logging.INFO):
         result, test_harness = generate_adjoint_str(tl_code, ["a", "b"])
-
-    assert caplog.text == ""
+        assert caplog.text == ""
     assert expected in result
     assert test_harness == ""
 
-    with caplog.at_level(logging.DEBUG):
+    with caplog.at_level(logging.DEBUG, logger="psyclone.psyad.tl2ad"):
         result, test_harness = generate_adjoint_str(tl_code, ["a", "b"])
 
-    if not caplog.text:
-        pytest.xfail(reason="#1235: caplog returns an empty string in "
-                     "github actions.")
-    else:
         assert tl_code in caplog.text
         assert ("PSyIR\n"
                 "FileContainer[]\n"
@@ -207,7 +202,7 @@ def test_generate_adjoint_str_trans(tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_generate_adjoint_str_trans_error(tmpdir):
+def test_generate_adjoint_str_trans_error():
     '''Test that the generate_adjoint_str() function successfully catches
     an error from the preprocess_trans() function.
 
@@ -303,7 +298,7 @@ def test_generate_adjoint_str_generate_harness_logging(caplog):
     with caplog.at_level(logging.INFO):
         _ = generate_adjoint_str(tl_code, ["field"], create_test=True)
     assert caplog.text == ""
-    with caplog.at_level(logging.DEBUG):
+    with caplog.at_level(logging.DEBUG, logger="psyclone.psyad.tl2ad"):
         _, harness = generate_adjoint_str(tl_code, ["field"],
                                           create_test=True)
     if not caplog.text:
@@ -344,8 +339,8 @@ def test_get_active_variables_datatype_error(fortran_reader):
         _get_active_variables_datatype(tl_psyir, ["a", "c"])
     assert ("active variables of different datatype: 'a' is of intrinsic "
             "type 'Intrinsic.REAL' and precision 'Precision.UNDEFINED' while "
-            "'c' is of intrinsic type 'Intrinsic.REAL' and precision 'wp: "
-            in str(err.value))
+            "'c' is of intrinsic type 'Intrinsic.REAL' and precision "
+            "'Reference[name:'wp']'" in str(err.value))
 
     with pytest.raises(NotImplementedError) as err:
         _get_active_variables_datatype(tl_psyir, ["a", "idx"])
@@ -377,13 +372,13 @@ def test_get_active_variables_datatype(fortran_reader):
     # Real, specified KIND
     atype = _get_active_variables_datatype(tl_psyir, ["d", "e"])
     assert atype.intrinsic == ScalarType.Intrinsic.REAL
-    assert isinstance(atype.precision, DataSymbol)
-    assert atype.precision.name == "wp"
+    assert isinstance(atype.precision, Reference)
+    assert atype.precision.symbol.name == "wp"
     # Integer, specified KIND
     atype = _get_active_variables_datatype(tl_psyir, ["ii", "jj", "kk"])
     assert atype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert isinstance(atype.precision, DataSymbol)
-    assert atype.precision.name == "i_def"
+    assert isinstance(atype.precision, Reference)
+    assert atype.precision.symbol.name == "i_def"
 
 
 # generate_adjoint function
@@ -715,7 +710,8 @@ def test_generate_adjoint_test(fortran_reader, fortran_writer):
             "  ! compute the inner product of the results of the tangent-"
             "linear kernel\n"
             "  inner1 = 0.0\n"
-            "  inner1 = inner1 + dot_product(field, field)\n"
+            "  inner1 = inner1 + dot_product(field, "
+            "field)\n"
             "\n"
             "  ! call the adjoint of the kernel\n"
             "  call adj_kern(field, npts)\n"
@@ -723,7 +719,8 @@ def test_generate_adjoint_test(fortran_reader, fortran_writer):
             "  ! compute inner product of results of adjoint kernel with "
             "the original inputs to the tangent-linear kernel\n"
             "  inner2 = 0.0\n"
-            "  inner2 = inner2 + dot_product(field, field_input)\n"
+            "  inner2 = inner2 + dot_product(field, "
+            "field_input)\n"
             "\n"
             "  ! test the inner-product values for equality, allowing for "
             "the precision of the active variables\n"
@@ -769,7 +766,7 @@ def test_generate_adjoint_test_no_extent(fortran_reader, fortran_writer):
 def test_add_precision_symbol():
     ''' Tests for the _add_precision_symbol() utility function. '''
     table = SymbolTable()
-    sym = DataSymbol("i_def", INTEGER_TYPE)
+    sym = DataSymbol("i_def", ScalarType.integer_type())
     _add_precision_symbol(sym, table)
     # A local symbol should just be copied into the table.
     new_sym = table.lookup("i_def")
@@ -780,7 +777,8 @@ def test_add_precision_symbol():
     # An imported symbol should have its originating Container copied
     # over too.
     csym = ContainerSymbol("some_mod")
-    rdef = DataSymbol("r_def", INTEGER_TYPE, interface=ImportInterface(csym))
+    rdef = DataSymbol("r_def", ScalarType.integer_type(),
+                      interface=ImportInterface(csym))
     _add_precision_symbol(rdef, table)
     csym_copy = table.lookup("some_mod")
     assert isinstance(csym_copy, ContainerSymbol)
@@ -788,7 +786,8 @@ def test_add_precision_symbol():
     rdef_copy = table.lookup("r_def")
     assert rdef_copy.interface.container_symbol is csym_copy
     # A precision symbol must be either local or imported
-    arg_sym = DataSymbol("wrong", INTEGER_TYPE, interface=ArgumentInterface())
+    arg_sym = DataSymbol("wrong", ScalarType.integer_type(),
+                         interface=ArgumentInterface())
     table.specify_argument_list([arg_sym])
     with pytest.raises(NotImplementedError) as err:
         _add_precision_symbol(arg_sym, table)
@@ -797,12 +796,12 @@ def test_add_precision_symbol():
             str(err.value))
     # A precision symbol must be a scalar integer or of unresolved/unsupported
     # type
-    isym = DataSymbol("iwrong", REAL_TYPE)
+    isym = DataSymbol("iwrong", ScalarType.real_type())
     with pytest.raises(TypeError) as err:
         _add_precision_symbol(isym, table)
     assert ("integer type but 'iwrong' has type 'Scalar<REAL, UNDEFINED>'." in
             str(err.value))
-    arr_sym = DataSymbol("iarray", ArrayType(INTEGER_TYPE, [10]))
+    arr_sym = DataSymbol("iarray", ArrayType(ScalarType.integer_type(), [10]))
     with pytest.raises(TypeError) as err:
         _add_precision_symbol(arr_sym, table)
     assert ("integer type but 'iarray' has type 'Array<Scalar<INTEGER, "
@@ -965,7 +964,7 @@ def test_generate_harness_kernel_arg_invalid_shape(fortran_reader):
     # it into a UnaryOperation node.
     fld_arg.datatype._shape[0] = ArrayType.ArrayBounds(
         lower=IntrinsicCall.create(IntrinsicCall.Intrinsic.NINT,
-                                   [Literal("1", INTEGER_TYPE)]),
+                                   [Literal("1", ScalarType.integer_type())]),
         upper=fld_arg.datatype._shape[0].upper)
     with pytest.raises(NotImplementedError) as err:
         generate_adjoint_test(tl_psyir, ad_psyir, ["field1"])
@@ -1071,27 +1070,27 @@ def test_create_inner_product_errors():
     ''' Check that the _create_inner_product() utility raises the expected
     exceptions if given invalid inputs. '''
     table = SymbolTable()
-    accum = DataSymbol("result", REAL_DOUBLE_TYPE)
-    var1 = DataSymbol("var1", REAL_DOUBLE_TYPE)
-    var2 = DataSymbol("var2", INTEGER_TYPE)
+    accum = DataSymbol("result", ScalarType.real_double_type())
+    var1 = DataSymbol("var1", ScalarType.real_double_type())
+    var2 = DataSymbol("var2", ScalarType.integer_type())
     with pytest.raises(TypeError) as err:
         _create_inner_product(accum, [(var1, var2)], table)
     assert ("Cannot compute inner product of Symbols 'var1' and 'var2' "
             "because they represent different datatypes (Scalar" in
             str(err.value))
-    var3 = DataSymbol("var3", ArrayType(REAL_DOUBLE_TYPE, [10]))
+    var3 = DataSymbol("var3", ArrayType(ScalarType.real_double_type(), [10]))
     with pytest.raises(TypeError) as err:
         _create_inner_product(accum, [(var1, var3)], table)
     assert ("Cannot compute inner product of Symbols 'var1' and 'var3' "
             "because they represent different datatypes (Scalar" in
             str(err.value))
-    var4 = DataSymbol("var4", ArrayType(REAL_TYPE, [10]))
+    var4 = DataSymbol("var4", ArrayType(ScalarType.real_type(), [10]))
     with pytest.raises(TypeError) as err:
         _create_inner_product(accum, [(var4, var3)], table)
     assert ("Cannot compute inner product of Symbols 'var4' and 'var3' "
             "because they represent different datatypes (Array" in
             str(err.value))
-    var5 = DataSymbol("var5", ArrayType(REAL_TYPE, [10, 10]))
+    var5 = DataSymbol("var5", ArrayType(ScalarType.real_type(), [10, 10]))
     with pytest.raises(TypeError) as err:
         _create_inner_product(accum, [(var4, var5)], table)
     assert ("Cannot compute inner product of Symbols 'var4' and 'var5' "
@@ -1102,15 +1101,15 @@ def test_create_inner_product_errors():
 def test_create_array_inner_product_errors():
     ''' Tests for the checks in _create_array_inner_product function. '''
     table = SymbolTable()
-    accum = DataSymbol("result", REAL_DOUBLE_TYPE)
-    array_type = ArrayType(INTEGER_TYPE, [10])
-    var1 = DataSymbol("var1", INTEGER_TYPE)
+    accum = DataSymbol("result", ScalarType.real_double_type())
+    array_type = ArrayType(ScalarType.integer_type(), [10])
+    var1 = DataSymbol("var1", ScalarType.integer_type())
     var2 = DataSymbol("var2", array_type)
     with pytest.raises(TypeError) as err:
         _create_array_inner_product(accum, var1, var2, table)
     assert ("Symbols 'var1' and 'var2' because they represent different "
             "datatypes" in str(err.value))
-    var2 = DataSymbol("var2", INTEGER_TYPE)
+    var2 = DataSymbol("var2", ScalarType.integer_type())
     with pytest.raises(TypeError) as err:
         _create_array_inner_product(accum, var1, var2, table)
     assert ("Supplied Symbols must represent arrays but got 'Scalar<INTEGER, "
@@ -1120,9 +1119,9 @@ def test_create_array_inner_product_errors():
 def test_create_inner_product_scalars(fortran_writer):
     ''' Test for utility that creates PSyIR for computing an
     inner product when given scalars. '''
-    accum = DataSymbol("result", REAL_DOUBLE_TYPE)
-    var1 = DataSymbol("var1", INTEGER_TYPE)
-    var2 = DataSymbol("var2", INTEGER_TYPE)
+    accum = DataSymbol("result", ScalarType.real_double_type())
+    var1 = DataSymbol("var1", ScalarType.integer_type())
+    var2 = DataSymbol("var2", ScalarType.integer_type())
     table = SymbolTable()
     nodes = _create_inner_product(accum, [(var1, var2)], table)
     assert len(nodes) == 2
@@ -1141,8 +1140,8 @@ def test_create_inner_product_1d_arrays(fortran_writer):
     ''' Test for utility that creates PSyIR for computing an
     inner product when given rank-1 arrays. '''
     table = SymbolTable()
-    accum = DataSymbol("result", REAL_DOUBLE_TYPE)
-    array_type = ArrayType(INTEGER_TYPE, [10])
+    accum = DataSymbol("result", ScalarType.real_double_type())
+    array_type = ArrayType(ScalarType.integer_type(), [10])
     var1 = DataSymbol("var1", array_type)
     var2 = DataSymbol("var2", array_type)
     table.add(var1)
@@ -1157,16 +1156,17 @@ def test_create_inner_product_1d_arrays(fortran_writer):
     assert isinstance(nodes[1].rhs, BinaryOperation)
     assert nodes[1].rhs.operator == BinaryOperation.Operator.ADD
     code = fortran_writer(nodes[1])
-    assert "result = result + DOT_PRODUCT(var1, var2)" in code
+    assert ("result = result + DOT_PRODUCT(var1, var2)"
+            in code)
 
 
 def test_create_inner_product_arrays(fortran_writer):
     ''' Test for utility that creates PSyIR for computing an
     inner product when given arrays with rank > 1. '''
     table = SymbolTable()
-    accum = DataSymbol("result", REAL_DOUBLE_TYPE)
+    accum = DataSymbol("result", ScalarType.real_double_type())
     table.add(accum)
-    array_type = ArrayType(INTEGER_TYPE, [10, 10, 10])
+    array_type = ArrayType(ScalarType.integer_type(), [10, 10, 10])
     var1 = DataSymbol("var1", array_type)
     var2 = DataSymbol("var2", array_type)
     table.add(var1)
@@ -1188,17 +1188,18 @@ def test_inner_product_scalars_and_arrays(fortran_writer):
     ''' Test for utility that creates PSyIR for computing an
     inner product when given arrays and scalars. '''
     table = SymbolTable()
-    accum = DataSymbol("result", REAL_DOUBLE_TYPE)
+    accum = DataSymbol("result", ScalarType.real_double_type())
     table.add(accum)
-    array3d_type = ArrayType(INTEGER_TYPE, [10, 10, 10])
+    array3d_type = ArrayType(ScalarType.integer_type(), [10, 10, 10])
     vars3d = DataSymbol("var1", array3d_type), DataSymbol("var2", array3d_type)
     table.add(vars3d[0])
     table.add(vars3d[1])
-    array1d_type = ArrayType(INTEGER_TYPE, [5])
+    array1d_type = ArrayType(ScalarType.integer_type(), [5])
     vecs = DataSymbol("vec1", array1d_type), DataSymbol("vec2", array1d_type)
     table.add(vecs[0])
     table.add(vecs[1])
-    scals = DataSymbol("a1", REAL_TYPE), DataSymbol("a2", REAL_TYPE)
+    scals = (DataSymbol("a1", ScalarType.real_type()),
+             DataSymbol("a2", ScalarType.real_type()))
     table.add(scals[0])
     table.add(scals[1])
     nodes = _create_inner_product(accum, [vars3d, vecs, scals], table)

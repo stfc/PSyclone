@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,18 +39,21 @@
 from contextlib import contextmanager
 import difflib
 import os
+from pathlib import Path
 from pprint import pprint
 import subprocess
 import sys
-from typing import Tuple
+from typing import Optional, Tuple, Union
 
 import pytest
 
 from fparser import api as fpapi
+from fparser.one.block_statements import BeginSource
 from psyclone.configuration import Config
 from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleInfo, FileInfo, ModuleManager
 from psyclone.parse.algorithm import parse
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyGen import Invoke, PSyFactory, PSy
 from psyclone.errors import PSycloneError
 from psyclone.psyir.nodes import ScopingNode
@@ -72,7 +75,6 @@ class CompileError(PSycloneError):
         PSycloneError.value = "Compile error: " + str(value)
 
 
-# =============================================================================
 def line_number(root, string_name):
     '''Helper routine which returns the first index of the supplied
     name in the root object, when it is converted into a string, or
@@ -95,7 +97,6 @@ def line_number(root, string_name):
     return -1
 
 
-# =============================================================================
 def count_lines(root, string_name):
     '''Helper routine which returns the number of lines that contain the
     supplied string.
@@ -117,7 +118,6 @@ def count_lines(root, string_name):
     return count
 
 
-# =============================================================================
 def print_diffs(expected, actual):
     '''
     Pretty-print the diff between the two, possibly multi-line, strings
@@ -132,7 +132,6 @@ def print_diffs(expected, actual):
     pprint(diff_list)
 
 
-# =============================================================================
 @contextmanager
 def change_dir(new_dir):
     '''This is a small context manager that changes the current working
@@ -151,7 +150,6 @@ def change_dir(new_dir):
         os.chdir(prev_dir)
 
 
-# =============================================================================
 class Compile():
     '''This class provides compile functionality to the testing framework.
     It stores the name of the compiler, compiler flags, and a temporary
@@ -162,7 +160,6 @@ class Compile():
     of the corresponding infrastructure library.
 
     :param tmpdir: temporary directory, defaults to os.getcwd()
-    :type tmpdir: Optional[:py:class:`LocalPath`]
 
     '''
     # Class variable to store whether compilation is enabled (--compile).
@@ -196,9 +193,9 @@ class Compile():
         Compile.F90 = config.getoption("--f90")
         Compile.F90FLAGS = config.getoption("--f90flags")
 
-    def __init__(self, tmpdir=None):
+    def __init__(self, tmpdir: Optional[Union[str, Path]] = None) -> None:
         if tmpdir:
-            self._tmpdir = tmpdir
+            self._tmpdir = str(tmpdir)
         else:
             self._tmpdir = os.getcwd()
         # Take the compiler and compile flags from the static variables.
@@ -206,10 +203,10 @@ class Compile():
         # which is used in some of the compilation tests.
         self._f90 = Compile.F90
         self._f90flags = Compile.F90FLAGS
-        self._base_path = None
+        self._base_path: str = ""
 
     @property
-    def base_path(self):
+    def base_path(self) -> str:
         '''Returns the directory of all Fortran test files for the API,
         i.e. <PSYCLONEHOME>/src/psyclone/tests/test_files/<API>.
         Needs to be set by each API-specific compile class.
@@ -221,7 +218,7 @@ class Compile():
         return self._base_path
 
     @base_path.setter
-    def base_path(self, base_path):
+    def base_path(self, base_path: str) -> None:
         '''Sets the base path of all test files for the API., i.e.
         <PSYCLONEHOME>/src/psyclone/tests/test_files/<API>. Needs to be called
         by each API-specific compile class.
@@ -230,7 +227,7 @@ class Compile():
         '''
         self._base_path = base_path
 
-    def get_infrastructure_flags(self):
+    def get_infrastructure_flags(self) -> list[str]:
         '''Returns a list with the required flags to use the required
         infrastructure library. This is typically ["-I", some_path] so that
         the module files of the infrastructure can be found.
@@ -242,7 +239,7 @@ class Compile():
         return []
 
     @staticmethod
-    def skip_if_compilation_disabled():
+    def skip_if_compilation_disabled() -> None:
         '''This function is used in all tests that should only run
         if compilation is enabled. It calls pytest.skip if compilation
         is not enabled.'''
@@ -250,7 +247,7 @@ class Compile():
             pytest.skip("Need --compile option to run")
 
     @staticmethod
-    def skip_if_opencl_compilation_disabled():
+    def skip_if_opencl_compilation_disabled() -> None:
         '''This function is used in all tests that should only run
         if opencl compilation is enabled. It calls pytest.skip if
         opencl compilation is not enabled.'''
@@ -259,18 +256,17 @@ class Compile():
             pytest.skip("Need --compileopencl option to run")
 
     @staticmethod
-    def find_fortran_file(search_paths, root_name):
+    def find_fortran_file(search_paths: list[str],
+                          root_name: str) -> str:
         '''Returns the full path to a Fortran source file. Searches for
         files with suffixes defined in FORTRAN_SUFFIXES.
 
         :param search_paths: List of locations to search for Fortran file.
-        :type search_paths: List[str]
-        :param str root_name: Base name of the Fortran file to look \
+        :param root_name: Base name of the Fortran file to look \
             for. If it ends with a recognised Fortran suffix then this \
             is stripped before performing the search.
 
         :return: Full path to a Fortran source file.
-        :rtype: str
 
         :raises IOError: Raises IOError if no matching file is found.
 
@@ -289,14 +285,14 @@ class Compile():
         raise IOError(f"Cannot find a Fortran file '{base_name}' with "
                       f"suffix in {FORTRAN_SUFFIXES}")
 
-    def compile_file(self, filename, link=False):
+    def compile_file(self, filename: str, link: bool = False) -> None:
         ''' Compiles the specified Fortran file into an object file (in
         the current working directory). The compiler to be used (default
         'gfortran') and compiler flags (default none) can be specified on
         the command line using --f90 and --f90flags.
 
-        :param str filename: Full path to the Fortran file to compile.
-        :param bool link: If true will also try to link the file.
+        :param filename: Full path to the Fortran file to compile.
+        :param link: If true will also try to link the file.
             Used in testing.
 
         :raises CompileError: if the compilation fails.
@@ -338,13 +334,15 @@ class Compile():
             print(output.decode("utf-8"), file=sys.stderr)
             raise CompileError(output)
 
-    def _code_compiles(self, psy_ast, dependencies=None):
+    def _code_compiles(self,
+                       psy_ast: PSy,
+                       dependencies: Optional[list[str]] = None) -> bool:
         '''
         Use the given PSy class to generate the necessary PSyKAl components
         to compile the psy-layer. Returns True for success, False otherwise.
         It is meant for internal test uses only, and must only be
         called when compilation is actually enabled (use code_compiles
-        otherwse). All files produced are deleted.
+        otherwise). All files produced are deleted.
 
         :param psy_ast: The PSy object to build.
         :type psy_ast: :py:class:`psyclone.psyGen.PSy`
@@ -352,12 +350,11 @@ class Compile():
             more of the kernels/PSy-layer depend (and that are not part of
             e.g. the GOcean or LFRic infrastructure).  These dependencies will
             be built in the order they occur in this list.
-        :type dependencies: List[str]
 
         :return: True if generated code compiles, False otherwise.
-        :rtype: bool
 
         '''
+        # pylint: disable=too-many-branches
         modules = set()
         # Get the names of all the imported modules as these are dependencies
         # that will need to be compiled first
@@ -386,7 +383,7 @@ class Compile():
 
             # Not all dependencies are captured by PSyIR as ContainerSymbols
             # (e.g. multiple versions of coded kernels are not given a module
-            # name until code-generation dependening on what already exist in
+            # name until code-generation depending on what already exist in
             # the filesystem), in these cases we take advantage that PSy-layer
             # always use the _mod convention to look into the output code for
             # these additional dependencies that we need to compile.
@@ -443,23 +440,22 @@ class Compile():
 
         return success
 
-    def code_compiles(self, psy_ast, dependencies=None):
+    def code_compiles(self,
+                      psy_ast: PSy,
+                      dependencies: Optional[list[str]] = None) -> bool:
         '''Attempts to build the Fortran code supplied as a PSy object.
         Returns True for success, False otherwise.
         If compilation is not enabled returns true. Uses _code_compiles
         for the actual compilation.
 
         :param psy_ast: The generated PSy layer.
-        :type psy_ast: :py:class:`psyclone.psyGen.PSy`
         :param dependencies: optional module- or file-names on which \
                     one or more of the kernels/PSy-layer depend (and \
                     that are not part of e.g. the GOcean or LFRic \
                     infrastructure).  These dependencies will be built \
                     in the order they occur in this list.
-        :type dependencies: List[str]
 
         :return: True if generated code compiles, False otherwise
-        :rtype: bool
 
         '''
         if not Compile.TEST_COMPILE and not Compile.TEST_COMPILE_OPENCL:
@@ -468,17 +464,16 @@ class Compile():
 
         return self._code_compiles(psy_ast, dependencies)
 
-    def string_compiles(self, code):
+    def string_compiles(self, code: str) -> bool:
         '''
         Attempts to build the Fortran code supplied as a string.
         Returns True for success, False otherwise.
         If no Fortran compiler is available or compilation testing is not
         enabled then it returns True. All files produced are deleted.
 
-        :param str code: The code to compile. Must have no external
+        :param code: The code to compile. Must have no external
                dependencies.
         :return: True if generated code compiles, False otherwise
-        :rtype: bool
 
         '''
         if not Compile.TEST_COMPILE and not Compile.TEST_COMPILE_OPENCL:
@@ -507,31 +502,31 @@ class Compile():
         return success
 
 
-# =============================================================================
-def get_base_path(api):
+def get_base_path(api: str = "") -> str:
     '''Get the absolute base path for the specified API relative to the
     'tests/test_files' directory, i.e. the directory in which all
     Fortran test files are stored.
 
-    :param str api: name of the API.
+    :param api: name of the API. Also accepts 'gocean-examples' to mean
+        a gocean api file under the examples directory.
 
     :returns: the base path for the API.
-    :rtype: str
 
     :raises RuntimeError: if the supplied API name is invalid.
 
     '''
     # Define the mapping of supported APIs to Fortran directories
-    # Note that the nemo files are outside of the default tests/test_files
-    # directory, they are in tests/nemo/test_files
-    api_2_path = {"lfric": "lfric",
-                  "nemo": "../nemo/test_files",
-                  "gocean": "gocean1p0"}
+    api_2_path = {
+        "lfric": "lfric",
+        "": "../nemo/test_files",
+        "gocean": "gocean1p0",
+        "gocean-examples": "../../../../examples/gocean"
+    }
     try:
         dir_name = api_2_path[api]
     except KeyError as err:
-        raise RuntimeError(f"The API '{api}' is not supported. "
-                           f"Supported types are {api_2_path.keys()}.") \
+        raise ValueError(f"The API '{api}' is not supported. "
+                         f"Supported types are {api_2_path.keys()}.") \
                            from err
     return os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "test_files", dir_name)
@@ -545,24 +540,22 @@ def get_infrastructure_path(api: str) -> str:
     :raises RuntimeError: if an invalid api is supplied.
 
     '''
-    this_loc = os.path.dirname(os.path.abspath(__file__))
+    this_loc = Path(__file__).resolve()
+    root_dir = this_loc.parents[3]
     if api == "lfric":
-        return os.path.join(this_loc,
-                            "test_files", "lfric", "infrastructure")
-    elif api == "gocean":
-        root_dir = this_loc
-        for depth in range(3):
-            root_dir = os.path.dirname(root_dir)
-        return os.path.join(root_dir, "external", "dl_esm_inf",
-                            "finite_difference", "src")
-    else:
-        raise RuntimeError(f"The API '{api}' is not supported. "
-                           f"Supported values are 'lfric' and 'gocean'.")
+        return str(root_dir / "external" / "lfric_infrastructure" / "src")
+    if api == "gocean":
+        return str(root_dir / "external" / "dl_esm_inf" /
+                   "finite_difference" / "src")
+    raise RuntimeError(f"The API '{api}' is not supported. "
+                       f"Supported values are 'lfric' and 'gocean'.")
 
 
-# =============================================================================
-def get_invoke(algfile: str, api: str, idx: int = None, name: str = None,
-               dist_mem: bool = None) -> Tuple[PSy, Invoke]:
+def get_invoke(algfile: str,
+               api: str,
+               idx: Optional[int] = None,
+               name: Optional[str] = None,
+               dist_mem: Optional[bool] = None) -> Tuple[PSy, Invoke]:
     '''
     Utility method to get the idx'th or named invoke from the algorithm
     in the specified file.
@@ -588,12 +581,19 @@ def get_invoke(algfile: str, api: str, idx: int = None, name: str = None,
         raise RuntimeError("Either the index or the name of the "
                            "requested invoke must be specified")
 
+    filepath = os.path.join(get_base_path(api), algfile)
+
+    if api == "gocean-examples":
+        # gocean-examples in this utility is a shorthand for using the gocean
+        # API but from its examples directory as a basepath
+        api = "gocean"
     config = Config.get()
     config.api = api
+
     # Ensure infrastructure module files can be discovered.
     config.include_paths.append(get_infrastructure_path(api))
 
-    _, info = parse(os.path.join(get_base_path(api), algfile), api=api)
+    _, info = parse(filepath, api=api)
     psy = PSyFactory(api, distributed_memory=dist_mem).create(info)
     if name:
         invoke = psy.invokes.get(name)
@@ -602,17 +602,54 @@ def get_invoke(algfile: str, api: str, idx: int = None, name: str = None,
     return psy, invoke
 
 
-# =============================================================================
-def get_ast(api, filename):
+def get_psylayer_schedule(
+    algfile: str,
+    api: str,
+    invoke_name: str = "",
+    dist_mem: bool = False
+) -> Node:
+    '''
+    Utility method to get the psylayer schedule associated with the given
+    algorithm file.
+
+    :param algfile: name of the Algorithm source file (Fortran).
+    :param api: which PSyclone API this Algorithm uses. Also accepts
+        'gocean-examples' to mean a gocean api file under the examples
+        directory.
+    :param invoke_name: return the schedule of a given invoke.
+    :param dist_mem: if the psy instance should be created with or
+                     without distributed memory support.
+
+    :returns: the associated psylayer schedule.
+
+    '''
+    idx = 0 if invoke_name == "" else None
+    _, invoke = get_invoke(algfile, api, idx, invoke_name, dist_mem)
+    return invoke.schedule
+
+
+def get_examples_path(relative_path: str):
+    '''
+    :param relative_path: given a relative examples file path.
+
+    :returns: its absolute file path.
+
+    '''
+    return os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "../../../examples",
+        relative_path)
+
+
+def get_ast(api: str, filename: str) -> BeginSource:
     '''Returns the fparser1 parse tree for a filename that is stored in the
     test files for the specified API.
 
-    :param str api: the API to use, which determines the directory \
+    :param api: the API to use, which determines the directory \
         where files are stored.
-    :param str filename: the file name to parse.
+    :param filename: the file name to parse.
 
     :returns: the parse tree for the specified Fortran source file.
-    :rtype: :py:class:`fparser.api.BeginSource`
 
     '''
     Config.get().api = api
@@ -621,9 +658,8 @@ def get_ast(api, filename):
     return ast
 
 
-# =============================================================================
-def check_links(parent, children):
-    '''Utilitiy routine to check that the parent node has children as its
+def check_links(parent: Node, children: list[Node]) -> None:
+    '''Utility routine to check that the parent node has children as its
     children in the order specified and that the children have parent
     as their parent. Also check that the parent does not have any
     additional children that are not provided in the children
@@ -666,3 +702,8 @@ def make_external_module(monkeypatch,
     # that it will be found when the named module is requested.
     mman = ModuleManager.get()
     monkeypatch.setitem(mman._modules, mod_name, minfo)
+
+
+min_version_3_10 = pytest.mark.skipif(
+    sys.version_info < (3, 10), reason="tests require python 3.10 or higher"
+)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
 # Makefile for the 3rd NEMO example. Uses PSyclone (which must
 # be installed) to generate Fortran with OpenACC directives for
 # the tracer-advection benchmark. The 'compile' target requires
-# the dl_timer library (bitbucket.org/apeg/dl_timer) which must
+# the dl_timer library (github.com/stfc/dl_timer) which must
 # be installed and the location specified in DL_TIMER_ROOT below.
 #
 # The compiler to use must be specified via the F90 environment

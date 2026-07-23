@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors A. B. G. Chalk, STFC Daresbury Lab
 # Modified S. Siso, STFC Daresbury Lab
+# Modified M. Naylor, University of Cambridge, UK
 # -----------------------------------------------------------------------------
 
 '''This module contains the unit tests for the ChunkLoopTrans module'''
@@ -46,8 +47,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Literal, Loop, Reference, Schedule, \
     Routine, BinaryOperation, Assignment, CodeBlock
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, \
-    ScalarType, SymbolTable, REAL_DOUBLE_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType, SymbolTable
 from psyclone.psyir.transformations import TransformationError, ChunkLoopTrans
 from psyclone.tests.utilities import Compile
 
@@ -76,9 +76,9 @@ def test_chunkloop_trans_validate1():
             "incvar", symbol_type=DataSymbol, datatype=ScalarType(
                     ScalarType.Intrinsic.INTEGER,
                     ScalarType.Precision.SINGLE))
-    parent = Loop()
+    parent = Loop(DataSymbol("i", ScalarType.integer_type()))
     parent.addchild(Reference(lvar))
-    parent.addchild(Literal("10", INTEGER_TYPE))
+    parent.addchild(Literal("10", ScalarType.integer_type()))
     parent.addchild(Reference(incvar))
     parent.addchild(Schedule())
     with pytest.raises(TransformationError) as excinfo:
@@ -92,21 +92,21 @@ def test_chunkloop_trans_validate2():
     '''Test the validate method of ChunkLoopTrans for bad step sizes'''
     chunktrans = ChunkLoopTrans()
     # Construct a Loop with too large a step-size
-    parent = Loop()
-    parent.addchild(Literal("1", INTEGER_TYPE))
-    parent.addchild(Literal("2560", INTEGER_TYPE))
-    parent.addchild(Literal("128", INTEGER_TYPE))
+    parent = Loop(DataSymbol("i", ScalarType.integer_type()))
+    parent.addchild(Literal("1", ScalarType.integer_type()))
+    parent.addchild(Literal("2560", ScalarType.integer_type()))
+    parent.addchild(Literal("128", ScalarType.integer_type()))
     parent.addchild(Schedule())
     with pytest.raises(TransformationError) as excinfo:
-        chunktrans.validate(parent, {"chunksize": 16})
+        chunktrans.validate(parent, chunksize=16)
     assert ("Cannot apply a ChunkLoopTrans to a loop with larger step size "
             "(128) than the chosen chunk size (16).") in str(excinfo.value)
 
     # Construct a Loop with step-size of 0
-    parent = Loop()
-    parent.addchild(Literal("1", INTEGER_TYPE))
-    parent.addchild(Literal("2560", INTEGER_TYPE))
-    parent.addchild(Literal("0", INTEGER_TYPE))
+    parent = Loop(DataSymbol("i", ScalarType.integer_type()))
+    parent.addchild(Literal("1", ScalarType.integer_type()))
+    parent.addchild(Literal("2560", ScalarType.integer_type()))
+    parent.addchild(Literal("0", ScalarType.integer_type()))
     parent.addchild(Schedule())
     with pytest.raises(TransformationError) as excinfo:
         chunktrans.validate(parent)
@@ -121,17 +121,17 @@ def test_chunkloop_trans_validate3():
     # Construct a Loop and apply a ChunkLoopTrans to it, then revalidate the
     # parent loop (can't apply a chunk loop trans to a chunk loop trans
     symbol_table = SymbolTable()
-    parent = Loop()
-    parent.addchild(Literal("1", INTEGER_TYPE))
-    parent.addchild(Literal("512", INTEGER_TYPE))
-    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent = Loop(DataSymbol("i", ScalarType.integer_type()))
+    parent.addchild(Literal("1", ScalarType.integer_type()))
+    parent.addchild(Literal("512", ScalarType.integer_type()))
+    parent.addchild(Literal("1", ScalarType.integer_type()))
     parent.addchild(Schedule())
     routine = Routine.create("test_routine", symbol_table, [parent])
     lvar = routine.symbol_table.find_or_create_tag(
             "lvar", symbol_type=DataSymbol, datatype=ScalarType(
                     ScalarType.Intrinsic.INTEGER,
                     ScalarType.Precision.SINGLE))
-    parent._variable = lvar
+    parent.variable = lvar
     chunktrans.apply(parent)
     with pytest.raises(TransformationError) as excinfo:
         chunktrans.validate(parent.ancestor(Loop))
@@ -149,10 +149,10 @@ def test_chunkloop_trans_validate4():
     chunktrans = ChunkLoopTrans()
     # Construct a Loop that writes to the Loop variable inside its body
     symbol_table = SymbolTable()
-    parent = Loop()
-    parent.addchild(Literal("1", INTEGER_TYPE))
-    parent.addchild(Literal("512", INTEGER_TYPE))
-    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent = Loop(DataSymbol("i", ScalarType.integer_type()))
+    parent.addchild(Literal("1", ScalarType.integer_type()))
+    parent.addchild(Literal("512", ScalarType.integer_type()))
+    parent.addchild(Literal("1", ScalarType.integer_type()))
     sched = Schedule()
     parent.addchild(sched)
     routine = Routine.create("test_routine", symbol_table, [parent])
@@ -161,10 +161,11 @@ def test_chunkloop_trans_validate4():
                     ScalarType.Intrinsic.INTEGER,
                     ScalarType.Precision.SINGLE))
     binop = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                   Reference(lvar), Literal("1", INTEGER_TYPE))
+                                   Reference(lvar),
+                                   Literal("1", ScalarType.integer_type()))
     assign = Assignment.create(Reference(lvar), binop)
     sched.addchild(assign)
-    parent._variable = lvar
+    parent.variable = lvar
     with pytest.raises(TransformationError) as excinfo:
         chunktrans.validate(parent)
     assert ("Cannot apply a ChunkLoopTrans to this loop because the boundary "
@@ -173,10 +174,10 @@ def test_chunkloop_trans_validate4():
 
     # Construct a loop that writes to the variable used for the initial value
     symbol_table = SymbolTable()
-    parent = Loop()
-    parent.addchild(Literal("1", INTEGER_TYPE))
-    parent.addchild(Literal("512", INTEGER_TYPE))
-    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent = Loop(DataSymbol("i", ScalarType.integer_type()))
+    parent.addchild(Literal("1", ScalarType.integer_type()))
+    parent.addchild(Literal("512", ScalarType.integer_type()))
+    parent.addchild(Literal("1", ScalarType.integer_type()))
     sched = Schedule()
     parent.addchild(sched)
     routine = Routine.create("test_routine", symbol_table, [parent])
@@ -189,11 +190,12 @@ def test_chunkloop_trans_validate4():
                     ScalarType.Intrinsic.INTEGER,
                     ScalarType.Precision.SINGLE))
     binop = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                   Reference(lvar), Literal("1", INTEGER_TYPE))
+                                   Reference(lvar),
+                                   Literal("1", ScalarType.integer_type()))
     assign = Assignment.create(Reference(ivar), binop)
     sched.addchild(assign)
     parent.start_expr.replace_with(Reference(ivar))
-    parent._variable = lvar
+    parent.variable = lvar
     with pytest.raises(TransformationError) as excinfo:
         chunktrans.validate(parent)
     assert ("Cannot apply a ChunkLoopTrans to this loop because the boundary "
@@ -202,10 +204,10 @@ def test_chunkloop_trans_validate4():
 
     # Construct a loop that writes to the variable used for the final value
     symbol_table = SymbolTable()
-    parent = Loop()
-    parent.addchild(Literal("1", INTEGER_TYPE))
-    parent.addchild(Literal("512", INTEGER_TYPE))
-    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent = Loop(DataSymbol("i", ScalarType.integer_type()))
+    parent.addchild(Literal("1", ScalarType.integer_type()))
+    parent.addchild(Literal("512", ScalarType.integer_type()))
+    parent.addchild(Literal("1", ScalarType.integer_type()))
     sched = Schedule()
     parent.addchild(sched)
     routine = Routine.create("test_routine", symbol_table, [parent])
@@ -218,11 +220,12 @@ def test_chunkloop_trans_validate4():
                     ScalarType.Intrinsic.INTEGER,
                     ScalarType.Precision.SINGLE))
     binop = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                   Reference(ivar), Literal("1", INTEGER_TYPE))
+                                   Reference(ivar),
+                                   Literal("1", ScalarType.integer_type()))
     assign = Assignment.create(Reference(ivar), binop)
     sched.addchild(assign)
     parent.stop_expr.replace_with(Reference(ivar))
-    parent._variable = lvar
+    parent.variable = lvar
     with pytest.raises(TransformationError) as excinfo:
         chunktrans.validate(parent)
     assert ("Cannot apply a ChunkLoopTrans to this loop because the boundary "
@@ -236,10 +239,10 @@ def test_chunkloop_trans_validate5():
     chunktrans = ChunkLoopTrans()
     # Construct a loop that reads from the loop variable (this is allowed)
     symbol_table = SymbolTable()
-    parent = Loop()
-    parent.addchild(Literal("1", INTEGER_TYPE))
-    parent.addchild(Literal("512", INTEGER_TYPE))
-    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent = Loop(DataSymbol("i", ScalarType.integer_type()))
+    parent.addchild(Literal("1", ScalarType.integer_type()))
+    parent.addchild(Literal("512", ScalarType.integer_type()))
+    parent.addchild(Literal("1", ScalarType.integer_type()))
     sched = Schedule()
     parent.addchild(sched)
     routine = Routine.create("test_routine", symbol_table, [parent])
@@ -252,10 +255,11 @@ def test_chunkloop_trans_validate5():
                     ScalarType.Intrinsic.INTEGER,
                     ScalarType.Precision.SINGLE))
     binop = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                   Reference(lvar), Literal("1", INTEGER_TYPE))
+                                   Reference(lvar),
+                                   Literal("1", ScalarType.integer_type()))
     assign = Assignment.create(Reference(ivar), binop)
     sched.addchild(assign)
-    parent._variable = lvar
+    parent.variable = lvar
     chunktrans.validate(parent)
 
 
@@ -264,10 +268,10 @@ def test_chunkloop_trans_validate6():
     to a loop that has a non-integer loop step'''
     chunktrans = ChunkLoopTrans()
     # Construct a Loop with a non-integer step
-    parent = Loop()
-    parent.addchild(Literal("1.0", REAL_DOUBLE_TYPE))
-    parent.addchild(Literal("2560.0", REAL_DOUBLE_TYPE))
-    parent.addchild(Literal("1.1", REAL_DOUBLE_TYPE))
+    parent = Loop(DataSymbol("i", ScalarType.integer_type()))
+    parent.addchild(Literal("1.0", ScalarType.real_double_type()))
+    parent.addchild(Literal("2560.0", ScalarType.real_double_type()))
+    parent.addchild(Literal("1.1", ScalarType.real_double_type()))
     parent.addchild(Schedule())
     with pytest.raises(TransformationError) as excinfo:
         chunktrans.validate(parent)
@@ -283,10 +287,10 @@ def test_chunkloop_trans_validate7():
     # Construct a Schedule containing a CodeBlock
     sched = Schedule()
     sched.addchild(CodeBlock([], CodeBlock.Structure.STATEMENT))
-    parent = Loop()
-    parent.addchild(Literal("1", INTEGER_TYPE))
-    parent.addchild(Literal("512", INTEGER_TYPE))
-    parent.addchild(Literal("1", INTEGER_TYPE))
+    parent = Loop(DataSymbol("i", ScalarType.integer_type()))
+    parent.addchild(Literal("1", ScalarType.integer_type()))
+    parent.addchild(Literal("512", ScalarType.integer_type()))
+    parent.addchild(Literal("1", ScalarType.integer_type()))
     parent.addchild(sched)
     with pytest.raises(TransformationError) as excinfo:
         chunktrans.validate(parent)
@@ -309,24 +313,20 @@ def test_chunkloop_trans_validation_options(fortran_reader):
         end subroutine test
      ''')
     outer_loop = psyir.walk(Loop)[0]
-    with pytest.raises(TransformationError) as err:
-        ChunkLoopTrans().validate(outer_loop, {'unsupported': None})
-    assert ("The ChunkLoopTrans does not support the transformation option"
-            " 'unsupported', the supported options are: ['chunksize']."
-            in str(err.value))
 
     with pytest.raises(TransformationError) as err:
+        # TODO #2668: Deprecate options dict.
         ChunkLoopTrans().validate(outer_loop, {'chunksize': '32'})
     assert ("The ChunkLoopTrans chunksize option must be a positive integer "
             "but found a 'str'." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
-        ChunkLoopTrans().validate(outer_loop, {'chunksize': -64})
+        ChunkLoopTrans().validate(outer_loop, chunksize=-64)
     assert ("The ChunkLoopTrans chunksize option must be a positive integer "
             "but found '-64'." in str(err.value))
 
     # Positive integers are accepted
-    ChunkLoopTrans().validate(outer_loop, {'chunksize': 64})
+    ChunkLoopTrans().validate(outer_loop, chunksize=64)
 
 
 def test_chunkloop_trans_apply_pos():
@@ -341,8 +341,7 @@ def test_chunkloop_trans_apply_pos():
     code = str(psy.gen)
     correct = \
         '''do j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 32
-      j_el_inner = MIN(j_out_var + (32 - 1), cu_fld%internal%ystop)
-      do j = j_out_var, j_el_inner, 1
+      do j = j_out_var, MIN(j_out_var + (32 - 1), cu_fld%internal%ystop), 1
         do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
     '''
     assert correct in code
@@ -361,14 +360,14 @@ def test_chunkloop_trans_apply_neg():
     psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    schedule.children[0].step_expr.replace_with(Literal("-1", INTEGER_TYPE))
+    schedule.children[0].step_expr.replace_with(
+        Literal("-1", ScalarType.integer_type()))
     chunktrans = ChunkLoopTrans()
     chunktrans.apply(schedule.children[0])
     code = str(psy.gen)
     correct = \
         '''do j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, -32
-      j_el_inner = MAX(j_out_var - (32 + 1), cu_fld%internal%ystop)
-      do j = j_out_var, j_el_inner, -1
+      do j = j_out_var, MAX(j_out_var - (32 + 1), cu_fld%internal%ystop), -1
         do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
     '''
     assert correct in code
@@ -386,12 +385,11 @@ def test_chunkloop_trans_apply_with_options():
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     chunktrans = ChunkLoopTrans()
-    chunktrans.apply(schedule.children[0], {'chunksize': 4})
+    chunktrans.apply(schedule.children[0], chunksize=4)
     code = str(psy.gen)
     correct = \
         '''do j_out_var = cu_fld%internal%ystart, cu_fld%internal%ystop, 4
-      j_el_inner = MIN(j_out_var + (4 - 1), cu_fld%internal%ystop)
-      do j = j_out_var, j_el_inner, 1
+      do j = j_out_var, MIN(j_out_var + (4 - 1), cu_fld%internal%ystop), 1
     '''
     assert correct in code
 
@@ -425,30 +423,24 @@ def test_chunkloop_trans_apply_double_chunk(tmpdir):
     writer = FortranWriter()
     result = writer(psyir)
     correct_vars = \
-        '''integer :: i_el_inner
-  integer :: i_out_var
-  integer :: j_el_inner
+        '''integer :: i_out_var
   integer :: j_out_var'''
     assert correct_vars in result
 
     correct = \
         '''do i_out_var = 1, end, 32
-    i_el_inner = MIN(i_out_var + (32 - 1), end)
-    do i = i_out_var, i_el_inner, 1
+    do i = i_out_var, MIN(i_out_var + (32 - 1), end), 1
       do j_out_var = 1, end, 32
-        j_el_inner = MIN(j_out_var + (32 - 1), end)
-        do j = j_out_var, j_el_inner, 1
+        do j = j_out_var, MIN(j_out_var + (32 - 1), end), 1
           ai(i,j) = 1
         enddo
       enddo
     enddo
   enddo
   do i_out_var = 1, end, 32
-    i_el_inner = MIN(i_out_var + (32 - 1), end)
-    do i = i_out_var, i_el_inner, 2
+    do i = i_out_var, MIN(i_out_var + (32 - 1), end), 2
       do j_out_var = 1, end, 32
-        j_el_inner = MIN(j_out_var + (32 - 1), end)
-        do j = j_out_var, j_el_inner, 2
+        do j = j_out_var, MIN(j_out_var + (32 - 1), end), 2
           aj(i,j) = 1
         enddo
       enddo

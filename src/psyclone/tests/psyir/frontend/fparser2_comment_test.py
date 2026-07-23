@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -172,8 +172,9 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
     )
     if last_comments_as_codeblocks:
         assert isinstance(module.children[-1], CodeBlock)
-        assert isinstance(module.children[-1].ast, Fortran2003.Comment)
-        assert (module.children[-1].ast.tostr()
+        assert isinstance(module.children[-1].parse_tree_nodes[0],
+                          Fortran2003.Comment)
+        assert (module.children[-1].get_fortran_lines()[0]
                 == "! Comment at end of module => CodeBlock")
     else:
         assert not isinstance(module.children[-1], CodeBlock)
@@ -212,9 +213,9 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
     last_child = routine.children[-1]
     if last_comments_as_codeblocks:
         assert isinstance(last_child, CodeBlock)
-        assert isinstance(last_child.ast, Fortran2003.Comment)
+        assert isinstance(last_child.parse_tree_nodes[0], Fortran2003.Comment)
         assert (
-            last_child.ast.tostr()
+            last_child.get_fortran_lines()[0]
             == "! Comment at end of subroutine => CodeBlock"
         )
     else:
@@ -254,9 +255,9 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
     last_child = ifblock.if_body.children[-1]
     if last_comments_as_codeblocks:
         assert isinstance(last_child, CodeBlock)
-        assert isinstance(last_child.ast, Fortran2003.Comment)
+        assert isinstance(last_child.parse_tree_nodes[0], Fortran2003.Comment)
         assert (
-            last_child.ast.tostr()
+            last_child.get_fortran_lines()[0]
             == "! Comment on elseif block 'elseif (a == 2) then' => CodeBlock"
         )
     else:
@@ -265,9 +266,9 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
     last_child = ifblock2.if_body.children[-1]
     if last_comments_as_codeblocks:
         assert isinstance(last_child, CodeBlock)
-        assert isinstance(last_child.ast, Fortran2003.Comment)
+        assert isinstance(last_child.parse_tree_nodes[0], Fortran2003.Comment)
         assert (
-            last_child.ast.tostr()
+            last_child.get_fortran_lines()[0]
             == "! Comment on else block 'else' => CodeBlock"
         )
     else:
@@ -275,8 +276,9 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
     last_child = ifblock2.else_body.children[-1]
     if last_comments_as_codeblocks:
         assert isinstance(last_child, CodeBlock)
-        assert isinstance(last_child.ast, Fortran2003.Comment)
-        assert last_child.ast.tostr() == "! Comment on 'end if' => CodeBlock"
+        assert isinstance(last_child.parse_tree_nodes[0], Fortran2003.Comment)
+        assert (last_child.get_fortran_lines()[0] ==
+                "! Comment on 'end if' => CodeBlock")
     else:
         assert not isinstance(last_child, CodeBlock)
 
@@ -288,9 +290,9 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
     last_child = loop_i.loop_body.children[-1]
     if last_comments_as_codeblocks:
         assert isinstance(last_child, CodeBlock)
-        assert isinstance(last_child.ast, Fortran2003.Comment)
+        assert isinstance(last_child.parse_tree_nodes[0], Fortran2003.Comment)
         assert (
-            last_child.ast.tostr()
+            last_child.get_fortran_lines()[0]
             == "! Comment at end of loop on i => CodeBlock"
         )
     else:
@@ -303,9 +305,9 @@ def test_comments_and_codeblocks(last_comments_as_codeblocks):
     last_child = loop_j.loop_body.children[-1]
     if last_comments_as_codeblocks:
         assert isinstance(last_child, CodeBlock)
-        assert isinstance(last_child.ast, Fortran2003.Comment)
+        assert isinstance(last_child.parse_tree_nodes[0], Fortran2003.Comment)
         assert (
-            last_child.ast.tostr()
+            last_child.get_fortran_lines()[0]
             == "! Comment at end of loop on j => CodeBlock"
         )
     else:
@@ -352,16 +354,14 @@ module test_mod
       ! Comment on assignment 'a = 2'
       a = 2
       ! Comment on elseif block 'elseif (a == 2) then' => CodeBlock
+    elseif (a == 2) then
+      ! Comment on assignment 'a = 3'
+      a = 3
+      ! Comment on else block 'else' => CodeBlock
     else
-      if (a == 2) then
-        ! Comment on assignment 'a = 3'
-        a = 3
-        ! Comment on else block 'else' => CodeBlock
-      else
-        ! Comment on assignment 'a = 4'
-        a = 4
-        ! Comment on 'end if' => CodeBlock
-      end if
+      ! Comment on assignment 'a = 4'
+      a = 4
+      ! Comment on 'end if' => CodeBlock
     end if  ! Inline comment on 'end if'
 
     ! Comment on loop 'do i = 1, 10'
@@ -431,14 +431,12 @@ module test_mod
     if (a == 1) then
       ! Comment on assignment 'a = 2'
       a = 2
+    elseif (a == 2) then
+      ! Comment on assignment 'a = 3'
+      a = 3
     else
-      if (a == 2) then
-        ! Comment on assignment 'a = 3'
-        a = 3
-      else
-        ! Comment on assignment 'a = 4'
-        a = 4
-      end if
+      ! Comment on assignment 'a = 4'
+      a = 4
     end if  ! Inline comment on 'end if'
 
     ! Comment on loop 'do i = 1, 10'
@@ -486,7 +484,7 @@ subroutine test_sub()
   integer :: a
   integer :: i
   ! Comment on loop 'do i = 1, 10'
-  !$omp parallel do
+  !dir$ somedir
   do i = 1, 10
     a = 1
   end do
@@ -509,10 +507,10 @@ def test_directives():
     psyir = reader.psyir_from_source(CODE_WITH_DIRECTIVE)
 
     loop = psyir.walk(Loop)[0]
-    assert (
-        loop.preceding_comment
-        == "Comment on loop 'do i = 1, 10'\n$omp parallel do"
-    )
+    directive = loop.preceding(reverse=True)[0]
+    assert isinstance(directive, CodeBlock)
+    assert (directive.debug_string() ==
+            "! Comment on loop 'do i = 1, 10'\n!dir$ somedir\n")
 
 
 EXPECTED_WITH_DIRECTIVES = """subroutine test_sub()
@@ -520,7 +518,7 @@ EXPECTED_WITH_DIRECTIVES = """subroutine test_sub()
   integer :: i
 
   ! Comment on loop 'do i = 1, 10'
-  !$omp parallel do
+  !dir$ somedir
   do i = 1, 10, 1
     a = 1
   enddo
@@ -529,10 +527,6 @@ end subroutine test_sub
 """
 
 
-@pytest.mark.xfail(
-    reason="Directive is written back as '! $omp parallel do'"
-    "instead of '!$omp parallel do'"
-)
 def test_write_directives():
     """Test that the directives are written back to the code"""
     reader = FortranReader(ignore_comments=False, ignore_directives=False)
@@ -591,3 +585,49 @@ def test_inline_comment():
     assert "a = i + 1" in assignment.debug_string()
     assert assignment.preceding_comment == ""
     assert assignment.inline_comment == "Third line of inline comment"
+
+
+def test_lost_program_comments():
+    """Test that the FortranReader doesn't lose comments after the
+    declarations when reading a Program."""
+    reader = FortranReader(ignore_comments=False)
+    code = """program a
+    integer :: i ! inline here
+
+    ! Comment here
+    i = 1
+    end program"""
+    psyir = reader.psyir_from_source(code)
+    assert (psyir.children[0].symbol_table.lookup("i").inline_comment ==
+            "inline here")
+    assignment = psyir.walk(Assignment)[0]
+    assert assignment.preceding_comment == "Comment here"
+
+
+@pytest.mark.parametrize("directive", ["$omp target",
+                                       "$acc kernels",
+                                       "dir$ vector",
+                                       "DIR$ VECTOR",
+                                       "$pos dir"])
+def test_directives_not_comments(directive):
+    """Test that the FortranReader doesn't keep directives when only
+    comments are requested."""
+    code = f"""module A
+  implicit none
+  integer, public :: a
+  public
+
+  contains
+  subroutine test()
+
+    !$ a = 0 +     &
+    !$&  0
+    !{directive}
+    a = 1
+
+  end subroutine test
+
+end module A"""
+    reader = FortranReader(ignore_comments=False)
+    psyir = reader.psyir_from_source(code)
+    assert directive not in psyir.debug_string()

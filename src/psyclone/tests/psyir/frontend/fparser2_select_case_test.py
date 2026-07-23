@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,8 +49,7 @@ from psyclone.psyir.frontend.fparser2 import (
 from psyclone.psyir.nodes import (
     Schedule, CodeBlock, Assignment, BinaryOperation, IfBlock, Routine, Return,
     Container)
-from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, Symbol)
+from psyclone.psyir.symbols import DataSymbol, ScalarType, Symbol
 
 
 @pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
@@ -143,9 +142,9 @@ def test_case_default():
     # present in the symbol table.
     symbols = []
     for idx in [1, 2, 3]:
-        symbols.append(DataSymbol(f"branch{idx}", INTEGER_TYPE))
+        symbols.append(DataSymbol(f"branch{idx}", ScalarType.integer_type()))
     for var_name in ["selector", "label1", "label2"]:
-        symbols.append(DataSymbol(var_name, INTEGER_TYPE))
+        symbols.append(DataSymbol(var_name, ScalarType.integer_type()))
 
     # Loop over the 3 possible locations for the 'default' clause
     for idx1, idx2, idx3 in [(0, 1, 2), (1, 0, 2), (1, 2, 0)]:
@@ -290,11 +289,11 @@ def test_handling_labelled_case_construct():
 
     fake_parent = Schedule()
     fake_parent.symbol_table.new_symbol("selector", symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
+                                        datatype=ScalarType.integer_type())
     fake_parent.symbol_table.new_symbol("pick_me", symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
+                                        datatype=ScalarType.integer_type())
     fake_parent.symbol_table.new_symbol("branch3", symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
+                                        datatype=ScalarType.integer_type())
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2case_construct])
     assert len(fake_parent.children) == 1
@@ -512,8 +511,8 @@ test_psyclone_internal_cmp_char
 
     # Check that the char implementation is in the code
     assert '''function test_psyclone_internal_cmp_char(op1, op2)
-    CHARACTER(LEN = *), INTENT(IN) :: op1
-    CHARACTER(LEN = *), INTENT(IN) :: op2
+    character(len=*), intent(in) :: op1
+    character(len=*), intent(in) :: op2
     logical :: test_psyclone_internal_cmp_char
 
     test_psyclone_internal_cmp_char = op1 == op2
@@ -564,7 +563,7 @@ def test_find_or_create_psyclone_internal_cmp(fortran_writer):
     # Check the generated code matches the expected code
     has_cmp_interface(fortran_writer(container))
 
-    # If called again, the same symbol is retrived and no extra code is added
+    # If called again, the same symbol is retrieved and no extra code is added
     another_symbol = _find_or_create_psyclone_internal_cmp(node_in_subroutine)
     assert symbol is another_symbol
     assert len(container.children) == 4
@@ -655,7 +654,7 @@ def test_unresolved_types_case(fortran_reader, fortran_writer):
 
 def test_unresolved_types_case_without_module(fortran_reader):
     '''Test that a select case statement comparing two unresolved types in a
-    situation wihtout an ancestor module, it will generate a CodeBlock'''
+    situation without an ancestor module, it will generate a CodeBlock'''
     code = '''
     subroutine test_subroutine()
         use my_mod, only : a, b, c

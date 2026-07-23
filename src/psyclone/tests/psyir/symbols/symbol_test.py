@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,13 +48,13 @@ is not tested here.
 
 import pytest
 
-from psyclone.core import Signature, SingleVariableAccessInfo
+from psyclone.core import Signature, AccessSequence, AccessType
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Container, Literal, KernelSchedule
+from psyclone.psyir.nodes import Container, Literal, KernelSchedule, Reference
 from psyclone.psyir.symbols import (
     ArgumentInterface, ContainerSymbol,
     DataSymbol, ImportInterface, DefaultModuleInterface, StaticInterface,
-    INTEGER_SINGLE_TYPE, AutomaticInterface, CommonBlockInterface,
+    ScalarType, AutomaticInterface, CommonBlockInterface,
     NoType, RoutineSymbol, Symbol, SymbolError, UnknownInterface,
     SymbolTable, UnresolvedInterface)
 
@@ -218,7 +218,7 @@ def test_find_symbol_table():
     sym3 = Symbol("missing")
     assert sym3.find_symbol_table(sched) is None
     # When there is no SymbolTable associated with the PSyIR node
-    orphan = Literal("1", INTEGER_SINGLE_TYPE)
+    orphan = Literal("1", ScalarType.integer_single_type())
     assert sym3.find_symbol_table(orphan) is None
 
 
@@ -247,6 +247,13 @@ def test_symbol_copy_properties():
     sym = Symbol("a", visibility=Symbol.Visibility.PRIVATE,
                  interface=ImportInterface(csym))
     new_sym = Symbol("b")
+    # First, exclude the interface from the update.
+    new_sym.copy_properties(sym, exclude_interface=True)
+    assert isinstance(new_sym.interface, AutomaticInterface)
+    # Name and visibility should also be unchanged
+    assert new_sym.name == "b"
+    assert new_sym.visibility == Symbol.Visibility.PUBLIC
+    # Repeat but include the interface in the update.
     new_sym.copy_properties(sym)
     # Name and visibility should be unchanged
     assert new_sym.name == "b"
@@ -268,7 +275,7 @@ def test_symbol_specialise():
     assert str(asym) == "a: Symbol<Automatic>"
     asym.specialise(RoutineSymbol)
     assert type(asym) is RoutineSymbol
-    assert (str(asym) == "a: RoutineSymbol<NoType, pure=unknown, "
+    assert (str(asym) == "a: RoutineSymbol<UnresolvedType, pure=unknown, "
             "elemental=unknown>")
 
 
@@ -363,10 +370,10 @@ def test_get_external_symbol_missing(monkeypatch):
             "points to module 'some_mod' but could not find the definition of "
             "'b' in that module." in str(err.value))
     # Add an entry for 'b' to the Container's symbol table
-    ctable2.add(DataSymbol("b", INTEGER_SINGLE_TYPE))
+    ctable2.add(DataSymbol("b", ScalarType.integer_single_type()))
     new_sym = bsym.resolve_type()
     assert isinstance(new_sym, DataSymbol)
-    assert new_sym.datatype == INTEGER_SINGLE_TYPE
+    assert new_sym.datatype == ScalarType.integer_single_type()
 
 
 def test_symbol_resolve_type(monkeypatch):
@@ -382,13 +389,14 @@ def test_symbol_resolve_type(monkeypatch):
     # Monkeypatch the get_external_symbol() method so that it just returns
     # a new DataSymbol
     monkeypatch.setattr(bsym, "get_external_symbol",
-                        lambda: DataSymbol("b", INTEGER_SINGLE_TYPE))
+                        lambda: DataSymbol("b",
+                                           ScalarType.integer_single_type()))
     new_sym = bsym.resolve_type()
     # The symbol should be the same instance as before but with properties and
     # type obtained from the other table.
     assert new_sym is bsym
     assert isinstance(new_sym, DataSymbol)
-    assert new_sym.datatype == INTEGER_SINGLE_TYPE
+    assert new_sym.datatype == ScalarType.integer_single_type()
     assert new_sym.visibility == Symbol.Visibility.PRIVATE
     assert new_sym.is_import
     # Repeat the test but get_external_symbol() just returns
@@ -410,15 +418,17 @@ def test_symbol_resolve_type(monkeypatch):
     # a new DataSymbol
     monkeypatch.setattr(
         csym, "get_external_symbol",
-        lambda: DataSymbol("c", INTEGER_SINGLE_TYPE,
-                           is_constant=True,
-                           initial_value=Literal("1", INTEGER_SINGLE_TYPE)))
+        lambda: DataSymbol(
+           "c", ScalarType.integer_single_type(),
+           is_constant=True,
+           initial_value=Literal("1", ScalarType.integer_single_type())))
     new_sym = csym.resolve_type()
     assert new_sym is csym
-    assert new_sym.datatype == INTEGER_SINGLE_TYPE
+    assert new_sym.datatype == ScalarType.integer_single_type()
     assert new_sym.is_import
     assert new_sym.is_constant
-    assert new_sym.initial_value == Literal("1", INTEGER_SINGLE_TYPE)
+    assert new_sym.initial_value == Literal("1",
+                                            ScalarType.integer_single_type())
     # Repeat but test when the import turns out to be a RoutineSymbol.
     dsym = Symbol("d", visibility=Symbol.Visibility.PRIVATE,
                   interface=ImportInterface(other_container))
@@ -449,8 +459,9 @@ def test_symbol_array_handling():
     assert ("index variable 'i' specified, but no access information given"
             in str(err.value))
     # Supply some access information.
-    svinfo = SingleVariableAccessInfo(Signature("a"))
-    assert not asym.is_array_access("i", svinfo)
+    access_seq = AccessSequence(Signature("i"))
+    access_seq.add_access(AccessType.READ, Reference(asym))
+    assert not asym.is_array_access("i", access_seq)
 
 
 @pytest.mark.parametrize("table", [None, SymbolTable()])
@@ -481,10 +492,9 @@ def test_symbol_replace_symbols_using(table):
     assert bsym.interface.container_symbol is cont2
 
 
-def test_symbol_reference_accesses():
-    '''Test that the reference_accesses() method of a Symbol does not add any
-    accesses.'''
+def test_symbol_get_all_accessed_symbols():
+    '''Test that the get_all_accessed_symbols() method of a Symbol does not add
+    any accesses.'''
     interf = DefaultModuleInterface()
     asym = Symbol("a", interface=interf)
-    vam = asym.reference_accesses()
-    assert not vam.all_signatures
+    assert not asym.get_all_accessed_symbols()

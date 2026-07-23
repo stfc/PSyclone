@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,11 +38,11 @@
 # Compiler and compiler flags
 F90 ?= gfortran
 F90FLAGS ?=
-# Path to the 'apeg/dl_timer' installation. It defaults to the assumed
-# location of the apeg/dl_timer library next to a clone of PSyclone
+# Path to the 'dl_timer' installation. It defaults to the assumed
+# location of the dl_timer library next to a clone of PSyclone
 # repository. Overwrite for a custom location.
 DL_TIMER_ROOT ?= $(PSYDATA_LIB_DIR)/../../dl_timer
-# Path to the 'apeg/dl_timer' "include" files. Overwrite for a custom location.
+# Path to the 'stfc/dl_timer' "include" files. Overwrite for a custom location.
 DL_TIMER_INCLUDE ?= $(DL_TIMER_ROOT)/src
 # Path to the PSyclone wrapper libraries. It defaults to the relative path to
 # the top-level 'lib' directory. Overwrite for a custom location.

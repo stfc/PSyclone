@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -55,15 +55,12 @@ class PSyDataTrans(RegionTrans):
     >>> from psyclone.parse.utils import ParseError
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean"
-    >>> ast, invoke_info = parse(SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invoke_info)
-    >>>
+
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "test11_different_iterates_over_one_invoke.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>> from psyclone.psyir.transformations import PSyDataTrans
     >>> data_trans = PSyDataTrans()
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
     >>>
     >>> # Enclose all children within a single PSyData region
     >>> data_trans.apply(schedule.children)
@@ -201,6 +198,8 @@ class PSyDataTrans(RegionTrans):
         :raises TransformationError: if there will be a name clash between \
             any existing symbols and those that must be imported from the \
             appropriate PSyData library.
+        :raises TransformationError: if the target nodes are within an
+                                     ELEMENTAL routine.
 
         '''
         # pylint: disable=too-many-branches
@@ -263,6 +262,13 @@ class PSyDataTrans(RegionTrans):
                 except KeyError:
                     pass
 
+        parent_routine = node_list[0].ancestor(Routine)
+        if parent_routine and parent_routine.symbol.is_elemental:
+            raise TransformationError(
+                f"Cannot add PSyData calls inside ELEMENTAL routine "
+                f"'{parent_routine.symbol.name}' because it would change its "
+                f"semantics.")
+
         super().validate(node_list, options)
 
     # ------------------------------------------------------------------------
@@ -271,6 +277,9 @@ class PSyDataTrans(RegionTrans):
         '''Apply this transformation to a subset of the nodes within a
         schedule - i.e. enclose the specified Nodes in the
         schedule within a single PSyData region.
+
+        Note that if the nodes are within a routine that previously had the
+        `pure` attribute, this attribute is removed.
 
         :param nodes: can be a single node or a list of nodes.
         :type nodes: :py:obj:`psyclone.psyir.nodes.Node` or list of \
@@ -313,6 +322,12 @@ class PSyDataTrans(RegionTrans):
         psy_data_node = self._node_class.create(
             node_list, symbol_table=table, options=options)
         parent.addchild(psy_data_node, position)
+
+        # If we've added PSyData calls to a pure routine then it is
+        # no longer pure.
+        parent_routine = node_list[0].ancestor(Routine)
+        if parent_routine and parent_routine.symbol.is_pure:
+            parent_routine.symbol.is_pure = False
 
 
 # =============================================================================

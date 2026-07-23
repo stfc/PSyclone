@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -57,7 +57,7 @@ Tested with the NVIDIA HPC SDK version 23.7.
 '''
 
 import logging
-from utils import (add_profiling, enhance_tree_information, inline_calls,
+from utils import (add_profiling, inline_calls,
                    NOT_PERFORMANT, NEMO_MODULES_TO_IMPORT)
 from psyclone.errors import InternalError
 from psyclone.psyGen import TransInfo
@@ -65,7 +65,8 @@ from psyclone.psyir.nodes import (
     IfBlock, ArrayReference, Assignment, BinaryOperation, Loop, Routine,
     Literal, ACCLoopDirective)
 from psyclone.psyir.transformations import (ACCKernelsTrans, ACCUpdateTrans,
-                                            TransformationError, ProfileTrans)
+                                            TransformationError, ProfileTrans,
+                                            ACCLoopTrans)
 from psyclone.transformations import ACCEnterDataTrans
 
 # Set up some loop_type inference rules in order to reference useful domain
@@ -86,7 +87,7 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # Get the PSyclone transformations we will use
 ACC_KERN_TRANS = ACCKernelsTrans()
-ACC_LOOP_TRANS = TransInfo().get_trans_name('ACCLoopTrans')
+ACC_LOOP_TRANS = ACCLoopTrans()
 ACC_ROUTINE_TRANS = TransInfo().get_trans_name('ACCRoutineTrans')
 ACC_EDATA_TRANS = ACCEnterDataTrans()
 ACC_UPDATE_TRANS = ACCUpdateTrans()
@@ -386,7 +387,6 @@ def trans(psyir):
         # Attempt to add OpenACC directives unless we are ignoring this routine
         if subroutine.name.lower() not in ACC_IGNORE:
             print(f"Transforming {subroutine.name} with acc kernels")
-            enhance_tree_information(subroutine)
             inline_calls(subroutine)
             have_kernels = add_kernels(subroutine.children)
             if have_kernels and ACC_EXPLICIT_MEM_MANAGEMENT:

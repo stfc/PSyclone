@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council
+# Copyright (c) 2021-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,14 +39,17 @@ GOMoveIterationBoundariesInsideKernelTrans transformation.
 '''
 
 import pytest
-from psyclone.tests.utilities import get_invoke
-from psyclone.domain.gocean.transformations import \
-    GOMoveIterationBoundariesInsideKernelTrans
-from psyclone.psyir.nodes import Assignment, Container, IfBlock, Return
-from psyclone.psyir.symbols import ArgumentInterface
+
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.domain.gocean.transformations import (
+    GOMoveIterationBoundariesInsideKernelTrans)
 from psyclone.gocean1p0 import GOLoop
+from psyclone.psyir.nodes import (
+    Assignment, Container, IfBlock, Return)
+from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, ScalarType
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.tests.gocean_build import GOceanBuild
+from psyclone.tests.utilities import get_invoke
 
 API = "gocean"
 
@@ -60,16 +63,16 @@ def test_description():
 
 
 def test_validation():
-    ''' Check that the transformation can only be applied to routine nodes '''
+    '''Check that the transformation can only be applied to routine nodes.'''
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     with pytest.raises(TransformationError) as info:
-        trans.apply(None)
+        trans.validate(None)
     assert ("Error in GOMoveIterationBoundariesInsideKernelTrans "
             "transformation. This transformation can only be applied to "
             "'GOKern' nodes, but found 'NoneType'." in str(info.value))
 
 
-def test_go_move_iteration_boundaries_inside_kernel_trans():
+def test_go_move_iteration_boundaries_inside_kernel_trans(tmp_path):
     ''' Tests that the GOMoveIterationBoundariesInsideKernelTrans
     transformation for the GOcean API adds the 4 boundary values as kernel
     arguments and adds a masking statement at the beginning of the code.
@@ -80,10 +83,15 @@ def test_go_move_iteration_boundaries_inside_kernel_trans():
     num_args = len(kernel.arguments.args)
 
     # Add some name conflicting symbols in the Invoke and the Kernel
-    kernel.ancestor(Container).symbol_table.new_symbol("xstop")
-    kernel.get_kernel_schedule().symbol_table.new_symbol("ystart")
+    kernel.ancestor(Container).symbol_table.new_symbol(
+        "xstop", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
+    routines = kernel.get_callees()
+    ksched = routines[0]
+    ksched.symbol_table.new_symbol(
+        "ystart", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
 
     # Apply the transformation
+    KernelModuleInlineTrans().apply(kernel)
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     trans.apply(kernel)
 
@@ -118,7 +126,7 @@ def test_go_move_iteration_boundaries_inside_kernel_trans():
     assert kernel.arguments.args[-1].argument_type == "scalar"
 
     # Check that the kernel subroutine has been transformed:
-    kschedule = kernel.get_kernel_schedule()
+    kschedule = kernel.get_callees()[0]
 
     # - It has the boundary conditions mask
     assert isinstance(kschedule.children[0], IfBlock)
@@ -130,7 +138,7 @@ def test_go_move_iteration_boundaries_inside_kernel_trans():
         "Reference[name:'xstart']\n"
         "BinaryOperation[operator:'GT']\n"
         "Reference[name:'i']\n"
-        "Reference[name:'xstop']\n"
+        "Reference[name:'xstop_1']\n"
         "BinaryOperation[operator:'OR']\n"
         "BinaryOperation[operator:'LT']\n"
         "Reference[name:'j']\n"
@@ -143,15 +151,17 @@ def test_go_move_iteration_boundaries_inside_kernel_trans():
     # - It has the boundary symbol as kernel arguments
     assert isinstance(kschedule.symbol_table.lookup("xstart").interface,
                       ArgumentInterface)
-    assert isinstance(kschedule.symbol_table.lookup("xstop").interface,
+    assert isinstance(kschedule.symbol_table.lookup("xstop_1").interface,
                       ArgumentInterface)
     assert isinstance(kschedule.symbol_table.lookup("ystart_1").interface,
                       ArgumentInterface)
     assert isinstance(kschedule.symbol_table.lookup("ystop").interface,
                       ArgumentInterface)
+    assert GOceanBuild(tmp_path).code_compiles(psy)
 
 
-def test_go_move_iteration_boundaries_inside_kernel_two_kernels_apply_twice():
+def test_go_move_iteration_boundaries_inside_kernel_two_kernels_apply_twice(
+        fortran_writer, tmp_path):
     ''' Tests that the GOMoveIterationBoundariesInsideKernelTrans
     transformation for the GOcean API produces the expected code when the
     invoke has two kernels and the transformation is applied twice.
@@ -159,19 +169,24 @@ def test_go_move_iteration_boundaries_inside_kernel_two_kernels_apply_twice():
     postfixed with a number) and that kernels don't duplicate boundary
     arguments themself when applying the transformation twice.
     '''
-    psy, _ = get_invoke("single_invoke_two_kernels.f90", API, idx=0,
-                        dist_mem=False)
-    sched = psy.invokes.invoke_list[0].schedule
+    psy, invoke = get_invoke("single_invoke_two_kernels.f90", API, idx=0,
+                             dist_mem=False)
+    sched = invoke.schedule
 
     # Apply the transformation twice
+    mod_inline_trans = KernelModuleInlineTrans()
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
+        mod_inline_trans.apply(kernel)
         trans.apply(kernel)
         trans.apply(kernel)
 
+    output = fortran_writer(sched)
+
+    assert "use compute_cu_mod" not in output
+    assert "use time_smooth_mod" not in output
+
     expected = '''subroutine invoke_0(cu_fld, p_fld, u_fld, unew_fld, uold_fld)
-  use compute_cu_mod, only : compute_cu_code
-  use time_smooth_mod, only : time_smooth_code
   type(r2d_field), intent(inout) :: cu_fld
   type(r2d_field), intent(inout) :: p_fld
   type(r2d_field), intent(inout) :: u_fld
@@ -192,19 +207,19 @@ def test_go_move_iteration_boundaries_inside_kernel_two_kernels_apply_twice():
   xstop = cu_fld%internal%xstop
   ystart = cu_fld%internal%ystart
   ystop = cu_fld%internal%ystop
-  do j = 1, SIZE(cu_fld%data, 2), 1
-    do i = 1, SIZE(cu_fld%data, 1), 1
+  do j = 1, SIZE(cu_fld%data, dim=2), 1
+    do i = 1, SIZE(cu_fld%data, dim=1), 1
       call compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data, xstart, \
 xstop, ystart, ystop)
     enddo
   enddo
   xstart_1 = 1
-  xstop_1 = SIZE(uold_fld%data, 1)
+  xstop_1 = SIZE(uold_fld%data, dim=1)
   ystart_1 = 1
-  ystop_1 = SIZE(uold_fld%data, 2)
-  do j = 1, SIZE(uold_fld%data, 2), 1
-    do i = 1, SIZE(uold_fld%data, 1), 1
-      call time_smooth_code(i, j, u_fld%data, unew_fld%data, uold_fld%data, \
+  ystop_1 = SIZE(uold_fld%data, dim=2)
+  do j = 1, SIZE(uold_fld%data, dim=2), 1
+    do i = 1, SIZE(uold_fld%data, dim=1), 1
+      call time_smooth_code(i, j, cu_fld%data, unew_fld%data, uold_fld%data, \
 xstart_1, xstop_1, ystart_1, ystop_1)
     enddo
   enddo
@@ -212,5 +227,5 @@ xstart_1, xstop_1, ystart_1, ystop_1)
 end subroutine invoke_0
 '''
 
-    writer = FortranWriter()
-    assert writer(sched) == expected
+    assert expected in output
+    assert GOceanBuild(tmp_path).code_compiles(psy)

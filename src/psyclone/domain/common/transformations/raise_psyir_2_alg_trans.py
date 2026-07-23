@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,80 +38,29 @@ algorithm layer to a PSyclone algorithm-layer-specific invoke call
 which uses specialised classes.
 
 '''
-# pylint: disable=protected-access
-
-from fparser.two.Fortran2003 import Structure_Constructor
 
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (
-    Call, ArrayReference, CodeBlock, Literal, Reference)
+from psyclone.psyir.nodes import Call, Literal, Routine
 from psyclone.psyir.symbols import (
-    Symbol, DataTypeSymbol, StructureType, RoutineSymbol, ScalarType)
+    Symbol, DataTypeSymbol, StructureType, ScalarType)
 from psyclone.domain.common.algorithm import (
     AlgorithmInvokeCall, KernelFunctor)
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class RaisePSyIR2AlgTrans(Transformation):
     '''Transform a generic PSyIR representation of an Algorithm-layer
     invoke call to a PSyclone version with specialised domain-specific
     nodes.
 
     '''
+
     def __init__(self):
         super().__init__()
         self._call_name = None
-
-    @staticmethod
-    def _parse_args(code_block, fp2_node):
-        '''Return the arguments from a Structure Constructor stored as a
-        CodeBlock containing an fparser2 ast.
-
-        :param code_block: the CodeBlock containing a StructureConstructor.
-        :type code_block: :py:class:`psyclone.psyir.nodes.CodeBlock`
-        :param fp2_node: the fparser2 Structure Constructor node.
-        :type fp2_node: \
-            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
-
-        :returns: a list of PSyIR nodes containing the \
-            StructureConstructor arguments.
-        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
-
-        '''
-        dummy_call = Call(parent=code_block.parent)
-        dummy_call.addchild(Reference(RoutineSymbol("dummy")))
-        fparser2 = Fparser2Reader()
-        for arg in fp2_node.children[1].children:
-            fparser2.process_nodes(dummy_call, [arg])
-        # Return the list of detached arguments
-        return dummy_call.pop_all_children()[1:]
-
-    @staticmethod
-    def _get_symbol(call, fp2_node):
-        '''Return the name of a Structure Constructor stored as a CodeBlock
-        containing an fparser2 ast.
-
-        :param code_block: the CodeBlock containing a StructureConstructor.
-        :type code_block: :py:class:`psyclone.psyir.nodes.CodeBlock`
-        :param fp2_node: the fparser2 Structure Constructor node.
-        :type fp2_node: \
-            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
-
-        :returns: the symbol capturing the name and type of the \
-            StructureConstructor.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
-
-        '''
-        name = fp2_node.children[0].string
-        symbol_table = call.scope.symbol_table
-        try:
-            type_symbol = symbol_table.lookup(name)
-        except KeyError:
-            type_symbol = DataTypeSymbol(name, StructureType())
-            symbol_table.add(type_symbol)
-        return type_symbol
 
     @staticmethod
     def _specialise_symbol(symbol):
@@ -128,24 +77,7 @@ class RaisePSyIR2AlgTrans(Transformation):
             symbol.specialise(DataTypeSymbol)
             symbol.datatype = StructureType()
 
-    def _validate_fp2_node(self, fp2_node):
-        '''Validation routine for an fparser2 node within a code block.
-
-        :param fp2_node: an fparser2 Structure Constructor.
-        :type fp2_node: \
-            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
-
-        :raises TransformationError: if the fparser2 node is not the \
-            expected type.
-
-        '''
-        if not isinstance(fp2_node, Structure_Constructor):
-            raise TransformationError(
-                f"Error in {self.name} transformation. Expecting an algorithm "
-                f"invoke codeblock to contain a Structure-Constructor, but "
-                f"found '{type(fp2_node).__name__}'.")
-
-    def validate(self, node, options=None):
+    def validate(self, node: Call, options=None, **kwargs):
         '''Validate the node argument.
 
         :param node: a PSyIR call node capturing an invoke call in
@@ -167,6 +99,9 @@ class RaisePSyIR2AlgTrans(Transformation):
             PSyIR ArrayReference or CodeBlock.
 
         '''
+        if not options:
+            self.validate_options(**kwargs)
+
         self._call_name = None
 
         if not isinstance(node, Call):
@@ -203,71 +138,62 @@ class RaisePSyIR2AlgTrans(Transformation):
                         f"Problem with invoke name: {err}") from err
             if node.argument_names[idx]:
                 pass
-            elif isinstance(arg, ArrayReference):
-                pass
-            elif isinstance(arg, CodeBlock):
-                # pylint: disable=protected-access
-                for fp2_node in arg._fp2_nodes:
-                    self._validate_fp2_node(fp2_node)
+            elif isinstance(arg, Call):
+                if arg.symbol == arg.ancestor(Routine).symbol:
+                    raise TransformationError(
+                        f"The invoke call argument '{arg.symbol.name}' has "
+                        f"been used as the Algorithm routine name. This is not"
+                        f" allowed.")
             else:
-                if isinstance(arg, Call):
-                    info = (
-                        f"The invoke call argument '{arg.routine.name}' has "
-                        f"been used as a routine name. This is not allowed.")
-                else:
-                    info = (
-                        f"The arguments to this invoke call are expected to "
-                        f"be kernel calls which are represented in generic "
-                        f"PSyIR as CodeBlocks or ArrayReferences, but "
-                        f"'{arg.debug_string()}' is of type "
-                        f"'{type(arg).__name__}'.")
+                info = (
+                    f"The arguments to this invoke call are expected to "
+                    f"be kernel calls which are represented in generic "
+                    f"PSyIR as Calls, but '{arg.debug_string()}' is of type "
+                    f"'{type(arg).__name__}'.")
                 raise TransformationError(
                     f"Error in {self.name} transformation. {info}")
 
-    def apply(self, call, index, options=None):
+    def apply(self, node: Call, index: int = None, options=None, **kwargs):
         ''' Apply the transformation to the supplied node.
 
-        :param call: a PSyIR call node capturing an invoke call in \
+        :param node: a PSyIR call node capturing an invoke call in
             generic PSyIR.
-        :type call: :py:class:`psyclone.psyir.nodes.Call`
-        :param int index: the position of this invoke call relative to \
+        :param index: the position of this invoke call relative to
             other invokes in the algorithm layer.
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(call, options=options)
+        self.validate(node, index=index, options=options, **kwargs)
 
         call_name = None
         calls = []
-        for idx, call_arg in enumerate(call.arguments):
+        for idx, call_arg in enumerate(node.arguments):
 
             # pylint: disable=protected-access
             arg_info = []
-            if call.argument_names[idx]:
+            if node.argument_names[idx]:
                 call_name = f"{call_arg.value}"
                 continue
-            elif isinstance(call_arg, ArrayReference):
-                # kernel misrepresented as ArrayReference
-                args = call_arg.pop_all_children()
-                type_symbol = call_arg.symbol
-                arg_info.append((type_symbol, args))
             else:
-                # The validates check that this can only be a Codeblock with
-                # a StructureConstructor fparser2 node inside
-                for fp2_node in call_arg.get_ast_nodes:
-                    # This child is a kernel
-                    type_symbol = self._get_symbol(call, fp2_node)
-                    args = self._parse_args(call_arg, fp2_node)
-                    arg_info.append((type_symbol, args))
+                # Get the symbols and args to reconstruct it as a
+                # higher-abstraction AlgorithmInvokeCall node
+                type_symbol = call_arg.routine.symbol
+                args = call_arg.pop_all_children()[1:]
+                arg_info.append((type_symbol, args))
 
             for (type_symbol, args) in arg_info:
                 self._specialise_symbol(type_symbol)
                 calls.append(KernelFunctor.create(type_symbol, args))
 
         invoke_call = AlgorithmInvokeCall.create(
-            call.routine.symbol, calls, index, name=call_name)
-        call.replace_with(invoke_call)
+            node.routine.symbol, calls, index, name=call_name)
+
+        # Keep comments
+        invoke_call.preceding_comment = node.preceding_comment
+        invoke_call.inline_comment = node.inline_comment
+
+        node.replace_with(invoke_call)
 
 
 __all__ = ['RaisePSyIR2AlgTrans']

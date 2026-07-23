@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@ from psyclone.psyir.nodes import (
     Assignment, Reference, Call, StructureReference, IfBlock, BinaryOperation,
     Literal, DataNode)
 from psyclone.psyir.symbols import (
-    DataSymbol, UnsupportedFortranType, INTEGER_TYPE,
+    DataSymbol, UnsupportedFortranType, ScalarType,
     ArgumentInterface, UnresolvedType, ContainerSymbol,
     ImportInterface, ArrayType, DataTypeSymbol)
 
@@ -135,7 +135,7 @@ class LFRicStencils(LFRicCollection):
         '''
         extent_arg = arg.stencil.extent_arg
         if extent_arg.is_literal():
-            return Literal(extent_arg.text, INTEGER_TYPE)
+            return Literal(extent_arg.text, ScalarType.integer_type())
         return Reference(self.symtab.lookup(extent_arg.varname))
 
     @staticmethod
@@ -315,7 +315,7 @@ class LFRicStencils(LFRicCollection):
                             symbol.datatype = ArrayType(
                                     LFRicTypes(
                                         "LFRicIntegerScalarDataType")(),
-                                    [Literal("4", INTEGER_TYPE)])
+                                    [Literal("4", ScalarType.integer_type())])
                             symbol.interface = ArgumentInterface(
                                         ArgumentInterface.Access.READ)
                             self.symtab.append_argument(symbol)
@@ -390,7 +390,7 @@ class LFRicStencils(LFRicCollection):
 
     def stub_declarations(self):
         '''
-        Declares all stencil-related quanitites for a Kernel stub.
+        Declares all stencil-related quantities for a Kernel stub.
 
         '''
         super().stub_declarations()
@@ -462,7 +462,7 @@ class LFRicStencils(LFRicCollection):
                         rhs=BinaryOperation.create(
                             BinaryOperation.Operator.ADD,
                             self.extent_value(arg),
-                            Literal("1", INTEGER_TYPE))
+                            Literal("1", ScalarType.integer_type()))
                         )
                     self._invoke.schedule.addchild(stmt, cursor)
                     cursor += 1
@@ -648,7 +648,7 @@ class LFRicStencils(LFRicCollection):
                         LFRicTypes("LFRicIntegerScalarDataType")(),
                         [Reference(symtab.lookup(arg.function_space.ndf_name)),
                          Reference(max_length),
-                         Literal("4", INTEGER_TYPE)])
+                         Literal("4", ScalarType.integer_type())])
             else:
                 size_symbol = self.dofmap_size_symbol(self.symtab, arg)
                 size_symbol.datatype = \

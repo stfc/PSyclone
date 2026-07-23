@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2025, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2026, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -33,36 +33,9 @@
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
-.. testsetup::
-
-    # Define GOCEAN_SOURCE_FILE to point to an existing gocean 1.0 file.
-    GOCEAN_SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
-        "gocean1p0/test11_different_iterates_over_one_invoke.f90")
-    # Define NEMO_SOURCE_FILE to point to an existing nemo file.
-    NEMO_SOURCE_FILE = ("../../examples/nemo/code/tra_adv.F90")
-
 
 Transformations
 ###############
-
-Kernel Transformations
-======================
-
-PSyclone is able to perform kernel transformations by obtaining the PSyIR
-representation of the kernel with:
-
-.. automethod:: psyclone.psyGen.CodedKern.get_kernel_schedule
-    :no-index:
-
-The result of `psyclone.psyGen.Kern.get_kernel_schedule` is a
-`psyclone.psyir.nodes.KernelSchedule` which is a specialisation of the
-`Routine` class with the `is_program` and `return_type` properties set to
-`False` and `None`, respectively.
-
-In addition to modifying the kernel PSyIR with the desired transformations,
-the `modified` flag of the `CodedKern` node has to be set. This will let
-PSyclone know which kernel files it may have to rename and rewrite
-during the code generation.
 
 Raising Transformations
 =======================
@@ -516,6 +489,8 @@ an if condition or a loop condition, and that intrinsic contains an array sectio
 then PSyclone may generate extra dependencies, which may hurt code performance. If
 this causes issues, please open an issue.
 
+.. _updating_transformation_options:
+
 Moving to the new transformations options
 =========================================
 PSyclone is currently moving from a dictionary of options to keyword arguments
@@ -533,7 +508,7 @@ This update is happening gradually, with developers being asked to update
 transformations as they are otherwise being modified.
 
 Note that while the ``options`` dict is being deprecated, it is still
-accepted and ovverides the keyword arguments if both are provided.
+accepted and overrides the keyword arguments if both are provided.
 
 The steps required to update the transformations are detailed here (see
 the ``ParallelLoopTrans`` class for reference):
@@ -555,7 +530,7 @@ the ``ParallelLoopTrans`` class for reference):
    built upon the ``apply`` definition (e.g. ``LoopTrans`` has
    validation used for subclasses, but performs no actions in its newly added
    ``apply`` method).
-3. The ``validate`` method should call the ``validate_options`` method on each of
+3. The ``validate`` method should call the ``validate_options`` method on
    the keyword arguments and ``**kwargs``. This method should not be called on
    the ``options`` dictionary. The ``options`` input should overrule the keyword
    arguments when determining options to the apply and validate method.
@@ -583,5 +558,43 @@ the ``ParallelLoopTrans`` class for reference):
    generated automatically by PSyclone.
 7. Repeat this process for any classes that the class inherits from.
 
+
+Transformations options and meta-transformations
+================================================
+
+Sometimes it is useful to implement transformation that in turn call one or
+multiple other transformations. In these cases we often want to propagate the
+kwargs not only to the superclass (by inheritance) but also to the internally
+used transformations, but we cannot pass the whole kwargs everywhere because
+many options will only be valid for certain transformations.
+
+To easily decide which options provide to each transformation we are developing
+the concept of ``_SUB_TRANSFORMATIONS``. Populating this class attribute allows
+`self.split_kwargs(**kwargs)` to return the set of valid kwargs for itself and
+each of the listed transformations, while maintaining the `validate_options`
+functionality. Typically both the apply and the validate need to split the
+kwargs as in the example below:
+
+.. code-block:: python
+
+    class TestMetaTrans(Transformation):
+        ''' MetaTrans Example'''
+        _trans1 = Called1Trans
+        _trans2 = Called2Trans
+        _SUB_TRANSFORMATIONS = [Called1Trans, Called2Trans]
+
+        def validate(self, node, **kwargs):
+            self_kwargs, tr1_kwargs, tr2_kwargs = self.split_kwargs(**kwargs)
+            self._trans1().validate(node, **tr1_kwargs)
+            self._trans2().validate(node, **tr2_kwargs)
+            self.validate_options(**self_kwargs)
+            super().validate(node, **self_kwargs)
+    
+        def apply(self, node, my_option):
+            # Omitted code before using the subtransformations...
+            _, tr1_kwargs, tr2_kwargs = self.split_kwargs(
+                my_option=my_options, **kwargs)
+            self._trans1().apply(node, **tr1_kwargs)
+            self._trans2().apply(node, **tr2_kwargs)
 
 .. footbibliography::

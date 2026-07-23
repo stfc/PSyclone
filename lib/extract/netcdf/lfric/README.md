@@ -1,9 +1,9 @@
 # Kernel Extraction Library Using NetCDF for LFRic
 
 This wrapper library [writes (extracts)](
-https://psyclone.readthedocs.io/en/stable/psyke.html) input and output
+https://psyclone.readthedocs.io/en/latest/user_guide/psyke.html) input and output
 parameters of instrumented code regions to a [NetCDF file](
-https://psyclone.readthedocs.io/en/stable/psyke.html#netcdf-extraction-example)
+https://psyclone.readthedocs.io/en/latest/user_guide/psyke.html#netcdf-extraction-example)
 using the LFRic infrastructure library. A stand-alone driver can then be
 used to rerun this specific code region and verify the results (or
 compare performance).
@@ -11,16 +11,15 @@ compare performance).
 ## Dependencies
 
 This library uses the [PSyData API](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface with
-the application. The following dependencies must be available:
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) to
+interface with the application. The following dependencies must be available:
 
-- The LFRic infrastructure library. A pared-down version of LFRic
-  infrastructure is located in the PSyclone repository (see e.g.
-  [LFRic Example 17](
-  https://github.com/stfc/PSyclone/tree/master/examples/lfric/eg17), however
-  it is not included in the PSyclone [installation](
+- The LFRic infrastructure library, which is included in the PSyclone repository
+  (see e.g. [LFRic Example 17](
+  https://github.com/stfc/PSyclone/tree/master/examples/lfric/eg17)), however
+  it is not included in a PSyclone [installation](
   ./../../../README.md#installation). See the [LFRic API](
-  https://psyclone.readthedocs.io/en/latest/lfric.html) documentation
+  https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html) documentation
   for information on how to obtain access to the LFRic code.
 
 - This library uses NetCDF to store the data, so NetCDF must
@@ -63,15 +62,15 @@ variable ``MPI=yes`` before starting the build process (which will make sure
 that ``NO_MPI`` is not set).
 
 The NetCDF helper program ``nf-config`` is used to get the NetCDF-specific
-include paths. By default it is set to the relative path to the pared-down
+include paths. By default it is set to the relative path to the
 LFRic infrastructure located in a clone of PSyclone repository,
-``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``.
+``<PSYCLONEHOME>/external/lfric_infrastructure/src``.
 This is not available in the PSyclone [installation](
 ./../../../README.md#installation) so the exact path
-**must be specified** using the environment variable ``LFRIC_INF_DIR``, e.g.
+**must be specified** using the environment variable ``LFRIC_PATH``, e.g.
 
 ```shell
-F90=ifort F90FLAGS="-g -check bounds" LFRIC_INF_DIR=<path/to/LFRic/code> make
+F90=ifort F90FLAGS="-g -check bounds" LFRIC_PATH=<path/to/LFRic/code> make
 ```
 
 It is the responsibility of the user to make sure that the module files
@@ -90,7 +89,7 @@ infrastructure library, ``liblfric_netcdf.a``, if required, with the
 previously selected compiler flags.
 
 Similar to compilation of the [examples](
-https://psyclone.readthedocs.io/en/latest/tutorials_and_examples.html#compilation), the
+https://psyclone.readthedocs.io/en/latest/tutorials_and_examples/examples_intro.html#compilation), the
 compiled wrapper library can be removed by running ``make clean``. To also
 remove the compiled infrastructure library it is necessary to run
 ``make allclean`` (this is especially important if changing compilers
@@ -105,7 +104,7 @@ parameters when compiling and linking. For instance:
 
 ```shell
 $(F90)  ... -L$(PSYDATA_LIB_DIR)/extract/netcdf/lfric -l_kernel_data_netcdf \
-        -L$(LFRIC_INF_DIR) -llfric_netcdf $(LFRIC_SPECIFIC_LINKING_PARAMETERS) \
+        -L$(LFRIC_PATH) -llfric_netcdf $(LFRIC_SPECIFIC_LINKING_PARAMETERS) \
         $(nf-config --flibs)
 ```
 
@@ -123,7 +122,7 @@ or you have to explicitly provide the required paths and options).
 
 BSD 3-Clause License
 
-Copyright (c) 2020-2025, Science and Technology Facilities Council.
+Copyright (c) 2020-2026, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

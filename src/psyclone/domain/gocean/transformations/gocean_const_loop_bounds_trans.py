@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,14 +42,14 @@ from psyclone.gocean1p0 import GOInvokeSchedule, GOLoop
 from psyclone.psyGen import Transformation
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Assignment, Reference, StructureReference
-from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol, DataTypeSymbol
+from psyclone.psyir.symbols import ScalarType, DataSymbol, DataTypeSymbol
 from psyclone.psyir.transformations import TransformationError
 from psyclone.configuration import Config
 
 
 class GOConstLoopBoundsTrans(Transformation):
     ''' Use of a common constant variable for each loop bound within
-    a GOInvokeSchedule. By deafault, PSyclone generates loops where
+    a GOInvokeSchedule. By default, PSyclone generates loops where
     the bounds are obtained by de-referencing a field object, e.g.:
 
     .. code-block:: fortran
@@ -70,24 +70,18 @@ class GOConstLoopBoundsTrans(Transformation):
     In practice, the application of the constant loop bounds transformation
     looks something like, e.g.:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> import os
-    >>> TEST_API = "gocean"
-    >>> _, info = parse(os.path.join("tests", "test_files", "gocean1p0",
-    ...                              "single_invoke.f90"),
-    ...                 api=TEST_API)
-    >>> psy = PSyFactory(TEST_API).create(info)
-    >>> invoke = psy.invokes.get('invoke_0_compute_cu')
-    >>> schedule = invoke.schedule
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "single_invoke.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>>
-    >>> from psyclone.transformations import GOConstLoopBoundsTrans
+    >>> from psyclone.domain.gocean.transformations import \
+    GOConstLoopBoundsTrans
     >>> clbtrans = GOConstLoopBoundsTrans()
     >>>
     >>> clbtrans.apply(schedule)
-    >>> print(schedule.view())
 
     '''
+
     def __str__(self):
         return "Use constant loop bounds for all loops in a GOInvokeSchedule"
 
@@ -187,9 +181,11 @@ class GOConstLoopBoundsTrans(Transformation):
         self.validate(node, options=options)
 
         i_stop = node.symbol_table.new_symbol(
-            "istop", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            "istop", symbol_type=DataSymbol,
+            datatype=ScalarType.integer_type())
         j_stop = node.symbol_table.new_symbol(
-            "jstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            "jstop", symbol_type=DataSymbol,
+            datatype=ScalarType.integer_type())
 
         # Get a field argument from the argument list (we checked there
         # is at least one on the validation method)
@@ -250,7 +246,7 @@ class GOConstLoopBoundsTrans(Transformation):
                 start_expr = "1"
             psyir = fortran_reader.psyir_from_expression(
                     start_expr, node.symbol_table)
-            loop.children[0].replace_with(psyir)
+            loop.start_expr.replace_with(psyir)
 
             # Set the upper bound
             stop_expr = bounds["stop"].format(start='2', stop=stop)
@@ -259,4 +255,4 @@ class GOConstLoopBoundsTrans(Transformation):
                 stop_expr = "1"
             psyir = fortran_reader.psyir_from_expression(
                     stop_expr, node.symbol_table)
-            loop.children[1].replace_with(psyir)
+            loop.stop_expr.replace_with(psyir)

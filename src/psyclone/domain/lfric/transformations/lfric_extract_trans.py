@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,30 +40,14 @@
 transformation.
 '''
 
-from psyclone.domain.lfric import LFRicExtractDriverCreator, LFRicLoop
+from psyclone.domain.lfric import LFRicDriverCreator, LFRicLoop
 from psyclone.psyir.nodes import ExtractNode
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
 
 class LFRicExtractTrans(ExtractTrans):
     ''' LFRic API application of ExtractTrans transformation
-    to extract code into a stand-alone program. For example:
-
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>>
-    >>> API = "lfric"
-    >>> FILENAME = "solver_alg.x90"
-    >>> ast, invokeInfo = parse(FILENAME, api=API)
-    >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>>
-    >>> from psyclone.domain.lfric.transformations import LFRicExtractTrans
-    >>> etrans = LFRicExtractTrans()
-    >>>
-    >>> # Apply LFRicExtractTrans transformation to selected Nodes
-    >>> etrans.apply(schedule.children[0:3])
-    >>> print(schedule.view())
+    to extract code into a stand-alone program.
 
     '''
 
@@ -108,8 +92,8 @@ class LFRicExtractTrans(ExtractTrans):
         schedule - i.e. enclose the specified Nodes in the schedule within
         a single PSyData region. It first uses the CallTreeUtils to determine
         input- and output-parameters. If requested, it will then call
-        the LFRicExtractDriverCreator to write the stand-alone driver
-        program. Then it will call apply of the base class.
+        the LFRicDriverCreator to write the stand-alone driver program.
+        Then it will call apply of the base class.
 
         :param nodes: can be a single node or a list of nodes.
         :type nodes: :py:class:`psyclone.psyir.nodes.Node` or \
@@ -145,4 +129,4 @@ class LFRicExtractTrans(ExtractTrans):
         new_node = nodes[0].ancestor(ExtractNode)
         if my_options.get("create_driver", False):
             region_name = my_options.get("region_name", None)
-            new_node._driver_creator = LFRicExtractDriverCreator(region_name)
+            new_node._driver_creator = LFRicDriverCreator(region_name)

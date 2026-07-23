@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2025, Science and Technology Facilities Council
+# Copyright (c) 2023-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR MINVAL intrinsic to
 an equivalent PSyIR loop structure. This could be useful if the MINVAL
@@ -43,8 +44,10 @@ better than the intrinsic.
 from psyclone.psyir.nodes import IntrinsicCall
 from psyclone.psyir.transformations.intrinsics.array_reduction_base_trans \
     import ArrayReductionBaseTrans
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class Minval2LoopTrans(ArrayReductionBaseTrans):
     '''Provides a transformation from a PSyIR MINVAL IntrinsicCall node to
     an equivalent PSyIR loop structure that is suitable for running in
@@ -123,13 +126,15 @@ class Minval2LoopTrans(ArrayReductionBaseTrans):
       real :: result
       integer :: idx
       integer :: idx_1
+      real :: reduction_var
     <BLANKLINE>
-      result = HUGE(result)
+      reduction_var = HUGE(reduction_var)
       do idx = 1, 10, 1
         do idx_1 = 1, 10, 1
-          result = MIN(result, array(idx_1,idx))
+          reduction_var = MIN(reduction_var, array(idx_1,idx))
         enddo
       enddo
+      result = reduction_var
     <BLANKLINE>
     end subroutine minval_test
     <BLANKLINE>
@@ -168,3 +173,19 @@ class Minval2LoopTrans(ArrayReductionBaseTrans):
         '''
         return IntrinsicCall.create(
             IntrinsicCall.Intrinsic.HUGE, [reference.copy()])
+
+    def apply(self, node, options=None, **kwargs):
+        '''
+        Apply the Minval2LoopTrans to the input node.
+
+        :param node: the MINVAL intrinsic to transform.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+        :param options: options for the transformation.
+        :type options: Optional[Dict[str, Any]]
+
+        '''
+        super().apply(node, options=options, **kwargs)
+
+
+# For AutoAPI auto-documentation generation.
+__all__ = ["Minval2LoopTrans"]

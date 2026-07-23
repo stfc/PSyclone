@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council
+# Copyright (c) 2022-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,10 +32,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modified L. Turner, Met Office
 
 '''Module for Kernels in the LFRic domain.'''
 
 
+from psyclone.domain.lfric.kernel.scalar_array_arg_metadata import \
+    ScalarArrayArgMetadata
 from psyclone.domain.lfric.kernel.columnwise_operator_arg_metadata import \
     ColumnwiseOperatorArgMetadata
 from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Author: R. W. Ford, STFC Daresbury Laboratory
 # Modified: S. Siso, A. R. Porter and N. Nobre, STFC Daresbury Lab
 #           T. Vockerodt, Met Office
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR MATMUL operator to
 PSyIR code. This could be useful if the MATMUL operator is not
@@ -43,13 +44,16 @@ matrix vector multiply. This transformation supports both with the
 restriction that the first matrix must be of at least rank 2.
 
 '''
+import warnings
+
 from psyclone.psyir.nodes import (
     BinaryOperation, Assignment, Reference,
     Loop, Literal, ArrayReference, Range, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType, UnsupportedType)
+    DataSymbol, ScalarType, TypedSymbol, UnsupportedType)
 from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
     Intrinsic2CodeTrans)
+from psyclone.utils import transformation_documentation_wrapper
 
 
 def _create_array_ref(array_symbol, loop_idx_symbols, other_dims,
@@ -91,64 +95,7 @@ def _create_array_ref(array_symbol, loop_idx_symbols, other_dims,
     return ArrayReference.create(array_symbol, indices)
 
 
-def _get_array_bound(array, index):
-    '''A utility function that returns the appropriate loop bounds (lower,
-    upper and step) for a particular index of an array reference. At
-    the moment all entries for the index are assumed to be accessed.
-    If the array symbol is declared with known bounds (an integer or a
-    symbol) then these bound values are used. If the size is unknown
-    (a deferred or attribute type) then the LBOUND and UBOUND PSyIR
-    nodes are used.
-
-    :param array: the reference that we are interested in.
-    :type array: :py:class:`psyir.nodes.Reference`
-    :param int index: the (array) reference index that we are
-        interested in.
-    :returns: the loop bounds for this array index.
-    :rtype: (Literal, Literal, Literal) or
-        (BinaryOperation, BinaryOperation, Literal)
-
-   :raises TransformationError: if the shape of the array's symbol is
-        not supported.
-
-    '''
-    # The 'shape' getter performs validation checks.
-    try:
-        my_dim = array.symbol.shape[index]
-    except TypeError as err:
-        # Added import here to avoid circular dependencies.
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.transformations import TransformationError
-        raise TransformationError(
-            f"Unsupported index type found for array '{array.name}': "
-            f"{err}") from err
-
-    dim_index = index + 1  # The Fortran dim argument is 1-indexed
-    if isinstance(my_dim, ArrayType.ArrayBounds):
-        # Use .copy() to ensure we return new nodes.
-        lower_bound = my_dim.lower.copy()
-        if my_dim.upper == ArrayType.Extent.ATTRIBUTE:
-            # Assumed-shape array.
-            upper_bound = IntrinsicCall.create(
-                IntrinsicCall.Intrinsic.UBOUND,
-                [Reference(array.symbol),
-                 ("dim", Literal(str(dim_index), INTEGER_TYPE))])
-        else:
-            upper_bound = my_dim.upper.copy()
-    else:
-        lower_bound = IntrinsicCall.create(
-            IntrinsicCall.Intrinsic.LBOUND,
-            [Reference(array.symbol),
-             ("dim", Literal(str(dim_index), INTEGER_TYPE))])
-        upper_bound = IntrinsicCall.create(
-            IntrinsicCall.Intrinsic.UBOUND,
-            [Reference(array.symbol),
-             ("dim", Literal(str(dim_index), INTEGER_TYPE))])
-
-    step = Literal("1", INTEGER_TYPE)
-    return (lower_bound, upper_bound, step)
-
-
+@transformation_documentation_wrapper
 class Matmul2CodeTrans(Intrinsic2CodeTrans):
     '''Provides a transformation from a PSyIR MATMUL Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
@@ -186,6 +133,7 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
     a rank-1 array.
 
     '''
+
     def __init__(self):
         super().__init__()
         self._intrinsic = IntrinsicCall.Intrinsic.MATMUL
@@ -270,7 +218,7 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
                     f"indices of the array '{array.debug_string()}' "
                     f"must be full ranges but found {n_full_ranges}.")
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''Perform checks to ensure that it is valid to apply the
         Matmul2CodeTran transformation to the supplied node.
 
@@ -318,12 +266,13 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
                 f"be references, but found: '{node.parent.debug_string()}'.")
 
         # The arguments of matvec should be References to arrays
-        if any(isinstance(var.symbol.datatype, UnsupportedType) for var
-               in [matrix1, matrix2, result]):
-            raise TransformationError(
-                f"Must have full type information for result and operands of "
-                f"MATMUL IntrinsicCall but found '{result.symbol}', "
-                f"'{matrix1.symbol}' and '{matrix2.symbol}'.")
+        for var in [matrix1, matrix2, result]:
+            if (not isinstance(var.symbol, TypedSymbol) or
+                    isinstance(var.symbol.datatype, UnsupportedType)):
+                raise TransformationError(
+                    f"Must have full type information for result and operands "
+                    f"of MATMUL IntrinsicCall but found '{result.symbol}', "
+                    f"'{matrix1.symbol}' and '{matrix2.symbol}'.")
         if (len(matrix1.symbol.shape) == 0 or len(matrix2.symbol.shape) == 0 or
                 len(result.symbol.shape) == 0):
             raise TransformationError(
@@ -365,7 +314,7 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
                 f"'{result.symbol.name}' is the result location and one of "
                 f"the MATMUL operators. This is not supported.")
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''Apply the MATMUL intrinsic conversion transformation to the
         specified node. This node must be a MATMUL IntrinsicCall. The first
         argument must currently have two dimensions while the second must have
@@ -383,7 +332,11 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node, options)
+        # TODO #2668 options dict is now deprecated
+        if options:
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
+
+        self.validate(node, options, **kwargs)
 
         arg2 = node.arguments[1]
         full_range_order, _, _ = self._get_full_range_split(arg2)
@@ -411,10 +364,10 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
 
         # Create new i and j loop iterators.
         symbol_table = node.scope.symbol_table
-        i_loop_sym = symbol_table.new_symbol("i", symbol_type=DataSymbol,
-                                             datatype=INTEGER_TYPE)
-        j_loop_sym = symbol_table.new_symbol("j", symbol_type=DataSymbol,
-                                             datatype=INTEGER_TYPE)
+        i_loop_sym = symbol_table.new_symbol(
+             "i", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
+        j_loop_sym = symbol_table.new_symbol(
+             "j", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
 
         # Create "result(i)"
         r_fr_order, r_nfr_order, r_nfr = self._get_full_range_split(result)
@@ -454,12 +407,12 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
             first_pos = 0
         else:
             first_pos = v_fr_order[0]
-        lower_bound, upper_bound, step = _get_array_bound(vector, first_pos)
-        jloop = Loop.create(j_loop_sym, lower_bound, upper_bound, step,
-                            [assign])
+        lower_bound, upper_bound = vector.symbol.get_bounds(first_pos)
+        jloop = Loop.create(j_loop_sym, lower_bound, upper_bound,
+                            Literal("1", ScalarType.integer_type()), [assign])
         # Create "result(i) = 0.0"
         assign = Assignment.create(result_ref.copy(),
-                                   Literal("0.0", REAL_TYPE))
+                                   Literal("0.0", ScalarType.real_type()))
         # Create i loop and add assignment and j loop as children
         if len(m_fr_order) == 0:
             # If no full ranges, then matrix was specified
@@ -467,8 +420,9 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
             first_pos = 0
         else:
             first_pos = m_fr_order[0]
-        lower_bound, upper_bound, step = _get_array_bound(matrix, first_pos)
-        iloop = Loop.create(i_loop_sym, lower_bound, upper_bound, step,
+        lower_bound, upper_bound = matrix.symbol.get_bounds(first_pos)
+        iloop = Loop.create(i_loop_sym, lower_bound, upper_bound,
+                            Literal("1", ScalarType.integer_type()),
                             [assign, jloop])
         # Replace the existing assignment with the new loop.
         assignment.replace_with(iloop)
@@ -490,12 +444,12 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
 
         # Create new i, j and ii loop iterators.
         symbol_table = node.scope.symbol_table
-        i_loop_sym = symbol_table.new_symbol("i", symbol_type=DataSymbol,
-                                             datatype=INTEGER_TYPE)
-        j_loop_sym = symbol_table.new_symbol("j", symbol_type=DataSymbol,
-                                             datatype=INTEGER_TYPE)
-        ii_loop_sym = symbol_table.new_symbol("ii", symbol_type=DataSymbol,
-                                              datatype=INTEGER_TYPE)
+        i_loop_sym = symbol_table.new_symbol(
+             "i", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
+        j_loop_sym = symbol_table.new_symbol(
+             "j", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
+        ii_loop_sym = symbol_table.new_symbol(
+             "ii", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
         # Create "result(i,j)"
         r_fr_order, r_nfr_order, r_nfr = self._get_full_range_split(result)
         result_ref = _create_array_ref(result.symbol,
@@ -534,12 +488,12 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
             pos_last = 1
         else:
             pos_last = m1_fr_order[-1]
-        lower_bound, upper_bound, step = _get_array_bound(matrix1, pos_last)
-        iiloop = Loop.create(ii_loop_sym, lower_bound, upper_bound, step,
-                             [assign])
+        lower_bound, upper_bound = matrix1.symbol.get_bounds(pos_last)
+        iiloop = Loop.create(ii_loop_sym, lower_bound, upper_bound,
+                             Literal("1", ScalarType.integer_type()), [assign])
         # Create "result(i,j) = 0.0"
         assign = Assignment.create(result_ref.copy(),
-                                   Literal("0.0", REAL_TYPE))
+                                   Literal("0.0", ScalarType.real_type()))
         # Create i loop and add assignment and ii loop as children.
         if len(m1_fr_order) == 0:
             # If no full ranges, then matrix was specified
@@ -547,8 +501,9 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
             pos_first = 0
         else:
             pos_first = m1_fr_order[0]
-        lower_bound, upper_bound, step = _get_array_bound(matrix1, pos_first)
-        iloop = Loop.create(i_loop_sym, lower_bound, upper_bound, step,
+        lower_bound, upper_bound = matrix1.symbol.get_bounds(pos_first)
+        iloop = Loop.create(i_loop_sym, lower_bound, upper_bound,
+                            Literal("1", ScalarType.integer_type()),
                             [assign, iiloop])
         # Create j loop and add i loop as child.
         if len(m2_fr_order) == 0:
@@ -557,8 +512,12 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
             pos_last = 1
         else:
             pos_last = m2_fr_order[-1]
-        lower_bound, upper_bound, step = _get_array_bound(matrix2, pos_last)
-        jloop = Loop.create(j_loop_sym, lower_bound, upper_bound, step,
-                            [iloop])
+        lower_bound, upper_bound = matrix2.symbol.get_bounds(pos_last)
+        jloop = Loop.create(j_loop_sym, lower_bound, upper_bound,
+                            Literal("1", ScalarType.integer_type()), [iloop])
         # Replace the original assignment with the new loop.
         assignment.replace_with(jloop)
+
+
+# For AutoAPI auto-documentation generation.
+__all__ = ["Matmul2CodeTrans"]

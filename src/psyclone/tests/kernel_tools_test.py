@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council
+# Copyright (c) 2018-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@ from psyclone import gen_kernel_stub, kernel_tools
 from psyclone.configuration import Config
 from psyclone.domain.lfric import algorithm
 from psyclone.psyir.nodes import Container, Routine
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, CHARACTER_TYPE
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, ScalarType
 from psyclone.version import __VERSION__
 
 
@@ -71,8 +71,6 @@ def test_run_default_mode(capsys):
 
 def test_run(capsys, tmpdir):
     ''' Basic test for the run() routine. '''
-    # Use an LFRic kernel so that we check that the default API
-    # (lfric) is picked up correctly
     kern_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "lfric", "testkern_w0_mod.f90")
     kernel_tools.run([str(kern_file), "-api", "lfric", "--limit", "output",
@@ -177,7 +175,7 @@ def test_run_line_length(fortran_reader, monkeypatch, capsys, limit, mode):
         than 132 chars. '''
         routine = Routine.create("my_sub", SymbolTable(), [])
         routine.symbol_table.new_symbol("long_str", symbol_type=DataSymbol,
-                                        datatype=CHARACTER_TYPE)
+                                        datatype=ScalarType.character_type())
         stmt = fortran_reader.psyir_from_statement(f"long_str = '{140*' '}'",
                                                    routine.symbol_table)
         routine.addchild(stmt)

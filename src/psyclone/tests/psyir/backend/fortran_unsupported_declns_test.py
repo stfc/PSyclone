@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,19 +37,18 @@
 '''Performs pytest tests on the support for declarations of UnsupportedType in
    the psyclone.psyir.backend.fortran module.'''
 
-import os
 import pytest
 
 from psyclone.errors import InternalError
 from psyclone.configuration import Config
 from psyclone.psyir.backend.fortran import (
-    add_accessibility_to_unsupported_declaration)
+    add_attributes_to_unsupported_declaration)
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.symbols import (
     ArgumentInterface, DataSymbol, UnresolvedType, RoutineSymbol,
     UnsupportedType, UnsupportedFortranType, ImportInterface, ContainerSymbol,
-    Symbol, SymbolTable, INTEGER_TYPE)
+    Symbol, SymbolTable, ScalarType)
 from psyclone.tests.utilities import Compile
 
 
@@ -74,7 +73,7 @@ def test_fw_unsupported_decln(fortran_writer):
     assert "integer, value :: b" in fortran_writer.gen_vardecl(sym)
 
 
-def test_fw_unsupported_interface_decln(tmpdir, fortran_writer):
+def test_fw_unsupported_interface_decln(tmp_path, fortran_writer):
     ''' Check that the backend recreates an interface declaration stored as
     an unsupported type and adds an appropriate access statement. '''
     container = Container("my_mod")
@@ -97,7 +96,7 @@ def test_fw_unsupported_interface_decln(tmpdir, fortran_writer):
     container.symbol_table.remove(container.symbol_table.lookup("my_sub"))
     # We have to make the interfaces to the two 'module procedures' different
     # so we give 'eos1d' an integer argument.
-    arg = DataSymbol("var1", datatype=INTEGER_TYPE,
+    arg = DataSymbol("var1", datatype=ScalarType.integer_type(),
                      interface=ArgumentInterface())
     eos1d_table = SymbolTable()
     eos1d_table.add(arg)
@@ -105,20 +104,20 @@ def test_fw_unsupported_interface_decln(tmpdir, fortran_writer):
     # Routines add their own symbols into the Container's symbol table
     container.addchild(Routine.create("eos1d", eos1d_table, []))
     container.addchild(Routine.create("eos2d", SymbolTable(), []))
-    assert Compile(tmpdir).string_compiles(fortran_writer(container))
+    assert Compile(tmp_path).string_compiles(fortran_writer(container))
 
 
 def test_fw_unsupportedtype_routine_symbols_error(fortran_writer):
     ''' Check that the backend raises the expected error if a RoutineSymbol
     which is not imported or a Fortran interface (currently an
-    UnsupportedFortanType) is found by the gen_decls. This symbols are
+    UnsupportedFortranType) is found by the gen_decls. This symbols are
     implicitly declared by the routine definition.
 
     '''
     class OtherType(UnsupportedType):
         ''' UnsupportedType is abstract so sub-class it for this test '''
         def __str__(self):
-            return "OtherType"
+            ...
 
     container = Container("my_mod")
     container.symbol_table.add(RoutineSymbol("eos", OtherType("some code")))
@@ -146,21 +145,27 @@ def test_fw_unsupportedtype_nonlocal_routine_symbols_error(fortran_writer):
             in str(err.value))
 
 
-def test_fw_add_accessibility_errors():
-    ''' Check that the add_accessibility_to_unsupported_declaration() method
+def test_fw_add_attributes_errors():
+    ''' Check that the add_attributes_to_unsupported_declaration() method
     raises the expected errors. '''
     with pytest.raises(TypeError) as err:
-        add_accessibility_to_unsupported_declaration("hello")
-    assert str(err.value) == "Expected a Symbol but got 'str'"
+        add_attributes_to_unsupported_declaration("hello", True)
+    assert str(err.value) == (
+        "Expected a Symbol or DerivedType component but got 'str'")
     with pytest.raises(TypeError) as err:
-        add_accessibility_to_unsupported_declaration(
-            DataSymbol("var", INTEGER_TYPE))
+        add_attributes_to_unsupported_declaration(
+            DataSymbol("var", UnsupportedFortranType("real var")), 3)
+    assert str(err.value) == (
+        "Expected 'include_visibility' to be a 'bool' but got 'int'")
+    with pytest.raises(TypeError) as err:
+        add_attributes_to_unsupported_declaration(
+            DataSymbol("var", ScalarType.integer_type()), True)
     assert ("Expected a Symbol of UnsupportedFortranType but symbol 'var' has "
             "type 'Scalar<INTEGER, UNDEFINED>'" in str(err.value))
     # Missing :: separator in declaration
     sym = DataSymbol("var", UnsupportedFortranType("real var"))
     with pytest.raises(NotImplementedError) as err:
-        add_accessibility_to_unsupported_declaration(sym)
+        add_attributes_to_unsupported_declaration(sym, True)
     assert ("Cannot add accessibility information to an UnsupportedFortranType"
             " that does not have '::' in its original declaration: 'real var'"
             in str(err.value))
@@ -168,7 +173,7 @@ def test_fw_add_accessibility_errors():
     sym = DataSymbol("var", UnsupportedFortranType("real, puBlic :: var"),
                      visibility=Symbol.Visibility.PRIVATE)
     with pytest.raises(InternalError) as err:
-        add_accessibility_to_unsupported_declaration(sym)
+        add_attributes_to_unsupported_declaration(sym, True)
     assert ("Symbol 'var' of UnsupportedFortranType has private visibility but"
             " its associated declaration specifies that it is public: 'real, "
             "puBlic :: var'" in str(err.value))
@@ -176,7 +181,7 @@ def test_fw_add_accessibility_errors():
     sym = DataSymbol("var", UnsupportedFortranType("real, pRivate :: var"),
                      visibility=Symbol.Visibility.PUBLIC)
     with pytest.raises(InternalError) as err:
-        add_accessibility_to_unsupported_declaration(sym)
+        add_attributes_to_unsupported_declaration(sym, True)
     assert ("Symbol 'var' of UnsupportedFortranType has public visibility but "
             "its associated declaration specifies that it is private: 'real, "
             "pRivate :: var'" in str(err.value))
@@ -184,21 +189,21 @@ def test_fw_add_accessibility_errors():
     sym = DataSymbol("var", UnsupportedFortranType(""),
                      visibility=Symbol.Visibility.PUBLIC)
     with pytest.raises(InternalError) as err:
-        add_accessibility_to_unsupported_declaration(sym)
+        add_attributes_to_unsupported_declaration(sym, True)
     assert ("Symbol 'var' is of UnsupportedFortranType but the "
             "associated declaration text is empty." in str(err.value))
 
 
-def test_fw_add_accessibility():
-    ''' Check that the add_accessibility_to_unsupported_declaration() method
+def test_fw_add_attributes():
+    ''' Check that the add_attributes_to_unsupported_declaration() method
     works as expected. '''
     sym = DataSymbol("var", UnsupportedFortranType("real, target :: var"),
                      visibility=Symbol.Visibility.PUBLIC)
-    result = add_accessibility_to_unsupported_declaration(sym)
+    result = add_attributes_to_unsupported_declaration(sym, True)
     assert result == "real, target, public :: var"
     sym = DataSymbol("var", UnsupportedFortranType("real, target :: var"),
                      visibility=Symbol.Visibility.PRIVATE)
-    result = add_accessibility_to_unsupported_declaration(sym)
+    result = add_attributes_to_unsupported_declaration(sym, True)
     assert result == "real, target, private :: var"
     sym = DataSymbol("var", UnsupportedFortranType(
                                  "type :: var\n"
@@ -206,7 +211,7 @@ def test_fw_add_accessibility():
                                  "  integer :: flag\n"
                                  "end type var"),
                      visibility=Symbol.Visibility.PRIVATE)
-    result = add_accessibility_to_unsupported_declaration(sym)
+    result = add_attributes_to_unsupported_declaration(sym, True)
     assert result == ("type, private :: var\n"
                       "  public\n"
                       "  integer :: flag\n"
@@ -217,7 +222,7 @@ def test_fw_add_accessibility():
                                  "  integer, public :: flag\n"
                                  "end type var"),
                      visibility=Symbol.Visibility.PRIVATE)
-    result = add_accessibility_to_unsupported_declaration(sym)
+    result = add_attributes_to_unsupported_declaration(sym, True)
     assert result == ("type, private :: var\n"
                       "  integer, private :: id\n"
                       "  integer, public :: flag\n"
@@ -241,20 +246,20 @@ def test_fw_preceding_and_inline_comment(fortran_writer):
 
 
 def test_generating_unsupportedtype_routine_imports(
-        fortran_reader, tmpdir, monkeypatch, fortran_writer):
+        fortran_reader, tmp_path, monkeypatch, fortran_writer):
     ''' Tests that generating UnsupportedType imported RoutineSymbols (if their
     UnresolvedType is resolved) are not misinterpreted as interfaces.'''
 
     # Set up include_path to import the proper modules
-    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
 
-    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    filename = tmp_path / "a_mod.f90"
     with open(filename, "w", encoding='UTF-8') as module:
         module.write('''
           module a_mod
               contains
-              character(len=3) function unsupported_type_symbol()
-                 unsupported_type_symbol = 'a'
+              complex function unsupported_type_symbol()
+                 unsupported_type_symbol = (1.0, 1.0)
               end function unsupported_type_symbol
           end module a_mod
         ''')
@@ -263,8 +268,10 @@ def test_generating_unsupportedtype_routine_imports(
               use a_mod, only: unsupported_type_symbol
               contains
               subroutine test()
-                  integer :: a
-                  a = unsupported_type_symbol()
+                  real :: a
+                  ! The function call returns a complex number and we want
+                  ! to store a simple scalar.
+                  a = REAL(unsupported_type_symbol())
               end subroutine test
           end module test_mod
       ''')
@@ -302,3 +309,28 @@ def test_fw_save_common(fortran_reader, fortran_writer):
     output = fortran_writer(psyir)
     assert "SAVE :: /my_common/\n" in output
     assert "integer, save, public :: var3\n" in output
+
+
+def test_fw_unsupported_type_components_with_visibility(
+            fortran_reader, fortran_writer):
+    ''' Check that the writer can handler type declarations with unsupported
+    components, and these have the visibility attribute modified when needed.
+    '''
+
+    code = '''\
+module mymod
+  type :: test
+     real :: supported
+     real, public :: supported_public
+     real, pointer :: unsupported
+     real, public, pointer :: unsupported_public
+     private
+  end type test
+end module mymod\n'''
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    # Check that the private attribute has been added to supported and
+    # unsupported, component types (because the backend does not use
+    # global visibility statements)
+    assert "real, private :: supported" in output
+    assert "real, pointer, private :: unsupported" in output

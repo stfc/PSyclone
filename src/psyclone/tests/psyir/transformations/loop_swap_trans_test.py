@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@ from psyclone.psyir.nodes import CodeBlock, Loop
 from psyclone.psyir.symbols import ContainerSymbol
 from psyclone.psyir.transformations import LoopSwapTrans, TransformationError
 from psyclone.tests.gocean_build import GOceanBuild
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import get_invoke, get_psylayer_schedule
 
 
 def test_loop_swap_apply(tmpdir):
@@ -171,7 +171,7 @@ def test_loop_swap_validate():
 
     # Now remove the body of the first inner loop, and pass the first
     # inner loop --> i.e. a loop with an empty body
-    del schedule.children[0].loop_body[0].children[3].children[0]
+    del schedule.children[0].loop_body[0].loop_body.children[0]
 
     with pytest.raises(TransformationError) as error:
         swap.apply(schedule.children[0].loop_body[0])
@@ -232,8 +232,8 @@ def test_loop_swap_validate_nodes_in_loop(fortran_reader):
     assert isinstance(schedule[1].loop_body[0].loop_body[0], CodeBlock)
     with pytest.raises(TransformationError) as err:
         swap.apply(schedule[1])
-    assert ("Nodes of type 'CodeBlock' cannot be enclosed by a LoopSwapTrans "
-            "transformation" in str(err.value))
+    assert ("Nodes of type 'Fparser2CodeBlock' cannot be enclosed by a "
+            "LoopSwapTrans transformation" in str(err.value))
 
 
 def test_loop_swap_validate_dependent_loop(fortran_reader):
@@ -278,10 +278,8 @@ def test_loop_swap_schedule_is_kept():
     contain annotations).
     '''
 
-    psy, _ = get_invoke("test27_loop_swap.f90", "gocean", idx=0,
-                        dist_mem=False)
-    invoke = psy.invokes.get("invoke_loop1")
-    schedule = invoke.schedule
+    schedule = get_psylayer_schedule(
+        "test27_loop_swap.f90", api="gocean", invoke_name="invoke_loop1")
     schedule_str = str(schedule)
 
     # First make sure to throw an early error if the source file

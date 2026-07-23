@@ -14,7 +14,7 @@ reduction to the algorithm layer.
 As you have already learnt in a previous section of the tutorial,
 PSyclone provides a number of builtin kernels. Some of these kernels
 perform reductions. The builtins are specified in the PSyclone User Guide
-[here](https://psyclone.readthedocs.io/en/latest/lfric.html#built-ins).
+[here](https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html#built-ins).
 
 Choose one of the builtins that performs a reduction. These are either
 of the two inner products or the sum of elements builtins.
@@ -71,7 +71,7 @@ into a scalar and then that scalar being added to a global_sum
 object. The global_sum object then calls its own `get_sum()` function
 and returns the global sum. The global sum implementation (in MPI) is
 hidden in the `get_sum()` function and is provided by the LFRic
-infrastruture.
+infrastructure.
 
 ## Key points
 

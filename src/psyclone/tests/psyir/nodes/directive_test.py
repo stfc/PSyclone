@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@ from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir import nodes
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import ScalarType
 from psyclone.transformations import ACCDataTrans, LFRicOMPParallelLoopTrans
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -175,7 +175,7 @@ def test_regiondirective_children_validation():
 
     '''
     directive = nodes.RegionDirective()
-    datanode = nodes.Literal("1", INTEGER_TYPE)
+    datanode = nodes.Literal("1", ScalarType.integer_type())
     schedule = nodes.Schedule()
 
     # First child

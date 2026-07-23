@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,9 +43,10 @@ import pytest
 
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.psyir.nodes import Loop
-from psyclone.psyir.transformations import ExtractTrans, TransformationError
+from psyclone.psyir.transformations import (
+    ACCLoopTrans, ExtractTrans, TransformationError)
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import (ACCParallelTrans, ACCLoopTrans,
+from psyclone.transformations import (ACCParallelTrans,
                                       LFRicOMPParallelLoopTrans)
 
 

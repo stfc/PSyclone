@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,19 +41,19 @@
     '''
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType
+from psyclone.core import AccessType, VariablesAccessMap, Signature
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.domain.lfric import LFRicConstants, LFRicKern
+from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyGen import (
-    InvokeSchedule, HaloExchange, zero_reduction_variables)
+from psyclone.psyGen import InvokeSchedule, HaloExchange
 from psyclone.psyir.nodes import (
     Loop, Literal, Schedule, Reference, ArrayReference, StructureReference,
     Call, BinaryOperation, ArrayOfStructuresReference, Directive, DataNode,
     Node, Routine)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, UnresolvedType, UnresolvedInterface)
+    AutomaticInterface, DataSymbol, ScalarType, UnresolvedType)
 
 
 class LFRicLoop(PSyLoop):
@@ -72,6 +72,7 @@ class LFRicLoop(PSyLoop):
         InvokeSchedule is not provided.
 
     '''
+
     # pylint: disable=too-many-instance-attributes
     def __init__(self, loop_type="", **kwargs):
         const = LFRicConstants()
@@ -115,6 +116,8 @@ class LFRicLoop(PSyLoop):
             self.variable = ischedule.symbol_table.find_or_create_tag(
                 tag, root_name=suggested_name, symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+        else:
+            self.variable = DataSymbol("null", ScalarType.integer_type())
 
         # The loop bounds names are given by the number of previous LFRic loops
         # already present in the Schedule. Since this are inserted in order it
@@ -125,11 +128,12 @@ class LFRicLoop(PSyLoop):
         idx = len(ischedule.loops())
         start_name = f"uninitialised_loop{idx}_start"
         stop_name = f"uninitialised_loop{idx}_stop"
-        lbound = DataSymbol(start_name, datatype=INTEGER_TYPE)
-        ubound = DataSymbol(stop_name, datatype=INTEGER_TYPE)
+        lbound = DataSymbol(start_name, datatype=ScalarType.integer_type())
+        ubound = DataSymbol(stop_name, datatype=ScalarType.integer_type())
         self.addchild(Reference(lbound))  # start
         self.addchild(Reference(ubound))  # stop
-        self.addchild(Literal("1", INTEGER_TYPE, parent=self))  # step
+        # step
+        self.addchild(Literal("1", ScalarType.integer_type(), parent=self))
         self.addchild(Schedule(parent=self))  # loop body
 
         # At this stage we don't know what our loop bounds are
@@ -159,11 +163,6 @@ class LFRicLoop(PSyLoop):
             self.detach()
             return None
 
-        # Get the list of calls (to kernels) that need reduction variables
-        if not self.is_openmp_parallel():
-            calls = self.reductions()
-            zero_reduction_variables(calls)
-
         # Set halo clean/dirty for all fields that are modified
         if Config.get().distributed_memory:
             if self._loop_type != "cells_in_colour":
@@ -188,11 +187,11 @@ class LFRicLoop(PSyLoop):
                 child.lower_to_language_level()
 
             # Finally create the new lowered Loop and replace the domain one
-            loop = Loop.create(self._variable, start, stop, step, [])
+            loop = Loop.create(self.variable, start, stop, step, [])
             loop.preceding_comment = self.preceding_comment
             loop.loop_body._symbol_table = \
                 self.loop_body.symbol_table.shallow_copy()
-            loop.children[3] = self.loop_body.copy()
+            loop.children[4] = self.loop_body.copy()
             self.replace_with(loop)
             lowered_node = loop
         else:
@@ -268,11 +267,14 @@ class LFRicLoop(PSyLoop):
         # Loop bounds
         self.set_lower_bound("start")
         const = LFRicConstants()
-        if kern.iterates_over == "dof":
+        if kern.iterates_over in const.DOF_ITERATION_SPACES:
             # This loop must be over DoFs
-            if Config.get().api_conf("lfric").compute_annexed_dofs \
-               and Config.get().distributed_memory \
-               and not kern.is_reduction:
+            if (Config.get().api_conf("lfric").compute_annexed_dofs
+                    and Config.get().distributed_memory
+                    and not kern.is_reduction
+                    and kern.iterates_over != "owned_dof"):
+                # If we're generating DM code and the compute-annexed dofs
+                # option is set then we include annexed dofs in the loop.
                 self.set_upper_bound("nannexed")
             else:
                 self.set_upper_bound("ndofs")
@@ -386,7 +388,7 @@ class LFRicLoop(PSyLoop):
         if halo_depth and isinstance(halo_depth, int):
             # We support specifying depth as an int as a convenience but we
             # now convert it to a PSyIR literal.
-            psyir = Literal(f"{halo_depth}", INTEGER_TYPE)
+            psyir = Literal(f"{halo_depth}", ScalarType.integer_type())
             self._upper_bound_halo_depth = psyir
         else:
             if halo_depth is not None and not isinstance(halo_depth, DataNode):
@@ -429,7 +431,7 @@ class LFRicLoop(PSyLoop):
                 f"The lower bound must be 'start' if we are sequential but "
                 f"found '{self._upper_bound_name}'")
         if self._lower_bound_name == "start":
-            return Literal("1", INTEGER_TYPE)
+            return Literal("1", ScalarType.integer_type())
 
         # the start of our space is the end of the previous space +1
         if self._lower_bound_name == "inner":
@@ -461,9 +463,11 @@ class LFRicLoop(PSyLoop):
                 StructureReference.create(
                     mesh_obj, ["get_last_" + prev_space_name + "_cell"]))
         if prev_space_index_str:
-            call.addchild(Literal(prev_space_index_str, INTEGER_TYPE))
+            call.addchild(Literal(prev_space_index_str,
+                                  ScalarType.integer_type()))
         return BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                      call, Literal("1", INTEGER_TYPE))
+                                      call,
+                                      Literal("1", ScalarType.integer_type()))
 
     @property
     def _mesh_name(self):
@@ -563,18 +567,11 @@ class LFRicLoop(PSyLoop):
         if self._upper_bound_name in ["ndofs", "nannexed"]:
             if Config.get().distributed_memory:
                 if self._upper_bound_name == "ndofs":
-                    method = "get_last_dof_owned"
-                else:
-                    method = "get_last_dof_annexed"
-                result = Call.create(
-                    StructureReference.create(
-                        sym_tab.lookup(self.field.proxy_name_indexed),
-                        [self.field.ref_name(), method]
-                    )
-                )
-            else:
-                result = Reference(sym_tab.lookup(self._kern.undf_name))
-            return result
+                    return self.field.generate_method_call(
+                        "get_last_dof_owned")
+                return self.field.generate_method_call("get_last_dof_annexed")
+            return Reference(sym_tab.lookup(self._kern.undf_name))
+
         if self._upper_bound_name == "ncells":
             if Config.get().distributed_memory:
                 result = Call.create(
@@ -602,12 +599,7 @@ class LFRicLoop(PSyLoop):
                 "sequential/shared-memory code")
         if self._upper_bound_name == "dof_halo":
             if Config.get().distributed_memory:
-                result = Call.create(
-                    StructureReference.create(
-                        sym_tab.lookup(self.field.proxy_name_indexed),
-                        [self.field.ref_name(), "get_last_dof_halo"]
-                    )
-                )
+                result = self.field.generate_method_call("get_last_dof_halo")
                 if halo_index:
                     result.addchild(halo_index.copy())
                 return result
@@ -711,7 +703,7 @@ class LFRicLoop(PSyLoop):
 
         '''
         const = LFRicConstants()
-        if arg.is_scalar or arg.is_operator:
+        if arg.is_scalar or arg.is_operator or arg.is_scalar_array:
             # Scalars and operators do not have halos
             return False
         if arg.is_field:
@@ -965,7 +957,7 @@ class LFRicLoop(PSyLoop):
                                 field.proxy_name,
                                 symbol_type=DataSymbol,
                                 datatype=UnresolvedType(),
-                                interface=UnresolvedInterface())
+                                interface=AutomaticInterface())
             # Avoid circular import
             # pylint: disable=import-outside-toplevel
             from psyclone.lfric import HaloWriteAccess
@@ -978,7 +970,8 @@ class LFRicLoop(PSyLoop):
                     # the range function below returns values from 1 to the
                     # vector size which is what we require in our Fortran code
                     for index in range(1, field.vector_size+1):
-                        idx_literal = Literal(str(index), INTEGER_TYPE)
+                        idx_literal = Literal(str(index),
+                                              ScalarType.integer_type())
                         call = Call.create(ArrayOfStructuresReference.create(
                             field_symbol, [idx_literal], ["set_dirty"]))
                         cursor += 1
@@ -1001,7 +994,8 @@ class LFRicLoop(PSyLoop):
                         set_clean = Call.create(
                             ArrayOfStructuresReference.create(
                                 field_symbol,
-                                [Literal(str(index), INTEGER_TYPE)],
+                                [Literal(str(index),
+                                         ScalarType.integer_type())],
                                 ["set_clean"]))
                         set_clean.addchild(clean_depth.copy())
                         cursor += 1
@@ -1111,6 +1105,34 @@ class LFRicLoop(PSyLoop):
 
         raise InternalError(f"independent_iterations: loop of type "
                             f"'{self.loop_type}' is not supported.")
+
+    def reference_accesses(self) -> VariablesAccessMap:
+        '''
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure accessors) and the values are AccessSequence
+            (a sequence of AccessTypes).
+
+        '''
+        var_accesses = VariablesAccessMap()
+
+        if self.variable.name != "null":
+            var_accesses.add_access(Signature(self.variable.name),
+                                    AccessType.WRITE, self)
+            # This READ is needed for the OpenMP infering attributes
+            # to work as expected
+            # TODO #3486: Ideally it should be WRITE-only
+            var_accesses.add_access(Signature(self.variable.name),
+                                    AccessType.READ, self)
+            var_accesses.update(self.start_expr.reference_accesses())
+            var_accesses.update(self.stop_expr.reference_accesses())
+            var_accesses.update(self.step_expr.reference_accesses())
+
+        # LFRic loops ignore the loop variable reference and loop bounds
+        # because it has placeholders until the DSL loop is lowered.
+        for child in self.loop_body.children:
+            var_accesses.update(child.reference_accesses())
+        return var_accesses
 
 
 # ---------- Documentation utils -------------------------------------------- #

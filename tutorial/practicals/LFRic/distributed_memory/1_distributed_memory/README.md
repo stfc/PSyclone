@@ -57,7 +57,7 @@ terminal.
 
 If the terminal output is not coloured you might like to install
 termcolor (`pip install termcolor` if using a virtualenv or take a
-look at the [installation instructions](../../../README.md#Requirements))
+look at the [installation instructions](../../../README.md##Requirements))
 and re-run.
 
 From inspection of the PSyIR you will see that the kernels are called

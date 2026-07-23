@@ -1,7 +1,7 @@
 # PSyclone Wrapper Library for TAU
 
 This is a wrapper library that maps the [PSyclone profiling API](
-https://psyclone.readthedocs.io/en/stable/profiling.html#profiling)
+https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html#profiling)
 to the TAU API.
 
 ## Dependencies
@@ -10,7 +10,7 @@ TAU must be available at link time but is not actually required when compiling t
 PSyData wrapper.
 
 This profiling library uses the [PSyData API](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface with
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) to interface with
 the application. The library is based on the [PSyData base class](
 https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#psydata-base-class),
 which is included in PSyclone as a Jinja template, ``psy_data_base.jinja``.
@@ -70,7 +70,7 @@ tau_f90.sh -o a.out ... -L <PATH-TO-PSYCLONE>/lib/profiling/tau -ltau_psy
 
 BSD 3-Clause License
 
-Copyright (c) 2023-2025, Science and Technology Facilities Council.
+Copyright (c) 2023-2026, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019-2025, Science and Technology Facilities Council
+! Copyright (c) 2019-2026, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@ PROGRAM extract_example_with_various_variable_access_patterns
   use kind_params_mod
   use grid_mod
   use field_mod
-  use kernel_driver_test,  only: compute_kernel
+  use kernel_driver_test_mod,  only: compute_kernel
   implicit none
 
   type(grid_type), target :: model_grid

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@ from typing import Union
 from psyclone.psyir.nodes.acc_clauses import ACCAsyncQueueClause
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import ScalarType
 
 
 class ACCAsyncMixin(metaclass=abc.ABCMeta):
@@ -85,7 +85,7 @@ class ACCAsyncMixin(metaclass=abc.ABCMeta):
         if isinstance(async_queue, bool):
             qarg = async_queue
         elif isinstance(async_queue, int):
-            qarg = Literal(f"{async_queue}", INTEGER_TYPE)
+            qarg = Literal(f"{async_queue}", ScalarType.integer_type())
         elif isinstance(async_queue, DataNode):
             qarg = async_queue
         else:
@@ -176,25 +176,6 @@ class ACCAsyncMixin(metaclass=abc.ABCMeta):
                 # No existing clause but async support is now enabled so add
                 # the new clause.
                 self.addchild(clause)
-
-    def _build_async_string(self) -> str:
-        '''
-        Build the async arg to concat to the acc directive when generating the
-        code in the old, 'gen_code' path.
-
-        :returns: The "async[(<queue_val>)]" option to add to the directive.
-
-        '''
-        result = ""
-
-        # async
-        clause = self.async_clause
-        if clause:
-            # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.backend.fortran import FortranWriter
-            result = f" {FortranWriter()(clause)}"
-
-        return result
 
     def __eq__(self, other) -> bool:
         '''

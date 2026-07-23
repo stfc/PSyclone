@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021-2025, Science and Technology Facilities Council.
+! Copyright (c) 2021-2026, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author I. Kavcic, Met Office
-! Modfied: A. R. Porter, STFC Daresbury Lab
+! Modified: A. R. Porter, STFC Daresbury Lab
 
 program multikernel_invokes_real_int_field_invalid
 

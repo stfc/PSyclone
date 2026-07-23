@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,8 +42,8 @@ import pytest
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Call, colored, Container, FileContainer,
-                                  KernelSchedule, Return)
-from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, SymbolTable
+                                  KernelSchedule, Return, Routine)
+from psyclone.psyir.symbols import DataSymbol, ScalarType, SymbolTable
 from psyclone.tests.utilities import check_links
 
 
@@ -104,7 +104,7 @@ def test_container_create():
 
     '''
     symbol_table = SymbolTable()
-    symbol_table.add(DataSymbol("tmp", REAL_SINGLE_TYPE))
+    symbol_table.add(DataSymbol("tmp", ScalarType.real_single_type()))
     kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
     kernel2 = KernelSchedule.create("mod_2", SymbolTable(), [])
     container = Container.create("container_name", symbol_table,
@@ -131,7 +131,7 @@ def test_container_create_invalid():
 
     '''
     symbol_table = SymbolTable()
-    symbol_table.add(DataSymbol("x", REAL_SINGLE_TYPE))
+    symbol_table.add(DataSymbol("x", ScalarType.real_single_type()))
     children = [KernelSchedule.create("mod_1", SymbolTable(), [])]
 
     # name is not a string.
@@ -223,7 +223,7 @@ def test_find_routine_psyir_routine_not_found(fortran_reader):
     assert result is None
 
 
-def test_get_routine_missing_container(fortran_reader):
+def test_find_routine_psyir_missing_container(fortran_reader):
     '''Test that None is returned when we cannot find the container from which
     the required Routine is imported.
 
@@ -238,7 +238,7 @@ def test_get_routine_missing_container(fortran_reader):
     assert result is None
 
 
-def test_get_routine_missing_container_wildcard(fortran_reader):
+def test_find_routine_psyir_missing_container_wildcard(fortran_reader):
     '''Test that None is returned when we cannot find the container from which
     a wildcard import is performed.
 
@@ -256,9 +256,7 @@ def test_get_routine_missing_container_wildcard(fortran_reader):
 def test_find_routine_in_container_private_routine_not_found(fortran_reader):
     '''Test that None is returned when the required Routine is not found
     in the Container associated with the supplied container symbol, as
-    it is private. This situation should not arise as it is invalid to
-    try to import a private routine. However, there are currrently no
-    checks for this when creating PSyIR.
+    it is private.
 
     '''
     private_sub_in_module = SUB_IN_MODULE.replace(
@@ -270,6 +268,10 @@ def test_find_routine_in_container_private_routine_not_found(fortran_reader):
     container = csym.find_container_psyir(local_node=call_node)
     result = container.find_routine_psyir(call_node.routine.name)
     assert result is None
+    # If we permit the Routine to be private then it is returned.
+    result = container.find_routine_psyir(call_node.routine.name,
+                                          allow_private=True)
+    assert isinstance(result, Routine)
     assert container.find_routine_psyir("doesnotexist") is None
 
 

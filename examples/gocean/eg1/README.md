@@ -11,11 +11,8 @@ PSyclone can be run in the directory containing this file by
 executing, e.g.
 
 ```sh
-python ./runme.py
+psyclone --psykal-dsl gocean -s <script> shallow_alg.f90
 ``` 
-
-Examine the runme*.py scripts themselves for further details or see the
-Makefile.
 
 
 ## OpenMP tasking transformation script
@@ -44,7 +41,7 @@ psyclone -s ./opencl_transformation.py -api gocean shallow_alg.f90
 
 BSD 3-Clause License
 
-Copyright (c) 2017-2025, Science and Technology Facilities Council.
+Copyright (c) 2017-2026, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

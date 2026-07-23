@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,8 +37,9 @@
 
 ''' This module contains the DataNode abstract node implementation.'''
 
+from typing import Optional
+
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols.datatypes import ScalarType, UnresolvedType
 
 
 class DataNode(Node):
@@ -55,28 +56,35 @@ class DataNode(Node):
             better then it must override this method.
         :rtype: :py:class:`psyclone.psyir.symbols.UnresolvedType`
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.loop import Loop
+        from psyclone.psyir.nodes.ranges import Range
+        from psyclone.psyir.symbols.datatypes import (
+            UnresolvedType, ScalarType)
+        # If it is a direct child of Loop or Range, it can only be an Integer
+        if self.parent and isinstance(self.parent, (Loop, Range)):
+            return ScalarType.integer_type()
         return UnresolvedType()
 
-    def is_character(self, unknown_as=None):
+    def is_character(self, unknown_as: Optional[bool] = None) -> bool:
         '''
         :param unknown_as: Determines behaviour in the case where it cannot be
             determined whether the DataNode is a character. Defaults to None,
             in which case an exception is raised.
-        :type unknown_as: Optional[bool]
 
         :returns: True if this DataNode is a character, otherwise False.
-        :rtype: bool
 
         :raises ValueError: if the intrinsic type cannot be determined.
 
         '''
-        if not hasattr(self.datatype, "intrinsic"):
+        dtype = self.datatype
+        if not hasattr(dtype, "intrinsic"):
             if unknown_as is None:
                 raise ValueError(
                     "is_character could not resolve whether the expression"
                     f" '{self.debug_string()}' operates on characters."
                 )
             return unknown_as
-        return (
-            self.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER
-        )
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols.datatypes import ScalarType
+        return dtype.intrinsic == ScalarType.Intrinsic.CHARACTER

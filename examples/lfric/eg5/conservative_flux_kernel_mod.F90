@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017-2025,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017-2026,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2025, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2026, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -227,7 +227,7 @@ subroutine conservative_flux_code( nlayers,              &
     ! Calculates number of cells of interest and fraction of a cell to add.
     call frac_and_int_part(departure_dist,n_cells_to_sum,fractional_distance)
 
-    ! Calcuates the left and right integration limits for the fractional cell.
+    ! Calculates the left and right integration limits for the fractional cell.
     call calc_integration_limits( departure_dist,             &
                                   fractional_distance,        &
                                   left_integration_limit,     &

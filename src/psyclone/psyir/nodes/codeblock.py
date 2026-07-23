@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,24 +38,31 @@
 
 ''' This module contains the CodeBlock node implementation.'''
 
+from __future__ import annotations
+import re
 from enum import Enum
-from typing import List
+from typing import Optional, Any, Union
 
-from fparser.two import Fortran2003
-from fparser.two.utils import walk
+from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature, VariablesAccessMap
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.symbols import (
+    SymbolTable, SymbolError, UnresolvedInterface)
 
 
 class CodeBlock(Statement, DataNode):
-    '''Node representing some generic Fortran code that PSyclone does not
-    attempt to manipulate. As such it is a leaf in the PSyIR and therefore
-    has no children.
+    '''Node representing any generic Fortran code that PSyclone does not
+    attempt to manipulate. A CodeBlock can still answer limited questions
+    about the enclosed code. For this reason it keeps reference to the
+    underlying parse_tree, and each frontend parser needs to subclass
+    CodeBlock with the concrete implementation.
 
-    :param fp2_nodes: the fparser2 parse-tree nodes representing the
+    :param parse_tree: the parse-tree nodes representing the
         Fortran code constituting the code block.
-    :type fp2_nodes: list[:py:class:`fparser.two.utils.Base`]
     :param structure: argument indicating whether this code block is a
         statement or an expression.
     :type structure: :py:class:`psyclone.psyir.nodes.CodeBlock.Structure`
@@ -68,13 +75,13 @@ class CodeBlock(Statement, DataNode):
 
     '''
     #: Textual description of the node.
-    _children_valid_format = "<LeafNode>"
+    _children_valid_format = "[Reference]*"
     _text_name = "CodeBlock"
     _colour = "red"
     #: The annotations that are supported by this node.
     #: psy-data-start - this node has replaced a PSyDataNode during the
     #: lowering of the PSyIR to language level.
-    valid_annotations = ("psy-data-start")
+    valid_annotations = ("psy-data-start", )
 
     class Structure(Enum):
         '''
@@ -82,78 +89,207 @@ class CodeBlock(Statement, DataNode):
         may be required when processing.
 
         '''
-        # The Code Block comprises one or more Fortran statements
-        # (which themselves may contain expressions).
+        #: The Code Block comprises one or more Fortran statements
+        #: (which themselves may contain expressions).
         STATEMENT = 1
-        # The Code Block comprises one or more Fortran expressions.
+        #: The Code Block comprises one or more Fortran expressions.
         EXPRESSION = 2
 
-    def __init__(self, fp2_nodes, structure, parent=None, annotations=None):
-        super(CodeBlock, self).__init__(parent=parent, annotations=annotations)
+    def __init__(
+        self,
+        parse_tree: Union[Any, list[Any]],
+        structure: CodeBlock.Structure,
+        parent: Optional[Node] = None,
+        annotations: Optional[list[str]] = None
+    ):
+        super().__init__(parent=parent, annotations=annotations)
         # Store a list of the parser objects holding the code associated
-        # with this block. We make a copy of the contents of the list because
-        # the list itself is a temporary product of the process of converting
-        # from the fparser2 parse tree to the PSyIR.
-        self._fp2_nodes = fp2_nodes[:]
-        # Store references back into the fparser2 parse tree.
-        if fp2_nodes:
-            self.ast = self._fp2_nodes[0]
-            self.ast_end = self._fp2_nodes[-1]
+        # with this block. We make a copy of the list container because
+        # the list itself is often a temporary product of the process of
+        # converting from the the parse tree to the PSyIR.
+        if isinstance(parse_tree, list):
+            self._parse_tree_nodes = parse_tree[:]
         else:
-            self.ast = None
-            self.ast_end = None
+            self._parse_tree_nodes = [parse_tree]
         # Store the structure of the code block.
         self._structure = structure
+        # Capture all symbols used inside the Codeblock as children References
+        self._insert_representative_references()
 
-    def __eq__(self, other):
+    @staticmethod
+    def _validate_child(position: int, child: Node) -> bool:
+        '''
+        :param position: the position to be validated.
+        :param child: a child to be validated.
+
+        :return: whether the given child and position are valid for this node.
+
+        '''
+        return isinstance(child, Reference)
+
+    def _insert_representative_references(self):
+        ''' Insert Reference children under this codeblock that
+        represent each of the symbols used inside the CodeBlock.
+        '''
+        for symbol_name in self.get_symbol_names():
+            try:
+                symtab = self.scope.symbol_table
+            except SymbolError:
+                # Needed for detached CodeBlocks, mainly used in testing
+                symtab = SymbolTable()
+            symbol = symtab.find_or_create(
+                symbol_name, interface=UnresolvedInterface())
+            ref = Reference(symbol)
+            if ref not in self.children:
+                self.addchild(Reference(symbol))
+
+    @staticmethod
+    def create(*args, **kwargs) -> CodeBlock:
+        '''
+        :returns: a CodeBlock node for the given source code using the
+            appropriate CodeBlock subclass.
+
+        :raises InternalError: if a frontend does not have an associated
+            CodeBlock subclass.
+        '''
+        frontend = Config.get().frontend
+        if frontend == "fparser2":
+            return Fparser2CodeBlock.create(*args, **kwargs)
+        if frontend == "treesitter":
+            return TreeSitterCodeBlock.create(*args, **kwargs)
+        raise InternalError(
+            f"The '{frontend}' frontend does not have an associated "
+            f"CodeBlock subclass")
+
+    def __eq__(self, other: Any) -> bool:
         '''
         Checks whether two nodes are equal. Two CodeBlock nodes are equal
         if they are the same type, their ast_nodes lists are equal (which
         means the same instance) and have the same structure.
 
-        :param object other: the object to check equality to.
+        :param other: the object to check equality to.
 
         :returns: whether other is equal to self.
-        :rtype: bool
         '''
         is_eq = super().__eq__(other)
-        is_eq = is_eq and self.get_ast_nodes == other.get_ast_nodes
+        is_eq = is_eq and self.parse_tree_nodes == other.parse_tree_nodes
         is_eq = is_eq and self.structure == other.structure
 
         return is_eq
 
     @property
-    def structure(self):
+    def structure(self) -> CodeBlock.Structure:
         '''
         :returns: whether this code block is a statement or an expression.
-        :rtype: :py:class:`psyclone.psyir.nodes.CodeBlock.Structure`
-
         '''
         return self._structure
 
     @property
-    def get_ast_nodes(self):
+    def parse_tree_nodes(self) -> list[Any]:
         '''
         :returns: the nodes associated with this code block in
-                  the original fparser2 parse tree.
-        :rtype: list[:py:class:`fparser.two.Fortran2003.Base`]
+            the original parse tree.
 
         '''
-        return self._fp2_nodes
+        return self._parse_tree_nodes
 
-    def node_str(self, colour=True):
+    def node_str(self, colour: bool = True) -> str:
         ''' Create a text description of this node in the schedule, optionally
         including control codes for colour.
 
-        :param bool colour: whether or not to include control codes for colour.
+        :param colour: whether or not to include control codes for colour.
 
         :return: text description of this node.
-        :rtype: str
         '''
         return (f"{self.coloured_name(colour)}["
-                f"{list(map(type, self._fp2_nodes))}]")
+                f"{list(map(type, self._parse_tree_nodes))}]")
 
-    def get_symbol_names(self) -> List[str]:
+    def reference_accesses(self) -> VariablesAccessMap:
+        '''
+        Get the symbol access map. Since this is a CodeBlock we
+        only know the names of symbols accessed within it but not how they
+        are accessed. Therefore we err on the side of caution and mark
+        them all as READWRITE, unfortunately, this will include the names of
+        any routines that are called.
+
+        TODO #2863 - it would be better to use AccessType.UNKNOWN here but
+        currently VariablesAccessMap does not consider that type of access.
+
+        :returns: a map of all the symbol accessed inside this node, the
+            keys are Signatures (unique identifiers to a symbol and its
+            structure accessors) and the values are AccessSequence
+            (a sequence of AccessTypes).
+
+        '''
+        var_accesses = VariablesAccessMap()
+        # All symbols accessed within the CodeBlock are captured as Reference
+        # nodes and stored as children of the CodeBlock node
+        for child in self.children:
+            var_accesses.add_access(
+                Signature(child.name),
+                AccessType.READWRITE,
+                child)
+        return var_accesses
+
+    def __str__(self) -> str:
+        return f"CodeBlock[{len(self._parse_tree_nodes)} nodes]"
+
+    def get_symbol_names(self) -> list[str]:
+        '''
+        :returns: the name of all symbols accessed in the CodeBlock.
+        '''
+        if not self._parse_tree_nodes:
+            return []
+        raise NotImplementedError("Use appropriate CodeBlock subclass")
+
+    def has_potential_control_flow_jump(self) -> bool:
+        '''
+        :returns: whether the Codeblock might have control flow jumps.
+        '''
+        if not self._parse_tree_nodes:
+            return False
+        raise NotImplementedError("Use appropriate CodeBlock subclass")
+
+    def get_fortran_lines(self) -> list[str]:
+        '''
+        :returns: a list of each line of fortran represented by this node.
+        '''
+        if not self._parse_tree_nodes:
+            return []
+        raise NotImplementedError("Use appropriate CodeBlock subclass")
+
+
+class Fparser2CodeBlock(CodeBlock):
+    ''' The fparser2 implementation of CodeBlock. '''
+
+    @staticmethod
+    def create(
+        source_code: str, partial_code: str, **kwargs
+    ) -> Fparser2CodeBlock:
+        '''
+        :param source_code: the given source
+        :param partial_code: keyword to assist the parser with the starting
+            node.
+        :param kwargs: additional arguments to provide to the constructor.
+
+        :returns: a CodeBlock node for the given source code using the
+            Fparser2CodeBlock subclass.
+
+        '''
+        if partial_code == "expression":
+            structure = CodeBlock.Structure.EXPRESSION
+        else:
+            structure = CodeBlock.Structure.STATEMENT
+
+        # Purposely inlined to lazily load this modules only when needed
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+        reader = Fparser2Reader()
+        tree = reader.generate_parse_tree_from_source(source_code,
+                                                      partial_code)
+        return Fparser2CodeBlock(tree, structure, **kwargs)
+
+    def get_symbol_names(self) -> list[str]:
         '''
         Analyses the fparser2 parse tree associated with this CodeBlock and
         returns the names of all symbols accessed within it. Since, by
@@ -173,7 +309,11 @@ class CodeBlock(Statement, DataNode):
 
         :returns: the symbol names used inside the CodeBock.
         '''
-        parse_tree = self.get_ast_nodes
+        # Purposely inlined to lazily load this modules only when needed
+        # pylint: disable=import-outside-toplevel
+        from fparser.two import Fortran2003, pattern_tools
+        from fparser.two.utils import walk
+        parse_tree = self.parse_tree_nodes
         result = []
         for node in walk(parse_tree, Fortran2003.Name):
             if isinstance(node.parent, Fortran2003.Else_If_Stmt):
@@ -185,12 +325,26 @@ class CodeBlock(Statement, DataNode):
                         node is node.parent.children[0]):
                     result.append(node.string)
             elif not isinstance(node.parent,
+                                # We don't want labels associated with loop or
+                                # branch control.
                                 (Fortran2003.Cycle_Stmt,
                                  Fortran2003.End_Do_Stmt,
                                  Fortran2003.Exit_Stmt,
                                  Fortran2003.Else_Stmt,
                                  Fortran2003.End_If_Stmt)):
-                # We don't want labels associated with loop or branch control.
+
+                # Check if this name is a structure accessor instead of a
+                # symbol
+                if isinstance(node.parent, Fortran2003.Part_Ref):
+                    # Also account for array fields name%array(i)
+                    check = node.parent
+                else:
+                    check = node
+                if isinstance(check.parent, Fortran2003.Data_Ref):
+                    # The first child is the base reference, the others are
+                    # accessor names, which are not symbols
+                    if check.parent.children[0] is not check:
+                        continue
                 result.append(node.string)
         # Precision on literals requires special attention since they are just
         # stored in the tree as str (fparser/#456).
@@ -207,34 +361,101 @@ class CodeBlock(Statement, DataNode):
             for part in node.items:
                 if part.items[1]:
                     result.append(part.items[1])
+        # For directives, we need to analyse all alphanumeric* parts of the
+        # comment string and return any names that match a symbol in the
+        # symbol table.
+        for node in walk(parse_tree, Fortran2003.Directive):
+            string_rep = node.tostr()
+            string_rep = string_rep[string_rep.index("$"):]
+            pattern = pattern_tools.name.get_compiled()
+            matches = re.findall(pattern, string_rep)
+            scope = self.scope
+            for match in matches:
+                sym = scope.symbol_table.lookup(match, otherwise=None)
+                if sym:
+                    result.append(sym.name)
+
         return result
 
-    def reference_accesses(self) -> VariablesAccessMap:
+    def has_potential_control_flow_jump(self) -> bool:
         '''
-        Get the symbol access map. Since this is a CodeBlock we
-        only know the names of symbols accessed within it but not how they
-        are accessed. Therefore we err on the side of caution and mark
-        them all as READWRITE, unfortunately, this will include the names of
-        any routines that are called.
-
-        TODO #2863 - it would be better to use AccessType.UNKNOWN here but
-        currently VariablesAccessMap does not consider that type of access.
-
-        This method makes use of
-        :py:meth:`~psyclone.psyir.nodes.CodeBlock.get_symbol_names` and is
-        therefore subject to the same limitations as that method.
-
-        :returns: a map of all the symbol accessed inside this node, the
-            keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
-            (a sequence of AccessTypes).
-
+        :returns: whether this CodeBlock contains a potential control flow
+                  jump, e.g. GOTO, EXIT or a labeled statement.
         '''
-        var_accesses = VariablesAccessMap()
-        for name in self.get_symbol_names():
-            var_accesses.add_access(Signature(name), AccessType.READWRITE,
-                                    self)
-        return var_accesses
+        # Purposely inlined to lazily load this modules only when needed
+        # pylint: disable=import-outside-toplevel
+        from fparser.two import Fortran2003
+        from fparser.two.utils import walk
+        # Loop over the fp2_nodes and check if any are GOTO, EXIT or
+        # labelled statements
+        for node in self._parse_tree_nodes:
+            for child in walk(node, (Fortran2003.Goto_Stmt,
+                                     Fortran2003.Exit_Stmt,
+                                     Fortran2003.Cycle_Stmt,
+                                     Fortran2003.StmtBase)):
+                if isinstance(child,
+                              (Fortran2003.Goto_Stmt,
+                               Fortran2003.Exit_Stmt,
+                               Fortran2003.Cycle_Stmt)):
+                    return True
+                # Also can't support Labelled statements.
+                if isinstance(child, Fortran2003.StmtBase):
+                    if child.item and child.item.label:
+                        return True
+        return False
 
-    def __str__(self):
-        return f"CodeBlock[{len(self._fp2_nodes)} nodes]"
+    def get_fortran_lines(self) -> list[str]:
+        '''
+        :returns: a list of each line of fortran represented by this node.
+        '''
+        output = []
+        for node in self._parse_tree_nodes:
+            output.extend(node.tofortran().split("\n"))
+        return output
+
+
+class TreeSitterCodeBlock(CodeBlock):
+    ''' The treesitter implementation of CodeBlock. '''
+
+    @staticmethod
+    def create(
+        source_code: str, partial_code: str = "", **kwargs
+    ) -> TreeSitterCodeBlock:
+        '''
+        :param source_code: the given source
+        :param partial_code: keyword to assist the parser with the starting
+            node.
+        :param kwargs: additional arguments to provide to the constructor.
+
+        :returns: a CodeBlock node for the given source code using the
+            TreeSitterCodeBlock subclass.
+        '''
+        if partial_code == "expression":
+            structure = CodeBlock.Structure.EXPRESSION
+        else:
+            structure = CodeBlock.Structure.STATEMENT
+
+        # Purposely inlined to lazily load this modules only when needed
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.frontend.fortran_treesitter_reader import \
+            FortranTreeSitterReader
+        reader = FortranTreeSitterReader()
+        tree = reader.generate_parse_tree_from_source(source_code)
+
+        return TreeSitterCodeBlock(tree, structure, **kwargs)
+
+    def get_fortran_lines(self) -> list[str]:
+        '''
+        :returns: a list of each line of fortran represented by this node.
+        '''
+        output = []
+        for node in self._parse_tree_nodes:
+            output.extend(str(node.text, encoding="utf8").split("\n"))
+        return output
+
+    def get_symbol_names(self) -> list[str]:
+        '''
+        :returns: the name of all symbols accessed in the CodeBlock.
+        '''
+        # TODO #3038 Treesitter support is incomplete
+        return []

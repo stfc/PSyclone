@@ -20,20 +20,24 @@ by supplying the `-l all` flag to PSyclone (as is done in the Makefile).
 
 
 The stand-alone extraction library in
-``../../../lib/extract/standalone/generic`` is used as default, and
+``../../../lib/extract/binary/generic`` is used as default, and
 will also be automatically compiled. You can also use the NetCDF based
-extraction library by setting the environment variable `TYPE` to `netcdf`
-when calling `make`, e.g.:
+or ASCII extraction library by setting the environment variable
+`TYPE` to `netcdf` or `ascii` correspondingly when calling `make`, e.g.:
 
     $ TYPE=netcdf make compile
 
-This requires NetCDF to be available (including ``nf-config`` to detect
+The NetCDF version obviously requires NetCDF to be available (including
+``nf-config`` to detect
 installation-specific paths). The NetCDF-based extraction library in
 ``../../../../lib/extract/netcdf/generic``
 will also be automatically compiled.
+Similarly, the ASCII-based extraction library in
+``../../../../lib/extract/ascii/generic``
+will also be automatically compiled and used if ASCII output is selected.
 
 The binary  instrumented for extraction will either be called
-``traadv-standalone.exe`` or ``traadv-netcdf.exe``.
+``traadv-binary.exe`` or ``traadv-netcdf.exe``.
 More details on compiling these libraries are in the corresponding
 subdirectories. To create and compile the example, type ``make compile``.
 
@@ -57,7 +61,7 @@ Note that driver creation is not yet supported in NEMO, see issue #2058.
 
 BSD 3-Clause License
 
-Copyright (c) 2023-2025, Science and Technology Facilities Council.
+Copyright (c) 2023-2026, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

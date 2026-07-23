@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,14 +43,15 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric import LFRicLoop
+from psyclone.domain.lfric.transformations import (
+    LFRicRedundantComputationTrans)
 from psyclone.lfric import LFRicHaloExchange
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import (LFRicRedundantComputationTrans,
-                                      LFRicAsyncHaloExchangeTrans)
+from psyclone.transformations import LFRicAsyncHaloExchangeTrans
 
 
 # constants
@@ -87,7 +88,7 @@ def test_gh_inc_nohex_1(tmpdir, monkeypatch):
 
     def check_schedule(schedule):
         '''Check this schedule has expected structure (loop, haloexchange,
-        loop). In paricular there should be no halo exchange for the
+        loop). In particular there should be no halo exchange for the
         write-to-gh_inc dependence.
 
         :param schedule: an LFRic API schedule object

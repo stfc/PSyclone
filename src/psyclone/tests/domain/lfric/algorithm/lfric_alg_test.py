@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council
+# Copyright (c) 2022-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,14 +44,13 @@ import pytest
 
 from fparser import api as fpapi
 from psyclone.configuration import Config
-from psyclone.domain.lfric import (
-    KernCallInvokeArgList, LFRicKern, LFRicSymbolTable)
+from psyclone.domain.lfric import KernCallInvokeArgList, LFRicKern
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Container, Routine, ScopingNode
+from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, UnresolvedType, DataTypeSymbol,
-    ImportInterface, ArrayType, ScalarType, INTEGER_TYPE)
+    ImportInterface, ArrayType, ScalarType)
 
 # Constants
 BASE_PATH = os.path.join(
@@ -73,9 +72,6 @@ def create_prog_fixture():
     :rtype: :py:class:`psyclone.psyir.nodes.Routine`
     '''
     Config.get().api = "lfric"
-    # The tests below sometime fail (depending of the number of parallel
-    # jobs) if the LFRicSymbolTable has not been not set up.
-    ScopingNode._symbol_table_class = LFRicSymbolTable
     prog = Routine.create("test_prog", is_program=True)
     mesh_mod = prog.symbol_table.new_symbol("mesh_mod",
                                             symbol_type=ContainerSymbol)
@@ -169,9 +165,9 @@ def test_create_function_spaces(prog, fortran_writer):
         sym = prog.symbol_table.lookup(space)
         assert sym.interface.container_symbol is fs_mod_sym
     # Checking function space ordering is consistent.
-    assert ("TYPE(function_space_type), POINTER :: "
+    assert ("type(function_space_type), pointer :: "
             "vector_space_w1_ptr\n  "
-            "TYPE(function_space_type), POINTER :: "
+            "type(function_space_type), pointer :: "
             "vector_space_w3_ptr" in gen)
     assert ("vector_space_w1_ptr => function_space_collection%"
             "get_fs(mesh,element_order_h,element_order_v,w1)\n  "
@@ -190,9 +186,9 @@ def test_initialise_field(prog, fortran_writer):
     # Add symbols for the necessary function spaces but for simplicity
     # make them of integer type.
     table.new_symbol("vector_space_w3_ptr", symbol_type=DataSymbol,
-                     datatype=INTEGER_TYPE)
+                     datatype=ScalarType.integer_type())
     table.new_symbol("vector_space_w2_ptr", symbol_type=DataSymbol,
-                     datatype=INTEGER_TYPE)
+                     datatype=ScalarType.integer_type())
     # First - a single field argument.
     sym = table.new_symbol("field1", symbol_type=DataSymbol, datatype=ftype)
     LFRicAlg().initialise_field(prog, sym, "w3")
@@ -219,10 +215,14 @@ def test_initialise_quadrature(prog, fortran_writer):
     ''' Tests for the initialise_quadrature function with the supported
     XYoZ shape. '''
     table = prog.symbol_table
-    table.new_symbol("element_order_h", tag="element_order_h",
-                     symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-    table.new_symbol("element_order_v", tag="element_order_v",
-                     symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    table.new_symbol("element_order_h",
+                     tag="element_order_h",
+                     symbol_type=DataSymbol,
+                     datatype=ScalarType.integer_type())
+    table.new_symbol("element_order_v",
+                     tag="element_order_v",
+                     symbol_type=DataSymbol,
+                     datatype=ScalarType.integer_type())
     # Setup symbols that would normally be created in KernCallInvokeArgList.
     quad_container = table.new_symbol(
         "quadrature_xyoz_mod", symbol_type=ContainerSymbol)
@@ -239,8 +239,8 @@ def test_initialise_quadrature(prog, fortran_writer):
     assert qrule.datatype is qtype
     # Check that the constructor is called in the generated code.
     gen = fortran_writer(prog)
-    assert ("qr = quadrature_xyoz_type(element_order_h + 3,element_order_h + "
-            "3,element_order_v + 3,quadrature_rule)"
+    assert ("qr = quadrature_xyoz_type(element_order_h + 3, element_order_h + "
+            "3, element_order_v + 3, quadrature_rule)"
             in gen)
 
 
@@ -248,10 +248,14 @@ def test_initialise_quadrature_unsupported_shape(prog):
     ''' Test that the initialise_quadrature function raises the expected error
     for an unsupported quadrature shape. '''
     table = prog.symbol_table
-    table.new_symbol("element_order_h", tag="element_order_h",
-                     symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-    table.new_symbol("element_order_v", tag="element_order_v",
-                     symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    table.new_symbol("element_order_h",
+                     tag="element_order_h",
+                     symbol_type=DataSymbol,
+                     datatype=ScalarType.integer_type())
+    table.new_symbol("element_order_v",
+                     tag="element_order_v",
+                     symbol_type=DataSymbol,
+                     datatype=ScalarType.integer_type())
     # Setup symbols that would normally be created in KernCallInvokeArgList.
     quad_container = table.new_symbol(
         "quadrature_xyz_mod", symbol_type=ContainerSymbol)
@@ -337,8 +341,9 @@ def test_construct_kernel_args(prog, lfrickern, fortran_writer):
                 f"get_fs(mesh,element_order_h,element_order_v,{space})" in gen)
     for idx in range(2, 7):
         assert f"call field_{idx}" in gen
-    assert ("qr_xyoz = quadrature_xyoz_type(element_order_h + 3,"
-            "element_order_h + 3,element_order_v + 3,quadrature_rule)" in gen)
+    assert ("qr_xyoz = quadrature_xyoz_type(element_order_h + 3, "
+            "element_order_h + 3, element_order_v + 3, quadrature_rule)"
+            in gen)
     # TODO #240 - test for compilation.
 
 

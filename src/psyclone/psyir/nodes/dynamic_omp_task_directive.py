@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -72,7 +72,7 @@ from psyclone.psyir.nodes.omp_directives import (
 from psyclone.psyir.nodes.omp_task_directive import (
     OMPTaskDirective
 )
-from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol
+from psyclone.psyir.symbols import ScalarType, DataSymbol
 
 
 class DynamicOMPTaskDirective(OMPTaskDirective):
@@ -459,19 +459,19 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         if divisor > 1:
             step = BinaryOperation.create(
                 BinaryOperation.Operator.MUL,
-                Literal(f"{divisor}", INTEGER_TYPE),
-                Literal(f"{step_val}", INTEGER_TYPE),
+                Literal(f"{divisor}", ScalarType.integer_type()),
+                Literal(f"{step_val}", ScalarType.integer_type()),
             )
             if divisor > 2:
                 step2 = BinaryOperation.create(
                     BinaryOperation.Operator.MUL,
-                    Literal(f"{divisor-1}", INTEGER_TYPE),
-                    Literal(f"{step_val}", INTEGER_TYPE),
+                    Literal(f"{divisor-1}", ScalarType.integer_type()),
+                    Literal(f"{step_val}", ScalarType.integer_type()),
                 )
             else:
-                step2 = Literal(f"{step_val}", INTEGER_TYPE)
+                step2 = Literal(f"{step_val}", ScalarType.integer_type())
         else:
-            step = Literal(f"{step_val}", INTEGER_TYPE)
+            step = Literal(f"{step_val}", ScalarType.integer_type())
 
         # Create a Binary Operation of the correct format.
         binop = None
@@ -652,7 +652,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 # We have a Literal step value, and a Literal in
                 # the Binary Operation. These Literals must both be
                 # Integer types, so we will convert them to integers
-                # and do some divison.
+                # and do some division.
                 step_val = int(parent_loop.step_expr.value)
                 literal_val = int(literal.value)
                 divisor = math.ceil(literal_val / step_val)
@@ -707,7 +707,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     # We have a Literal step value, and a Literal in
                     # the Binary Operation. These Literals must both be
                     # Integer types, so we will convert them to integers
-                    # and do some divison.
+                    # and do some division.
                     step_val = int(parent_loop.step_expr.value)
                     literal_val = int(literal.value)
                     divisor = math.ceil(literal_val / step_val)
@@ -1830,7 +1830,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # Finished handling the loop bounds now
 
         # Recurse to the children
-        for child_node in node.children[3].children:
+        for child_node in node.loop_body.children:
             self._evaluate_node(
                 child_node,
                 clause_lists

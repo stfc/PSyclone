@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
+# Modified I. Kavcic, A. Coughtrie, L. Turner, and A. Pirrie, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 '''This module implements the base class for managing arguments to
@@ -46,12 +46,11 @@ from psyclone.core import AccessType, Signature
 # The next two imports cannot be merged, since this would create
 # a circular dependency.
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.metadata_to_arguments_rules import (
     MetadataToArgumentsRules)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference
-from psyclone.psyir.symbols import DataSymbol, ArrayType
+from psyclone.psyir.symbols import DataSymbol, ArrayType, SymbolTable
 
 
 class ArgOrdering:
@@ -87,18 +86,18 @@ class ArgOrdering:
         self._arg_index_to_metadata_index = {}
 
     @property
-    def _symtab(self):
+    def _symtab(self) -> SymbolTable:
         ''' Provide a reference to the associate Invoke SymbolTable, usually
         following the `self._kernel.ancestor(InvokeSchedule)._symbol_table`
         path unless a _forced_symtab has been provided.
 
         If no symbol table is available it creates a temporary symbol table
-        for the operation to suceed but it will not be preserved.
+        for the operation to succeed but it will not be preserved.
 
         Note: This could be improved by TODO #2503
 
         :returns: the associate invoke symbol table.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
         '''
         if self._forced_symtab:
             return self._forced_symtab
@@ -106,7 +105,7 @@ class ArgOrdering:
             # _kern may be outdated, so go back up to the invoke first
             current_invoke = self._kern.ancestor(psyGen.InvokeSchedule).invoke
             return current_invoke.schedule.symbol_table
-        return LFRicSymbolTable()
+        return SymbolTable()
 
     def psyir_append(self, node):
         '''Appends a PSyIR node to the PSyIR argument list.
@@ -249,8 +248,8 @@ class ArgOrdering:
             intrinsic_type = LFRicTypes("LFRicIntegerScalarDataType")()
 
         if not symbol:
-            symbol = self._symtab.find_or_create(
-                array_name, tag=tag, symbol_type=DataSymbol,
+            symbol = self._symtab.find_or_create_tag(
+                tag=tag, root_name=array_name, symbol_type=DataSymbol,
                 datatype=ArrayType(
                     intrinsic_type,
                     [ArrayType.Extent.DEFERRED for _ in indices]))
@@ -459,7 +458,7 @@ class ArgOrdering:
                 self.operator(arg, var_accesses=var_accesses)
             elif arg.argument_type == "gh_columnwise_operator":
                 self.cma_operator(arg, var_accesses=var_accesses)
-            elif arg.is_scalar:
+            elif arg.is_scalar or arg.is_scalar_array:
                 self.scalar(arg, var_accesses=var_accesses)
             else:
                 raise GenerationError(
@@ -770,11 +769,11 @@ class ArgOrdering:
 
         '''
         const = LFRicConstants()
-        if not scalar_arg.is_scalar:
+        if not (scalar_arg.is_scalar or scalar_arg.is_scalar_array):
             raise InternalError(
                 f"Expected argument type to be one of "
-                f"{const.VALID_SCALAR_NAMES} but got "
-                f"'{scalar_arg.argument_type}'")
+                f"{const.VALID_SCALAR_NAMES + const.VALID_ARRAY_NAMES}"
+                f" but got '{scalar_arg.argument_type}'")
 
         if scalar_arg.is_literal:
             # If we have a literal, do not add it to the variable access
@@ -783,9 +782,10 @@ class ArgOrdering:
                         metadata_posn=scalar_arg.metadata_index)
             if scalar_arg.precision and var_accesses is not None:
                 var_accesses.add_access(Signature(scalar_arg.precision),
-                                        AccessType.TYPE_INFO, self._kern)
+                                        AccessType.CONSTANT, self._kern)
         else:
-            self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access,
+            self.append(scalar_arg.name, var_accesses,
+                        mode=scalar_arg.access,
                         metadata_posn=scalar_arg.metadata_index)
 
     def fs_common(self, function_space, var_accesses=None):

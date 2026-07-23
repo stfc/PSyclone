@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,13 +49,18 @@ from psyclone.psyir.symbols import ContainerSymbol
 
 
 def test_symbolinterface():
-    '''Test we can create a SymbolInterface instance and make a copy of it.
+    '''Test we can create a SymbolInterface instance, make copies and compare
+    them.
 
     '''
     inter1 = SymbolInterface()
     inter2 = inter1.copy()
     assert isinstance(inter2, SymbolInterface)
     assert inter2 is not inter1
+    assert inter2 == inter1
+
+    # They are not equal if it is a different interface subclass
+    assert AutomaticInterface() != DefaultModuleInterface()
 
 
 def test_automatic_interface():

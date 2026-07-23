@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council
+# Copyright (c) 2020-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,8 @@ This PSyclone transformation script is designed to be passed to
 PSyclone, it is not designed to be run directly from python.
 
 '''
-from psyclone.transformations import LFRicAsyncHaloExchangeTrans, MoveTrans
+from psyclone.transformations import LFRicAsyncHaloExchangeTrans
+from psyclone.psyir.transformations import MoveTrans
 
 
 def trans(psyir):

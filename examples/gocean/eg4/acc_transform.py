@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,9 +40,10 @@ to have them compiled for an OpenACC accelerator. '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.transformations import (
-    ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans,
+    ACCParallelTrans, ACCEnterDataTrans, ACCRoutineTrans,
     KernelImportsToArguments)
 from psyclone.psyir.nodes import Loop
+from psyclone.psyir.transformations import ACCLoopTrans
 
 
 def trans(psyir):
@@ -57,7 +58,7 @@ def trans(psyir):
     ltrans = ACCLoopTrans()
     dtrans = ACCEnterDataTrans()
     ktrans = ACCRoutineTrans()
-    itrans = KernelModuleInlineTrans()
+    mod_inline_trans = KernelModuleInlineTrans()
     g2localtrans = KernelImportsToArguments()
 
     schedule = psyir.children[0].children[0]
@@ -77,7 +78,7 @@ def trans(psyir):
     # Convert any accesses to imported data into kernel arguments, put an
     # 'acc routine' directive inside, and module-inline each kernel
     for kern in schedule.coded_kernels():
+        mod_inline_trans.apply(kern)
         if kern.name == "kern_use_var_code":
             g2localtrans.apply(kern)
         ktrans.apply(kern)
-        itrans.apply(kern)

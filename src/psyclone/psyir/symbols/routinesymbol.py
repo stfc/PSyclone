@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,9 @@
 
 ''' This module contains the RoutineSymbol.'''
 
-from psyclone.psyir.symbols.datatypes import NoType
+from __future__ import annotations
+
+from psyclone.psyir.symbols.datatypes import UnresolvedType
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
@@ -45,9 +47,9 @@ class RoutineSymbol(TypedSymbol):
     '''Symbol identifying a callable routine.
 
     :param str name: name of the symbol.
-    :param datatype: data type of the symbol. Default to NoType().
+    :param datatype: data type of the symbol. Defaults to UnresolvedType.
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
-    :param kwargs: additional keyword arguments provided by \
+    :param kwargs: additional keyword arguments provided by
                    :py:class:`psyclone.psyir.symbols.TypedSymbol`
     :type kwargs: unwrapped dict.
 
@@ -59,7 +61,7 @@ class RoutineSymbol(TypedSymbol):
         # logic in the _process_argument for when the RoutineSymbol is
         # specialised instead of constructed.
         if datatype is None:
-            datatype = NoType()
+            datatype = UnresolvedType()
         super().__init__(name, datatype)
         # Whether this Routine is 'elemental'. A value of None indicates that
         # this is unknown.
@@ -71,9 +73,8 @@ class RoutineSymbol(TypedSymbol):
 
     def _process_arguments(self, **kwargs):
         ''' Process the arguments for the constructor and the specialise
-        methods. In this case it provides a default NoType datatype if
-        none is found or provided. It also handles the 'is_pure' and
-        'is_elemental' arguments since these are specific to RoutineSymbol.
+        methods. It also handles the 'is_pure' and 'is_elemental' arguments
+        since these are specific to RoutineSymbol.
 
         :param kwargs: keyword arguments which can be:\n
             the arguments in :py:class:`psyclone.psyir.symbols.TypedSymbol`
@@ -82,7 +83,7 @@ class RoutineSymbol(TypedSymbol):
         '''
         if "datatype" not in kwargs and \
            (not hasattr(self, '_datatype') or self.datatype is None):
-            kwargs["datatype"] = NoType()
+            kwargs["datatype"] = UnresolvedType()
         # Use the setters as they perform type checking.
         self.is_elemental = kwargs.pop("is_elemental", None)
         self.is_pure = kwargs.pop("is_pure", None)
@@ -169,6 +170,29 @@ class RoutineSymbol(TypedSymbol):
                           interface=self.interface.copy(),
                           is_pure=self.is_pure,
                           is_elemental=self.is_elemental)
+
+    def copy_properties(self,
+                        symbol_in: RoutineSymbol,
+                        exclude_interface: bool = False):
+        '''Replace all properties in this object with the properties from
+        symbol_in, apart from the name (which is immutable) and visibility.
+
+        :param symbol_in: the symbol from which the properties are copied.
+        :param exclude_interface: whether or not to copy the interface
+            property of the provided Symbol (default is to include it).
+
+        :raises TypeError: if the argument is not the expected type.
+
+        '''
+        if not isinstance(symbol_in, RoutineSymbol):
+            raise TypeError(
+                f"Argument should be of type 'RoutineSymbol' but "
+                f"found '{type(symbol_in).__name__}'.")
+
+        super().copy_properties(symbol_in, exclude_interface=exclude_interface)
+
+        self._is_elemental = symbol_in.is_elemental
+        self._is_pure = symbol_in.is_pure
 
 
 # For Sphinx AutoAPI documentation generation

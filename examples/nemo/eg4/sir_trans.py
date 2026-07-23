@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council
+# Copyright (c) 2019-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -52,5 +52,8 @@ def trans(psyir):
     sir_writer = SIRWriter()
     for subroutine in psyir.walk(Routine):
         print(f"Transforming subroutine: {subroutine.name}")
-        sir_code = sir_writer(subroutine)
-        print(sir_code)
+        try:
+            sir_code = sir_writer(subroutine)
+            print(sir_code)
+        except Exception as e:
+            print(f"Failed to transform {subroutine.name}: {e}")

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -84,7 +84,7 @@ def test_loop_trans_validate(monkeypatch):
     with pytest.raises(TransformationError) as err:
         trans.validate(loop)
     assert ("Error in OMPParallelLoopTrans transformation. The target loop "
-            "must have four children but found:" in
+            "must have five children but found:" in
             str(err.value))
 
 
@@ -207,8 +207,8 @@ def test_loop_trans_base_apply(fortran_reader, fortran_writer):
     out = fortran_writer(psyir_test)
     correct = """subroutine test()
   integer :: i
-  INTEGER, TARGET :: a
-  INTEGER, POINTER :: b
+  integer, target :: a
+  integer, pointer :: b
 
   do i = 1, 10, 1
     b => a

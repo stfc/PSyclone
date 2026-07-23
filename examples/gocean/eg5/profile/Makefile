@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@ GENERATED_FILES += *.o *.mod profile_test.* alg.f90 psy.f90
 
 SHARED_DIR ?= $(ROOT_DIR)/external
 PROFILE_DIR = $(ROOT_DIR)/lib/profiling
-# Location of the infrastucture code (which is a submodule of the
+# Location of the infrastructure code (which is a submodule of the
 # PSyclone git repo).
 INF_DIR ?= $(SHARED_DIR)/dl_esm_inf/finite_difference
 INF_INC = $(INF_DIR)/src
@@ -63,7 +63,7 @@ NAME=profile_test
 run: compile
 	./profile_test.template
 
-compile: transform template
+compile: transform template lfric simple_timing
 transform: psy.f90
 all: template simple_timing drhook dl_timer lfric tau
 
@@ -108,9 +108,9 @@ tau: $(INF_LIB)
 	        tau_lib $(NAME).tau
 
 # The dl-timer library is available from:
-# https://bitbucket.org/apeg/dl_timer/src/master/
+# https://github.com/stfc/dl_timer
 # As default assume dl_timer is installed 'next' to PSyclone.
-DL_TIMER_ROOT?=$(ROOT_DIR)/../apeg-dl_timer
+DL_TIMER_ROOT?=$(ROOT_DIR)/../dl_timer
 # Needs to link with openmp because the dl_timer library needs openmp.
 dl_timer:
 	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/dl_timer"                     \
@@ -121,8 +121,8 @@ dl_timer:
 # The LFRic timer can be used for gocean as well - the wrapper provides
 # a standalone library that contains all dependencies and can therefore be
 # used with any program.
-lfric: 
-	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/lfric"         \
+lfric:
+	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/lfric_timer"   \
 	        WRAPPER_NAME="psy_lfric_timer_standalone"  \
 	        lfric_lib $(NAME).lfric
 
@@ -133,7 +133,7 @@ lfric:
 #.SECONDARY:
 
 $(NAME).tau: $(INF_LIB) $(WRAPPER_DIR)/lib$(WRAPPER_NAME).a $(KERNELS) psy.o alg.o
-	tau_f90.sh $(F90FLAGS) $(KERNELS) psy.o alg.o -o $@                             \
+	tau_f90.sh $(F90FLAGS) $(KERNELS) psy.o alg.o -o $@                         \
 		   -L $(WRAPPER_DIR) -l $(WRAPPER_NAME)                                 \
 		   $(PROFILE_LINK) $(INF_LIB)
 

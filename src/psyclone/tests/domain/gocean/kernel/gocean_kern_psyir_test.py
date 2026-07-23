@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council
+# Copyright (c) 2022-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import Container
-from psyclone.psyir.symbols import SymbolTable, REAL_TYPE
+from psyclone.psyir.symbols import SymbolTable, ScalarType
 
 METADATA = ("TYPE, EXTENDS(kernel_type) :: compute_cu\n"
             "  TYPE(go_arg), DIMENSION(4) :: meta_args = (/ &\n"
@@ -206,7 +206,7 @@ def test_goceankernelmetadata_create1(fortran_reader):
     assert "Expected a DataTypeSymbol but found a str." in str(info.value)
     metadata = GOceanKernelMetadata.create_from_psyir(symbol)
     assert METADATA in metadata.fortran_string()
-    symbol._datatype = REAL_TYPE
+    symbol._datatype = ScalarType.real_type()
     with pytest.raises(InternalError) as info:
         _ = GOceanKernelMetadata.create_from_psyir(symbol)
     assert ("Expected kernel metadata to be stored in the PSyIR as an "
@@ -484,7 +484,7 @@ def test_metadata_name():
 
 def test_gridarg_init():
     '''Test that an instance of the GridArg class can be created
-    succesfully.
+    successfully.
 
     '''
     reader = FortranStringReader(METADATA)
@@ -530,7 +530,7 @@ def test_gridarg_access():
         grid_arg.access = "hello"
     config = Config.get()
     constants = config.api_conf("gocean").get_constants()
-    access_types = constants.get_valid_access_types()
+    access_types = constants.VALID_ACCESS_TYPES
     assert (f"The first metadata entry for a grid property argument should "
             f"be a valid access descriptor (one of {access_types}), but "
             f"found 'hello'." in str(info.value))
@@ -559,7 +559,7 @@ def test_gridarg_name():
 
 def test_fieldarg_init():
     '''Test that a instance of the FieldArg class can be created
-    succesfully.
+    successfully.
 
     '''
     reader = FortranStringReader(METADATA)
@@ -610,7 +610,7 @@ def test_fieldarg_access():
         field_arg.access = "hello"
     config = Config.get()
     constants = config.api_conf("gocean").get_constants()
-    access_types = constants.get_valid_access_types()
+    access_types = constants.VALID_ACCESS_TYPES
     assert (f"The first metadata entry for a field argument should be a "
             f"recognised access descriptor (one of {access_types}), but "
             f"found 'hello'." in str(info.value))
@@ -692,7 +692,7 @@ def test_fieldarg_stencil():
 
 def test_scalararg_init():
     '''Test that a instance of the ScalarArg class can be created
-    succesfully.
+    successfully.
 
     '''
     reader = FortranStringReader(METADATA)
@@ -738,7 +738,7 @@ def test_scalararg_access():
         scalar_arg.access = "hello"
     config = Config.get()
     constants = config.api_conf("gocean").get_constants()
-    access_types = constants.get_valid_access_types()
+    access_types = constants.VALID_ACCESS_TYPES
     assert (f"The first metadata entry for a scalar argument should be a "
             f"recognised access descriptor (one of {access_types}), but "
             f"found 'hello'." in str(info.value))

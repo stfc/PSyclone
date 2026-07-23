@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2014-2025, Science and Technology Facilities Council.
+# Copyright (c) 2014-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -70,28 +70,18 @@ class Alg:
     output from the function :func:`psyclone.parse.algorithm.parse`
     and an instance of the :class:`psyGen.PSy` class as input. The
     latter allows consistent names to be generated between the
-    algorithm (callng) and psy (callee) layers.
+    algorithm (calling) and psy (callee) layers.
 
-    For example:
-
-    >>> from psyclone.algorithm.parse import parse
-    >>> parse_tree, info = parse("argspec.F90")
-    >>> from psyclone.psyGen import PSy
-    >>> psy = PSy(info)
-    >>> from psyclone.alg_gen import Alg
-    >>> alg = Alg(parse_tree, psy)
-    >>> print(alg.gen)
-
-    :param parse_tree: an object containing a parse tree of the \
-        algorithm specification which was produced by the function \
-        :func:`psyclone.parse.algorithm.parse`. Assumes the algorithm \
-        will be parsed by fparser2 and expects a valid program unit, \
+    :param parse_tree: an object containing a parse tree of the
+        algorithm specification which was produced by the function
+        :func:`psyclone.parse.algorithm.parse`. Assumes the algorithm
+        will be parsed by fparser2 and expects a valid program unit,
         program, module, subroutine or function.
     :type parse_tree: :py:class:`fparser.two.utils.Base`
     :param psy: an object containing information about the PSy layer.
     :type psy: :py:class:`psyclone.psyGen.PSy`
-    :param str invoke_name: the name that the algorithm layer uses to \
-        indicate an invoke call. This is an optional argument that \
+    :param str invoke_name: the name that the algorithm layer uses to
+        indicate an invoke call. This is an optional argument that
         defaults to the name "invoke".
 
     '''

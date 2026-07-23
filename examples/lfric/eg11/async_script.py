@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council
+# Copyright (c) 2018-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,21 +40,21 @@ in the generator.py script.
 
 '''
 
+from psyclone.domain.lfric.transformations import (
+    LFRicRedundantComputationTrans)
+from psyclone.psyir.nodes import FileContainer
+from psyclone.psyir.transformations import MoveTrans
+from psyclone.transformations import LFRicAsyncHaloExchangeTrans
 
-def trans(psyir):
+
+def trans(psyir: FileContainer) -> None:
     '''A sample transformation script to demonstrate the use of asynchronous
     halo exchanges with overlapping compute and communication for the
     most costly halo exchanges in the (current version of the) LFRic model.
 
     :param psyir: the PSyIR of the PSy-layer.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
-    from psyclone.transformations import \
-        LFRicRedundantComputationTrans, \
-        LFRicAsyncHaloExchangeTrans, \
-        MoveTrans
-
     # Get first subroutine of the first module
     schedule = psyir.children[0].children[0]
     print(schedule.view())

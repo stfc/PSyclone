@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,15 +38,10 @@
 '''
 
 # pylint: disable=unused-import
-from psyclone.domain.lfric.transformations.lfric_alg_trans \
-    import LFRicAlgTrans
-from psyclone.domain.lfric.transformations.lfric_alg_invoke_2_psy_call_trans \
-    import LFRicAlgInvoke2PSyCallTrans
-from psyclone.domain.lfric.transformations.lfric_extract_trans \
-    import LFRicExtractTrans
-from psyclone.domain.lfric.transformations.raise_psyir_2_lfric_alg_trans \
-    import RaisePSyIR2LFRicAlgTrans
-from psyclone.domain.lfric.transformations.lfric_loop_fuse_trans \
-    import LFRicLoopFuseTrans
-from psyclone.domain.lfric.transformations.raise_psyir_2_lfric_kern_trans \
-    import RaisePSyIR2LFRicKernTrans
+from .lfric_alg_trans import LFRicAlgTrans
+from .lfric_alg_invoke_2_psy_call_trans import LFRicAlgInvoke2PSyCallTrans
+from .lfric_extract_trans import LFRicExtractTrans
+from .raise_psyir_2_lfric_alg_trans import RaisePSyIR2LFRicAlgTrans
+from .lfric_loop_fuse_trans import LFRicLoopFuseTrans
+from .lfric_redundant_computation_trans import LFRicRedundantComputationTrans
+from .raise_psyir_2_lfric_kern_trans import RaisePSyIR2LFRicKernTrans

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
+# Copyright (c) 2020-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -62,9 +62,12 @@ class ArrayMember(ArrayMixin, Member):
         array and we are accessing element (1,2) of it. We would therefore
         create the ArrayMember for this access by calling:
 
-        >>> amem = ArrayMember.create("subdomains",
-                                      [Literal("1", INTEGER_TYPE),
-                                       Literal("2", INTEGER_TYPE)])
+        >>> from psyclone.psyir.nodes import ArrayMember, Literal
+        >>> from psyclone.psyir.symbols import ScalarType
+        >>> amem = ArrayMember.create(
+        ...     "subdomains",
+        ...     [Literal("1", ScalarType.integer_type()),
+        ...     Literal("2", ScalarType.integer_type())])
 
         :param str member_name: the name of the member of the structure that \
             is being accessed.

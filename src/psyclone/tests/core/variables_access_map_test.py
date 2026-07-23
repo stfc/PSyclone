@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
+# Copyright (c) 2019-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,15 +38,16 @@
 
 import pytest
 
-from psyclone.core import ComponentIndices, Signature, VariablesAccessMap
+from psyclone.core import Signature, VariablesAccessMap
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Assignment, Node
 from psyclone.tests.utilities import get_invoke
 
 
 # -----------------------------------------------------------------------------
-def test_variables_access_map():
+def test_variables_access_map() -> None:
     '''Test the implementation of VariablesAccessMap, a class that manages
     a list of variables, each with a list of accesses.
     '''
@@ -56,25 +57,20 @@ def test_variables_access_map():
     node2 = Node()
     var_accesses.add_access(Signature("written"), AccessType.WRITE, node2)
     assert str(var_accesses) == "read: READ, written: WRITE"
+    assert var_accesses.is_read(Signature("read"))
+    assert var_accesses.is_written(Signature("written"))
 
-    var_accesses.next_location()
     node = Node()
     var_accesses.add_access(Signature("written"), AccessType.WRITE, node)
-    var_accesses.next_location()
     var_accesses.add_access(Signature("read_written"), AccessType.WRITE, node)
     var_accesses.add_access(Signature("read_written"), AccessType.READ, node)
-    assert str(var_accesses) == "read: READ, read_written: READ+WRITE, "\
-                                "written: WRITE"
+    assert (str(var_accesses) ==
+            "read: READ, read_written: WRITE+READ, written: WRITE")
     assert set(var_accesses.all_signatures) == set([Signature("read"),
                                                     Signature("written"),
                                                     Signature("read_written")])
-    all_accesses = var_accesses[Signature("read")].all_accesses
+    all_accesses = var_accesses[Signature("read")]
     assert all_accesses[0].node == node1
-    written_accesses = var_accesses[Signature("written")].all_accesses
-    assert written_accesses[0].location == 0
-    assert written_accesses[1].location == 1
-    # Check that the location pointer is pointing to the next statement:
-    assert var_accesses.location == 2
 
     # Create a new instance
     var_accesses2 = VariablesAccessMap()
@@ -83,17 +79,26 @@ def test_variables_access_map():
 
     # Now merge the new instance with the previous instance:
     var_accesses.update(var_accesses2)
-    assert str(var_accesses) == "new_var: READ, read: READ, " \
-                                "read_written: READ+WRITE, written: READ+WRITE"
+    assert (str(var_accesses) ==
+            "new_var: READ, read: READ, read_written: WRITE+READ, written: "
+            "WRITE+READ")
+    assert not var_accesses.is_called(Signature("new_var"))
+
+    var_accesses.add_access(Signature("sub"), AccessType.CALL, Node())
+    assert var_accesses.is_called(Signature("sub"))
+
+    var_accesses.add_access(Signature("read_write"),
+                            AccessType.READWRITE, Node())
+    assert var_accesses.has_read_write(Signature("read_write"))
 
 
 # -----------------------------------------------------------------------------
-def test_variables_access_map_errors():
+def test_variables_access_map_errors() -> None:
     '''Tests if errors are handled correctly. '''
     var_accesses = VariablesAccessMap()
     node = Node()
     var_accesses.add_access(Signature("read"), AccessType.READ, node)
-    with pytest.raises(KeyError) as err:
+    with pytest.raises(KeyError):
         _ = var_accesses[Signature("does_not_exist")]
     with pytest.raises(KeyError):
         var_accesses.is_read(Signature("does_not_exist"))
@@ -104,53 +109,15 @@ def test_variables_access_map_errors():
     var_accesses.add_access(Signature("readwrite"), AccessType.READWRITE, node)
     assert "READWRITE" in str(var_accesses)
 
-    with pytest.raises(InternalError) as err:
+    with pytest.raises(InternalError) as err_internal:
         var_accesses.add_access("no-signature", AccessType.READWRITE, node)
 
     assert "Got 'no-signature' of type 'str' but expected it to be of type " \
-           "psyclone.core.Signature." in str(err.value)
-
-    # Check for consistency between signature and component indices:
-    with pytest.raises(InternalError) as err:
-        var_accesses.add_access(Signature(("a", "b")), AccessType.READ, node,
-                                ComponentIndices([]))
-    assert "Cannot add '[[]]' with length 1 as indices for 'a%b' which "\
-           "requires 2 elements." in str(err.value)
+           "psyclone.core.Signature." in str(err_internal.value)
 
 
 # -----------------------------------------------------------------------------
-def test_component_indices_auto_extension():
-    '''To make it more convenient for the user certain combinations of
-    signature and component_indices in the add_location call will
-    automatically add empty indices to the component_indices. For example.
-    adding "ssh_fld%grid%tmask" with indices ["i", "j"] will automatically
-    create component_indices like [[], [], ["i", "j"]].
-    '''
-    var_accesses = VariablesAccessMap()
-    node = Node()
-    sig = Signature(("a", "b", "c"))
-    # This should auto-extent the component indices,
-    # since they are specified as a simple list:
-    var_accesses.add_access(sig, AccessType.READ, node, ["i", "j"])
-    assert (var_accesses[sig][0].component_indices.indices_lists ==
-            [[], [], ["i", "j"]])
-
-    # This must trigger an exception, since a list of lists is used, which
-    # should not get any values added:
-    with pytest.raises(InternalError) as err:
-        var_accesses.add_access(sig, AccessType.READ, node, [["i", "j"]])
-    assert ("Cannot add '[['i', 'j']]' with length 1 as indices for 'a%b%c' "
-            "which requires 3 elements." in str(err.value))
-
-    component_indices = ComponentIndices(["i", "j"])
-    with pytest.raises(InternalError) as err:
-        var_accesses.add_access(sig, AccessType.READ, node, component_indices)
-    assert ("Cannot add '[['i', 'j']]' with length 1 as indices for 'a%b%c' "
-            "which requires 3 elements." in str(err.value))
-
-
-# -----------------------------------------------------------------------------
-def test_variables_access_map_update():
+def test_variables_access_map_update() -> None:
     '''Tests the merge operation of VariablesAccessMap.
     '''
     # First create one instance representing for example:
@@ -159,11 +126,10 @@ def test_variables_access_map_update():
     node = Node()
     var_accesses1.add_access(Signature("b"), AccessType.READ, node)
     var_accesses1.add_access(Signature("a"), AccessType.WRITE, node)
-    var_accesses1.next_location()
     var_accesses1.add_access(Signature("d"), AccessType.READ, node)
     var_accesses1.add_access(Signature("c"), AccessType.WRITE, node)
     c_accesses = var_accesses1[Signature("c")]
-    assert len(c_accesses.all_accesses) == 1
+    assert len(c_accesses) == 1
     assert c_accesses[0].access_type == AccessType.WRITE
 
     # First create one instance representing for example:
@@ -171,41 +137,15 @@ def test_variables_access_map_update():
     var_accesses2 = VariablesAccessMap()
     var_accesses2.add_access(Signature("f"), AccessType.READ, node)
     var_accesses2.add_access(Signature("e"), AccessType.WRITE, node)
-    var_accesses2.next_location()
     var_accesses2.add_access(Signature("h"), AccessType.READ, node)
     var_accesses2.add_access(Signature("g"), AccessType.WRITE, node)
 
     # Now merge the second instance into the first one
     var_accesses1.update(var_accesses2)
 
-    # The e=f access pattern should have the same location
-    # as the c=d (since there is no next_location after
-    # adding the b=a access):
-    c_accesses = var_accesses1[Signature("c")]
-    e_accesses = var_accesses1[Signature("e")]
-    assert c_accesses[0].access_type == AccessType.WRITE
-    assert e_accesses[0].access_type == AccessType.WRITE
-    assert c_accesses[0].location == e_accesses[0].location
-
-    # Test that the g=h part has a higher location than the
-    # c=d data. This makes sure that update() increases the
-    # location number of accesses when merging.
-    c_accesses = var_accesses1[Signature("c")]
-    g_accesses = var_accesses1[Signature("g")]
-    h_accesses = var_accesses1[Signature("h")]
-    assert c_accesses[0].location < g_accesses[0].location
-    assert g_accesses[0].location == h_accesses[0].location
-
-    # Also make sure that the access location was properly increased
-    # Originally we had locations 0,1. Then we merged accesses with
-    # location 0,1 in - the one at 0 is merged with the current 1,
-    # and the new location 1 increases the current location from
-    # 1 to 2:
-    assert var_accesses1.location == 2
-
 
 # -----------------------------------------------------------------------------
-def test_constructor(fortran_reader):
+def test_constructor(fortran_reader: FortranReader) -> None:
     '''Test the optional constructor parameter (single node and list
     of nodes).'''
     code = '''module test
@@ -223,11 +163,11 @@ def test_constructor(fortran_reader):
     vai1 = node1.reference_accesses()
     assert str(vai1) == "a: WRITE, b: READ, c: READ"
     vai1.update(node2.reference_accesses())
-    assert str(vai1) == "a: READ+WRITE, b: READ, c: READ+WRITE"
+    assert str(vai1) == "a: WRITE+READ, b: READ, c: READ+WRITE"
 
 
 # -----------------------------------------------------------------------------
-def test_derived_type_scalar(fortran_reader):
+def test_derived_type_scalar(fortran_reader: FortranReader) -> None:
     '''This function tests the handling of derived scalartypes.
     '''
 
@@ -247,42 +187,19 @@ def test_derived_type_scalar(fortran_reader):
 
 
 # -----------------------------------------------------------------------------
-def to_fortran(writer, index_expression):
-    '''A small helper function that converts index information from an
-    AccessInfo object to a list of list of strings. For example, an access
-    like `a(i)%b%c(j,k)` will have an index expression of
-    `[ [i], [], [j, k]]`, where `i`, `j`, and `k` are the PSyIR representation
-    of the indices. This function will convert each PSyIR node to a string,
-    returning in the example: `[ ["i"], [], ["j", "k"]]`
-
-    :param writer: a FortranWriter object.
-    :type writer: :py:class:`psyclone.psyir.backend.fortan.FortranWriter`
-    :param expression: a Fortran PSyIR node with the index expression to \
-        convert.
-    :type index_expression: list of list of :py:class:`psyclone.psyir.node`s
-
-    :return: list of list of corresponding Fortran code, each as string.
-    :rtype: list of list of str
-    '''
-
-    result = []
-    for indices in index_expression:
-        result.append([writer(index) for index in indices])
-    return result
-
-
-# -----------------------------------------------------------------------------
 @pytest.mark.parametrize("array, indices",
-                         [("a%b%c", [[], [], []]),
-                          ("a%b%c(i)", [[], [], ["i"]]),
-                          ("a%b(j)%c", [[], ["j"], []]),
-                          ("a%b(j)%c(i)", [[], ["j"], ["i"]]),
-                          ("a(k)%b%c", [["k"], [], []]),
-                          ("a(k)%b%c(i)", [["k"], [], ["i"]]),
-                          ("a(k)%b(j)%c", [["k"], ["j"], []]),
-                          ("a(k)%b(j)%c(i)", [["k"], ["j"], ["i"]])
+                         [("a%b%c", ((), (), ())),
+                          ("a%b%c(i)", ((), (), ("i",))),
+                          ("a%b(j)%c", ((), ("j",), ())),
+                          ("a%b(j)%c(i)", ((), ("j",), ("i",))),
+                          ("a(k)%b%c", (("k",), (), ())),
+                          ("a(k)%b%c(i)", (("k",), (), ("i",))),
+                          ("a(k)%b(j)%c", (("k",), ("j",), ())),
+                          ("a(k)%b(j)%c(i)", (("k",), ("j",), ("i",)))
                           ])
-def test_derived_type_array(array, indices, fortran_writer, fortran_reader):
+def test_derived_type_array(array: str,
+                            indices: list[list[str]],
+                            fortran_reader: FortranReader) -> None:
     '''This function tests the handling of derived array types.
     '''
     code = f'''module test
@@ -298,17 +215,25 @@ def test_derived_type_array(array, indices, fortran_writer, fortran_reader):
 
     node1 = fortran_reader.psyir_from_source(code).walk(Assignment)[0]
     vai1 = node1.reference_accesses()
-    assert str(vai1) == "a%b%c: READ, c%e: WRITE, i: READ, j: READ, k: READ"
+    assert "a%b%c: READ" in str(vai1)
+    assert "c%e: WRITE" in str(vai1)
+    assert "i: READ" in str(vai1)
+    assert "j: READ" in str(vai1)
+    assert "k: READ" in str(vai1)
 
-    # Verify that the index expression is correct. Convert the index
-    # expression to a list of list of strings to make this easier:
+    # The elements in the parameterised indices are string names, but
+    # component_indices returns Reference nodes, so to make it easy
+    # to compare, we first convert each Reference to only its name
     sig = Signature(("a", "b", "c"))
     access = vai1[sig][0]
-    assert to_fortran(fortran_writer, access.component_indices) == indices
+    component_names = tuple(tuple(node.name for node in idx) for idx in
+                            access.component_indices())
+    # Then we can do a simple == to compare all elements of both tuples
+    assert component_names == indices
 
 
 # -----------------------------------------------------------------------------
-def test_symbol_array_detection(fortran_reader):
+def test_symbol_array_detection(fortran_reader: FortranReader) -> None:
     '''Verifies the handling of arrays together with access information.
     '''
 
@@ -364,7 +289,8 @@ def test_symbol_array_detection(fortran_reader):
 
 # -----------------------------------------------------------------------------
 @pytest.mark.parametrize("function", ["size", "lbound", "ubound"])
-def test_variables_access_map_shape_bounds(fortran_reader, function):
+def test_variables_access_map_shape_bounds(fortran_reader: FortranReader,
+                                           function: str) -> None:
     '''Test that access to an array using shape, or lbound/ubound is marked
     as 'inquiry'.
 
@@ -382,11 +308,14 @@ def test_variables_access_map_shape_bounds(fortran_reader, function):
 
     # Array-shape accesses are 'inquiry'
     vam = node1.reference_accesses()
-    assert str(vam) == "a: NO_DATA_ACCESS, n: WRITE"
+    assert str(vam) == "a: INQUIRY, n: WRITE"
+
+    # Ensure that the access to 'a' is not listed as a data access:
+    assert vam.all_data_accesses == [Signature("n")]
 
 
 # -----------------------------------------------------------------------------
-def test_variables_access_map_domain_loop():
+def test_variables_access_map_domain_loop() -> None:
     '''Tests that LFRic domain loop (that do not have an actual loop
     structure, so especially the loop variable is not defined) work as
     expected.
@@ -394,15 +323,14 @@ def test_variables_access_map_domain_loop():
     _, invoke = get_invoke("25.1_kern_two_domain.f90", "lfric", idx=0)
     vam = invoke.schedule.reference_accesses()
     assert str(vam) == (
-        "a: READ, b: READ, f1_data: READWRITE, f2_data: "
-        "READWRITE, field_type: NO_DATA_ACCESS, i_def: NO_DATA_ACCESS, "
-        "map_w3: READ, ncell_2d_no_halos: "
-        "READ, ndf_w3: READ, nlayers_f1: READ, nlayers_f2: READ, "
-        "r_def: NO_DATA_ACCESS, undf_w3: READ")
+        "a: READ, b: READ, f1_data: READWRITE, f2_data: READWRITE, field_type:"
+        " CONSTANT, i_def: CONSTANT, map_w3: READ, ncell_2d_no_halos: READ, "
+        "ndf_w3: READ, nlayers_f1: READ, nlayers_f2: READ, r_def: CONSTANT, "
+        "undf_w3: READ")
 
 
 # -----------------------------------------------------------------------------
-def test_lfric_access_map():
+def test_lfric_access_map() -> None:
     '''Test some LFRic specific potential bugs:
     '''
 
@@ -416,14 +344,13 @@ def test_lfric_access_map():
     # reported as variables in the access list (but that the associated
     # precisions are):
     assert (
-        "basis_w1_qr: READ, basis_w3_qr: READ, cell: READ+WRITE, "
-        "diff_basis_w2_qr: READ, diff_basis_w3_qr: READ, f1_data: "
-        "READ+WRITE, f2_data: READ, field_type: NO_DATA_ACCESS, i_def: "
-        "NO_DATA_ACCESS, m1_data: READ, "
-        "m2_data: READ, map_w1: READ, map_w2: READ, map_w3: READ, ndf_w1: "
-        "READ, ndf_w2: READ, ndf_w3: READ, nlayers_f1: READ, np_xy_qr: READ, "
-        "np_z_qr: READ, quadrature_xyoz_type: NO_DATA_ACCESS, "
-        "r_def: NO_DATA_ACCESS, undf_w1: READ, undf_w2: READ, "
-        "undf_w3: READ, uninitialised_loop0_start: READ, "
-        "uninitialised_loop0_stop: READ, "
-        "weights_xy_qr: READ, weights_z_qr: READ" == str(vam))
+        "basis_w1_qr: READ, basis_w3_qr: READ, cell: WRITE+READ, "
+        "diff_basis_w2_qr: READ, diff_basis_w3_qr: READ, f1_data: INC, "
+        "f2_data: READ, field_type: CONSTANT, i_def: CONSTANT, m1_data: "
+        "READ, m2_data: READ, map_w1: READ, map_w2: READ, map_w3: READ, "
+        "ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, nlayers_f1: READ, "
+        "np_xy_qr: READ, np_z_qr: READ, quadrature_xyoz_type: CONSTANT, "
+        "r_def: CONSTANT, undf_w1: READ, undf_w2: READ, undf_w3: READ, "
+        "uninitialised_loop0_start: READ, uninitialised_loop0_stop: READ, "
+        "weights_xy_qr: READ, weights_z_qr: READ"
+        == str(vam))

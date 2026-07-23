@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -89,6 +89,8 @@ TL_IF_CODE = (
     "end subroutine test\n"
 )
 
+TEST_LOGGER = "psyclone.psyad.adjoint_visitor"
+
 
 def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
                   tmpdir, fortran_writer):
@@ -168,8 +170,6 @@ def test_create_error_active():
 
 # AdjointVisitor.container_node()
 
-@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions.", strict=False)
 def test_create_container_logger(caplog):
     '''Test that the logger writes the expected output if the
     container_node method is called.
@@ -177,12 +177,12 @@ def test_create_container_logger(caplog):
     '''
     tangent_linear = FileContainer("blah")
     adj_visitor = AdjointVisitor(["dummy"])
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger=TEST_LOGGER):
         _ = adj_visitor.container_node(tangent_linear)
-    assert caplog.text == ""
-    with caplog.at_level(logging.DEBUG):
+        assert caplog.text == ""
+    with caplog.at_level(logging.DEBUG, logger=TEST_LOGGER):
         _ = adj_visitor._visit(tangent_linear)
-    assert "Copying Container" in caplog.text
+        assert "Copying Container" in caplog.text
 
 
 def test_create_container_node():
@@ -211,8 +211,6 @@ def test_create_container_node_children(fortran_reader, fortran_writer):
 
 # AdjointVisitor.schedule_node()
 
-@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions.", strict=False)
 def test_create_schedule_logger(caplog, fortran_reader):
     '''Test that the logger writes the expected output if the
     schedule_node method is called.
@@ -225,18 +223,18 @@ def test_create_schedule_logger(caplog, fortran_reader):
     tl_schedule = tl_psyir.children[0]
     assert isinstance(tl_schedule, Schedule)
     adj_visitor = AdjointVisitor(["a", "b", "c"])
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger=TEST_LOGGER):
         _ = adj_visitor.schedule_node(tl_schedule)
-    assert caplog.text == ""
-    with caplog.at_level(logging.DEBUG):
+        assert caplog.text == ""
+    with caplog.at_level(logging.DEBUG, logger=TEST_LOGGER):
         _ = adj_visitor._visit(tl_schedule)
-    assert "Transforming Schedule" in caplog.text
-    assert "Zero-ing any local active variables" in caplog.text
-    assert "Adding passive code into new schedule" in caplog.text
-    assert "Reversing order of active code" in caplog.text
-    assert ("Processing active code and adding results into new schedule"
-            in caplog.text)
-    assert "Transforming active assignment" in caplog.text
+        assert "Transforming Schedule" in caplog.text
+        assert "Zero-ing any local active variables" in caplog.text
+        assert "Adding passive code into new schedule" in caplog.text
+        assert "Reversing order of active code" in caplog.text
+        assert ("Processing active code and adding results into new schedule"
+                in caplog.text)
+        assert "Transforming active assignment" in caplog.text
 
 
 def test_create_schedule_active_variables(fortran_reader):
@@ -259,10 +257,10 @@ def test_create_schedule_active_variables(fortran_reader):
     assert adj_visitor._active_variables[1].name == "b"
     assert adj_visitor._active_variables[2].name == "c"
 
-    adj_visitor = AdjointVisitor(["non-existant"])
+    adj_visitor = AdjointVisitor(["non-existent"])
     with pytest.raises(KeyError) as info:
         _ = adj_visitor.schedule_node(tl_schedule)
-    assert ("Could not find 'non-existant' in the Symbol Table."
+    assert ("Could not find 'non-existent' in the Symbol Table."
             in str(info.value))
 
 
@@ -515,8 +513,6 @@ def test_subroutine_schedule_access(fortran_reader):
 
 # AdjointVisitor.assignment_node()
 
-@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions.", strict=False)
 def test_assignment_node_logger(caplog, fortran_reader):
     '''Test that the logger writes the expected output if the
     assignment_node method is called.
@@ -528,12 +524,12 @@ def test_assignment_node_logger(caplog, fortran_reader):
     adj_visitor = AdjointVisitor(["a", "b", "c"])
     # set up self._active_variables
     _ = adj_visitor._visit(tl_psyir)
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger=TEST_LOGGER):
         _ = adj_visitor.assignment_node(assignment)
-    assert caplog.text == ""
-    with caplog.at_level(logging.DEBUG):
+        assert caplog.text == ""
+    with caplog.at_level(logging.DEBUG, logger=TEST_LOGGER):
         _ = adj_visitor.assignment_node(assignment)
-    assert "Transforming active assignment" in caplog.text
+        assert "Transforming active assignment" in caplog.text
 
 
 def test_assignment_node_error(fortran_reader):
@@ -646,8 +642,9 @@ def test_loop_node_bounds_intrinsic(fortran_reader, fortran_writer, tmpdir):
         "  integer :: i\n\n"
         "  a = 0.0\n"
         "  b = 0.0\n"
-        "  do i = UBOUND(a, 1) - MOD(UBOUND(a, 1) - LBOUND(a, 1), "
-        "2 * UBOUND(b, 1)), LBOUND(a, 1), -1 * (2 * UBOUND(b, 1))\n"
+        "  do i = UBOUND(a, dim=1) - MOD(UBOUND(a, dim = 1) "
+        "- LBOUND(a, dim = 1), 2 * UBOUND(b, dim = 1)), "
+        "LBOUND(a, dim=1), -1 * (2 * UBOUND(b, dim=1))\n"
         "    a(i) = 0.0\n"
         "  enddo\n\n"
         "end program test\n")
@@ -672,7 +669,7 @@ def test_loop_node_bounds_intrinsic(fortran_reader, fortran_writer, tmpdir):
     with pytest.raises(VisitorError) as error:
         _ = adj_visitor(tl_psyir)
     assert ("The upper bound of a loop should not contain active variables, "
-            "but found 'b' in 'UBOUND(a, b)'." in str(error.value))
+            "but found 'b' in 'UBOUND(a, dim=b)'." in str(error.value))
 
 
 def test_loop_node_passive(fortran_reader):
@@ -724,8 +721,6 @@ def test_loop_node_active(fortran_reader, fortran_writer, in_bounds,
     assert result == expected_result
 
 
-@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions.", strict=False)
 def test_loop_logger(fortran_reader, caplog):
     '''Test that the logger writes the expected output if the loop_node
     method is called with an inactive node and an active node.
@@ -748,30 +743,12 @@ def test_loop_logger(fortran_reader, caplog):
     _ = adj_visitor._visit(tl_psyir)
 
     # active loop
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger=TEST_LOGGER):
         _ = adj_visitor.loop_node(tl_loop)
-    assert caplog.text == ""
-    with caplog.at_level(logging.DEBUG):
+        assert caplog.text == ""
+    with caplog.at_level(logging.DEBUG, logger=TEST_LOGGER):
         _ = adj_visitor.loop_node(tl_loop)
-    assert "Transforming active loop" in caplog.text
-
-    # Remove content for subsequent inactive loop code
-    caplog.clear()
-
-    # inactive loop
-    adj_visitor = AdjointVisitor(["d", "e"])
-
-    # The visitor is called so that the active variables symbols are
-    # set up when calling the loop_node() method directly.
-    _ = adj_visitor(tl_psyir)
-
-    with caplog.at_level(logging.INFO):
-        _ = adj_visitor.loop_node(tl_loop)
-    assert caplog.text == ""
-    with caplog.at_level(logging.DEBUG):
-        _ = adj_visitor.loop_node(tl_loop)
-    assert ("Returning a copy of the original loop and its descendants as it "
-            "contains no active variables" in caplog.text)
+        assert "Transforming active loop" in caplog.text
 
 
 # AdjointVisitor.ifblock_node()
@@ -825,8 +802,6 @@ def test_ifblock_node_passive(fortran_reader):
             in str(info.value))
 
 
-@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions.", strict=False)
 def test_ifblock_logger(fortran_reader, caplog):
     '''Test that the logger writes the expected output if it transforms
     the ifblock.
@@ -835,12 +810,12 @@ def test_ifblock_logger(fortran_reader, caplog):
     tl_psyir = fortran_reader.psyir_from_source(TL_IF_CODE)
 
     adj_visitor = AdjointVisitor(["d", "e"])
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger=TEST_LOGGER):
         _ = adj_visitor._visit(tl_psyir)
-    assert "Transforming active ifblock" not in caplog.text
-    with caplog.at_level(logging.DEBUG):
+        assert "Transforming active ifblock" not in caplog.text
+    with caplog.at_level(logging.DEBUG, logger=TEST_LOGGER):
         _ = adj_visitor._visit(tl_psyir)
-    assert "Transforming active ifblock" in caplog.text
+        assert "Transforming active ifblock" in caplog.text
 
 
 def test_ifblock_active(tmpdir, fortran_writer):

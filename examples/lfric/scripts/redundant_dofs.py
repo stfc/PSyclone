@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council
+# Copyright (c) 2018-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,8 @@ API to apply redundant computation to halo depth 1 for all loops that
 iterate over dofs and do not contain a reduction.
 
 '''
-from psyclone.transformations import LFRicRedundantComputationTrans
+from psyclone.domain.lfric.transformations import (
+    LFRicRedundantComputationTrans)
 
 ITERATION_SPACES = ["dofs"]
 DEPTH = 1
@@ -48,7 +49,7 @@ def trans(psyir):
     '''PSyclone transformation script for the lfric API to apply
     redundant computation generically to all loops that iterate over
     dofs, with the exception of loops containing kernels with
-    reductions.
+    reductions and those that are restricted to owned dofs only.
 
     :param psyir: the PSyIR of the PSy-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`

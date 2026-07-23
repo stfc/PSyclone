@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,13 +44,14 @@ the generator.py file. This includes the generate and the main
 functions.
 '''
 
+import logging
 import os
+from pathlib import Path
 import re
 import shutil
 import stat
-import logging
 from sys import modules
-
+from typing import Optional
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
@@ -58,12 +59,12 @@ from fparser.two.parser import ParserFactory
 
 from psyclone import generator
 from psyclone.alg_gen import NoInvokesError
-from psyclone.configuration import Config
+from psyclone.configuration import Config, ConfigurationError
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.errors import GenerationError
 from psyclone.generator import (
-    generate, main, check_psyir, add_builtins_use)
+    generate, main, check_psyir, add_builtins_use, code_transformation_mode)
 from psyclone.parse import ModuleManager
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -71,16 +72,11 @@ from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.version import __VERSION__
+from psyclone.tests.utilities import get_base_path
 
-
-BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files")
-NEMO_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              "nemo", "test_files")
-LFRIC_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               "test_files", "lfric")
-GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                "test_files", "gocean1p0")
+NEMO_BASE_PATH = Path(get_base_path(""))
+LFRIC_BASE_PATH = Path(get_base_path("lfric"))
+GOCEAN_BASE_PATH = Path(get_base_path("gocean"))
 
 
 @pytest.fixture(name="script_factory", scope="function")
@@ -124,9 +120,8 @@ def test_script_file_not_found():
 
     '''
     with pytest.raises(GenerationError) as error:
-        _, _ = generate(
-            os.path.join(BASE_PATH, "lfric", "1_single_invoke.f90"),
-            api="lfric", script_name="non_existent.py")
+        _, _ = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
+                        api="lfric", script_name="non_existent.py")
     assert "script file 'non_existent.py' not found" in str(error.value)
 
 
@@ -138,11 +133,10 @@ def test_script_file_no_extension():
 
     '''
     with pytest.raises(GenerationError) as error:
-        _, _ = generate(
-            os.path.join(BASE_PATH, "lfric", "1_single_invoke.f90"),
-            api="lfric",
-            script_name=os.path.join(BASE_PATH, "lfric",
-                                     "invalid_script_name"))
+        _, _ = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
+                        api="lfric",
+                        script_name=str(LFRIC_BASE_PATH /
+                                        "invalid_script_name"))
     assert ("expected the script file 'invalid_script_name' to have the "
             "'.py' extension" in str(error.value))
 
@@ -156,10 +150,9 @@ def test_script_file_wrong_extension():
     '''
     with pytest.raises(GenerationError) as error:
         _, _ = generate(
-            os.path.join(BASE_PATH, "lfric", "1_single_invoke.f90"),
+            str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
             api="lfric",
-            script_name=os.path.join(BASE_PATH, "lfric",
-                                     "1_single_invoke.f90"))
+            script_name=str(LFRIC_BASE_PATH / "1_single_invoke.f90"))
     assert ("expected the script file '1_single_invoke.f90' to have the '.py' "
             "extension" in str(error.value))
 
@@ -176,16 +169,16 @@ this is invalid python
     """)
     with pytest.raises(Exception) as err:
         _, _ = generate(
-            os.path.join(BASE_PATH, "lfric", "1_single_invoke.f90"),
+            str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
             api="lfric", script_name=error_syntax)
-    assert ("invalid syntax (test_script.py, line 2)" in str(err.value))
+    assert "invalid syntax (test_script.py, line 2)" in str(err.value)
 
     error_import = script_factory("""
 import non_existent
     """)
     with pytest.raises(Exception) as err:
         _, _ = generate(
-            os.path.join(BASE_PATH, "lfric", "1_single_invoke.f90"),
+            str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
             api="lfric", script_name=error_import)
     assert "No module named 'non_existent'" in str(err.value)
 
@@ -205,7 +198,7 @@ def trans(psyir):
     """)
     with pytest.raises(Exception) as error:
         _, _ = generate(
-            os.path.join(BASE_PATH, "lfric", "1_single_invoke.f90"),
+            str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
             api="lfric", script_name=runtime_error)
     assert "name 'b' is not defined" in str(error.value)
 
@@ -227,7 +220,7 @@ def tran():
 """)
     with pytest.raises(GenerationError) as error:
         _, _ = generate(
-            os.path.join(BASE_PATH, "lfric", "1_single_invoke.f90"),
+            str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
             api="lfric", script_name=no_trans_script)
     assert ("attempted to use specified PSyclone transformation module "
             "'test_script' but it does not contain a callable 'trans' function"
@@ -244,9 +237,8 @@ def test_script_no_trans_alg(capsys, script_factory):
 
     '''
     no_alg_script = script_factory("def trans(psyir):\n  pass")
-    _, _ = generate(
-        os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
-        api="gocean", script_name=no_alg_script)
+    _, _ = generate(str(GOCEAN_BASE_PATH / "single_invoke.f90"),
+                    api="gocean", script_name=no_alg_script)
 
     # The legacy script deprecation warning is not printed in this case
     captured = capsys.readouterr()
@@ -270,9 +262,8 @@ def trans(psy):
     _ = psy.invokes.names
     return psy
 """)
-    _, _ = generate(
-        os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
-        api="gocean", script_name=legacy_script)
+    _, _ = generate(str(GOCEAN_BASE_PATH / "single_invoke.f90"),
+                    api="gocean", script_name=legacy_script)
 
     # The deprecation warning message was printed
     captured = capsys.readouterr()
@@ -299,8 +290,7 @@ def test_invalid_api():
 
     '''
     with pytest.raises(GenerationError):
-        generate(os.path.join(BASE_PATH, "lfric", "1_single_invoke.f90"),
-                 api="invalid")
+        generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"), api="invalid")
 
 
 def test_invalid_kernel_paths():
@@ -310,10 +300,9 @@ def test_invalid_kernel_paths():
 
     '''
     with pytest.raises(IOError) as info:
-        generate(os.path.join(BASE_PATH, "lfric", "1_single_invoke.f90"),
+        generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
                  api="lfric",
-                 kernel_paths=[
-                     os.path.join(BASE_PATH, "lfric"), "does_not_exist"])
+                 kernel_paths=[str(LFRIC_BASE_PATH), "does_not_exist"])
     assert "Kernel search path 'does_not_exist' not found" in str(info.value)
 
 
@@ -323,10 +312,9 @@ def test_wrong_kernel_paths():
 
     '''
     with pytest.raises(ParseError):
-        generate(os.path.join(BASE_PATH, "lfric",
-                              "1.1.0_single_invoke_xyoz_qr.f90"),
+        generate(str(LFRIC_BASE_PATH / "1.1.0_single_invoke_xyoz_qr.f90"),
                  api="lfric",
-                 kernel_paths=[os.path.join(BASE_PATH, "gocean1p0")])
+                 kernel_paths=[str(GOCEAN_BASE_PATH)])
 
 
 def test_correct_kernel_paths():
@@ -336,11 +324,11 @@ def test_correct_kernel_paths():
 
     '''
     _, _ = generate(
-        os.path.join(BASE_PATH, "lfric", "1_single_invoke_kern.f90"),
+        str(LFRIC_BASE_PATH / "1_single_invoke_kern.f90"),
         api="lfric",
         kernel_paths=[
-            os.path.join(BASE_PATH, "lfric", "kernels", "dead_end"),
-            os.path.join(BASE_PATH, "lfric", "kernels", "in_here")])
+            str(LFRIC_BASE_PATH / "kernels" / "dead_end"),
+            str(LFRIC_BASE_PATH / "kernels" / "in_here")])
 
 
 def test_same_kernel_paths():
@@ -348,9 +336,8 @@ def test_same_kernel_paths():
     same as the algorithm code directory and a path is specified.
 
     '''
-    path = os.path.join(BASE_PATH, "lfric")
-    _, _ = generate(os.path.join(path, "1_single_invoke.f90"),
-                    api="lfric", kernel_paths=[path])
+    _, _ = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
+                    api="lfric", kernel_paths=[str(LFRIC_BASE_PATH)])
 
 
 def test_similar_kernel_name():
@@ -358,10 +345,10 @@ def test_similar_kernel_name():
 
     with pytest.raises(ParseError) as info:
         _, _ = generate(
-            os.path.join(BASE_PATH, "lfric", "1_single_invoke.f90"),
+            str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
             api="lfric",
-            kernel_paths=[os.path.join(BASE_PATH, "lfric", "kernels",
-                                       "dead_end", "no_really")])
+            kernel_paths=[str(LFRIC_BASE_PATH / "kernels" /
+                              "dead_end" / "no_really")])
     assert ("Kernel file 'testkern_mod.[fF]90' not found in"
             in str(info.value))
     assert "kernels/dead_end/no_really" in str(info.value)
@@ -374,34 +361,41 @@ def test_recurse_correct_kernel_paths():
 
     '''
     _, _ = generate(
-        os.path.join(BASE_PATH, "lfric", "1_single_invoke_kern.f90"),
+        str(LFRIC_BASE_PATH / "1_single_invoke_kern.f90"),
         api="lfric",
-        kernel_paths=[os.path.join(BASE_PATH, "lfric", "kernels")])
+        kernel_paths=[str(LFRIC_BASE_PATH / "kernels")])
 
 
-def test_kernel_parsing_internalerror(capsys):
+def test_kernel_parsing_internalerror(capsys, caplog):
     '''Checks that the expected output is provided if an internal error is
     caught when parsing a kernel using fparser2.
 
     '''
-    kern_filename = (os.path.join(
-        GOCEAN_BASE_PATH, "test30_invalid_kernel_declaration.f90"))
+    kern_filename = (str(
+        GOCEAN_BASE_PATH / "test30_invalid_kernel_declaration.f90"))
     with pytest.raises(SystemExit):
         main([kern_filename, "-api", "gocean"])
     out, err = capsys.readouterr()
     assert out == ""
-    assert "In kernel file " in str(err)
-    assert (
-        "PSyclone internal error: The argument list ['i', 'j', 'cu', 'p', "
-        "'u'] for routine 'compute_code' does not match the variable "
-        "declarations:\n"
-        "IMPLICIT NONE\n"
-        "INTEGER, INTENT(IN) :: I, J\n"
-        "REAL(KIND = go_wp), INTENT(OUT), DIMENSION(:, :) :: cu\n"
-        "REAL(KIND = go_wp), INTENT(IN), DIMENSION(:, :) :: p\n"
-        "(Note that PSyclone does not support implicit declarations.) Specific"
-        " PSyIR error is \"Could not find 'u' in the Symbol Table.\".\n"
-        in str(err))
+    assert "Failed to create PSyIR from kernel file '" in str(err)
+    # Clear previous logging messages (primarily from fparser)
+    caplog.clear()
+    with caplog.at_level(logging.ERROR, "psyclone.generator"):
+        with pytest.raises(SystemExit):
+            main([kern_filename, "-api", "gocean"])
+        assert caplog.records[0].levelname == "ERROR"
+        assert (
+            "PSyclone internal error: The argument list ['i', 'j', 'cu', 'p', "
+            "'u'] for routine 'compute_code' does not match the variable "
+            "declarations:\n"
+            "IMPLICIT NONE\n"
+            "INTEGER, INTENT(IN) :: I, J\n"
+            "REAL(KIND = go_wp), INTENT(OUT), DIMENSION(:, :) :: cu\n"
+            "REAL(KIND = go_wp), INTENT(IN), DIMENSION(:, :) :: p\n"
+            "(Note that PSyclone does not support implicit declarations.) "
+            "Specific"
+            " PSyIR error is \"Could not find 'u' in the Symbol Table.\".\n"
+            in caplog.text)
 
 
 def test_script_file_too_short():
@@ -409,13 +403,13 @@ def test_script_file_too_short():
     file name is too short to contain the '.py' extension.
 
     '''
-    with pytest.raises(GenerationError):
-        _, _ = generate(os.path.join(BASE_PATH, "lfric",
-                                     "1_single_invoke.f90"),
+    with pytest.raises(GenerationError) as err:
+        _, _ = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
                         api="lfric",
-                        script_name=os.path.join(
-                            BASE_PATH,
-                            "lfric", "testkern_xyz_mod.f90"))
+                        script_name=str(
+                            LFRIC_BASE_PATH / "testkern_xyz_mod.f90"))
+    assert ("expected the script file 'testkern_xyz_mod.f90' to have the "
+            "'.py' extension" in str(err.value))
 
 
 def test_no_script_gocean():
@@ -423,9 +417,8 @@ def test_no_script_gocean():
     successfully if no script is specified for the gocean api.
 
     '''
-    alg, psy = generate(
-        os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
-        api="gocean")
+    alg, psy = generate(str(GOCEAN_BASE_PATH / "single_invoke.f90"),
+                        api="gocean")
     assert "program single_invoke_test" in alg
     assert "module psy_single_invoke_test" in str(psy)
 
@@ -444,9 +437,8 @@ def trans(psyir):
     pass
     """)
 
-    _, _ = generate(
-        os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
-        api="gocean", script_name=alg_script)
+    _, _ = generate(str(GOCEAN_BASE_PATH / "single_invoke.f90"),
+                    api="gocean", script_name=alg_script)
 
 
 def test_profile_gocean():
@@ -454,13 +446,34 @@ def test_profile_gocean():
     information if this has been specified.
 
     '''
-    Profiler.set_options(['invokes'], "gocean")
-    _, psy = generate(
-        os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
-        api="gocean")
+    Profiler.set_options(['invokes'], is_psykal=True)
+    _, psy = generate(str(GOCEAN_BASE_PATH / "single_invoke.f90"),
+                      api="gocean")
     assert "CALL profile_psy_data" in str(psy)
     # Reset the stored options.
     Profiler._options = []
+
+
+def test_invalid_gocean_alg(monkeypatch, caplog, capsys):
+    '''
+    Test that an error creating PSyIR for a GOcean algorithm layer is
+    handled correctly.
+
+    '''
+    # It's easiest to monkeypatch the psyir_from_file() method so that it
+    # raises an error.
+    def _broken(_1, _2):
+        raise ValueError("This is a test")
+
+    monkeypatch.setattr(FortranReader, "psyir_from_file", _broken)
+    with caplog.at_level(logging.ERROR, logger="psyclone.generator"):
+        with pytest.raises(SystemExit):
+            _ = generate(str(GOCEAN_BASE_PATH / "single_invoke.f90"),
+                         api="gocean")
+        assert "This is a test" in caplog.text
+        assert "Traceback" in caplog.text
+        _, err = capsys.readouterr()
+        assert "Failed to create PSyIR from file '" in err
 
 
 def test_script_attr_error(script_factory):
@@ -481,8 +494,7 @@ def trans(psyir):
             ctrans.appy(child)
 """)
     with pytest.raises(Exception) as excinfo:
-        _, _ = generate(os.path.join(BASE_PATH, "lfric",
-                                     "1_single_invoke.f90"),
+        _, _ = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
                         api="lfric", script_name=error_script)
     assert 'object has no attribute' in str(excinfo.value)
 
@@ -493,11 +505,9 @@ def test_script_null_trans(script_factory):
 
     '''
     empty_script = script_factory("def trans(psyir):\n  pass")
-    alg1, psy1 = generate(os.path.join(BASE_PATH, "lfric",
-                                       "1_single_invoke.f90"),
+    alg1, psy1 = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
                           api="lfric")
-    alg2, psy2 = generate(os.path.join(BASE_PATH, "lfric",
-                                       "1_single_invoke.f90"),
+    alg2, psy2 = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
                           api="lfric", script_name=empty_script)
     # we need to remove the first line before comparing output as
     # this line is an instance specific header
@@ -514,16 +524,14 @@ def test_script_null_trans_relative(script_factory):
     path and must therefore be found via the PYTHOPATH path list.
 
     '''
-    alg1, psy1 = generate(os.path.join(BASE_PATH, "lfric",
-                                       "1_single_invoke.f90"),
+    alg1, psy1 = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
                           api="lfric")
     empty_script = script_factory("def trans(psyir):\n  pass")
     basename = os.path.basename(empty_script)
     path = os.path.dirname(empty_script)
     # Set the script directory in the PYTHONPATH
     os.sys.path.append(path)
-    alg2, psy2 = generate(os.path.join(BASE_PATH, "lfric",
-                                       "1_single_invoke.f90"),
+    alg2, psy2 = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
                           api="lfric", script_name=basename)
     # Remove the path from PYTHONPATH
     os.sys.path.pop()
@@ -550,10 +558,8 @@ def trans(psyir):
     transform = LFRicLoopFuseTrans()
     transform.apply(loop1, loop2)
 """)
-    root_path = os.path.dirname(os.path.abspath(__file__))
-    base_path = os.path.join(root_path, "test_files", "lfric")
     # First loop fuse explicitly (without using generator.py)
-    parse_file = os.path.join(base_path, "4_multikernel_invokes.f90")
+    parse_file = str(LFRIC_BASE_PATH / "4_multikernel_invokes.f90")
     _, invoke_info = parse(parse_file, api="lfric")
     psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.get("invoke_0")
@@ -577,7 +583,7 @@ def test_alg_lines_too_long_tested():
     case but could have chosen any.
 
     '''
-    alg_filename = os.path.join(LFRIC_BASE_PATH, "13_alg_long_line.f90")
+    alg_filename = str(LFRIC_BASE_PATH / "13_alg_long_line.f90")
     with pytest.raises(ParseError) as excinfo:
         _, _ = generate(alg_filename, api="lfric", line_length=True)
     assert "/13_alg_long_line.f90' does not conform" in str(excinfo.value)
@@ -590,7 +596,7 @@ def test_alg_lines_too_long_not_tested():
     use the lfric API in this case but could have chosen any.
 
     '''
-    alg_filename = os.path.join(LFRIC_BASE_PATH, "13_alg_long_line.f90")
+    alg_filename = str(LFRIC_BASE_PATH / "13_alg_long_line.f90")
     _, _ = generate(alg_filename, api="lfric")
 
 
@@ -601,7 +607,7 @@ def test_kern_lines_too_long_tested():
     but could have chosen any.
 
     '''
-    alg_filename = os.path.join(LFRIC_BASE_PATH, "13.1_kern_long_line.f90")
+    alg_filename = str(LFRIC_BASE_PATH / "13.1_kern_long_line.f90")
     with pytest.raises(ParseError) as excinfo:
         _, _ = generate(alg_filename, api="lfric", line_length=True)
     assert "/longkern_mod.f90' does not conform" in str(excinfo.value)
@@ -614,7 +620,7 @@ def test_kern_lines_too_long_not_tested():
     the lfric API in this case but could have chosen any.
 
     '''
-    alg_filename = os.path.join(LFRIC_BASE_PATH, "13.1_kern_long_line.f90")
+    alg_filename = str(LFRIC_BASE_PATH / "13.1_kern_long_line.f90")
     _, _ = generate(alg_filename, api="lfric")
 
 
@@ -624,9 +630,7 @@ def test_continuators():
     not cause an error.
 
     '''
-    _, _ = generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "lfric",
-                                 "1.1.0_single_invoke_xyoz_qr.f90"),
+    _, _ = generate(str(LFRIC_BASE_PATH / "1.1.0_single_invoke_xyoz_qr.f90"),
                     api="lfric", line_length=True)
 
 
@@ -652,17 +656,17 @@ def test_wrong_flags_for_mode(capsys):
     are not accepted in code-transformation mode.'''
 
     # Code-transformation mode
-    filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
+    filename = NEMO_BASE_PATH / "explicit_do_long_line.f90"
     for flag in ["-okern", "-opsy", "-oalg", "-d"]:
         with pytest.raises(SystemExit):
-            main([filename, flag, "FILE"])
+            main([str(filename), flag, "FILE"])
         output, _ = capsys.readouterr()
         assert ("When using the code-transformation mode (with no -api or"
                 " --psykal-dsl flags), the psykal-mode arguments must not "
                 "be present in the command, but found" in output)
 
     # PSyKAl-DSL mode
-    filename = os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90")
+    filename = str(GOCEAN_BASE_PATH / "single_invoke.f90")
     with pytest.raises(SystemExit):
         main([filename, "--psykal-dsl", "gocean", "-o", "FILE"])
     output, _ = capsys.readouterr()
@@ -676,9 +680,7 @@ def test_main_profile(capsys):
     expected.
 
     '''
-    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            "test_files", "gocean1p0",
-                            "test27_loop_swap.f90")
+    filename = str(GOCEAN_BASE_PATH / "test27_loop_swap.f90")
 
     options = ["-api", "gocean"]
 
@@ -740,9 +742,7 @@ def test_main_invalid_api(capsys):
     error if the supplied API is not known.
 
     '''
-    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "test_files", "lfric",
-                             "1_single_invoke.f90"))
+    filename = str(LFRIC_BASE_PATH / "1_single_invoke.f90")
     with pytest.raises(SystemExit) as excinfo:
         main([filename, "-api", "madeup"])
     # The error code should be 1
@@ -753,17 +753,59 @@ def test_main_invalid_api(capsys):
     assert output == expected_output
 
 
-def test_main_api(capsys, caplog):
+def test_main_logger(capsys, caplog, tmp_path):
+    """
+    Test the setup of the logger.
+    """
+
+    # The conftest `setup_logging` fixture will add a handler to the
+    # PSyclone top-level logger - meaning the corresponding line in
+    # generator.py is not executed. Remove the handler here so we
+    # trigger adding a handler in generator.py
+    logger = logging.getLogger("psyclone")
+    logger.removeHandler(logger.handlers[0])
+
+    filename = NEMO_BASE_PATH / "explicit_do_long_line.f90"
+    # Give invalid logging level
+    # Reset capsys
+    capsys.readouterr()
+    with pytest.raises(SystemExit):
+        main([str(filename), "-api", "lfric", "--log-level", "fail"])
+    _, err = capsys.readouterr()
+    # Error message check truncated as Python 3.13 changes how the
+    # array is output.
+    assert ("error: argument --log-level: invalid choice: 'fail'"
+            in err)
+
+    # Test we get the logging debug correctly with caplog, including
+    # redirection into a file:
+    caplog.clear()
+    out_file = str(tmp_path / "test.out")
+    with caplog.at_level(logging.DEBUG):
+        main([str(filename), "-api", "dynamo0.3", "--log-level", "DEBUG",
+              "--log-file", out_file])
+        assert Config.get().api == "lfric"
+        assert caplog.records[0].levelname == "DEBUG"
+        assert "Logging system initialised. Level is DEBUG." in caplog.text
+        # Check that we have a file handler installed as expected
+        file_handlers = [h for h in logger.handlers
+                         if isinstance(h, logging.FileHandler)]
+        # There should be exactly one file handler, pointing to out_file:
+        assert len(file_handlers) == 1
+        assert file_handlers[0].baseFilename == out_file
+
+
+def test_main_api():
     ''' Test that the API can be set by a command line parameter, also using
     the API name aliases. '''
 
-    filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
+    filename = NEMO_BASE_PATH / "explicit_do_long_line.f90"
 
     # By default we don't use an API
-    main([filename])
+    main([str(filename)])
     assert Config.get().api == ""
 
-    filename = os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90")
+    filename = str(GOCEAN_BASE_PATH / "single_invoke.f90")
     # Check that a command line option sets the API value
     main([filename, "-api", "gocean"])
     assert Config.get().api == "gocean"
@@ -776,45 +818,158 @@ def test_main_api(capsys, caplog):
     main([filename, "-api", "gocean1.0"])
     assert Config.get().api == "gocean"
 
-    filename = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    filename = str(LFRIC_BASE_PATH / "1_single_invoke.f90")
     main([filename, "-api", "lfric"])
     assert Config.get().api == "lfric"
 
     main([filename, "-api", "dynamo0.3"])
     assert Config.get().api == "lfric"
 
-    # Give invalid logging level
-    # Reset capsys
-    capsys.readouterr()
-    with pytest.raises(SystemExit):
-        main([filename, "-api", "dynamo0.3", "--log-level", "fail"])
-    _, err = capsys.readouterr()
-    # Error message check truncated as Python 3.13 changes how the
-    # array is output.
-    assert ("error: argument --log-level: invalid choice: 'fail'"
-            in err)
 
-    # Test we get the logging debug correctly with caplog. This
-    # overrides the file output that PSyclone attempts.
-    caplog.clear()
-    # Pytest fully controls the logging level, overriding anything we
-    # set in generator.main so we can't test for it.
-    with caplog.at_level(logging.DEBUG):
-        main([filename, "-api", "dynamo0.3", "--log-level", "DEBUG",
-              "--log-file", "test.out"])
-        assert Config.get().api == "lfric"
-        assert caplog.records[0].levelname == "DEBUG"
-        assert "Logging system initialised" in caplog.record_tuples[0][2]
+def test_keep_comments_and_keep_directives(capsys, caplog, tmpdir_factory):
+    ''' Test the keep comments and keep directives arguments to main. '''
+    filename = str(tmpdir_factory.mktemp('psyclone_test').join("test.f90"))
+    code = """subroutine a()
+    ! Here is a comment
+    integer :: a
+
+    !comment 1
+    !$omp parallel
+    !$omp do
+    !comment 2
+    do a = 1, 100
+    end do
+    !$omp end do
+    !$omp end parallel
+    end subroutine"""
+    with open(filename, "w", encoding='utf-8') as wfile:
+        wfile.write(code)
+
+    main([filename, "--keep-comments"])
+    output, _ = capsys.readouterr()
+
+    correct = """subroutine a()
+  ! Here is a comment
+  integer :: a
+
+  ! comment 1
+  ! comment 2
+  do a = 1, 100, 1
+  enddo
+
+end subroutine a
+
+"""
+    assert output == correct
+
+    main([filename, "--keep-comments", "--keep-directives"])
+    output, _ = capsys.readouterr()
+
+    correct = """subroutine a()
+  ! Here is a comment
+  integer :: a
+
+  ! comment 1
+  !$omp parallel
+  !$omp do
+
+  ! comment 2
+  do a = 1, 100, 1
+  enddo
+  !$omp end do
+  !$omp end parallel
+
+end subroutine a
+
+"""
+    assert output == correct
+
+    with caplog.at_level(logging.WARNING, logger="psyclone.generator"):
+        main([filename, "--keep-directives"])
+    assert ("keep_directives requires keep_comments so "
+            "PSyclone enabled keep_comments." in caplog.text)
+
+
+def test_conditional_openmp_statements(capsys, tmpdir_factory):
+    ''' Check that the Conditional OpenMP statements are ignored
+    or parser depending on the flags provided to psyclone.
+    '''
+    code = """subroutine x
+    !$ use omp_lib
+
+    integer :: i
+    !$ integer :: omp_threads
+
+    i = 1
+    !$ omp_threads = omp_get_num_threads()
+    end subroutine x"""
+    filename = str(tmpdir_factory.mktemp('psyclone_test').join("test.f90"))
+    with open(filename, "w", encoding='utf-8') as wfile:
+        wfile.write(code)
+    main([filename])
+    output, _ = capsys.readouterr()
+    correct = """subroutine x()
+  integer :: i
+
+  i = 1
+
+end subroutine x
+
+"""
+    assert output == correct
+
+    main([filename, "--keep-conditional-openmp-statements"])
+    output, _ = capsys.readouterr()
+    correct = """subroutine x()
+  use omp_lib
+  integer :: i
+  integer :: omp_threads
+
+  i = 1
+  omp_threads = omp_get_num_threads()
+
+end subroutine x
+
+"""
+    assert output == correct
+
+
+def test_keep_comments_lfric(capsys, monkeypatch):
+    '''Test that the LFRic API correctly keeps comments and directives
+    when applied the appropriate arguments.'''
+    # Test this for LFRIC algorithm domain.
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+    filename = str(LFRIC_BASE_PATH / "1_single_invoke_with_omp_dir.f90")
+    main([filename, "-api", "lfric", "--keep-comments"])
+    output, _ = capsys.readouterr()
+    assert "! Here is a comment" in output
+    assert "!$omp barrier" not in output
+
+    filename = str(LFRIC_BASE_PATH / "1_single_invoke_with_omp_dir.f90")
+    main([filename, "-api", "lfric", "--keep-comments", "--keep-directives"])
+    output, _ = capsys.readouterr()
+    assert "! Here is a comment" in output
+    assert "!$omp barrier" in output
+
+
+def test_keep_comments_gocean(capsys):
+    '''Test that the GOcean API correctly keeps comments and directives
+    when applied the appropriate arguments.'''
+    filename = str(GOCEAN_BASE_PATH / "single_invoke.f90")
+    main([filename, "-api", "gocean"])
+    output, _ = capsys.readouterr()
+    assert "! Create fields on this grid" not in output
+
+    main([filename, "-api", "gocean", "--keep-comments"])
+    output, _ = capsys.readouterr()
+    assert "! Create fields on this grid" in output
 
 
 def test_config_flag():
     ''' Test that -c/--config take precedence over the configuration
         file references in the environment variable.
     '''
-    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            "test_files", "lfric",
-                            "1_single_invoke.f90")
-    # dummy_config has a non-default REPORD_PAD_SIZE of 7
+    filename = str(LFRIC_BASE_PATH / "1_single_invoke.f90")
     config_name = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "test_files", "dummy_config.cfg")
 
@@ -823,28 +978,25 @@ def test_config_flag():
     main([filename, "-api", "lfric"])
     assert Config.get().api == "lfric"
     assert Config.has_config_been_initialised() is True
-    assert Config.get().reprod_pad_size == 8
 
     # Test with with --config
     Config._HAS_CONFIG_BEEN_INITIALISED = False
     main([filename, "--config", config_name, "-api", "lfric"])
     assert Config.get().api == "lfric"
     assert Config.has_config_been_initialised() is True
-    assert Config.get().reprod_pad_size == 7
 
     # Test with with -c
     Config._HAS_CONFIG_BEEN_INITIALISED = False
     main([filename, "-c", config_name, "-api", "lfric"])
     assert Config.get().api == "lfric"
     assert Config.has_config_been_initialised() is True
-    assert Config.get().reprod_pad_size == 7
 
 
 def test_main_directory_arg(capsys):
     '''Test the -d option in main().'''
 
     # No -d option supplied
-    filename = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    filename = str(LFRIC_BASE_PATH / "1_single_invoke.f90")
     main([filename, "-api", "lfric"])
     # Invalid -d path supplied
     with pytest.raises(SystemExit):
@@ -852,27 +1004,28 @@ def test_main_directory_arg(capsys):
     _, output = capsys.readouterr()
     assert "Kernel search path 'invalid' not found" in output
     # Multiple -d paths supplied
-    main([filename, "-api", "lfric", "-d", LFRIC_BASE_PATH,
-          "-d", NEMO_BASE_PATH])
+    main([filename, "-api", "lfric", "-d", str(LFRIC_BASE_PATH),
+          "-d", str(NEMO_BASE_PATH)])
 
 
-def test_main_disable_backend_validation_arg(capsys):
-    '''Test the --backend option in main().'''
-    filename = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
-    with pytest.raises(SystemExit):
-        main([filename, "-api", "lfric", "--backend", "invalid"])
-    _, output = capsys.readouterr()
-    assert "--backend: invalid choice: 'invalid'" in output
-
+def test_main_backend_arg(capsys):
+    '''Test the --backend options in main().'''
+    filename = str(LFRIC_BASE_PATH / "1_single_invoke.f90")
     # Make sure we get a default config instance
     Config._instance = None
     # Default is to have checks enabled.
     assert Config.get().backend_checks_enabled is True
-    main([filename, "-api", "lfric", "--backend", "disable-validation"])
+    main([filename, "-api", "lfric", "--backend-disable-validation"])
     assert Config.get().backend_checks_enabled is False
+    assert Config.get().backend_indentation_disabled is False
     Config._instance = None
-    main([filename, "-api", "lfric", "--backend", "enable-validation"])
+    filename = NEMO_BASE_PATH / "explicit_do_long_line.f90"
+    main([str(filename), "--backend-disable-indentation"])
+    output, _ = capsys.readouterr()
+    # None of the three DO loops should be indented.
+    assert len(re.findall(r"^do j", output, re.MULTILINE)) == 3
     assert Config.get().backend_checks_enabled is True
+    assert Config.get().backend_indentation_disabled is True
     Config._instance = None
 
 
@@ -882,9 +1035,7 @@ def test_main_expected_fatal_error(capsys):
     function.
 
     '''
-    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "test_files", "lfric",
-                             "2_incorrect_number_of_args.f90"))
+    filename = str(LFRIC_BASE_PATH / "2_incorrect_number_of_args.f90")
     with pytest.raises(SystemExit) as excinfo:
         main([filename, "-api", "lfric"])
     # the error code should be 1
@@ -938,13 +1089,17 @@ def trans(psyir):
 
 
 @pytest.mark.parametrize(
-         "idx, value, output",
-         [("0", "False", "result = a + b"),
-          ("1", "True", "result = 1 + 1"),
-          ("2", "[\"module1\"]", "result = 1 + b"),
-          ("3", "[\"module2\"]", "result = a + 1"),
+         "idx, value, output", [
+          ("0", "False", "result = a + b + c"),
+          # Indirect import is not resolved
+          ("1", "True", "result = 1 + 1 + c"),
+          ("2", "[\"module1\"]", "result = 1 + b + c"),
+          ("3", "[\"module2\"]", "result = a + 1 + c"),
+          # Indirect import resolved by name
+          ("4", "[\"module1\",\"module3\"]", "result = 1 + b + 1"),
           # Now change both with case insensitive names
-          ("4", "[\"mOdule1\",\"moduLe2\"]", "result = 1 + 1")])
+          ("5", "[\"mOdule1\",\"moduLe2\"]", "result = 1 + 1 + c")
+          ])
 def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch,
                                              idx, value, output):
     ''' Test that applying recipes in the code-transformation mode follows the
@@ -952,6 +1107,7 @@ def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch,
 
     module1 = '''
         module module1
+            use module3
             integer :: a
         end module module1
     '''
@@ -960,6 +1116,11 @@ def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch,
             integer :: b
         end module module2
     '''
+    module3 = '''
+        module module3
+            integer :: c
+        end module module3
+    '''
     code = '''
         module test
             use module1
@@ -967,13 +1128,13 @@ def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch,
             real :: result
         contains
             subroutine mytest()
-                result = a + b
+                result = a + b + c
             end subroutine mytest
         end module test
     '''
     recipe = f'''
 from psyclone.psyir.nodes import Reference, Literal
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import ScalarType
 
 RESOLVE_IMPORTS = {value}
 
@@ -981,12 +1142,13 @@ def trans(psyir):
     # Replace all integer references with literal '1', it can only be done if
     # we have the type of the symbol (resolved from the module).
     for ref in psyir.walk(Reference):
-        if ref.datatype == INTEGER_TYPE:
-            ref.replace_with(Literal("1", INTEGER_TYPE))
+        if ref.datatype == ScalarType.integer_type():
+            ref.replace_with(Literal("1", ScalarType.integer_type()))
     '''
     recipe_name = f"replace_integers_{idx}.py"
     for filename, content in [("module1.f90", module1),
                               ("module2.f90", module2),
+                              ("module3.f90", module3),
                               ("code.f90", code),
                               (recipe_name, recipe)]:
         with open(tmpdir.join(filename), "w", encoding='utf-8') as my_file:
@@ -994,6 +1156,7 @@ def trans(psyir):
 
     # Execute the recipe (no -I needed as we have everything at the same place)
     monkeypatch.chdir(tmpdir)
+    ModuleManager._instance = None
     main(["code.f90", "-s", recipe_name])
     captured = capsys.readouterr()
 
@@ -1027,6 +1190,158 @@ def trans(psyir):
     assert "module newname\n" in new_code
 
 
+def test_code_transformation_free_form(tmpdir, capsys):
+    '''Test that the free-form option works for code transformation.'''
+    code = '''
+    subroutine test
+    integer :: n
+    n = 3 + 4
+    end subroutine'''
+    # Using a fixed format file extension to check the --free-form
+    # option is correctly overriding the default behaviour.
+    inputfile = str(tmpdir.join("free_form.f"))
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    main([inputfile, "--free-form"])
+    captured, _ = capsys.readouterr()
+    correct = """subroutine test()
+  integer :: n
+
+  n = 3 + 4
+
+end subroutine test"""
+    assert correct in captured
+
+
+def test_code_transformation_fixed_form(tmpdir, capsys, caplog):
+    ''' Test that the fixed-form option works for code transformation.'''
+    code = '''
+      subroutine test
+c     Comment here.
+      integer n
+
+      n = 3 +
+     &4
+      end subroutine'''
+    inputfile = str(tmpdir.join("fixed_form.f90"))
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    main([inputfile, "--fixed-form"])
+    captured, _ = capsys.readouterr()
+    correct = """subroutine test()
+  integer :: n
+
+  n = 3 + 4
+
+end subroutine test"""
+    assert correct in captured
+
+    with pytest.raises(SystemExit) as error:
+        main([inputfile])
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    assert error.value.code == 1
+    _, err = capsys.readouterr()
+    assert "Failed to create PSyIR from file " in err
+    assert "File was treated as free form" in err
+
+    # Check that if we use a fixed form file extension we get the expected
+    # behaviour.
+    code = '''
+      subroutine test
+c     Comment here.
+      integer n
+
+      n = 3 +
+     &4
+      end subroutine'''
+    inputfile = str(tmpdir.join("fixed_form.f"))
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    main([inputfile])
+    captured, _ = capsys.readouterr()
+    correct = """subroutine test()
+  integer :: n
+
+  n = 3 + 4
+
+end subroutine test"""
+    assert correct in captured
+
+    caplog.clear()
+    # Check an unknown file extension gives a log message and fails for a
+    # fixed form input.
+    with caplog.at_level(logging.INFO, logger="psyclone.generator"):
+        inputfile = str(tmpdir.join("fixed_form.1s2"))
+        with open(inputfile, "w", encoding='utf-8') as my_file:
+            my_file.write(code)
+        with pytest.raises(SystemExit) as error:
+            main([inputfile])
+        assert error.value.code == 1
+        _, err = capsys.readouterr()
+        assert "Failed to create PSyIR from file " in err
+        assert ("' doesn't end with a recognised file extension. Assuming "
+                "free form." in caplog.text)
+
+
+@pytest.mark.parametrize("validate", [True, False])
+def test_code_transformation_backend_validation(validate: bool,
+                                                monkeypatch) -> None:
+    '''
+    Test that the backend validation flag is passed to
+    the Fortran writer when using generic code transformations.
+    '''
+
+    # Create a dummy Fortran writer, which we use to check
+    # the values passed in
+    def dummy_fortran_writer(check_global_constraints: bool,
+                             disable_copy: bool,
+                             indent_string: Optional[str] = None):
+        # pylint: disable=unused-argument
+        """A dummy function used to test that the FortranWriter
+        gets the backend-validation flag as intended.
+        """
+        assert check_global_constraints is validate
+        # The writer must returns some string
+        return lambda x: "some-string-doesn't-matter"
+
+    monkeypatch.setattr(generator, "FortranWriter", dummy_fortran_writer)
+
+    # The input file doesn't really matter, so just use a
+    # kernel file from gocean:
+    input_file = Path(get_base_path("gocean")) / "test27_loop_swap.f90"
+
+    if validate:
+        options = []
+    else:
+        options = ["--backend-disable-validation"]
+    main([str(input_file)] + options)
+    # The actual assert is in the dummy_fortran_writer function above
+
+
+def test_code_transformation_parse_failure(tmpdir, caplog, capsys):
+    '''
+    Test the error handling in the code_transformation_mode() method when
+    there is invalid Fortran in the supplied file.
+
+    '''
+    code = '''
+    prog invalid
+      ! This is not valid Fortran
+    end prog invalid
+    '''
+    inputfile = str(tmpdir.join("funny_syntax.f90"))
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    with caplog.at_level(logging.ERROR, logger="psyclone.generator"):
+        with pytest.raises(SystemExit):
+            code_transformation_mode(inputfile, None, None, False, False,
+                                     False)
+        _, err = capsys.readouterr()
+        assert "Failed to create PSyIR from file '" in err
+        assert "Is the input valid Fortran" in caplog.text
+
+
 def test_generate_trans_error(tmpdir, capsys, monkeypatch):
     '''Test that a TransformationError exception in the generate function
     is caught and output as expected by the main function.  The
@@ -1057,15 +1372,8 @@ def test_generate_trans_error(tmpdir, capsys, monkeypatch):
     # the error code should be 1
     assert str(excinfo.value) == "1"
     _, output = capsys.readouterr()
-    # The output is split as the location of the algorithm file varies
-    # due to it being stored in a temporary directory by pytest.
-    expected_output1 = "Generation Error: In algorithm file '"
-    expected_output2 = (
-        "alg.f90':\nTransformation Error: Error in RaisePSyIR2LFRicAlgTrans "
-        "transformation. The invoke call argument 'setval_c' has been used as"
-        " a routine name. This is not allowed.\n")
-    assert expected_output1 in output
-    assert expected_output2 in output
+    assert ("The invoke call argument 'setval_c' has been used as the "
+            "Algorithm routine name. This is not allowed." in output)
 
 
 def test_generate_no_builtin_container(tmpdir, monkeypatch):
@@ -1104,9 +1412,7 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
     # sabotage the code so one of our constant lists is now an int
     monkeypatch.setattr(LFRicConstants, "VALID_ARG_TYPE_NAMES",
                         value=1)
-    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "test_files", "lfric",
-                             "1_single_invoke.f90"))
+    filename = str(LFRIC_BASE_PATH / "1_single_invoke.f90")
     with pytest.raises(SystemExit) as excinfo:
         main([filename, "-api", "lfric"])
     # the error code should be 1
@@ -1115,7 +1421,10 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
     assert ("Error, unexpected exception, please report to the authors:"
             in output)
     assert "Traceback (most recent call last):" in output
-    assert "TypeError: argument of type 'int' is not iterable" in output
+    # Python >= 3.14 uses "is not a container or iterable",
+    # so we split the assertion for cross-version support
+    assert "TypeError: argument of type 'int' is not " in output
+    assert "iterable" in output
 
 
 def test_main_fort_line_length_off(capsys):
@@ -1124,9 +1433,7 @@ def test_main_fort_line_length_off(capsys):
     should be longer than 132 characters.
 
     '''
-    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "test_files", "lfric",
-                             "10.3_operator_different_spaces.f90"))
+    filename = str(LFRIC_BASE_PATH / "10.3_operator_different_spaces.f90")
     main([filename, '-api', 'lfric'])
     output, _ = capsys.readouterr()
     assert not all(len(line) <= 132 for line in output.split('\n'))
@@ -1135,12 +1442,12 @@ def test_main_fort_line_length_off(capsys):
     output, _ = capsys.readouterr()
     assert not all(len(line) <= 132 for line in output.split('\n'))
 
-    alg_filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
-    main([alg_filename])
+    alg_filename = NEMO_BASE_PATH / "explicit_do_long_line.f90"
+    main([str(alg_filename)])
     output, _ = capsys.readouterr()
     assert not all(len(line) <= 132 for line in output.split('\n'))
 
-    main([alg_filename, '-l', 'off'])
+    main([str(alg_filename), '-l', 'off'])
     output, _ = capsys.readouterr()
     assert not all(len(line) <= 132 for line in output.split('\n'))
 
@@ -1149,15 +1456,13 @@ def test_main_fort_line_length_output_only(capsys):
     '''Check that the '-l output' option still processes the long lines but
     limits the line lengths in the output.
     '''
-    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "test_files", "lfric",
-                             "10.3_operator_different_spaces.f90"))
+    filename = str(LFRIC_BASE_PATH / "10.3_operator_different_spaces.f90")
     main([filename, '-api', 'lfric', '-l', 'output'])
     output, _ = capsys.readouterr()
     assert all(len(line) <= 132 for line in output.split('\n'))
 
-    alg_filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
-    main([alg_filename, '-l', 'output'])
+    alg_filename = NEMO_BASE_PATH / "explicit_do_long_line.f90"
+    main([str(alg_filename), '-l', 'output'])
     output, _ = capsys.readouterr()
     assert all(len(line) <= 132 for line in output.split('\n'))
 
@@ -1168,18 +1473,16 @@ def test_main_fort_line_length_all(capsys):
     it complies with the 132 characters standard limit.
 
     '''
-    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "test_files", "lfric",
-                             "10.3_operator_different_spaces.f90"))
+    filename = str(LFRIC_BASE_PATH / "10.3_operator_different_spaces.f90")
     with pytest.raises(SystemExit):
         main([filename, '-api', 'lfric', '-l', 'all'])
     _, output = capsys.readouterr()
     assert ("does not conform to the specified 132 line-length limit"
             in output)
     # And for code transformations
-    filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
+    filename = NEMO_BASE_PATH / "explicit_do_long_line.f90"
     with pytest.raises(SystemExit):
-        main([filename, '-l', 'all'])
+        main([str(filename), '-l', 'all'])
     _, output = capsys.readouterr()
     assert ("does not conform to the specified 132 line-length limit"
             in output)
@@ -1192,9 +1495,7 @@ def test_main_no_invoke_alg_stdout(capsys):
 
     '''
     # pass in a kernel file as that has no invokes in it
-    kern_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                  "test_files", "lfric",
-                                  "testkern_mod.F90"))
+    kern_filename = str(LFRIC_BASE_PATH / "testkern_mod.F90")
     main([kern_filename, "-api", "lfric"])
     out, _ = capsys.readouterr()
 
@@ -1212,9 +1513,7 @@ def test_main_write_psy_file(capsys, tmpdir):
     generated psy output to a specified file.
 
     '''
-    alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "lfric",
-                                 "1_single_invoke.f90"))
+    alg_filename = str(LFRIC_BASE_PATH / "1_single_invoke.f90")
 
     psy_filename = str(tmpdir.join("psy.f90"))
 
@@ -1239,9 +1538,7 @@ def test_main_no_invoke_alg_file(capsys, tmpdir):
 
     '''
     # pass in a kernel file as that has no invokes in it
-    kern_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                  "test_files", "lfric",
-                                  "testkern_mod.F90"))
+    kern_filename = str(LFRIC_BASE_PATH / "testkern_mod.F90")
 
     alg_filename = str(tmpdir.join("alg.f90"))
     psy_filename = str(tmpdir.join("psy.f90"))
@@ -1274,9 +1571,7 @@ def test_main_kern_output_no_dir(capsys):
     kernels) does not exist.
 
     '''
-    alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "lfric",
-                                 "1_single_invoke.f90"))
+    alg_filename = str(LFRIC_BASE_PATH / "1_single_invoke.f90")
     with pytest.raises(SystemExit) as err:
         main([alg_filename, '-api', 'lfric', '-okern', "/does/not/exist"])
     assert str(err.value) == "1"
@@ -1290,9 +1585,7 @@ def test_main_kern_output_no_write(tmpdir, capsys):
     kernels) cannot be written to.
 
     '''
-    alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "lfric",
-                                 "1_single_invoke.f90"))
+    alg_filename = str(LFRIC_BASE_PATH / "1_single_invoke.f90")
     # Create a new directory and make it readonly
     new_dir = os.path.join(str(tmpdir), "no_write_access")
     os.mkdir(new_dir)
@@ -1308,9 +1601,7 @@ def test_main_kern_output_no_write(tmpdir, capsys):
 def test_main_kern_output_dir(tmpdir):
     '''Test that we can specify a valid kernel output directory.'''
 
-    alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "lfric",
-                                 "1_single_invoke.f90"))
+    alg_filename = str(LFRIC_BASE_PATH / "1_single_invoke.f90")
     main([alg_filename, '-api', 'lfric', '-okern', str(tmpdir)])
     # The specified kernel output directory should have been stored in
     # the configuration object
@@ -1322,25 +1613,7 @@ def test_main_kern_output_dir(tmpdir):
     assert Config.get().kernel_output_dir == str(os.getcwd())
 
 
-def test_invalid_kern_naming():
-    '''Check that we raise the expected error if an invalid
-    kernel-renaming scheme is supplied.
-
-    '''
-    alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "lfric",
-                                 "1_single_invoke.f90"))
-    # Simply supplying the wrong value on the command line is picked up
-    # by the argparse module so we call generate() directly with an
-    # incorrect value
-    with pytest.raises(GenerationError) as err:
-        _, _ = generate(alg_filename, api="lfric",
-                        kern_naming="not-a-scheme")
-    assert "Invalid kernel-renaming scheme supplied" in str(err.value)
-    assert "but got 'not-a-scheme'" in str(err.value)
-
-
-def test_enable_cache_flag(capsys, tmpdir, monkeypatch):
+def test_enable_cache_flag(tmpdir, monkeypatch):
     ''' Check that if the --enable-cache flag is provided, resolve imports will
     create .psycache files for each imported module.
 
@@ -1404,8 +1677,7 @@ def test_main_include_invalid(capsys, tmpdir):
     is specified as a search path for INCLUDE files.
 
     '''
-    alg_file = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "nemo", "test_files", "include_stmt.f90"))
+    alg_file = str(NEMO_BASE_PATH / "include_stmt.f90")
     fake_path = tmpdir.join('does_not_exist')
     with pytest.raises(SystemExit) as err:
         main([alg_file, '-I', fake_path.strpath])
@@ -1421,8 +1693,7 @@ def test_main_include_path(capsys):
     '''
     # This algorithm file INCLUDE's a file that defines a variable called
     # "some_fake_mpi_handle"
-    alg_file = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "nemo", "test_files", "include_stmt.f90"))
+    alg_file = str(NEMO_BASE_PATH / "include_stmt.f90")
     # First try without specifying where to find the include file. This
     # is not supported and should raise an error.
     with pytest.raises(GenerationError) as err:
@@ -1433,8 +1704,7 @@ def test_main_include_path(capsys):
     # the necessary header file
     inc_path1 = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files")
-    inc_path2 = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "nemo", "test_files", "include_files")
+    inc_path2 = str(NEMO_BASE_PATH / "include_files")
     main([alg_file, '-I', str(inc_path1), '-I', str(inc_path2)])
     stdout, _ = capsys.readouterr()
     assert "some_fake_mpi_handle" in stdout
@@ -1449,7 +1719,7 @@ def test_utf_char(tmpdir):
 
     '''
     algfile = os.path.join(str(tmpdir), "alg.f90")
-    main([os.path.join(BASE_PATH, "gocean1p0", "test29_utf_chars.f90"),
+    main([str(GOCEAN_BASE_PATH / "test29_utf_chars.f90"),
           "-api", "gocean", "-oalg", algfile])
     # We only check the algorithm layer since we generate the PSy
     # layer from scratch in this API (and thus it contains no
@@ -1459,9 +1729,9 @@ def test_utf_char(tmpdir):
         assert "max reachable coeff" in alg
         assert "call invoke_0_kernel_utf" in alg
     # Check without PSyKAl DSLs
-    test_file = os.path.join(NEMO_BASE_PATH, "utf_char.f90")
+    test_file = NEMO_BASE_PATH / "utf_char.f90"
     tmp_file = os.path.join(str(tmpdir), "test_psy.f90")
-    main(["-o", tmp_file, test_file])
+    main(["-o", tmp_file, str(test_file)])
     assert os.path.isfile(tmp_file)
 
 
@@ -1546,9 +1816,8 @@ def test_no_script_lfric_new(monkeypatch):
 
     '''
     monkeypatch.setattr(generator, "LFRIC_TESTING", True)
-    alg, _ = generate(
-        os.path.join(BASE_PATH, "lfric", "1_single_invoke.f90"),
-        api="lfric")
+    alg, _ = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
+                      api="lfric")
     # new call replaces invoke
     assert "use single_invoke_psy, only : invoke_0_testkern_type" in alg
     assert "call invoke_0_testkern_type(a, f1, f2, m1, m2)" in alg
@@ -1577,9 +1846,8 @@ def trans(psyir):
     pass
     """)
     monkeypatch.setattr(generator, "LFRIC_TESTING", True)
-    alg, _ = generate(
-        os.path.join(BASE_PATH, "lfric", "1_single_invoke.f90"),
-        api="lfric", script_name=alg_script)
+    alg, _ = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
+                      api="lfric", script_name=alg_script)
     # new call replaces invoke
     assert "use single_invoke_psy, only : invoke_0_testkern_type" in alg
     assert "call invoke_0_testkern_type(a, f1, f2, m1, m2)" in alg
@@ -1602,8 +1870,7 @@ def test_builtins_lfric_new(monkeypatch):
     '''
     monkeypatch.setattr(generator, "LFRIC_TESTING", True)
     alg, _ = generate(
-        os.path.join(BASE_PATH, "lfric",
-                     "15.1.2_builtin_and_normal_kernel_invoke.f90"),
+        str(LFRIC_BASE_PATH / "15.1.2_builtin_and_normal_kernel_invoke.f90"),
         api="lfric")
     # new call replaces invoke
     assert "use single_invoke_builtin_then_kernel_psy, only : invoke_0" in alg
@@ -1631,9 +1898,8 @@ def test_no_invokes_lfric_new(monkeypatch):
     monkeypatch.setattr(generator, "LFRIC_TESTING", True)
     # pass a kernel file as it has no invoke's in it.
     with pytest.raises(NoInvokesError) as info:
-        _, _ = generate(
-            os.path.join(BASE_PATH, "lfric", "testkern_mod.F90"),
-            api="lfric")
+        _, _ = generate(str(LFRIC_BASE_PATH / "testkern_mod.F90"),
+                        api="lfric")
     assert ("Algorithm file contains no invoke() calls: refusing to generate "
             "empty PSy code" in str(info.value))
 
@@ -1675,7 +1941,7 @@ def test_generate_unresolved_container_lfric(invoke, tmpdir, monkeypatch):
     alg_filename = str(tmpdir.join("alg.f90"))
     with open(alg_filename, "w", encoding='utf-8') as my_file:
         my_file.write(code)
-    kern_filename = os.path.join(LFRIC_BASE_PATH, "testkern_mod.F90")
+    kern_filename = str(LFRIC_BASE_PATH / "testkern_mod.F90")
     shutil.copyfile(kern_filename, str(tmpdir.join("testkern_mod.F90")))
     with pytest.raises(GenerationError) as info:
         _, _ = generate(alg_filename, api="lfric")
@@ -1718,7 +1984,7 @@ def test_generate_unresolved_container_gocean(tmpdir):
     alg_filename = str(tmpdir.join("alg.f90"))
     with open(alg_filename, "w", encoding='utf-8') as my_file:
         my_file.write(code)
-    kern_filename = os.path.join(GOCEAN_BASE_PATH, "compute_cu_mod.f90")
+    kern_filename = str(GOCEAN_BASE_PATH / "compute_cu_mod.f90")
     shutil.copyfile(kern_filename, str(tmpdir.join("compute_cu_mod.f90")))
     with pytest.raises(GenerationError) as info:
         _, _ = generate(alg_filename, api="gocean")
@@ -1727,3 +1993,166 @@ def test_generate_unresolved_container_gocean(tmpdir):
     assert ("alg.f90' must be named in a use statement (found "
             "['kind_params_mod', 'grid_mod', 'field_mod', 'module_mod'])."
             in str(info.value))
+
+
+@pytest.mark.usefixtures("clear_module_manager_instance")
+def test_ignore_pattern():
+    '''Checks that we can pass ignore patterns to the module manager.
+    '''
+    alg = str(LFRIC_BASE_PATH / "1_single_invoke.f90")
+    main(["-api", "lfric", alg,
+          "--modman-file-ignore", "abc1",
+          "--modman-file-ignore", "abc2"])
+
+    mod_man = ModuleManager.get()
+    assert mod_man._ignore_files == set(["abc1", "abc2"])
+
+
+def test_intrinsic_control_settings(tmpdir):
+    '''Checks that the intrinsic output control settings update the config
+    correctly'''
+    # Create dummy piece of code.
+    code = """program test
+    end program"""
+    filename = str(tmpdir.join("test.f90"))
+    with open(filename, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    main([filename, "--backend-add-all-intrinsic-arg-names"])
+    assert Config.get().backend_intrinsic_named_kwargs is True
+
+
+def test_config_overwrite() -> None:
+    ''' Test that configuration settings can be overwritten.
+    '''
+
+    # First make sure that the default values are as expected:
+    assert Config.get().ocl_devices_per_node == 1
+    filename = str(LFRIC_BASE_PATH / "1_single_invoke.f90")
+
+    # Overwrite a config setting
+    main([filename, "--config-opts", "OCL_DEVICES_PER_NODE=27"])
+    assert Config.get().ocl_devices_per_node == 27
+
+    # Check error handling
+    with pytest.raises(ConfigurationError) as err:
+        main([filename, "--config-opts", "DOES_NOT_EXIST=27"])
+    assert ("Attempt to overwrite unknown configuration option: "
+            "'DOES_NOT_EXIST=27'" in str(err.value))
+
+
+def test_script_arguments_transform(tmp_path, capsys):
+    """Tests that script arguments are received as expected when transforming
+    generic Fortran code. This test creates a dummy script that prints the
+    arguments, which we check for using capsys
+
+    """
+    recipe = '''
+def trans(psyir, **kwargs):
+    print("ARGS:", kwargs)
+    '''
+    script_path = tmp_path / "print_args_transform.py"
+    script_path.write_text(recipe)
+
+    inputfile = Path(get_base_path("")) / "afunction.f90"
+    outputfile = tmp_path / "output.f90"
+    main([str(inputfile), "-s", str(script_path),
+          "--script-kwargs", "'a': 1",
+          "-o", str(outputfile)])
+    stdout, _ = capsys.readouterr()
+    assert "ARGS: {'a': 1}" in stdout
+
+
+def test_script_arguments_lfric_testing(tmp_path, capsys, monkeypatch):
+    """Tests that script arguments are received as expected using the
+    LFRic API. This test creates a dummy script that prints the arguments
+    for trans and trans_alg, which we check for. This uses LFRIC_TESTING,
+    which will also call trans_alg (which by default LFRic otherwise would
+    not do).
+
+    TODO #1618
+
+    """
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+
+    recipe = '''
+def trans(psyir, **kwargs):
+    print("trans args:", kwargs)
+
+def trans_alg(psyir, **kwargs):
+    print("trans_alg args:", kwargs)
+    '''
+    script_path = tmp_path / "print_args_lfric_testing.py"
+    script_path.write_text(recipe)
+
+    inputfile = Path(get_base_path("lfric")) / "1_single_invoke.f90"
+    psy_file = tmp_path / "psy.f90"
+    alg_file = tmp_path / "alg.f90"
+    main([str(inputfile), "-s", str(script_path), "--psykal-dsl", "lfric",
+          "--script-kwargs", "b: True",
+          "-opsy", str(psy_file),
+          "-oalg", str(alg_file)])
+    stdout, _ = capsys.readouterr()
+    assert "trans args: {'b': True}" in stdout
+    assert "trans_alg args: {'b': True}" in stdout
+
+
+def test_script_arguments_lfric_default(tmp_path, capsys):
+    """Tests that script arguments are received as expected using the
+    LFRic API. This test creates a dummy script that prints the arguments
+    for trans and trans_alg, which we check for. This uses default
+    LFRic handling, which does not call trans_alg.
+    """
+
+    recipe = '''
+def trans(psyir, **kwargs):
+    print("trans args:", kwargs)
+
+def trans_alg(psyir, **kwargs):
+    print("trans_alg args:", kwargs)
+    '''
+    script_path = tmp_path / "print_args_lfric_default.py"
+    script_path.write_text(recipe)
+
+    inputfile = Path(get_base_path("lfric")) / "1_single_invoke.f90"
+    psy_file = tmp_path / "psy.f90"
+    alg_file = tmp_path / "alg.f90"
+    main([str(inputfile), "-s", str(script_path), "--psykal-dsl", "lfric",
+          "--script-kwargs", "c: [1, 2, 3],",
+          "-opsy", str(psy_file),
+          "-oalg", str(alg_file)])
+    stdout, _ = capsys.readouterr()
+    assert "trans args: {'c': [1, 2, 3]}" in stdout
+    # Default LFRic API does not call trans_alg!!! This line is here to
+    # fail once we switch LFRic over.
+    # TODO 1618
+    assert "trans_alg args: 'c': [1, 2, 3]" not in stdout
+
+
+@pytest.mark.parametrize("kwargs", ["1", "'a'", "[1,2]", "{1:2}",
+                                    "a=1"])
+def test_script_arguments_errors(kwargs):
+    """Tests that script arguments errors are handled correctly. We need
+    to specify a script name on the command line (in order to trigger the
+    parsing of the script options), but the actual script does not need to
+    exist, since the code will abort earlier (same for input or output
+    filename).
+
+    """
+    with pytest.raises(ValueError) as err:
+        main(["does_not_exist.f90", "-s", "does_not_exist.py",
+              "--script-kwargs", kwargs,
+              "-o", "will_not_be_created.f90"])
+    assert "Invalid syntax for keyword arguments" in str(err.value)
+
+
+def test_script_args_with_no_script(capsys):
+    '''Checks that PSyclone does not accept `--script-kwargs` without
+    a `--script` option.
+    '''
+
+    with pytest.raises(SystemExit):
+        main(["--script-kwargs", "a:1", "does_not_exist.f90"])
+    _, err = capsys.readouterr()
+
+    assert ("The '--script-kwargs' argument is only valid if a script is "
+            "specified using the '--script' option" in err)

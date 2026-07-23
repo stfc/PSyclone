@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2025, Science and Technology Facilities Council.
+# Copyright (c) 2023-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,9 +44,9 @@ from dataclasses import dataclass
 from psyclone.configuration import Config
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Literal
+from psyclone.psyir.nodes import Literal, Reference
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
-                                    ImportInterface, INTEGER_TYPE, ScalarType)
+                                    ImportInterface, ScalarType, SymbolTable)
 
 
 class LFRicTypes:
@@ -87,11 +87,11 @@ class LFRicTypes:
 
         :param str name: the name to query for.
 
-        :returns: the corresponding object, which can be a class or an \
+        :returns: the corresponding object, which can be a class or an
             instance.
         :rtype: object (various types)
 
-        :raises InternalError: if there specified name is not a name for \
+        :raises InternalError: if there specified name is not a name for
             an object managed here.
 
         '''
@@ -172,7 +172,8 @@ class LFRicTypes:
                 var_name = module_var.upper()
                 interface = ImportInterface(LFRicTypes(module_name))
                 LFRicTypes._name_to_class[var_name] = \
-                    DataSymbol(module_var, INTEGER_TYPE, interface=interface)
+                    DataSymbol(module_var, ScalarType.integer_type(),
+                               interface=interface)
 
     # ------------------------------------------------------------------------
     @staticmethod
@@ -223,6 +224,8 @@ class LFRicTypes:
         def __my_generic_scalar_type_init__(self, precision=None):
             if not precision:
                 precision = self.default_precision
+            if isinstance(precision, DataSymbol):
+                precision = Reference(precision)
             ScalarType.__init__(self, self.intrinsic, precision)
 
         # ---------------------------------------------------------------------
@@ -596,3 +599,58 @@ class LFRicTypes:
                  {"__init__": __my_symbol_init__,
                   "datatype_class": datatype_class,
                   "parameters": parameters})
+
+    @staticmethod
+    def add_precision_symbol(table: SymbolTable,
+                             name: str) -> DataSymbol:
+        '''
+        If the named LFRic precision symbol is not already in the supplied
+        table then add it. Also ensure that the Container symbol from which it
+        is imported is in the table.
+
+        Also supports Fortran intrinsic kinds imported from the
+        iso_fortran_env module.
+
+        :param table: the symbol table to use.
+        :param name: name of the LFRic precision symbol to add to table.
+
+        :returns: the specified LFRic precision symbol.
+
+        :raises ValueError: if the supplied name is not a recognised LFRic
+            precision variable.
+        :raises ValueError: if a symbol with the same name is already in the
+            table but is not imported from the correct container.
+
+        '''
+        api_config = Config.get().api_conf("lfric")
+        if name not in api_config.precision_map.keys():
+            raise ValueError(f"'{name}' is not a recognised LFRic precision.")
+
+        const = LFRicConstants()
+        if name in const.INTRINSIC_KINDS:
+            # This is an intrinsic precision (e.g. real64)
+            mod_name = const.FORTRAN_ISO_MOD_NAME
+            is_intrinsic = True
+        else:
+            mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
+            is_intrinsic = False
+
+        sym = table.lookup(name, otherwise=None)
+
+        if sym:
+            if (not sym.is_import or
+                    sym.interface.container_symbol.name != mod_name):
+                raise ValueError(
+                    f"Precision symbol '{name}' is already in scope but is "
+                    f"not imported from the LFRic constants module "
+                    f"('{mod_name}').")
+            return sym
+
+        constants_mod = table.find_or_create(mod_name,
+                                             symbol_type=ContainerSymbol,
+                                             is_intrinsic=is_intrinsic)
+        sym = DataSymbol(name, ScalarType.integer_type(),
+                         interface=ImportInterface(constants_mod))
+        table.add(sym)
+
+        return sym

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
+# Copyright (c) 2022-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@
 import pytest
 
 from psyclone.psyir.nodes import Literal, Loop, Routine
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations import HoistLoopBoundExprTrans, \
     TransformationError
 from psyclone.transformations import OMPParallelLoopTrans
@@ -78,7 +78,7 @@ def test_apply(fortran_reader, fortran_writer):
     # Start expression is not hoisted because it is a literal
     expected = """
     loop_step = mytype%step
-    loop_stop = UBOUND(a, 1)
+    loop_stop = UBOUND(a, dim=1)
     do i = 1, loop_stop, loop_step
       a(i) = 1
     enddo\n"""
@@ -112,10 +112,10 @@ def test_apply_nested(fortran_reader, fortran_writer):
         trans.apply(loop)
     # Start expression is not hoisted because it is a simple scalar reference
     expected = """
-    loop_stop = UBOUND(a, 2)
+    loop_stop = UBOUND(a, dim=2)
     do i = start, loop_stop, 1
-      loop_stop_1 = UBOUND(a, 1)
-      loop_start = LBOUND(a, 1)
+      loop_stop_1 = UBOUND(a, dim=1)
+      loop_start = LBOUND(a, dim=1)
       do j = loop_start, loop_stop_1, 1
         a(j,i) = 1
       enddo
@@ -167,13 +167,15 @@ def test_validate():
     '''
     trans = HoistLoopBoundExprTrans()
     with pytest.raises(TransformationError) as err:
-        trans.apply(Literal("3", INTEGER_TYPE))
+        trans.apply(Literal("3", ScalarType.integer_type()))
     assert ("Target of HoistLoopBoundExprTrans transformation must be a "
             "sub-class of Loop but got 'Literal'" in str(err.value))
     with pytest.raises(TransformationError) as err:
         trans.apply(Loop.create(
-            DataSymbol("i", INTEGER_TYPE), Literal("1", INTEGER_TYPE),
-            Literal("10", INTEGER_TYPE), Literal("1", INTEGER_TYPE), []))
+            DataSymbol("i", ScalarType.integer_type()),
+            Literal("1", ScalarType.integer_type()),
+            Literal("10", ScalarType.integer_type()),
+            Literal("1", ScalarType.integer_type()), []))
     assert ("The loop provided to HoistLoopBoundExprTrans must belong to a "
             "Routine into which the hoisted expressions can be placed."
             in str(err.value))

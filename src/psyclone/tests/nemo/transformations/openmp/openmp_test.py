@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
+# Copyright (c) 2017-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,8 +41,8 @@ import pytest
 from psyclone.errors import GenerationError
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, Loop
-from psyclone.transformations import OMPLoopTrans, OMPParallelTrans, \
-    OMPParallelLoopTrans
+from psyclone.psyir.transformations import OMPParallelTrans
+from psyclone.transformations import OMPLoopTrans, OMPParallelLoopTrans
 
 NEMO_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               "..", "..", "test_files")
@@ -77,7 +77,7 @@ def test_omp_explicit_gen(fortran_reader, fortran_writer):
         "  real :: r\n"
         "  real, dimension(jpi,jpj,jpk) :: umask\n"
         "\n"
-        "  !$omp parallel do default(shared), private(ji,jj,jk), "
+        "  !$omp parallel do default(shared) private(ji,jj,jk) "
         "schedule(auto)\n"
         "  do jk = 1, jpk, 1\n"
         "    do jj = 1, jpj, 1\n"
@@ -97,7 +97,7 @@ def test_omp_explicit_gen(fortran_reader, fortran_writer):
 def test_omp_private_declaration(fortran_reader, fortran_writer):
     ''' Check code generation and private/shared declaration when
     an assignment is parallelised. In this case the code is like:
-    !$omp parallel default(shared), private()
+    !$omp parallel default(shared) private()
     jpk = 100
     do k=1, jpk ...
     enddo
@@ -111,14 +111,14 @@ def test_omp_private_declaration(fortran_reader, fortran_writer):
         os.path.join(NEMO_BASE_PATH, "explicit_do_two_loops.f90")
     )
     schedule = psyir.children[0]
-    omp_parallel = TransInfo().get_trans_name('OMPParallelTrans')
+    omp_parallel = OMPParallelTrans()
 
     # Apply "omp parallel" around one assignment to a scalar variable
     # and a loop using this variable as loop boundary. Parallelising an
     # assignment statement is not allowed by default, so we need to disable
     # the node type check in order to apply the omp parallel transform.
     omp_parallel.apply(schedule.children[0:2], {'node-type-check': False})
-    expected = "!$omp parallel default(shared), private(ji,jj,jk)"
+    expected = "!$omp parallel default(shared) private(ji,jj,jk)"
     assert expected in fortran_writer(psyir)
 
 
@@ -131,7 +131,7 @@ def test_omp_parallel(fortran_reader, fortran_writer):
     schedule = psyir.children[0]
     otrans = OMPParallelTrans()
     otrans.apply([schedule[0]])
-    assert ("  !$omp parallel default(shared), private(ji,jj,jk)\n"
+    assert ("  !$omp parallel default(shared) private(ji,jj,jk)\n"
             "  do jk = 1, jpk, 1\n"
             "    do jj = 1, jpj, 1\n"
             "      do ji = 1, jpi, 1\n"
@@ -156,7 +156,7 @@ def test_omp_parallel_multi(fortran_reader, fortran_writer):
     # gives elements 2-3).
     otrans.apply(schedule[0].loop_body[2:4])
     code = fortran_writer(psyir).lower()
-    assert ("    !$omp parallel default(shared), private(ji,jj,zabe1,zcof1,"
+    assert ("    !$omp parallel default(shared) private(ji,jj,zabe1,zcof1,"
             "zmsku)\n"
             "    do jj = 1, jpjm1, 1\n"
             "      do ji = 1, jpim1, 1\n"
@@ -209,16 +209,16 @@ def test_omp_do_code_gen(fortran_reader, fortran_writer):
     loop_trans.apply(schedule[0].loop_body[1]
                      .else_body[0].else_body[0].dir_body[0])
     code = fortran_writer(psyir).lower()
-    correct = '''        !$omp parallel default(shared), private(ji,jj)
-        !$omp do schedule(auto)
-        do jj = 1, jpj, 1
-          do ji = 1, jpi, 1
-            zdkt(ji,jj) = (ptb(ji,jj,jk - 1,jn) - ptb(ji,jj,jk,jn)) * \
+    correct = '''      !$omp parallel default(shared) private(ji,jj)
+      !$omp do schedule(auto)
+      do jj = 1, jpj, 1
+        do ji = 1, jpi, 1
+          zdkt(ji,jj) = (ptb(ji,jj,jk - 1,jn) - ptb(ji,jj,jk,jn)) * \
 wmask(ji,jj,jk)
-          enddo
         enddo
-        !$omp end do
-        !$omp end parallel'''
+      enddo
+      !$omp end do
+      !$omp end parallel'''
     assert correct in code
     directive = schedule[0].loop_body[1].else_body[0].else_body[0].dir_body[0]
     assert isinstance(directive, OMPDoDirective)
@@ -237,15 +237,15 @@ def test_omp_do_within_if(fortran_reader, fortran_writer):
     otrans.apply(loop)
     gen = fortran_writer(psyir).lower()
     expected = (
-        "      else\n"
-        "        !$omp parallel do default(shared), private(ji,jj), "
+        "    else\n"
+        "      !$omp parallel do default(shared) private(ji,jj) "
         "schedule(auto)\n"
-        "        do jj = 1, jpj, 1\n"
-        "          do ji = 1, jpi, 1\n"
-        "            zdkt(ji,jj) = (ptb(ji,jj,jk - 1,jn) - "
+        "      do jj = 1, jpj, 1\n"
+        "        do ji = 1, jpi, 1\n"
+        "          zdkt(ji,jj) = (ptb(ji,jj,jk - 1,jn) - "
         "ptb(ji,jj,jk,jn)) * wmask(ji,jj,jk)\n"
-        "          enddo\n"
         "        enddo\n"
-        "        !$omp end parallel do\n"
-        "      end if\n")
+        "      enddo\n"
+        "      !$omp end parallel do\n"
+        "    end if\n")
     assert expected in gen

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2024-2025, Science and Technology Facilities Council.
+# Copyright (c) 2024-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
 '''
 
 from psyclone.core import Signature
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Loop, Routine
 from psyclone.psyir.transformations import ScalarisationTrans
 from psyclone.tests.utilities import Compile
 
@@ -78,13 +78,6 @@ def test_scalararizationtrans_is_local_array(fortran_reader):
     assert ScalarisationTrans._is_local_array(Signature("local"),
                                               var_accesses)
 
-    # Test b - the RHS of the assignment is a codeblock so we do not
-    # count it as a local array and invalidate it, as otherwise the
-    # local array test can fail. Also we can't safely transform the
-    # CodeBlock anyway.
-    assert not ScalarisationTrans._is_local_array(Signature("b"),
-                                                  var_accesses)
-
     # Test x - the return value is not classed as a local array.
     assert not ScalarisationTrans._is_local_array(Signature("x"),
                                                   var_accesses)
@@ -103,8 +96,9 @@ def test_scalararizationtrans_is_local_array(fortran_reader):
             lambda sig: ScalarisationTrans._is_local_array(sig, var_accesses),
             var_accesses)
     local_arrays = list(local_arrays)
-    assert len(local_arrays) == 1
-    assert local_arrays[0].var_name == "local"
+    assert len(local_arrays) == 2
+    assert local_arrays[0].var_name == "b"
+    assert local_arrays[1].var_name == "local"
 
 
 def test_scalarisationtrans_have_same_unmodified_index(fortran_reader):
@@ -698,7 +692,8 @@ def test_scalarisation_trans_apply_routinesymbol(fortran_reader,
                                                  fortran_writer, tmpdir):
     ''' Test the application of the scalarisation transformation doesn't work
     when applied on an array with a RoutineSymbol as an index.'''
-    code = '''subroutine test
+    code = '''
+    subroutine test
         integer, dimension(3) :: j
         integer :: i
         integer, allocatable, dimension(:,:,:) :: k
@@ -709,7 +704,8 @@ def test_scalarisation_trans_apply_routinesymbol(fortran_reader,
     end subroutine test'''
     strans = ScalarisationTrans()
     psyir = fortran_reader.psyir_from_source(code)
-    strans.apply(psyir.children[0].children[0])
+    routine = psyir.walk(Routine)[0]
+    strans.apply(routine.children[0])
     correct = '''subroutine test()
   integer, dimension(3) :: j
   integer :: i

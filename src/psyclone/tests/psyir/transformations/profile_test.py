@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,7 @@
 # Modified by A. R. Porter, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
 # Modified by S. Siso, STFC Daresbury Lab
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 
 ''' Module containing tests for generating monitoring hooks'''
 
@@ -47,15 +48,17 @@ from psyclone.domain.lfric import LFRicKern
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.profiler import Profiler
-from psyclone.psyir.nodes import (colored, ProfileNode, Loop, Literal,
-                                  Assignment, Return, Reference,
-                                  KernelSchedule, Routine, Schedule)
-from psyclone.psyir.symbols import (SymbolTable, REAL_TYPE, DataSymbol)
-from psyclone.psyir.transformations import (ACCKernelsTrans, ProfileTrans,
-                                            TransformationError)
+from psyclone.psyir.nodes import (
+    colored, ProfileNode, Loop, Literal, Assignment, Return, Reference,
+    OMPDoDirective, KernelSchedule, Routine, Schedule)
+from psyclone.psyir.symbols import (
+    SymbolTable, DataSymbol, ScalarType)
+from psyclone.psyir.transformations import (
+    ACCKernelsTrans, ProfileTrans, TransformationError,
+    OMPParallelTrans)
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import (GOceanOMPLoopTrans,
-                                      OMPParallelTrans)
+from psyclone.transformations import (
+    GOceanOMPLoopTrans, LFRicOMPLoopTrans)
 
 
 # -----------------------------------------------------------------------------
@@ -71,7 +74,7 @@ def teardown_function():
 def test_profile_basic():
     '''Check basic functionality: node names, schedule view.
     '''
-    Profiler.set_options([Profiler.INVOKES], api="gocean")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean", idx=0, dist_mem=False)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
@@ -129,7 +132,7 @@ def test_profile_errors2():
 def test_profile_invokes_gocean1p0(fortran_writer):
     '''Check that an invoke is instrumented correctly
     '''
-    Profiler.set_options([Profiler.INVOKES], "gocean")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
@@ -196,7 +199,7 @@ def test_unique_region_names(fortran_writer):
     '''Test that unique region names are created even when the kernel
     names are identical.'''
 
-    Profiler.set_options([Profiler.KERNELS], "gocean")
+    Profiler.set_options([Profiler.KERNELS], is_psykal=True)
     _, invoke = get_invoke("single_invoke_two_identical_kernels.f90",
                            "gocean", 0, dist_mem=False)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
@@ -239,7 +242,7 @@ def test_unique_region_names(fortran_writer):
 def test_profile_kernels_gocean1p0(fortran_writer):
     '''Check that all kernels are instrumented correctly
     '''
-    Profiler.set_options([Profiler.KERNELS], "gocean")
+    Profiler.set_options([Profiler.KERNELS], is_psykal=True)
     _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean",
                            idx=0, dist_mem=False)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
@@ -306,11 +309,14 @@ def test_profile_named_gocean1p0(fortran_writer):
 def test_profile_invokes_lfric(fortran_writer):
     '''Check that an LFRic invoke is instrumented correctly
     '''
-    Profiler.set_options([Profiler.INVOKES], "lfric")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
 
     # First test for a single invoke with a single kernel work as expected:
     _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
+
+    # Ensure PSy-layer fully initialised as we don't use psy.gen.
+    invoke.setup_psy_layer_symbols()
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
@@ -331,6 +337,8 @@ def test_profile_invokes_lfric(fortran_writer):
     # Next test two kernels in one invoke:
     _, invoke = get_invoke("1.2_multi_invoke.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
+    # Ensure PSy-layer fully initialised as we don't use psy.gen.
+    invoke.setup_psy_layer_symbols()
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
     code = fortran_writer(invoke.schedule).replace("\n", "")
@@ -355,9 +363,11 @@ def test_profile_invokes_lfric(fortran_writer):
     # Lastly, test an invoke whose first kernel is a builtin
     _, invoke = get_invoke("15.1.1_X_plus_Y_builtin.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
+    # Ensure PSy-layer fully initialised as we don't use psy.gen.
+    invoke.setup_psy_layer_symbols()
     code = fortran_writer(invoke.schedule)
     assert "use profile_psy_data_mod, only : profile_PSyDataType" in code
-    assert "type(profile_PSyDataType), save, target :: profile_psy_data" \
+    assert "type(profile_psydatatype), save, target :: profile_psy_data" \
         in code
     assert "CALL profile_psy_data % PreStart(\"single_invoke_psy\", "\
            "\"invoke_0-x_plus_y-r0\", 0, 0)" in code
@@ -366,14 +376,46 @@ def test_profile_invokes_lfric(fortran_writer):
     Profiler._options = []
 
 
+def test_profile_with_symbols_declared_in_the_profiler_scope(tmpdir):
+    ''' Test that Symbols that are declared in the Profiler schedule node end
+    up in the output code. For example, LFRic OpenMP with reprod reductions
+    declares symbols in there. '''
+    file_name = "15.19.1_three_builtins_two_reductions.f90"
+    psy, invoke = get_invoke(file_name, "lfric", idx=0)
+    schedule = invoke.schedule
+    rtrans = OMPParallelTrans()
+    otrans = LFRicOMPLoopTrans()
+    for child in schedule.children:
+        if isinstance(child, Loop):
+            otrans.apply(child, {"reprod": True})
+    for child in schedule.children:
+        if isinstance(child, OMPDoDirective):
+            rtrans.apply(child)
+    profile_trans = ProfileTrans()
+    options = {"region_name": (psy.name, invoke.name)}
+    profile_trans.apply(schedule.children, options=options)
+    # In addition to the OpenMP symbols, manually add one in that scope
+    schedule.children[0].psy_data_body.symbol_table.new_symbol(
+        "profiler_scoped_symbol", symbol_type=DataSymbol,
+        datatype=ScalarType.integer_type())
+    code = str(psy.gen)
+
+    assert "omp_lib, only : omp_get_max_threads, omp_get_thread_num" in code
+    assert "integer :: th_idx" in code
+    assert "integer :: profiler_scoped_symbol" in code
+
+
 # -----------------------------------------------------------------------------
 def test_profile_kernels_lfric(fortran_writer):
     '''Check that all kernels are instrumented correctly in a
     LFRic invoke.
     '''
-    Profiler.set_options([Profiler.KERNELS], "lfric")
+    Profiler.set_options([Profiler.KERNELS], is_psykal=True)
     _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
+
+    # Ensure PSy-layer fully initialised as we don't use psy.gen.
+    invoke.setup_psy_layer_symbols()
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
@@ -394,13 +436,16 @@ def test_profile_kernels_lfric(fortran_writer):
     _, invoke = get_invoke("1.2_multi_invoke.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
+    # Ensure PSy-layer fully initialised as we don't use psy.gen.
+    invoke.setup_psy_layer_symbols()
+
     # Convert the invoke to code
     code = fortran_writer(invoke.schedule)
 
     # Check that the variables are different
-    assert ("type(profile_PSyDataType), save, target :: profile_psy_data\n"
+    assert ("type(profile_psydatatype), save, target :: profile_psy_data\n"
             in code)
-    assert ("type(profile_PSyDataType), save, target :: profile_psy_data_1\n"
+    assert ("type(profile_psydatatype), save, target :: profile_psy_data_1\n"
             in code)
     assert ("CALL profile_psy_data % PreStart(\"multi_invoke_psy\", "
             "\"invoke_0-testkern_code-r0\", 0, 0)" in code)
@@ -416,7 +461,7 @@ def test_profile_fused_kernels_lfric():
     invoke which has had them fused (i.e. there is more than
     one Kernel inside a loop).
     '''
-    Profiler.set_options([Profiler.KERNELS], "lfric")
+    Profiler.set_options([Profiler.KERNELS], is_psykal=True)
     psy, invoke = get_invoke("1.2_multi_invoke.f90", "lfric", idx=0,
                              dist_mem=False)
 
@@ -447,7 +492,7 @@ def test_profile_kernels_without_loop_lfric():
     impossible so we construct an artificial Schedule to test.
 
     '''
-    Profiler.set_options([Profiler.KERNELS], "lfric")
+    Profiler.set_options([Profiler.KERNELS], is_psykal=True)
     _, invoke = get_invoke("1.2_multi_invoke.f90", "lfric", idx=0,
                            dist_mem=False)
 
@@ -467,7 +512,7 @@ def test_profile_kernels_in_directive_lfric():
     '''
     Check that a kernel is instrumented correctly if it is within a directive.
     '''
-    Profiler.set_options([Profiler.KERNELS], "lfric")
+    Profiler.set_options([Profiler.KERNELS], is_psykal=True)
     psy, invoke = get_invoke("1_single_invoke_w3.f90", "lfric", idx=0,
                              dist_mem=False)
     ktrans = ACCKernelsTrans()
@@ -495,6 +540,8 @@ def test_profile_named_lfric(fortran_writer):
     profile_trans = ProfileTrans()
     options = {"region_name": (psy.name, invoke.name)}
     profile_trans.apply(schedule.children, options=options)
+    # Ensure PSy-layer fully initialised as we don't use psy.gen.
+    invoke.setup_psy_layer_symbols()
     result = fortran_writer(invoke.schedule)
     assert ("CALL profile_psy_data % PreStart(\"single_invoke_psy\", "
             "\"invoke_0_testkern_type\", 0, 0)") in result
@@ -610,18 +657,23 @@ def test_region(fortran_writer):
                            "lfric", name="invoke_0", dist_mem=True)
     schedule = invoke.schedule
     prt = ProfileTrans()
+
     # Just halo exchanges.
     prt.apply(schedule[0:4])
     # Two loops.
     prt.apply(schedule[1:3])
+
+    # Ensure PSy-layer fully initialised as we don't use psy.gen.
+    invoke.setup_psy_layer_symbols()
     result = fortran_writer(invoke.schedule)
     assert ("CALL profile_psy_data % PreStart(\"multi_functions_multi_invokes_"
             "psy\", \"invoke_0-r0\", 0, 0)" in result)
     assert ("CALL profile_psy_data_1 % PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0-r1\", 0, 0)" in result)
     # Make nested profiles.
-    prt.apply(schedule[1].psy_data_body[1])
-    prt.apply(schedule)
+    pnodes = schedule.walk(ProfileNode)
+    prt.apply(pnodes[1].psy_data_body[1])
+    prt.apply(schedule.children)
     result = fortran_writer(invoke.schedule)
     assert ("CALL profile_psy_data_3 % PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0-r0\", 0, 0)" in result)
@@ -656,9 +708,9 @@ def test_multi_prefix_profile(monkeypatch):
     assert ("  use profile_psy_data_mod, only : profile_PSyDataType\n" in
             result)
     assert "  use tool1_psy_data_mod, only : tool1_PSyDataType" in result
-    assert ("  type(profile_PSyDataType), save, target :: "
+    assert ("  type(profile_psydatatype), save, target :: "
             "profile_psy_data\n" in result)
-    assert ("  type(tool1_PSyDataType), save, target :: tool1_psy_data"
+    assert ("  type(tool1_psydatatype), save, target :: tool1_psy_data"
             in result)
     assert (
             "    CALL tool1_psy_data % PreStart(\"multi_functions_multi_"
@@ -696,7 +748,7 @@ def test_omp_transform(fortran_writer):
     correct = (
         "  CALL profile_psy_data % PreStart(\"psy_test27_loop_swap\", "
         "\"invoke_loop1-bc_ssh_code-r0\", 0, 0)\n"
-        "  !$omp parallel default(shared), private(i,j)\n"
+        "  !$omp parallel default(shared) private(i,j)\n"
         "  !$omp do schedule(static)\n"
         "  do j = t%internal%ystart, t%internal%ystop, 1\n"
         "    do i = t%internal%xstart, t%internal%xstop, 1\n"
@@ -718,7 +770,7 @@ def test_omp_transform(fortran_writer):
     correct = '''
   CALL profile_psy_data % PreStart(\"psy_test27_loop_swap\", \
 "invoke_loop1-bc_ssh_code-r0", 0, 0)
-  !$omp parallel default(shared), private(i,j)
+  !$omp parallel default(shared) private(i,j)
   CALL profile_psy_data_1 % PreStart("psy_test27_loop_swap", \
 "invoke_loop1-bc_ssh_code-r1", 0, 0)
   !$omp do schedule(static)
@@ -741,15 +793,15 @@ def test_auto_invoke_return_last_stmt():
     in the routine. '''
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
-        symbol_type=DataSymbol, datatype=REAL_TYPE)
-    zero = Literal("0.0", REAL_TYPE)
+        symbol_type=DataSymbol, datatype=ScalarType.real_type())
+    zero = Literal("0.0", ScalarType.real_type())
     assign1 = Assignment.create(Reference(arg1), zero)
     kschedule = KernelSchedule.create(
         "work", symbol_table, [assign1, Return()])
     # Double-check that the tree is as we expect
     assert isinstance(kschedule[-1], Return)
 
-    Profiler.set_options([Profiler.INVOKES], "nemo")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
     Profiler.add_profile_nodes(kschedule, Loop)
     # The Return should be a sibling of the ProfileNode rather than a child
     assert isinstance(kschedule[0], ProfileNode)
@@ -761,11 +813,11 @@ def test_auto_invoke_no_return(capsys):
     ''' Check that using the auto-invoke profiling option does not add any
     profiling if the invoke contains a Return anywhere other than as the
     last statement. '''
-    Profiler.set_options([Profiler.INVOKES], "nemo")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
-        symbol_type=DataSymbol, datatype=REAL_TYPE)
-    zero = Literal("0.0", REAL_TYPE)
+        symbol_type=DataSymbol, datatype=ScalarType.real_type())
+    zero = Literal("0.0", ScalarType.real_type())
     assign1 = Assignment.create(Reference(arg1), zero)
     assign2 = Assignment.create(Reference(arg1), zero.copy())
 
@@ -805,7 +857,7 @@ def test_auto_invoke_no_return(capsys):
 def test_auto_invoke_empty_schedule(capsys):
     ''' Check the auto-invoke profiling option rejects an empty Schedule, i.e
     the routine has no statements. '''
-    Profiler.set_options([Profiler.INVOKES], "nemo")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
     symbol_table = SymbolTable()
     # Create Schedule with Return at the start.
     kschedule = KernelSchedule.create(
@@ -815,3 +867,160 @@ def test_auto_invoke_empty_schedule(capsys):
     _, err = capsys.readouterr()
     assert ("Not adding profiling to routine 'work1' because it does not "
             "contain any statements." in err)
+
+
+def test_profiling_exit_statement(fortran_reader):
+    ''' Check the profiling transformation validation fails if there is an
+    EXIT block in the region.'''
+
+    code = """subroutine a()
+        integer :: i
+        do i = 1, 100
+          EXIT
+        end do
+        i = 1
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+
+    ptrans = ProfileTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ptrans.validate(psyir.children[0].children[0])
+    assert ("Cannot apply the ProfileTrans to a code region containing a "
+            "potential control flow jump, as these could skip the end of "
+            "profiling caliper. Found:\n'! PSyclone CodeBlock "
+            "(unsupported code) reason:\n!  - Unsupported statement: "
+            "Exit_Stmt\nEXIT\n'"
+            in str(excinfo.value))
+
+
+def test_profiling_goto_statement(fortran_reader):
+    ''' Check the profiling transformation validation fails if there is an
+    GOTO block in the region.'''
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+          a = a + i
+          GOTO 123
+        end do
+123        i = 1
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ptrans.validate(psyir.children[0].children[0])
+    assert ("Cannot apply the ProfileTrans to a code region containing a "
+            "potential control flow jump, as these could skip the end of "
+            "profiling caliper. Found:\n'\n! PSyclone CodeBlock "
+            "(unsupported code) reason:\n!  - Unsupported statement: "
+            "Goto_Stmt\nGO TO 123\n'"
+            in str(excinfo.value))
+
+
+def test_profiling_cycle_statement(fortran_reader):
+    ''' Check the profiling transformation validation fails if there is an
+    CYCLE block in the region.'''
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+          a = a + i
+          CYCLE
+        end do
+        i = 1
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ptrans.validate(psyir.children[0].children[0])
+    assert ("Cannot apply the ProfileTrans to a code region containing a "
+            "potential control flow jump, as these could skip the end of "
+            "profiling caliper. Found:\n'\n! PSyclone CodeBlock "
+            "(unsupported code) reason:\n!  - Unsupported statement: "
+            "Cycle_Stmt\nCYCLE\n'"
+            in str(excinfo.value))
+
+
+def test_profiling_labelled_statement(fortran_reader):
+    ''' Check the profiling transformation validation fails if there is an
+    labelled statement in the region.'''
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+123          a = a + 1
+        end do
+        i = 1
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ptrans.validate(psyir.children[0].children[0])
+    assert ("Transformation Error: Cannot apply the ProfileTrans to a code "
+            "region containing a potential control flow jump, as these could "
+            "skip the end of profiling caliper. Found:\n"
+            "'! PSyclone CodeBlock (unsupported code) reason:\n!  - "
+            "Unsupported labelled statement\n123 a = a + 1\n"
+            in str(excinfo.value))
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+123          do a= 1, 100
+             end do
+        end do
+        i = 1
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        ptrans.validate(psyir.children[0].children[0])
+    assert ("Transformation Error: Cannot apply the ProfileTrans to a code "
+            "region containing a potential control flow jump, as these could "
+            "skip the end of profiling caliper. Found:\n"
+            "'! PSyclone CodeBlock (unsupported code) reason:\n!  - "
+            "Unsupported labelled statement\n123 DO a = 1, 100\nEND DO\n"
+            in str(excinfo.value))
+
+
+def test_profiling_force(fortran_reader):
+    ''' Check the profiling transformation validation doesn't fail if we
+    enable the force option.'''
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+123          a = a + 1
+        end do
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    ptrans.validate(psyir.children[0].children[0], {"force": True})
+
+
+def test_profiling_full_routine(fortran_reader):
+    ''' Check the profiling transformation validation doesn't fail if we
+    give the full routine as an input.'''
+
+    code = """subroutine a()
+        integer :: i
+        integer :: a
+        do i = 1, 100
+123          a = a + 1
+        end do
+    end subroutine a
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    ptrans = ProfileTrans()
+    ptrans.validate(psyir.children[0])

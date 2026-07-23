@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020-2025, Science and Technology Facilities Council.
+! Copyright (c) 2020-2026, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
 !------------------------------------------------------------------------------
 ! Drives the execution of the algorithms and kernels in Example 1.
 ! Based on the pared-down version of LFRic infrastructure stored in
-! $PSYCLONE_DIR/src/psyclone/tests/test_files/lfric/infrastructure
+! $PSYCLONE_DIR/external/lfric_infrastructure/
 !------------------------------------------------------------------------------
 program simple_kernels_driver
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council
+# Copyright (c) 2021-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and N. Nobre, STFC Daresbury Lab
 # Modified: S. Siso, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module containing a class that provides functionality to transform
 a PSyIR MIN or MAX intrinsics to PSyIR code. This could be useful if the
@@ -43,15 +44,21 @@ functionality that can be specialised by MIN and MAX-specific
 transformations.
 
 '''
+from abc import ABC
+import warnings
 
-from psyclone.psyir.nodes import BinaryOperation, Assignment, \
-        Reference, IfBlock
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
-from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import \
-        Intrinsic2CodeTrans
+from psyclone.psyir.nodes import (
+    BinaryOperation, Assignment, Reference, IfBlock, IntrinsicCall
+)
+from psyclone.psyir.symbols import DataSymbol
+from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
+    Intrinsic2CodeTrans
+)
+from psyclone.utils import transformation_documentation_wrapper
 
 
-class MinOrMax2CodeTrans(Intrinsic2CodeTrans):
+@transformation_documentation_wrapper
+class MinOrMax2CodeTrans(Intrinsic2CodeTrans, ABC):
     '''Provides a utility transformation from a PSyIR MIN or MAX Intrinsic
     node to equivalent code in a PSyIR tree. Validity checks are also
     performed (by the parent class). This utility transformation is
@@ -80,7 +87,18 @@ class MinOrMax2CodeTrans(Intrinsic2CodeTrans):
         super().__init__()
         self._compare_operator = None
 
-    def apply(self, node, options=None):
+    def validate(self, node: IntrinsicCall, options=None, **kwargs):
+        '''
+        Check that it is safe to apply the transformation to the supplied node.
+
+        :param node: the SIGN call to transform.
+        :param options: any of options for the transformation.
+
+        '''
+        super().validate(node, options=options, **kwargs)
+        super()._validate_scalar_arg(node)
+
+    def apply(self, node: IntrinsicCall, options=None, **kwargs):
         '''Apply this utility transformation to the specified node. This node
         must be a MIN or MAX IntrinsicCall. The intrinsic is converted to
         equivalent inline code. This is implemented as a PSyIR transform from:
@@ -108,36 +126,32 @@ class MinOrMax2CodeTrans(Intrinsic2CodeTrans):
         MAX](A, B, C ...)`` can be arbitrary PSyIR code.
 
         This transformation requires the IntrinsicCall node to be a
-        descendent of an assignment and will raise an exception if
+        descendant of an assignment and will raise an exception if
         this is not the case.
 
         :param node: a MIN or MAX intrinsic.
-        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
         '''
+        # TODO 2668: options are now deprecated:
+        if options:
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
+
         # pylint: disable=too-many-locals
-        self.validate(node, options)
+        self.validate(node, options, **kwargs)
 
         symbol_table = node.scope.symbol_table
         assignment = node.ancestor(Assignment)
 
-        # Create a temporary result variable. There is an assumption
-        # here that the Intrinsic returns a PSyIR real type. This
-        # might not be what is wanted (e.g. the args might PSyIR
-        # integers), or there may be errors (arguments are of
-        # different types) but this can't be checked as we don't have
-        # appropriate methods to query nodes (see #658).
+        # Create two temporary variables.
+        result_type = node.arguments[0].datatype
         res_var_symbol = symbol_table.new_symbol(
             f"res_{self._intrinsic.name.lower()}",
-            symbol_type=DataSymbol, datatype=REAL_TYPE)
-        # Create a temporary variable. Again there is an
-        # assumption here about the datatype - please see previous
-        # comment (associated issue #658).
+            symbol_type=DataSymbol, datatype=result_type)
         tmp_var_symbol = symbol_table.new_symbol(
             f"tmp_{self._intrinsic.name.lower()}",
-            symbol_type=DataSymbol, datatype=REAL_TYPE)
+            symbol_type=DataSymbol, datatype=result_type)
 
         # Replace intrinsic with a temporary (res_var).
         node.replace_with(Reference(res_var_symbol))
@@ -170,3 +184,7 @@ class MinOrMax2CodeTrans(Intrinsic2CodeTrans):
             # if [if_condition] then [then_body]
             if_stmt = IfBlock.create(if_condition, then_body)
             assignment.parent.children.insert(assignment.position, if_stmt)
+
+
+# For AutoAPI auto-documentation generation.
+__all__ = ["MinOrMax2CodeTrans"]

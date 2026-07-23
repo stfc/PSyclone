@@ -22,22 +22,22 @@ TEST_CASE ?= SPITZ12
 # INPUT_DIR ?=
 
 # Example Config for MetOffice - eORCA1_GO8 - nvidia
-NEMO_DIR ?= ${WORKSPACE}/NEMO_MO
+NEMO_DIR ?= /archive/psyclone-tests/nemo-inputs/UKMO-NEMOv4/
 ROOT_SRC ?= ${NEMO_DIR}/cfgs/SPITZ12_serial/BLD/ppsrc/nemo/
 MPI_INC_DIR ?= ${MPI_HOME}/include
 COMPILER_ARCH ?= linux_nvidia_omp_gpu
 ADD_KEYS ?= "IEEE_IS_NAN=ieee_is_nan key_nosignedzero"
 DEL_KEYS ?= "key_iomput key_mpp_mpi key_si3"
-INPUT_DIR ?= /archive/NEMO_INPUTS/NEMOv4/MO/eORCA1_GO8/
+INPUT_DIR ?= /archive/psyclone-tests/nemo-inputs/UKMO-eORCA1_GO8_NEMOv4
 
 # Example Config for ECMWF - eORCA1_GO8_Z75 (with MPI and SI3) - intel compiler
-# NEMO_DIR ?= ${WORKSPACE}/NEMO_ESMWF_V40
+# NEMO_DIR ?= /archive/psyclone-tests/nemo-inputs/ECMWF-NEMOv4/
 # ROOT_SRC ?= ${NEMO_DIR}/cfgs/SPITZ12_serial/BLD/ppsrc/nemo/
 # MPI_INC_DIR ?= ${I_MPI_ROOT}/include
 # COMPILER_ARCH ?= linux_intel
 # ADD_KEYS ?= "IEEE_IS_NAN=ieee_is_nan key_nosignedzero"
 # DEL_KEYS ?= "key_iomput"
-# INPUT_DIR ?= /archive/NEMO_INPUTS/NEMOv4/ECMWF/eORCA1_GO8/
+# INPUT_DIR ?= /archive/psyclone-tests/nemo-inputs/ECMWF-eORCA1_GO8
 
 # ---- End of configuration section - do not edit below this point ----
 
@@ -61,16 +61,16 @@ psycloned-passthrough/%.f90: ${ROOT_SRC}%.f90 psycloned-passthrough
 	psyclone -s passthrough.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
 
 psycloned-openmp_cpu/%.f90: ${ROOT_SRC}%.f90 psycloned-openmp_cpu
-	psyclone -s omp_cpu_trans.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
+	psyclone -s insert_loop_parallelism.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
 
 psycloned-openmp_gpu/%.f90: ${ROOT_SRC}%.f90 psycloned-openmp_gpu
-	psyclone -s omp_gpu_trans.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
+	psyclone -s insert_loop_parallelism.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
 
 psycloned-openacc_kernels/%.f90: ${ROOT_SRC}%.f90 psycloned-openacc_kernels
 	psyclone -s acc_kernels_trans.py -l output -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
 
 psycloned-openacc_loops/%.f90: ${ROOT_SRC}%.f90 psycloned-openacc_loops
-	psyclone -s acc_loops_trans.py -l output -I ${ROOT_SRC} -o $@ $<
+	psyclone -s insert_loop_parallelism.py -l output -I ${ROOT_SRC} -o $@ $<
 
 # Get the number of Makefile parallel jobs to pass it to the makenemo
 MAKE_PID := $(shell echo $$PPID)

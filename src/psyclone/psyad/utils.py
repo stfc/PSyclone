@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,7 @@
 '''
 from psyclone.psyir.nodes import Reference, Literal, UnaryOperation, \
     BinaryOperation, Node
-from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol
+from psyclone.psyir.symbols import ScalarType, DataSymbol
 
 
 def node_is_active(node, active_variables):
@@ -133,7 +133,9 @@ def negate_expr(orig_expr):
             expr.operator == UnaryOperation.Operator.MINUS):
         return expr.children[0].detach()
     return BinaryOperation.create(
-        BinaryOperation.Operator.MUL, Literal("-1", INTEGER_TYPE), expr)
+        BinaryOperation.Operator.MUL,
+        Literal("-1", ScalarType.integer_type()),
+        expr)
 
 
 # =============================================================================

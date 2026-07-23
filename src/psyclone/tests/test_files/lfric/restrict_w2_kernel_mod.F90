@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2023-2025, Science and Technology Facilities Council.
+! Modifications copyright (c) 2023-2026, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -158,7 +158,7 @@ contains
     ! Define cells to average over for each df
     !---------------------------------------------------------------------------
 
-    ! The rows and columns forming the cell map match the arrangment
+    ! The rows and columns forming the cell map match the arrangement
     ! of fine cells within the coarse cell
 
     ! These are aligned as follows with the LFRic directions:
@@ -310,7 +310,7 @@ contains
     ! Define cells to average over for each df
     !---------------------------------------------------------------------------
 
-    ! The rows and columns forming the cell map match the arrangment
+    ! The rows and columns forming the cell map match the arrangement
     ! of fine cells within the coarse cell
 
     ! These are aligned as follows with the LFRic directions:

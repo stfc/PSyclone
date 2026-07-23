@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
+# Copyright (c) 2021-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -69,8 +69,12 @@ class ArrayOfStructuresMember(ArrayOfStructuresMixin, StructureMember):
         `subdomains` must be an array of structure (derived) type. We would
         construct an ArrayOfStructuresMember for this access by calling:
 
+        >>> from psyclone.psyir.nodes import (
+        ...     ArrayOfStructuresMember, Member, Literal)
+        >>> from psyclone.psyir.symbols import ScalarType
         >>> aosmem = ArrayOfStructuresMember.create(
-                "subdomains", [Literal("1", INTEGER_TYPE)], Member("xstart"))
+        ...     "subdomains", [Literal("1", ScalarType.integer_type())],
+        ...     Member("xstart"))
 
         :param str member_name: the name of the array member of the structure \
             that is being accessed.

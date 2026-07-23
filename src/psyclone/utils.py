@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2025, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,12 +37,17 @@
 
 '''This module provides generic utility functions.'''
 
+import ast
 from collections import OrderedDict
 import sys
+from typing import Any, Type, TYPE_CHECKING, Union
+
 from psyclone.errors import InternalError
 from psyclone.docstring_parser import (
-    DocstringData,
+    DocstringData, ReturnsData
 )
+if TYPE_CHECKING:
+    from psyclone.psyGen import Transformation
 
 
 def within_virtual_env():
@@ -80,20 +85,67 @@ def stringify_annotation(annotation) -> str:
     ''' Simple PSyclone method to turn a Python type annotation to a string
     when sphinx is not available.
 
-    :param annotation: The type annotation to convert to a string.
-    :type annotation: TypeAliasType
+    :param annotation: the type annotation to convert to a string.
+    :type annotation: Union[Type, TypeAliasType]
 
     :returns: The string representation of annotation.
     '''
+    if isinstance(annotation, type):
+        return annotation.__name__
     return str(annotation)
 
 
-def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
+def transformation_documentation_wrapper(*args,
+                                         inherit:
+                                         Union[list[Type["Transformation"]],
+                                               bool] = True,
+                                         add_subtransformations: bool = True,
+                                         **kwargs):
     '''
-    Updates the apply and validate methods' docstrings for the supplied cls,
-    according to the value of inherit.
+    This function should be used as a decorator on a Transformation subclass.
+    It updates the apply and validate methods' docstrings for the decorated
+    class, according to the value of inherit.
 
-    :param Class cls: The class whose docstrings are to be updated.
+    *args is either a length 1 list of arguments containing the class to be
+    wrapped, or a length 0 argument set when options are specified on the
+    transformation_docstring_wrapper that is handled by python. The length 0
+    set would happen with a case like this:
+
+    .. code-block:: python
+
+        @transformation_documentation_wrapper(inherit=True)
+        class mytrans(Transformation):
+            pass
+
+    as this code is equivalent to:
+
+    .. code-block:: python
+
+        mytrans = transformation_documentation_wrapper(inherit=True)(mytrans)
+
+    For this case *args is empty, as only the inherit argument is provided
+    to the transformation_documentation_wrapper call and is through kwargs.
+
+    Without arguments to the decorator:
+
+    .. code-block:: python
+
+        @transformation_documentation_wrapper
+        class mytrans(Transformation):
+            pass
+
+    the resultant code is the same as writing:
+
+    .. code-block:: python
+
+        mytrans = transformation_documentation_wrapper(mytrans)
+
+    In this case *args contains the wrapped class in *args, which needs to be
+    passed manually to the sub-function inside the wrapper.
+
+    This allows us to vary the behaviour of the wrapper slightly depending on
+    whether any arguments are present.
+
     :param inherit: whether to inherit argument docstrings from cls' parent's
                     apply method. If the provided argument is a list, instead
                     the docstrings are updated from each class included in
@@ -101,9 +153,13 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                     inherit is False, the wrapper will just update the
                     Transformation's validate docstring from its own
                     apply docstring.
-    :type inherit: Union[list[Class], bool]
+    :param add_subtransformations: Whether to add parameter docstrings from
+        sub transformations used by this Transformation.
     '''
-    def update_func_docstring(func, added_parameters: DocstringData) -> None:
+    # List of argument doctrings to never inherit.
+    _uninheritable_args = ["options", "nodes", "node_list", "node"]
+
+    def update_func_docstring(func, added_parameters: "DocstringData") -> None:
         '''
         Adds the docstrings specified in added_parameters to the
         docstring of func.
@@ -122,7 +178,7 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
         func_data.merge(added_parameters, replace_args=False)
         func.__doc__ = func_data.gen_docstring(function=func)
 
-    def wrapper():
+    def wrapper(cls):
         '''
         The wrapping function of the decorator.
 
@@ -137,8 +193,9 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
             )
         if isinstance(inherit, list):
             added_parameters = DocstringData(
-                desc=None, arguments=OrderedDict(),
-                raises=[], returns=None)
+                desc="", arguments=OrderedDict(),
+                raises=[], returns=ReturnsData("", None),
+                sub_arguments=OrderedDict())
             for superclass in inherit:
                 inherited_params = \
                     DocstringData.create_from_object(superclass.apply)
@@ -150,12 +207,122 @@ def transformation_documentation_wrapper(cls, *args, inherit=True, **kwargs):
                  )
         else:
             added_parameters = None
+        if add_subtransformations and len(cls._SUB_TRANSFORMATIONS) > 0:
+            if added_parameters is None:
+                added_parameters = DocstringData(
+                    desc="", arguments=OrderedDict(),
+                    raises=[], returns=ReturnsData("", None),
+                    sub_arguments=OrderedDict())
+            for trans in cls._SUB_TRANSFORMATIONS:
+                inherited_params = \
+                    DocstringData.create_from_object(trans.apply)
+                added_parameters.add_subarguments(trans.__name__,
+                                                  inherited_params)
+
         if added_parameters is not None:
+            # Remove any arguments we don't want to inherit.
+            for arg in list(added_parameters.arguments.keys()):
+                if arg in _uninheritable_args:
+                    del added_parameters.arguments[arg]
+            if add_subtransformations:
+                for trans in cls._SUB_TRANSFORMATIONS:
+                    for arg in list(
+                            added_parameters.sub_arguments[
+                                trans.__name__
+                            ].keys()
+                    ):
+                        if arg in _uninheritable_args:
+                            del added_parameters.sub_arguments[
+                                    trans.__name__][arg]
             update_func_docstring(cls.apply, added_parameters)
+
         # Update the validate docstring
         added_parameters = DocstringData.create_from_object(cls.apply)
         if added_parameters is not None:
             update_func_docstring(cls.validate, added_parameters)
 
         return cls
-    return wrapper(*args, **kwargs)
+    if len(args) > 0:
+        return wrapper(*args)
+    return wrapper
+
+
+# ----------------------------------------------------------------------------
+def parse_kwargs(kwargs: str) -> dict[str, Any]:
+    """
+    This function safely parses a string containing a `,` separated list of
+    `keyword: value` specifications (e.g. ``a: 1, b: [1,2]`) into a python
+    dictionary. I.e, it adds ``{}`` around the user string and then parses
+    this as a dictionary. It especially simplifies the syntax for the user by
+    not requiring the keys to be escaped, e.g. ``"'a':1,'b':2"`` and
+    ``"a:1,b:2"`` will both work as expected.
+
+    This is done by using Python's ast parser, then adding a separate
+    transformation step that replaces keys that are an ast.Name
+    with an ast.Constant, then finally calling literal_eval to
+    create the dictionary.
+
+    :param kwargs: the string to parse.
+
+    :raises ValueError: if the string cannot be converted to a kwargs-style
+        dictionary.
+    """
+
+    # Parse as an expression. Note that various ast functions can
+    # raise different exceptions, so we catch all exceptions and
+    # re-raise them as a ValueError
+    try:
+        # Make it look like a dict literal
+        wrapped = "{" + kwargs.strip() + "}"
+        expr = ast.parse(wrapped, mode="eval")
+
+        # Convert bare-name keys to string keys
+        transformer = _NameKeysToStr()
+        expr = transformer.visit(expr)
+        # This call will update line-number, column, ... information in
+        # the modified tree, since the newly created nodes won't have
+        # this information
+        ast.fix_missing_locations(expr)
+
+        # Safely evaluate literals/containers
+        result = ast.literal_eval(expr)
+    # pylint: disable=broad-exception-caught
+    except Exception as err:
+        raise (ValueError(f"Invalid syntax for keyword arguments "
+                          f"'{kwargs}'.")) from err
+
+    if not isinstance(result, dict):
+        raise ValueError(f"Invalid syntax for keyword arguments '{kwargs}'. "
+                         f"It was parsed as '{type(result).__name__}', not "
+                         f"as a dictionary.")
+
+    return result
+
+
+class _NameKeysToStr(ast.NodeTransformer):
+    """
+    This is a helper class to convert dictionary keys that are
+    an ast.Name (i.e. not a string) into an ast.Constant (a string).
+
+    It will effectively change `{a:1}` to `{'a':1}`
+    """
+
+    # pylint: disable=invalid-name
+    def visit_Dict(self, node: ast.Dict):
+        """Function to replace non-string keys in a dictionary
+        with strings representing the same name.
+
+        :param node: the dictionary node in Python AST.
+        """
+
+        # Transform keys: Name(...)  -> Constant("name")
+        new_keys = []
+        for k in node.keys:
+            if isinstance(k, ast.Name):
+                new_keys.append(ast.Constant(k.id))
+            else:
+                new_keys.append(self.visit(k))
+        node.keys = new_keys
+        # Still visit values normally
+        node.values = [self.visit(v) for v in node.values]
+        return node
