@@ -44,8 +44,9 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyir.nodes import FileContainer, KernelSchedule
+from psyclone.psyir.nodes import Directive, FileContainer, KernelSchedule
 from psyclone.psyir.symbols import Symbol, RoutineSymbol
 
 
@@ -295,3 +296,33 @@ def test_unsupported_format_stmt(parser):
         processor.process_declarations(fake_parent, fparser2spec.children, [])
     assert ("Error processing implicit-part: Format statements are not "
             "supported but found 'FORMAT(1E12.4, I10)'" in str(err.value))
+
+
+def test_module_with_directives(fortran_writer):
+    """
+    Test that the frontend correctly creates adds directives as children of
+    a module if keeping directives is enabled.
+    """
+    code = """
+    module my_mod
+    !$TEST_DIRECTIVE
+    integer :: i
+    contains
+    subroutine test
+       i = 1
+    end subroutine test
+    !$TEST_DIRECTIVE_2
+    end module"""
+    reader = FortranReader(ignore_comments=False, ignore_directives=False)
+
+    psyir = reader.psyir_from_source(code)
+
+    module = psyir.children[0]
+    assert isinstance(module.children[-1], Directive)
+
+    # Directives in declarations are not supported correctly yet in PSyclone.
+    assert len(module.walk(Directive)) == 1
+    out = fortran_writer(psyir)
+    assert "! $TEST_DIRECTIVE\n" in out
+    pytest.xfail(reason="TODO #3178 PSyclone can't store directives in "
+                        "declarations as directives.")
