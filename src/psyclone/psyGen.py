@@ -1146,9 +1146,6 @@ class CodedKern(Kern):
         self._schedules = None
         #: Whether or not this kernel has been transformed
         self._modified = False
-        #: Whether or not to in-line this kernel into the module containing
-        #: the PSy layer
-        self._module_inline = False
         self._opencl_options = {'local_size': 64, 'queue_number': 1}
         self.arg_descriptors = call.ktype.arg_descriptors
 
@@ -1264,18 +1261,6 @@ class CodedKern(Kern):
         _, position = self._find_position(self.ancestor(Routine))
         return f"kernel_{self.name}_{position}"
 
-    @property
-    def module_inline(self) -> bool:
-        '''
-        :returns: whether or not this kernel is being module-inlined.
-        '''
-        # TODO #2054 - once this class sub-classes Call, this method should
-        # probably live in the super class.
-        if (not self.routine or self.routine.symbol.is_import or
-                self.routine.symbol.is_unresolved):
-            return False
-        return True
-
     def node_str(self, colour: Optional[bool] = True) -> str:
         ''' Returns the name of this node with (optional) control codes
         to generate coloured output in a terminal that supports it.
@@ -1285,9 +1270,8 @@ class CodedKern(Kern):
         :returns: description of this node, possibly coloured.
 
         '''
-        return (self.coloured_name(colour) + " " + self.name + "(" +
-                self.arguments.names + ") " + "[module_inline=" +
-                str(self.module_inline) + "]")
+        return (self.coloured_name(colour) +
+                f" {self.name}({self.arguments.names})")
 
     def lower_to_language_level(self) -> Node:
         '''

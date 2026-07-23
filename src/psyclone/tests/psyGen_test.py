@@ -796,25 +796,8 @@ def test_codedkern_node_str():
     out = my_kern.node_str()
     expected_output = (
         colored("CodedKern", LFRicKern._colour) +
-        " dummy_code(field_1,field_2,field_3) [module_inline=False]")
+        " dummy_code(field_1,field_2,field_3)")
     assert expected_output in out
-
-
-@pytest.mark.parametrize("do_all", [True, False])
-def test_codedkern_module_inline_getter(do_all):
-    ''' Check that the module_inline property of CodedKern. '''
-    # Use LFRic example with a repeated CodedKern
-    _, invoke = get_invoke("4.6_multikernel_invokes.f90", api="lfric", idx=0)
-    schedule = invoke.schedule
-    ckerns = schedule.walk(CodedKern)
-    # Double check that both kernels are the same.
-    assert ckerns[0].name == ckerns[1].name
-    assert ckerns[0].module_inline is False
-    mod_inline_trans = KernelModuleInlineTrans()
-    mod_inline_trans.apply(ckerns[0], update_all=do_all)
-    # Module inlining one will only have updated both if `update_all` is True
-    assert ckerns[0].module_inline is True
-    assert ckerns[1].module_inline is do_all
 
 
 def test_codedkern_lower_to_language_level(monkeypatch):
