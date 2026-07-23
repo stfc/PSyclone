@@ -53,7 +53,7 @@ from psyclone.psyir.nodes import (
     ArrayConstructor, BinaryOperation, Call, Container, CodeBlock,
     DataNode, IntrinsicCall, Literal, Member, Node, OMPDependClause,
     OMPReductionClause, Operation, Range, Routine, Schedule,
-    UnaryOperation, UnknownDirective, IfBlock)
+    UnaryOperation, UnknownDirective, IfBlock, Directive)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataType,
     DataTypeSymbol, GenericInterfaceSymbol, IntrinsicSymbol,
@@ -1156,7 +1156,7 @@ class FortranWriter(LanguageWriter):
 
         # All children must be either Routines or CodeBlocks as modules within
         # modules are not supported.
-        if not all(isinstance(child, (Routine, CodeBlock)) for
+        if not all(isinstance(child, (Routine, CodeBlock, Directive)) for
                    child in node.children):
             raise VisitorError(
                 f"The Fortran back-end requires all children of a Container "
