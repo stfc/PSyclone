@@ -50,7 +50,6 @@ from psyclone.lfric import LFRicBasisFunctions, qr_basis_alloc_args
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import KernelCall, parse
 from psyclone.psyGen import CodedKern, PSyFactory
-from psyclone.psyir.symbols import DataSymbol, UnresolvedType
 from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
@@ -668,11 +667,6 @@ def test_lfricbasisfns_initialise(monkeypatch):
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     dinf = LFRicBasisFunctions(psy.invokes.invoke_list[0])
-    # We need some pre-declared symbol in order to call the initialise directly
-    for name in ["quadrature_xyoz_proxy_type", "qr_proxy", "f1_proxy",
-                 "f2_proxy", "m2_proxy"]:
-        psy.container.children[0].symbol_table.add(
-             DataSymbol(name, UnresolvedType()))
     # Break the shape of the first basis function
     dinf._basis_fns[0]["shape"] = "not-a-shape"
     with pytest.raises(InternalError) as err:

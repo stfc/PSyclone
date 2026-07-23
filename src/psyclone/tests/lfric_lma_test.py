@@ -793,6 +793,10 @@ def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
     monkeypatch.setattr(arg, "_argument_type", value="gh_field")
     # We have to populate the Symbol table to get to the desired error.
     schedule.symbol_table.find_or_create_tag("op_a:data")
+    schedule.symbol_table.find_or_create("map_as1_op_a",
+                                         tag="map_as1_op_a",
+                                         symbol_type=symbols.DataSymbol,
+                                         datatype=symbols.UnresolvedType())
     schedule.symbol_table.find_or_create("undf_as1_op_a",
                                          symbol_type=symbols.DataSymbol,
                                          datatype=symbols.UnresolvedType())
@@ -818,6 +822,10 @@ def test_operator_bc_kernel_multi_args_err(dist_mem):
     # We have to populate the Symbol table to get to the desired error.
     schedule.symbol_table.find_or_create_tag("op_a:data")
     schedule.symbol_table.find_or_create("undf_as1_op_a",
+                                         symbol_type=symbols.DataSymbol,
+                                         datatype=symbols.UnresolvedType())
+    schedule.symbol_table.find_or_create("map_as1_op_a",
+                                         tag="map_as1_op_a",
                                          symbol_type=symbols.DataSymbol,
                                          datatype=symbols.UnresolvedType())
     # Make the list of arguments invalid by duplicating (a copy of)

@@ -172,9 +172,8 @@ def test_lfricinvoke_setup_psy_layer_symbols(monkeypatch, dist_mem):
     # Apply an OpenMP Parallel for all loops
     rtrans.apply(schedule.children[0:2])
     # Check that setup_psy_layer_symbols() populates the symbol table.
-    assert "f1_proxy" not in invoke.schedule.symbol_table
-    invoke.setup_psy_layer_symbols()
     assert "f1_proxy" in invoke.schedule.symbol_table
+    invoke.setup_psy_layer_symbols()
     assert invoke.schedule.symbol_table.lookup_with_tag("omp_num_threads")
     assert "omp_get_max_threads" in invoke.schedule.symbol_table
 

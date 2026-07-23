@@ -2264,35 +2264,26 @@ class LFRicMeshes():
                             LFRicTypes("LFRicIntegerScalarDataType")(),
                             [ArrayType.Extent.DEFERRED]*2))
 
-    def invoke_declarations(self):
+    def invoke_declarations(self) -> None:
         '''
         Declare variables specific to mesh objects.
 
         '''
-        # pylint: disable=too-many-locals, too-many-statements
-        const = LFRicConstants()
-
-        if self.intergrid_kernels:
-            mmap_type = const.MESH_TYPE_MAP["mesh_map"]["type"]
-            mmap_mod = const.MESH_TYPE_MAP["mesh_map"]["module"]
-            # Create a Container symbol for the module
-            csym = self.symtab.find_or_create_tag(
-                mmap_mod, symbol_type=ContainerSymbol)
-            # Create a TypeSymbol for the mesh type
-            self.symtab.find_or_create_tag(
-                mmap_type, symbol_type=DataTypeSymbol,
-                datatype=UnresolvedType(),
-                interface=ImportInterface(csym))
-
         if not self.intergrid_kernels:
-            if self._needs_colourmap or self._needs_colourmap_halo:
-                # There aren't any inter-grid kernels but we do need
-                # colourmap information
-                csym = self.symtab.lookup_with_tag("cmap")
-            if self._needs_colourtilemap or self._needs_colourtilemap_halo:
-                # There aren't any inter-grid kernels but we do need
-                # colourmap information
-                csym = self.symtab.lookup_with_tag("tilecolourmap")
+            return
+
+        const = LFRicConstants()
+        mmap_type = const.MESH_TYPE_MAP["mesh_map"]["type"]
+        mmap_mod = const.MESH_TYPE_MAP["mesh_map"]["module"]
+
+        # Create a Container symbol for the module
+        csym = self.symtab.find_or_create_tag(
+            mmap_mod, symbol_type=ContainerSymbol)
+        # Create a TypeSymbol for the mesh type
+        self.symtab.find_or_create_tag(
+            mmap_type, symbol_type=DataTypeSymbol,
+            datatype=UnresolvedType(),
+            interface=ImportInterface(csym))
 
     def initialise(self, cursor: int) -> int:
         '''

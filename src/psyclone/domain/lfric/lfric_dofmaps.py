@@ -213,21 +213,33 @@ class LFRicDofmaps(LFRicCollection):
             cursor += 1
         return cursor
 
-    def invoke_declarations(self):
+    def invoke_declarations(self) -> None:
         '''
         Declare all unique function space dofmaps in the PSy layer as pointers
         to integer arrays of rank 2.
 
+        TODO #2577 - the partial datatype of each UnsupportedFortranType that
+        is created should really have an initial value set
+        (IntrinsicCall.create(Intrinsic.NULL)) but this requires support for
+        pointer assignments.
+
         '''
         super().invoke_declarations()
+
+        intrinsic_type = LFRicTypes("LFRicIntegerScalarDataType")()
+        atype = ArrayType(
+                    intrinsic_type,
+                    [ArrayType.Extent.DEFERRED, ArrayType.Extent.DEFERRED])
+
         # Function space dofmaps
         for dmap in sorted(self._unique_fs_maps):
-            if dmap not in self.symtab:
-                dmap_sym = DataSymbol(
-                    dmap, UnsupportedFortranType(
-                        f"integer(kind=i_def), pointer :: {dmap}(:,:) "
-                        f"=> null()"))
-                self.symtab.add(dmap_sym, tag=dmap)
+            dtype = UnsupportedFortranType(
+                f"{intrinsic_type.intrinsic.name.lower()}("
+                f"kind={intrinsic_type.precision.name}), pointer "
+                f":: {dmap}(:,:) => null()",
+                partial_datatype=atype.copy())
+            dmap_sym = self.symtab.find_or_create_tag(
+              dmap, symbol_type=DataSymbol, datatype=dtype)
 
         # Column-banded dofmaps
         for dmap in sorted(self._unique_cbanded_maps):
@@ -235,7 +247,8 @@ class LFRicDofmaps(LFRicCollection):
                 dmap_sym = DataSymbol(
                     dmap, UnsupportedFortranType(
                         f"integer(kind=i_def), pointer :: {dmap}(:,:) "
-                        f"=> null()"))
+                        f"=> null()",
+                        partial_datatype=atype.copy()))
                 self.symtab.add(dmap_sym, tag=dmap)
 
         # CMA operator indirection dofmaps
@@ -244,7 +257,8 @@ class LFRicDofmaps(LFRicCollection):
                 dmap_sym = DataSymbol(
                     dmap, UnsupportedFortranType(
                         f"integer(kind=i_def), pointer :: {dmap}(:) "
-                        "=> null()"))
+                        "=> null()",
+                        partial_datatype=atype.copy()))
                 self.symtab.add(dmap_sym, tag=dmap)
 
     def stub_declarations(self):
