@@ -590,10 +590,11 @@ class SymbolTable():
                     f"but found '{type(root_name).__name__}'.")
         if not root_name:
             root_name = Config.get().psyir_root_name
-        candidate_name = root_name
+        candidate_name = root_name[:62]
         idx = 1
         while self._normalize(candidate_name) in existing_names:
-            candidate_name = f"{root_name}_{idx}"
+            # Avoid names longer than 63 by truncating the root name
+            candidate_name = f"{root_name[:62-len(str(idx))]}_{idx}"
             idx += 1
         return candidate_name
 

@@ -42,10 +42,11 @@ import abc
 
 from psyclone.core import SymbolicMaths
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, KernelFunctor
-from psyclone.errors import InternalError
+from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
-    Call, Routine, Literal, Reference, CodeBlock, UnaryOperation, Node)
+    Call, Routine, Literal, Reference, UnaryOperation, Node, CodeBlock,
+    StructureReference)
 from psyclone.psyir.symbols import (ContainerSymbol,
                                     ImportInterface, RoutineSymbol)
 from psyclone.psyir.transformations import TransformationError
@@ -136,6 +137,9 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
                     break
             else:
                 arguments.append(arg.copy())
+        elif isinstance(arg, Call) and isinstance(arg.routine,
+                                                  StructureReference):
+            arguments.append(arg.copy())
         elif isinstance(arg, CodeBlock):
             arguments.append(arg.copy())
         else:
@@ -146,9 +150,10 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
                 string = f"{string} is of type '{type(arg).__name__}'."
             else:
                 string = f"but found '{type(arg).__name__}'."
-            raise TypeError(
+            raise GenerationError(
                 f"Expected Algorithm-layer kernel arguments to be "
-                f"a Literal, Reference or CodeBlock, {string}.")
+                f"a Literal, Reference, type-bound Call or a CodeBlock"
+                f" {string}.")
 
     @staticmethod
     def remove_imported_symbols(node):

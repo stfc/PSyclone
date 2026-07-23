@@ -38,7 +38,8 @@
 ''' This module contains the FileContainer node implementation.'''
 
 import sys
-from psyclone.alg_gen import NoInvokesError
+
+from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.container import Container
 
 
@@ -81,7 +82,7 @@ class FileContainer(Container):
         :return: the associated Invokes object.
         :rtype: :py:class:`psyclone.psyGen.Invokes`
 
-        :raises NoInvokesError: if no InvokeSchedule was found.
+        :raises GenerationError: if no InvokeSchedule was found.
 
         '''
         print("Deprecation warning: PSyclone script uses the legacy "
@@ -92,7 +93,7 @@ class FileContainer(Container):
         from psyclone.psyGen import InvokeSchedule
         invokes = self.walk(InvokeSchedule, stop_type=InvokeSchedule)
         if not invokes:
-            raise NoInvokesError(
+            raise GenerationError(
                 f"No InvokeSchedule found in '{self.name}', does it come from"
                 f" a PSyKAl file that conforms to the GOcean or LFRic API?")
         return invokes[0].invoke.invokes
