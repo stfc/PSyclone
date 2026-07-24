@@ -46,7 +46,7 @@ from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.transformations import OMPLoopTrans
 
 # pylint: disable=unused-import
-from fuse_loops import trans as fuse_trans   # noqa: F401
+from copy_kernels_and_fuse_loops import trans as fuse_trans   # noqa: F401
 
 
 def trans(psyir: FileContainer) -> None:
@@ -64,7 +64,7 @@ def trans(psyir: FileContainer) -> None:
     # We know that there is only one schedule
     schedule = psyir.walk(InvokeSchedule)[0]
 
-    # Module inline all kernels to help gfortran with inlining
+    # Bring all kernels into the same scope to help gfortran with inlining
     # and fuse loops.
     fuse_trans(psyir)
 

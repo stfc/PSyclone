@@ -50,7 +50,7 @@ from psyclone.transformations import (GOceanOMPParallelLoopTrans,
                                       ,
 
 
-from fuse_loops import trans as fuse_trans
+from copy_kernels_and_fuse_loops import trans as fuse_trans
 
 
 def trans(psyir: FileContainer) -> None:

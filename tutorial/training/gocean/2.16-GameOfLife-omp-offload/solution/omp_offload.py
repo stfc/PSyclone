@@ -43,7 +43,7 @@ from psyclone.psyir.nodes import Directive, FileContainer, Loop, Routine
 from psyclone.psyir.transformations import TransformationError, OMPTargetTrans
 from psyclone.transformations import OMPLoopTrans
 from psyclone.psyir.transformations import OMPDeclareTargetTrans
-from fuse_loops import trans as fuse_trans
+from copy_kernels_and_fuse_loops import trans as fuse_trans
 
 
 def trans(psyir: FileContainer) -> None:

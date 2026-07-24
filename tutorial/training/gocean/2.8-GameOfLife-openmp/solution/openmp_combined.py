@@ -45,7 +45,7 @@ from psyclone.psyir.nodes import FileContainer
 from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.transformations import OMPLoopTrans
 
-from fuse_loops_last import trans as fuse_trans  # noqa: F401
+from copy_kernels_and_fuse_loops_last import trans as fuse_trans  # noqa: F401
 
 
 def trans(psyir: FileContainer) -> None:
@@ -63,7 +63,7 @@ def trans(psyir: FileContainer) -> None:
     # We know that there is only one schedule
     schedule = psyir.walk(InvokeSchedule)[0]
 
-    # Inline kernels and fuse loops
+    # Copy kernels into local scope and fuse loops
     fuse_trans(psyir)
 
     # Both ways work - either specify the default in

@@ -44,7 +44,7 @@ from psyclone.transformations import OMPParallelLoopTrans
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.nodes import FileContainer
 
-from fuse_loops import trans as fuse_trans  # noqa: F401
+from copy_kernels_and_fuse_loops import trans as fuse_trans  # noqa: F401
 
 
 def trans(psyir: FileContainer) -> None:
