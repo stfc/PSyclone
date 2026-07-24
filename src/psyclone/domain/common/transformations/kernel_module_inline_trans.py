@@ -62,16 +62,55 @@ class KernelModuleInlineTrans(Transformation):
     ''' Brings the routine being called into the same Container as the call
     site. For example:
 
-    .. code-block:: python
-
-        from psyclone.domain.common.transformations import \\
-                KernelModuleInlineTrans
-
-        inline_trans = KernelModuleInlineTrans()
-        inline_trans.apply(schedule.walk(CodedKern)[0])
-
-        print(schedule.parent.view())
-
+    >>> from psyclone.domain.common.transformations import \\
+    ...     KernelModuleInlineTrans
+    >>> from psyclone.psyGen import CodedKern
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.psyir.nodes import Call
+    >>>
+    >>> psyir = FortranReader().psyir_from_source("""
+    ...     module one
+    ...       contains
+    ...       subroutine my_subroutine()
+    ...         integer, dimension(10, 10) :: A
+    ...         A(:,:) = 0
+    ...       end subroutine my_subroutine
+    ...     end module one
+    ...     module two
+    ...       use one, only: my_subroutine
+    ...       contains
+    ...       subroutine call_it()
+    ...         call my_subroutine()
+    ...       end subroutine call_it
+    ...     end module two
+    ...     """)
+    >>> call = psyir.walk(Call)[-1]
+    >>> inline_trans = KernelModuleInlineTrans()
+    >>> inline_trans.apply(call)
+    >>>
+    >>> print(call.parent.parent.debug_string())
+    module two
+      use one, only : my_subroutine
+      implicit none
+      public
+    <BLANKLINE>
+      private :: my_subroutine_inlined_
+    <BLANKLINE>
+      contains
+      subroutine call_it()
+    <BLANKLINE>
+        call my_subroutine_inlined_()
+    <BLANKLINE>
+      end subroutine call_it
+      subroutine my_subroutine_inlined_()
+        integer, dimension(10,10) :: a
+    <BLANKLINE>
+        a(:,:) = 0
+    <BLANKLINE>
+      end subroutine my_subroutine_inlined_
+    <BLANKLINE>
+    end module two
+    <BLANKLINE>
 
     .. warning ::
         Not all Routines can be moved. This transformation will reject

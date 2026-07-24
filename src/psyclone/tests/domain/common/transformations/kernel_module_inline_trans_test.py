@@ -213,9 +213,10 @@ def test_validate_no_inline_global_var(parser):
     inline_trans.validate(kernels[0])
 
 
-def test_validate_name_clashes():
+def test_apply_name_clashes():
     ''' Test that if the module-inline transformation finds the kernel name
-    already used in the Container scope, it raises the appropriate error'''
+    already used in the Container scope it renames the copy appropriately.
+    '''
     # Use LFRic example with a repeated CodedKern
     psy, invoke = get_invoke("4.6_multikernel_invokes.f90", "lfric", idx=0,
                              dist_mem=False)
@@ -223,13 +224,16 @@ def test_validate_name_clashes():
     coded_kern = schedule.children[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
 
-    # Check that name clashes which are not subroutines are handled
-    schedule.symbol_table.add(DataSymbol("ru_code", ScalarType.real_type()))
+    # Check that name clashes which are not subroutines are handled - add a
+    # Symbol to the Container symbol table that will clash with the proposed
+    # new name of the copy of the routine.
+    schedule.parent.symbol_table.add(DataSymbol("ru_code_inlined_",
+                                                ScalarType.real_type()))
     inline_trans.apply(coded_kern)
-    assert coded_kern.name == "ru_code_inlined_"
+    assert coded_kern.name == "ru_code_inlined__1"
 
 
-def test_validate_routine_name_clashes():
+def test_apply_routine_name_clashes():
     ''' Test that the module-inline transformation copes when the kernel name
     is already used by another Routine in the Container scope.'''
     inline_trans = KernelModuleInlineTrans()
