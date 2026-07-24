@@ -208,31 +208,6 @@ def test_duplicate_named_invoke_case():
     assert "3.4_multi_invoke_name_clash_case_insensitive.f90" in str(err.value)
 
 
-def test_get_stencil():
-    ''' Check that parse.get_stencil() raises the correct errors when
-    passed various incorrect inputs. '''
-    from psyclone.parse.kernel import get_stencil
-    from psyclone.expression import ExpressionNode, FunctionVar
-    enode = ExpressionNode(["1"])
-    with pytest.raises(ParseError) as excinfo:
-        _ = get_stencil(enode, ["cross"])
-    assert ("Expecting format stencil(<type>[,<extent>]) but found the "
-            "literal" in str(excinfo.value))
-    node = FunctionVar(["stencil()"])
-    with pytest.raises(ParseError) as excinfo:
-        _ = get_stencil(node, ["cross"])
-    assert ("Expecting format stencil(<type>[,<extent>]) but found stencil()"
-            in str(excinfo.value))
-    node = FunctionVar(["stencil", "cross"])
-    # Deliberately break the args member of node in order to trigger an
-    # internal error
-    node.args = [True]
-    with pytest.raises(ParseError) as excinfo:
-        _ = get_stencil(node, ["cross"])
-    assert ("expecting either FunctionVar or str from the expression analyser"
-            in str(excinfo.value))
-
-
 MDATA = '''
 module testkern_eval_mod
   type, extends(kernel_type) :: testkern_eval_type

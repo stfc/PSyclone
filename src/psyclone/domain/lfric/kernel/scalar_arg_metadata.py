@@ -38,6 +38,8 @@ associated with a scalar argument. Supports the creation, modification
 and Fortran output of a Scalar argument.
 
 '''
+from fparser.two import Fortran2003
+
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.common_meta_arg_metadata import \
     CommonMetaArgMetadata
@@ -61,6 +63,7 @@ class ScalarArgMetadata(CommonMetaArgMetadata):
     check_name = "scalar"
     # The number of arguments in the language-level metadata.
     nargs = 3
+    fparser2_class = Fortran2003.Part_Ref
 
     @classmethod
     def _get_metadata(cls, fparser2_tree):
