@@ -252,9 +252,9 @@ def test_gen_decls(fortran_writer):
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer.gen_decls(symbol_table)
     assert ("The following symbols are not explicitly declared or imported "
-            "from a module and there are no wildcard "
-            "imports which could be bringing them into scope: "
-            "'unknown'" in str(excinfo.value))
+            "from a module and there are no wildcard imports, generic "
+            "interfaces or CodeBlocks which could be bringing them into scope:"
+            " 'unknown'" in str(excinfo.value))
 
 
 def test_gen_decls_char(fortran_writer):
@@ -347,9 +347,10 @@ def test_gen_decls_nested_scope(fortran_writer):
     # be brought into scope
     with pytest.raises(VisitorError) as err:
         fortran_writer.gen_decls(inner_table)
-    assert ("symbols are not explicitly declared or imported from a module "
-            "and there are no wildcard imports which "
-            "could be bringing them into scope: 'unknown1'" in str(err.value))
+    assert ("The following symbols are not explicitly declared or imported "
+            "from a module and there are no wildcard imports, generic "
+            "interfaces or CodeBlocks which could be bringing them into scope:"
+            " 'unknown1'" in str(err.value))
     # Add a ContainerSymbol with a wildcard import in the outermost scope
     csym = ContainerSymbol("other_mod")
     csym.wildcard_import = True
@@ -527,3 +528,43 @@ def test_gen_interfacedecl(fortran_writer):
   procedure :: sub1
 end interface subx
 ''')
+
+
+def test_procedure_declaration_pointers(fortran_reader, fortran_writer):
+    ''' Check that the procedure declarations are generated, and they have the
+    required attributes added into them.
+    '''
+
+    # The inteface name purposely include public and save interface in their
+    # names to check that this do not confuse the function that adds the
+    # attributes
+    code = """
+    module procedures
+        use other
+        procedure(my_inter) proc_ptr_private
+        procedure(my_public_inter) :: proc_ptr_public
+        public proc_ptr_public
+        private proc_ptr_private
+        implicit none
+        contains
+        subroutine test
+            procedure(my_save_inter), pointer :: proc_ptr => null()
+
+            save proc_ptr
+
+            ! They can be assinged to
+            proc_ptr => my_func
+            ! Called
+            call proc_ptr(10.0, 5.0)
+            ! Or passed as arguments
+            call other_func(proc_ptr)
+
+        end subroutine test
+    end module procedures
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    assert "procedure(my_inter), private :: proc_ptr_private\n" in output
+    assert "procedure(my_public_inter), public :: proc_ptr_public\n" in output
+    assert ("procedure(my_save_inter), pointer, save :: proc_ptr => null()\n"
+            in output)

@@ -85,11 +85,13 @@ def stringify_annotation(annotation) -> str:
     ''' Simple PSyclone method to turn a Python type annotation to a string
     when sphinx is not available.
 
-    :param annotation: The type annotation to convert to a string.
-    :type annotation: TypeAliasType
+    :param annotation: the type annotation to convert to a string.
+    :type annotation: Union[Type, TypeAliasType]
 
     :returns: The string representation of annotation.
     '''
+    if isinstance(annotation, type):
+        return annotation.__name__
     return str(annotation)
 
 

@@ -682,8 +682,9 @@ def test_definition_use_chain_find_forward_accesses_loop_example(
     chains = DefinitionUseChain(ref)
     reaches = chains.find_forward_accesses()[sig]
     # We should have 1 reaches
-    # It should be the loop
     assert len(reaches) == 1
+    # TODO #3486: Currently it is the whole loop, but now the loop variable
+    # is in the tree, so it should point to it
     assert reaches[0] is routine.walk(Loop)[0]
 
 
@@ -837,7 +838,7 @@ def test_definition_use_chain_find_forward_accesses_codeblock(
     chains = DefinitionUseChain(ref)
     reaches = chains.find_forward_accesses()[sig]
     assert len(reaches) == 1
-    assert reaches[0] is routine.walk(CodeBlock)[0]
+    assert reaches[0] is routine.walk(CodeBlock)[0].children[0]
 
 
 def test_definition_use_chain_find_forward_accesses_codeblock_and_call_nlocal(
@@ -860,7 +861,7 @@ def test_definition_use_chain_find_forward_accesses_codeblock_and_call_nlocal(
     chains = DefinitionUseChain(ref)
     reaches = chains.find_forward_accesses()[sig]
     assert len(reaches) == 1
-    assert reaches[0] is routine.walk(CodeBlock)[0]
+    assert reaches[0] is routine.walk(CodeBlock)[0].children[0]
 
 
 def test_definition_use_chain_find_forward_accesses_codeblock_and_call_cflow(
@@ -886,7 +887,7 @@ def test_definition_use_chain_find_forward_accesses_codeblock_and_call_cflow(
     chains = DefinitionUseChain(ref)
     reaches = chains.find_forward_accesses()[sig]
     assert len(reaches) == 2
-    assert reaches[0] is routine.walk(CodeBlock)[0]
+    assert reaches[0] is routine.walk(CodeBlock)[0].children[0]
     assert reaches[1] is routine.walk(Call)[1]
 
 
@@ -911,7 +912,7 @@ def test_definition_use_chain_find_forward_accesses_codeblock_and_call_local(
     chains = DefinitionUseChain(ref)
     reaches = chains.find_forward_accesses()[sig]
     assert len(reaches) == 1
-    assert reaches[0] is routine.walk(CodeBlock)[0]
+    assert reaches[0] is routine.walk(CodeBlock)[0].children[0]
 
 
 def test_definition_use_chain_find_forward_accesses_call_and_codeblock_nlocal(
@@ -1324,7 +1325,7 @@ def test_if_else_behaviour(fortran_reader):
     references = psyir.walk(Reference)
     # Find the next accesses of some_array(1,4,9) from
     # the lhs of the first assignment.
-    next_accesses = references[4].next_accesses()
+    next_accesses = references[7].next_accesses()
 
     # The next accesses should be the some_array(1,4,9) access in
     # if(tmp3 .or. some_array(1, 4, 9) and to the same reference.
@@ -1332,5 +1333,5 @@ def test_if_else_behaviour(fortran_reader):
     # find any accesses to the some_array writes in the else_bodies
     # of the containing IfBlock nodes
     assert len(next_accesses) == 2
-    assert next_accesses[0] is references[3]
-    assert next_accesses[1] is references[4]
+    assert next_accesses[0] is references[6]
+    assert next_accesses[1] is references[7]
