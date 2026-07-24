@@ -850,7 +850,8 @@ def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_module_inline_with_interfaces(tmpdir):
+@pytest.mark.parametrize("do_all", [True, False])
+def test_module_inline_with_interfaces(tmpdir, do_all):
     ''' Test the module-inlining when the kernel points to an interface, we
     use an LFRic mixed-precision kernel as an example of this.
 
@@ -859,18 +860,20 @@ def test_module_inline_with_interfaces(tmpdir):
                              name="invoke_0", dist_mem=False)
     kern_calls = invoke.schedule.walk(CodedKern)
     inline_trans = KernelModuleInlineTrans()
-    inline_trans.apply(kern_calls[0])
+    inline_trans.apply(kern_calls[0], update_all=do_all)
     sym = kern_calls[0].scope.symbol_table.lookup("mixed_code_inlined_")
     # Check that the interface symbol is declared and is private.
     assert isinstance(sym, GenericInterfaceSymbol)
     assert sym.visibility == Symbol.Visibility.PRIVATE
     # Check that module-inlining the second kernel call (which is to the
     # same interface) doesn't break anything.
-    inline_trans.apply(kern_calls[1])
+    inline_trans.apply(kern_calls[1], update_all=do_all)
     gen = str(psy.gen).lower()
     # Both the caller and the callee are in the file and use the interface
     # name.
     assert "call mixed_code_inlined_(" in gen
+    assert "call mixed_code_32" not in gen
+    assert "call mixed_code_64" not in gen
     assert "interface mixed_code_inlined_" in gen
     assert "subroutine mixed_code_64_inlined_(" in gen
     assert "subroutine mixed_code_32_inlined_(" in gen
@@ -1113,12 +1116,10 @@ def test_mod_inline_no_container(fortran_reader, fortran_writer, tmpdir,
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_mod_inline_from_wildcard_import(fortran_reader, fortran_writer,
-                                         monkeypatch):
+                                         monkeypatch, tmp_path):
     '''
     Test that we can perform module inlining for the case where the routine
-    is accessed via a wildcard import. This is complicated by the need to
-    preserve the original wildcard import while avoiding a clash with the
-    newly-inlined copy of the routine.
+    is accessed via a wildcard import.
 
     '''
     # Create the module containing the subroutine definition, write it to
@@ -1151,7 +1152,7 @@ def test_mod_inline_from_wildcard_import(fortran_reader, fortran_writer,
     csym = prog.symbol_table.lookup("my_mod")
     prog.symbol_table.lookup("my_sub").interface = ImportInterface(csym)
     calls = prog_psyir.walk(Call)
-    intrans.apply(calls[0])
+    intrans.apply(calls[0], update_all=False)
     output = fortran_writer(prog_psyir)
     # Wildcard import is preserved
     assert "use my_mod\n" in output
@@ -1160,13 +1161,14 @@ def test_mod_inline_from_wildcard_import(fortran_reader, fortran_writer,
 subroutine my_sub_inlined_(arg)''' in output)
     new_calls = prog_psyir.walk(Call)
     assert new_calls[0].routine.symbol is not new_calls[1].routine.symbol
-    # Apply the transformation to the second call. This should fail to validate
-    # as there's nothing to do.
-    intrans.apply(calls[1])
+    # Apply the transformation to the second call.
+    intrans.apply(calls[1], update_all=False)
     output = fortran_writer(prog_psyir)
     assert "subroutine my_sub_inlined__1" in output
     assert "call my_sub_inlined__1(" in output
-    # We can't compile this because of the use statement.
+    # Remove the use statement so we can test compilation.
+    fixed = output.replace("use my_mod\n", "")
+    assert Compile(tmp_path).string_compiles(fixed)
 
 
 def test_inline_of_shadowed_import(tmp_path, monkeypatch, fortran_reader,
@@ -1282,9 +1284,9 @@ def test_mod_inline_all_calls_updated(monkeypatch, fortran_reader):
     rt_sym0 = container.symbol_table.lookup("my_sub")
     for call in calls:
         assert call.routine.symbol is rt_sym0
-    intrans.apply(calls[0])
+    intrans.apply(calls[0], update_all=False)
     # All calls previously referenced the same symbol but now the first one
-    # reference the new one.
+    # references the new one.
     rt_sym1 = container.symbol_table.lookup("my_sub_inlined_")
     assert rt_sym0 is not rt_sym1
     assert calls[0].routine.symbol is rt_sym1
