@@ -102,18 +102,18 @@ def test_stencil_metadata():
 
 
 def test_stencil_field_metadata_too_many_arguments():
-    ''' Check that we raise an exception if more than 5 arguments
+    ''' Check that we raise an exception if more than 7 arguments
     are provided in the metadata for a 'gh_field' argument type
     with stencil access.
 
     '''
     result = STENCIL_CODE.replace(
         "(gh_field, gh_real, gh_read, w2, stencil(cross))",
-        "(gh_field, gh_real, gh_read, w2, stencil(cross), w1)", 1)
+        "(gh_field, gh_real, gh_read, w2, stencil(cross), w1, w1, w2)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast)
-    assert ("each 'meta_arg' entry must have at most 5 arguments" in
+    assert ("each 'meta_arg' entry must have at most 7 arguments" in
             str(excinfo.value))
 
 
