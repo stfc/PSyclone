@@ -39,6 +39,7 @@
 
 ''' Tests of the KernelModuleInlineTrans PSyIR transformation. '''
 
+import logging
 import warnings
 import re
 import pytest
@@ -61,6 +62,9 @@ from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import (Compile, count_lines, get_invoke,
                                       make_external_module)
+
+TEST_LOGGER = ("psyclone.domain.common.transformations."
+               "kernel_module_inline_trans")
 
 
 def test_module_inline_constructor_and_str():
@@ -328,9 +332,9 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     assert rsym.visibility == Symbol.Visibility.PRIVATE
 
 
-def test_validate_already_existing_local_routine(fortran_reader):
-    '''Test that validate rejects a call to a routine that is already present
-    in the current Container.'''
+def test_validate_already_existing_local_routine(fortran_reader, caplog):
+    '''Test that validate accepts a call to a routine that is already present
+    in the current Container but logs a warning.'''
     psyir = fortran_reader.psyir_from_source('''
     module my_mod
         integer, parameter :: r_def = kind(1.0d0)
@@ -347,10 +351,10 @@ def test_validate_already_existing_local_routine(fortran_reader):
     ''')
     call = psyir.walk(Call)[0]
     inline_trans = KernelModuleInlineTrans()
-    with pytest.raises(TransformationError) as err:
-        inline_trans.validate(call)
-    assert ("The target of 'call do_something(a)' is already module inlined."
-            in str(err.value))
+    with caplog.at_level(logging.INFO, logger=TEST_LOGGER):
+        inline_trans.apply(call)
+    assert ("The target of 'call do_something(a)' is already present in the "
+            "local scope." in caplog.text)
 
 
 def test_validate_fail_to_get_psyir(fortran_reader, config_instance):
@@ -507,7 +511,7 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir, do_all):
         for coded_kern in schedule1.walk(CodedKern):
             if coded_kern.name == "testkern_qr_code":
                 count += 1
-                mod_inline_trans.apply(coded_kern)
+                mod_inline_trans.apply(coded_kern, update_all=do_all)
         assert count == 3
         gen = str(psy.gen)
     # After this, the imports remain unchanged and all four calls are now
@@ -537,7 +541,7 @@ def test_module_inline_apply_polymorphic_kernel_in_multiple_invokes(tmpdir):
     schedule1 = psy.invokes.invoke_list[0].schedule
     for coded_kern in schedule1.walk(CodedKern):
         if coded_kern.name == "mixed_code":
-            mod_inline_trans.apply(coded_kern)
+            mod_inline_trans.apply(coded_kern, update_all=False)
             # Transform that kernel. We have to use 'force' as it contains
             # a CodeBlock.
             artrans.apply(coded_kern, options={"force": True})
@@ -581,7 +585,7 @@ def test_module_inline_apply_same_kernel(tmpdir):
     schedule = invoke.schedule
     kern_calls = schedule.coded_kernels()
     inline_trans = KernelModuleInlineTrans()
-    inline_trans.apply(kern_calls[0])
+    inline_trans.apply(kern_calls[0], update_all=False)
     gen = str(psy.gen)
     # check that the subroutine has been inlined
     assert 'subroutine compute_cu_code_inlined_(' in gen
@@ -943,7 +947,7 @@ def test_module_inline_interface_with_renamed_import(monkeypatch,
     psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(TransformationError) as err:
         intrans.validate(psyir.walk(Call)[0])
-    assert ("Cannot module-inline the call to 'local_name' since it is a "
+    assert ("Cannot copy the target of the call to 'local_name' since it is a "
             "polymorphic routine" in str(err.value))
     code = '''\
     module second_mod
@@ -1207,7 +1211,7 @@ def test_inline_of_shadowed_import(tmp_path, monkeypatch, fortran_reader,
     csym = do_it.symbol_table.lookup("my_mod")
     do_it.symbol_table.lookup("my_sub").interface = ImportInterface(csym)
     calls = prog_psyir.walk(Call)
-    intrans.apply(calls[0])
+    intrans.apply(calls[0], update_all=False)
     assert (do_it.walk(Call)[0].routine.symbol is
             container.symbol_table.lookup("my_sub_inlined_"))
     # Call in second subroutine still refers to imported Symbol in local table.
@@ -1215,7 +1219,7 @@ def test_inline_of_shadowed_import(tmp_path, monkeypatch, fortran_reader,
     assert (again.walk(Call)[0].routine.symbol is
             again.symbol_table.lookup("my_sub", scope_limit=again))
     # Apply the transformation to the call in the second routine.
-    intrans.apply(calls[1])
+    intrans.apply(calls[1], update_all=False)
     # Now it should refer to another top-level, inlined RoutineSymbol.
     assert calls[1].routine.symbol is container.symbol_table.lookup(
         "my_sub_inlined__1")

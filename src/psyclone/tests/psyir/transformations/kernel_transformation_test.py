@@ -338,7 +338,7 @@ def test_1kern_trans(tmp_path):
     kernels = sched.coded_kernels()
     kern = kernels[1]
     # We have to module-inline the kernel before we can transform it
-    KernelModuleInlineTrans().apply(kern)
+    KernelModuleInlineTrans().apply(kern, update_all=False)
     rtrans = ACCRoutineTrans()
     rtrans.apply(kern)
     # Generate the code
