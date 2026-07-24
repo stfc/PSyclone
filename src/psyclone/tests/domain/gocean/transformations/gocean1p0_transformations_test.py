@@ -1530,8 +1530,8 @@ def test_accroutinetrans_with_kern(fortran_writer, monkeypatch):
     monkeypatch.setattr(kern, "get_callees", raise_gen_error)
     with pytest.raises(TransformationError) as err:
         rtrans.apply(kern)
-    assert ("Failed to create PSyIR for kernel 'continuity_code'. Cannot "
-            "transform such a kernel." in str(err.value))
+    assert ("Failed to create PSyIR for kernel 'continuity_code_inlined_'. "
+            "Cannot transform such a kernel." in str(err.value))
 
 
 def test_accroutinetrans_with_routine(fortran_writer):

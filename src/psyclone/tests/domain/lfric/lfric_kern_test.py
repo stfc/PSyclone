@@ -308,6 +308,7 @@ def test_validate_kernel_code_arg(monkeypatch):
     kernel = LFRicKern()
     # Kernel name needs to be set when testing exceptions.
     kernel._name = "dummy"
+
     read_access = ArgumentInterface(ArgumentInterface.Access.READ)
 
     real_scalar_symbol = DataSymbol(

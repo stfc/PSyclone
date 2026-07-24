@@ -554,11 +554,6 @@ This is achieved using ``KernelModuleInlineTrans``:
 Once the PSy-layer has its own, private copy of the Kernel, it may
 subsequently be transformed.
 
-.. note:: Currently ``KernelModuleInlineTrans`` does not support re-naming
-	  the in-lined Kernel routine. This means that *all* calls to that
-	  Kernel in that source file are updated so as to call the same,
-	  local copy. #2846 will lift this limitation.
-
 To transform a kernel, one must first obtain its PSyIR with:
 
 .. automethod:: psyclone.psyGen.CodedKern.get_callees

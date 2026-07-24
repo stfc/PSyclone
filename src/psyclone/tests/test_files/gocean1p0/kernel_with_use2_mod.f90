@@ -40,8 +40,7 @@ module kernel_with_use2_mod
 
   private
 
-  public bc_ssh
-  public bc_ssh_code
+  public kernel_with_use2, kernel_with_use2_code
 
   !=======================================
 
