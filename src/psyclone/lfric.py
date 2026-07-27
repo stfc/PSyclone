@@ -5647,8 +5647,8 @@ class LFRicKernelArgument(KernelArgument):
             self._mesh = arg_meta_data.mesh.lower()
         else:
             self._mesh = None
-        # The number of vertical levels (for a field/operator)
-        self._nlevels: Optional[str] = arg_meta_data.nlevels
+        # The number of vertical layers (for a field/operator)
+        self._nlayers: Optional[str] = arg_meta_data.nlayers
         # The number of data values associated with each DoF of a field
         self._ndata: Optional[str] = arg_meta_data.ndata
 
@@ -5663,15 +5663,15 @@ class LFRicKernelArgument(KernelArgument):
         if self.is_operator:
 
             fs1 = FunctionSpace(arg_meta_data.function_space_to,
-                                self._kernel_args, self._nlevels,
+                                self._kernel_args, self._nlayers,
                                 self._ndata)
             fs2 = FunctionSpace(arg_meta_data.function_space_from,
-                                self._kernel_args, self._nlevels,
+                                self._kernel_args, self._nlayers,
                                 self._ndata)
         else:
             if arg_meta_data.function_space:
                 fs1 = FunctionSpace(arg_meta_data.function_space,
-                                    self._kernel_args, self._nlevels,
+                                    self._kernel_args, self._nlayers,
                                     self._ndata)
         self._function_spaces = [fs1, fs2]
 
@@ -6186,15 +6186,15 @@ class LFRicKernelArgument(KernelArgument):
         return self._name
 
     @property
-    def nlevels(self) -> Optional[str]:
+    def nlayers(self) -> Optional[str]:
         '''
-        :returns: the number of vertical levels of this (field/operator)
+        :returns: the number of vertical layers of this (field/operator)
             argument, as specified in the Kernel metadata. Default is None
             in which case the value is the same as that of the first
             field/operator argument.
 
         '''
-        return self._nlevels
+        return self._nlayers
 
     @property
     def ndata(self) -> str:

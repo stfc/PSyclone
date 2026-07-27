@@ -32,8 +32,8 @@
 ! Author: A. R. Porter, STFC Daresbury Lab
 
 !> An example LFRic kernel which has arguments with non-default values
-!! of NLEVELS and NDATA.
-module testkern_nlevels_ndata_mod
+!! of NLAYERS and NDATA.
+module testkern_nlayers_ndata_mod
 
   use argument_mod
   use fs_continuity_mod
@@ -42,31 +42,31 @@ module testkern_nlevels_ndata_mod
 
   implicit none
 
-  type, extends(kernel_type) :: testkern_nlevels_ndata_type
+  type, extends(kernel_type) :: testkern_nlayers_ndata_type
      type(arg_type), dimension(7) :: meta_args =                           &
           (/ arg_type(gh_scalar, gh_real, gh_read),                        &
              arg_type(gh_field,  gh_real, gh_inc,  w1),                    &
              arg_type(gh_field,  gh_real, gh_read, w2),                    &
-             ! Non-default number of levels.
-             arg_type(gh_field,  gh_real, gh_read, w2, nlevels="shallow"), &
-             ! Non-default number of levels but same as previous arg. so
+             ! Non-default number of layers.
+             arg_type(gh_field,  gh_real, gh_read, w2, nlayers="shallow"), &
+             ! Non-default number of layers but same as previous arg. so
              ! has same dof map.
-             arg_type(gh_field,  gh_real, gh_read, w2, nlevels="shallow"), &
+             arg_type(gh_field,  gh_real, gh_read, w2, nlayers="shallow"), &
              ! Non-default number of data values per dof.
              arg_type(gh_field,  gh_real, gh_read, w2, ndata="precip"),    &
-             ! Although we have seen the values of ndata and nlevels before
+             ! Although we have seen the values of ndata and nlayers before
              ! (individually), the dof map will be different.
              arg_type(gh_field,  gh_real, gh_read, w2, ndata="precip",     &
-                      nlevels="shallow")                                   &
+                      nlayers="shallow")                                   &
            /)
      integer :: operates_on = cell_column
    contains
-     procedure, nopass :: code => testkern_nlevels_ndata_code
-  end type testkern_nlevels_ndata_type
+     procedure, nopass :: code => testkern_nlayers_ndata_code
+  end type testkern_nlayers_ndata_type
 
 contains
 
-  subroutine testkern_nlevels_ndata_code(&
+  subroutine testkern_nlayers_ndata_code(&
        nlayers, ascalar, fld1, fld2,     &
        fld3, nlayers_fld3,               &
        fld5,                             &
@@ -99,6 +99,6 @@ contains
     real(kind=r_def), intent(in), dimension(undf_w3)    :: fld4
     real(kind=r_def), intent(in), dimension(undf_fld6)  :: fld6
 
-  end subroutine testkern_nlevels_ndata_code
+  end subroutine testkern_nlayers_ndata_code
 
-end module testkern_nlevels_ndata_mod
+end module testkern_nlayers_ndata_mod

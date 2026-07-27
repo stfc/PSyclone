@@ -39,6 +39,7 @@
 ''' This module implements the LFRicCellIterators collection which handles
     the requirements of kernels that operator on cells.'''
 
+from psyclone.domain.lfric import LFRicKernelArgument
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.lfric_types import LFRicTypes
@@ -72,11 +73,23 @@ class LFRicCellIterators(LFRicCollection):
             # argument.
             for kern in self._invoke.schedule.walk(LFRicKern):
                 if kern.iterates_over != "dof":
-                    arg = kern.arguments.first_field_or_operator
+                    first_arg: LFRicKernelArgument = (
+                        kern.arguments.first_field_or_operator)
                     sym = self.symtab.find_or_create_tag(
-                        f"nlayers_{arg.name}",
+                        f"nlayers_{first_arg.name}",
                         symbol_type=LFRicTypes("MeshHeightDataSymbol"))
-                    self._nlayers_names[sym.name] = arg
+                    self._nlayers_names[sym.name] = first_arg
+                    # We must also check for any subsequent arguments that have
+                    # a number of layers specified by a label in the metadata.
+                    for arg in kern.arguments.args:
+                        if not arg.nlayers:
+                            continue
+                        if arg.nlayers.isnumeric():
+                            continue
+                        sym = self.symtab.find_or_create_tag(
+                            f"nlayers_{arg.nlayers}",
+                            symbol_type=LFRicTypes("MeshHeightDataSymbol"))
+                        self._nlayers_names[sym.name] = arg
 
             first_var = None
             for var in self._invoke.psy_unique_vars:

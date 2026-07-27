@@ -1206,6 +1206,37 @@ def test_field_nlevels(tmp_path):
                         dist_mem=False, api=TEST_API, idx=0)
     output = str(psy.gen)
 
+    # Check the dofmap lookups.
+    expected = '''\
+    ! Look-up dofmaps for each function space
+    map_w1 => f1_proxy%vspace%get_whole_dofmap()
+    map_w2 => f2_proxy%vspace%get_whole_dofmap()
+    map_w2_shallow => f2_proxy%vspace%get_whole_dofmap()
+    map_w2_precip => f2_proxy%vspace%get_whole_dofmap()
+    map_w2_shallow_precip => f2_proxy%vspace%get_whole_dofmap()
+
+    ! Initialise number of DoFs for w1
+    ndf_w1 = f1_proxy%vspace%get_ndf()
+    undf_w1 = f1_proxy%vspace%get_undf()
+
+    ! Initialise number of DoFs for w2
+    ndf_w2 = f2_proxy%vspace%get_ndf()
+    undf_w2 = f2_proxy%vspace%get_undf()
+
+    ! Initialise number of DoFs for w2_shallow
+    ndf_w2_shallow = f3_proxy%vspace%get_ndf()
+    undf_w2_shallow = f3_proxy%vspace%get_undf()
+
+    ! Initialise number of DoFs for w2_precip
+    ndf_w2_precip = f5_proxy%vspace%get_ndf()
+    undf_w2_precip = f5_proxy%vspace%get_undf()
+
+    ! Initialise number of DoFs for w2_shallow_precip
+    ndf_w2_shallow_precip = f6_proxy%vspace%get_ndf()
+    undf_w2_shallow_precip = f6_proxy%vspace%get_undf()
+'''
+    assert expected in output
+
     # Check the kernel call.
     assert ("call testkern_nlevels_ndata_code(nlayers_f1, a, "
             "f1_data, f2_data, f3_data, f3_nlevels, f4_data, "
