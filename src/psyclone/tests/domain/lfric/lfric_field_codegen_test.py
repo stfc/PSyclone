@@ -42,12 +42,11 @@ LFRic field arguments.
 '''
 
 import os
-import pytest
 
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.tests.utilities import get_invoke, get_psylayer_schedule
+from psyclone.tests.utilities import get_invoke
 
 
 # Constants
@@ -1198,14 +1197,30 @@ def test_int_real_field_fs(dist_mem, tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_field_nlevels():
+def test_field_nlevels(tmp_path):
     '''Test for a kernel that has arguments with non-default values of
     NLEVELS and NDATA.
 
     '''
-    with pytest.raises(NotImplementedError) as err:
-        _ = get_psylayer_schedule("1.5.6_single_invoke_nlevels_ndata.f90",
-                                  TEST_API)
-    # TODO #868 - code generation yet to be implemented.
-    assert ("Cannot generate arguments for kernel "
-            "'testkern_nlevels_ndata_code'" in str(err.value))
+    psy, _ = get_invoke("1.5.6_single_invoke_nlevels_ndata.f90",
+                        dist_mem=False, api=TEST_API, idx=0)
+    output = str(psy.gen)
+
+    # Check the kernel call.
+    assert ("call testkern_nlevels_ndata_code(nlayers_f1, a, "
+            "f1_data, f2_data, f3_data, f3_nlevels, f4_data, "
+            "f5_data, f5_ndata, f6_data, "
+            # Arg one is on W1
+            "ndf_w1, undf_w1, map_w1(:,cell), "
+            # Arg two is on W2
+            "ndf_w2, undf_w2, map_w2(:,cell), "
+            # Arg three (and four) are on w2 but with nlevels='shallow'
+            "ndf_w2_shallow, undf_w2_shallow, map_w2_shallow(:,cell), "
+            # Arg five is on w2 but has ndata='precip'
+            "ndf_w2_precip, undf_w2_precip, map_w2_precip(:,cell), "
+            # Arg six is on w2 but has nlevels='shallow' *and* ndata='precip'
+            "ndf_w2_shallow_precip, undf_w2_shallow_precip, "
+            "map_w2_shallow_precip(:,cell)"
+            ")" in output)
+
+    assert LFRicBuild(tmp_path).code_compiles(psy)

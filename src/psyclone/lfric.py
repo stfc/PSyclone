@@ -49,7 +49,7 @@ import os
 from enum import Enum
 from collections import OrderedDict, namedtuple
 from dataclasses import dataclass
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Union
 
 from psyclone import psyGen
 from psyclone.configuration import Config
@@ -5289,8 +5289,6 @@ class LFRicKernelArguments(Arguments):
         kernel metadata and the algorithm layer. Defaults to True.
 
     :raises GenerationError: if the kernel metadata specifies stencil extent.
-    :raises NotImplementedError: if the kernel metadata specifies arguments
-      with either NDATA or NLEVELS.
 
     '''
     def __init__(self,
@@ -5306,7 +5304,7 @@ class LFRicKernelArguments(Arguments):
 
         # create our arguments and add in stencil information where
         # appropriate.
-        self._args = []
+        self._args: list[LFRicKernelArgument] = []
         idx = 0
         for arg in call.ktype.arg_descriptors:
             lfric_argument = LFRicKernelArgument(self, arg, call.args[idx],
@@ -5391,13 +5389,6 @@ class LFRicKernelArguments(Arguments):
         # List of corresponding unique function-space objects
         self._unique_fss = []
         for arg in self._args:
-            if arg.nlevels or arg.ndata != "1":
-                name = (f"'{self._parent_call.name}'" if self._parent_call
-                        else "stub")
-                raise NotImplementedError(
-                    f"Cannot generate arguments for kernel {name}: code "
-                    f"generation for kernels specifying NLEVELS or NDATA in "
-                    f"their metadata is not yet supported - TODO #868")
             for fspace in arg.function_spaces:
                 # We check that function_space is not None because scalar
                 # args don't have one and fields only have one (only
@@ -5657,9 +5648,9 @@ class LFRicKernelArgument(KernelArgument):
         else:
             self._mesh = None
         # The number of vertical levels (for a field/operator)
-        self._nlevels = arg_meta_data.nlevels
+        self._nlevels: Optional[str] = arg_meta_data.nlevels
         # The number of data values associated with each DoF of a field
-        self._ndata = arg_meta_data.ndata
+        self._ndata: Optional[str] = arg_meta_data.ndata
 
         # The list of function-space objects for this argument. Each
         # object can be queried for its original name and for the
@@ -5672,13 +5663,16 @@ class LFRicKernelArgument(KernelArgument):
         if self.is_operator:
 
             fs1 = FunctionSpace(arg_meta_data.function_space_to,
-                                self._kernel_args)
+                                self._kernel_args, self._nlevels,
+                                self._ndata)
             fs2 = FunctionSpace(arg_meta_data.function_space_from,
-                                self._kernel_args)
+                                self._kernel_args, self._nlevels,
+                                self._ndata)
         else:
             if arg_meta_data.function_space:
                 fs1 = FunctionSpace(arg_meta_data.function_space,
-                                    self._kernel_args)
+                                    self._kernel_args, self._nlevels,
+                                    self._ndata)
         self._function_spaces = [fs1, fs2]
 
         # Set the argument's intrinsic type from its descriptor's
@@ -6313,24 +6307,21 @@ class LFRicKernelArgument(KernelArgument):
         return self.proxy_name
 
     @property
-    def proxy_data_type(self):
+    def proxy_data_type(self) -> Union[str, None]:
         '''
-        :returns: the type of this argument's proxy (if it exists) as \
+        :returns: the type of this argument's proxy (if it exists) as
                   defined in LFRic infrastructure.
-        :rtype: str or NoneType
-
         '''
         return self._proxy_data_type
 
     @property
-    def function_space(self):
+    def function_space(self) -> FunctionSpace:
         '''
         Returns the expected finite element function space for a kernel
         argument as specified by the kernel argument metadata: a single
         function space for a field and function_space_from for an operator.
 
         :returns: function space for this argument.
-        :rtype: :py:class:`psyclone.domain.lfric.FunctionSpace`
         '''
         if self._argument_type == "gh_operator":
             # We return the 'from' space for an operator argument
@@ -6338,23 +6329,21 @@ class LFRicKernelArgument(KernelArgument):
         return self._function_spaces[0]
 
     @property
-    def function_space_to(self):
+    def function_space_to(self) -> FunctionSpace:
         '''
         :returns: the 'to' function space of an operator.
-        :rtype: str
         '''
         return self._function_spaces[0]
 
     @property
-    def function_space_from(self):
+    def function_space_from(self) -> FunctionSpace:
         '''
-        :returns:  the 'from' function space of an operator.
-        :rtype: str
+        :returns: the 'from' function space of an operator.
         '''
         return self._function_spaces[1]
 
     @property
-    def function_spaces(self):
+    def function_spaces(self) -> list[FunctionSpace]:
         '''
         Returns the expected finite element function space for a kernel
         argument as specified by the kernel argument metadata: a single
@@ -6362,7 +6351,6 @@ class LFRicKernelArgument(KernelArgument):
         function_space_to and function_space_from for an operator.
 
         :returns: function space(s) for this argument.
-        :rtype: list of :py:class:`psyclone.domain.lfric.FunctionSpace`
 
         '''
         return self._function_spaces
