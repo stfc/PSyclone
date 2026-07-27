@@ -70,9 +70,9 @@ class FieldVectorArgMetadata(FieldArgMetadata):
     vector = True
 
     def __init__(self, datatype, access, function_space, vector_length,
-                 stencil=None, nlevels=None, ndata=1):
+                 stencil=None, nlayers=None, ndata=1):
         super().__init__(datatype, access, function_space, stencil=stencil,
-                         nlevels=nlevels, ndata=ndata)
+                         nlayers=nlayers, ndata=ndata)
         self.vector_length = vector_length
 
     @classmethod
@@ -91,14 +91,14 @@ class FieldVectorArgMetadata(FieldArgMetadata):
             for this argument.
 
         :returns: a tuple containing the datatype, access, function
-            space, vector-length, stencil, nlevels and ndata metadata.
+            space, vector-length, stencil, nlayers and ndata metadata.
 
         '''
         (datatype, access, function_space, stencil,
-         nlevels, ndata) = super()._get_metadata(fparser2_tree)
+         nlayers, ndata) = super()._get_metadata(fparser2_tree)
         vector_length = cls.get_vector_length(fparser2_tree)
         return (datatype, access, function_space, vector_length, stencil,
-                nlevels, ndata)
+                nlayers, ndata)
 
     def fortran_string(self):
         '''

@@ -67,11 +67,11 @@ class FunctionSpace():
     def __init__(self,
                  name: str,
                  kernel_args: "LFRicKernelArguments",
-                 nlevels: Optional[str] = None,
+                 nlayers: Optional[str] = None,
                  ndata: Optional[str] = "1"):
         self._orig_name = name
         self._kernel_args = kernel_args
-        self._nlevels = nlevels
+        self._nlayers = nlayers
         self._ndata = ndata
 
         const = LFRicConstants()
@@ -112,7 +112,7 @@ class FunctionSpace():
         const = LFRicConstants()
         if (self._orig_name not in const.VALID_ANY_SPACE_NAMES +
                 const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES):
-            if (not self._nlevels) and self._ndata == "1":
+            if (not self._nlayers) and self._ndata == "1":
                 return self._orig_name
             base_name = self._orig_name
         else:
@@ -136,8 +136,8 @@ class FunctionSpace():
                     f"space '{self._orig_name}'")
 
         parts = [base_name]
-        if self._nlevels:
-            parts.append(self._nlevels)
+        if self._nlayers:
+            parts.append(self._nlayers)
         if self._ndata != "1":
             parts.append(self._ndata)
         return self._shorten_name("_".join(parts))

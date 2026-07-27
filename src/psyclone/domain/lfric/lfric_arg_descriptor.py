@@ -109,9 +109,9 @@ class LFRicArgDescriptor(Descriptor):
         self._function_space2 = None
         self._stencil = None
         self._mesh = None
-        # No. of vertical levels associated with the argument. Defaults to
+        # No. of vertical layers associated with the argument. Defaults to
         # using that of the first field/operator argument to a kernel.
-        self._nlevels = None
+        self._nlayers = None
         # No. of data values per dof - defaults to 1.
         self._ndata = "1"
         self._nargs = 0
@@ -416,9 +416,9 @@ class LFRicArgDescriptor(Descriptor):
                     elif "mesh" in str(arg_type.args[prop_ind]):
                         self._mesh = get_mesh(arg_type.args[prop_ind],
                                               const.VALID_MESH_TYPES)
-                    elif "nlevels" in str(arg_type.args[prop_ind]):
-                        self._nlevels = get_char_value(arg_type.args[prop_ind],
-                                                       "nlevels")
+                    elif "nlayers" in str(arg_type.args[prop_ind]):
+                        self._nlayers = get_char_value(arg_type.args[prop_ind],
+                                                       "nlayers")
                     elif "ndata" in str(arg_type.args[prop_ind]):
                         self._ndata = get_char_value(arg_type.args[prop_ind],
                                                      "ndata")
@@ -428,7 +428,7 @@ class LFRicArgDescriptor(Descriptor):
                     raise ParseError(
                         f"In the LFRic API argument {prop_ind+1} of a "
                         f"'meta_arg' field entry must be either a valid "
-                        f"stencil specification, a number of levels, a number "
+                        f"stencil specification, a number of layers, a number "
                         f"of data values per dof or a mesh identifier (for "
                         f"inter-grid kernels). However, entry '{arg_type}' "
                         f"raised the following error: {err}.") from err
@@ -806,14 +806,14 @@ class LFRicArgDescriptor(Descriptor):
                             f"'{self._argument_type}'.")
 
     @property
-    def nlevels(self) -> Optional[str]:
+    def nlayers(self) -> Optional[str]:
         '''
         :returns: a label (or integer, encoded as a string) identifying the
-            number of vertical levels associated with this argument or None
-            if the default (the number of levels associated with the first
+            number of vertical layers associated with this argument or None
+            if the default (the number of layers associated with the first
             kernel argument) is to be used.
         '''
-        return self._nlevels
+        return self._nlayers
 
     @property
     def ndata(self) -> str:

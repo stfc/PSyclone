@@ -59,7 +59,7 @@ def test_create(datatype, access, function_space):
     assert field_arg._function_space == "w0"
     assert field_arg._stencil is None
     assert field_arg.ndata == "1"
-    assert field_arg.nlevels is None
+    assert field_arg.nlayers is None
 
 
 def test_create_stencil():
@@ -74,16 +74,16 @@ def test_create_stencil():
     assert field_arg._access == "gh_read"
     assert field_arg._function_space == "w0"
     assert field_arg._stencil == "cross"
-    assert field_arg.nlevels is None
+    assert field_arg.nlayers is None
     assert field_arg.ndata == "1"
 
 
-def test_create_nlevels_ndata():
+def test_create_nlayers_ndata():
     '''Test that an instance of FieldArgMetadata can be created successfully
-    with optional ndata and nlevels metadata.
+    with optional ndata and nlayers metadata.
 
     '''
-    fld_arg = FieldArgMetadata("gh_real", "gh_write", "w0", nlevels="1",
+    fld_arg = FieldArgMetadata("gh_real", "gh_write", "w0", nlayers="1",
                                stencil="cross")
     assert isinstance(fld_arg, FieldArgMetadata)
     assert fld_arg.form == "gh_field"
@@ -91,12 +91,12 @@ def test_create_nlevels_ndata():
     assert fld_arg._access == "gh_write"
     assert fld_arg._function_space == "w0"
     assert fld_arg._stencil == "cross"
-    assert fld_arg.nlevels == "1"
+    assert fld_arg.nlayers == "1"
     assert fld_arg.ndata == "1"
-    fld_arg2 = FieldArgMetadata("gh_real", "gh_write", "w0", nlevels="ustar",
+    fld_arg2 = FieldArgMetadata("gh_real", "gh_write", "w0", nlayers="ustar",
                                 stencil="cross", ndata="big_phys")
     assert fld_arg2._stencil == "cross"
-    assert fld_arg2.nlevels == "ustar"
+    assert fld_arg2.nlayers == "ustar"
     assert fld_arg2.ndata == "big_phys"
 
 
@@ -123,16 +123,16 @@ def test_init_invalid_stencil():
 
 
 @pytest.mark.parametrize(
-    "metadata,expected_stencil,expected_nlevels,expected_ndata",
+    "metadata,expected_stencil,expected_nlayers,expected_ndata",
     [("arg_type(GH_FIELD, GH_REAL, GH_READ, W0)", None, None, None),
      ("arg_type(GH_FIELD, GH_REAL, GH_READ, W0, stencil(region))",
       "region", None, None),
-     ('arg_type(GH_FIELD, GH_REAL, GH_READ, W0, nlevels="big")',
+     ('arg_type(GH_FIELD, GH_REAL, GH_READ, W0, nlayers="big")',
       None, "big", None),
      ('arg_type(GH_FIELD, GH_REAL, GH_READ, W0, stencil(region), '
-      'nlevels="big", ndata="4")',
+      'nlayers="big", ndata="4")',
       "region", "big", "4")])
-def test_get_metadata(metadata, expected_stencil, expected_nlevels,
+def test_get_metadata(metadata, expected_stencil, expected_nlayers,
                       expected_ndata):
     '''Test that the _get_metadata class method works as expected, with
     and without optional stencil metadata.
@@ -141,12 +141,12 @@ def test_get_metadata(metadata, expected_stencil, expected_nlevels,
     encoding = Fortran2003.Structure_Constructor
     fparser2_tree = FieldArgMetadata.create_fparser2(metadata, encoding)
     (datatype, access, function_space, stencil,
-     nlevels, ndata) = FieldArgMetadata._get_metadata(fparser2_tree)
+     nlayers, ndata) = FieldArgMetadata._get_metadata(fparser2_tree)
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
     assert function_space == "W0"
     assert stencil == expected_stencil
-    assert nlevels == expected_nlevels
+    assert nlayers == expected_nlayers
     assert ndata == expected_ndata
 
 
@@ -187,7 +187,7 @@ def test_get_stencil():
     "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)",
     "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, STENCIL(REGION))",
     "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, NDATA='THREE')",
-    "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, NLEVELS='4')"])
+    "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, NLAYERS='4')"])
 def test_fortran_string(fortran_string):
     '''Test that the fortran_string method works as expected. Test with
     and without a stencil.

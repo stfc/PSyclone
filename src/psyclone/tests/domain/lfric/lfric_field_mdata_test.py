@@ -390,26 +390,26 @@ def test_arg_descriptor_field():
     assert field_descriptor.mesh is None
     assert field_descriptor.stencil is None
     assert field_descriptor.vector_size == 1
-    assert field_descriptor.nlevels is None
+    assert field_descriptor.nlayers is None
     assert field_descriptor.ndata == "1"
 
 
-def test_fld_nlevels():
+def test_fld_nlayers():
     '''
-    Test a field argument with the optional 'nlevels' metatadata.
+    Test a field argument with the optional 'nlayers' metatadata.
     '''
     code = FIELD_CODE.replace(
         "arg_type(gh_scalar, gh_integer, gh_read)",
-        "arg_type(gh_field, gh_real, gh_read, w3, nlevels='double')", 1)
+        "arg_type(gh_field, gh_real, gh_read, w3, nlayers='double')", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_field_type"
     mdata = LFRicKernMetadata(ast, name=name)
-    # By default, nlevels is left as None.
+    # By default, nlayers is left as None.
     field_descriptor = mdata.arg_descriptors[5]
-    assert field_descriptor.nlevels is None
-    # The seventh argument has nlevels specified as "double"
+    assert field_descriptor.nlayers is None
+    # The seventh argument has nlayers specified as "double"
     field_descriptor = mdata.arg_descriptors[6]
-    assert field_descriptor.nlevels == "double"
+    assert field_descriptor.nlayers == "double"
 
 
 def test_fld_ndata():

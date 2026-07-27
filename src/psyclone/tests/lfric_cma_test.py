@@ -345,11 +345,11 @@ def test_cma_mdata_asm_fld_stencil_error():
             in str(excinfo.value))
 
 
-@pytest.mark.parametrize("mdata_name", ["NLEVELS", "NDATA"])
-def test_cma_mdata_asm_fld_nlevels_ndata_error(mdata_name):
+@pytest.mark.parametrize("mdata_name", ["NLAYERS", "NDATA"])
+def test_cma_mdata_asm_fld_nlayers_ndata_error(mdata_name):
     '''
     Check that we raise the expected error if a CMA kernel has an argument
-    with a non-default value of either NLEVELS or NDATA.
+    with a non-default value of either NLAYERS or NDATA.
     '''
     code = CMA_ASSEMBLE.replace(
         "arg_type(gh_field, gh_real, gh_read, any_space_1)",

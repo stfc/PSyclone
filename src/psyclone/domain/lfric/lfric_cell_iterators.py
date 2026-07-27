@@ -39,7 +39,10 @@
 ''' This module implements the LFRicCellIterators collection which handles
     the requirements of kernels that operator on cells.'''
 
-from psyclone.domain.lfric import LFRicKernelArgument
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from psyclone.domain.lfric import LFRicKernelArgument
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.lfric_types import LFRicTypes

@@ -76,10 +76,10 @@ class InterGridVectorArgMetadata(InterGridArgMetadata):
     vector = True
 
     def __init__(self, datatype, access, function_space, mesh_arg,
-                 vector_length, stencil=None, nlevels=None, ndata="1"):
+                 vector_length, stencil=None, nlayers=None, ndata="1"):
         super().__init__(
             datatype, access, function_space, mesh_arg, stencil=stencil,
-            nlevels=nlevels, ndata=ndata)
+            nlayers=nlayers, ndata=ndata)
         self.vector_length = vector_length
 
     @classmethod
@@ -96,14 +96,14 @@ class InterGridVectorArgMetadata(InterGridArgMetadata):
             for this argument.
 
         :returns: a tuple containing the datatype, access, function
-            space, mesh, vector-length, stencil, nlevels and ndata metadata.
+            space, mesh, vector-length, stencil, nlayers and ndata metadata.
 
         '''
-        datatype, access, function_space, mesh_arg, stencil, nlevels, ndata = \
+        datatype, access, function_space, mesh_arg, stencil, nlayers, ndata = \
             super()._get_metadata(fparser2_tree)
         vector_length = cls.get_vector_length(fparser2_tree)
         return (datatype, access, function_space, mesh_arg, vector_length,
-                stencil, nlevels, ndata)
+                stencil, nlayers, ndata)
 
     def fortran_string(self):
         '''
