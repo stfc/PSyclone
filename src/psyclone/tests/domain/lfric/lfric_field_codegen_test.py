@@ -1206,6 +1206,23 @@ def test_field_nlayers(tmp_path):
                         dist_mem=False, api=TEST_API, idx=0)
     output = str(psy.gen)
 
+    # Check the lookups for the number of layers. There should be the default
+    # value from the first field/op argument and then a second, custom value
+    # for arguments three and six.
+    expected = '''\
+    ! Initialise number of layers
+    nlayers_f1 = f1_proxy%vspace%get_nlayers()
+    nlayers_shallow = f3_proxy%vspace%get_nlayers()
+'''
+    assert expected in output
+
+    # Lookup for the number of data points per dof.
+    expected = '''\
+    ! Initialise number of data values per dof
+    ndata_precip = f5_proxy%vspace%get_ndata()
+'''
+    assert expected in output
+
     # Check the dofmap lookups.
     expected = '''\
     ! Look-up dofmaps for each function space
@@ -1239,8 +1256,8 @@ def test_field_nlayers(tmp_path):
 
     # Check the kernel call.
     assert ("call testkern_nlayers_ndata_code(nlayers_f1, a, "
-            "f1_data, f2_data, f3_data, f3_nlayers, f4_data, "
-            "f5_data, f5_ndata, f6_data, "
+            "f1_data, f2_data, f3_data, nlayers_shallow, f4_data, "
+            "f5_data, ndata_precip, f6_data, "
             # Arg one is on W1
             "ndf_w1, undf_w1, map_w1(:,cell), "
             # Arg two is on W2
