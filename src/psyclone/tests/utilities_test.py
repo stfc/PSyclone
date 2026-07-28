@@ -372,7 +372,7 @@ def test_get_ast():
     """Tests the get_ast function.
     """
     ast = get_ast("lfric", "19.12_single_stencil_region.f90")
-    program = ast.content[1]
+    program = ast.content[7]  # 0:6 are comments
     assert isinstance(program, Program)
     assert program.name == "single_stencil_region"
 

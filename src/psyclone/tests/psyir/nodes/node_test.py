@@ -1648,7 +1648,7 @@ def test_origin_string(fortran_reader):
     # If its a Statement from a file, it can return the PSyIR node type, the
     # line number span, the filename and the original source line.
     string = psyir.walk(Statement)[0].origin_string()
-    assert "Assignment from line (76, 76) of file" in string
+    assert "Assignment from line (50, 50) of file" in string
     assert "continuity_mod.f90" in string
     assert "ssha(ji,jj) = 0.0_go_wp" in string
 
