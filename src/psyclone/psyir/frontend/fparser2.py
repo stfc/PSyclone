@@ -1765,7 +1765,6 @@ class Fparser2Reader():
             # This is a variable of derived type
             if type_spec.children[0].lower() != "type":
                 # We don't yet support declarations that use 'class'
-                # TODO #1504 extend the PSyIR for this variable type.
                 raise NotImplementedError(
                     f"Could not process {type_spec} - declarations "
                     f"other than 'type' are not yet supported.")
@@ -3461,10 +3460,8 @@ class Fparser2Reader():
         if len(limits_list) == 3 and limits_list[2] is not None:
             self.process_nodes(parent=loop, nodes=[limits_list[2]])
         else:
-            # Default loop increment is 1. Use the type of the start
-            # or step nodes once #685 is complete. For the moment use
-            # the default precision.
-            default_step = Literal("1", default_integer_type())
+            # Default loop increment is 1. Use the type of the start node
+            default_step = Literal("1", loop.children[0].datatype)
             loop.addchild(default_step)
 
         # Create Loop body Schedule
