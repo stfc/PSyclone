@@ -1,13 +1,12 @@
 # -----------------------------------------------------------------------------
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2014.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# SPDX-FileCopyrightText: Copyright (c) The copyright relating to this work is
+#                         owned jointly by the Crown, Met Office and NERC 2014.
+#                         However, it has been created with the help of the
+#                         GungHo Consortium, whose members are identified at
+#                         https://puma.nerc.ac.uk/trac/GungHo/wiki
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author D. Ham Imperial College
-# Modified by R. Ford and A. R. Porter, STFC Daresbury Laboratory
-# Modified by J. Henrichs, Bureau of Meteorology
-
 
 ''' A simple Fortran expression parser. Note that this does not parse Fortran,
 only legal Fortran expressions. '''

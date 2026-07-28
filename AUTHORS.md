@@ -26,6 +26,7 @@ Remembered with gratitude for the vision and contributions that established the 
 - B. Went, Met Office
 - C. Dearden, STFC Daresbury Laboratory
 - C. M. Maynard, Met Office / University of Reading
+- D. Ham, Imperial College
 - D. Sergeev
 - D. Silcock, STFC Daresbury Laboratory
 - H. Brunie, University of Grenoble Alpes
