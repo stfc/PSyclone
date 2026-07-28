@@ -2206,7 +2206,8 @@ class Fparser2Reader():
                     # for those.
                     if not isinstance(
                             datatype,
-                            (ScalarType, ArrayType, UnsupportedType)):
+                            (ScalarType, ArrayType, UnsupportedType,
+                             DataTypeSymbol)):
                         raise NotImplementedError
                     # Otherwise we have an invalid Fortran declaration.
                     raise InternalError(
