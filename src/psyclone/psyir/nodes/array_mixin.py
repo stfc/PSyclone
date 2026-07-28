@@ -723,11 +723,6 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         TODO #2485. This method has false negatives: cases when the range
         is the same but it can not be proved, so we return False.
 
-        TODO #2004. This method currently compares exact ranges, not just the
-        length of them, which could be done with "(upper-lower)/step" symbolic
-        comparisons. This is because arrayrange2loop does not account for
-        arrays declared with different lbounds, but this could be improved.
-
         :param index: the index indicating the location of a range node in
             this array.
         :param array2: the array accessor that we want to compare it to.

@@ -465,7 +465,7 @@ def test_type_bound_call_reference_accesses(fortran_reader):
     '''Test the reference_accesses() method for a call to a type-bound
     procedure.
 
-    TODO #2823 - we currently make dangerous assumptions about accesses
+    We currently make dangerous assumptions about accesses
     to variables if whether or not they are being used as function
     arguments is ambiguous.
 

@@ -222,7 +222,6 @@ class ArrayReference(ArrayMixin, Reference):
         if not isinstance(stype, ArrayType):
             # If we have an array reference to a symbol that is not considered
             # an array by PSyIR, we don't know how to retrieve its element type
-            # (TODO #2448)
             return UnresolvedType()
 
         if isinstance(stype.intrinsic, DataTypeSymbol):

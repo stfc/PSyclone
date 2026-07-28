@@ -43,10 +43,6 @@ kernel in an invoke, nodes in an invoke or the entire invoke (extraction
 applied to all Nodes).
 
 There is currently only one class in this module: ExtractNode (see below).
-
-Another class which contains helper functions for code extraction, such as
-wrapping up settings for generating driver for the extracted code, will
-be added in Issue #298.
 '''
 
 from typing import cast, List, Tuple, TYPE_CHECKING

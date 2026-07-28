@@ -67,7 +67,7 @@ def test_constructor():
     assert processor._resolve_modules is True
     assert processor._last_comments_as_codeblocks is True
 
-    # TODO #3038 Typecheck arguments
+    # Typecheck arguments
 
 
 # TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
