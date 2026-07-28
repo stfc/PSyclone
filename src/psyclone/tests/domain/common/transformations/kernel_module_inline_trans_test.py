@@ -218,8 +218,8 @@ def test_apply_name_clashes():
     already used in the Container scope it renames the copy appropriately.
     '''
     # Use LFRic example with a repeated CodedKern
-    psy, invoke = get_invoke("4.6_multikernel_invokes.f90", "lfric", idx=0,
-                             dist_mem=False)
+    _, invoke = get_invoke("4.6_multikernel_invokes.f90", "lfric", idx=0,
+                           dist_mem=False)
     schedule = invoke.schedule
     coded_kern = schedule.children[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
@@ -229,6 +229,11 @@ def test_apply_name_clashes():
     # new name of the copy of the routine.
     schedule.parent.symbol_table.add(DataSymbol("ru_code_inlined_",
                                                 ScalarType.real_type()))
+    inline_trans.apply(coded_kern)
+    assert coded_kern.name == "ru_code_inlined__1"
+    # Calling apply() a second time should leave things unchanged as the
+    # transformation should spot that the target is already local.
+    assert inline_trans._target_is_local(coded_kern)
     inline_trans.apply(coded_kern)
     assert coded_kern.name == "ru_code_inlined__1"
 

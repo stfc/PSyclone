@@ -132,7 +132,10 @@ class KernelModuleInlineTrans(Transformation):
                  **kwargs) -> None:
         '''
         Checks that the supplied node is a Kernel or Call and that it is
-        possible to inline its PSyIR into the parent Container.
+        possible to copy its PSyIR into the parent Container.
+
+        If the target of the supplied (Kernel) Call is already in local
+        scope then further checks are skipped.
 
         :param node: the kernel or call which is the target of the
                      transformation.
@@ -162,9 +165,9 @@ class KernelModuleInlineTrans(Transformation):
                 f"Target of a {self.name} must be a sub-class of "
                 f"psyGen.CodedKern or psyir.nodes.Call but got "
                 f"'{type(node).__name__}'")
-        kname = node.routine.symbol.name
 
         # Check that the PSyIR of the routine/kernel can be retrieved.
+        kname = node.routine.symbol.name
         try:
             kernels = node.get_callees()
         except Exception as error:
@@ -172,6 +175,10 @@ class KernelModuleInlineTrans(Transformation):
                 f"{self.name} failed to retrieve PSyIR for {kern_or_call} "
                 f"'{kname}' due to: {error}"
             ) from error
+
+        # Return early if the target of the (Kernel) Call is already local.
+        if self._target_is_local(node):
+            return
 
         if len(kernels) > 1:
             # We can't bring the target of a call to an interface into local
@@ -348,7 +355,7 @@ class KernelModuleInlineTrans(Transformation):
     def apply(self,
               node: Union[CodedKern, Call],
               options: dict[str, Any] = None,
-              update_all: Optional[bool] = True,
+              update_all: bool = True,
               **kwargs):
         ''' Bring the implementation of this kernel/call into this Container.
 
@@ -431,6 +438,8 @@ class KernelModuleInlineTrans(Transformation):
                 new_name, symbol_type=RoutineSymbol)
             new_sym.copy_properties(code_to_inline.symbol,
                                     exclude_interface=True)
+            # Do not expose the new symbol externally to prevent unexpected
+            # collisions.
             new_sym.visibility = Symbol.Visibility.PRIVATE
             # Add the new symbol to the map.
             name_map[code_to_inline.name] = new_sym
@@ -459,9 +468,8 @@ class KernelModuleInlineTrans(Transformation):
 
         target_sym = name_map.get(caller_name, None)
         if not target_sym:
-            # If we haven't copied in a routine of 'caller_name'
-            # then it must be because the target of the call is
-            # renamed on import.
+            # If we haven't copied in a routine of 'caller_name' then it must
+            # be because the target of the call is renamed on import.
             target_sym = name_map.get(external_callee_name)
 
         for call in all_calls:
@@ -470,6 +478,7 @@ class KernelModuleInlineTrans(Transformation):
                 if isinstance(node, Call):
                     call.routine.symbol = target_sym
                 else:
+                    # Otherwise node is a CodedKern.
                     call.routine = Reference(target_sym)
                     call._schedules = updated_routines
 
