@@ -10,6 +10,8 @@ captures the argument values for the LFRic kernel
 META_MESH metadata.
 
 '''
+from fparser.two import Fortran2003
+
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 
@@ -21,6 +23,8 @@ class MetaMeshArgMetadata(CommonArgMetadata):
     :param str mesh: the name of the mesh property.
 
     '''
+    fparser2_class = Fortran2003.Part_Ref
+
     def __init__(self, mesh):
         super().__init__()
         self.mesh = mesh

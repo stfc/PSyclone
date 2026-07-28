@@ -6,7 +6,7 @@
 # -----------------------------------------------------------------------------
 
 ''' This module implements the PSyclone LFRic API by capturing the Kernel
-subroutine code and metadata describing the subroutine for the LFRic API.'''
+subroutine code and its associated metadata.'''
 
 from collections import OrderedDict
 import fparser
@@ -382,17 +382,15 @@ class LFRicKernMetadata(KernelType):
         # Finally, record that this is a valid inter-grid kernel
         self._is_intergrid = True
 
-    def _identify_cma_op(self, cwise_ops):
+    def _identify_cma_op(self, cwise_ops: list[str]) -> str:
         '''
         Identify and return the type of CMA-operator-related operation
         this kernel performs (one of "assemble", "apply" or "matrix-matrix")
 
         :param cwise_ops: all column-wise operator arguments in a kernel.
-        :type cwise_ops: list of str
 
         :returns: the type of CMA-operator-related operation that this
                   kernel performs.
-        :rtype: str
 
         :raises ParseError: if the kernel metadata does not conform to the
                             LFRic rules for a kernel with a CMA operator.
@@ -421,6 +419,18 @@ class LFRicKernMetadata(KernelType):
                     f"argument must only have field arguments with 'gh_real' "
                     f"data type but kernel '{self.name}' has a field argument "
                     f"with '{arg.data_type}' data type.")
+            # No arguments with non-default values for nlevels or ndata are
+            # permitted.
+            if arg.ndata != "1":
+                raise ParseError(
+                    f"Kernel '{self.name}' takes a CMA operator but has an "
+                    f"argument with a non-default value ('{arg.ndata}') of "
+                    f"NDATA. This is forbidden.")
+            if arg.nlevels:
+                raise ParseError(
+                    f"Kernel '{self.name}' takes a CMA operator but has an "
+                    f"argument with a non-default value ('{arg.nlevels}') of "
+                    f"NLEVELS. This is forbidden.")
 
         # Count the number of CMA operators that are written to
         write_count = 0
