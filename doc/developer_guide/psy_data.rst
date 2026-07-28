@@ -215,12 +215,6 @@ with the initialisation and shutdown subroutines, any PSyData library
 should include implementations of these routines, even if they are
 empty.
 
- .. note::
-    Currently only the profiling wrapper libraries and
-    read-only-verification libraries implement the Start and Stop
-    routines. Wider support for all PSyData-based APIs will be addressed
-    in Issue #824.
-
 
 Init and Shutdown Functions
 +++++++++++++++++++++++++++
@@ -1062,9 +1056,6 @@ only needs the PSyData ReadKernelData library (i.e.
 ``lib/extract/netcdf/read_kernel_data_mod``), plus any libraries
 the wrapper depends on (e.g. NetCDF).
 
-.. note:: The infrastructure is required at compile
-    and link time for now, since the kernel contains metadata. Issue
-    #2049 tracks a solution for this.
 
 The following changes are applied by the ``GOceanDriverCreator`` and
 the base class ``DriverCreator`` in order to generate stand-alone
@@ -1169,8 +1160,8 @@ When compiled and executed, this driver will read in the values of
 all input- and output-variables, execute the
 instrumented code region, and then compare the results of the output
 variables (see :ref:`extraction_libraries`). ATM this
-driver will still depend on the LFRic infrastructure library (see issue
-#1991) and needs the PSyData ReadKernelData library (i.e.
+driver will still depend on the LFRic infrastructure library and
+needs the PSyData ReadKernelData library (i.e.
 ``lib/extract/netcdf/read_kernel_data_mod``), plus any libraries
 the wrapper depends on (e.g. NetCDF).
 
@@ -1223,8 +1214,6 @@ value is stored in ``field``, the expected output value is ``field1_post``.
 After calling the kernel, the results of the kernel call in ``field1`` are
 compared with the expected values in ``field1_post``.
 
-.. note:: For now the created driver still depends on the infrastructure
-    library and any other modules used. Issue #1991 improves this.
 
 The LFRic driver creation utilises the :ref:`module_manager` to find
 and inline all modules required by the driver.
