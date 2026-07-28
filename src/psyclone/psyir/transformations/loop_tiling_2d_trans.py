@@ -114,7 +114,7 @@ class LoopTiling2DTrans(LoopTrans):
         super(LoopTiling2DTrans, self).validate(node, options=options)
 
         # Validate options map
-        # TODO #613: Hardcoding the valid_options does not allow for
+        # TODO #2668: Hardcoding the valid_options does not allow for
         # subclassing this transformation and adding new options, this
         # should be fixed.
         valid_options = ['tilesize']
