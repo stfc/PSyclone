@@ -48,7 +48,7 @@ from psyclone.domain.lfric.algorithm.psyir import (
 from psyclone.domain.lfric.transformations import LFRicAlgTrans
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
-    StructureType, REAL_TYPE
+    StructureType, ScalarType
 
 
 def create_alg_psyir(code):
@@ -88,9 +88,9 @@ def test_validate_child():
     '''Check that the _validate_child method behaves as expected.'''
 
     lfric_kernel_functor = LFRicKernelFunctor(
-        DataTypeSymbol("dummy1", REAL_TYPE))
+        DataTypeSymbol("dummy1", ScalarType.real_type()))
     lfric_builtin_functor = LFRicBuiltinFunctor(
-        DataTypeSymbol("dummy2", REAL_TYPE))
+        DataTypeSymbol("dummy2", ScalarType.real_type()))
     assert LFRicAlgorithmInvokeCall._validate_child(0, lfric_kernel_functor)
     assert LFRicAlgorithmInvokeCall._validate_child(1, lfric_builtin_functor)
     assert not LFRicAlgorithmInvokeCall._validate_child(0, "Invalid")

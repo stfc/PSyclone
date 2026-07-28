@@ -41,7 +41,7 @@ import pytest
 
 from psyclone.domain.lfric import LFRicHaloDepths, LFRicKern
 from psyclone.psyir.nodes import BinaryOperation, Literal
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.tests.utilities import get_invoke
 
 API = "lfric"
@@ -119,9 +119,10 @@ def test_no_exprn_for_halo_depth():
                            API, dist_mem=True, idx=0)
     # Change one of the halo depths so that it is an expression
     kern = invoke.schedule.walk(LFRicKern)[0]
-    kern._halo_depth = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                              Literal("1", INTEGER_TYPE),
-                                              Literal("1", INTEGER_TYPE))
+    kern._halo_depth = BinaryOperation.create(
+        BinaryOperation.Operator.ADD,
+        Literal("1", ScalarType.integer_type()),
+        Literal("1", ScalarType.integer_type()))
     with pytest.raises(NotImplementedError) as err:
         _ = LFRicHaloDepths(invoke)
     assert ("halo-depth argument must currently be a scalar reference or "

@@ -65,7 +65,8 @@ from psyclone.psyir.nodes import (
     IfBlock, ArrayReference, Assignment, BinaryOperation, Loop, Routine,
     Literal, ACCLoopDirective)
 from psyclone.psyir.transformations import (ACCKernelsTrans, ACCUpdateTrans,
-                                            TransformationError, ProfileTrans)
+                                            TransformationError, ProfileTrans,
+                                            ACCLoopTrans)
 from psyclone.transformations import ACCEnterDataTrans
 
 # Set up some loop_type inference rules in order to reference useful domain
@@ -86,7 +87,7 @@ RESOLVE_IMPORTS = NEMO_MODULES_TO_IMPORT
 
 # Get the PSyclone transformations we will use
 ACC_KERN_TRANS = ACCKernelsTrans()
-ACC_LOOP_TRANS = TransInfo().get_trans_name('ACCLoopTrans')
+ACC_LOOP_TRANS = ACCLoopTrans()
 ACC_ROUTINE_TRANS = TransInfo().get_trans_name('ACCRoutineTrans')
 ACC_EDATA_TRANS = ACCEnterDataTrans()
 ACC_UPDATE_TRANS = ACCUpdateTrans()

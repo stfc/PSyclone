@@ -64,6 +64,7 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
     transformation.
 
     '''
+
     def validate(self, node, options=None):
         '''Validate the node argument.
 

@@ -1674,6 +1674,16 @@ class Node():
                                       self._children_valid_format)
         # And make a recursive copy of each child instead
         self.children.extend([child.copy() for child in other.children])
+
+        # Now that the copied children are connected into the tree, ensure any
+        # dangling symbols are re-connected. We can't do this in ScopingNode
+        # because the re-attachment happens in self.children.extend() and that
+        # happens *after* the copy operations have completed in the list
+        # comprehension used to construct the argument to extend().
+        for child in self.children:
+            if hasattr(child, "symbol_table"):
+                child.symbol_table.localise_all_symbol_dependencies()
+
         self._disable_tree_update = False
         self._cached_abs_position = None
 
@@ -1687,6 +1697,7 @@ class Node():
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+
         # Start with a shallow copy of the object
         new_instance = copy.copy(self)
         # Then refine the elements that shouldn't be shallow copied
@@ -1798,10 +1809,14 @@ class Node():
         The result of this method can be used to find the node from its
         ancestor for example by:
 
-        >>> index_list = node.path_from(ancestor)
-        >>> cursor = ancestor
+        >>> from psyclone.psyir.frontend.fortran import FortranReader
+        >>> from psyclone.psyir.nodes import Literal
+        >>> psyir = FortranReader().psyir_from_statement("a = b + c + 1")
+        >>> node = psyir.walk(Literal)[0]
+        >>> index_list = node.path_from(psyir)
+        >>> cursor = psyir
         >>> for index in index_list:
-        >>>    cursor = cursor.children[index]
+        ...    cursor = cursor.children[index]
         >>> assert cursor is node
 
         :param ancestor: an ancestor node of self to find the path from.

@@ -101,10 +101,15 @@ class Directive(Statement, metaclass=abc.ABCMeta):
         for sig in var_info.all_signatures:
             vinfo = var_info[sig]
             node = vinfo[0].node
-            sym = table.lookup(sig.var_name)
+
+            sym = table.lookup(sig.var_name, otherwise=None)
 
             if not vinfo.has_data_access():
                 # Ignore references that don't correspond to data accesses.
+                continue
+
+            if not sym:
+                # Ignore signatures without a corresponding symbol
                 continue
 
             if isinstance(sym.datatype, ScalarType):

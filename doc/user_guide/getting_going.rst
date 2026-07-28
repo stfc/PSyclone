@@ -176,7 +176,6 @@ command. To list the available options run: ``psyclone -h``, it should output::
                     [--backend {disable-validation,disable-indentation}] [-o OUTPUT_FILE]
                     [-api DSL] [-oalg OUTPUT_ALGORITHM_FILE] [-opsy OUTPUT_PSY_FILE]
                     [-okern OUTPUT_KERNEL_PATH] [-dm] [-nodm]
-                    [--kernel-renaming {multiple,single}]
                     [--log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}] [--log-file LOG_FILE]
                     [--keep-comments] [--keep-directives] [-I INCLUDE] [-d DIRECTORY]
                     [--modman-file-ignore IGNORE_PATTERN] [--free-form | --fixed-form]
@@ -192,8 +191,6 @@ command. To list the available options run: ``psyclone -h``, it should output::
       -v, --version         display version information
       -c CONFIG, --config CONFIG
                             config file with PSyclone specific options
-      -s SCRIPT, --script SCRIPT
-                            filename of a PSyclone optimisation recipe
       --enable-cache        whether to enable caching of imported module dependencies (if
                             enabled, it will generate a .psycache file of each imported module in
                             the same location as the imported source file).
@@ -216,12 +213,10 @@ command. To list the available options run: ``psyclone -h``, it should output::
       -opsy OUTPUT_PSY_FILE
                             (psykal mode) filename of generated PSy-layer code
       -okern OUTPUT_KERNEL_PATH
-                            (psykal mode) directory in which to put transformed kernels, default
+                            (psykal mode) directory in which to put any generated kernels, default
                             is the current working directory
       -dm, --dist_mem       (psykal mode) generate distributed memory code
       -nodm, --no_dist_mem  (psykal mode) do not generate distributed memory code
-      --kernel-renaming {multiple,single}
-                            (psykal mode) naming scheme to use when re-naming transformed kernels
       --log-level {OFF,DEBUG,INFO,WARNING,ERROR,CRITICAL}
                             sets the level of the logging (defaults to OFF).
       --log-file LOG_FILE   sets the output file to use for logging (defaults to stderr).
@@ -232,6 +227,12 @@ command. To list the available options run: ``psyclone -h``, it should output::
                             at the input file extension).
       --fixed-form          forces PSyclone to parse this file as fixed format (default is to
                             look at the input file extension).
+
+    Transformation scripts:
+      -s SCRIPT, --script SCRIPT
+                            filename of a PSyclone optimisation recipe
+      --script-kwargs SCRIPT_KWARGS
+                            Keyword arguments for the transformation script.
 
     Directory management:
       -I INCLUDE, --include INCLUDE

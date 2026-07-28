@@ -41,8 +41,7 @@ import pytest
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Literal, Loop, Assignment, Reference, \
     IfBlock
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
-    BOOLEAN_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations import HoistTrans, TransformationError
 
 
@@ -112,7 +111,8 @@ def test_validate_ancestor_loop():
 
     '''
     assignment = Assignment.create(
-        Reference(DataSymbol("a", REAL_TYPE)), Literal("1.0", REAL_TYPE))
+        Reference(DataSymbol("a", ScalarType.real_type())),
+        Literal("1.0", ScalarType.real_type()))
     hoist_trans = HoistTrans()
     with pytest.raises(TransformationError) as info:
         hoist_trans.validate(assignment)
@@ -126,13 +126,14 @@ def test_validate_direct_loop():
 
     '''
     assignment = Assignment.create(
-        Reference(DataSymbol("a", REAL_TYPE)), Literal("1.0", REAL_TYPE))
-    condition = Literal("true", BOOLEAN_TYPE)
+        Reference(DataSymbol("a", ScalarType.real_type())),
+        Literal("1.0", ScalarType.real_type()))
+    condition = Literal("true", ScalarType.boolean_type())
     if_condition = IfBlock.create(condition, [assignment])
-    one = Literal("1", INTEGER_TYPE)
+    one = Literal("1", ScalarType.integer_type())
     _ = Loop.create(
-        DataSymbol("i", INTEGER_TYPE), one, one.copy(), one.copy(),
-        [if_condition])
+        DataSymbol("i", ScalarType.integer_type()),
+        one, one.copy(), one.copy(), [if_condition])
     hoist_trans = HoistTrans()
     with pytest.raises(TransformationError) as info:
         hoist_trans.validate(assignment)

@@ -46,7 +46,7 @@ import warnings
 from psyclone.psyir.nodes import Reference, BinaryOperation, \
     Assignment, Literal, KernelSchedule, IntrinsicCall
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, \
-    ArgumentInterface, REAL_TYPE
+    ArgumentInterface, ScalarType
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations.intrinsics.minormax2code_trans import \
     MinOrMax2CodeTrans
@@ -77,12 +77,13 @@ def example_psyir_binary(create_expression):
     '''
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
-        "arg", symbol_type=DataSymbol, datatype=REAL_TYPE,
+        "arg", symbol_type=DataSymbol, datatype=ScalarType.real_type(),
         interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
     arg2 = symbol_table.new_symbol(
-        "arg", symbol_type=DataSymbol, datatype=REAL_TYPE,
+        "arg", symbol_type=DataSymbol, datatype=ScalarType.real_type(),
         interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
-    arg3 = symbol_table.new_symbol(symbol_type=DataSymbol, datatype=REAL_TYPE)
+    arg3 = symbol_table.new_symbol(symbol_type=DataSymbol,
+                                   datatype=ScalarType.real_type())
     symbol_table.specify_argument_list([arg1, arg2])
     var1 = Reference(arg1)
     var2 = Reference(arg2)
@@ -104,15 +105,16 @@ def example_psyir_nary():
     '''
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
-        "arg", symbol_type=DataSymbol, datatype=REAL_TYPE,
+        "arg", symbol_type=DataSymbol, datatype=ScalarType.real_type(),
         interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
     arg2 = symbol_table.new_symbol(
-        "arg", symbol_type=DataSymbol, datatype=REAL_TYPE,
+        "arg", symbol_type=DataSymbol, datatype=ScalarType.real_type(),
         interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
     arg3 = symbol_table.new_symbol(
-        "arg", symbol_type=DataSymbol, datatype=REAL_TYPE,
+        "arg", symbol_type=DataSymbol, datatype=ScalarType.real_type(),
         interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
-    arg4 = symbol_table.new_symbol(symbol_type=DataSymbol, datatype=REAL_TYPE)
+    arg4 = symbol_table.new_symbol(symbol_type=DataSymbol,
+                                   datatype=ScalarType.real_type())
     symbol_table.specify_argument_list([arg1, arg2, arg3])
     var1 = Reference(arg1)
     var2 = Reference(arg2)
@@ -129,7 +131,8 @@ def example_psyir_nary():
                          [(lambda arg: arg, "arg"),
                           (lambda arg: BinaryOperation.create(
                               BinaryOperation.Operator.MUL, arg,
-                              Literal("3.14", REAL_TYPE)), "arg * 3.14")])
+                              Literal("3.14", ScalarType.real_type())),
+                              "arg * 3.14")])
 def test_correct_binary(func, output, tmpdir, fortran_writer):
     '''Check that a valid example produces the expected output when the
     first argument to MIN is a simple argument and when it is an
@@ -179,9 +182,10 @@ def test_correct_expr(tmpdir, fortran_writer):
     assignment = intr_call.parent
     intr_call.detach()
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                 Literal("1.0", REAL_TYPE), intr_call)
+                                 Literal("1.0", ScalarType.real_type()),
+                                 intr_call)
     op2 = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                 op1, Literal("2.0", REAL_TYPE))
+                                 op1, Literal("2.0", ScalarType.real_type()))
     assignment.addchild(op2)
 
     result = fortran_writer(root)
@@ -225,8 +229,8 @@ def test_correct_2min(tmpdir, fortran_writer):
     assignment = intr_call.parent
     intr_call.detach()
     intr_call2 = IntrinsicCall.create(IntrinsicCall.Intrinsic.MIN,
-                                      [Literal("1.0", REAL_TYPE),
-                                       Literal("2.0", REAL_TYPE)])
+                                      [Literal("1.0", ScalarType.real_type()),
+                                       Literal("2.0", ScalarType.real_type())])
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  intr_call2, intr_call)
     assignment.addchild(op1)

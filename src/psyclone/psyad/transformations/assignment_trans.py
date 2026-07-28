@@ -42,7 +42,7 @@ from psyclone.core import SymbolicMaths
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
     Literal, UnaryOperation, IntrinsicCall
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.symbols import REAL_TYPE
+from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.transformations import TransformationError
 
 from psyclone.psyad.transformations import TangentLinearError
@@ -165,7 +165,7 @@ class AssignmentTrans(AdjointTransformation):
             # The assignment is not an increment. The LHS active
             # variable needs to be zero'ed.
             assignment = Assignment.create(
-                node.lhs.copy(), Literal("0.0", REAL_TYPE))
+                node.lhs.copy(), Literal("0.0", ScalarType.real_type()))
             node.parent.children.insert(node.position, assignment)
 
         # Remove the original node

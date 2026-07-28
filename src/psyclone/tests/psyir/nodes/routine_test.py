@@ -43,10 +43,11 @@ import pytest
 
 from psyclone.errors import GenerationError
 from psyclone.psyGen import CodedKern
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Assignment, Call, CodeBlock, Container,
                                   Literal, Reference, Routine, ScopingNode)
 from psyclone.psyir.symbols import (
-    ContainerSymbol, DataSymbol, ImportInterface, REAL_TYPE,
+    ContainerSymbol, DataSymbol, ImportInterface, ScalarType,
     Symbol, SymbolError, SymbolTable, RoutineSymbol)
 from psyclone.tests.utilities import check_links, get_invoke
 
@@ -142,7 +143,7 @@ def test_routine_return_symbol_setter():
         node.return_symbol = "wrong"
     assert ("Routine return-symbol should be a DataSymbol but found 'str'" in
             str(err.value))
-    sym = DataSymbol("result", REAL_TYPE)
+    sym = DataSymbol("result", ScalarType.real_type())
     with pytest.raises(KeyError) as err:
         node.return_symbol = sym
     assert ("For a symbol to be a return-symbol, it must be present in the "
@@ -159,10 +160,10 @@ def test_routine_create_invalid():
 
     '''
     symbol_table = SymbolTable()
-    symbol = DataSymbol("x", REAL_TYPE)
+    symbol = DataSymbol("x", ScalarType.real_type())
     symbol_table.add(symbol)
     children = [Assignment.create(Reference(symbol),
-                                  Literal("1", REAL_TYPE))]
+                                  Literal("1", ScalarType.real_type()))]
 
     # name is not a string.
     with pytest.raises(TypeError) as excinfo:
@@ -189,22 +190,31 @@ def test_routine_create_invalid():
         "child of children argument in create method of Routine class "
         "should be a PSyIR Node but found 'str'." in str(excinfo.value))
 
+    # parent is not a Node
+    with pytest.raises(TypeError) as err:
+        _ = Routine.create("my_sub", symbol_table, [], parent="no")
+    assert ("parent argument in create method of Routine class should be a "
+            "PSyIR Node but found 'str'" in str(err.value))
+
 
 def test_routine_create():
     '''Test that the create method correctly creates a Routine instance. '''
     symbol_table = SymbolTable()
-    symbol = DataSymbol("tmp", REAL_TYPE)
+    symbol = DataSymbol("tmp", ScalarType.real_type())
     symbol_table.add(symbol)
     assignment = Assignment.create(Reference(symbol),
-                                   Literal("0.0", REAL_TYPE))
+                                   Literal("0.0", ScalarType.real_type()))
+    cntr = Container("my_mod")
     kschedule = Routine.create("mod_name", symbol_table, [assignment],
-                               is_program=True, return_symbol_name=symbol.name)
+                               is_program=True, return_symbol_name=symbol.name,
+                               parent=cntr)
     assert isinstance(kschedule, Routine)
     check_links(kschedule, [assignment])
     assert kschedule.symbol_table is symbol_table
     assert symbol_table.node is kschedule
     assert kschedule.is_program
     assert kschedule.return_symbol is symbol
+    assert kschedule.parent is cntr
 
 
 def test_routine_equality(monkeypatch):
@@ -214,12 +224,12 @@ def test_routine_equality(monkeypatch):
     monkeypatch.setattr(ScopingNode, "__eq__", lambda x, y: True)
 
     symbol_table = SymbolTable()
-    symbol = DataSymbol("tmp", REAL_TYPE)
+    symbol = DataSymbol("tmp", ScalarType.real_type())
     symbol_table.add(symbol)
     assignment = Assignment.create(Reference(symbol),
-                                   Literal("0.0", REAL_TYPE))
+                                   Literal("0.0", ScalarType.real_type()))
     assignment2 = Assignment.create(Reference(symbol),
-                                    Literal("0.0", REAL_TYPE))
+                                    Literal("0.0", ScalarType.real_type()))
 
     ksched1 = Routine.create("mod_name", symbol_table, [assignment],
                              is_program=True, return_symbol_name=symbol.name)
@@ -265,7 +275,7 @@ def test_routine_copy():
     # Create a function
     symbol_table = SymbolTable()
     routine = Routine.create("my_func", symbol_table, [])
-    symbol = DataSymbol("my_result", REAL_TYPE)
+    symbol = DataSymbol("my_result", ScalarType.real_type())
     routine.symbol_table.add(symbol)
     routine.return_symbol = symbol
 
@@ -388,6 +398,49 @@ def test_routine_update_parent_symbol_table_illegal_parent(fortran_reader):
         module.addchild(alt_routine)
     assert ("Can't add routine 'routine' into a scope that already contains "
             "a CodeBlock representing a routine with that name."
+            in str(excinfo.value))
+
+
+@pytest.mark.parametrize("routine_type", ["function", "subroutine"])
+def test_routine_update_parent_symbol_table_with_comments(routine_type):
+    ''' Test when we have a CodeBlock representing a routine that
+    if there are also comments before it in the tree we can still
+    check the name of the subroutine without failing inside
+    update_parent_symbol_table. '''
+
+    code = f"""module test
+
+    contains
+
+        ! This routine will be a codeblock.
+        {routine_type} routine()
+            contains
+                subroutine subr()
+                end subroutine
+        end {routine_type}
+
+        subroutine routine1(a, b, c)
+            integer, intent(inout) :: a, b, c
+
+            call routine2()
+        end subroutine
+
+        subroutine routine2()
+
+        end subroutine
+
+end module"""
+
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    alt_routine = Routine.create("routine")
+
+    module = psyir.walk(Container)[1]
+    assert isinstance(module.children[0], CodeBlock)
+    with pytest.raises(GenerationError) as excinfo:
+        module.addchild(alt_routine)
+    assert ("Can't add routine 'routine' into a scope that already contains "
+            "a resolved symbol with the same name."
             in str(excinfo.value))
 
 
@@ -555,29 +608,22 @@ def test_outer_scope_accesses_unresolved(fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_source('''\
     module my_mod
-      use another_mod
     contains
       subroutine call_it()
-        write(*,*) unresolved()
         call a_routine()
       end subroutine call_it
     end module my_mod
     ''')
     rt0 = psyir.children[0].children[0]
-    sym = rt0.symbol_table.lookup("a_routine")
-    assert sym.is_unresolved
-    call = Call.create(RoutineSymbol("a_routine"), [])
-    # The access to 'unresolved' is in a CodeBlock and we don't have a
-    # Symbol for it.
+    call = rt0.children[0]
+
+    # Mistakenly add symbols without adding them to the symbol table
+    rt0.addchild(Assignment.create(Reference(Symbol("a")),
+                                   Reference(Symbol("b"))))
     with pytest.raises(SymbolError) as err:
         rt0.check_outer_scope_accesses(call, "call")
-    assert ("'call_it' contains accesses to 'unresolved' but the origin of "
+    assert ("'call_it' contains accesses to 'a' but the origin of "
             "this" in str(err.value))
-    # Remove the CodeBlock and repeat.
-    rt0.children[0].detach()
-    rt0.check_outer_scope_accesses(call, "call")
-    # The interface should have been left unchanged.
-    assert sym.is_unresolved
 
 
 def test_outer_scope_accesses_multi_wildcards(fortran_reader):

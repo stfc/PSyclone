@@ -41,7 +41,7 @@ import pytest
 
 from psyclone.psyir.nodes import (
     Routine, Container, FileContainer, IntrinsicCall, Literal)
-from psyclone.psyir.symbols import ArrayType, Symbol, INTEGER_TYPE
+from psyclone.psyir.symbols import ArrayType, Symbol, ScalarType
 from psyclone.psyir.transformations import (HoistLocalArraysTrans,
                                             TransformationError)
 from psyclone.tests.utilities import Compile
@@ -719,7 +719,7 @@ def test_apply_with_allocatables(fortran_reader, fortran_writer, tmpdir):
     # the fparser reader always puts ranges in the allocate indices, but for
     # 'a' force it to be something else
     alloc1.arguments[0].children[0].replace_with(
-        Literal("10", INTEGER_TYPE)
+        Literal("10", ScalarType.integer_type())
     )
     routine = psyir.walk(Routine)[0]
     hoist_trans = HoistLocalArraysTrans()

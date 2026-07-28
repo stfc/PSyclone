@@ -41,7 +41,7 @@ import pytest
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import (
     CodeBlock, IfBlock, IntrinsicCall, Node, Reference, Schedule)
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations import RegionTrans
 from psyclone.tests.utilities import get_invoke
 from psyclone.gocean1p0 import GOLoop
@@ -73,7 +73,8 @@ def test_rt_apply(fortran_reader, monkeypatch):
     sched = psyir.walk(Schedule)[0]
     with pytest.raises(TransformationError) as err:
         my_rt.apply(sched.children)
-    assert "Nodes of type 'CodeBlock' cannot be enclosed" in str(err.value)
+    assert ("Nodes of type 'Fparser2CodeBlock' cannot be enclosed"
+            in str(err.value))
     # Check that both the deprecated and new way of passing an option work.
     # TODO #2668: Deprecate options dictionary.
     my_rt.apply(sched.children, options={"node-type-check": False})
@@ -131,7 +132,7 @@ def test_get_node_list():
 
     # Provide a list containing a single Schedule
     # -------------------------------------------
-    sym = DataSymbol("x", REAL_TYPE)
+    sym = DataSymbol("x", ScalarType.real_type())
     sched.children = [IntrinsicCall.create(IntrinsicCall.Intrinsic.SIN,
                                            [Reference(sym)])]
     node_list3 = my_rt.get_node_list([sched])

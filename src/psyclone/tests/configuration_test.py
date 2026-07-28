@@ -53,8 +53,7 @@ import pytest
 
 import psyclone
 
-from psyclone.configuration import (BaseConfig, ConfigurationError,
-                                    Config, VALID_KERNEL_NAMING_SCHEMES)
+from psyclone.configuration import BaseConfig, ConfigurationError, Config
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import InternalError
@@ -72,7 +71,6 @@ _CONFIG_CONTENT = '''\
 [DEFAULT]
 DISTRIBUTED_MEMORY = true
 REPRODUCIBLE_REDUCTIONS = false
-REPROD_PAD_SIZE = 8
 VALID_PSY_DATA_PREFIXES = profile, extract
 OCL_DEVICES_PER_NODE = 1
 IGNORE_MODULES = netcdf, mpi
@@ -142,7 +140,7 @@ def bool_entry_fixture(request):
 
 @pytest.fixture(name="int_entry",
                 scope="function",
-                params=["REPROD_PAD_SIZE", "OCL_DEVICES_PER_NODE"])
+                params=["OCL_DEVICES_PER_NODE"])
 def int_entry_fixture(request):
     '''
     Parameterised fixture that returns the names of integer members of the
@@ -323,7 +321,6 @@ def test_read_values():
     Check that we get the expected values from the test config file.
     '''
     _config = Config.get()
-    # The dummy_config.cfg has a non-default REPROD_PAD_SIZE of 7
     _config.load(config_file=TEST_CONFIG)
     # Whether distributed memory is enabled
     dist_mem = _config.distributed_memory
@@ -339,13 +336,24 @@ def test_read_values():
     reprod = _config.reproducible_reductions
     assert isinstance(reprod, bool)
     assert not reprod
-    # How much to pad arrays by when doing reproducible reductions
-    pad = _config.reprod_pad_size
-    assert isinstance(pad, int)
-    assert pad == 7
     # The filename of the config file which was parsed to produce
     # the Config object
     assert _config.filename == str(TEST_CONFIG)
+
+
+def test_frontend():
+    ''' Checks for getter and setter for frontend parameter '''
+    config = Config()
+    config.load(config_file=TEST_CONFIG)
+    # Defaults to fparser2
+    assert config.frontend == "fparser2"
+    # Check the setter method
+    config.frontend = "treesitter"
+    assert config.frontend == "treesitter"
+    with pytest.raises(ConfigurationError) as err:
+        config.frontend = "invalid"
+    assert ("frontend must be one of ['fparser2', 'treesitter'] but got "
+            "'invalid'" in str(err.value))
 
 
 def test_dm():
@@ -568,20 +576,6 @@ def test_disable_backend_indentation_setter_getter():
             str(err.value))
     config.backend_indentation_disabled = True
     assert config.backend_indentation_disabled is True
-
-
-def test_kernel_naming_setter():
-    ''' Check that the setter for the kernel-naming scheme rejects
-    unrecognised values.
-
-    '''
-    config = Config()
-    config.kernel_naming = "single"
-    assert config.kernel_naming == "single"
-    with pytest.raises(ValueError) as err:
-        config.kernel_naming = "not-a-scheme"
-    assert (f"kernel_naming must be one of '{VALID_KERNEL_NAMING_SCHEMES}' "
-            f"but got 'not-a-scheme'" in str(err.value))
 
 
 def test_incl_path_errors(tmpdir):

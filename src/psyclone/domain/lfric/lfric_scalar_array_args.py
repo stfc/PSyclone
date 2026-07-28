@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2025, Science and Technology Facilities Council.
+# Copyright (c) 2025-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import FORTRAN_INTENT_NAMES
 from psyclone.psyir.nodes import Literal, ArrayReference
 from psyclone.psyir.symbols import (DataSymbol, ArrayType,
-                                    INTEGER_TYPE, ArgumentInterface)
+                                    ScalarType, ArgumentInterface)
 
 # pylint: disable=too-many-branches
 
@@ -182,7 +182,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
                 # Create list of dims_array references
                 sym_list = [ArrayReference.create(
                     dims_array_symbol,
-                    [Literal(str(idx), INTEGER_TYPE)])
+                    [Literal(str(idx), ScalarType.integer_type())])
                         for idx in range(1, arg._array_ndims + 1)]
                 # Create the symbol
                 array_symbol = self.symtab.find_or_create_tag(
@@ -220,7 +220,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
                 # Create list of dims_array references
                 sym_list = [ArrayReference.create(
                     dims_array_symbol,
-                    [Literal(str(idx), INTEGER_TYPE)])
+                    [Literal(str(idx), ScalarType.integer_type())])
                         for idx in range(1, arg._array_ndims + 1)]
                 # Find the ScalarArray tag and convert it to an ArrayType
                 array_symbol = self.symtab.lookup_with_tag(

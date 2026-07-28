@@ -162,23 +162,30 @@ least rank (number of dimensions) one. Scalar arrays are identified with
 Field
 +++++
 
-LFRic API fields, identified with ``GH_FIELD`` metadata, represent
-FEM discretisations of various dynamical core prognostic and diagnostic
+LFRic API `fields <https://metoffice.github.io/lfric_core/how_to_use_it/lfric_datamodel/field.html>`_, identified with ``GH_FIELD`` metadata, represent FEM
+discretisations of various dynamical core prognostic and diagnostic
 variables. In FEM, variables are discretised by placing them into a
 function space (see :ref:`lfric-function-space`) from which they
-inherit a polynomial expansion via the basis functions of that space.
-Field values at points within a cell are evaluated as the sum of a set
-of basis functions multiplied by coefficients which are the data points.
-Points of evaluation are determined by a quadrature object
-(:ref:`lfric-quadrature`) and are independent of the function space
-the field is on. Placement of field data points, also called degrees of
-freedom (hereafter "DoFs"), is determined by the function space the field
-is on.
+inherit a polynomial expansion via the basis functions of that space. Placement
+of field data points, also called
+`degrees of freedom <https://metoffice.github.io/lfric_core/how_it_works/core_data_model/science_model_architecture.html#dofs-dof-maps-and-function-spaces>`_
+(hereafter "DoFs"), is determined by the function space the
+field is on. An LFRic multi-data field can have more than one value
+associated with each data point.
+
 LFRic fields passed as arguments to any :ref:`LFRic kernel
 <lfric-kernel-valid-data-type>` can be of ``real`` or ``integer``
 primitive type. In the LFRic infrastructure, these fields are
 represented by instances of the ``field_type`` and ``integer_field_type``
 classes, respectively.
+
+Different fields may be defined on different numbers of vertical layers.
+The number of layers can be as few as one (a 2D field). Additionally,
+LFRic has the concept of multi-data fields where multiple data values can be
+associated with each DoF. Since both the number of layers and the
+number of data values affects the numbering of the DoFs of a field,
+a distinct DoF map is required for each unique combination of function
+space, number of vertical levels and number of data values.
 
 .. _lfric-field-vector:
 
@@ -432,7 +439,7 @@ Mixed Precision
 
 The LFRic API supports the ability to specify the precision required
 by the model via precision variables. To make use of this, the code
-developer must declare scalars, arrays, fields and operators in the algorithm
+developer must declare scalars, arrays, fields and operators in the Algorithm
 layer with the required LFRic-supported precision. In the current
 implementation there are two supported precisions for ``REAL`` data and
 one each for ``INTEGER`` and ``LOGICAL`` data. The actual precision used in
@@ -471,6 +478,10 @@ associated kernel metadata description and their precision:
 +--------------------------+---------------------------------------+-----------+
 | R_TRAN_FIELD_TYPE        | GH_FIELD, GH_REAL                     | R_TRAN    |
 +--------------------------+---------------------------------------+-----------+
+| FIELD_REAL32_TYPE        | GH_FIELD, GH_REAL                     | REAL32    |
++--------------------------+---------------------------------------+-----------+
+| FIELD_REAL64_TYPE        | GH_FIELD, GH_REAL                     | REAL64    |
++--------------------------+---------------------------------------+-----------+
 | INTEGER_FIELD_TYPE       | GH_FIELD, GH_INTEGER                  | I_DEF     |
 +--------------------------+---------------------------------------+-----------+
 | OPERATOR_TYPE            | GH_OPERATOR, GH_REAL                  | R_DEF     |
@@ -479,13 +490,18 @@ associated kernel metadata description and their precision:
 +--------------------------+---------------------------------------+-----------+
 | R_TRAN_OPERATOR_TYPE     | GH_OPERATOR, GH_REAL                  | R_TRAN    |
 +--------------------------+---------------------------------------+-----------+
+| OPERATOR_REAL32_TYPE     | GH_OPERATOR, GH_REAL                  | REAL32    |
++--------------------------+---------------------------------------+-----------+
+| OPERATOR_REAL64_TYPE     | GH_OPERATOR, GH_REAL                  | REAL64    |
++--------------------------+---------------------------------------+-----------+
 | COLUMNWISE_OPERATOR_TYPE | GH_COLUMNWISE_OPERATOR, GH_REAL       | R_SOLVER  |
 +--------------------------+---------------------------------------+-----------+
 
 As can be seen from the above table, the kernel metadata does not
 capture all of the precision options. For example, from the metadata
 it is not possible to determine whether a ``REAL`` scalar, ``REAL`` field
-or ``REAL`` operator has precision ``R_DEF``, ``R_SOLVER`` or ``R_TRAN``.
+or ``REAL`` operator has precision ``R_DEF``, ``R_SOLVER``, ``R_TRAN``
+or one of the Fortran intrinsic precisions (``REAL32``, ``REAL64``).
 
 If a scalar, array, field, or operator is specified with a particular
 precision in the algorithm layer then any associated kernels that it
@@ -601,6 +617,10 @@ outlined in the table below:
 +-------------------------+------------------+--------------+
 | ``r_tran_field_type``   | ``real``         | ``r_tran``   |
 +-------------------------+------------------+--------------+
+| ``field_real32_type``   | ``real``         | ``real32``   |
++-------------------------+------------------+--------------+
+| ``field_real64_type``   | ``real``         | ``real64``   |
++-------------------------+------------------+--------------+
 | ``integer_field_type``  | ``integer``      | ``i_def``    |
 +-------------------------+------------------+--------------+
 
@@ -701,7 +721,8 @@ a message that indicates the problem.
 | Fortran Datatype | Supported Precision      |
 +==================+==========================+
 | ``real``         | ``r_def``, ``r_bl``,     |
-|                  | ``r_solver``, ``r_tran`` |
+|                  | ``r_solver``, ``r_tran``,|
+|                  | ``real32``, ``real64``   |
 +------------------+--------------------------+
 | ``integer``      | ``i_def``                |
 +------------------+--------------------------+
@@ -730,6 +751,10 @@ outlined in the table below:
 | ``r_solver_operator_type`` | ``real``         | ``r_solver`` |
 +----------------------------+------------------+--------------+
 | ``r_tran_operator_type``   | ``real``         | ``r_tran``   |
++----------------------------+------------------+--------------+
+| ``operator_real32_type``   | ``real``         | ``real32``   |
++----------------------------+------------------+--------------+
+| ``operator_real64_type``   | ``real``         | ``real64``   |
 +----------------------------+------------------+--------------+
 
 .. _lfric-mixed-precision-cma-operators:
@@ -919,8 +944,9 @@ All three CMA-related kernel types must obey the following rules:
 1) Since a CMA operator only acts within a single column of data,
    stencil operations are not permitted.
 
-2) No vector quantities (e.g. ``GH_FIELD*3`` - see below) are
-   permitted as arguments.
+2) No vector quantities (e.g. ``GH_FIELD*3`` - see
+   :ref:`lfric-field-vector`) or
+   multi-data fields are permitted as arguments.
 
 3) The kernel must operate on cell-columns.
 
@@ -1450,7 +1476,7 @@ Supported Function Spaces
 As mentioned in the :ref:`lfric-field` and :ref:`lfric-field-vector`
 sections, the function space of an argument specifies how it maps
 onto the underlying topology and, additionally, whether the data at a
-point is a vector. In LFRic API the dimension of the basis function
+point is a vector. In the LFRic API the dimension of the basis function
 set for the scalar function spaces is 1 and for the vector function spaces
 is 3 (see the table in :ref:`lfric-stub-generation-rules` for the
 dimensions of the basis and differential basis functions).
@@ -1573,7 +1599,7 @@ Since the LFRic API operates on columns of data, function spaces
 are categorised as continuous or discontinuous with regard to their
 **continuity in the horizontal**. For example, a ``GH_FIELD`` that
 specifies ``GH_INC`` as its access pattern (see
-:ref:lfric-kernel-valid-access: above) may be continuous in the vertical
+:ref:`lfric-kernel-valid-access` above) may be continuous in the vertical
 (and discontinuous in the horizontal), continuous in the horizontal
 (and discontinuous in the vertical), or continuous in both. In each
 case the code is the same. This principle of horizontal continuity also
@@ -1636,7 +1662,7 @@ to have stencil accesses, these two options are mutually exclusive.
 The metadata for each case is described in the following sections.
 
 Stencil Metadata
-________________
+""""""""""""""""
 
 
 Stencil metadata specifies that the corresponding field argument is accessed
@@ -1716,8 +1742,7 @@ be found in ``examples/lfric/eg5``.
 .. _lfric-intergrid-mdata:
 
 Inter-Grid Metadata
-___________________
-
+"""""""""""""""""""
 
 The alternative form of the optional fifth metadata argument for a
 field specifies which mesh the associated field is on.  This is
@@ -1746,6 +1771,61 @@ Note that an inter-grid kernel must have at least one field (or field-
 vector) argument on each mesh type. Fields that are on different
 meshes cannot be on the same function space while those on the same
 mesh must also be on the same function space.
+
+
+Number of Layers Metadata
+"""""""""""""""""""""""""
+
+By default, all field/operator kernel arguments on a given function
+space are assumed to have the same number of vertical levels. The
+actual value is obtained at application runtime (by interrogating the
+first such kernel argument) and then passed to the kernel subroutine.
+
+If a particular field/operator kernel argument has a number of vertical
+levels that is *not* the same as the first field/operator argument then
+this must be specified using the ``NLAYERS`` option to ``GH_FIELD``/
+``GH_OPERATOR``. If the value of ``NLAYERS`` is known at compile time
+then it may be an integer literal encoded as a string, e.g. a 2D field
+would be specified as::
+
+  arg_type(GH_FIELD, GH_REAL, GH_READ, W3, NLAYERS="1")
+
+Alternatively, it may be given a name, e.g.::
+
+  arg_type(GH_FIELD, GH_REAL, GH_READ, W3, NLAYERS="some name")
+
+in which case the actual value is obtained at application runtime by
+interrogating the associated LFRic field or operator object. (As a
+consequence, the name used in the metadata does not have to correspond
+to anything in the LFRic infrastructure.)
+
+If two or more field/operator arguments are on the same function space
+and have the same number of layers (whether a literal or a name) then
+only one dofmap is passed to the kernel for those arguments.
+
+
+Multi-Data Metadata
+"""""""""""""""""""
+
+A multi-data field is the same as a standard field apart from having multiple
+values associated with each DoF. (Note that this is not the same as a
+:ref:`field vector <lfric-field-vector>` which corresponds to a set of fields,
+each with a single value at each DoF.) This is indicated in the field metadata
+by the optional ``NDATA`` argument to GH_FIELD, e.g.::
+
+  arg_type(GH_FIELD, GH_REAL, GH_READ, W2, NDATA="4")
+
+The value contained in the string specified for ``NDATA`` may be a literal if
+it is known at compile time. Alternatively, it may be a name in which
+case the number of data values at each DoF is determined at runtime by
+querying the field object (in the generated PSy layer). As with ``NLAYERS``,
+this name is just a label and does not have to correspond to anything in the
+LFRic infrastructure.
+
+Since the data in an LFRic field object is stored as a 1D array, having more
+than one data value associated with each DoF affects the dofmap. This is
+handled by passing the appropriate dofmap to the kernel - see
+:ref:`lfric-stub-generation-rules`.
 
 
 Column-wise Operators (CMA)
@@ -2080,7 +2160,16 @@ conventions, are:
       4) If the field entry stencil access is of type ``XORY1D`` then
          add an additional ``integer`` direction argument of kind
          ``i_def`` and with intent ``in``.
-
+      5) If the field is multi-data and the value of ``NDATA`` is unknown
+         (i.e. it is specified in the metadata using a label)
+         then add an additional ``integer``, scalar argument of kind ``i_def``
+         and intent ``in``. If the ``NDATA`` value is common to more than one
+	     kernel argument, it is only added for the first such argument.
+      6) If the field has an unknown (i.e. specified in the metadata using a
+	     label), custom number of vertical levels then pass this as an
+	     additional ``integer``, scalar argument of kind ``i_def`` and
+         intent ``in``. If the number of vertical levels is common to more than
+	     one kernel argument, it is only added for the first such argument.
    3) If the current entry is a field vector then for each dimension
       of the vector, include a field array. The field array name is
       specified as
@@ -2106,21 +2195,26 @@ conventions, are:
       the data type and kind specified in the metadata. The ScalarArray
       must be denoted with intent ``in`` to match its read-only nature.
 
-4) For each function space in the order they appear in the metadata arguments
-   (the ``to`` function space of an operator is considered to be before the
-   ``from`` function space of the same operator as it appears first in
-   lexicographic order)
+4) DoF maps for function spaces are handled in the order they appear in the
+   metadata arguments (the ``to`` function space of an operator is considered
+   to be before the ``from`` function space of the same operator as it appears
+   first in lexicographic order). Note that if two fields on a given function
+   space have differing ``NLAYERS`` and/or ``NDATA`` values,
+   then each requires that a dofmap be supplied (because both the number of
+   vertical layers *and* the number of data values per DoF alter the
+   *values* within the map). For each required DoF map:
 
    1) Include the number of local degrees of freedom (i.e. number per-cell)
       for the function space. This is an ``integer`` of kind ``i_def`` and
       has intent ``in``. The name of this argument is
       ``"ndf_"<field_function_space>``.
+
    2) If there is a field on this space
 
       1) Include the unique number of degrees of freedom for the function
          space. This is an ``integer`` of kind ``i_def`` and has intent ``in``.
          The name of this argument is ``"undf_"<field_function_space>``.
-      2) Include the **dofmap** for this function space. This is an ``integer``
+      2) Include the **dofmap** itself. This is an ``integer``
          array of kind ``i_def`` with intent ``in``. It has one dimension
          sized by the local degrees of freedom for the function space.
 
@@ -2443,8 +2537,9 @@ dofmap for both the to- and from-function spaces of the CMA
 operator. Since it does not have any LMA operator arguments it does
 not require the ``ncell_3d`` and ``nlayers`` scalar arguments. (Since a
 column-wise operator is, by definition, assembled for a whole column,
-there is no loop over levels when applying it.)
-The full set of rules is then:
+there is no loop over levels when applying it.) Note that fields with
+non-standard ``nlayers`` or ``ndata > 1`` cannot be supplied as
+arguments to CMA kernels. The full set of rules is:
 
 1) Include the ``cell`` argument. ``cell`` is an ``integer`` of kind
    ``i_def`` and has intent ``in``.
@@ -2659,11 +2754,9 @@ Kernel type name:
 Subroutine name:
     ``<base_name>_code``
 
-The latest version of the LFRic coding style guidelines are available in this
-`LFRic wiki page
-<https://code.metoffice.gov.uk/trac/lfric/wiki/LFRicTechnical/FortranCodingStandards>`_
-(requires login access to MOSRS, see the above :ref:`introduction <lfric-api>`
-to the LFRic API).
+The latest version of the LFRic coding style guidelines are available in the
+`LFRic github pages
+<https://metoffice.github.io/lfric_core/how_to_contribute/coding_standards/fortran_coding_standards.html>`_.
 
 .. _lfric-built-ins:
 
@@ -4160,7 +4253,7 @@ transformations have not yet been migrated to this directory.
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.LFRicRedundantComputationTrans
+.. autoclass:: psyclone.domain.lfric.transformations.LFRicRedundantComputationTrans
     :members:
     :noindex:
 

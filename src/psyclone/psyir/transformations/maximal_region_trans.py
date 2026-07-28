@@ -31,12 +31,13 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors A. B. G. Chalk, STFC Daresbury Lab
+# Author: A. B. G. Chalk, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''This module contains the MaximalRegionTrans.'''
 
 import abc
-from typing import Union
+from typing import Union, Any
 
 from psyclone.psyir.nodes import (
     Node,
@@ -146,8 +147,9 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         return False
 
     def _compute_transformable_sections(
-            self, node_list: list[Node],
+            self, node_list: Union[list[Node], Schedule],
             trans: Transformation,
+            trans_kwargs: dict[str, Any],
     ) -> list[list[Node]]:
         '''
         Computes the sections of the input node_list to apply the
@@ -155,28 +157,47 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
 
         :param node_list: The node_list passed into this Transformation.
         :param trans: The transformation applied to the regions found.
+        :param trans_kwargs: The kwargs applied to the transformation.
         :returns: The list of node_lists to apply this class'
             _transformation class to.
         '''
         # Find the largest sections we can surround with the transformation.
         all_blocks = []
         current_block = []
-        for child in node_list:
+        n_list = self.get_node_list(node_list)
+        # Initially test if the entire region can be transformed without
+        # breaking it up into pieces.
+        for child in n_list:
+            if not self._can_be_in_region(child):
+                break
+        else:
+            try:
+                # Test validation for the whole region, and if successful
+                # then we can finish.
+                trans.validate(n_list)
+                if self._satisfies_minimum_region_rules(n_list):
+                    all_blocks.append(n_list)
+                return all_blocks
+            except TransformationError:
+                pass
+        # Otherwise, loop over the region backwards and create the largest
+        # blocks possible.
+        for child in reversed(n_list):
             # If the child can be added to a transformed region then add it
             # to the current block of nodes.
             if self._can_be_in_region(child):
                 # Check that validation still succeeds if we add this child
                 # to the current block.
                 try:
-                    trans.validate(current_block + [child])
-                    current_block.append(child)
+                    trans.validate([child] + current_block, **trans_kwargs)
+                    current_block.insert(0, child)
                 except TransformationError:
                     # If validation now fails, then don't add this to the
                     # current block and add the block to the allowed blocks
                     # if allowed.
                     if current_block:
                         if self._satisfies_minimum_region_rules(current_block):
-                            all_blocks.append(current_block)
+                            all_blocks.insert(0, current_block)
                         current_block = []
             else:
                 # Otherwise, if the current_block contains any children,
@@ -184,29 +205,29 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                 # the current_block.
                 if current_block:
                     if self._satisfies_minimum_region_rules(current_block):
-                        all_blocks.append(current_block)
+                        all_blocks.insert(0, current_block)
                     current_block = []
                 # Need to recurse on some node types
                 if isinstance(child, IfBlock):
-                    if_blocks = self._compute_transformable_sections(
-                            child.if_body, trans
-                    )
-                    all_blocks.extend(if_blocks)
                     if child.else_body:
                         else_blocks = self._compute_transformable_sections(
-                            child.else_body, trans
+                            child.else_body, trans, trans_kwargs
                         )
-                        all_blocks.extend(else_blocks)
+                        all_blocks = else_blocks + all_blocks
+                    if_blocks = self._compute_transformable_sections(
+                            child.if_body, trans, trans_kwargs
+                    )
+                    all_blocks = if_blocks + all_blocks
                 if isinstance(child, (Loop, WhileLoop)):
                     loop_blocks = self._compute_transformable_sections(
-                        child.loop_body, trans
+                        child.loop_body, trans, trans_kwargs
                     )
-                    all_blocks.extend(loop_blocks)
+                    all_blocks = loop_blocks + all_blocks
         # If any nodes are left in the current block at the end of the
         # node_list, then add them to a transformed region
         if current_block:
             if self._satisfies_minimum_region_rules(current_block):
-                all_blocks.append(current_block)
+                all_blocks.insert(0, current_block)
 
         return all_blocks
 
@@ -220,7 +241,8 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                                      same parent and aren't consecutive.
         '''
 
-        self.validate_options(**kwargs)
+        self_kwargs, _ = self.split_kwargs(**kwargs)
+        self.validate_options(**self_kwargs)
         node_list = self.get_node_list(nodes)
 
         node_parent = node_list[0].parent
@@ -247,11 +269,13 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
 
         # Call validate.
         self.validate(nodes, **kwargs)
+        _, tr_kwargs = self.split_kwargs(**kwargs)
 
         par_trans = self._transformation()
 
-        all_blocks = self._compute_transformable_sections(node_list, par_trans)
+        all_blocks = self._compute_transformable_sections(
+            node_list, par_trans, tr_kwargs)
 
         # Apply the transformation to all of the blocks found.
         for block in all_blocks:
-            par_trans.apply(block)
+            par_trans.apply(block, **tr_kwargs)

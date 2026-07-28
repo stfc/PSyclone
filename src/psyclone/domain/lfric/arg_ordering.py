@@ -42,16 +42,15 @@ kernel calls.
 import abc
 
 from psyclone import psyGen
-from psyclone.core import AccessType, Signature
+from psyclone.core import AccessType, Signature, VariablesAccessMap
 # The next two imports cannot be merged, since this would create
 # a circular dependency.
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.metadata_to_arguments_rules import (
     MetadataToArgumentsRules)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference
-from psyclone.psyir.symbols import DataSymbol, ArrayType
+from psyclone.psyir.symbols import DataSymbol, ArrayType, SymbolTable
 
 
 class ArgOrdering:
@@ -87,7 +86,7 @@ class ArgOrdering:
         self._arg_index_to_metadata_index = {}
 
     @property
-    def _symtab(self):
+    def _symtab(self) -> SymbolTable:
         ''' Provide a reference to the associate Invoke SymbolTable, usually
         following the `self._kernel.ancestor(InvokeSchedule)._symbol_table`
         path unless a _forced_symtab has been provided.
@@ -98,7 +97,7 @@ class ArgOrdering:
         Note: This could be improved by TODO #2503
 
         :returns: the associate invoke symbol table.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
         '''
         if self._forced_symtab:
             return self._forced_symtab
@@ -106,7 +105,7 @@ class ArgOrdering:
             # _kern may be outdated, so go back up to the invoke first
             current_invoke = self._kern.ancestor(psyGen.InvokeSchedule).invoke
             return current_invoke.schedule.symbol_table
-        return LFRicSymbolTable()
+        return SymbolTable()
 
     def psyir_append(self, node):
         '''Appends a PSyIR node to the PSyIR argument list.
@@ -355,7 +354,7 @@ class ArgOrdering:
         '''
         return self._arg_index_to_metadata_index[idx]
 
-    def generate(self, var_accesses=None):
+    def generate(self, var_accesses: VariablesAccessMap = None):
         # pylint: disable=too-many-statements, too-many-branches
         '''
         Specifies which arguments appear in an argument list, their type
@@ -366,12 +365,10 @@ class ArgOrdering:
         (i.e. that is not explicitly listed in kernel metadata) that is
         added. These accesses will be marked as read.
 
-        :param var_accesses: optional VariablesAccessMap instance that \
+        :param var_accesses: optional VariablesAccessMap instance that
             stores the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
-        :raises GenerationError: if the kernel arguments break the \
+        :raises GenerationError: if the kernel arguments break the
                                  rules for the LFRic API.
 
         '''

@@ -34,7 +34,7 @@
 
 
 !> An implementation of the PSyData API for profiling, which wraps the use
-!> of the dl_timer library (https://bitbucket.org/apeg/dl_timer).
+!> of the dl_timer library (https://github.com/stfc/dl_timer).
 
 module profile_psy_data_mod
 

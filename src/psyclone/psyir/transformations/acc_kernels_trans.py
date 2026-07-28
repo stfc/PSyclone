@@ -40,7 +40,6 @@
 
 ''' This module provides the ACCKernelsTrans transformation. '''
 
-import re
 from typing import Any, Dict, Union
 import warnings
 
@@ -50,7 +49,8 @@ from psyclone.psyir.nodes import (
     ACCEnterDataDirective, ACCKernelsDirective, Assignment,
     Call, CodeBlock, Literal, Loop, Node,
     PSyDataNode, Reference, Return, Routine, Statement, WhileLoop)
-from psyclone.psyir.symbols import INTEGER_TYPE, UnsupportedFortranType
+from psyclone.psyir.symbols import (
+    ArrayType, DataTypeSymbol, ScalarType, UnsupportedFortranType)
 from psyclone.psyir.transformations.arrayassignment2loops_trans import (
     ArrayAssignment2LoopsTrans)
 from psyclone.psyir.transformations.region_trans import RegionTrans
@@ -67,18 +67,40 @@ class ACCKernelsTrans(RegionTrans):
 
     For example:
 
-    >>> from psyclone.psyir.frontend import FortranReader
-    >>> psyir = FortranReader().psyir_from_source(NEMO_SOURCE_FILE)
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.tests.utilities import get_examples_path
+    >>> filename = get_examples_path("nemo/code/tra_adv.F90")
+    >>> psyir = FortranReader().psyir_from_file(filename)
     >>>
     >>> from psyclone.psyir.transformations import ACCKernelsTrans
+    >>> from psyclone.psyir.nodes import Loop
     >>> ktrans = ACCKernelsTrans()
     >>>
-    >>> schedule = psyir.children[0]
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>> kernels = schedule.children[9]
-    >>> # Transform the kernel
-    >>> ktrans.apply(kernels)
+    >>> # Get the first outer-loop
+    >>> loop = psyir.children[0].walk(Loop)[0]
+    >>> # Add a kernels construct for execution on the device
+    >>> ktrans.apply(loop)
+    >>>
+    >>> # Print the resulting code
+    >>> kernel = loop.parent.parent
+    >>> print(kernel.debug_string())
+    !$acc kernels
+    do jk = 1, jpk, 1
+      do jj = 1, jpj, 1
+        do ji = 1, jpi, 1
+          umask(ji,jj,jk) = ji * jj * jk / r
+          mydomain(ji,jj,jk) = ji * jj * jk / r
+          pun(ji,jj,jk) = ji * jj * jk / r
+          pvn(ji,jj,jk) = ji * jj * jk / r
+          pwn(ji,jj,jk) = ji * jj * jk / r
+          vmask(ji,jj,jk) = ji * jj * jk / r
+          tsn(ji,jj,jk) = ji * jj * jk / r
+          tmask(ji,jj,jk) = ji * jj * jk / r
+        enddo
+      enddo
+    enddo
+    !$acc end kernels
+    <BLANKLINE>
 
     '''
     excluded_node_types = (CodeBlock, Return, PSyDataNode,
@@ -178,7 +200,7 @@ class ACCKernelsTrans(RegionTrans):
             # A value of True means that async is specified with no queue.
             checkval = None
         elif isinstance(async_queue, int):
-            checkval = Literal(f"{async_queue}", INTEGER_TYPE)
+            checkval = Literal(f"{async_queue}", ScalarType.integer_type())
         elif isinstance(async_queue, Reference):
             checkval = async_queue
         else:
@@ -261,12 +283,6 @@ class ACCKernelsTrans(RegionTrans):
                 "GOcean InvokeSchedules")
         super().validate(node_list, options, **kwargs)
 
-        # The regex we use to determine whether a character declaration is
-        # of assumed size ('LEN=*' or '*(*)').
-        # TODO #2612 - improve the fparser2 frontend support for character
-        # declarations.
-        assumed_size = re.compile(r"\(\s*len\s*=\s*\*\s*\)|\*\s*\(\s*\*\s*\)")
-
         # Construct a list of any symbols that correspond to assumed-size
         # character strings. These can only be routine arguments.
         char_syms = []
@@ -274,14 +290,19 @@ class ACCKernelsTrans(RegionTrans):
         if parent_routine:
             arg_syms = parent_routine.symbol_table.argument_datasymbols
             for sym in arg_syms:
-                # Currently the fparser2 frontend does not support any type
-                # of LEN= specification on a character variable so we resort
-                # to a regex to check whether it is assumed-size.
-                if isinstance(sym.datatype, UnsupportedFortranType):
-                    type_txt = sym.datatype.type_text.lower()
-                    if (type_txt.startswith("character") and
-                            assumed_size.search(type_txt)):
-                        char_syms.append(sym)
+                dtype = sym.datatype
+                if isinstance(dtype, UnsupportedFortranType):
+                    dtype = dtype.partial_datatype
+                    if not dtype:
+                        continue
+                if isinstance(dtype, DataTypeSymbol):
+                    continue
+                if dtype.intrinsic != ScalarType.Intrinsic.CHARACTER:
+                    continue
+                if isinstance(dtype, ArrayType):
+                    dtype = dtype.elemental_type
+                if isinstance(dtype.length, ScalarType.CharLengthParameter):
+                    char_syms.append(sym)
 
         for node in node_list:
             # Check that there are no assumed-size character variables as these

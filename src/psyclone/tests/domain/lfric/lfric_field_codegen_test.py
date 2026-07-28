@@ -42,10 +42,12 @@ LFRic field arguments.
 '''
 
 import os
+import pytest
 
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import get_invoke, get_psylayer_schedule
 
 
 # Constants
@@ -68,14 +70,15 @@ def test_field(tmpdir):
     generated_code = psy.gen
     output = (
         "module single_invoke_psy\n"
-        "  use constants_mod\n"
+        "  use constants_mod, only : r_def\n"
         "  use field_mod, only : field_proxy_type, field_type\n"
+        "  use testkern_mod, only : testkern_code\n"
         "  implicit none\n"
         "  public\n"
         "\n"
         "  contains\n"
         "  subroutine invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
-        "    use testkern_mod, only : testkern_code\n"
+        "    use constants_mod, only : i_def\n"
         "    real(kind=r_def), intent(in) :: a\n"
         "    type(field_type), intent(in) :: f1\n"
         "    type(field_type), intent(in) :: f2\n"
@@ -309,8 +312,9 @@ def test_field_fs(tmpdir):
     generated_code = str(psy.gen)
     output = """\
 module single_invoke_fs_psy
-  use constants_mod
   use field_mod, only : field_proxy_type, field_type
+  use testkern_fs_mod, only : testkern_fs_code
+  use constants_mod, only : r_def
   implicit none
   public
 
@@ -318,7 +322,7 @@ module single_invoke_fs_psy
   subroutine invoke_0_testkern_fs_type(f1, f2, m1, m2, f3, f4, m3, m4, f5, \
 f6, m5, m6, m7)
     use mesh_mod, only : mesh_type
-    use testkern_fs_mod, only : testkern_fs_code
+    use constants_mod, only : i_def
     type(field_type), intent(in) :: f1
     type(field_type), intent(in) :: f2
     type(field_type), intent(in) :: m1
@@ -641,50 +645,34 @@ def test_int_field_fs(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
 
     generated_code = str(psy.gen)
-    assert """module single_invoke_fs_int_field_psy
-  use constants_mod
+    # Shorten the test by generating some of the expected output.
+    fld_names = ["f1", "f2", "m1", "m2", "f3", "f4", "m3", "m4", "f5", "f6",
+                 "m5", "m6", "f7", "f8", "m7"]
+    declarations = []
+    data_ptrs = []
+    for fld in fld_names:
+        declarations.append(
+            f"    type(integer_field_type), intent(in) :: {fld}")
+        data_ptrs.append(
+            f"    integer(kind=i_def), pointer, dimension(:) :: {fld}_data "
+            f"=> null()")
+    decln_text = "\n".join(declarations)
+    ptrs_text = "\n".join(data_ptrs)
+    assert f"""module single_invoke_fs_int_field_psy
   use integer_field_mod, only : integer_field_proxy_type, integer_field_type
+  use testkern_fs_int_field_mod, only : testkern_fs_int_field_code
+  use constants_mod, only : i_def
   implicit none
   public
 
   contains
-  subroutine invoke_0_testkern_fs_int_field_type(f1, f2, m1, m2, f3, f4, m3, \
-m4, f5, f6, m5, m6, f7, f8, m7)
+  subroutine invoke_0_testkern_fs_int_field_type({', '.join(fld_names)})
     use mesh_mod, only : mesh_type
-    use testkern_fs_int_field_mod, only : testkern_fs_int_field_code
-    type(integer_field_type), intent(in) :: f1
-    type(integer_field_type), intent(in) :: f2
-    type(integer_field_type), intent(in) :: m1
-    type(integer_field_type), intent(in) :: m2
-    type(integer_field_type), intent(in) :: f3
-    type(integer_field_type), intent(in) :: f4
-    type(integer_field_type), intent(in) :: m3
-    type(integer_field_type), intent(in) :: m4
-    type(integer_field_type), intent(in) :: f5
-    type(integer_field_type), intent(in) :: f6
-    type(integer_field_type), intent(in) :: m5
-    type(integer_field_type), intent(in) :: m6
-    type(integer_field_type), intent(in) :: f7
-    type(integer_field_type), intent(in) :: f8
-    type(integer_field_type), intent(in) :: m7
+{decln_text}
     integer(kind=i_def) :: cell
     type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: max_halo_depth_mesh
-    integer(kind=i_def), pointer, dimension(:) :: f1_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: f2_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: m1_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: m2_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: f3_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: f4_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: m3_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: m4_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: f5_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: f6_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: m5_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: m6_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: f7_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: f8_data => null()
-    integer(kind=i_def), pointer, dimension(:) :: m7_data => null()
+{ptrs_text}
     integer(kind=i_def) :: nlayers_f1
     integer(kind=i_def) :: ndf_w1
     integer(kind=i_def) :: undf_w1
@@ -1039,20 +1027,18 @@ def test_int_real_field_fs(dist_mem, tmpdir):
     spaces produces correct code.
 
     '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "4.14_multikernel_invokes_real_int_field_fs.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
-
+    psy, _ = get_invoke("4.14_multikernel_invokes_real_int_field_fs.f90",
+                        api=TEST_API, dist_mem=dist_mem, idx=0)
     generated_code = str(psy.gen)
 
     output = (
         "module multikernel_invokes_real_int_field_fs_psy\n"
-        "  use constants_mod\n"
         "  use integer_field_mod, only : integer_field_proxy_type, "
         "integer_field_type\n"
+        "  use testkern_fs_int_field_mod, only : testkern_fs_int_field_code\n"
         "  use field_mod, only : field_proxy_type, field_type\n"
+        "  use testkern_fs_mod, only : testkern_fs_code\n"
+        "  use constants_mod, only : i_def, r_def\n"
         "  implicit none\n"
         "  public\n\n"
         "  contains\n"
@@ -1210,3 +1196,16 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         assert halo2_flags in generated_code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_field_nlevels():
+    '''Test for a kernel that has arguments with non-default values of
+    NLEVELS and NDATA.
+
+    '''
+    with pytest.raises(NotImplementedError) as err:
+        _ = get_psylayer_schedule("1.5.6_single_invoke_nlevels_ndata.f90",
+                                  TEST_API)
+    # TODO #868 - code generation yet to be implemented.
+    assert ("Cannot generate arguments for kernel "
+            "'testkern_nlevels_ndata_code'" in str(err.value))

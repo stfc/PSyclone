@@ -55,8 +55,10 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError,
 )
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class ReplaceReferenceByLiteralTrans(Transformation):
     '''
     This transformation takes a psyir Routine and replace all Reference psyir
@@ -66,10 +68,12 @@ class ReplaceReferenceByLiteralTrans(Transformation):
     For example:
 
 
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.backend.fortran import FortranWriter
-    >>> from psyclone.psyir.symbols import INTEGER_TYPE
+    >>> from psyclone.psyir.symbols import ScalarType
+    >>> from psyclone.psyir.nodes import Routine
     >>> from psyclone.psyir.transformations import (
-        ReplaceReferenceByLiteralTrans)
+    ... ReplaceReferenceByLiteralTrans)
     >>> source = """program test
     ... use mymod
     ... type(my_type):: t1, t2, t3, t4
@@ -113,7 +117,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
       integer :: ic2
       integer :: ic3
       real, dimension(10) :: a
-      <BLANKLINE>
+    <BLANKLINE>
       invariant = 1
       do i = 1, 10, 1
         t1%a = 13
@@ -122,11 +126,12 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         a(ic3) = 3 + (ic3 + 13) * ic3
         a(t1%a) = 4 + (t1%a + 4 * 13) * t1%a
       enddo
-      <BLANKLINE>
+    <BLANKLINE>
     end program test
     <BLANKLINE>
 
     '''
+
     def __init__(self) -> None:
         super().__init__()
         # Dictionary with Literal values of the corresponding symbol
@@ -230,7 +235,8 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         return new_shape
 
     # ------------------------------------------------------------------------
-    def apply(self, node: Routine, options: Optional[Dict[str, Any]] = None):
+    def apply(self, node: Routine, options: Optional[Dict[str, Any]] = None,
+              **kwargs):
         """Applies the transformation to a Routine node:
         * First update a dictionary (param_table) with the Literal of constant
         (parameter) symbol from node.parent symbol_table, and from
@@ -248,6 +254,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
         :param node: node on which the transformation is applied
         :param options: a dictionary with options for transformations.
         """
+        # TODO 2668: Remove options.
         ## Reset the param table for the current Routine
         self._param_table = {}
         self.validate(node, options)
@@ -279,7 +286,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
                                              new_shape)
 
     # ------------------------------------------------------------------------
-    def validate(self, node, options=None):
+    def validate(self, node: Routine, options=None, **kwargs):
         """Perform various checks to ensure that it is valid to apply the
         ReplaceReferenceByLiteralTrans transformation to the supplied PSyIR
         Node.
@@ -290,6 +297,7 @@ class ReplaceReferenceByLiteralTrans(Transformation):
 
         :raises TransformationError: if the node argument is not a Routine.
         """
+        self.validate_options(**kwargs)
         if not isinstance(node, Routine):
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied node "

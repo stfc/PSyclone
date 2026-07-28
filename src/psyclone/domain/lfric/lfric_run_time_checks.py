@@ -47,8 +47,8 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric import LFRicCollection, LFRicConstants
 from psyclone.psyir.symbols import (
-    CHARACTER_TYPE, ContainerSymbol, RoutineSymbol, ImportInterface,
-    DataSymbol, UnresolvedType, INTEGER_TYPE)
+    ScalarType, ContainerSymbol, RoutineSymbol, ImportInterface,
+    DataSymbol, UnresolvedType)
 from psyclone.psyir.nodes import (
     Call, StructureReference, BinaryOperation, Reference, Literal, IfBlock,
     ArrayOfStructuresReference)
@@ -150,7 +150,8 @@ class LFRicRunTimeChecks(LFRicCollection):
                 for name in function_space_names:
                     if arg.vector_size > 1:
                         call = Call.create(ArrayOfStructuresReference.create(
-                            field_symbol, [Literal('1', INTEGER_TYPE)],
+                            field_symbol,
+                            [Literal('1', ScalarType.integer_type())],
                             ["which_function_space"]))
                     else:
                         call = Call.create(StructureReference.create(
@@ -184,7 +185,7 @@ class LFRicRunTimeChecks(LFRicCollection):
                              f"'{kern_call.name}' but its function space is "
                              f"not compatible with the function space "
                              f"specified in the kernel metadata '{fs_name}'.",
-                             CHARACTER_TYPE),
+                             ScalarType.character_type()),
                      Reference(symtab.lookup(log_level))])
 
                 ifblock = IfBlock.create(if_condition, [if_body])
@@ -247,7 +248,8 @@ class LFRicRunTimeChecks(LFRicCollection):
                 [Literal(f"In alg '{self._invoke.invokes.psy.orig_name}' "
                          f"invoke '{self._invoke.name}', field '{field.name}' "
                          f"is on a read-only function space but is modified "
-                         f"by kernel '{call.name}'.", CHARACTER_TYPE),
+                         f"by kernel '{call.name}'.",
+                         ScalarType.character_type()),
                  Reference(symtab.lookup(log_level))])
 
             ifblock = IfBlock.create(if_condition, [if_body])

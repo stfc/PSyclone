@@ -42,7 +42,7 @@ transformations.
 import pytest
 
 from psyclone.psyir.nodes import IntrinsicCall, Reference
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations import (
     TransformationError, Maxval2LoopTrans, ArrayAssignment2LoopsTrans)
 from psyclone.psyir.transformations.intrinsics.array_reduction_base_trans \
@@ -84,7 +84,7 @@ def test_validate_node():
 
     intrinsic = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.MINVAL,
-        [Reference(DataSymbol("array", REAL_TYPE))])
+        [Reference(DataSymbol("array", ScalarType.real_type()))])
     with pytest.raises(TransformationError) as info:
         trans.validate(intrinsic)
     assert ("The supplied node argument is not a maxval intrinsic, found "

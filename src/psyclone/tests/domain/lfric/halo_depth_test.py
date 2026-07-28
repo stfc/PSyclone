@@ -79,18 +79,19 @@ def test_halo_depth_set_by_value():
     hdepth.set_by_value(False, None, True, False)
     assert hdepth.var_depth is None
     # PSyIR expression.
-    my_depth = symbols.DataSymbol("my_depth", symbols.INTEGER_TYPE)
+    my_depth = symbols.DataSymbol(
+        "my_depth", symbols.ScalarType.integer_type())
     invoke.schedule.symbol_table.add(my_depth)
     exprn = nodes.BinaryOperation.create(
         nodes.BinaryOperation.Operator.MUL,
-        nodes.Literal("2", symbols.INTEGER_TYPE),
+        nodes.Literal("2", symbols.ScalarType.integer_type()),
         nodes.Reference(my_depth))
     hdepth.set_by_value(False, exprn, False, False)
     assert hdepth.var_depth.debug_string() == "2 * my_depth"
     # Check that the PSyIR expression is simplified where possible.
     exprn2 = nodes.BinaryOperation.create(
         nodes.BinaryOperation.Operator.MUL,
-        nodes.Literal("2", symbols.INTEGER_TYPE),
-        nodes.Literal("2", symbols.INTEGER_TYPE))
+        nodes.Literal("2", symbols.ScalarType.integer_type()),
+        nodes.Literal("2", symbols.ScalarType.integer_type()))
     hdepth.set_by_value(False, exprn2, False, False)
     assert hdepth.var_depth.debug_string() == "4"

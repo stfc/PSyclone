@@ -51,7 +51,7 @@ from psyclone.psyad.domain.lfric import generate_lfric_adjoint
 from psyclone.psyad.domain.lfric.lfric_adjoint import (
     _update_access_metadata, _check_or_add_access_symbol)
 from psyclone.psyir.symbols import (
-    DataSymbol, ArgumentInterface, INTEGER_TYPE, REAL_TYPE)
+    DataSymbol, ArgumentInterface, ScalarType)
 
 
 def test_generate_lfric_adjoint_no_container_error(fortran_reader):
@@ -123,9 +123,9 @@ end module test_mod
 
 MULTI_ROUTINE_CODE = (
     f"module test_mod\n"
-    f"  implicit none\n"
     f"  use kernel_mod\n"
     f"  use argument_mod\n"
+    f"  implicit none\n"
     f"{METADATA}"
     f"  public test_code\n"
     f"  interface test_code\n"
@@ -187,9 +187,9 @@ def test_generate_lfric_adjoint_multi_routine_logging(fortran_reader, caplog):
 
 SINGLE_ROUTINE_CODE = (
     "module test_mod\n"
-    "  implicit none\n"
     "  use kernel_mod\n"
     "  use argument_mod\n"
+    "  implicit none\n"
     "  type, extends(kernel_type) :: test_type\n"
     "     type(arg_type), dimension(2) :: meta_args = (/  &\n"
     "          arg_type(gh_field,  gh_real, gh_inc, w0),  &\n"
@@ -337,24 +337,24 @@ def get_metadata_args():
     metadata.validate()
     # This can be used for any additional arguments as we don't use
     # these in our tests.
-    dummy = DataSymbol("dummy", INTEGER_TYPE,
+    dummy = DataSymbol("dummy", ScalarType.integer_type(),
                        interface=ArgumentInterface(
                            ArgumentInterface.Access.READ))
     # It doesn't matter that field_1, field_2, field_3 and operator
     # are the wrong type as we only care about their intent.
-    field_1 = DataSymbol("field_1", REAL_TYPE,
+    field_1 = DataSymbol("field_1", ScalarType.real_type(),
                          interface=ArgumentInterface(
                              ArgumentInterface.Access.READWRITE))
-    field_2 = DataSymbol("field_2", REAL_TYPE,
+    field_2 = DataSymbol("field_2", ScalarType.real_type(),
                          interface=ArgumentInterface(
                              ArgumentInterface.Access.READWRITE))
-    field_3 = DataSymbol("field_3", REAL_TYPE,
+    field_3 = DataSymbol("field_3", ScalarType.real_type(),
                          interface=ArgumentInterface(
                              ArgumentInterface.Access.READWRITE))
-    scalar = DataSymbol("scalar", REAL_TYPE,
+    scalar = DataSymbol("scalar", ScalarType.real_type(),
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READWRITE))
-    operator = DataSymbol("operator", REAL_TYPE,
+    operator = DataSymbol("operator", ScalarType.real_type(),
                           interface=ArgumentInterface(
                               ArgumentInterface.Access.READWRITE))
     return (metadata, dummy, field_1, field_2, field_3, scalar, operator)

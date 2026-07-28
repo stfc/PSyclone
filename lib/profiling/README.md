@@ -52,7 +52,7 @@ Example output:
 This is a wrapper library that maps the [PSyclone profiling API](
 https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html#profiling) to the
 dl_timer API. A copy of dl_timer can be downloaded from
-https://bitbucket.org/apeg/dl_timer.
+https://github.com/stfc/dl_timer.
 
 The PSyclone dl_timer wrapper library uses the ``ProfileData`` type and
 dl_timer's timer_register function to store the module/region name and

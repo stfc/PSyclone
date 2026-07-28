@@ -45,10 +45,9 @@ from psyclone.psyir.nodes import (
     ArrayReference, Assignment, BinaryOperation, CodeBlock, IfBlock, Literal,
     Node, Reference, Return, Schedule, UnaryOperation, Loop,
     OMPTaskloopDirective, OMPMasterDirective, OMPParallelDirective,
-    IntrinsicCall)
+    IntrinsicCall, OMPBarrierDirective)
 from psyclone.psyir.symbols import (
-    ArgumentInterface, ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE, DataSymbol,
-    INTEGER_TYPE, REAL_TYPE)
+    ArgumentInterface, ArrayType, ScalarType, DataSymbol)
 
 
 def test_cw_gen_declaration():
@@ -59,22 +58,23 @@ def test_cw_gen_declaration():
     cwriter = CWriter()
 
     # Basic entries
-    symbol = DataSymbol("dummy1", INTEGER_TYPE)
+    symbol = DataSymbol("dummy1", ScalarType.integer_type())
     result = cwriter.gen_declaration(symbol)
     assert result == "int dummy1"
 
-    symbol = DataSymbol("dummy1", CHARACTER_TYPE)
+    symbol = DataSymbol("dummy1", ScalarType.character_type())
     result = cwriter.gen_declaration(symbol)
     assert result == "char dummy1"
 
-    symbol = DataSymbol("dummy1", BOOLEAN_TYPE)
+    symbol = DataSymbol("dummy1", ScalarType.boolean_type())
     result = cwriter.gen_declaration(symbol)
     assert result == "bool dummy1"
 
     # Array argument
-    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE,
-                                       ArrayType.Extent.ATTRIBUTE,
-                                       ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(ScalarType.real_type(),
+                           [ArrayType.Extent.ATTRIBUTE,
+                            ArrayType.Extent.ATTRIBUTE,
+                            ArrayType.Extent.ATTRIBUTE])
     symbol = DataSymbol("dummy2", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READ))
@@ -82,7 +82,7 @@ def test_cw_gen_declaration():
     assert result == "double * restrict dummy2"
 
     # Array with unknown access
-    array_type = ArrayType(INTEGER_TYPE, [2, 4, 2])
+    array_type = ArrayType(ScalarType.integer_type(), [2, 4, 2])
     symbol = DataSymbol("dummy2", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
@@ -108,7 +108,7 @@ def test_cw_gen_local_variable(monkeypatch):
                         lambda x: "<declaration>")
 
     # Local variables are declared as single statements
-    symbol = DataSymbol("dummy1", INTEGER_TYPE)
+    symbol = DataSymbol("dummy1", ScalarType.integer_type())
     result = cwriter.gen_local_variable(symbol)
     # Result should include the mocked gen_declaration and ';\n'
     assert result == "<declaration>;\n"
@@ -140,14 +140,14 @@ def test_cw_literal():
 
     cwriter = CWriter()
 
-    lit = Literal('1', INTEGER_TYPE)
+    lit = Literal('1', ScalarType.integer_type())
     assert cwriter(lit) == '1'
 
-    lit = Literal('1', REAL_TYPE)
+    lit = Literal('1', ScalarType.real_type())
     assert cwriter(lit) == '1.0'
 
     # Test that scientific notation is output correctly
-    lit = Literal("3e5", REAL_TYPE, None)
+    lit = Literal("3e5", ScalarType.real_type(), None)
     assert cwriter(lit) == '3e5'
 
 
@@ -156,8 +156,9 @@ def test_cw_assignment():
     output.
 
     '''
-    assignment = Assignment.create(Reference(DataSymbol('a', REAL_TYPE)),
-                                   Reference(DataSymbol('b', REAL_TYPE)))
+    assignment = Assignment.create(
+        Reference(DataSymbol('a', ScalarType.real_type())),
+        Reference(DataSymbol('b', ScalarType.real_type())))
     # Generate C from the PSyIR schedule
     cwriter = CWriter()
     result = cwriter(assignment)
@@ -171,9 +172,9 @@ def test_cw_array():
     '''
     cwriter = CWriter()
 
-    symbol = DataSymbol('a', REAL_TYPE)
+    symbol = DataSymbol('a', ScalarType.real_type())
     arr = ArrayReference(symbol)
-    lit = Literal('0.0', REAL_TYPE)
+    lit = Literal('0.0', ScalarType.real_type())
     assignment = Assignment.create(arr, lit)
 
     # An array without any children (dimensions) should produce an error.
@@ -183,10 +184,10 @@ def test_cw_array():
            "must have one or more children." in str(excinfo.value)
 
     # Dimensions can be references, literals or operations
-    arr.addchild(Reference(DataSymbol('b', INTEGER_TYPE)))
-    arr.addchild(Literal('1', INTEGER_TYPE))
+    arr.addchild(Reference(DataSymbol('b', ScalarType.integer_type())))
+    arr.addchild(Literal('1', ScalarType.integer_type()))
     uop = UnaryOperation.create(UnaryOperation.Operator.MINUS,
-                                Literal('2', INTEGER_TYPE))
+                                Literal('2', ScalarType.integer_type()))
     arr.addchild(uop)
 
     result = cwriter(assignment)
@@ -211,7 +212,7 @@ def test_cw_ifblock():
             "at least 2 children, but found 0." in str(err.value))
 
     # Add the if condition
-    ifblock.addchild(Reference(DataSymbol('a', REAL_TYPE)))
+    ifblock.addchild(Reference(DataSymbol('a', ScalarType.real_type())))
     with pytest.raises(VisitorError) as err:
         _ = cwriter(ifblock)
     assert ("IfBlock malformed or incomplete. It should have "
@@ -228,7 +229,7 @@ def test_cw_ifblock():
     # Fill the else_body
     ifblock.addchild(Schedule(parent=ifblock))
 
-    condition = Reference(DataSymbol('b', REAL_TYPE))
+    condition = Reference(DataSymbol('b', ScalarType.real_type()))
     then_content = [Return()]
     else_content = [Return()]
     ifblock2 = IfBlock.create(condition, then_content, else_content)
@@ -285,7 +286,7 @@ def test_cw_unaryoperator():
             "exactly 1 child, but found 0." in str(err.value))
 
     # Add child
-    ref1 = Literal("a", CHARACTER_TYPE, unary_operation)
+    ref1 = Literal("a", ScalarType.character_type(), unary_operation)
     unary_operation.addchild(ref1)
     assert cwriter(unary_operation) == '(-a)'
 
@@ -324,8 +325,8 @@ def test_cw_binaryoperator():
             "exactly 2 children, but found 0." in str(err.value))
 
     # Test with children
-    ref1 = Reference(DataSymbol("a", REAL_TYPE))
-    ref2 = Reference(DataSymbol("b", REAL_TYPE))
+    ref1 = Reference(DataSymbol("a", ScalarType.real_type()))
+    ref2 = Reference(DataSymbol("b", ScalarType.real_type()))
     binary_operation = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                               ref1, ref2)
     assert cwriter(binary_operation) == '(a + b)'
@@ -377,7 +378,7 @@ def test_cw_intrinsiccall():
                  (IntrinsicCall.Intrinsic.ATAN, 'atan(a)'),
                  (IntrinsicCall.Intrinsic.ABS, 'abs(a)'),
                  (IntrinsicCall.Intrinsic.REAL, '(float)a'))
-    ref1 = Reference(DataSymbol("a", REAL_TYPE))
+    ref1 = Reference(DataSymbol("a", ScalarType.real_type()))
     for intrinsic, expected in test_list:
         icall = IntrinsicCall.create(intrinsic, [ref1.copy()])
         assert cwriter(icall) == expected
@@ -397,8 +398,8 @@ def test_cw_intrinsiccall():
                  (IntrinsicCall.Intrinsic.MOD, '(a % b)'),
                  (IntrinsicCall.Intrinsic.SIGN, 'copysign(a, b)'),
     )
-    ref1 = Reference(DataSymbol("a", REAL_TYPE))
-    ref2 = Reference(DataSymbol("b", REAL_TYPE))
+    ref1 = Reference(DataSymbol("a", ScalarType.real_type()))
+    ref2 = Reference(DataSymbol("b", ScalarType.real_type()))
     for intrinsic, expected in test_list:
         icall = IntrinsicCall.create(intrinsic, [ref1.copy(), ref2.copy()])
         assert cwriter(icall) == expected
@@ -449,11 +450,11 @@ def test_cw_unsupported_intrinsiccall():
     ''' Check the CWriter class SIZE intrinsic raises the expected error since
     there is no C equivalent. '''
     cwriter = CWriter()
-    arr = ArrayReference(DataSymbol('a', INTEGER_TYPE))
-    lit = Literal('1', INTEGER_TYPE)
+    arr = ArrayReference(DataSymbol('a', ScalarType.integer_type()))
+    lit = Literal('1', ScalarType.integer_type())
     size = IntrinsicCall.create(IntrinsicCall.Intrinsic.SIZE,
                                 [arr, ("dim", lit)])
-    lhs = Reference(DataSymbol('length', INTEGER_TYPE))
+    lhs = Reference(DataSymbol('length', ScalarType.integer_type()))
     assignment = Assignment.create(lhs, size)
 
     with pytest.raises(VisitorError) as excinfo:
@@ -493,7 +494,7 @@ def test_cw_structureref(fortran_reader):
            "reference to symbol 'a' has 0." in str(err.value)
 
     ref = module[0].children[0]
-    ref._children = [Literal("1", INTEGER_TYPE)]
+    ref._children = [Literal("1", ScalarType.integer_type())]
     with pytest.raises(VisitorError) as err:
         # We can't call cwriter(), it will complain about having a Literal
         # node which is invalid. So call _visit()
@@ -536,8 +537,8 @@ def test_cw_arraystructureref(fortran_reader):
     assert "An ArrayOfStructuresReference must have at least two children " \
            "but found 0" in str(err.value)
 
-    array_ref._children = [Literal("1", INTEGER_TYPE),
-                           Literal("1", INTEGER_TYPE)]
+    array_ref._children = [Literal("1", ScalarType.integer_type()),
+                           Literal("1", ScalarType.integer_type())]
     with pytest.raises(VisitorError) as err:
         # We can't call cwriter(), it will complain about having a Literal
         # node which is invalid. So call _visit()
@@ -571,8 +572,13 @@ def test_cw_directive_with_clause(fortran_reader):
     master = OMPMasterDirective(children=[directive])
     parallel = OMPParallelDirective.create(children=[master])
     schedule.addchild(parallel, 0)
-    assert '''#pragma omp parallel default(shared), private(i)
+    # Add a barrier to cover the StandaloneDirective visitor
+    parallel.children[0].addchild(OMPBarrierDirective(), 0)
+
+    assert '''\
+#pragma omp parallel default(shared), private(i)
 {
+  #pragma omp barrier
   #pragma omp master
   {
     #pragma omp taskloop num_tasks(32), nogroup

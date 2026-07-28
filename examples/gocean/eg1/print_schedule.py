@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2026, Science and Technology Facilities Council.
+# Copyright (c) 2018-2026, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,10 +31,24 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory.
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
-# Python packages required for Binder and not installed by default
-# when using setup.py. (See README.md for details on launching the
-# examples on Binder.)
-termcolor
-graphviz
+''' PSyclone script that print the invoke names and their schedules '''
+
+from psyclone.psyir.nodes import FileContainer
+from psyclone.psyGen import InvokeSchedule
+
+
+def trans(psyir: FileContainer):
+    '''
+    :param psyir: the PSyIR of the PSy-layer.
+
+    '''
+    invokes = psyir.walk(InvokeSchedule)
+
+    # Print a list of all of the invokes found
+    print([invoke.name for invoke in invokes])
+
+    # Print the Schedule of each of these Invokes
+    for invoke in invokes:
+        print(invoke.view())

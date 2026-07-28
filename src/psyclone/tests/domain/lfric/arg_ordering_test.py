@@ -50,7 +50,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import ArrayReference, Literal, Reference
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import ScalarType
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_ast, get_base_path, get_invoke
 
@@ -120,7 +120,7 @@ def test_argordering_get_array_reference():
     arg_list = ArgOrdering(kern)
 
     # First test access using an index, e.g. `array(1)`
-    one = Literal("1", INTEGER_TYPE)
+    one = Literal("1", ScalarType.integer_type())
     ref = arg_list.get_array_reference("array1", [one])
     assert isinstance(ref, ArrayReference)
     ref = arg_list.get_array_reference("array2", [":"])

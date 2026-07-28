@@ -44,7 +44,7 @@ from psyclone import gen_kernel_stub, kernel_tools
 from psyclone.configuration import Config
 from psyclone.domain.lfric import algorithm
 from psyclone.psyir.nodes import Container, Routine
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, CHARACTER_TYPE
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, ScalarType
 from psyclone.version import __VERSION__
 
 
@@ -175,7 +175,7 @@ def test_run_line_length(fortran_reader, monkeypatch, capsys, limit, mode):
         than 132 chars. '''
         routine = Routine.create("my_sub", SymbolTable(), [])
         routine.symbol_table.new_symbol("long_str", symbol_type=DataSymbol,
-                                        datatype=CHARACTER_TYPE)
+                                        datatype=ScalarType.character_type())
         stmt = fortran_reader.psyir_from_statement(f"long_str = '{140*' '}'",
                                                    routine.symbol_table)
         routine.addchild(stmt)

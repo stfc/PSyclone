@@ -17,7 +17,7 @@ Developer Guide
 
     psyir
     psyir_symbols
-    psyir_backends
+    psyir_frontends_backends
     psykal
     module_manager
     APIs

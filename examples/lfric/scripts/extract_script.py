@@ -7,15 +7,14 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''
-PSyclone transformation script for the LFRic (Dynamo0p3) API to apply
+PSyclone transformation script for the LFRic API to apply
 redundant computation and then extract all kernels.
 
 '''
 
 from psyclone.domain.lfric import LFRicLoop
-from psyclone.domain.lfric.transformations import LFRicExtractTrans
-
-from psyclone.transformations import LFRicRedundantComputationTrans
+from psyclone.domain.lfric.transformations import (
+    LFRicExtractTrans, LFRicRedundantComputationTrans)
 
 SETVAL_BUILTINS = ["setval_c"]
 

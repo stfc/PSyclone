@@ -508,19 +508,18 @@ class OMPReductionClause(OperatorClause):
         supported in PSyclone.'''
         # Arithmetic operators
         ADD = 0
-        SUB = 1
-        MUL = 2
+        MUL = 1
         # Logical operators
-        AND = 3
-        OR = 4
-        EQV = 5  # Fortran specific
-        NEQV = 6  # Fortran specific
+        AND = 2
+        OR = 3
+        EQV = 4  # Fortran specific
+        NEQV = 5  # Fortran specific
         # Intrinsic procedures
-        MAX = 7
-        MIN = 8
-        IAND = 9
-        IOR = 10
-        IEOR = 11
+        MAX = 6
+        MIN = 7
+        IAND = 8
+        IOR = 9
+        IEOR = 10
 
     def __init__(self, operator: ReductionClauseTypes, **kwargs):
         if not isinstance(operator, OMPReductionClause.ReductionClauseTypes):

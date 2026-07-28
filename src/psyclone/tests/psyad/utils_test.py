@@ -41,7 +41,7 @@ import pytest
 
 from psyclone.psyad.utils import node_is_active, node_is_passive, negate_expr
 from psyclone.psyir.nodes import Literal, UnaryOperation, Reference
-from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol
+from psyclone.psyir.symbols import ScalarType, DataSymbol
 
 
 # node_is_active and node_is_passive functions
@@ -101,7 +101,7 @@ def test_active_error():
         node_is_active(None, None)
     assert ("The node argument to the node_is_active() method should be a "
             "PSyIR Node, but found NoneType" in str(info.value))
-    node = Reference(DataSymbol("a", INTEGER_TYPE))
+    node = Reference(DataSymbol("a", ScalarType.integer_type()))
     with pytest.raises(TypeError) as info:
         node_is_active(node, None)
     assert ("The active_variables argument to the node_is_active() method "
@@ -112,7 +112,7 @@ def test_active_error():
             "method to be a list containing either solely PSyIR DataSymbols "
             "or solely strings, but found ['NoneType']." in str(info.value))
     with pytest.raises(ValueError) as info:
-        node_is_active(node, [DataSymbol("a", INTEGER_TYPE), "a"])
+        node_is_active(node, [DataSymbol("a", ScalarType.integer_type()), "a"])
     assert ("Expected the active_variables argument to the node_is_active() "
             "method to be a list containing either solely PSyIR DataSymbols "
             "or solely strings, but found ['DataSymbol', 'str']."
@@ -125,26 +125,26 @@ def test_negate_expr(fortran_writer):
 
     '''
     # positive literal value
-    literal = Literal("1", INTEGER_TYPE)
+    literal = Literal("1", ScalarType.integer_type())
     result = negate_expr(literal)
     assert fortran_writer(result) == "-1"
     # negative literal value
-    literal = Literal("-1", INTEGER_TYPE)
+    literal = Literal("-1", ScalarType.integer_type())
     result = negate_expr(literal)
     assert fortran_writer(result) == "1"
     # unary minus
     minus = UnaryOperation.create(
-        UnaryOperation.Operator.MINUS, Literal("1", INTEGER_TYPE))
+        UnaryOperation.Operator.MINUS, Literal("1", ScalarType.integer_type()))
     result = negate_expr(minus)
     assert isinstance(result, Literal)
     assert fortran_writer(result) == "1"
     # unary plus
     minus = UnaryOperation.create(
-        UnaryOperation.Operator.PLUS, Literal("1", INTEGER_TYPE))
+        UnaryOperation.Operator.PLUS, Literal("1", ScalarType.integer_type()))
     result = negate_expr(minus)
     # assert isinstance(result, Literal)
     assert fortran_writer(result) == "-1 * (+1)"
     # expression
-    expr = Reference(DataSymbol("a", INTEGER_TYPE))
+    expr = Reference(DataSymbol("a", ScalarType.integer_type()))
     result = negate_expr(expr)
     assert fortran_writer(result) == "-1 * a"

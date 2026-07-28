@@ -65,11 +65,13 @@ def make_component_symbol():
 
     '''
     region_type = symbols.StructureType.create([
-        ("startx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC,
+        ("startx", symbols.ScalarType.integer_type(),
+         symbols.Symbol.Visibility.PUBLIC,
          None)])
     region_type_symbol = symbols.DataTypeSymbol("region_type", region_type)
     grid_type = symbols.StructureType.create([
-        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC, None),
+        ("nx", symbols.ScalarType.integer_type(),
+         symbols.Symbol.Visibility.PUBLIC, None),
         ("region", region_type_symbol, symbols.Symbol.Visibility.PUBLIC,
          None)])
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
@@ -80,7 +82,7 @@ def make_component_symbol():
 
 def test_asr_create(component_symbol):
     ''' Check the create method. '''
-    int_one = nodes.Literal("1", symbols.INTEGER_TYPE)
+    int_one = nodes.Literal("1", symbols.ScalarType.integer_type())
     # Reference to scalar member of structure in array of structures
     asref = nodes.ArrayOfStructuresReference.create(
         component_symbol, [int_one], ["nx"])
@@ -116,7 +118,7 @@ def test_asr_create(component_symbol):
         nodes.IntrinsicCall.Intrinsic.UBOUND,
         [nodes.Reference(component_symbol), ("dim", int_one.copy())])
     my_range = nodes.Range.create(lbound, ubound)
-    datatype = symbols.INTEGER8_TYPE
+    datatype = symbols.ScalarType.integer8_type()
     asref = nodes.ArrayOfStructuresReference.\
         create(component_symbol, [my_range], ["nx"],
                overwrite_datatype=datatype)
@@ -139,7 +141,8 @@ def test_asr_create_errors(component_symbol):
         _ = nodes.ArrayOfStructuresReference.create(1, [], [])
     assert ("'symbol' argument to ArrayOfStructuresReference.create() must "
             "be a DataSymbol but found 'int'" in str(err.value))
-    scalar_symbol = symbols.DataSymbol("scalar", symbols.INTEGER_TYPE)
+    scalar_symbol = symbols.DataSymbol(
+        "scalar", symbols.ScalarType.integer_type())
     with pytest.raises(TypeError) as err:
         _ = nodes.ArrayOfStructuresReference.create(scalar_symbol, [], [])
     assert ("ArrayType, UnresolvedType or UnsupportedType but symbol 'scalar' "
@@ -153,7 +156,8 @@ def test_asr_create_errors(component_symbol):
     # Missing member(s)
     with pytest.raises(ValueError) as err:
         _ = nodes.ArrayOfStructuresReference.create(
-            component_symbol, [nodes.Literal("1", symbols.INTEGER_TYPE)], [])
+            component_symbol,
+            [nodes.Literal("1", symbols.ScalarType.integer_type())], [])
     assert ("'members' that are being accessed but got an empty list for "
             "symbol 'grid'" in str(err.value))
 
@@ -162,13 +166,14 @@ def test_ast_str():
     ''' Test that the __str__ method of the StructureReference class works OK
     when we have an ArrayOfStructuresReference. '''
     grid_type = symbols.StructureType.create([
-        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC,
+        ("nx", symbols.ScalarType.integer_type(),
+         symbols.Symbol.Visibility.PUBLIC,
          None)])
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     grid_array_type = symbols.ArrayType(grid_type_symbol, [5])
     ssym = symbols.DataSymbol("grid", grid_array_type)
     asref = nodes.ArrayOfStructuresReference.create(
-        ssym, [nodes.Literal("2", symbols.INTEGER_TYPE)], ["nx"])
+        ssym, [nodes.Literal("2", symbols.ScalarType.integer_type())], ["nx"])
     assert (str(asref) == "ArrayOfStructuresReference[name:'grid']\n"
             "Member[name:'nx']\n"
             "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]")
@@ -178,14 +183,15 @@ def test_asr_datatype():
     '''Test that the datatype property works correctly for
     ArrayOfStructuresReference. (The actual implementation is in
     StructureReference.)'''
-    one = nodes.Literal("1", symbols.INTEGER_TYPE)
-    two = nodes.Literal("2", symbols.INTEGER_TYPE)
+    one = nodes.Literal("1", symbols.ScalarType.integer_type())
+    two = nodes.Literal("2", symbols.ScalarType.integer_type())
 
-    ndofs = symbols.DataSymbol("ndofs", symbols.INTEGER_TYPE)
-    atype = symbols.ArrayType(symbols.REAL_TYPE,
+    ndofs = symbols.DataSymbol("ndofs", symbols.ScalarType.integer_type())
+    atype = symbols.ArrayType(symbols.ScalarType.real_type(),
                               [nodes.Reference(ndofs), nodes.Reference(ndofs)])
     grid_type = symbols.StructureType.create([
-        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC, None),
+        ("nx", symbols.ScalarType.integer_type(),
+         symbols.Symbol.Visibility.PUBLIC, None),
         ("data", atype, symbols.Symbol.Visibility.PUBLIC, None)])
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     grid_array_type = symbols.ArrayType(grid_type_symbol, [5])
@@ -194,11 +200,12 @@ def test_asr_datatype():
     # member of it.
     asref = nodes.ArrayOfStructuresReference.create(
         ssym, [two.copy()], ["nx"])
-    assert asref.datatype == symbols.INTEGER_TYPE
+    assert asref.datatype == symbols.ScalarType.integer_type()
     # Reference to a range of members of the array of structures and to the
     # "nx" member of each.
-    my_range = nodes.Range.create(two.copy(),
-                                  nodes.Literal("3", symbols.INTEGER_TYPE))
+    my_range = nodes.Range.create(
+        two.copy(),
+        nodes.Literal("3", symbols.ScalarType.integer_type()))
     asref2 = nodes.ArrayOfStructuresReference.create(
         ssym, [my_range], ["nx"])
     assert isinstance(asref2.datatype, symbols.ArrayType)
@@ -220,11 +227,12 @@ def test_aos_ref_replace_symbols_using(component_symbol):
     Reference but we have a test here as it's a complex case.
 
     '''
-    i64 = nodes.Reference(symbols.DataSymbol("i64",
-                                             symbols.INTEGER_DOUBLE_TYPE))
+    i64 = nodes.Reference(
+        symbols.DataSymbol("i64",
+                           symbols.ScalarType.integer_double_type()))
     itype = symbols.ScalarType(symbols.ScalarType.Intrinsic.INTEGER, i64)
     int_one = nodes.Literal("1", itype)
-    idx = symbols.DataSymbol("idx", symbols.INTEGER_TYPE)
+    idx = symbols.DataSymbol("idx", symbols.ScalarType.integer_type())
     asref = nodes.ArrayOfStructuresReference.create(
         component_symbol, [int_one.copy()],
         ["region", ("startx", [nodes.Reference(idx)])])

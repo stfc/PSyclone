@@ -42,14 +42,14 @@ DistributedMemory, OpenMP coloring and serial transformations possible.
 '''
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric.transformations import (
+    LFRicRedundantComputationTrans)
 from psyclone.lfric import LFRicHaloExchange, LFRicHaloExchangeStart
 from psyclone.psyir.transformations import Matmul2CodeTrans, OMPParallelTrans
 from psyclone.psyir.nodes import IntrinsicCall, KernelSchedule
 from psyclone.psyGen import InvokeSchedule
-from psyclone.transformations import LFRicColourTrans, \
-                                     LFRicOMPLoopTrans, \
-                                     LFRicRedundantComputationTrans, \
-                                     LFRicAsyncHaloExchangeTrans
+from psyclone.transformations import (
+    LFRicColourTrans, LFRicOMPLoopTrans, LFRicAsyncHaloExchangeTrans)
 from psyclone.psyir.transformations import MoveTrans, TransformationError
 
 ENABLE_REDUNDANT_COMPUTATION = True

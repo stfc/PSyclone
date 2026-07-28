@@ -42,14 +42,15 @@ import re
 import pytest
 
 from psyclone.core import Signature, VariablesAccessMap
-from psyclone.domain.lfric import (KernCallArgList, LFRicSymbolTable,
+from psyclone.domain.lfric import (KernCallArgList,
                                    LFRicTypes, LFRicKern)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Literal, Loop, Reference, UnaryOperation
 from psyclone.psyir.symbols import (
-    ArrayType, ScalarType, UnsupportedFortranType)
+    ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol, ScalarType,
+    SymbolTable, UnsupportedFortranType)
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import LFRicColourTrans
 
@@ -87,6 +88,44 @@ def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
         result.append(re.sub(r"[(]\s*:(,\s*:)*\s*[)]$", "", out))
 
     assert result == create_arg_list._arglist
+
+
+def test_get_user_type():
+    '''
+    Tests for the get_user_type() method.
+    '''
+    # Get a Kernel object.
+    _, invoke = get_invoke("1_single_invoke.f90", api=TEST_API, idx=0)
+    kernel = invoke.schedule.kernels()[0]
+
+    assert not kernel.scope.symbol_table.lookup("operator_mod", otherwise=None)
+
+    create_arg_list = KernCallArgList(kernel)
+    sym = create_arg_list.get_user_type("operator_mod",
+                                        "operator_type",
+                                        "my_op")
+    assert isinstance(sym.datatype, DataTypeSymbol)
+    assert sym.datatype.name == "operator_type"
+    op_mod = kernel.scope.symbol_table.lookup("operator_mod")
+    assert isinstance(op_mod, ContainerSymbol)
+
+    # Repeat - to check that the ContainerSymbol added last time is
+    # re-used.
+    sym = create_arg_list.get_user_type("operator_mod",
+                                        "operator_proxy_type",
+                                        "my_op_proxy",
+                                        tag="my_tag")
+    assert kernel.scope.symbol_table.lookup_with_tag("my_tag") is sym
+    assert isinstance(sym.datatype, DataTypeSymbol)
+    assert sym.datatype.name == "operator_proxy_type"
+    proxy_type = kernel.scope.symbol_table.lookup("operator_proxy_type")
+    assert proxy_type.interface.container_symbol is op_mod
+    # Repeat with the same tag -> should get the same symbol.
+    sym2 = create_arg_list.get_user_type("operator_mod",
+                                         "operator_proxy_type",
+                                         "my_op_proxy",
+                                         tag="my_tag")
+    assert sym2 is sym
 
 
 def test_cellmap_intergrid(dist_mem, fortran_writer):
@@ -644,21 +683,20 @@ def test_ref_element_handling(fortran_writer):
     assert len(arg.datatype.partial_datatype.shape) == 1
     assert arg.datatype.partial_datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert arg.datatype.partial_datatype.precision.name == "r_solver"
-    # TODO #2022: it would be convenient if find_or_create_array could
-    # create an r_solver based array, then the above tests would just (
-    # once #744 is sorted out) be:
-    # assert psyir_args[i].datatype == r_solver_1d.datatype
 
-    # Create a dummy LFRic symbol table to simplify creating
-    # standard LFRic types:
-    dummy_sym_tab = LFRicSymbolTable()
+    dummy_sym_tab = SymbolTable()
     # Test all 2D integer arrays:
-    i2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dint", 2,
-                                             ScalarType.Intrinsic.INTEGER)
+    i2d = dummy_sym_tab.find_or_create(
+        "doesnt_matter2dint", symbol_type=DataSymbol,
+        datatype=ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
+                           2*[ArrayType.Extent.DEFERRED]))
     for i in [4]:
         assert psyir_args[i].symbol.datatype.partial_datatype == i2d.datatype
 
-    int_arr_2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dreal", 2,
-                                                    ScalarType.Intrinsic.REAL)
+    int_arr_2d = dummy_sym_tab.find_or_create(
+        "doesnt_matter2dreal", symbol_type=DataSymbol,
+        datatype=ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
+                           2*[ArrayType.Extent.DEFERRED]))
+
     for i in [7, 8]:
         assert psyir_args[i].symbol.datatype == int_arr_2d.datatype

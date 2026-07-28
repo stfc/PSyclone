@@ -49,6 +49,10 @@ class FortranPrinter(Printer):
     not handle e.g. Fortran Array expressions (a(2:5)), so we specialise the
     generic SymPy Printer and handle the necessary conversions.'''
 
+    def _print_Not(self, expr) -> str:
+        '''Called when converting a NOT expression.'''
+        return f"(.NOT.{self._print(expr.args[0])})"
+
     def _print_And(self, expr) -> str:
         '''Called when converting an AND expression.'''
         return f"({'.AND.' .join(self._print(i) for i in expr.args)})"

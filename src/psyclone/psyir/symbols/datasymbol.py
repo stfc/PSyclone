@@ -70,6 +70,7 @@ class DataSymbol(TypedSymbol):
     :type kwargs: unwrapped dict.
 
     '''
+
     def __init__(self, name, datatype, is_constant=False, initial_value=None,
                  **kwargs):
         super().__init__(name, datatype)
@@ -217,7 +218,7 @@ class DataSymbol(TypedSymbol):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import (
             Assignment, Node, Literal, Operation, Reference,
-            CodeBlock, IntrinsicCall)
+            CodeBlock, IntrinsicCall, ArrayConstructor)
         from psyclone.psyir.symbols.datatypes import (ScalarType, ArrayType,
                                                       UnsupportedType)
 
@@ -238,7 +239,8 @@ class DataSymbol(TypedSymbol):
             if isinstance(new_value, Node):
                 for node in new_value.walk(Node):
                     if not isinstance(node, (Literal, Operation, Reference,
-                                             CodeBlock, IntrinsicCall)):
+                                             CodeBlock, IntrinsicCall,
+                                             ArrayConstructor)):
                         raise ValueError(
                             f"Error setting initial value for symbol "
                             f"'{self.name}'. PSyIR static expressions can only"
@@ -406,7 +408,7 @@ class DataSymbol(TypedSymbol):
         '''
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import IntrinsicCall, Literal, Reference
-        from psyclone.psyir.symbols.datatypes import (ArrayType, INTEGER_TYPE,
+        from psyclone.psyir.symbols.datatypes import (ArrayType, ScalarType,
                                                       UnsupportedFortranType)
         shape = None
         if isinstance(self.datatype, ArrayType):
@@ -428,7 +430,8 @@ class DataSymbol(TypedSymbol):
                               IntrinsicCall.Intrinsic.UBOUND]:
                 bounds.append(IntrinsicCall.create(
                     intrinsic, [Reference(self),
-                                ("dim", Literal(str(idx+1), INTEGER_TYPE))]))
+                                ("dim", Literal(str(idx+1),
+                                                ScalarType.integer_type()))]))
             return tuple(bounds)
 
         lower = self.shape[idx].lower.copy()
@@ -437,5 +440,6 @@ class DataSymbol(TypedSymbol):
 
         upper = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.UBOUND,
-            [Reference(self), ("dim", Literal(str(idx+1), INTEGER_TYPE))])
+            [Reference(self), ("dim", Literal(str(idx+1),
+                                              ScalarType.integer_type()))])
         return lower, upper

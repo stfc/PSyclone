@@ -49,8 +49,7 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
 from psyclone.psyir.nodes import (
     Node, Literal, CodeBlock, Schedule, Assignment, Reference, Routine)
 from psyclone.psyir.symbols import (
-    ScalarType, DataSymbol, INTEGER_TYPE, UnsupportedFortranType,
-    SymbolTable)
+    ScalarType, DataSymbol, UnsupportedFortranType, SymbolTable)
 
 
 @pytest.mark.parametrize("code, dtype",
@@ -355,6 +354,7 @@ def test_get_literal_precision_missing_table():
     # Pass get_literal_precision just a Literal() (which does not have an
     # associated symbol table).
     with pytest.raises(InternalError) as err:
-        get_literal_precision(astmt.children[2], Literal("1", INTEGER_TYPE))
+        get_literal_precision(astmt.children[2],
+                              Literal("1", ScalarType.integer_type()))
     assert ("Failed to find a symbol table to which to add the kind"
             in str(err.value))

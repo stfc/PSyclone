@@ -42,7 +42,7 @@ import pytest
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
     Intrinsic2CodeTrans)
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.nodes import (
     Reference, Assignment, Literal, IntrinsicCall)
 
@@ -93,7 +93,7 @@ def test_validate():
     dummy = DummyTrans()
     dummy._intrinsic = IntrinsicCall.Intrinsic.ABS
 
-    var = Literal("0.0", REAL_TYPE)
+    var = Literal("0.0", ScalarType.real_type())
     intrinsic = IntrinsicCall.create(IntrinsicCall.Intrinsic.ABS, [var])
 
     with pytest.raises(TransformationError) as excinfo:
@@ -102,7 +102,7 @@ def test_validate():
             "assignment statement, but no such assignment was found."
             in str(excinfo.value))
 
-    reference = Reference(DataSymbol("fred", REAL_TYPE))
+    reference = Reference(DataSymbol("fred", ScalarType.real_type()))
     _ = Assignment.create(lhs=reference, rhs=intrinsic)
 
     with pytest.raises(TransformationError) as excinfo:

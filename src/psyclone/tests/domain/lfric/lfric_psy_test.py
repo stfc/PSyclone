@@ -73,29 +73,6 @@ def test_lfricpsy():
     assert isinstance(lfric_psy._invokes, LFRicInvokes)
 
 
-def test_lfricpsy_kind():
-    '''Check that an instance of LFRicPSy captures any precision (kind
-    values) for literals.
-
-    '''
-    # 1: no literal kind value gives the default r_def (even though it
-    # is not required).
-    _, invoke_info = parse(os.path.join(
-        BASE_PATH, "15.12.3_single_pointwise_builtin.f90"), api="lfric")
-    lfric_psy = LFRicPSy(invoke_info)
-    result = str(lfric_psy.gen)
-    assert "use constants_mod\n" in result
-    assert "f1_data(df) = 0.0\n" in result
-    # 2: Literal kind value is declared (trying with two cases to check)
-    for kind_name in ["r_solver", "r_tran"]:
-        invoke_info.calls[0].kcalls[0].args[1]._text = f"0.0_{kind_name}"
-        invoke_info.calls[0].kcalls[0].args[1]._datatype = ("real", kind_name)
-        lfric_psy = LFRicPSy(invoke_info)
-        result = str(lfric_psy.gen).lower()
-        assert "use constants_mod\n" in result
-        assert f"f1_data(df) = 0.0_{kind_name}" in result
-
-
 def test_lfricpsy_names():
     '''Check that the name() and orig_name() methods of LFRicPSy behave as
     expected.
@@ -116,7 +93,6 @@ def test_lfricpsy_gen_no_invoke():
     '''
     expected_result = (
         "module hello_psy\n"
-        "  use constants_mod\n"
         "  implicit none\n"
         "  public\n"
         "\n"

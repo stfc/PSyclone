@@ -41,7 +41,7 @@ import warnings
 import pytest
 
 from psyclone.psyir.nodes import Reference, Literal
-from psyclone.psyir.symbols import REAL_TYPE, DataSymbol
+from psyclone.psyir.symbols import ScalarType, DataSymbol
 from psyclone.psyir.transformations import (
     Maxval2LoopTrans, TransformationError)
 from psyclone.tests.utilities import Compile
@@ -60,8 +60,8 @@ def test_initialise():
 def test_loop_body():
     '''Test that the _loop_body method works as expected.'''
     trans = Maxval2LoopTrans()
-    lhs = Reference(DataSymbol("i", REAL_TYPE))
-    rhs = Literal("1.0", REAL_TYPE)
+    lhs = Reference(DataSymbol("i", ScalarType.real_type()))
+    rhs = Literal("1.0", ScalarType.real_type())
     result = trans._loop_body(lhs, rhs)
     assert "MAX(i, 1.0)" in result.debug_string()
 
@@ -69,7 +69,7 @@ def test_loop_body():
 def test_init_var():
     '''Test that the _init_var method works as expected.'''
     trans = Maxval2LoopTrans()
-    var_symbol = DataSymbol("var", REAL_TYPE)
+    var_symbol = DataSymbol("var", ScalarType.real_type())
     result = trans._init_var(Reference(var_symbol))
     assert result.debug_string() == "-HUGE(var)"
 

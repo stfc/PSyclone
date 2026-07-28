@@ -45,7 +45,7 @@ from typing import Union
 from psyclone.psyir.nodes.acc_clauses import ACCAsyncQueueClause
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import ScalarType
 
 
 class ACCAsyncMixin(metaclass=abc.ABCMeta):
@@ -85,7 +85,7 @@ class ACCAsyncMixin(metaclass=abc.ABCMeta):
         if isinstance(async_queue, bool):
             qarg = async_queue
         elif isinstance(async_queue, int):
-            qarg = Literal(f"{async_queue}", INTEGER_TYPE)
+            qarg = Literal(f"{async_queue}", ScalarType.integer_type())
         elif isinstance(async_queue, DataNode):
             qarg = async_queue
         else:

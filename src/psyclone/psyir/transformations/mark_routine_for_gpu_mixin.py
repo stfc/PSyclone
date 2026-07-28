@@ -136,8 +136,8 @@ class MarkRoutineForGPUMixin:
                         # An import of a compile-time constant is fine.
                         continue
                     raise TransformationError(
-                        f"{k_or_r} '{node.name}' accesses the symbol "
-                        f"'{symbol}' which is imported. If this symbol "
+                        f"{k_or_r} '{node.name}' accesses the imported symbol "
+                        f"'{symbol}'. If this symbol "
                         f"represents data then it must first be converted to a"
                         f" {k_or_r} argument using the "
                         f"KernelImportsToArguments transformation.")
@@ -148,9 +148,9 @@ class MarkRoutineForGPUMixin:
             cblocks = sched.walk(CodeBlock)
             if not force:
                 if cblocks:
-                    cblock_txt = ("\n  " + "\n  ".join(
-                        str(node) for node in cblocks[0].get_ast_nodes)
-                                  + "\n")
+                    cblock_txt = (
+                        "\n  " + "\n  ".join(cblocks[0].get_fortran_lines())
+                        + "\n")
                     option_txt = "options={'force': True}"
                     raise TransformationError(
                         f"Cannot safely apply {type(self).__name__} to "

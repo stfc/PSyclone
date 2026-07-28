@@ -46,7 +46,7 @@ from psyclone.psyad.domain.common import (
     common_real_comparison)
 from psyclone.psyad.domain.common.adjoint_utils import _common_write
 from psyclone.psyir.nodes import Container, FileContainer, Return, Routine
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, ScalarType
 
 
 # create_adjoint_name function
@@ -61,7 +61,7 @@ def test_create_adjoint_name():
     assert create_adjoint_name("Tl_NaMe") == "adj_name"
     # With optional table supplied.
     table = SymbolTable()
-    table.add(DataSymbol("adj_name", REAL_TYPE))
+    table.add(DataSymbol("adj_name", ScalarType.real_type()))
     assert create_adjoint_name("name", table) == "adj_name_1"
 
 #  create_real_comparison
@@ -71,9 +71,9 @@ def test_create_real_comparison(fortran_writer):
     '''Test for the create_real_comparison method.'''
     symbol_table = SymbolTable()
     var1_symbol = symbol_table.new_symbol(
-        "var1", symbol_type=DataSymbol, datatype=REAL_TYPE)
+        "var1", symbol_type=DataSymbol, datatype=ScalarType.real_type())
     var2_symbol = symbol_table.new_symbol(
-        "var2", symbol_type=DataSymbol, datatype=REAL_TYPE)
+        "var2", symbol_type=DataSymbol, datatype=ScalarType.real_type())
     routine = Routine.create("test", symbol_table, [])
     stmt_list = create_real_comparison(
         symbol_table, routine, var1_symbol, var2_symbol)
@@ -109,9 +109,9 @@ def test_common_real_comparison(fortran_writer):
     '''Test for the common_real_comparison method.'''
     symbol_table = SymbolTable()
     var1_symbol = symbol_table.new_symbol(
-        "var1", symbol_type=DataSymbol, datatype=REAL_TYPE)
+        "var1", symbol_type=DataSymbol, datatype=ScalarType.real_type())
     var2_symbol = symbol_table.new_symbol(
-        "var2", symbol_type=DataSymbol, datatype=REAL_TYPE)
+        "var2", symbol_type=DataSymbol, datatype=ScalarType.real_type())
     routine = Routine.create("test", symbol_table, [])
     stmt_list = common_real_comparison(
         symbol_table, var1_symbol, var2_symbol)
@@ -136,9 +136,9 @@ def test_common_write(fortran_writer):
     '''Test for the _common_write method.'''
     symbol_table = SymbolTable()
     var1_symbol = symbol_table.new_symbol(
-        "var1", symbol_type=DataSymbol, datatype=REAL_TYPE)
+        "var1", symbol_type=DataSymbol, datatype=ScalarType.real_type())
     var2_symbol = symbol_table.new_symbol(
-        "var2", symbol_type=DataSymbol, datatype=REAL_TYPE)
+        "var2", symbol_type=DataSymbol, datatype=ScalarType.real_type())
     # The tags of the following symbols are used (in _common_write),
     # not the symbols themselves.
     _ = symbol_table.new_symbol(

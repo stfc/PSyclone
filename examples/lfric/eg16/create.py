@@ -62,10 +62,11 @@ READ_ARG = ArgumentInterface(ArgumentInterface.Access.READ)
 Config.get()
 
 # Add LFRic precision symbols and the module in which they are
-# contained to the symbol table
+# contained to the symbol table.
 SYMBOL_TABLE = SymbolTable()
-for symbol in [LFRicTypes("I_DEF"), LFRicTypes("R_DEF"),
-               LFRicTypes("constants_mod")]:
+for symbol in [LFRicTypes("constants_mod"),
+               LFRicTypes("I_DEF"),
+               LFRicTypes("R_DEF")]:
     SYMBOL_TABLE.add(symbol)
 
 # Create LFRic ndf and undf symbols and add them to the symbol table

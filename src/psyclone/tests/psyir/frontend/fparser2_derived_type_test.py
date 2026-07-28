@@ -52,14 +52,14 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     SymbolError, UnresolvedType, StructureType, DataTypeSymbol, ScalarType,
     RoutineSymbol, Symbol, ArrayType, UnsupportedFortranType, DataSymbol,
-    INTEGER_TYPE, ContainerSymbol, ImportInterface)
+    ContainerSymbol, ImportInterface)
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, _create_struct_reference)
 
 
 def test_create_struct_reference():
     ''' Tests for the _create_struct_reference() utility. '''
-    one = Literal("1", INTEGER_TYPE)
+    one = Literal("1", ScalarType.integer_type())
     with pytest.raises(InternalError) as err:
         _create_struct_reference(None, StructureReference, Symbol("fake"),
                                  ["hello", 1], [])

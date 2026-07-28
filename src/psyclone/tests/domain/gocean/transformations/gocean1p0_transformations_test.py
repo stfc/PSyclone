@@ -48,13 +48,12 @@ from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import Kern
-from psyclone.psyir.nodes import Loop
-from psyclone.psyir.transformations import (
-    LoopFuseTrans, LoopTrans, TransformationError,
-    OMPParallelTrans)
+from psyclone.psyir.nodes import Container, Loop
+from psyclone.psyir.transformations import LoopFuseTrans, \
+    LoopTrans, TransformationError, ACCLoopTrans, OMPParallelTrans
 from psyclone.transformations import ACCRoutineTrans, \
     GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, \
-    OMPLoopTrans, ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans
+    OMPLoopTrans, ACCParallelTrans, ACCEnterDataTrans
 from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.utilities import count_lines, get_invoke, get_base_path
@@ -1346,7 +1345,7 @@ def test_acc_enter_directive_infrastructure_setup():
     use iso_c_binding, only : c_ptr
     use kind_params_mod, only : go_wp
     type(c_ptr), intent(in) :: from
-    REAL(KIND = go_wp), DIMENSION(:, :), INTENT(INOUT), TARGET :: to
+    real(kind = go_wp), dimension(:, :), intent(inout), target :: to
     integer, intent(in) :: startx
     integer, intent(in) :: starty
     integer, intent(in) :: nx
@@ -1392,8 +1391,13 @@ def test_acc_enter_directive_infrastructure_setup_error():
     accdata.apply(schedule)
 
     # Remove the InvokeSchedule from its Container so that OpenACC will not
-    # find where to add the read_from_device function.
+    # find where to add the read_from_device function. However, we have to
+    # put the symbol representing the Kernel routine into the local table
+    # in order to get to that error.
+    sym = schedule.ancestor(Container).symbol_table.lookup("compute_cu_code")
     schedule.detach()
+    schedule.symbol_table.add(sym.interface.container_symbol)
+    schedule.symbol_table.add(sym)
 
     # Generate the code
     with pytest.raises(GenerationError) as err:
@@ -1484,9 +1488,9 @@ def test_accroutinetrans_module_use():
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         rtrans.apply(kernels[0])
-    assert ("accesses the symbol 'magic: Symbol<Import(container='model_mod'"
-            ")>' which is imported. If this symbol "
-            "represents data then it must first" in str(err.value))
+    assert ("accesses the imported symbol 'magic: Symbol<Import(container="
+            "'model_mod')>'. If this symbol represents data then it must first"
+            in str(err.value))
     # Tell the ModuleManager where to find the module that is being USED by
     # the kernel.
     mod_man = ModuleManager.get()
@@ -1496,9 +1500,9 @@ def test_accroutinetrans_module_use():
     with pytest.raises(TransformationError) as err:
         rtrans.apply(kernels[0])
     assert ("Transformation Error: Kernel 'kernel_with_use_code' accesses "
-            "the symbol 'magic: DataSymbol<Scalar<REAL, Reference"
-            "[name:'go_wp']>, Import(container='model_mod')>' which is "
-            "imported. If this symbol represents data then it must first be "
+            "the imported symbol 'magic: DataSymbol<Scalar<REAL, Reference"
+            "[name:'go_wp']>, Import(container='model_mod')>'. "
+            "If this symbol represents data then it must first be "
             "converted to a Kernel argument using the "
             "KernelImportsToArguments transformation." in str(err.value))
 
@@ -1512,6 +1516,7 @@ def test_accroutinetrans_with_kern(fortran_writer, monkeypatch):
     assert isinstance(kern, GOKern)
     rtrans = ACCRoutineTrans()
     assert rtrans.name == "ACCRoutineTrans"
+    KernelModuleInlineTrans().apply(kern)
     rtrans.apply(kern)
     # Check that there is a acc routine directive in the kernel
     schedules = kern.get_callees()

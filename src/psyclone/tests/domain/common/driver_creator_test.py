@@ -47,7 +47,7 @@ from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.psyir.nodes import (Assignment, Literal, Routine,
                                   StructureReference)
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, RoutineSymbol
+from psyclone.psyir.symbols import DataSymbol, ScalarType, RoutineSymbol
 from psyclone.tests.utilities import Compile, get_invoke
 
 
@@ -83,7 +83,7 @@ def test_basic_driver_add_call(fortran_writer):
 
     DriverCreator.add_call(program, "my_sub", [])
     DriverCreator.add_call(program, "my_sub_2",
-                           [Literal("1", INTEGER_TYPE)])
+                           [Literal("1", ScalarType.integer_type())])
     out = fortran_writer(program)
     assert "call my_sub()" in out
     assert "call my_sub_2(1)" in out
@@ -95,9 +95,9 @@ def test_lfric_driver_add_result_tests(fortran_writer):
     program = Routine.create("routine", is_program=True)
     program.symbol_table.find_or_create_tag("test", symbol_type=RoutineSymbol)
     a1 = program.symbol_table.find_or_create(
-        "a1", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        "a1", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
     a1_orig = program.symbol_table.find_or_create(
-        "a1_orig", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        "a1_orig", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
     # This will add one test for the variable a1 with the
     # correct values a1_orig.
     DriverCreator.add_result_tests(program, [(a1, a1_orig)])

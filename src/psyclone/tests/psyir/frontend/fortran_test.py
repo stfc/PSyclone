@@ -38,15 +38,19 @@
 ''' Performs py.test tests on the Fortran PSyIR front-end '''
 
 import pytest
-from fparser.two import Fortran2003
+
+from psyclone.configuration import Config
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fortran_treesitter_reader import \
+    FortranTreeSitterReader
 from psyclone.psyir.nodes import (
     Routine, FileContainer, UnaryOperation, BinaryOperation, Literal,
     Assignment, CodeBlock, IntrinsicCall, Loop, Reference)
 from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.symbols import (
     SymbolTable, DataSymbol, ScalarType, UnresolvedType)
+from psyclone.tests.utilities import min_version_3_10
 
 
 # The 'contiguous' keyword is just valid with Fortran 2008
@@ -85,15 +89,23 @@ end subroutine my_sub
 '''
 
 
+# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
+# treesitter.
+@min_version_3_10
 def test_fortran_reader_constructor():
     ''' Test that the constructor initialises the _parser and _processor
     attributes. '''
     freader = FortranReader()
-    assert freader._parser is Fortran2003.Program
     assert isinstance(freader._processor, Fparser2Reader)
 
     # Check that the initialised parser can parse Fortran 2008 standard,
     # the return value of this function is tested in the following tests
+    freader.psyir_from_source(ONLY_2008_CODE)
+
+    # Now repeat the process with treesitter
+    Config.get().frontend = "treesitter"
+    freader = FortranReader()
+    assert isinstance(freader._processor, FortranTreeSitterReader)
     freader.psyir_from_source(ONLY_2008_CODE)
 
 
@@ -270,7 +282,7 @@ def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
         wfile.write("this is not Fortran")
     with pytest.raises(ValueError) as err:
         file_container = fortran_reader.psyir_from_file(filename)
-    assert "Failed to parse source in file" in str(err.value)
+    assert "Failed to parse" in str(err.value)
 
     # Check with a file that doesn't exist
     filename = str(tmpdir_factory.mktemp('frontend_test').join("Idontexist"))

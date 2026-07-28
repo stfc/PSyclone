@@ -39,13 +39,14 @@
 
 ''' This module contains the Assignment node implementation.'''
 
-from psyclone.core import VariablesAccessMap, AccessType
+from psyclone.core import VariablesAccessMap, AccessType, Signature
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.intrinsic_call import (
     IntrinsicCall, REDUCTION_INTRINSICS)
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.statement import Statement
@@ -243,3 +244,39 @@ class Assignment(Statement):
 
         '''
         return isinstance(self.rhs, Literal)
+
+    def previous_accesses(self) -> dict[Signature, list[Node]]:
+        '''
+        :returns: the nodes containing the previous accesses of the symbols
+                  accessed within this node. It can be multiple nodes for
+                  each symbol if the control flow diverges and there are
+                  multiple possible accesses.
+        '''
+        # Find all of the read/write References in this assignment.
+        refs = []
+        for ref in self.walk(Reference):
+            if ref.is_read or ref.is_write:
+                refs.append(ref)
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import DefinitionUseChain
+        chain = DefinitionUseChain(refs)
+        return chain.find_backward_accesses()
+
+    def next_accesses(self) -> dict[Signature, list[Node]]:
+        '''
+        :returns: the nodes containing the next accesses of the symbols
+                  accessed within this node. It can be multiple nodes for
+                  each symbol if the control flow diverges and there are
+                  multiple possible accesses.
+        '''
+        # Find all of the read/write References in this assignment.
+        refs = []
+        for ref in self.walk(Reference):
+            if ref.is_read or ref.is_write:
+                refs.append(ref)
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import DefinitionUseChain
+        chain = DefinitionUseChain(refs)
+        return chain.find_forward_accesses()

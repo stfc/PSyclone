@@ -44,8 +44,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import BinaryOperation, Reference, Assignment, \
     Literal, UnaryOperation, ArrayReference, Range, IntrinsicCall
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
-    ScalarType, ArrayType
+from psyclone.psyir.symbols import DataSymbol, ScalarType, ArrayType
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import Compile
 
@@ -827,16 +826,18 @@ def test_unary_binary_minus(tmpdir):
 def test_array_ranges_match():
     ''' Test for the helper method that checks whether the array ranges match
     for a variable referenced on both the LHS and RHS of an assignment. '''
-    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(ScalarType.real_type(),
+                           [ArrayType.Extent.ATTRIBUTE])
     lhs_symbol = DataSymbol("a", array_type)
-    rhs_symbol = DataSymbol("x", REAL_TYPE)
-    single_elem_ref = ArrayReference.create(lhs_symbol,
-                                            [Literal("1", INTEGER_TYPE)])
+    rhs_symbol = DataSymbol("x", ScalarType.real_type())
+    single_elem_ref = ArrayReference.create(
+        lhs_symbol, [Literal("1", ScalarType.integer_type())])
     multiply = BinaryOperation.create(
         BinaryOperation.Operator.MUL, Reference(rhs_symbol), single_elem_ref)
-    lhs = ArrayReference.create(lhs_symbol,
-                                [Range.create(Literal("2", INTEGER_TYPE),
-                                              Literal("5", INTEGER_TYPE))])
+    lhs = ArrayReference.create(
+        lhs_symbol,
+        [Range.create(Literal("2", ScalarType.integer_type()),
+                      Literal("5", ScalarType.integer_type()))])
     assign = Assignment.create(lhs, multiply)
     trans = AssignmentTrans(active_variables=[lhs_symbol])
     # If the rhs reference is not to the symbol on the LHS then the routine
@@ -858,8 +859,8 @@ def test_array_ranges_match():
             "is not supported." in str(err.value))
     # Repeat but with a range instead of a single array element. (This isn't
     # valid code but is sufficient for this test.)
-    wrong_range = Range.create(Literal("3", INTEGER_TYPE),
-                               Literal("6", INTEGER_TYPE))
+    wrong_range = Range.create(Literal("3", ScalarType.integer_type()),
+                               Literal("6", ScalarType.integer_type()))
     new_ref = ArrayReference.create(lhs_symbol, [wrong_range])
     assign = Assignment.create(lhs.detach(), new_ref)
     with pytest.raises(NotImplementedError) as err:
@@ -869,9 +870,9 @@ def test_array_ranges_match():
             "is not supported." in str(err.value))
     # Repeat with a range where only the step size is wrong. (This isn't valid
     # code but is sufficient for this test.)
-    wrong_range = Range.create(Literal("2", INTEGER_TYPE),
-                               Literal("5", INTEGER_TYPE),
-                               Literal("2", INTEGER_TYPE))
+    wrong_range = Range.create(Literal("2", ScalarType.integer_type()),
+                               Literal("5", ScalarType.integer_type()),
+                               Literal("2", ScalarType.integer_type()))
     new_ref = ArrayReference.create(lhs_symbol, [wrong_range])
     assign = Assignment.create(lhs.detach(), new_ref)
     with pytest.raises(NotImplementedError) as err:
@@ -888,7 +889,8 @@ def test_validate_node():
     argument is not a PSyIR Assignment node.
 
     '''
-    trans = AssignmentTrans(active_variables=[DataSymbol("x", REAL_TYPE)])
+    trans = AssignmentTrans(
+        active_variables=[DataSymbol("x", ScalarType.real_type())])
     with pytest.raises(TransformationError) as info:
         trans.validate(None)
     assert ("Node argument in assignment transformation should be a PSyIR "
@@ -903,13 +905,14 @@ def test_validate_not_active():
     a = b
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol = DataSymbol("b", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol = DataSymbol("b", ScalarType.real_type())
     assignment = Assignment.create(
         Reference(lhs_symbol), Reference(rhs_symbol))
     trans = AssignmentTrans(active_variables=[
-        DataSymbol("c", REAL_TYPE), DataSymbol("aa", REAL_TYPE),
-        DataSymbol("ab", REAL_TYPE)])
+        DataSymbol("c", ScalarType.real_type()),
+        DataSymbol("aa", ScalarType.real_type()),
+        DataSymbol("ab", ScalarType.real_type())])
     trans.validate(assignment)
 
 
@@ -922,12 +925,13 @@ def test_validate_active_rhs():
     a = b
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol = DataSymbol("b", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol = DataSymbol("b", ScalarType.real_type())
     assignment = Assignment.create(
         Reference(lhs_symbol), Reference(rhs_symbol))
     trans = AssignmentTrans(active_variables=[
-        DataSymbol("c", REAL_TYPE), DataSymbol("aa", REAL_TYPE),
+        DataSymbol("c", ScalarType.real_type()),
+        DataSymbol("aa", ScalarType.real_type()),
         rhs_symbol])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
@@ -942,16 +946,16 @@ def test_validate_rhs_zero():
     check these to make sure all are recognised as expected.
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
     trans = AssignmentTrans(active_variables=[lhs_symbol])
     # Various forms of 0
     for zero_str in ["0.0", "0", "0.00", "0.", "0.e0"]:
-        rhs_literal = Literal(zero_str, REAL_TYPE)
+        rhs_literal = Literal(zero_str, ScalarType.real_type())
         assignment = Assignment.create(Reference(lhs_symbol), rhs_literal)
         trans.validate(assignment)
     # 0 with a kind value
-    real_kind = DataSymbol("r_def", INTEGER_TYPE, is_constant=True,
-                           initial_value=8)
+    real_kind = DataSymbol("r_def", ScalarType.integer_type(),
+                           is_constant=True, initial_value=8)
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(real_kind))
     rhs_literal = Literal("0.0", scalar_type)
     assignment = Assignment.create(Reference(lhs_symbol), rhs_literal)
@@ -971,9 +975,9 @@ def test_validate_rhs_term_active(operator, string):
     a = b - c
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
-    rhs_symbol2 = DataSymbol("c", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol1 = DataSymbol("b", ScalarType.real_type())
+    rhs_symbol2 = DataSymbol("c", ScalarType.real_type())
     binary_op = BinaryOperation.create(
         operator, Reference(rhs_symbol1), Reference(rhs_symbol2))
     assignment = Assignment.create(Reference(lhs_symbol), binary_op)
@@ -998,8 +1002,8 @@ def test_validate_rhs_assign():
     a = 1.0
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_node = Literal("1.0", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_node = Literal("1.0", ScalarType.real_type())
     assignment = Assignment.create(Reference(lhs_symbol), rhs_node)
     trans = AssignmentTrans(active_variables=[lhs_symbol])
     with pytest.raises(TangentLinearError) as info:
@@ -1016,9 +1020,9 @@ def test_validate_rhs_term_multi_active():
     a = b * c
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
-    rhs_symbol2 = DataSymbol("c", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol1 = DataSymbol("b", ScalarType.real_type())
+    rhs_symbol2 = DataSymbol("c", ScalarType.real_type())
     multiply = BinaryOperation.create(
         BinaryOperation.Operator.MUL, Reference(
             rhs_symbol1), Reference(rhs_symbol2))
@@ -1040,8 +1044,8 @@ def test_validate_rhs_single_active_var():
     a = b
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol = DataSymbol("b", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol = DataSymbol("b", ScalarType.real_type())
     assignment = Assignment.create(
         Reference(lhs_symbol), Reference(rhs_symbol))
     trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol])
@@ -1063,10 +1067,10 @@ def test_validate_rhs_active_var_mul_div(operator):
     a = (x/y)*b
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
-    rhs_symbol2 = DataSymbol("x", REAL_TYPE)
-    rhs_symbol3 = DataSymbol("y", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol1 = DataSymbol("b", ScalarType.real_type())
+    rhs_symbol2 = DataSymbol("x", ScalarType.real_type())
+    rhs_symbol3 = DataSymbol("y", ScalarType.real_type())
 
     # x*b
     multiply = BinaryOperation.create(
@@ -1100,9 +1104,9 @@ def test_validate_rhs_active_divisor_direct():
     a = x/b
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
-    rhs_symbol2 = DataSymbol("x", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol1 = DataSymbol("b", ScalarType.real_type())
+    rhs_symbol2 = DataSymbol("x", ScalarType.real_type())
     divide = BinaryOperation.create(
         BinaryOperation.Operator.DIV, Reference(
             rhs_symbol2), Reference(rhs_symbol1))
@@ -1124,10 +1128,10 @@ def test_validate_rhs_active_divisor_indirect():
     a = x/(y*b)
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
-    rhs_symbol2 = DataSymbol("x", REAL_TYPE)
-    rhs_symbol3 = DataSymbol("y", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol1 = DataSymbol("b", ScalarType.real_type())
+    rhs_symbol2 = DataSymbol("x", ScalarType.real_type())
+    rhs_symbol3 = DataSymbol("y", ScalarType.real_type())
 
     # y*b
     multiply = BinaryOperation.create(
@@ -1159,10 +1163,10 @@ def test_validate_rhs_active_multi_divisor():
     a = x/y/b
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
-    rhs_symbol2 = DataSymbol("x", REAL_TYPE)
-    rhs_symbol3 = DataSymbol("y", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol1 = DataSymbol("b", ScalarType.real_type())
+    rhs_symbol2 = DataSymbol("x", ScalarType.real_type())
+    rhs_symbol3 = DataSymbol("y", ScalarType.real_type())
 
     # y/b
     divide1 = BinaryOperation.create(
@@ -1185,9 +1189,9 @@ def test_validate_rhs_active_unary_minus():
     a = -x*b
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
-    rhs_symbol2 = DataSymbol("x", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol1 = DataSymbol("b", ScalarType.real_type())
+    rhs_symbol2 = DataSymbol("x", ScalarType.real_type())
     # x*b
     mult = BinaryOperation.create(
         BinaryOperation.Operator.MUL, Reference(
@@ -1210,9 +1214,9 @@ def test_validate_rhs_active_var_no_mul():
     a = b**x
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
-    rhs_symbol2 = DataSymbol("x", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol1 = DataSymbol("b", ScalarType.real_type())
+    rhs_symbol2 = DataSymbol("x", ScalarType.real_type())
     # b**x
     power = BinaryOperation.create(
         BinaryOperation.Operator.POW, Reference(
@@ -1238,11 +1242,11 @@ def test_validate_mixed_mul_add():
     a = x*(b+y) + c
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol1 = DataSymbol("b", REAL_TYPE)
-    rhs_symbol2 = DataSymbol("c", REAL_TYPE)
-    rhs_symbol3 = DataSymbol("x", REAL_TYPE)
-    rhs_symbol4 = DataSymbol("y", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol1 = DataSymbol("b", ScalarType.real_type())
+    rhs_symbol2 = DataSymbol("c", ScalarType.real_type())
+    rhs_symbol3 = DataSymbol("x", ScalarType.real_type())
+    rhs_symbol4 = DataSymbol("y", ScalarType.real_type())
     # b+y
     add1 = BinaryOperation.create(
         BinaryOperation.Operator.ADD, Reference(
@@ -1273,8 +1277,8 @@ def test_validate_unaryop():
     a = sqrt(b)
 
     '''
-    lhs_symbol = DataSymbol("a", REAL_TYPE)
-    rhs_symbol = DataSymbol("b", REAL_TYPE)
+    lhs_symbol = DataSymbol("a", ScalarType.real_type())
+    rhs_symbol = DataSymbol("b", ScalarType.real_type())
     sqrt = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.SQRT, [Reference(rhs_symbol)])
     assignment = Assignment.create(Reference(lhs_symbol), sqrt)
@@ -1293,16 +1297,18 @@ def test_validate_mismatched_array_ranges():
                       a(2:5) = x*a(1)
 
     '''
-    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(ScalarType.real_type(),
+                           [ArrayType.Extent.ATTRIBUTE])
     lhs_symbol = DataSymbol("a", array_type)
-    rhs_symbol = DataSymbol("x", REAL_TYPE)
+    rhs_symbol = DataSymbol("x", ScalarType.real_type())
     multiply = BinaryOperation.create(
         BinaryOperation.Operator.MUL, Reference(
-            rhs_symbol), ArrayReference.create(lhs_symbol,
-                                               [Literal("1", INTEGER_TYPE)]))
-    lhs = ArrayReference.create(lhs_symbol,
-                                [Range.create(Literal("2", INTEGER_TYPE),
-                                              Literal("5", INTEGER_TYPE))])
+            rhs_symbol), ArrayReference.create(
+                           lhs_symbol,
+                           [Literal("1", ScalarType.integer_type())]))
+    lhs = ArrayReference.create(
+        lhs_symbol, [Range.create(Literal("2", ScalarType.integer_type()),
+                                  Literal("5", ScalarType.integer_type()))])
     assign = Assignment.create(lhs, multiply)
     trans = AssignmentTrans(active_variables=[lhs_symbol])
     with pytest.raises(NotImplementedError) as err:
@@ -1311,11 +1317,12 @@ def test_validate_mismatched_array_ranges():
             "the LHS and RHS of an assignment: 'a(2:5) = x * a(1)\n'"
             in str(err.value))
     # Repeat but without a multiplier: a(2:5) = a(3:6).
-    assign = Assignment.create(lhs.detach(),
-                               ArrayReference.create(
-                                   lhs_symbol, [Range.create(
-                                       Literal("3", INTEGER_TYPE),
-                                       Literal("6", INTEGER_TYPE))]))
+    assign = Assignment.create(
+        lhs.detach(),
+        ArrayReference.create(
+            lhs_symbol, [Range.create(
+                Literal("3", ScalarType.integer_type()),
+                Literal("6", ScalarType.integer_type()))]))
     trans = AssignmentTrans(active_variables=[lhs_symbol])
     with pytest.raises(NotImplementedError) as err:
         trans.validate(assign)
@@ -1329,15 +1336,17 @@ def test_validate_missing_array_indices():
     array access but the same symbol is referenced on the RHS without array
     notation. (The PSyIR permits this since arrays can be arguments to
     query functions.) '''
-    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(ScalarType.real_type(),
+                           [ArrayType.Extent.ATTRIBUTE])
     lhs_symbol = DataSymbol("a", array_type)
-    rhs_symbol = DataSymbol("x", REAL_TYPE)
+    rhs_symbol = DataSymbol("x", ScalarType.real_type())
     multiply = BinaryOperation.create(
         BinaryOperation.Operator.MUL, Reference(rhs_symbol),
         Reference(lhs_symbol))
-    lhs = ArrayReference.create(lhs_symbol,
-                                [Range.create(Literal("2", INTEGER_TYPE),
-                                              Literal("5", INTEGER_TYPE))])
+    lhs = ArrayReference.create(
+        lhs_symbol,
+        [Range.create(Literal("2", ScalarType.integer_type()),
+                      Literal("5", ScalarType.integer_type()))])
     assign = Assignment.create(lhs, multiply)
     trans = AssignmentTrans(active_variables=[lhs_symbol])
     with pytest.raises(TangentLinearError) as err:
@@ -1354,8 +1363,8 @@ def test_splitnodes_single():
     is nothing to split.
 
     '''
-    trans = AssignmentTrans([DataSymbol("x", REAL_TYPE)])
-    node = Literal("0.0", REAL_TYPE)
+    trans = AssignmentTrans([DataSymbol("x", ScalarType.real_type())])
+    node = Literal("0.0", ScalarType.real_type())
     node_list = trans._split_nodes(
         node, [BinaryOperation.Operator.ADD])
     assert isinstance(node_list, list)
@@ -1368,11 +1377,11 @@ def test_splitnodes_multi():
     are multiple things to split in both lhs and rhs.
 
     '''
-    trans = AssignmentTrans([DataSymbol("x", REAL_TYPE)])
-    term1 = Literal("1.0", REAL_TYPE)
-    term2 = Literal("2.0", REAL_TYPE)
-    term3 = Literal("3.0", REAL_TYPE)
-    term4 = Literal("4.0", REAL_TYPE)
+    trans = AssignmentTrans([DataSymbol("x", ScalarType.real_type())])
+    term1 = Literal("1.0", ScalarType.real_type())
+    term2 = Literal("2.0", ScalarType.real_type())
+    term3 = Literal("3.0", ScalarType.real_type())
+    term4 = Literal("4.0", ScalarType.real_type())
     # 1.0+2.0
     add_lhs = BinaryOperation.create(
         BinaryOperation.Operator.ADD, term1, term2)
@@ -1394,11 +1403,11 @@ def test_splitnodes_multiop():
     operators.
 
     '''
-    trans = AssignmentTrans([DataSymbol("x", REAL_TYPE)])
-    term1 = Literal("1.0", REAL_TYPE)
-    term2 = Literal("2.0", REAL_TYPE)
-    term3 = Literal("3.0", REAL_TYPE)
-    term4 = Literal("4.0", REAL_TYPE)
+    trans = AssignmentTrans([DataSymbol("x", ScalarType.real_type())])
+    term1 = Literal("1.0", ScalarType.real_type())
+    term2 = Literal("2.0", ScalarType.real_type())
+    term3 = Literal("3.0", ScalarType.real_type())
+    term4 = Literal("4.0", ScalarType.real_type())
     # 1.0+2.0
     add_lhs = BinaryOperation.create(
         BinaryOperation.Operator.ADD, term1, term2)
@@ -1419,11 +1428,11 @@ def test_splitnodes_different_op():
     expression has binary operators not specified in the list.
 
     '''
-    trans = AssignmentTrans([DataSymbol("x", REAL_TYPE)])
-    term1 = Literal("1.0", REAL_TYPE)
-    term2 = Literal("2.0", REAL_TYPE)
-    term3 = Literal("3.0", REAL_TYPE)
-    term4 = Literal("4.0", REAL_TYPE)
+    trans = AssignmentTrans([DataSymbol("x", ScalarType.real_type())])
+    term1 = Literal("1.0", ScalarType.real_type())
+    term2 = Literal("2.0", ScalarType.real_type())
+    term3 = Literal("3.0", ScalarType.real_type())
+    term4 = Literal("4.0", ScalarType.real_type())
     # 1.0*2.0
     mul_lhs = BinaryOperation.create(
         BinaryOperation.Operator.MUL, term1, term2)
@@ -1445,11 +1454,11 @@ def test_splitnodes_no_split():
     within other binary operators that are not specified in the list.
 
     '''
-    trans = AssignmentTrans([DataSymbol("x", REAL_TYPE)])
-    term1 = Literal("1.0", REAL_TYPE)
-    term2 = Literal("2.0", REAL_TYPE)
-    term3 = Literal("3.0", REAL_TYPE)
-    term4 = Literal("4.0", REAL_TYPE)
+    trans = AssignmentTrans([DataSymbol("x", ScalarType.real_type())])
+    term1 = Literal("1.0", ScalarType.real_type())
+    term2 = Literal("2.0", ScalarType.real_type())
+    term3 = Literal("3.0", ScalarType.real_type())
+    term4 = Literal("4.0", ScalarType.real_type())
     # 1.0*2.0
     mul_lhs = BinaryOperation.create(
         BinaryOperation.Operator.MUL, term1, term2)
@@ -1470,7 +1479,8 @@ def test_splitnodes_no_split():
 def test_str():
     ''' Test the str operation returns the expected result.'''
 
-    assignment_trans = AssignmentTrans([DataSymbol("x", REAL_TYPE)])
+    assignment_trans = AssignmentTrans(
+        [DataSymbol("x", ScalarType.real_type())])
     assert (str(assignment_trans) == "Convert a tangent-linear PSyIR "
             "Assignment to its adjoint form")
 
@@ -1478,5 +1488,6 @@ def test_str():
 def test_name():
     ''' Test the name method returns the expected result.'''
 
-    assignment_trans = AssignmentTrans([DataSymbol("x", REAL_TYPE)])
+    assignment_trans = AssignmentTrans(
+        [DataSymbol("x", ScalarType.real_type())])
     assert assignment_trans.name == "AssignmentTrans"

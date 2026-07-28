@@ -55,7 +55,7 @@ def test_asmr_constructor():
 def test_asmr_create():
     ''' Test the create method of ArrayOfStructuresMember. '''
     asmr = nodes.ArrayOfStructuresMember.create(
-        "regions", [nodes.Literal("3", symbols.INTEGER_TYPE)],
+        "regions", [nodes.Literal("3", symbols.ScalarType.integer_type())],
         nodes.Member("sub_mesh"))
     assert len(asmr.children) == 2
     assert isinstance(asmr.children[0], nodes.Member)
@@ -75,7 +75,8 @@ def test_asmr_validate_child():
         asmr.addchild("2")
     assert ("'str' can't be child 1 of 'ArrayOfStructuresMember'" in
             str(err.value))
-    idx = nodes.Reference(symbols.DataSymbol("idx", symbols.INTEGER_TYPE))
+    idx = nodes.Reference(
+        symbols.DataSymbol("idx", symbols.ScalarType.integer_type()))
     asmr.addchild(idx)
     assert asmr.children[1] is idx
 
@@ -83,7 +84,7 @@ def test_asmr_validate_child():
 def test_asmr_indices():
     ''' Test the indices property of ArrayOfStructuresMember. '''
     asmr = nodes.ArrayOfStructuresMember.create(
-        "regions", [nodes.Literal("3", symbols.INTEGER_TYPE)],
+        "regions", [nodes.Literal("3", symbols.ScalarType.integer_type())],
         nodes.Member("sub_mesh"))
     indices = asmr.indices
     assert len(indices) == 1

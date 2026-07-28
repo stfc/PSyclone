@@ -46,8 +46,7 @@ from fparser.two.Fortran2003 import Execution_Part
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import KernelSchedule, Routine, Call, ArrayReference
 from psyclone.psyir.symbols import (
-    DataSymbol, ScalarType, INTEGER_TYPE, RoutineSymbol, ArrayType, Symbol,
-    UnresolvedType)
+    DataSymbol, ScalarType, RoutineSymbol, ArrayType, Symbol, UnresolvedType)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -60,7 +59,7 @@ def test_handling_part_ref_with_symbol_type():
     fparser2part_ref = Execution_Part.match(reader)[0][0]
 
     fake_parent = KernelSchedule.create('kernel')
-    fake_parent.symbol_table.add(DataSymbol('x', INTEGER_TYPE))
+    fake_parent.symbol_table.add(DataSymbol('x', ScalarType.integer_type()))
 
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2part_ref])
@@ -78,11 +77,11 @@ def test_handling_part_ref_with_symbol_type():
     fparser2part_ref = Execution_Part.match(reader)[0][0]
 
     fake_parent = KernelSchedule.create('assign')
-    array_type = ArrayType(INTEGER_TYPE, [10, 10, 10])
+    array_type = ArrayType(ScalarType.integer_type(), [10, 10, 10])
     fake_parent.symbol_table.add(DataSymbol('x', array_type))
-    fake_parent.symbol_table.add(DataSymbol('i', INTEGER_TYPE))
-    fake_parent.symbol_table.add(DataSymbol('j', INTEGER_TYPE))
-    fake_parent.symbol_table.add(DataSymbol('z', INTEGER_TYPE))
+    fake_parent.symbol_table.add(DataSymbol('i', ScalarType.integer_type()))
+    fake_parent.symbol_table.add(DataSymbol('j', ScalarType.integer_type()))
+    fake_parent.symbol_table.add(DataSymbol('z', ScalarType.integer_type()))
 
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2part_ref])

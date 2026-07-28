@@ -106,14 +106,17 @@ def test_init_invalid_stencil():
 def test_get_metadata():
     '''Test that the get_metadata class method works as expected.'''
     fparser2_tree = FieldVectorArgMetadata.create_fparser2(
-        "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
-    datatype, access, function_space, vector_length, stencil = \
-        FieldVectorArgMetadata._get_metadata(fparser2_tree)
+        "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)",
+        Fortran2003.Structure_Constructor)
+    (datatype, access, function_space, vector_length, stencil,
+     nlevels, ndata) = FieldVectorArgMetadata._get_metadata(fparser2_tree)
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
     assert function_space == "W0"
     assert vector_length == "3"
     assert stencil is None
+    assert nlevels is None
+    assert ndata is None
 
 
 @pytest.mark.parametrize("fortran_string", [

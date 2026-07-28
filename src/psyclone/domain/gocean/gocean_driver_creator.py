@@ -43,8 +43,7 @@ the output data contained in the input file.
 from typing import Optional
 
 from psyclone.domain.common import DriverCreator
-from psyclone.psyir.symbols import (DataSymbol, INTEGER_TYPE, REAL8_TYPE,
-                                    ScalarType, SymbolTable)
+from psyclone.psyir.symbols import DataSymbol, ScalarType, SymbolTable
 
 
 class GOceanDriverCreator(DriverCreator):
@@ -53,14 +52,14 @@ class GOceanDriverCreator(DriverCreator):
     functionality.
 
     :param integer_type: default scalar integer type to be used for integer
-        variables. Defaults to INTEGER_TYPE.
+        variables. Defaults to ScalarType.integer_type().
     :param real_type: default scalar real type to be used for real
-        variables. Defaults to REAL8_TYPE.
+        variables. Defaults to ScalarType.real8_type().
     :param region_name: Suggested region name.
 
     '''
-    def __init__(self, integer_type: ScalarType = INTEGER_TYPE,
-                 real_type: ScalarType = REAL8_TYPE,
+    def __init__(self, integer_type: ScalarType = ScalarType.integer_type(),
+                 real_type: ScalarType = ScalarType.real8_type(),
                  region_name: Optional[tuple[str, str]] = None) -> None:
         super().__init__(region_name)
         # Set the integer and real types to use.

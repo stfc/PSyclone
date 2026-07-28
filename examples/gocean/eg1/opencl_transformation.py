@@ -36,24 +36,26 @@
 ''' Module providing a PSyclone transformation script that converts the
 Schedule of each Invoke to use OpenCL. '''
 
-from psyclone.psyGen import TransInfo, InvokeSchedule
-from psyclone.domain.gocean.transformations import GOOpenCLTrans, \
-    GOMoveIterationBoundariesInsideKernelTrans
+from psyclone.psyGen import InvokeSchedule
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.domain.gocean.transformations import (
+    GOOpenCLTrans, GOMoveIterationBoundariesInsideKernelTrans)
+from psyclone.psyir.nodes import FileContainer
+from psyclone.transformations import KernelImportsToArguments
 
 
-def trans(psyir):
+def trans(psyir: FileContainer):
     '''
     Transformation routine for use with PSyclone. Converts any imported-
     variable accesses into kernel arguments and then applies the OpenCL
     transformation to the PSy layer.
 
     :param psyir: the PSyIR of the PSy-layer.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     # Get the necessary transformations
-    tinfo = TransInfo()
-    import_trans = tinfo.get_trans_name('KernelImportsToArguments')
+    import_trans = KernelImportsToArguments()
+    mod_inline_trans = KernelModuleInlineTrans()
     move_boundaries_trans = GOMoveIterationBoundariesInsideKernelTrans()
     cltrans = GOOpenCLTrans()
 
@@ -67,9 +69,11 @@ def trans(psyir):
             continue
 
         # Remove the imports from inside each kernel and move PSy-layer
-        # loop boundaries inside the kernel as a mask.
+        # loop boundaries inside the kernel as a mask. To do this we must
+        # first module-inline the kernel into the PSy layer module.
         for kern in schedule.kernels():
             print("Update kernel: " + kern.name)
+            mod_inline_trans.apply(kern)
             move_boundaries_trans.apply(kern)
             import_trans.apply(kern)
 

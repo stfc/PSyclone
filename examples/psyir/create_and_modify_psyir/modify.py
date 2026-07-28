@@ -51,7 +51,7 @@ representation.
 # Different pylint configurations don't agree in the order of this imports
 # pylint: disable=wrong-import-order
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.symbols import Symbol, RoutineSymbol, NoType, INTEGER_TYPE
+from psyclone.psyir.symbols import Symbol, RoutineSymbol, NoType, ScalarType
 from psyclone.psyir.nodes import Reference, Literal
 from create import create_psyir_tree
 
@@ -96,7 +96,7 @@ def modify_psyir_tree():
     # this can be disabled with the `keep_name_in_context` parameter.
     dot_product_1st_arg = subroutine[5].rhs.arguments[0]
     dot_product_1st_arg.replace_with(
-        Literal('2', INTEGER_TYPE),
+        Literal('2', ScalarType.integer_type()),
         keep_name_in_context=False)
 
     return file_container

@@ -38,7 +38,7 @@
 
 from psyclone.psyir.nodes import ReadOnlyVerifyNode, CodeBlock, Routine, \
     Reference, Return, IfBlock, Schedule
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 
 
 def test_read_only_verify_lower_to_language_level():
@@ -46,7 +46,7 @@ def test_read_only_verify_lower_to_language_level():
 
     # Create a ReadOnlyVerify code with a read-only variable 'a'
     routine = Routine.create('my_routine')
-    symbol = DataSymbol("a", INTEGER_TYPE)
+    symbol = DataSymbol("a", ScalarType.integer_type())
     routine.symbol_table.add(symbol)
     node = ReadOnlyVerifyNode()
     routine.addchild(node)
@@ -68,4 +68,4 @@ def test_read_only_verify_lower_to_language_level():
                 'CALL read_only_verify_psy_data % PostEnd']
 
     for codeblock, code in zip(routine.walk(CodeBlock), expected):
-        assert str(codeblock.ast) == code
+        assert codeblock.get_fortran_lines()[0] == code

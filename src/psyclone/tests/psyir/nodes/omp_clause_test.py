@@ -45,7 +45,7 @@ from psyclone.psyir.nodes.omp_clauses import (
     OMPDefaultClause, OMPScheduleClause, OMPReductionClause)
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 
 
 def test_nowait_clause():
@@ -58,22 +58,24 @@ def test_nowait_clause():
 def test_grainsize_clause():
     ''' Test the OMPGrainsizeClause functionality. '''
 
-    nowait = OMPGrainsizeClause(children=[Literal("32", INTEGER_TYPE)])
+    nowait = OMPGrainsizeClause(
+        children=[Literal("32", ScalarType.integer_type())])
     assert nowait.clause_string == "grainsize"
-    assert OMPGrainsizeClause._validate_child(0, Literal("64", INTEGER_TYPE))\
-        is True
-    assert OMPGrainsizeClause._validate_child(1, Literal("64", INTEGER_TYPE))\
-        is False
+    assert OMPGrainsizeClause._validate_child(
+        0, Literal("64", ScalarType.integer_type())) is True
+    assert OMPGrainsizeClause._validate_child(
+        1, Literal("64", ScalarType.integer_type())) is False
 
 
 def test_numtasks_clause():
     ''' Test the OMPNumTasksClause functionality. '''
-    nowait = OMPNumTasksClause(children=[Literal("32", INTEGER_TYPE)])
+    nowait = OMPNumTasksClause(
+        children=[Literal("32", ScalarType.integer_type())])
     assert nowait.clause_string == "num_tasks"
-    assert OMPNumTasksClause._validate_child(0, Literal("64", INTEGER_TYPE))\
-        is True
-    assert OMPNumTasksClause._validate_child(1, Literal("64", INTEGER_TYPE))\
-        is False
+    assert OMPNumTasksClause._validate_child(
+        0, Literal("64", ScalarType.integer_type())) is True
+    assert OMPNumTasksClause._validate_child(
+        1, Literal("64", ScalarType.integer_type())) is False
 
 
 def test_nogroup_clause():
@@ -140,7 +142,7 @@ def test_shared_clause():
     ''' Test the OMPSharedClause functionality. '''
     shared = OMPSharedClause()
     assert shared.clause_string == ""
-    tmp = DataSymbol("tmp", INTEGER_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_type())
     ref1 = Reference(tmp)
     shared.addchild(ref1)
     assert shared.clause_string == "shared"
@@ -153,7 +155,7 @@ def test_private_and_firstprivate_clause(testclass, string):
     ''' Test the OMPPrivateClause and OMPFirstprivateClause functionality. '''
     private = testclass()
     assert private.clause_string == ""
-    tmp = DataSymbol("tmp", INTEGER_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_type())
     ref1 = Reference(tmp)
     private.addchild(ref1)
     assert private.clause_string == string
@@ -167,9 +169,9 @@ def test_private_clause_create(testclass, string):
     accept a list of symbols and add children with references containing
     those symbols. '''
 
-    symbol1 = DataSymbol("a", INTEGER_TYPE)
-    symbol2 = DataSymbol("b", INTEGER_TYPE)
-    symbol3 = DataSymbol("c", INTEGER_TYPE)
+    symbol1 = DataSymbol("a", ScalarType.integer_type())
+    symbol2 = DataSymbol("b", ScalarType.integer_type())
+    symbol3 = DataSymbol("c", ScalarType.integer_type())
 
     # Check that it just accepts a list of symbols
     with pytest.raises(TypeError) as err:
@@ -222,7 +224,7 @@ def test_depend_clause():
 
 def test_depend_validate_child():
     ''' Test the validate_child function of the OMPDependClause. '''
-    tmp = DataSymbol("tmp", INTEGER_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_type())
     ref1 = Reference(tmp)
     assert OMPDependClause._validate_child(0, ref1) is True
     assert OMPDependClause._validate_child(110, ref1) is True
@@ -253,7 +255,7 @@ def test_omp_reduction_clause():
 
 def test_reduction_validate_child():
     ''' Test the validate_child function of the OMPReductionClause. '''
-    tmp = DataSymbol("tmp", INTEGER_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_type())
     ref1 = Reference(tmp)
     assert OMPReductionClause._validate_child(0, ref1) is True
     assert OMPReductionClause._validate_child(110, ref1) is True

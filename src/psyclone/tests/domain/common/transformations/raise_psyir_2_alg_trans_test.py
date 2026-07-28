@@ -204,7 +204,7 @@ def test_codeblock_invalid():
     assert ("Error in RaisePSyIR2AlgTrans transformation. The arguments to "
             "this invoke call are expected to be kernel calls which are "
             "represented in generic PSyIR as Calls, but ''xx' // 'xx'' is "
-            "of type 'CodeBlock'." in str(info.value))
+            "of type 'Fparser2CodeBlock'." in str(info.value))
 
 
 def test_call_error():

@@ -53,7 +53,7 @@ from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.nodes import (
     ArrayOfStructuresReference, ArrayReference, BinaryOperation, Call,
     DataNode, IntrinsicCall, Literal, Node,
-    Range, Reference, StructureReference, Schedule)
+    Range, Reference, StructureReference, Schedule, UnaryOperation)
 from psyclone.psyir.symbols import (
     ArrayType, RoutineSymbol, ScalarType, SymbolError, SymbolTable)
 
@@ -841,6 +841,23 @@ class SymPyWriter(FortranWriter):
                                                                  lhs=lhs)
 
         return super().binaryoperation_node(node)
+
+    # ------------------------------------------------------------------------
+    def unaryoperation_node(self, node: UnaryOperation) -> str:
+        '''This function converts logical unary operations into SymPy format.
+        ``NOT`` is mapped to ``Not(...)``. All other unary operations are
+        handled by the base class.
+
+        :param node: a UnaryOperation PSyIR node.
+
+        :returns: the SymPy representation as a string.
+
+        '''
+        if node.operator == UnaryOperation.Operator.NOT:
+            operand = self._visit(node.children[0])
+            return f"Not({operand})"
+
+        return super().unaryoperation_node(node)
 
     # ------------------------------------------------------------------------
     def gen_indices(self,

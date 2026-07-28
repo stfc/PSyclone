@@ -46,11 +46,13 @@ from fparser import api as fpapi
 from fparser.one.block_statements import BeginSource
 from fparser.two import Fortran2003
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
-from psyclone.domain.lfric.lfric_builtins import \
-    BUILTIN_DEFINITIONS_FILE as fname
-from psyclone.parse.kernel import KernelType, get_kernel_metadata, \
-    get_kernel_interface, KernelProcedure, Descriptor, \
-    BuiltInKernelTypeFactory, get_kernel_filepath, get_kernel_ast
+from psyclone.domain.lfric.lfric_builtins import (
+    BUILTIN_DEFINITIONS_FILE as fname)
+from psyclone.expression import ExpressionNode, FunctionVar, NamedArg
+from psyclone.parse.kernel import (
+    KernelType, get_kernel_metadata, get_kernel_interface, KernelProcedure,
+    Descriptor, BuiltInKernelTypeFactory, get_kernel_filepath, get_kernel_ast,
+    get_char_value, get_stencil)
 from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError
 
@@ -685,6 +687,48 @@ def test_get_integer_variable():
     tmp = KernelType(parse_tree)
     assert tmp.get_integer_variable("GH_SHAPE") == "gh_quadrature_face"
     assert tmp.get_integer_variable("Gh_Shape") == "gh_quadrature_face"
+
+
+def test_get_stencil():
+    ''' Check that parse.get_stencil() raises the correct errors when
+    passed various incorrect inputs. '''
+    enode = ExpressionNode(["1"])
+    with pytest.raises(ParseError) as excinfo:
+        _ = get_stencil(enode, ["cross"])
+    assert ("Expecting format stencil(<type>[,<extent>]) but found the "
+            "literal" in str(excinfo.value))
+    node = FunctionVar(["stencil()"])
+    with pytest.raises(ParseError) as excinfo:
+        _ = get_stencil(node, ["cross"])
+    assert ("Expecting format stencil(<type>[,<extent>]) but found stencil()"
+            in str(excinfo.value))
+    node = FunctionVar(["stencil", "cross"])
+    # Deliberately break the args member of node in order to trigger an
+    # internal error
+    node.args = [True]
+    with pytest.raises(ParseError) as excinfo:
+        _ = get_stencil(node, ["cross"])
+    assert ("expecting either FunctionVar or str from the expression analyser"
+            in str(excinfo.value))
+
+
+def test_get_char_value():
+    '''
+    Tests for the get_char_value() routine.
+    '''
+    enode = ExpressionNode(["1"])
+    with pytest.raises(ParseError) as err:
+        _ = get_char_value(enode, "nlevels")
+    assert "not a valid nlevels specifier (expected" in str(err.value)
+    # Value must be a quoted string
+    node = NamedArg(["nlevels", "=", "1"])
+    with pytest.raises(ParseError) as err:
+        _ = get_char_value(node, "nlevels")
+    assert ("nlevels must be specified as a quoted string but got nlevels=1"
+            in str(err.value))
+    node2 = NamedArg(["nlevels", "=", "'1'"])
+    value = get_char_value(node2, "nlevels")
+    assert value == "1"
 
 
 def test_get_integer_variable_err():

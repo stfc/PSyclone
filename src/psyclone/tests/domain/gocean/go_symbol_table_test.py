@@ -41,7 +41,7 @@ from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOSymbolTable
 from psyclone.psyir.nodes import Schedule
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, REAL_TYPE, UnresolvedType,
+    DataSymbol, ScalarType, UnresolvedType,
     ArgumentInterface, SymbolTable, Symbol)
 
 
@@ -52,10 +52,10 @@ def test_gosymboltable_conformity_check():
 
     '''
     symbol_table = GOSymbolTable()
-    i_var = DataSymbol("i", INTEGER_TYPE,
+    i_var = DataSymbol("i", ScalarType.integer_type(),
                        interface=ArgumentInterface(
                            ArgumentInterface.Access.READ))
-    j_var = DataSymbol("j", INTEGER_TYPE,
+    j_var = DataSymbol("j", ScalarType.integer_type(),
                        interface=ArgumentInterface(
                            ArgumentInterface.Access.READ))
     symbol_table.specify_argument_list([i_var, j_var])
@@ -71,7 +71,7 @@ def test_gosymboltable_conformity_check():
 def test_gosymboltable_properties():
     '''Test the various properties of a GOSymbolTable.'''
     table = GOSymbolTable()
-    i_var = DataSymbol("i", INTEGER_TYPE,
+    i_var = DataSymbol("i", ScalarType.integer_type(),
                        interface=ArgumentInterface(
                            ArgumentInterface.Access.READ))
     table.specify_argument_list([i_var])
@@ -81,13 +81,13 @@ def test_gosymboltable_properties():
     assert ("GOcean API kernels should always have at least two arguments "
             "representing the iteration indices but the Symbol Table has "
             "only 1 argument" in str(err.value))
-    j_var = DataSymbol("j", INTEGER_TYPE,
+    j_var = DataSymbol("j", ScalarType.integer_type(),
                        interface=ArgumentInterface(
                            ArgumentInterface.Access.READ))
     table.specify_argument_list([i_var, j_var])
     assert table.iteration_indices == [i_var, j_var]
     assert table.data_arguments == []
-    fld_var = DataSymbol("fld1", INTEGER_TYPE,
+    fld_var = DataSymbol("fld1", ScalarType.integer_type(),
                          interface=ArgumentInterface(
                              ArgumentInterface.Access.WRITE))
     table.specify_argument_list([i_var, j_var, fld_var])
@@ -103,11 +103,13 @@ def test_gosymboltable_create_from_table():
     table = SymbolTable(default_visibility=Symbol.Visibility.PRIVATE)
     my_sched = Schedule(symbol_table=table)
     tsym = table.new_symbol("tom", symbol_type=DataSymbol,
-                            datatype=INTEGER_TYPE)
-    psym = table.new_symbol("port", symbol_type=DataSymbol, datatype=REAL_TYPE,
+                            datatype=ScalarType.integer_type())
+    psym = table.new_symbol("port", symbol_type=DataSymbol,
+                            datatype=ScalarType.real_type(),
                             interface=ArgumentInterface())
     starb_sym = table.new_symbol("starboad", tag="right",
-                                 symbol_type=DataSymbol, datatype=REAL_TYPE)
+                                 symbol_type=DataSymbol,
+                                 datatype=ScalarType.real_type())
     table.specify_argument_list([psym])
     gotable = GOSymbolTable.create_from_table(table)
     assert isinstance(gotable, GOSymbolTable)

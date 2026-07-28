@@ -45,7 +45,7 @@ from psyclone.line_length import FortLineLength
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
     Literal, Routine, Schedule, Call, StructureReference)
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import ScalarType
 from psyclone.tests.utilities import Compile, get_invoke
 
 
@@ -84,7 +84,8 @@ def test_lfric_driver_add_call(fortran_writer):
     del program.symbol_table._tags['test']
 
     driver_creator.add_call(program, "my_sub", [])
-    driver_creator.add_call(program, "my_sub_2", [Literal("1", INTEGER_TYPE)])
+    driver_creator.add_call(
+        program, "my_sub_2", [Literal("1", ScalarType.integer_type())])
     out = fortran_writer(program)
     assert "call my_sub()" in out
     assert "call my_sub_2(1)" in out
@@ -154,7 +155,7 @@ def test_lfric_driver_dm_test():
 @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager_lfric")
 def test_lfric_driver_import_precision():
     '''Test that all required precision symbols are imported from
-    constants_mod'''
+    constants_mod and iso_fortran_env.'''
 
     psy, invoke = get_invoke("26.6_mixed_precision_solver_vector.f90", API,
                              dist_mem=False, idx=0)
@@ -171,6 +172,7 @@ def test_lfric_driver_import_precision():
     assert ("use constants_mod, only : i_def, l_def, r_bl, r_def, "
             "r_double, r_ncdf, r_second, r_single, r_solver, "
             "r_tran, r_um" in driver)
+    assert "use, intrinsic :: iso_fortran_env, only : real32, real64" in driver
 
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
                 "argument_mod", "log_mod", "fs_continuity_mod",

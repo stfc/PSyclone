@@ -54,7 +54,8 @@ from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.lfric import (
     LFRicACCEnterDataDirective, LFRicBoundaryConditions,
-    LFRicKernelArgument, LFRicKernelArguments, LFRicProxies, HaloReadAccess,
+    LFRicKernelArgument, LFRicKernelArguments, LFRicProxies, HaloDepth,
+    HaloReadAccess,
     KernCallArgList)
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.gen_kernel_stub import generate
@@ -67,6 +68,7 @@ from psyclone.psyir.symbols import (ArrayType, ScalarType, DataTypeSymbol,
                                     UnsupportedFortranType)
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import get_invoke
 
 
 # constants
@@ -1486,6 +1488,91 @@ def test_arg_ref_name_method_error2():
             "type 'gh_funky_instigator'" in str(excinfo.value))
 
 
+def test_arg_ref_name_method_error3(monkeypatch):
+    '''Test error handling for an operator argument when the supplied
+    function-space matches the argument but not either descriptor endpoint.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
+    first_argument = first_kernel.arguments.args[0]
+
+    descriptor_type = type(first_argument.descriptor)
+    monkeypatch.setattr(descriptor_type, "function_space_from",
+                        property(lambda self: "w_broken_from"))
+    monkeypatch.setattr(descriptor_type, "function_space_to",
+                        property(lambda self: "w_broken_to"))
+
+    with pytest.raises(GenerationError) as excinfo:
+        _ = first_argument.ref_name(first_argument.function_spaces[0])
+    assert ("is one of the 'gh_operator' function spaces" in
+            str(excinfo.value))
+
+
+def test_arg_proxy_name_indexed_vector():
+    '''Check that proxy_name_indexed includes an explicit (1) index for a
+    vector argument.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
+    first_argument = first_kernel.arguments.args[1]
+    first_argument._vector_size = 2
+    assert first_argument.proxy_name_indexed == "f1_proxy(1)"
+
+
+def test_mesh_properties_initialise_invalid_property():
+    '''Check that unsupported mesh properties are rejected during
+    initialisation code generation.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "24.1_mesh_prop_invoke.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    invoke.setup_psy_layer_symbols()
+    invoke.mesh_properties._properties.append("not-a-property")
+
+    with pytest.raises(InternalError) as err:
+        invoke.mesh_properties.initialise(0)
+    assert "Found unsupported mesh property 'not-a-property'" in str(err.value)
+
+
+def test_halo_depth_parent_type_error():
+    '''Check validation of the parent argument to HaloDepth.'''
+    with pytest.raises(TypeError) as err:
+        _ = HaloDepth(parent="not-a-node")
+    assert "HaloDepth parent argument must be a Node" in str(err.value)
+
+
+def test_iteration_space_arg_error_empty_args():
+    '''Check that iteration_space_arg() raises the expected error when no
+    field/operator arguments are present.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.coded_kernels()[0]
+    arguments = first_kernel.arguments
+    saved_args = arguments._args
+    arguments._args = []
+    try:
+        with pytest.raises(GenerationError) as err:
+            arguments.iteration_space_arg()
+        assert "None of these were found." in str(err.value)
+    finally:
+        arguments._args = saved_args
+
+
 def test_arg_intent_error():
     ''' Tests that an internal error is raised in LFRicKernelArgument
     when intent() is called and the argument access property is not one of
@@ -1664,14 +1751,6 @@ def test_lfrickernelargument_idtp_reduction():
     assert reduction._data_type == "scalar_type"
     assert reduction._proxy_data_type is None
     assert reduction._module_name == "scalar_mod"
-
-    # Scalar reduction with inconsistent precision (expects 'r_def')
-    arg = Arg("variable", None, None, ("real", "i_def"))
-    with pytest.raises(GenerationError) as info:
-        reduction._init_data_type_properties(arg)
-    assert ("This scalar is a reduction which assumes precision of type "
-            "'r_def' but the algorithm declares this scalar with precision "
-            "'i_def'" in str(info.value))
 
     # Invalid reduction type (not a 'real')
     arg = Arg("variable", None, None, ("integer", "i_def"))
@@ -1895,10 +1974,9 @@ def test_lfrickernelargument_idtp_r_tran_operator(tmpdir):
     '''
     # Use one of the test algorithms to create an instance of
     # LFRicKernelArgument that describes an r_tran_operator.
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "26.8_mixed_precision_args.f90"), api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    operator_argument = psy.invokes.invoke_list[0].schedule.args[8]
+    psy, invoke = get_invoke("26.8_mixed_precision_args.f90", api=TEST_API,
+                             dist_mem=False, idx=0)
+    operator_argument = invoke.schedule.args[8]
     assert operator_argument.is_operator
     assert operator_argument._precision == "r_tran"
     assert operator_argument._data_type == "r_tran_operator_type"
@@ -3520,6 +3598,35 @@ def test_haloex_not_required(monkeypatch):
         assert haloex.required() == (False, True)
 
 
+def test_haloex_required_max_depth_clean_outer(monkeypatch):
+    '''Check the required() logic branch where the full halo is known clean
+    due to redundant computation.
+
+    '''
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    haloex = invoke.schedule.children[0]
+
+    class DummyReadInfo:  # pylint: disable=too-few-public-methods
+        '''Minimal read-info object for required().'''
+        max_depth = False
+        annexed_only = False
+
+    class DummyWriteInfo:  # pylint: disable=too-few-public-methods
+        '''Minimal write-info object for required().'''
+        max_depth = True
+        dirty_outer = False
+
+    monkeypatch.setattr(haloex, "_compute_halo_read_depth_info",
+                        lambda _ignore_hex_dep=False: [DummyReadInfo()])
+    monkeypatch.setattr(haloex, "_compute_halo_write_info",
+                        lambda: DummyWriteInfo())
+
+    assert haloex.required() == (False, True)
+
+
 def test_lfriccollection_err1():
     ''' Check that the LFRicCollection constructor raises the expected
     error if it is not provided with an LFRicKern or LFRicInvoke. '''
@@ -3753,23 +3860,23 @@ def test_read_only_fields_hex(tmpdir):
     assert expected in generated_code
 
 
-def test_mixed_precision_args(tmpdir):
+def test_mixed_precision_args(tmp_path):
     '''
     Test that correct code is generated for the PSy-layer when there
     are scalars, fields and operators with different precision
     declared in the algorithm layer.
 
     '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "26.8_mixed_precision_args.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    psy, _ = get_invoke("26.8_mixed_precision_args.f90",
+                        TEST_API, idx=0, dist_mem=True)
     generated_code = str(psy.gen)
 
-    assert "use constants_mod\n" in generated_code
+    assert ("use constants_mod, only : r_bl, r_def, r_solver, r_tran\n"
+            in generated_code)
     assert """
   use field_mod, only : field_proxy_type, field_type
   use operator_mod, only : operator_proxy_type, operator_type
+  use mixed_kernel_mod, only : mixed_code
   use r_solver_field_mod, only : r_solver_field_proxy_type, r_solver_field_type
   use r_solver_operator_mod, only : r_solver_operator_proxy_type, \
 r_solver_operator_type
@@ -3777,15 +3884,21 @@ r_solver_operator_type
   use r_tran_operator_mod, only : r_tran_operator_proxy_type, \
 r_tran_operator_type
   use r_bl_field_mod, only : r_bl_field_proxy_type, r_bl_field_type
+  use, intrinsic :: iso_fortran_env, only : real32, real64
+  use field_real32_mod, only : field_real32_proxy_type, field_real32_type
+  use operator_real32_mod, only : operator_real32_proxy_type, \
+operator_real32_type
+  use field_real64_mod, only : field_real64_proxy_type, field_real64_type
+  use operator_real64_mod, only : operator_real64_proxy_type, \
+operator_real64_type
   implicit none
-  public
-
-  contains
-  subroutine invoke_0(scalar_r_def, field_r_def, operator_r_def, \
+""" in generated_code
+    assert """subroutine invoke_0(scalar_r_def, field_r_def, operator_r_def, \
 scalar_r_solver, field_r_solver, operator_r_solver, scalar_r_tran, \
-field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl)
+field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl, scalar_real32, \
+field_real32, operator_real32, scalar_real64, field_real64, operator_real64)
     use mesh_mod, only : mesh_type
-    use mixed_kernel_mod, only : mixed_code
+    use constants_mod, only : i_def
     real(kind=r_def), intent(in) :: scalar_r_def
     type(field_type), intent(in) :: field_r_def
     type(operator_type), intent(in) :: operator_r_def
@@ -3797,6 +3910,12 @@ field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl)
     type(r_tran_operator_type), intent(in) :: operator_r_tran
     real(kind=r_bl), intent(in) :: scalar_r_bl
     type(r_bl_field_type), intent(in) :: field_r_bl
+    real(kind=real32), intent(in) :: scalar_real32
+    type(field_real32_type), intent(in) :: field_real32
+    type(operator_real32_type), intent(in) :: operator_real32
+    real(kind=real64), intent(in) :: scalar_real64
+    type(field_real64_type), intent(in) :: field_real64
+    type(operator_real64_type), intent(in) :: operator_real64
     integer(kind=i_def) :: cell
     type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: max_halo_depth_mesh
@@ -3804,16 +3923,24 @@ field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl)
     real(kind=r_solver), pointer, dimension(:) :: field_r_solver_data => null()
     real(kind=r_tran), pointer, dimension(:) :: field_r_tran_data => null()
     real(kind=r_bl), pointer, dimension(:) :: field_r_bl_data => null()
+    real(kind=real32), pointer, dimension(:) :: field_real32_data => null()
+    real(kind=real64), pointer, dimension(:) :: field_real64_data => null()
     real(kind=r_def), pointer, dimension(:,:,:) :: \
 operator_r_def_local_stencil => null()
     real(kind=r_solver), pointer, dimension(:,:,:) :: \
 operator_r_solver_local_stencil => null()
     real(kind=r_tran), pointer, dimension(:,:,:) :: \
 operator_r_tran_local_stencil => null()
+    real(kind=real32), pointer, dimension(:,:,:) :: \
+operator_real32_local_stencil => null()
+    real(kind=real64), pointer, dimension(:,:,:) :: \
+operator_real64_local_stencil => null()
     integer(kind=i_def) :: nlayers_field_r_def
     integer(kind=i_def) :: nlayers_field_r_solver
     integer(kind=i_def) :: nlayers_field_r_tran
     integer(kind=i_def) :: nlayers_field_r_bl
+    integer(kind=i_def) :: nlayers_field_real32
+    integer(kind=i_def) :: nlayers_field_real64
     integer(kind=i_def) :: ndf_w3
     integer(kind=i_def) :: undf_w3
     integer(kind=i_def) :: ndf_w0
@@ -3822,9 +3949,13 @@ operator_r_tran_local_stencil => null()
     type(r_solver_field_proxy_type) :: field_r_solver_proxy
     type(r_tran_field_proxy_type) :: field_r_tran_proxy
     type(r_bl_field_proxy_type) :: field_r_bl_proxy
+    type(field_real32_proxy_type) :: field_real32_proxy
+    type(field_real64_proxy_type) :: field_real64_proxy
     type(operator_proxy_type) :: operator_r_def_proxy
     type(r_solver_operator_proxy_type) :: operator_r_solver_proxy
     type(r_tran_operator_proxy_type) :: operator_r_tran_proxy
+    type(operator_real32_proxy_type) :: operator_real32_proxy
+    type(operator_real64_proxy_type) :: operator_real64_proxy
     integer(kind=i_def) :: loop0_start
     integer(kind=i_def) :: loop0_stop
     integer(kind=i_def) :: loop1_start
@@ -3833,10 +3964,12 @@ operator_r_tran_local_stencil => null()
     integer(kind=i_def) :: loop2_stop
     integer(kind=i_def) :: loop3_start
     integer(kind=i_def) :: loop3_stop
+    integer(kind=i_def) :: loop4_start
+    integer(kind=i_def) :: loop4_stop
 """ in generated_code
 
     # Test compilation
-    assert LFRicBuild(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
 def test_lfricpsy_gen_container_routines(tmpdir):

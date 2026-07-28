@@ -49,8 +49,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
                                     UnresolvedType, ImportInterface,
-                                    INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE,
-                                    REAL_TYPE, ScalarType, Symbol, SymbolTable)
+                                    ScalarType, Symbol, SymbolTable)
 from psyclone.psyir.transformations import ProfileTrans
 
 
@@ -73,8 +72,8 @@ def test_reference_equality():
     1. Both are the same type (Reference)
     2. They Reference the same symbol name
     '''
-    symbol1 = DataSymbol("rname", INTEGER_SINGLE_TYPE)
-    symbol2 = DataSymbol("rname2", INTEGER_SINGLE_TYPE)
+    symbol1 = DataSymbol("rname", ScalarType.integer_single_type())
+    symbol2 = DataSymbol("rname2", ScalarType.integer_single_type())
 
     ref1 = Reference(symbol1)
     ref2 = Reference(symbol1)
@@ -84,7 +83,7 @@ def test_reference_equality():
     assert ref1 != ref3
 
     # Create another symbol with the same name (but not the same instance)
-    symbol3 = DataSymbol("rname", INTEGER_SINGLE_TYPE)
+    symbol3 = DataSymbol("rname", ScalarType.integer_single_type())
     ref4 = Reference(symbol3)
     assert ref1 == ref4
 
@@ -103,7 +102,7 @@ def test_dsl_name():
 def test_reference_node_str():
     ''' Check the node_str method of the Reference class.'''
     kschedule = KernelSchedule.create("kname")
-    symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
+    symbol = DataSymbol("rname", ScalarType.integer_single_type())
     kschedule.symbol_table.add(symbol)
     assignment = Assignment()
     ref = Reference(symbol, parent=assignment)
@@ -115,7 +114,7 @@ def test_reference_can_be_printed():
     '''Test that a Reference instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule.create("kname")
-    symbol = DataSymbol("rname", INTEGER_SINGLE_TYPE)
+    symbol = DataSymbol("rname", ScalarType.integer_single_type())
     kschedule.symbol_table.add(symbol)
     assignment = Assignment()
     ref = Reference(symbol, parent=assignment)
@@ -127,7 +126,7 @@ def test_reference_optional_parent():
     argument is not supplied.
 
     '''
-    ref = Reference(DataSymbol("rname", REAL_SINGLE_TYPE))
+    ref = Reference(DataSymbol("rname", ScalarType.real_single_type()))
     assert ref.parent is None
 
 
@@ -136,9 +135,9 @@ def test_reference_children_validation():
     does not accept any children.
 
     '''
-    ref = Reference(DataSymbol("rname", REAL_SINGLE_TYPE))
+    ref = Reference(DataSymbol("rname", ScalarType.real_single_type()))
     with pytest.raises(GenerationError) as excinfo:
-        ref.addchild(Literal("2", INTEGER_SINGLE_TYPE))
+        ref.addchild(Literal("2", ScalarType.integer_single_type()))
     assert ("Item 'Literal' can't be child 0 of 'Reference'. Reference is a"
             " LeafNode and doesn't accept children.") in str(excinfo.value)
 
@@ -147,7 +146,7 @@ def test_reference_datatype():
     '''Test the datatype property.
 
     '''
-    reference = Reference(DataSymbol("test", REAL_TYPE))
+    reference = Reference(DataSymbol("test", ScalarType.real_type()))
     assert isinstance(reference.datatype, ScalarType)
     assert reference.datatype.intrinsic == ScalarType.Intrinsic.REAL
 
@@ -161,15 +160,15 @@ def test_reference_accesses():
     usual case (see the next test for the unusual case).
 
     '''
-    reference = Reference(DataSymbol("test", REAL_TYPE))
+    reference = Reference(DataSymbol("test", ScalarType.real_type()))
     var_access_info = reference.reference_accesses()
     assert (str(var_access_info)) == "test: READ"
 
     # Test using reference_access with an array to check
     # that arrays are handled correctly.
-    array_type = ArrayType(REAL_SINGLE_TYPE, [10])
+    array_type = ArrayType(ScalarType.real_single_type(), [10])
     symbol_temp = DataSymbol("temp", array_type)
-    symbol_i = DataSymbol("i", INTEGER_SINGLE_TYPE)
+    symbol_i = DataSymbol("i", ScalarType.integer_single_type())
     array = ArrayReference.create(symbol_temp, [Reference(symbol_i)])
     var_access_info = array.reference_accesses()
     assert str(var_access_info) == "i: READ, temp: READ"
@@ -187,8 +186,9 @@ def test_reference_accesses():
 def test_reference_can_be_copied():
     ''' Test that a reference can be copied. '''
 
-    array_symbol = DataSymbol("symbol", ArrayType(REAL_TYPE, [10]))
-    scalar_symbol = DataSymbol("other", REAL_TYPE)
+    array_symbol = DataSymbol("symbol", ArrayType(ScalarType.real_type(),
+                                                  [10]))
+    scalar_symbol = DataSymbol("other", ScalarType.real_type())
 
     ref = Reference(array_symbol)
 
@@ -237,9 +237,14 @@ def test_reference_next_accesses(fortran_reader):
     loop = routine.children[1]
     b = loop.loop_body.children[0].lhs
     assert len(a_before_loop.next_accesses()) == 1
+    # TODO #3486: next_accesses should not return loops
     assert a_before_loop.next_accesses()[0] is loop
     assert len(b.next_accesses()) == 1
     assert b.next_accesses()[0] == b
+
+    # Check the next_access of the loop variable
+    assert (loop.variable_reference.next_accesses() ==
+            [loop.loop_body.children[0].rhs])
 
     # Check that a loop accessing a variable before
     # the reference doesn't result in a false positive.
@@ -257,6 +262,19 @@ def test_reference_next_accesses(fortran_reader):
     loop = routine.children[0]
     b = loop.loop_body.children[0].lhs
     assert len(a_after_loop.next_accesses()) == 0
+
+    # Check that a loop with an usused loop variable
+    code = '''subroutine my_sub()
+    integer, dimension(4) :: a
+    integer :: i
+    do i = 1, 100
+       a(1) = a(1) + 1
+    end do
+    end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    i_var = routine.children[0].children[0]
+    assert len(i_var.next_accesses()) == 0
 
     # Check the function for basic structures
     code = '''subroutine my_sub()
@@ -358,7 +376,7 @@ def test_reference_next_accesses_with_codeblock(fortran_reader):
     a = routine.children[0].lhs
     codeblock = routine.children[1]
     assert len(a.next_accesses()) == 1
-    assert a.next_accesses()[0] is codeblock
+    assert a.next_accesses()[0] is codeblock.children[0]
 
 
 def test_reference_previous_accesses(fortran_reader):
@@ -399,7 +417,24 @@ def test_reference_previous_accesses(fortran_reader):
     assert len(b_a.previous_accesses()) == 1
     assert b_a.previous_accesses()[0] is b_a
     assert len(a_2.previous_accesses()) == 1
+    # TODO #3486: previous_accesses should not return loops
     assert a_2.previous_accesses()[0] is loop
+
+    # Check that a loop with an usused loop variable
+    code = '''subroutine my_sub()
+    integer, dimension(4) :: a
+    integer :: i
+    a(1) = i
+    do i = 1, 100
+       a(1) = a(1) + 1
+    end do
+    end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    i_var = routine.children[1].children[0]
+    # TODO #3486: previous_accesses should consider the loop
+    # variable as WRITE-only and act as a DUC barrier
+    assert len(i_var.previous_accesses()) == 1
 
     # Check the function for basic structures
     code = '''subroutine my_sub()
@@ -531,7 +566,7 @@ def test_reference_previous_accesses_with_codeblock(fortran_reader):
     routine = psyir.children[0]
     a = routine.children[1].lhs
     codeblock = routine.walk(CodeBlock)[0]
-    assert a.previous_accesses()[0] is codeblock
+    assert a.previous_accesses()[0].is_descendant_of(codeblock)
 
 
 def test_reference_replace_symbols_using():
@@ -539,7 +574,7 @@ def test_reference_replace_symbols_using():
     to which the Reference refers.
 
     '''
-    wp = DataSymbol("wp", INTEGER_SINGLE_TYPE)
+    wp = DataSymbol("wp", ScalarType.integer_single_type())
     stype = ScalarType(ScalarType.Intrinsic.REAL, Reference(wp))
     asym = DataSymbol("asym", stype)
     ref = Reference(asym)
@@ -576,6 +611,10 @@ def test_reference_is_read(fortran_reader):
     assert references[1].is_read
     assert references[3].symbol.name == "c"
     assert references[3].is_read
+
+    # Routine or Intrinsic Symbols are not read.
+    assert references[5].symbol.name == "LBOUND"
+    assert not references[5].is_read
     # For the lbound, d should be an inquiry (so not a read) but
     # x should be a read
     assert references[6].symbol.name == "d"
@@ -592,6 +631,8 @@ def test_reference_is_write(fortran_reader):
        a = SIN(c)
        call somecall(a)
        a = b
+       do i=1,2
+       enddo
        end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
     references = psyir.walk(Reference)
@@ -612,6 +653,8 @@ def test_reference_is_write(fortran_reader):
     # a = b has a as write and b as not
     assert references[10].is_write
     assert not references[11].is_write
+    # Loop control variable
+    assert references[12].is_write
 
 
 def test_reference_component_indices(fortran_reader):
