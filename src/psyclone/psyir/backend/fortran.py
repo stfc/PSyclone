@@ -1215,7 +1215,7 @@ class FortranWriter(LanguageWriter):
             container = node.ancestor(Container)
             rsym = None
             if container:
-                rsym = node.symbol if container else None
+                rsym = node.symbol
             prefix = ""
             if rsym:
                 if rsym.is_elemental:
