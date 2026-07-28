@@ -1830,7 +1830,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # Finished handling the loop bounds now
 
         # Recurse to the children
-        for child_node in node.children[3].children:
+        for child_node in node.loop_body.children:
             self._evaluate_node(
                 child_node,
                 clause_lists

@@ -57,9 +57,10 @@ from psyclone.core import AccessType, Signature, SymbolicMaths
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric import (
     FunctionSpace, KernCallAccArgList, KernCallArgList, LFRicCollection,
-    LFRicConstants, LFRicKern, LFRicTypes, LFRicLoop)
+    LFRicArgDescriptor, LFRicConstants, LFRicKern, LFRicTypes, LFRicLoop)
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
+from psyclone.parse.algorithm import Arg, KernelCall
 from psyclone.parse.kernel import getkerneldescriptors
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (Arguments, DataAccess, InvokeSchedule, Kern,
@@ -1994,14 +1995,13 @@ class LFRicMeshes():
         self._add_mesh_symbols(list(_name_set))
 
     @property
-    def symtab(self):
+    def symtab(self) -> SymbolTable:
         '''
         :returns: associated symbol table.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
         '''
         return self._invoke.schedule.symbol_table
 
-    def _add_mesh_symbols(self, mesh_tags):
+    def _add_mesh_symbols(self, mesh_tags: list[str]) -> None:
         '''
         Add DataSymbols for the supplied list of mesh names and store the
         corresponding list of tags.
@@ -2011,7 +2011,6 @@ class LFRicMeshes():
         to hold the maximum halo depth is created for each mesh.
 
         :param mesh_tags: tag names for every mesh object required.
-        :type mesh_tags: list of str
 
         '''
         if not mesh_tags:
@@ -2034,7 +2033,8 @@ class LFRicMeshes():
             interface=ImportInterface(csym))
 
         name_list = []
-        for name in mesh_tags:
+        # Use the sorted list of names to ensure reproducible output.
+        for name in self._mesh_tag_names:
             dt = UnsupportedFortranType(
                 f"type({mtype_sym.name}), pointer :: {name} => null()")
             name_list.append(self.symtab.find_or_create_tag(
@@ -2043,7 +2043,7 @@ class LFRicMeshes():
         if Config.get().distributed_memory:
             # If distributed memory is enabled then we require a variable
             # holding the maximum halo depth for each mesh.
-            for name in mesh_tags:
+            for name in self._mesh_tag_names:
                 var_name = f"max_halo_depth_{name}"
                 self.symtab.find_or_create(
                     var_name, tag=var_name,
@@ -5284,18 +5284,21 @@ class LFRicKernelArguments(Arguments):
     collectively, as specified by the kernel argument metadata.
 
     :param call: the kernel metadata for which to extract argument info.
-    :type call: :py:class:`psyclone.parse.KernelCall`
     :param parent_call: the kernel-call object.
-    :type parent_call: :py:class:`psyclone.domain.lfric.LFRicKern`
-    :param bool check: whether to check for consistency between the
+    :param check: whether to check for consistency between the
         kernel metadata and the algorithm layer. Defaults to True.
 
     :raises GenerationError: if the kernel metadata specifies stencil extent.
-    '''
+    :raises NotImplementedError: if the kernel metadata specifies arguments
+      with either NDATA or NLEVELS.
 
-    def __init__(self, call, parent_call, check=True):
+    '''
+    def __init__(self,
+                 call: KernelCall,
+                 parent_call: LFRicKern,
+                 check: Optional[bool] = True):
         # pylint: disable=too-many-branches
-        Arguments.__init__(self, parent_call)
+        super().__init__(parent_call)
 
         # check that the arguments provided by the algorithm layer are
         # consistent with those expected by the kernel(s)
@@ -5388,14 +5391,21 @@ class LFRicKernelArguments(Arguments):
         # List of corresponding unique function-space objects
         self._unique_fss = []
         for arg in self._args:
-            for function_space in arg.function_spaces:
+            if arg.nlevels or arg.ndata != "1":
+                name = (f"'{self._parent_call.name}'" if self._parent_call
+                        else "stub")
+                raise NotImplementedError(
+                    f"Cannot generate arguments for kernel {name}: code "
+                    f"generation for kernels specifying NLEVELS or NDATA in "
+                    f"their metadata is not yet supported - TODO #868")
+            for fspace in arg.function_spaces:
                 # We check that function_space is not None because scalar
                 # args don't have one and fields only have one (only
                 # operators have two).
-                if function_space and \
-                   function_space.mangled_name not in self._unique_fs_names:
-                    self._unique_fs_names.append(function_space.mangled_name)
-                    self._unique_fss.append(function_space)
+                if (fspace and
+                        fspace.mangled_name not in self._unique_fs_names):
+                    self._unique_fs_names.append(fspace.mangled_name)
+                    self._unique_fss.append(fspace)
 
     def get_arg_on_space_name(self, func_space_name):
         '''
@@ -5612,27 +5622,27 @@ class LFRicKernelArgument(KernelArgument):
     arguments as specified by the kernel argument metadata and the
     kernel invocation in the Algorithm layer.
 
-    :param kernel_args: object encapsulating all arguments to the \
+    :param kernel_args: object encapsulating all arguments to the
                         kernel call.
-    :type kernel_args: :py:class:`psyclone.lfric.LFRicKernelArguments`
-    :param arg_meta_data: information obtained from the metadata for \
+    :param arg_meta_data: information obtained from the metadata for
                           this kernel argument.
-    :type arg_meta_data: :py:class:`psyclone.domain.lfric.LFRicArgDescriptor`
-    :param arg_info: information on how this argument is specified in \
+    :param arg_info: information on how this argument is specified in
                      the Algorithm layer.
-    :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
     :param call: the kernel object with which this argument is associated.
-    :type call: :py:class:`psyclone.domain.lfric.LFRicKern`
-    :param bool check: whether to check for consistency between the \
+    :param check: whether to check for consistency between the
         kernel metadata and the algorithm layer. Defaults to True.
 
-    :raises InternalError: for an unsupported metadata in the argument \
+    :raises InternalError: for an unsupported metadata in the argument
                            descriptor data type.
 
     '''
-
     # pylint: disable=too-many-public-methods, too-many-instance-attributes
-    def __init__(self, kernel_args, arg_meta_data, arg_info, call, check=True):
+    def __init__(self,
+                 kernel_args: LFRicKernelArguments,
+                 arg_meta_data: LFRicArgDescriptor,
+                 arg_info: Arg,
+                 call: LFRicKern,
+                 check: Optional[bool] = True):
         # Keep a reference to LFRicKernelArguments object that contains
         # this argument. This permits us to manage name-mangling for
         # any-space function spaces.
@@ -5646,6 +5656,10 @@ class LFRicKernelArgument(KernelArgument):
             self._mesh = arg_meta_data.mesh.lower()
         else:
             self._mesh = None
+        # The number of vertical levels (for a field/operator)
+        self._nlevels = arg_meta_data.nlevels
+        # The number of data values associated with each DoF of a field
+        self._ndata = arg_meta_data.ndata
 
         # The list of function-space objects for this argument. Each
         # object can be queried for its original name and for the
@@ -5954,22 +5968,22 @@ class LFRicKernelArgument(KernelArgument):
             self._precision = const.SCALAR_PRECISION_MAP[
                 self.intrinsic_type]
 
-    def _init_field_properties(self, alg_datatype, check=True):
+    def _init_field_properties(self,
+                               alg_datatype: Optional[str],
+                               check: bool = True) -> None:
         '''Set up the properties of this field using algorithm datatype
         information if it is available.
 
-        :param alg_datatype: the datatype of this argument as \
-            specified in the algorithm layer or None if it is not \
-            known.
-        :type alg_datatype: str or NoneType
-        :param bool check: whether to use the algorithm \
+        :param alg_datatype: the datatype of this argument as
+            specified in the algorithm layer or None if it is not known.
+        :param check: whether to use the algorithm
             information. Optional argument that defaults to True.
 
-        :raises GenerationError: if the datatype for a gh_field \
+        :raises GenerationError: if the datatype for a gh_field
             could not be found in the algorithm layer.
-        :raises GenerationError: if the datatype specified in the \
+        :raises GenerationError: if the datatype specified in the
             algorithm layer is inconsistent with the kernel metadata.
-        :raises InternalError: if the intrinsic type of the field is \
+        :raises InternalError: if the intrinsic type of the field is
             not supported (i.e. is not real or integer).
 
         '''
@@ -5990,20 +6004,14 @@ class LFRicKernelArgument(KernelArgument):
             if not check:
                 # Use the default as we are ignoring any algorithm info
                 argtype = "field"
-            elif alg_datatype == "field_type":
-                argtype = "field"
-            elif alg_datatype == "r_bl_field_type":
-                argtype = "r_bl_field"
-            elif alg_datatype == "r_solver_field_type":
-                argtype = "r_solver_field"
-            elif alg_datatype == "r_tran_field_type":
-                argtype = "r_tran_field"
             else:
-                raise GenerationError(
-                    f"The metadata for argument '{self.name}' in kernel "
-                    f"'{self._call.name}' specifies that this is a real "
-                    f"field, however it is declared as a "
-                    f"'{alg_datatype}' in the algorithm code.")
+                argtype = const.REAL_DATA_TYPE_RMAP.get(alg_datatype, None)
+                if not argtype:
+                    raise GenerationError(
+                        f"The metadata for argument '{self.name}' in kernel "
+                        f"'{self._call.name}' specifies that this is a real "
+                        f"field, however it is declared as a "
+                        f"'{alg_datatype}' in the algorithm code.")
 
         elif self.intrinsic_type == "integer":
             if check and alg_datatype != "integer_field_type":
@@ -6023,20 +6031,21 @@ class LFRicKernelArgument(KernelArgument):
         self._proxy_data_type = const.DATA_TYPE_MAP[argtype]["proxy_type"]
         self._module_name = const.DATA_TYPE_MAP[argtype]["module"]
 
-    def _init_operator_properties(self, alg_datatype, check=True):
+    def _init_operator_properties(self,
+                                  alg_datatype: Optional[str],
+                                  check: bool = True) -> None:
         '''Set up the properties of this operator using algorithm datatype
         information if it is available.
 
-        :param alg_datatype: the datatype of this argument as \
-            specified in the algorithm layer or None if it is not \
-            known.
-        :type alg_datatype: str or NoneType
-        :param bool check: whether to use the algorithm \
-            information. Optional argument that defaults to True.
-        :raises GenerationError: if the datatype for a gh_operator \
-            could not be found in the algorithm layer (and check is \
+        :param alg_datatype: the datatype of this argument as specified in
+            the algorithm layer or None if it is not known.
+        :param check: whether to use the algorithm information. Optional
+            argument that defaults to True.
+
+        :raises GenerationError: if the datatype for a gh_operator
+            could not be found in the algorithm layer (and check is
             True).
-        :raises GenerationError: if the datatype specified in the \
+        :raises GenerationError: if the datatype specified in the
             algorithm layer is inconsistent with the kernel metadata.
         :raises InternalError: if this argument is not an operator.
 
@@ -6048,9 +6057,8 @@ class LFRicKernelArgument(KernelArgument):
                 # Use the default as we are ignoring any algorithm info
                 argtype = "operator"
             elif not alg_datatype:
-                # Raise an exception as we require algorithm
-                # information to determine the precision of the
-                # operator
+                # Raise an exception as we require algorithm information
+                # to determine the precision of the operator
                 raise GenerationError(
                     f"It was not possible to determine the operator type "
                     f"from the algorithm layer for argument '{self.name}' "
@@ -6061,6 +6069,10 @@ class LFRicKernelArgument(KernelArgument):
                 argtype = "r_solver_operator"
             elif alg_datatype == "r_tran_operator_type":
                 argtype = "r_tran_operator"
+            elif alg_datatype == "operator_real64_type":
+                argtype = "r_64_operator"
+            elif alg_datatype == "operator_real32_type":
+                argtype = "r_32_operator"
             else:
                 raise GenerationError(
                     f"The metadata for argument '{self.name}' in kernel "
@@ -6169,15 +6181,36 @@ class LFRicKernelArgument(KernelArgument):
         return self._vector_size
 
     @property
-    def name_indexed(self):
+    def name_indexed(self) -> str:
         '''
-        :returns: the name for this argument with an additional index \
+        :returns: the name for this argument with an additional index
                   which accesses the first element for a vector argument.
-        :rtype: str
+
         '''
         if self._vector_size > 1:
             return self._name+"(1)"
         return self._name
+
+    @property
+    def nlevels(self) -> Optional[str]:
+        '''
+        :returns: the number of vertical levels of this (field/operator)
+            argument, as specified in the Kernel metadata. Default is None
+            in which case the value is the same as that of the first
+            field/operator argument.
+
+        '''
+        return self._nlevels
+
+    @property
+    def ndata(self) -> str:
+        '''
+        :returns: the number of data values per dof of this (field/operator)
+            argument, as specified in the Kernel metadata. The default
+            value is "1".
+
+        '''
+        return self._ndata
 
     def psyir_expression(self):
         '''
@@ -6480,17 +6513,25 @@ class LFRicKernelArgument(KernelArgument):
                 raise NotImplementedError(
                     f"Unsupported scalar type '{self.intrinsic_type}'")
 
+            const = LFRicConstants()
             kind_name = self.precision
             try:
                 kind_symbol = symtab.lookup(kind_name)
             except KeyError:
-                mod_map = LFRicConstants().UTILITIES_MOD_MAP
-                const_mod = mod_map["constants"]["module"]
-                constants_container = symtab.find_or_create(
-                    const_mod, symbol_type=ContainerSymbol)
-                kind_symbol = DataSymbol(
-                    kind_name, ScalarType.integer_type(),
-                    interface=ImportInterface(constants_container))
+                if kind_name.lower() in const.INTRINSIC_KINDS:
+                    # This is an intrinsic kind (e.g. real32) so it comes
+                    # from the intrinsic ISO module.
+                    cntr_sym = symtab.find_or_create(
+                        const.FORTRAN_ISO_MOD_NAME,
+                        symbol_type=ContainerSymbol,
+                        is_intrinsic=True)
+                else:
+                    mod_map = const.UTILITIES_MOD_MAP
+                    const_mod = mod_map["constants"]["module"]
+                    cntr_sym = symtab.find_or_create(
+                        const_mod, symbol_type=ContainerSymbol)
+                kind_symbol = DataSymbol(kind_name, ScalarType.integer_type(),
+                                         interface=ImportInterface(cntr_sym))
                 symtab.add(kind_symbol)
             dts = ScalarType(prim_type, Reference(kind_symbol))
             if self.is_scalar_array and self._array_ndims >= 1:

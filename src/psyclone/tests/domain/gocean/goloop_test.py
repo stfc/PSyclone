@@ -83,14 +83,15 @@ def test_goloop_create(monkeypatch):
     assert goloop.variable.name == "i"
 
     # Check that the created children correspond to the expected values
-    assert len(goloop.children) == 4
-    assert isinstance(goloop.children[0], Literal)
+    assert len(goloop.children) == 5
+    assert isinstance(goloop.children[0], Reference)
     assert isinstance(goloop.children[1], Literal)
     assert isinstance(goloop.children[2], Literal)
-    assert isinstance(goloop.children[3], Schedule)
-    assert goloop.children[0].value == '10'
-    assert goloop.children[1].value == '20'
-    assert goloop.children[2].value == '1'
+    assert isinstance(goloop.children[3], Literal)
+    assert isinstance(goloop.children[4], Schedule)
+    assert goloop.start_expr.value == '10'
+    assert goloop.stop_expr.value == '20'
+    assert goloop.step_expr.value == '1'
 
     # Try with an invalid loop type
     with pytest.raises(TypeError) as err:
@@ -186,8 +187,8 @@ def test_goloop_bounds_invalid_iteration_space():
     with pytest.raises(GenerationError) as err:
         gojloop.upper_bound()
     assert ("Cannot generate custom loop bound for loop GOLoop["
-            "variable:'j', loop_type:'outer']\nEnd GOLoop. Couldn't find "
-            "any suitable field." in str(err.value))
+            "variable:'j', loop_type:'outer']\nReference[name:'j']\nEnd "
+            "GOLoop. Couldn't find any suitable field." in str(err.value))
 
     # Create an complete invoke now
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",

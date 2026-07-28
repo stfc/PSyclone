@@ -43,7 +43,7 @@
 import logging
 from typing import Iterable
 from psyclone.psyir.nodes import (
-    OMPParallelDoDirective, OMPReductionClause)
+    OMPParallelDoDirective, OMPReductionClause, Loop)
 from psyclone.psyir.nodes.omp_directives import MAP_REDUCTION_OP_TO_OMP
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.utils import transformation_documentation_wrapper
@@ -87,8 +87,9 @@ class OMPParallelLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add an 'OpenMP PARALLEL DO' directive"
 
-    def apply(self, node,
+    def apply(self, node: Loop,
               force_private: Iterable[str] = tuple(),
+              enable_reductions: bool = False,
               options=None, **kwargs):
         ''' Apply an OMPParallelLoop Transformation to the supplied node
         (which must be a Loop). In the generated code this corresponds to
@@ -103,20 +104,41 @@ class OMPParallelLoopTrans(OMPLoopTrans):
           !$OMP END PARALLEL DO
 
         :param node: the node (loop) to which to apply the transformation.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param Iterable[str] force_private: specify a list of symbol names
+        :param force_private: specify a list of symbol names
             explicitly requested to be private.
+        :param enable_reductions: whether to enable PSyclone to compute
+            reduction clauses on the parallelised loop.
         :param options: a dictionary with options for transformations
             and validation.
         :type options: Optional[Dict[str, Any]]
         '''
+        logger = logging.getLogger(__name__)
+        # TODO #2668 - deprecate options dictionary.
         local_options = options.copy() if options is not None else None
-        if options and options.get("enable_reductions", False):
-            local_options["reduction_ops"] = \
-                list(MAP_REDUCTION_OP_TO_OMP.keys())
+        reduction_ops = []
+        if options:
+            enable_reductions = options.get("enable_reductions", False)
+            if enable_reductions:
+                local_options["reduction_ops"] = \
+                    list(MAP_REDUCTION_OP_TO_OMP.keys())
+        else:
+            if enable_reductions:
+                # Reduction_ops isn't a supported option provided in this
+                # Transformation's docstring, however since its in the
+                # options for its superclass we give a warning and override
+                # it as needed.
+                if "reduction_ops" in kwargs:
+                    del kwargs["reduction_ops"]
+                    logger.warning(
+                        f"{self.name} overrides the provided reduction_ops "
+                        f"keyword argument to those supported by PSyclone."
+                    )
+                reduction_ops = list(MAP_REDUCTION_OP_TO_OMP.keys())
 
+        # reduction_ops is the argument used by the superclass to determine
+        # whether to allow reductions, so we don't pass enable_reductions.
         self.validate(node, options=local_options, force_private=force_private,
-                      **kwargs)
+                      reduction_ops=reduction_ops, **kwargs)
 
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location
@@ -138,7 +160,6 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         node_parent.addchild(directive, index=node_position)
 
         # Add explicit private variables
-        logger = logging.getLogger(__name__)
         explicitly_private_symbols = set()
         for symbol_name in force_private:
             try:

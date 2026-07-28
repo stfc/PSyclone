@@ -39,6 +39,8 @@ creation, modification and Fortran output of an InterGridVector
 argument.
 
 '''
+from typing import Optional
+from fparser.two import Fortran2003
 from psyclone.domain.lfric.kernel.inter_grid_arg_metadata import \
     InterGridArgMetadata
 
@@ -74,33 +76,34 @@ class InterGridVectorArgMetadata(InterGridArgMetadata):
     vector = True
 
     def __init__(self, datatype, access, function_space, mesh_arg,
-                 vector_length, stencil=None):
+                 vector_length, stencil=None, nlevels=None, ndata="1"):
         super().__init__(
-            datatype, access, function_space, mesh_arg, stencil=stencil)
+            datatype, access, function_space, mesh_arg, stencil=stencil,
+            nlevels=nlevels, ndata=ndata)
         self.vector_length = vector_length
 
     @classmethod
-    def _get_metadata(cls, fparser2_tree):
+    def _get_metadata(cls,
+                      fparser2_tree: Fortran2003.Structure_Constructor
+                      ) -> tuple[str, str, str, str, str,
+                                 Optional[str], Optional[str], Optional[str]]:
         '''Extract the required metadata from the fparser2 tree and return it
         as strings. Also check that the metadata is in the expected
         form (but do not check the metadata values as that is done
         separately).
 
-        :param fparser2_tree: fparser2 tree containing the metadata \
+        :param fparser2_tree: fparser2 tree containing the metadata
             for this argument.
-        :type fparser2_tree: \
-            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
-        :returns: a tuple containing the datatype, access, function \
-            space, mesh, vector-length and stencil metadata.
-        :rtype: Tuple[str, str, str, str, str, Optional[str]]
+        :returns: a tuple containing the datatype, access, function
+            space, mesh, vector-length, stencil, nlevels and ndata metadata.
 
         '''
-        datatype, access, function_space, mesh_arg, stencil = \
+        datatype, access, function_space, mesh_arg, stencil, nlevels, ndata = \
             super()._get_metadata(fparser2_tree)
         vector_length = cls.get_vector_length(fparser2_tree)
         return (datatype, access, function_space, mesh_arg, vector_length,
-                stencil)
+                stencil, nlevels, ndata)
 
     def fortran_string(self):
         '''

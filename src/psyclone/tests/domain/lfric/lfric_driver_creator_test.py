@@ -155,7 +155,7 @@ def test_lfric_driver_dm_test():
 @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager_lfric")
 def test_lfric_driver_import_precision():
     '''Test that all required precision symbols are imported from
-    constants_mod'''
+    constants_mod and iso_fortran_env.'''
 
     psy, invoke = get_invoke("26.6_mixed_precision_solver_vector.f90", API,
                              dist_mem=False, idx=0)
@@ -172,6 +172,7 @@ def test_lfric_driver_import_precision():
     assert ("use constants_mod, only : i_def, l_def, r_bl, r_def, "
             "r_double, r_ncdf, r_second, r_single, r_solver, "
             "r_tran, r_um" in driver)
+    assert "use, intrinsic :: iso_fortran_env, only : real32, real64" in driver
 
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
                 "argument_mod", "log_mod", "fs_continuity_mod",

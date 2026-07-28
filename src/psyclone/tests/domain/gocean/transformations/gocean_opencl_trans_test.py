@@ -1054,14 +1054,14 @@ def test_set_kern_args(kernel_outputdir):
     use clfortran, only : clSetKernelArg
     use iso_c_binding, only : C_LOC, C_SIZEOF, c_intptr_t
     use ocl_utils_mod, only : check_status
-    INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj
-    INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: cu_fld
-    INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: p_fld
-    INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: u_fld
-    INTEGER, INTENT(IN), TARGET :: xstart
-    INTEGER, INTENT(IN), TARGET :: xstop
-    INTEGER, INTENT(IN), TARGET :: ystart
-    INTEGER, INTENT(IN), TARGET :: ystop
+    integer(kind=c_intptr_t), target :: kernel_obj
+    integer(kind=c_intptr_t), intent(in), target :: cu_fld
+    integer(kind=c_intptr_t), intent(in), target :: p_fld
+    integer(kind=c_intptr_t), intent(in), target :: u_fld
+    integer, intent(in), target :: xstart
+    integer, intent(in), target :: xstop
+    integer, intent(in), target :: ystart
+    integer, intent(in), target :: ystop
     integer :: ierr'''
     assert expected in generated_code
     expected = '''\
@@ -1121,17 +1121,17 @@ in_fld, dx, dx_1, gphiu, xstart, xstop, ystart, ystop)
     use clfortran, only : clSetKernelArg
     use iso_c_binding, only : C_LOC, C_SIZEOF, c_intptr_t
     use ocl_utils_mod, only : check_status
-    INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj
-    INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: out_fld
-    INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: in_out_fld
-    INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: in_fld
-    INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: dx
-    REAL(KIND=go_wp), INTENT(IN), TARGET :: dx_1
-    INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: gphiu
-    INTEGER, INTENT(IN), TARGET :: xstart
-    INTEGER, INTENT(IN), TARGET :: xstop
-    INTEGER, INTENT(IN), TARGET :: ystart
-    INTEGER, INTENT(IN), TARGET :: ystop'''
+    integer(kind=c_intptr_t), target :: kernel_obj
+    integer(kind=c_intptr_t), intent(in), target :: out_fld
+    integer(kind=c_intptr_t), intent(in), target :: in_out_fld
+    integer(kind=c_intptr_t), intent(in), target :: in_fld
+    integer(kind=c_intptr_t), intent(in), target :: dx
+    real(kind=go_wp), intent(in), target :: dx_1
+    integer(kind=c_intptr_t), intent(in), target :: gphiu
+    integer, intent(in), target :: xstart
+    integer, intent(in), target :: xstop
+    integer, intent(in), target :: ystart
+    integer, intent(in), target :: ystop'''
     assert expected in generated_code
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
@@ -1160,15 +1160,15 @@ tmask, xstart, xstop_1, ystart, ystop)
     use clfortran, only : clSetKernelArg
     use iso_c_binding, only : C_LOC, C_SIZEOF, c_intptr_t
     use ocl_utils_mod, only : check_status
-    INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj
-    REAL(KIND=go_wp), INTENT(IN), TARGET :: a_scalar
-    INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: ssh_fld
-    INTEGER, INTENT(IN), TARGET :: xstop
-    INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: tmask
-    INTEGER, INTENT(IN), TARGET :: xstart
-    INTEGER, INTENT(IN), TARGET :: xstop_1
-    INTEGER, INTENT(IN), TARGET :: ystart
-    INTEGER, INTENT(IN), TARGET :: ystop
+    integer(kind=c_intptr_t), target :: kernel_obj
+    real(kind=go_wp), intent(in), target :: a_scalar
+    integer(kind=c_intptr_t), intent(in), target :: ssh_fld
+    integer, intent(in), target :: xstop
+    integer(kind=c_intptr_t), intent(in), target :: tmask
+    integer, intent(in), target :: xstart
+    integer, intent(in), target :: xstop_1
+    integer, intent(in), target :: ystart
+    integer, intent(in), target :: ystop
     integer :: ierr
 '''
     assert expected in generated_code
