@@ -1,3 +1,7 @@
+   16) PR #3209 towards #868. Add support for nlayer and ndata components in
+   the field metadata (this PR does not introduce the psy-layer generation to
+   match those field specifications yet).
+
    15) PR #3247 for #831 and towards #3124. Adds child References to
    CodeBlocks for each Symbol accessed inside.
  
