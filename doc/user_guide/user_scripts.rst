@@ -5,6 +5,8 @@
 .. See the full LICENSE file in the project root for details.
 .. -----------------------------------------------------------------------------
 
+.. _sec_transformations_script:
+
 PSyclone User Scripts
 =====================
 

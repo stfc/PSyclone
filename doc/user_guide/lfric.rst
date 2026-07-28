@@ -2135,7 +2135,7 @@ conventions, are:
          (i.e. it is specified in the metadata using a label)
          then add an additional ``integer``, scalar argument of kind ``i_def``
          and intent ``in``. If the ``NDATA`` value is common to more than one
-	     kernel argument, it is only added for the first such argument.
+         kernel argument, it is only added for the first such argument.
       6) If the field has an unknown (i.e. specified in the metadata using a
 	     label), custom number of vertical levels then pass this as an
 	     additional ``integer``, scalar argument of kind ``i_def`` and

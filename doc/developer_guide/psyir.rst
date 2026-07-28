@@ -128,7 +128,7 @@ child, we would write something like:
 
     .. literalinclude:: code_snippets/newnode.py
         :language: python
-        :lines: 47-60
+        :lines: 19-32
 
 This implementation already provides the basic PSyIR functionality and the
 node can be integrated and used in the PSyIR tree:
