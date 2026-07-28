@@ -51,7 +51,7 @@ from psyclone.psyir.symbols import ScalarType
 # so we don't include it here.
 # We do not yet deal with precision e.g. the SIR supports a DOUBLE
 # type which would probably be equivalent to PSyIR's
-# Precision.DOUBLE. This is the subject of issue #741.
+# Precision.DOUBLE.
 
 TYPE_MAP_TO_SIR = {ScalarType.Intrinsic.REAL: "BuiltinType.Float",
                    ScalarType.Intrinsic.INTEGER: "BuiltinType.Integer"}
@@ -201,7 +201,7 @@ class SIRWriter(PSyIRVisitor):
                 f"SIR:\n"
                 f"{loop3.debug_string()}")
 
-        # The interval values are hardcoded for the moment (see #470).
+        # The interval values are hardcoded for the moment
         result = f"{self._nindent}interval = "\
                  f"make_interval(Interval.Start, Interval.End, 0, 0)\n"
         result += f"{self._nindent}body_ast = make_ast([\n"
@@ -214,8 +214,7 @@ class SIRWriter(PSyIRVisitor):
         result = result.rstrip(",\n") + "\n"
         result += f"{self._nindent}])\n"
         # For the moment there is a hard coded assumption that the
-        # vertical looping is in the forward (1..n) direction (see
-        # #470).
+        # vertical looping is in the forward (1..n) direction
         result += f"{self._nindent}vertical_region_fns.append("\
                   f"make_vertical_region_decl_stmt(body_ast, interval, "\
                   f"VerticalRegion.Forward))\n"
