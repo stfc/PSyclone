@@ -92,7 +92,7 @@ def test_dsl_name():
     """
     Tests that the dsl name works as expected.
     """
-    symbol1 = DataSymbol("rname", INTEGER_SINGLE_TYPE)
+    symbol1 = DataSymbol("rname", ScalarType.integer_single_type())
     ref = Reference(symbol1)
     assert ref.dsl_name is None
     ref_dsl = Reference(symbol1, "dsl_name")
