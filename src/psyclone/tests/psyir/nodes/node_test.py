@@ -2088,3 +2088,26 @@ def test_get_all_accessed_symbols(fortran_reader):
     assert "j" in symbol_names
     assert "k" in symbol_names
     assert "l" in symbol_names
+
+
+def test_last_node(fortran_reader):
+    '''Test the last_node functionality of the Node class.'''
+    code = """subroutine test_sub()
+    integer :: i, j, k
+
+    k = 12
+    i = j + k
+    end subroutine test_sub
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+
+    # The last_node of the psyir statement is the k in i = j + k
+    assigns = psyir.walk(Assignment)
+    assert psyir.last_node() is assigns[1].rhs.children[1]
+    # Last node in the first assignment is the rhs.
+    assert assigns[0].last_node() is assigns[0].rhs
+    # Last node in the second assignment is the k in i = j + k
+    assert assigns[1].last_node() is assigns[1].rhs.children[1]
+    # Last node on k is itself
+    assert (assigns[1].rhs.children[1].last_node() is
+            assigns[1].rhs.children[1])

@@ -131,10 +131,8 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
             # of the region.
             for child in node.loop_body:
                 if not self._can_be_in_region(child, current_block):
-                    break
-            else:
-                return True
-            return False
+                    return False
+            return True
 
         if isinstance(node, IfBlock):
             # Check that all contents of each branch body can be part

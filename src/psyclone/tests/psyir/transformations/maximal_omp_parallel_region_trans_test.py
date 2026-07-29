@@ -230,10 +230,13 @@ def test_maximal_ompparallel_region_trans_apply_assignment(
     assert correct in out
 
 
-def test_maximal_ompparallel_region_trans_node_allowed(
+def test_maximal_ompparallel_region_trans_node_allowed_valid_assignment(
     fortran_reader
 ):
-    '''Test the _node_allowed function of MaximalOMPParallelRegionTrans.'''
+    '''Test the _node_allowed function of MaximalOMPParallelRegionTrans
+    allows assignments if the current_block reads from it, but otherwise
+    only nodes of types listed in the _allowed_contiguous_statements
+    definition.'''
 
     maxpartrans = MaximalOMPParallelRegionTrans()
     # Any of the _allowed_contiguous_statements are always allowed.
@@ -268,6 +271,14 @@ def test_maximal_ompparallel_region_trans_node_allowed(
     # from it.
     assert maxpartrans._node_allowed(assignment, [loop])
 
+
+def test_maximal_ompparallel_region_trans_node_allowed_incrementing_assign(
+    fortran_reader, fortran_writer
+):
+    '''Tests that the _node_allowed doesn't allowed assignments that both
+    read and write from the same variable into the parallel region.'''
+
+    maxpartrans = MaximalOMPParallelRegionTrans()
     psyir = fortran_reader.psyir_from_source('''
     subroutine test
 
@@ -287,7 +298,16 @@ def test_maximal_ompparallel_region_trans_node_allowed(
     # the assignment.
     assert not maxpartrans._node_allowed(assign, [loop])
 
-    # Assignment is not allowed if the next access is a read.
+
+def test_maximal_ompparallel_region_trans_node_allowed_read_outside_region(
+    fortran_reader, fortran_writer
+):
+    '''Tests that _node_allowed doesn't allow an assignment to be added
+    to the parallel region if the lhs is read outside the current_block.'''
+
+    maxpartrans = MaximalOMPParallelRegionTrans()
+    # Assignment is not allowed if the next access outside the current_block
+    # is a read.
     psyir = fortran_reader.psyir_from_source('''
     subroutine test
 
@@ -303,6 +323,43 @@ def test_maximal_ompparallel_region_trans_node_allowed(
     end subroutine test''')
     assign = psyir.children[0].children[0]
     loop = psyir.children[0].children[1]
-    # Assignment is not allowed if there is a read of the lhs on the rhs of
-    # the assignment.
+    # Assignment is not allowed if there is a read of the lhs outside
+    # the curent block.
     assert not maxpartrans._node_allowed(assign, [loop])
+
+
+def test_maximal_ompparallel_region_trans_privatisation(fortran_reader,
+                                                        fortran_writer):
+    '''Test that the correct variables are added to the private clause
+    and the comment is updated'''
+    code = """subroutine test
+
+    integer :: a
+    integer :: i
+    integer, dimension(100) :: b
+
+    a = 1
+    do i = 1, 100
+       b(i) = b(i) + a
+    end do
+
+    end subroutine test"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    ltrans = OMPLoopTrans()
+    loops = psyir.walk(Loop)
+    ltrans.apply(loops[0])
+    MaximalOMPParallelRegionTrans().apply(psyir.children[0].children[:])
+
+    correct = """\
+! MaximalOMPParallelRegionTrans forced ['a'] variable(s) to be \
+private in this parallel region.
+  !$omp parallel default(shared) private(a,i)
+  a = 1
+  !$omp do schedule(auto)
+  do i = 1, 100, 1
+    b(i) = b(i) + a
+  enddo
+  !$omp end do
+  !$omp end parallel"""
+    assert correct in fortran_writer(psyir)

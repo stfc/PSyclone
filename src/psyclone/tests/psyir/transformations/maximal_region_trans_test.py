@@ -451,3 +451,45 @@ def test_full_region_doesnt_meet_minimum_rules_compute_transformable_section(
     rval = mtrans._compute_transformable_sections(routine.children[:],
                                                   TestTrans(), {})
     assert len(rval) == 0
+
+
+def test_satisfies_minimum_region_rules_failure(fortran_reader,
+                                                fortran_writer):
+    '''Tests that the _satisfies_minimum_region_rules returns False when
+    none of the _required_nodes are in the region, but True if there are any
+    present.'''
+
+    # Create a MaximalRegionTrans that allows any nodes, but requires at
+    # least one Assignment.
+    class MinRuleTrans(MaximalRegionTrans):
+        ''' Dummy class to test MaxParallelRegionTrans' functionality. '''
+        # The apply function will do OMPParallelTrans around allowed regions.
+        _transformation = OMPParallelTrans
+        _SUB_TRANSFORMATIONS = [OMPParallelTrans]
+        # Any node is allowed.
+        _allowed_contiguous_statements = (Node, )
+        # Should parallelise any found region that contains an assignment.
+        _required_nodes = (Assignment, )
+
+    code = """subroutine test
+    integer :: i, j, k
+
+    if (i == 1) then
+        print *, i
+    else
+        print *, j
+    end if
+    do i = 1, 100
+       print *, j
+    end do
+    k = 3
+    end subroutine test
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    trans = MinRuleTrans()
+
+    # The IfBlock + Loop don't meet the _required_nodes check.
+    assert not trans._satisfies_minimum_region_rules(routine.children[0:2])
+    # All children together do meet the _required_nodes check.
+    assert trans._satisfies_minimum_region_rules(routine.children[:])

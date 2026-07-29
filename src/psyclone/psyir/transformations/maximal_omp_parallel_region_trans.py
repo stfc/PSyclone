@@ -45,6 +45,7 @@ from psyclone.psyir.nodes import (
         OMPTaskloopDirective,
         OMPDoDirective,
         OMPLoopDirective,
+        OMPParallelDirective,
         OMPTaskDirective,
         DynamicOMPTaskDirective,
         Node,
@@ -160,15 +161,14 @@ class MaximalOMPParallelRegionTrans(MaximalRegionTrans):
         return True
 
     def _apply_transformation(self, block: list[Node],
-                              **kwargs):
+                              **kwargs) -> None:
         '''
         Applies the transformation defined by self._transformation to the
         block supplied, with the kwargs provided.
 
-        The default implementation does nothing else, however the
-        functionality is provided so subclasses can perform specific
-        operations (or provide additional specific options) as required for
-        their transformations.
+        This implementation also ensures the lhs of any assignments
+        contained in the parallel region (that are outside of other OpenMP
+        regions) are forced to be private during the transformation.
 
         :param block: The block to apply the transformations to.
         '''
@@ -183,10 +183,17 @@ class MaximalOMPParallelRegionTrans(MaximalRegionTrans):
                 if node.lhs.symbol.name not in force_private:
                     force_private.append(node.lhs.symbol.name)
 
-        self._transformation().apply(block, force_private=force_private,
-                                     **kwargs)
+        super()._apply_transformation(block, force_private=force_private,
+                                      **kwargs)
+        # Add a comment saying which variables have been privatised.
+        comment = (f"{self.name} forced {force_private} variable(s) to be "
+                   f"private in this parallel region.")
+        added_node = block[0].ancestor(OMPParallelDirective)
+        added_node.append_preceding_comment(comment)
 
-    def apply(self, nodes: Union[Node, Schedule, list[Node]], **kwargs):
+    def apply(
+        self, nodes: Union[Node, Schedule, list[Node]], **kwargs
+    ) -> None:
         '''Applies the transformation to the nodes provided.
 
         :param nodes: can be a single node, a schedule or a list of nodes.
