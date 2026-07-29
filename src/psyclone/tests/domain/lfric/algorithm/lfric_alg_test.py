@@ -344,7 +344,7 @@ def test_construct_kernel_args(prog, lfrickern, fortran_writer):
     assert ("qr_xyoz = quadrature_xyoz_type(element_order_h + 3, "
             "element_order_h + 3, element_order_v + 3, quadrature_rule)"
             in gen)
-    # TODO #240 - test for compilation.
+    # TODO #284 - test for compilation.
 
 
 def test_create_from_kernel_invalid_kernel(tmpdir):
