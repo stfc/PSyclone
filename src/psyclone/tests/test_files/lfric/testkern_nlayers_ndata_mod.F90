@@ -66,37 +66,34 @@ module testkern_nlayers_ndata_mod
 
 contains
 
-  subroutine testkern_nlayers_ndata_code(&
-       nlayers, ascalar, fld1, fld2,     &
-       fld3, nlayers_fld3,               &
-       fld5,                             &
-       fld4, ndata_fld4,                 &
-       fld6,                             &
-       ndf_w1, undf_w1, map_w1,          &
-       ndf_w2, undf_w2, map_w2,          &
-       ndf_fld3, undf_fld3, map_w2_fld3, &
-       ndf_fld4, undf_fld4, map_w2_fld4, &
+  subroutine testkern_nlayers_ndata_code(           &
+       nlayers, nlayers_shallow, ndata_precip,      &
+       ascalar, fld1, fld2, fld3, fld4, fld5, fld6, &
+       ndf_w1, undf_w1, map_w1,                     &
+       ndf_w2, undf_w2, map_w2,                     &
+       ndf_fld3, undf_fld3, map_w2_fld3,            &
+       ndf_fld5, undf_fld5, map_w2_fld5,            &
        ndf_fld6, undf_fld6, map_w2_fld6)
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: nlayers_fld3
-    integer(kind=i_def), intent(in) :: ndata_fld4
-    integer(kind=i_def), intent(in) :: ndf_w1, ndf_w2, ndf_fld3, ndf_fld4, &
+    integer(kind=i_def), intent(in) :: nlayers_shallow
+    integer(kind=i_def), intent(in) :: ndata_precip
+    integer(kind=i_def), intent(in) :: ndf_w1, ndf_w2, ndf_fld3, ndf_fld5, &
                                        ndf_fld6
-    integer(kind=i_def), intent(in) :: undf_w1, undf_w2, undf_w3, undf_fld3, &
-                                       undf_fld4, undf_fld6
+    integer(kind=i_def), intent(in) :: undf_w1, undf_w2, undf_fld3, &
+                                       undf_fld5, undf_fld6
     integer(kind=i_def), intent(in), dimension(ndf_w1)   :: map_w1
     integer(kind=i_def), intent(in), dimension(ndf_w2)   :: map_w2
     integer(kind=i_def), intent(in), dimension(ndf_fld3) :: map_w2_fld3
-    integer(kind=i_def), intent(in), dimension(ndf_fld4) :: map_w2_fld4
+    integer(kind=i_def), intent(in), dimension(ndf_fld5) :: map_w2_fld5
     integer(kind=i_def), intent(in), dimension(ndf_fld6) :: map_w2_fld6
     real(kind=r_def), intent(in) :: ascalar
     real(kind=r_def), intent(inout), dimension(undf_w1) :: fld1
     real(kind=r_def), intent(in), dimension(undf_w2)    :: fld2
     real(kind=r_def), intent(in), dimension(undf_fld3)  :: fld3
-    real(kind=r_def), intent(in), dimension(undf_fld3)  :: fld5
-    real(kind=r_def), intent(in), dimension(undf_w3)    :: fld4
+    real(kind=r_def), intent(in), dimension(undf_fld3)  :: fld4
+    real(kind=r_def), intent(in), dimension(undf_fld5)  :: fld5
     real(kind=r_def), intent(in), dimension(undf_fld6)  :: fld6
 
   end subroutine testkern_nlayers_ndata_code
