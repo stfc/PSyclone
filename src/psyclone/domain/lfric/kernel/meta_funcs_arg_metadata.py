@@ -37,6 +37,8 @@
 the argument values for the LFRic kernel META_FUNCS metadata.
 
 '''
+from fparser.two import Fortran2003
+
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 from psyclone.parse.utils import ParseError
@@ -53,6 +55,8 @@ class MetaFuncsArgMetadata(CommonArgMetadata):
         function is required. Defaults to False.
 
     '''
+    fparser2_class = Fortran2003.Part_Ref
+
     def __init__(self, function_space, basis_function=False,
                  diff_basis_function=False):
         super().__init__()

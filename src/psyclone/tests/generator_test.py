@@ -970,7 +970,6 @@ def test_config_flag():
         file references in the environment variable.
     '''
     filename = str(LFRIC_BASE_PATH / "1_single_invoke.f90")
-    # dummy_config has a non-default REPORD_PAD_SIZE of 7
     config_name = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "test_files", "dummy_config.cfg")
 
@@ -979,21 +978,18 @@ def test_config_flag():
     main([filename, "-api", "lfric"])
     assert Config.get().api == "lfric"
     assert Config.has_config_been_initialised() is True
-    assert Config.get().reprod_pad_size == 8
 
     # Test with with --config
     Config._HAS_CONFIG_BEEN_INITIALISED = False
     main([filename, "--config", config_name, "-api", "lfric"])
     assert Config.get().api == "lfric"
     assert Config.has_config_been_initialised() is True
-    assert Config.get().reprod_pad_size == 7
 
     # Test with with -c
     Config._HAS_CONFIG_BEEN_INITIALISED = False
     main([filename, "-c", config_name, "-api", "lfric"])
     assert Config.get().api == "lfric"
     assert Config.has_config_been_initialised() is True
-    assert Config.get().reprod_pad_size == 7
 
 
 def test_main_directory_arg(capsys):
@@ -2030,12 +2026,12 @@ def test_config_overwrite() -> None:
     '''
 
     # First make sure that the default values are as expected:
-    assert Config.get().reprod_pad_size == 8
+    assert Config.get().ocl_devices_per_node == 1
     filename = str(LFRIC_BASE_PATH / "1_single_invoke.f90")
 
-    # Overwrite the config file's reprod_pad_size setting:
-    main([filename, "--config-opts", "reprod_pad_size=27"])
-    assert Config.get().reprod_pad_size == 27
+    # Overwrite a config setting
+    main([filename, "--config-opts", "OCL_DEVICES_PER_NODE=27"])
+    assert Config.get().ocl_devices_per_node == 27
 
     # Check error handling
     with pytest.raises(ConfigurationError) as err:

@@ -198,10 +198,6 @@ class Config:
         # True if reproducible reductions should be used.
         self._reproducible_reductions = None
 
-        # Padding size (number of array elements) to be used when
-        # reproducible reductions are created.
-        self._reprod_pad_size = None
-
         # Where to write transformed kernels - set at runtime.
         self._kernel_output_dir = None
 
@@ -330,14 +326,6 @@ class Config:
         except ValueError as err:
             raise ConfigurationError(
                 f"Error while parsing REPRODUCIBLE_REDUCTIONS: {err}",
-                config=self) from err
-
-        try:
-            self._reprod_pad_size = self._config['DEFAULT'].getint(
-                'REPROD_PAD_SIZE')
-        except ValueError as err:
-            raise ConfigurationError(
-                f"error while parsing REPROD_PAD_SIZE: {err}",
                 config=self) from err
 
         if 'PSYIR_ROOT_NAME' not in self._config['DEFAULT']:
@@ -687,17 +675,6 @@ class Config:
         :rtype: bool
         '''
         return self._reproducible_reductions
-
-    @property
-    def reprod_pad_size(self):
-        '''
-        Getter for the amount of padding to use for the array required
-        for reproducible OpenMP reductions
-
-        :returns: padding size (no. of array elements)
-        :rtype: int
-        '''
-        return self._reprod_pad_size
 
     @property
     def psyir_root_name(self):
