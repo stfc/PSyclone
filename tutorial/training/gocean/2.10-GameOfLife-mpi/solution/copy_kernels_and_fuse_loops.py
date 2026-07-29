@@ -35,7 +35,7 @@
 
 '''
 Python script intended to be passed to PSyclone via the -s option.
-It applies kernel inlining and then fuses the first three loops of
+It brings kernels into the same scope and then fuses the first three loops of
 the first invoke.
 '''
 
