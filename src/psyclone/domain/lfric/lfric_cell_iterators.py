@@ -138,9 +138,6 @@ class LFRicCellIterators(LFRicCollection):
         :returns: Updated cursor value.
 
         '''
-        if not self._invoke:
-            return cursor
-
         cursor = self._initialise_var_list(cursor, self._nlayers_names,
                                            "get_nlayers",
                                            "number of layers")
