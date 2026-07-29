@@ -47,7 +47,7 @@ from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import Assignment, Reference
-from psyclone.psyir.symbols import ArgumentInterface
+from psyclone.psyir.symbols import ArgumentInterface, DataSymbol
 if TYPE_CHECKING:
     from psyclone.domain.lfric import LFRicKernelArgument
 
@@ -78,38 +78,67 @@ class LFRicCellIterators(LFRicCollection):
         # an 'nlayers' obtained from the first field/operator argument.
         for kern in self._invoke.schedule.walk(LFRicKern):
             if kern.iterates_over != "dof":
-                first_arg: LFRicKernelArgument = (
-                    kern.arguments.first_field_or_operator)
-                sym = self.symtab.find_or_create_tag(
-                    f"nlayers_{first_arg.name}",
-                    symbol_type=LFRicTypes("MeshHeightDataSymbol"))
-                self._nlayers_names[sym.name] = first_arg
-                # We must also check for any subsequent arguments that have
-                # a number of layers specified by a label in the metadata.
-                for arg in kern.arguments.args:
-                    if arg.nlayers and not arg.nlayers.isnumeric():
-                        sym = self.symtab.find_or_create_tag(
-                            f"nlayers_{arg.nlayers}",
-                            symbol_type=LFRicTypes("MeshHeightDataSymbol"))
-                        if sym.name not in self._nlayers_names:
-                            self._nlayers_names[sym.name] = arg
-                    if arg.ndata and not arg.ndata.isnumeric():
-                        sym = self.symtab.find_or_create_tag(
-                            f"ndata_{arg.ndata}",
-                            # TODO - shouldn't be MeshHeightDataSymbol
-                            symbol_type=LFRicTypes("MeshHeightDataSymbol"))
-                        if sym.name not in self._ndata_names:
-                            self._ndata_names[sym.name] = arg
+                self._declare_kern_args(kern)
 
-        first_var = None
         for var in self._invoke.psy_unique_vars:
             if not var.is_scalar:
-                first_var = var
                 break
-        if not first_var:
+        else:
             raise GenerationError(
                 "Cannot create an Invoke with no field/operator arguments.")
-        self._first_var = first_var
+        self._first_var = var
+
+    def _declare_kern_args(self,
+                           kern: LFRicKern,
+                           for_stub: bool = False) -> None:
+        '''
+        Creates the Symbols for the nlayers and ndata arguments to the
+        supplied Kernel. If `for_stub` is True, then we are generating a
+        Kernel stub (subroutine) and the new symbols are declared as read-only
+        arguments.
+
+        :param kern: the LFRic kernel for which to generate nlayers and ndata
+                     arguments.
+        :param for_stub: whether or not we are creating a Kernel stub.
+
+        '''
+        def _update_arg_properties(symbol: DataSymbol) -> None:
+            '''
+            Update the supplied symbol to be a dummy argument if `for_stub`
+            is True.
+            '''
+            if not for_stub:
+                return
+            symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+            self.symtab.append_argument(symbol)
+
+        first_arg: LFRicKernelArgument = (
+            kern.arguments.first_field_or_operator)
+        sym = self.symtab.find_or_create_tag(
+            f"nlayers_{first_arg.name}",
+            symbol_type=LFRicTypes("MeshHeightDataSymbol"))
+        _update_arg_properties(sym)
+        self._nlayers_names[sym.name] = first_arg
+
+        # We must also check for any subsequent arguments that have
+        # a number of layers or ndata specified by a label in the metadata.
+        for arg in kern.arguments.args:
+            if arg.nlayers and not arg.nlayers.isnumeric():
+                sym = self.symtab.find_or_create_tag(
+                    f"nlayers_{arg.nlayers}",
+                    symbol_type=LFRicTypes("MeshHeightDataSymbol"))
+                if sym.name not in self._nlayers_names:
+                    self._nlayers_names[sym.name] = arg
+                    _update_arg_properties(sym)
+        for arg in kern.arguments.args:
+            if arg.ndata and not arg.ndata.isnumeric():
+                sym = self.symtab.find_or_create_tag(
+                    f"ndata_{arg.ndata}",
+                    # TODO - shouldn't be MeshHeightDataSymbol
+                    symbol_type=LFRicTypes("MeshHeightDataSymbol"))
+                if sym.name not in self._ndata_names:
+                    self._ndata_names[sym.name] = arg
+                    _update_arg_properties(sym)
 
     def stub_declarations(self) -> None:
         '''
@@ -118,14 +147,8 @@ class LFRicCellIterators(LFRicCollection):
 
         '''
         super().stub_declarations()
-        if self._kernel.cma_operation not in ["apply", "matrix-matrix"]:
-            nlayers = self.symtab.find_or_create_tag(
-                "nlayers",
-                symbol_type=LFRicTypes("MeshHeightDataSymbol")
-            )
-            nlayers.interface = ArgumentInterface(
-                                        ArgumentInterface.Access.READ)
-            self.symtab.append_argument(nlayers)
+
+        self._declare_kern_args(self._kernel, for_stub=True)
 
     def initialise(self, cursor: int) -> int:
         '''
