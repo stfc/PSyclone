@@ -582,7 +582,6 @@ class ArgOrdering:
             the information about variable accesses.
         '''
 
-    @abc.abstractmethod
     def field_ndata(self,
                     var_accesses: Optional[VariablesAccessMap] = None) -> None:
         '''Add any distinct values of ndata (number of data values per dof)
