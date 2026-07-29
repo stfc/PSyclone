@@ -305,7 +305,7 @@ def test_module_with_directives(fortran_writer):
     """
     code = """
     module my_mod
-    !$TEST_DIRECTIVE
+    !$TEST_DIRECTIVE_1
     integer :: i
     contains
     subroutine test
@@ -325,6 +325,6 @@ def test_module_with_directives(fortran_writer):
     assert module.walk(Directive)[0].directive_string == "TEST_DIRECTIVE_2"
     # Directives in declarations are not supported correctly yet in PSyclone.
     out = fortran_writer(psyir)
-    assert "! $TEST_DIRECTIVE\n" in out
+    assert "! $TEST_DIRECTIVE_1\n" in out
     pytest.xfail(reason="TODO #3178 PSyclone can't store directives in "
                         "declarations as directives.")
