@@ -87,7 +87,7 @@ Coding Style
 ############
 Any new PSyclone code must confirm to Python's pep8 specification, and
 must be pylint error and warning free. Installation of the tools is
-described in :ref:`system_specific_dev_setup`. 
+described in :ref:`dev-installation`.
 In some cases pylint errors and warnings can be suppressed using the
 pylint markup code::
 

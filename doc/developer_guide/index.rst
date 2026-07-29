@@ -12,8 +12,8 @@ Developer Guide
     :maxdepth: 2
     :caption: Working Practices
 
+    contribution_guidelines.rst
     working_practises
-    system_specific_setup
     coding-style
     integration-test
 

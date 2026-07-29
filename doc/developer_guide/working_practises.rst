@@ -17,9 +17,6 @@ practises of the PSyclone project.
 
 .. _repository: https://github.com/stfc/PSyclone
 
-More detailed instructions for the Ubuntu and OpenSUSE Linux
-distributions may be found in the :ref:`system_specific_dev_setup`
-Section.
 
 .. _dev-installation:
 
@@ -66,12 +63,23 @@ install PSyclone itself. Again, the simplest way of doing this is to use
 ``pip``::
 
   > cd <PSYCLONEHOME>
-  > pip install --user -e .
+  > pip install --user -e[doc,test] .
 
 where ``-e`` requests an 'editable' installation so that changes to
 the PSyclone source are immediately reflected in the installed
-package.  (For alternatives to using pip please see the
-:ref:`getting-going` section.)
+package.
+
+The ``doc`` extra is necessary to build the html documentation:
+
+  > cd doc
+  > make html
+
+The ``test`` extra is needed to run the project linters:
+
+ > flake8 .
+ > pylint .
+
+as well as running the test suite (see below).
 
 .. _test_suite:
 
@@ -247,8 +255,6 @@ with "_test.py", e.g. ``constants_test.py``. A name using "tests"
 Note that pytest will not complain if two tests (within a module) have
 the same name - it will just silently ignore one of them! The best way
 of checking for this is to run pylint on any modified test modules.
-(This needs to be done anyway as one of the requirements of the
-:ref:`code-review` is that all new code be pylint-clean.)
 
 .. note::
     You can use ``pytest --collect-only``
@@ -706,12 +712,5 @@ use this approach but so far this problem has only been found in one
 use case so it has been decided to modify the code as and when
 required.
 
-.. _code-review:
-
-Code Review
-===========
-
-Before a branch can be merged to master it must pass code review. The
-guidelines for performing a review (i.e. what is expected from the
-developer) are available on the GitHub PSyclone wiki pages:
-https://github.com/stfc/PSyclone/wiki.
+.. include:: ../README.md
+   :parser: myst_parser.sphinx_

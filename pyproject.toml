@@ -83,7 +83,9 @@ doc = [
     "sphinx_design",
     "pydata-sphinx-theme",
     "sphinx-autodoc-typehints",
-    "autoapi"
+    "autoapi",
+    # Pin to match requirements of pinned Sphinx above
+    "myst-parser<5"
 ]
 test = [
     "flake8",
