@@ -262,7 +262,7 @@ per field vector index. For example::
     ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
     ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
     ... Loop[type='',field_space='w0',it_space='cells', upper_bound='cell_halo(1)']
-    ... ... CodedKern testkern_stencil_vector_code(f1,f2) [module_inline=False]
+    ... ... CodedKern testkern_stencil_vector_code(f1,f2)
 
 In the above PSyIR schedule, the field `f1` is a vector field and the
 `CodedKern` `testkern\_stencil\_vector\_code` is assumed to access data in
@@ -299,7 +299,7 @@ in a kernel and also requires halo exchanges e.g.::
       HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
       HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
       Loop[type='',field_space='w0',it_space='cells', upper_bound='cell_halo(1)']
-         CodedKern testkern_stencil_vector_code(f1,f2) [module_inline=False]
+         CodedKern testkern_stencil_vector_code(f1,f2)
 
 In this case the PSyIR loop node needs to know about all 3 halo
 exchanges before its access is fully `covered`. This functionality is
