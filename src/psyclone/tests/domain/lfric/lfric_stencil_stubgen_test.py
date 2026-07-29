@@ -62,7 +62,7 @@ def test_stub_stencil_extent(fortran_writer):
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
     result1 = (
-        "subroutine testkern_stencil_code(nlayers, field_1_w1, "
+        "subroutine testkern_stencil_code(nlayers_field_1, field_1_w1, "
         "field_2_w2, field_2_stencil_size, field_2_stencil_dofmap, "
         "field_3_w2, field_4_w3, ndf_w1, undf_w1, map_w1, ndf_w2, "
         "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
@@ -89,8 +89,9 @@ def test_stub_cross2d_stencil(fortran_writer):
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
     result1 = (
-        "  subroutine testkern_stencil_cross2d_code(nlayers, field_1_w1, "
-        "field_2_w2, field_2_stencil_size, field_2_max_branch_length, "
+        "  subroutine testkern_stencil_cross2d_code(nlayers_field_1, "
+        "field_1_w1, field_2_w2, field_2_stencil_size, "
+        "field_2_max_branch_length, "
         "field_2_stencil_dofmap, field_3_w2, field_4_w3, ndf_w1, undf_w1, "
         "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)"
     )
@@ -117,8 +118,8 @@ def test_stub_stencil_direction(fortran_writer):
     kernel.load_meta(metadata)
     code = fortran_writer(kernel.gen_stub)
     assert (
-        "  subroutine testkern_stencil_xory1d_code(nlayers, field_1_w1, "
-        "field_2_w2, field_2_stencil_size, field_2_direction, "
+        "  subroutine testkern_stencil_xory1d_code(nlayers_field_1, "
+        "field_1_w1, field_2_w2, field_2_stencil_size, field_2_direction, "
         "field_2_stencil_dofmap, field_3_w2, field_4_w3, ndf_w1, undf_w1, "
         "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)" in code)
     assert "integer(kind=i_def), intent(in) :: field_2_stencil_size\n" in code
@@ -140,9 +141,9 @@ def test_stub_stencil_vector(fortran_writer):
     kernel.load_meta(metadata)
     code = fortran_writer(kernel.gen_stub)
     assert (
-        "  subroutine testkern_stencil_vector_code(nlayers, field_1_w0_v1, "
-        "field_1_w0_v2, field_1_w0_v3, field_2_w3_v1, field_2_w3_v2, "
-        "field_2_w3_v3, field_2_w3_v4, field_2_stencil_size, "
+        "  subroutine testkern_stencil_vector_code(nlayers_field_1, "
+        "field_1_w0_v1, field_1_w0_v2, field_1_w0_v3, field_2_w3_v1, "
+        "field_2_w3_v2, field_2_w3_v3, field_2_w3_v4, field_2_stencil_size, "
         "field_2_stencil_dofmap, ndf_w0, undf_w0, map_w0, ndf_w3, undf_w3, "
         "map_w3)" in code)
     assert "integer(kind=i_def), intent(in) :: field_2_stencil_size\n" in code
@@ -163,9 +164,10 @@ def test_stub_stencil_multi(fortran_writer):
     kernel.load_meta(metadata)
     code = fortran_writer(kernel.gen_stub)
     assert (
-        "  subroutine testkern_stencil_multi_code(nlayers, field_1_w1, "
-        "field_2_w2, field_2_stencil_size, field_2_stencil_dofmap, field_3_w2,"
-        " field_3_stencil_size, field_3_direction, field_3_stencil_dofmap, "
+        "  subroutine testkern_stencil_multi_code(nlayers_field_1, field_1_w1,"
+        " field_2_w2, field_2_stencil_size, field_2_stencil_dofmap, "
+        "field_3_w2, field_3_stencil_size, field_3_direction, "
+        "field_3_stencil_dofmap, "
         "field_4_w3, field_4_stencil_size, field_4_stencil_dofmap, ndf_w1, "
         "undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)"
         in code)
