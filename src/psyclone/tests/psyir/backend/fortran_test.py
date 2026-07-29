@@ -1059,7 +1059,7 @@ def test_fw_container_2(fortran_reader, fortran_writer, tmpdir):
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer(container)
     assert ("The Fortran backend does not support nested Containers but "
-            "found:['child']." in str(excinfo.value))
+            "found: ['child']." in str(excinfo.value))
 
 
 def test_fw_container_3(fortran_reader, fortran_writer, monkeypatch):

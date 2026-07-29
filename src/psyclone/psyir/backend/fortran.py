@@ -1157,11 +1157,12 @@ class FortranWriter(LanguageWriter):
         # All children must not be Containers as modules within
         # modules are not supported.
         if any(isinstance(child, (Container)) for child in node.children):
+            containers = [child.name for child in node.children if
+                          isinstance(child, Container)]
             raise VisitorError(
                 f"The Fortran backend does not support nested Containers but "
-                f"found:"
-                f"{[child.name for child in node.children if
-                    isinstance(child, Container)]}.")
+                f"found: {containers}."""
+            )
 
         result = f"{self._nindent}module {node.name}\n"
 
