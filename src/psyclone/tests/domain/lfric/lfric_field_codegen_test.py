@@ -1255,9 +1255,9 @@ def test_field_nlayers(tmp_path):
     assert expected in output
 
     # Check the kernel call.
-    assert ("call testkern_nlayers_ndata_code(nlayers_f1, a, "
-            "f1_data, f2_data, f3_data, nlayers_shallow, f4_data, "
-            "f5_data, ndata_precip, f6_data, "
+    assert ("call testkern_nlayers_ndata_code("
+            "nlayers_f1, nlayers_shallow, ndata_precip, a, "
+            "f1_data, f2_data, f3_data, f4_data, f5_data, f6_data, "
             # Arg one is on W1
             "ndf_w1, undf_w1, map_w1(:,cell), "
             # Arg two is on W2

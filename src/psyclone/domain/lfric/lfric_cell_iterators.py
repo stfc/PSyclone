@@ -41,8 +41,6 @@
 
 from typing import TYPE_CHECKING, Union
 
-if TYPE_CHECKING:
-    from psyclone.domain.lfric import LFRicKernelArgument
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.domain.lfric.lfric_invoke import LFRicInvoke
 from psyclone.domain.lfric.lfric_kern import LFRicKern
@@ -50,6 +48,8 @@ from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import Assignment, Reference
 from psyclone.psyir.symbols import ArgumentInterface
+if TYPE_CHECKING:
+    from psyclone.domain.lfric import LFRicKernelArgument
 
 
 class LFRicCellIterators(LFRicCollection):
@@ -138,8 +138,7 @@ class LFRicCellIterators(LFRicCollection):
         :returns: Updated cursor value.
 
         '''
-        if (not self._nlayers_names or not self._ndata_names or
-                not self._invoke):
+        if not self._invoke:
             return cursor
 
         cursor = self._initialise_var_list(cursor, self._nlayers_names,
@@ -150,12 +149,28 @@ class LFRicCellIterators(LFRicCollection):
                                            "number of data values per dof")
         return cursor
 
-    def _initialise_var_list(self, cursor, name_map, fn_name, comment):
+    def _initialise_var_list(self,
+                             cursor: int,
+                             name_map: dict[str, "LFRicKernelArgument"],
+                             fn_name: str,
+                             comment: str
+                             ) -> int:
         '''
+        A utility to generate the initialisation statements for the
+        kernel arguments named in the supplied map.
+
+        :param cursor: the current position at which to add content in
+            the PSy-layer schedule.
+        :param name_map: dict holding descriptions of each kernel argument,
+            indexed by name.
+        :param fn_name: the name of the type-bound procedure that must be
+            called to get the initial vaue of each argument.
+        :param comment: text to use in the associated comment in the
+            generated PSy-layer code.
+
         '''
         # Sort for test reproducibility
-        sorted_names = list(name_map.keys())
-        sorted_names.sort()
+        sorted_names = sorted(list(name_map.keys()))
         init_cursor = cursor
         for name in sorted_names:
             symbol = self.symtab.lookup(name)
