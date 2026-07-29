@@ -156,7 +156,7 @@ def test_container_create_invalid():
     with pytest.raises(GenerationError) as excinfo:
         _ = Container.create("mod_name", symbol_table, ["invalid"])
     assert ("Item 'str' can't be child 0 of 'Container'. The valid format is:"
-            " '[Container | Routine | CodeBlock | Directive]*'."
+            " '[Container | Routine | CodeBlock | StandaloneDirective]*'."
             in str(excinfo.value))
 
 
@@ -177,7 +177,7 @@ def test_container_children_validation():
         container.addchild(ret)
     print(str(excinfo.value))
     assert ("Item 'Return' can't be child 1 of 'Container'. The valid format"
-            " is: '[Container | Routine | CodeBlock | Directive]*'."
+            " is: '[Container | Routine | CodeBlock | StandaloneDirective]*'."
             "" in str(excinfo.value))
 
 

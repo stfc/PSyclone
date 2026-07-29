@@ -63,7 +63,9 @@ class Container(ScopingNode, CommentableMixin):
 
     '''
     # Textual description of the node.
-    _children_valid_format = "[Container | Routine | CodeBlock | Directive]*"
+    _children_valid_format = (
+        "[Container | Routine | CodeBlock | StandaloneDirective]*"
+    )
     _text_name = "Container"
     _colour = "green"
 
@@ -97,9 +99,10 @@ class Container(ScopingNode, CommentableMixin):
         '''
         # pylint: disable=import-outside-toplevel
         # Importing this from top level fails.
-        from psyclone.psyir.nodes.directive import Directive
+        from psyclone.psyir.nodes.directive import StandaloneDirective
         # pylint: disable=unused-argument
-        return isinstance(child, (Container, Routine, CodeBlock, Directive))
+        return isinstance(child, (Container, Routine, CodeBlock,
+                                  StandaloneDirective))
 
     @classmethod
     def create(cls, name, symbol_table, children):

@@ -53,7 +53,7 @@ from psyclone.psyir.nodes import (
     ArrayConstructor, BinaryOperation, Call, Container, CodeBlock,
     DataNode, IntrinsicCall, Literal, Member, Node, OMPDependClause,
     OMPReductionClause, Operation, Range, Routine, Schedule,
-    UnaryOperation, UnknownDirective, IfBlock, Directive)
+    UnaryOperation, UnknownDirective, IfBlock)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataType,
     DataTypeSymbol, GenericInterfaceSymbol, IntrinsicSymbol,
@@ -1154,14 +1154,14 @@ class FortranWriter(LanguageWriter):
         if not node.name:
             raise VisitorError("Expected Container node name to have a value.")
 
-        # All children must be either Routines or CodeBlocks as modules within
+        # All children must not be Containers as modules within
         # modules are not supported.
-        if not all(isinstance(child, (Routine, CodeBlock, Directive)) for
-                   child in node.children):
+        if any(isinstance(child, (Container)) for child in node.children):
             raise VisitorError(
-                f"The Fortran back-end requires all children of a Container "
-                f"to be either CodeBlocks or sub-classes of Routine but found:"
-                f" {[type(child).__name__ for child in node.children]}.")
+                f"The Fortran backend does not support nested Containers but "
+                f"found:"
+                f"{[child.name for child in node.children if
+                    isinstance(child, Container)]}.")
 
         result = f"{self._nindent}module {node.name}\n"
 
