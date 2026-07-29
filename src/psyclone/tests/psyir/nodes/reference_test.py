@@ -226,9 +226,14 @@ def test_reference_next_accesses(fortran_reader):
     loop = routine.children[1]
     b = loop.loop_body.children[0].lhs
     assert len(a_before_loop.next_accesses()) == 1
+    # TODO #3486: next_accesses should not return loops
     assert a_before_loop.next_accesses()[0] is loop
     assert len(b.next_accesses()) == 1
     assert b.next_accesses()[0] == b
+
+    # Check the next_access of the loop variable
+    assert (loop.variable_reference.next_accesses() ==
+            [loop.loop_body.children[0].rhs])
 
     # Check that a loop accessing a variable before
     # the reference doesn't result in a false positive.
@@ -246,6 +251,19 @@ def test_reference_next_accesses(fortran_reader):
     loop = routine.children[0]
     b = loop.loop_body.children[0].lhs
     assert len(a_after_loop.next_accesses()) == 0
+
+    # Check that a loop with an usused loop variable
+    code = '''subroutine my_sub()
+    integer, dimension(4) :: a
+    integer :: i
+    do i = 1, 100
+       a(1) = a(1) + 1
+    end do
+    end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    i_var = routine.children[0].children[0]
+    assert len(i_var.next_accesses()) == 0
 
     # Check the function for basic structures
     code = '''subroutine my_sub()
@@ -347,7 +365,7 @@ def test_reference_next_accesses_with_codeblock(fortran_reader):
     a = routine.children[0].lhs
     codeblock = routine.children[1]
     assert len(a.next_accesses()) == 1
-    assert a.next_accesses()[0] is codeblock
+    assert a.next_accesses()[0] is codeblock.children[0]
 
 
 def test_reference_previous_accesses(fortran_reader):
@@ -388,7 +406,24 @@ def test_reference_previous_accesses(fortran_reader):
     assert len(b_a.previous_accesses()) == 1
     assert b_a.previous_accesses()[0] is b_a
     assert len(a_2.previous_accesses()) == 1
+    # TODO #3486: previous_accesses should not return loops
     assert a_2.previous_accesses()[0] is loop
+
+    # Check that a loop with an usused loop variable
+    code = '''subroutine my_sub()
+    integer, dimension(4) :: a
+    integer :: i
+    a(1) = i
+    do i = 1, 100
+       a(1) = a(1) + 1
+    end do
+    end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    i_var = routine.children[1].children[0]
+    # TODO #3486: previous_accesses should consider the loop
+    # variable as WRITE-only and act as a DUC barrier
+    assert len(i_var.previous_accesses()) == 1
 
     # Check the function for basic structures
     code = '''subroutine my_sub()
@@ -520,7 +555,7 @@ def test_reference_previous_accesses_with_codeblock(fortran_reader):
     routine = psyir.children[0]
     a = routine.children[1].lhs
     codeblock = routine.walk(CodeBlock)[0]
-    assert a.previous_accesses()[0] is codeblock
+    assert a.previous_accesses()[0].is_descendant_of(codeblock)
 
 
 def test_reference_replace_symbols_using():
@@ -585,6 +620,8 @@ def test_reference_is_write(fortran_reader):
        a = SIN(c)
        call somecall(a)
        a = b
+       do i=1,2
+       enddo
        end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
     references = psyir.walk(Reference)
@@ -605,6 +642,8 @@ def test_reference_is_write(fortran_reader):
     # a = b has a as write and b as not
     assert references[10].is_write
     assert not references[11].is_write
+    # Loop control variable
+    assert references[12].is_write
 
 
 def test_reference_component_indices(fortran_reader):

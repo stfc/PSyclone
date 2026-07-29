@@ -534,8 +534,8 @@ def test_ompdo_equality():
     sched1.addchild(child_node)
     loop1 = Loop.create(loop_sym,
                         start, stop, step, [])
-    loop1.children[3].detach()
-    loop1.addchild(sched1, 3)
+    loop1.loop_body.detach()
+    loop1.addchild(sched1)
     start2 = start.copy()
     stop2 = stop.copy()
     step2 = step.copy()
@@ -549,8 +549,8 @@ def test_ompdo_equality():
     sched2.addchild(child_node2)
     loop2 = Loop.create(loop_sym,
                         start2, stop2, step2, [])
-    loop2.children[3].detach()
-    loop2.addchild(sched2, 3)
+    loop2.loop_body.detach()
+    loop2.addchild(sched2)
 
     ompdo1 = OMPDoDirective(children=[loop1])
     ompdo2 = OMPDoDirective(children=[loop2])
@@ -703,34 +703,41 @@ def test_infer_sharing_attributes_with_explicitly_private_symbols(
     assert "scalar2" in [x.name for x in fpvars]
 
 
-def test_infer_sharing_attributes_with_codeblocks(
-        fortran_reader, fortran_writer):
+@pytest.mark.parametrize("code, loop_idx", [
+   (lambda x, y: f"write(*,*) {x}, {y}\n", 0),
+   (lambda x, y: f"do {x} = 1,2\nenddo\ndo {y} = 1,2\nenddo\n", 2)
+])
+def test_infer_sharing_attributes_with_hidden_references(
+        code, loop_idx, fortran_reader, fortran_writer):
     ''' Tests the infer_sharing_attributes() method when some of the loops have
-    Codeblocks inside it. We check that the infer_sharing attribute analysis
-    succeed by assuming worst case.
+    potentially hidden references (e.g. inside codeblocks or loop variables).
+    We check that the infer_sharing attribute analysis succeed by assuming
+    worst case.
     '''
-    psyir = fortran_reader.psyir_from_source('''
+    psyir = fortran_reader.psyir_from_source(f'''
         subroutine my_subroutine()
             use other, only: mystruct
             integer :: i, j, scalar1 = 1, scalar2 = 2
             real, dimension(10) :: array, array2
-            write(*,*) scalar1, scalar2
+            {code("scalar2", "scalar2")}
             do j = 1, 10
                do i = 1, size(array, 1)
-                   write(*,*) scalar2, mystruct(i)%field2
+                   {code("scalar2", "scalar2")}
+                   write(*,*) mystruct(i)%field2
                    if (.true.) then
                        scalar1 = 1
-                       write(*,*) scalar1, mystruct(i)%field1
+                       {code("scalar1", "scalar1")}
+                       write(*,*) mystruct(i)%field1
                    end if
                    scalar2 = scalar1 + 1
-                   write(*,*) scalar1, scalar2
+                   {code("scalar1", "scalar2")}
                enddo
             enddo
-            write(*,*) scalar1, scalar2
+            {code("scalar1", "scalar2")}
         end subroutine''')
     omplooptrans = OMPLoopTrans()
     omplooptrans.omp_directive = "paralleldo"
-    loop = psyir.walk(Loop)[0]
+    loop = psyir.walk(Loop)[loop_idx]
     # Make sure that the write statements inside the loop are CodeBlocks,
     # otherwise we need a new test example
     assert loop.has_descendant(nodes.CodeBlock)
@@ -741,7 +748,7 @@ def test_infer_sharing_attributes_with_codeblocks(
     # over with CodeBlocks. This will often still be defensively firstprivate
     # as we condiser all codeblock accesses as READWRITE.
     output = fortran_writer(psyir)
-    assert "firstprivate(scalar1,scalar2)" in output
+    assert "firstprivate(scalar1,scalar2)" in output, output
 
     # Add many more Codeblocks. For performance reasons this will skip the
     # analysis, but still return them all as firstprivate
@@ -1691,8 +1698,8 @@ def test_omploop_equality():
     sched1.addchild(child_node)
     loop1 = Loop.create(loop_sym,
                         start, stop, step, [])
-    loop1.children[3].detach()
-    loop1.addchild(sched1, 3)
+    loop1.loop_body.detach()
+    loop1.addchild(sched1)
     start2 = start.copy()
     stop2 = stop.copy()
     step2 = step.copy()
@@ -1706,8 +1713,8 @@ def test_omploop_equality():
     sched2.addchild(child_node2)
     loop2 = Loop.create(loop_sym,
                         start2, stop2, step2, [])
-    loop2.children[3].detach()
-    loop2.addchild(sched2, 3)
+    loop2.loop_body.detach()
+    loop2.addchild(sched2)
 
     omploop1 = OMPLoopDirective(children=[loop1])
     omploop2 = OMPLoopDirective(children=[loop2])
@@ -2601,7 +2608,7 @@ def test_omp_serial_valid_dependence_ref_binop_fails():
         Literal("32", ScalarType.integer_single_type()),
         [task3],
     )
-    loop.children[3].pop_all_children()
+    loop.loop_body.pop_all_children()
     Loop.create(
         tmp,
         Reference(tmp4),
@@ -4464,7 +4471,7 @@ def test_omp_serial_validate_task_dependencies_add_taskwait(fortran_reader):
     for child in schedule.children[:]:
         if isinstance(child, Loop):
             loop_trans.apply(child)
-            assert isinstance(child.children[3].children[0], Loop)
+            assert isinstance(child.loop_body.children[0], Loop)
             task_trans.apply(child, {"force": True})
 
     single_trans = OMPSingleTrans()
@@ -4513,7 +4520,7 @@ def test_omp_serial_validate_task_dependencies_add_taskwait(fortran_reader):
     for child in schedule.children[:]:
         if isinstance(child, Loop):
             loop_trans.apply(child)
-            assert isinstance(child.children[3].children[0], Loop)
+            assert isinstance(child.loop_body.children[0], Loop)
             task_trans.apply(child, {"force": True})
         if isinstance(child, IfBlock):
             loop = child.if_body.children[0]
@@ -4567,7 +4574,7 @@ def test_omp_serial_validate_task_dependencies_add_taskwait(fortran_reader):
     for child in schedule.children[:]:
         if isinstance(child, Loop):
             loop_trans.apply(child)
-            assert isinstance(child.children[3].children[0], Loop)
+            assert isinstance(child.loop_body.children[0], Loop)
             task_trans.apply(child, {"force": True})
         if isinstance(child, IfBlock):
             loop = child.if_body.children[0]
@@ -4623,7 +4630,7 @@ def test_omp_serial_validate_task_dependencies_add_taskwait(fortran_reader):
     for child in schedule.children[:]:
         if isinstance(child, Loop):
             loop_trans.apply(child)
-            assert isinstance(child.children[3].children[0], Loop)
+            assert isinstance(child.loop_body.children[0], Loop)
             task_trans.apply(child, {"force": True})
 
     single_trans = OMPSingleTrans()
@@ -4673,7 +4680,7 @@ def test_omp_serial_validate_task_dependencies_add_taskwait(fortran_reader):
     for child in schedule.children[:]:
         if isinstance(child, Loop):
             loop_trans.apply(child)
-            assert isinstance(child.children[3].children[0], Loop)
+            assert isinstance(child.loop_body.children[0], Loop)
             task_trans.apply(child, {"force": True})
 
     single_trans = OMPSingleTrans()

@@ -43,6 +43,7 @@ import pytest
 
 from psyclone.errors import GenerationError
 from psyclone.psyGen import CodedKern
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Assignment, Call, CodeBlock, Container,
                                   Literal, Reference, Routine, ScopingNode)
 from psyclone.psyir.symbols import (
@@ -400,6 +401,49 @@ def test_routine_update_parent_symbol_table_illegal_parent(fortran_reader):
             in str(excinfo.value))
 
 
+@pytest.mark.parametrize("routine_type", ["function", "subroutine"])
+def test_routine_update_parent_symbol_table_with_comments(routine_type):
+    ''' Test when we have a CodeBlock representing a routine that
+    if there are also comments before it in the tree we can still
+    check the name of the subroutine without failing inside
+    update_parent_symbol_table. '''
+
+    code = f"""module test
+
+    contains
+
+        ! This routine will be a codeblock.
+        {routine_type} routine()
+            contains
+                subroutine subr()
+                end subroutine
+        end {routine_type}
+
+        subroutine routine1(a, b, c)
+            integer, intent(inout) :: a, b, c
+
+            call routine2()
+        end subroutine
+
+        subroutine routine2()
+
+        end subroutine
+
+end module"""
+
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    alt_routine = Routine.create("routine")
+
+    module = psyir.walk(Container)[1]
+    assert isinstance(module.children[0], CodeBlock)
+    with pytest.raises(GenerationError) as excinfo:
+        module.addchild(alt_routine)
+    assert ("Can't add routine 'routine' into a scope that already contains "
+            "a resolved symbol with the same name."
+            in str(excinfo.value))
+
+
 def test_routine_update_parent_symbol_table():
     ''' Test the update_parent_symbol_table function of the Routine class.
     Some of the tests here are accessed through addchild of a container. '''
@@ -564,29 +608,22 @@ def test_outer_scope_accesses_unresolved(fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_source('''\
     module my_mod
-      use another_mod
     contains
       subroutine call_it()
-        write(*,*) unresolved()
         call a_routine()
       end subroutine call_it
     end module my_mod
     ''')
     rt0 = psyir.children[0].children[0]
-    sym = rt0.symbol_table.lookup("a_routine")
-    assert sym.is_unresolved
-    call = Call.create(RoutineSymbol("a_routine"), [])
-    # The access to 'unresolved' is in a CodeBlock and we don't have a
-    # Symbol for it.
+    call = rt0.children[0]
+
+    # Mistakenly add symbols without adding them to the symbol table
+    rt0.addchild(Assignment.create(Reference(Symbol("a")),
+                                   Reference(Symbol("b"))))
     with pytest.raises(SymbolError) as err:
         rt0.check_outer_scope_accesses(call, "call")
-    assert ("'call_it' contains accesses to 'unresolved' but the origin of "
+    assert ("'call_it' contains accesses to 'a' but the origin of "
             "this" in str(err.value))
-    # Remove the CodeBlock and repeat.
-    rt0.children[0].detach()
-    rt0.check_outer_scope_accesses(call, "call")
-    # The interface should have been left unchanged.
-    assert sym.is_unresolved
 
 
 def test_outer_scope_accesses_multi_wildcards(fortran_reader):

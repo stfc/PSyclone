@@ -58,7 +58,7 @@ from psyclone.psyir.nodes import (
     Schedule, CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation,
     IfBlock, Reference, ArrayReference, Literal, KernelSchedule,
     RegionDirective, Routine, StandaloneDirective,
-    Call, IntrinsicCall)
+    Call, IntrinsicCall, ArrayConstructor)
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, ArgumentInterface, ArrayType,
     SymbolError, ScalarType, RoutineSymbol, UnsupportedFortranType,
@@ -776,7 +776,8 @@ def test_array_declarations_with_initialisations(fortran_reader):
     all_syms = [gsym, hsym]
 
     assert all(isinstance(sym, DataSymbol) for sym in all_syms)
-    assert all(isinstance(sym.initial_value, CodeBlock) for sym in all_syms)
+    assert isinstance(gsym.initial_value, ArrayConstructor)
+    assert isinstance(hsym.initial_value, CodeBlock)
     lsym = inner_st.lookup('l')
     assert isinstance(lsym.initial_value, Reference)
 

@@ -74,10 +74,10 @@ class ArrayAccess2LoopTrans(Transformation):
     >>> print(FortranWriter()(psyir))
     program example
       real, dimension(10) :: a
-      integer :: ji
+      integer :: idx
     <BLANKLINE>
-      do ji = 1, 1, 1
-        a(ji) = 0.0
+      do idx = 1, 1, 1
+        a(idx) = 0.0
       enddo
     <BLANKLINE>
     end program example

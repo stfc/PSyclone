@@ -116,7 +116,7 @@ def test_lower_to_lang_level_single_node():
     a single ProfileNode.
 
     '''
-    Profiler.set_options([Profiler.INVOKES], api="nemo")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
         symbol_type=DataSymbol, datatype=ScalarType.real_type())
@@ -154,7 +154,7 @@ def test_lower_named_profile_node():
     a ProfileNode has pre-set names for the module and region.
 
     '''
-    Profiler.set_options([Profiler.INVOKES], api="nemo")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
         symbol_type=DataSymbol, datatype=ScalarType.real_type())
@@ -180,7 +180,7 @@ def test_lower_to_lang_level_multi_node():
 
     '''
     # We use a GOcean example containing multiple kernel calls
-    Profiler.set_options([Profiler.KERNELS], api="gocean")
+    Profiler.set_options([Profiler.KERNELS], is_psykal=True)
     _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean",
                            idx=0)
     sched = invoke.schedule

@@ -48,16 +48,18 @@ from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.symbols import (
+    SymbolTable, SymbolError, UnresolvedInterface)
 
 
 class CodeBlock(Statement, DataNode):
     '''Node representing any generic Fortran code that PSyclone does not
-    attempt to manipulate. As such it is a leaf in the PSyIR. A CodeBlock
-    can still answer limited questions about the enclosed code. For
-    this reason it keeps reference to the underlying parse_tree, and each
-    frontend parser needs to subclass CodeBlock with the concrete
-    implementation.
+    attempt to manipulate. A CodeBlock can still answer limited questions
+    about the enclosed code. For this reason it keeps reference to the
+    underlying parse_tree, and each frontend parser needs to subclass
+    CodeBlock with the concrete implementation.
 
     :param parse_tree: the parse-tree nodes representing the
         Fortran code constituting the code block.
@@ -73,7 +75,7 @@ class CodeBlock(Statement, DataNode):
 
     '''
     #: Textual description of the node.
-    _children_valid_format = "<LeafNode>"
+    _children_valid_format = "[Reference]*"
     _text_name = "CodeBlock"
     _colour = "red"
     #: The annotations that are supported by this node.
@@ -111,6 +113,35 @@ class CodeBlock(Statement, DataNode):
             self._parse_tree_nodes = [parse_tree]
         # Store the structure of the code block.
         self._structure = structure
+        # Capture all symbols used inside the Codeblock as children References
+        self._insert_representative_references()
+
+    @staticmethod
+    def _validate_child(position: int, child: Node) -> bool:
+        '''
+        :param position: the position to be validated.
+        :param child: a child to be validated.
+
+        :return: whether the given child and position are valid for this node.
+
+        '''
+        return isinstance(child, Reference)
+
+    def _insert_representative_references(self):
+        ''' Insert Reference children under this codeblock that
+        represent each of the symbols used inside the CodeBlock.
+        '''
+        for symbol_name in self.get_symbol_names():
+            try:
+                symtab = self.scope.symbol_table
+            except SymbolError:
+                # Needed for detached CodeBlocks, mainly used in testing
+                symtab = SymbolTable()
+            symbol = symtab.find_or_create(
+                symbol_name, interface=UnresolvedInterface())
+            ref = Reference(symbol)
+            if ref not in self.children:
+                self.addchild(Reference(symbol))
 
     @staticmethod
     def create(*args, **kwargs) -> CodeBlock:
@@ -184,10 +215,6 @@ class CodeBlock(Statement, DataNode):
         TODO #2863 - it would be better to use AccessType.UNKNOWN here but
         currently VariablesAccessMap does not consider that type of access.
 
-        This method makes use of
-        :py:meth:`~psyclone.psyir.nodes.CodeBlock.get_symbol_names` and is
-        therefore subject to the same limitations as that method.
-
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
             structure accessors) and the values are AccessSequence
@@ -195,9 +222,13 @@ class CodeBlock(Statement, DataNode):
 
         '''
         var_accesses = VariablesAccessMap()
-        for name in self.get_symbol_names():
-            var_accesses.add_access(Signature(name), AccessType.READWRITE,
-                                    self)
+        # All symbols accessed within the CodeBlock are captured as Reference
+        # nodes and stored as children of the CodeBlock node
+        for child in self.children:
+            var_accesses.add_access(
+                Signature(child.name),
+                AccessType.READWRITE,
+                child)
         return var_accesses
 
     def __str__(self) -> str:
@@ -294,12 +325,26 @@ class Fparser2CodeBlock(CodeBlock):
                         node is node.parent.children[0]):
                     result.append(node.string)
             elif not isinstance(node.parent,
+                                # We don't want labels associated with loop or
+                                # branch control.
                                 (Fortran2003.Cycle_Stmt,
                                  Fortran2003.End_Do_Stmt,
                                  Fortran2003.Exit_Stmt,
                                  Fortran2003.Else_Stmt,
                                  Fortran2003.End_If_Stmt)):
-                # We don't want labels associated with loop or branch control.
+
+                # Check if this name is a structure accessor instead of a
+                # symbol
+                if isinstance(node.parent, Fortran2003.Part_Ref):
+                    # Also account for array fields name%array(i)
+                    check = node.parent
+                else:
+                    check = node
+                if isinstance(check.parent, Fortran2003.Data_Ref):
+                    # The first child is the base reference, the others are
+                    # accessor names, which are not symbols
+                    if check.parent.children[0] is not check:
+                        continue
                 result.append(node.string)
         # Precision on literals requires special attention since they are just
         # stored in the tree as str (fparser/#456).
@@ -407,3 +452,10 @@ class TreeSitterCodeBlock(CodeBlock):
         for node in self._parse_tree_nodes:
             output.extend(str(node.text, encoding="utf8").split("\n"))
         return output
+
+    def get_symbol_names(self) -> list[str]:
+        '''
+        :returns: the name of all symbols accessed in the CodeBlock.
+        '''
+        # TODO #3038 Treesitter support is incomplete
+        return []

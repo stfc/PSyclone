@@ -1293,11 +1293,13 @@ def test05p1_kernel_add_iteration_spaces(tmpdir):
 
     expected_sched = (
         "GOLoop[variable:'j', loop_type:'outer']\n"
+        "Reference[name:'j']\n"
         "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
         "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]\n"
         "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
         "Schedule:\n"
         "GOLoop[variable:'i', loop_type:'inner']\n"
+        "Reference[name:'i']\n"
         "Literal[value:'3', Scalar<INTEGER, UNDEFINED>]\n"
         "StructureReference[name:'cu_fld']\n"
         "StructureMember[name:'grid']\n"
@@ -1314,11 +1316,13 @@ def test05p1_kernel_add_iteration_spaces(tmpdir):
     clb_trans.apply(schedule)
     expected_sched = (
         "GOLoop[variable:'j', loop_type:'outer']\n"
+        "Reference[name:'j']\n"
         "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
         "Literal[value:'2', Scalar<INTEGER, UNDEFINED>]\n"
         "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
         "Schedule:\n"
         "GOLoop[variable:'i', loop_type:'inner']\n"
+        "Reference[name:'i']\n"
         "Literal[value:'3', Scalar<INTEGER, UNDEFINED>]\n"
         "Reference[name:'istop']\n"
         "Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n"

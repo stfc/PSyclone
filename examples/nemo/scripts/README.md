@@ -62,7 +62,7 @@ wget https://gws-access.jasmin.ac.uk/public/nemo/sette_inputs/r5.0.0/ORCA2_ICE_v
 tar -xzf ORCA2_ICE_v5.0.0.tar.gz
 ```
 
-The examples have been tested with NEMOv4.0.2 (SPLITZ configuration) and
+The examples have been tested with NEMOv4.0.2 (SPITZ configuration) and
 NEMOv5.0 (BENCH and ORCA_ICE_PISCIES configuration), but we aim to support
 any version of NEMO. If you encounter any issue applying these examples
 please report to the authors.

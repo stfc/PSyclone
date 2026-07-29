@@ -78,6 +78,7 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.transformations.callee_transformation_mixin import (
     CalleeTransformationMixin)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
+from psyclone.psyir.transformations.omp_parallel_trans import OMPParallelTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
@@ -115,113 +116,6 @@ def check_intergrid(node):
                 f"This Transformation cannot currently be applied to nodes "
                 f"which have inter-grid kernels as descendants and {kern.name}"
                 f" is such a kernel.")
-
-
-class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
-
-    ''' LFRic-specific OpenMP loop transformation. Adds LFRic specific
-        validity checks. Actual transformation is done by the
-        :py:class:`base class <OMPParallelLoopTrans>`.
-
-        :param str omp_directive: choose which OpenMP loop directive to use.
-            Defaults to "do".
-        :param str omp_schedule: the OpenMP schedule to use. Must be one of
-            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to
-            'static'.
-
-    '''
-    def __init__(self, omp_directive="do", omp_schedule="static"):
-        super().__init__(omp_directive=omp_directive,
-                         omp_schedule=omp_schedule)
-
-    def __str__(self):
-        return "Add an OpenMP Parallel Do directive to an LFRic loop"
-
-    def validate(self, node, options=None):
-        '''
-        Perform LFRic-specific loop validity checks then call the `validate`
-        method of the base class.
-
-        :param node: the Node in the Schedule to check
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-
-        :raises TransformationError: if the supplied Node is not an LFRicLoop.
-        :raises TransformationError: if the associated loop requires
-            colouring.
-        '''
-        if not isinstance(node, LFRicLoop):
-            raise TransformationError(
-                f"Error in {self.name} transformation. The supplied node "
-                f"must be an LFRicLoop but got '{type(node).__name__}'")
-
-        # If the loop is not already coloured then check whether or not
-        # it should be. If the field space is discontinuous (including
-        # any_discontinuous_space) then we don't need to worry about
-        # colouring.
-        const = LFRicConstants()
-        if node.field_space.orig_name not in const.VALID_DISCONTINUOUS_NAMES:
-            if (node.loop_type not in ('cells_in_colour', 'tiles_in_colour')
-                    and node.has_inc_arg()):
-                raise TransformationError(
-                    f"Error in {self.name} transformation. The kernel has an "
-                    f"argument with INC access but the loop is of type "
-                    f"'{node.loop_type}'. Colouring is required.")
-        # As this is a domain-specific loop, we don't perform general
-        # dependence analysis because it is too conservative and doesn't
-        # account for the special steps taken for such a loop at code-
-        # generation time (e.g. the way we ensure variables are given the
-        # correct sharing attributes).
-        local_options = options.copy() if options else {}
-        local_options["force"] = True
-        super().validate(node, options=local_options)
-
-
-class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
-
-    '''GOcean specific OpenMP Do loop transformation. Adds GOcean
-       specific validity checks (that supplied Loop is an inner or outer
-       loop). Actual transformation is done by
-       :py:class:`base class <OMPParallelLoopTrans>`.
-
-        :param str omp_directive: choose which OpenMP loop directive to use. \
-            Defaults to "do".
-        :param str omp_schedule: the OpenMP schedule to use. Must be one of \
-            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to \
-            'static'.
-
-    '''
-    def __init__(self, omp_directive="do", omp_schedule="static"):
-        super().__init__(omp_directive=omp_directive,
-                         omp_schedule=omp_schedule)
-
-    def __str__(self):
-        return "Add an OpenMP Parallel Do directive to a GOcean loop"
-
-    def apply(self, node, options=None):
-        ''' Perform GOcean-specific loop validity checks then call
-        :py:meth:`OMPParallelLoopTrans.apply`.
-
-        :param node: a Loop node from an AST.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param options: a dictionary with options for transformations\
-                        and validation.
-        :type options: Optional[Dict[str, Any]]
-
-        :raises TransformationError: if the supplied node is not an inner or\
-            outer loop.
-
-        '''
-        self.validate(node, options=options)
-
-        # Check we are either an inner or outer loop
-        if node.loop_type not in ["inner", "outer"]:
-            raise TransformationError(
-                "Error in "+self.name+" transformation.  The requested loop"
-                " is not of type inner or outer.")
-
-        OMPParallelLoopTrans.apply(self, node)
 
 
 class LFRicOMPLoopTrans(OMPLoopTrans):
@@ -293,6 +187,12 @@ class LFRicOMPLoopTrans(OMPLoopTrans):
                 By default the value from the config file will be used.
 
         '''
+        # TODO #2668: Deprecate options dict. Since this Transformation
+        # overrides the input options we will need to do the same with
+        # the input **kwargs, preferable with a warning or logging message
+        # explaining that the input is overridden (unless the behaviour of
+        # this Transformation is updated.
+
         # Since this function potentially modifies the user's option
         # dictionary, create a copy:
         options = options.copy() if options else {}
@@ -306,6 +206,145 @@ class LFRicOMPLoopTrans(OMPLoopTrans):
         options["force"] = True
 
         super().apply(node, options)
+
+
+@transformation_documentation_wrapper(add_subtransformations=False)
+class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
+
+    ''' LFRic-specific OpenMP loop transformation. Adds LFRic specific
+        validity checks. Actual transformation is done by the
+        :py:class:`base class <OMPParallelLoopTrans>`.
+
+        :param str omp_directive: choose which OpenMP loop directive to use.
+            Defaults to "do".
+        :param str omp_schedule: the OpenMP schedule to use. Must be one of
+            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to
+            'static'.
+
+    '''
+
+    _SUB_TRANSFORMATIONS = [LFRicOMPLoopTrans, OMPParallelTrans]
+
+    def __init__(self, omp_directive="do", omp_schedule="static"):
+        super().__init__(omp_directive=omp_directive,
+                         omp_schedule=omp_schedule)
+
+    def __str__(self):
+        return "Add an OpenMP Parallel Do directive to an LFRic loop"
+
+    def validate(self, node: LFRicLoop, options=None, **kwargs):
+        '''
+        Perform LFRic-specific loop validity checks then call the `validate`
+        method of the base class.
+
+        :param node: the Node in the Schedule to check
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str, Any]]
+
+        :raises TransformationError: if the supplied Node is not an LFRicLoop.
+        :raises TransformationError: if the associated loop requires
+            colouring.
+        '''
+        if not isinstance(node, LFRicLoop):
+            raise TransformationError(
+                f"Error in {self.name} transformation. The supplied node "
+                f"must be an LFRicLoop but got '{type(node).__name__}'")
+
+        # If the loop is not already coloured then check whether or not
+        # it should be. If the field space is discontinuous (including
+        # any_discontinuous_space) then we don't need to worry about
+        # colouring.
+        const = LFRicConstants()
+        if node.field_space.orig_name not in const.VALID_DISCONTINUOUS_NAMES:
+            if (node.loop_type not in ('cells_in_colour', 'tiles_in_colour')
+                    and node.has_inc_arg()):
+                raise TransformationError(
+                    f"Error in {self.name} transformation. The kernel has an "
+                    f"argument with INC access but the loop is of type "
+                    f"'{node.loop_type}'. Colouring is required.")
+        # As this is a domain-specific loop, we don't perform general
+        # dependence analysis because it is too conservative and doesn't
+        # account for the special steps taken for such a loop at code-
+        # generation time (e.g. the way we ensure variables are given the
+        # correct sharing attributes).
+        local_options = options.copy() if options else {}
+        local_options["force"] = True
+        super().validate(node, options=local_options, **kwargs)
+
+    def apply(self, node: LFRicLoop, options=None, **kwargs):
+        '''
+        Applies the LFRicOMPParallelLoopTrans to the supplied Loop.
+
+        If reproducible reductions are enabled, and the specified
+        omp_directive is 'do' then this will instead apply
+        LFRicOMPLoopTrans and LFricOMPParallelTrans to the input
+        node instead.
+
+        :param node: the Node in the Schedule to transform.
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str, Any]]
+        '''
+        if (Config.get().reproducible_reductions
+                and self.omp_directive == "do"):
+            kerns = node.walk(Kern)
+            if any([kern.is_reduction for kern in kerns]):
+                # TODO #2668: LFRicOMPLoopTrans doesn't yet use keyword
+                # arguments, so we don't pull them out with split_kwargs.
+                # TODO #3257: Is the option behaviour consistent?
+                _, _, par_kwargs = self.split_kwargs(**kwargs)
+                ltrans = LFRicOMPLoopTrans(omp_schedule=self.omp_schedule)
+                ltrans.apply(node, options=options)
+                ptrans = OMPParallelTrans()
+                ptrans.apply(node.parent.parent, options=options,
+                             **par_kwargs)
+                return
+        super().apply(node, options=options, **kwargs)
+
+
+class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
+
+    '''GOcean specific OpenMP Do loop transformation. Adds GOcean
+       specific validity checks (that supplied Loop is an inner or outer
+       loop). Actual transformation is done by
+       :py:class:`base class <OMPParallelLoopTrans>`.
+
+        :param str omp_directive: choose which OpenMP loop directive to use. \
+            Defaults to "do".
+        :param str omp_schedule: the OpenMP schedule to use. Must be one of \
+            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to \
+            'static'.
+
+    '''
+    def __init__(self, omp_directive="do", omp_schedule="static"):
+        super().__init__(omp_directive=omp_directive,
+                         omp_schedule=omp_schedule)
+
+    def __str__(self):
+        return "Add an OpenMP Parallel Do directive to a GOcean loop"
+
+    def apply(self, node, options=None):
+        ''' Perform GOcean-specific loop validity checks then call
+        :py:meth:`OMPParallelLoopTrans.apply`.
+
+        :param node: a Loop node from an AST.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param options: a dictionary with options for transformations\
+                        and validation.
+        :type options: Optional[Dict[str, Any]]
+
+        :raises TransformationError: if the supplied node is not an inner or\
+            outer loop.
+
+        '''
+        self.validate(node, options=options)
+
+        # Check we are either an inner or outer loop
+        if node.loop_type not in ["inner", "outer"]:
+            raise TransformationError(
+                "Error in "+self.name+" transformation.  The requested loop"
+                " is not of type inner or outer.")
+
+        OMPParallelLoopTrans.apply(self, node)
 
 
 class GOceanOMPLoopTrans(OMPLoopTrans):
@@ -356,17 +395,14 @@ class ColourTrans(LoopTrans):
     Apply a colouring transformation to a loop (in order to permit a
     subsequent parallelisation over colours). For example:
 
-    >>> invoke = ...
-    >>> schedule = invoke.schedule
-    >>>
-    >>> ctrans = ColourTrans()
-    >>>
-    >>> # Colour all of the loops
-    >>> for child in schedule.children:
-    >>>     ctrans.apply(child)
-    >>>
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
+    .. code-block:: python
+
+        invoke = ...
+        schedule = invoke.schedule
+        ctrans = ColourTrans()
+        # Colour all of the loops
+        for child in schedule.children:
+            ctrans.apply(child)
 
     '''
     def __str__(self):
@@ -445,34 +481,24 @@ class LFRicColourTrans(ColourTrans):
     '''Split an LFRic loop over cells into colours so that it can be
     parallelised. For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> import transformations
-    >>> import os
-    >>> import pytest
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "4.6_multikernel_invokes.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="lfric")
     >>>
-    >>> TEST_API = "lfric"
-    >>> _,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-    >>>              "tests", "test_files", "lfric",
-    >>>              "4.6_multikernel_invokes.f90"),
-    >>>              api=TEST_API)
-    >>> psy = PSyFactory(TEST_API).create(info)
-    >>> invoke = psy.invokes.get('invoke_0')
-    >>> schedule = invoke.schedule
+    >>> from psyclone.psyir.nodes import Loop
+    >>> from psyclone.transformations import (
+    ...     LFRicColourTrans, LFRicOMPParallelLoopTrans)
     >>>
     >>> ctrans = LFRicColourTrans()
     >>> otrans = LFRicOMPParallelLoopTrans()
     >>>
     >>> # Colour all of the loops
-    >>> for child in schedule.children:
-    >>>     ctrans.apply(child)
+    >>> for child in schedule.walk(Loop, stop_type=Loop):
+    ...     ctrans.apply(child)
     >>>
     >>> # Then apply OpenMP to each of the colour loops
-    >>> for child in schedule.children:
-    >>>     otrans.apply(child.children[0])
-    >>>
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
+    >>> for child in schedule.walk(Loop, stop_type=Loop):
+    ...     otrans.apply(child.loop_body[0])
 
     Colouring in the LFRic API is subject to the following rules:
 
@@ -686,20 +712,14 @@ class OMPSingleTrans(ParallelRegionTrans):
 
     For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "test11_different_iterates_over_one_invoke.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>>
     >>> from psyclone.transformations import OMPSingleTrans
     >>> from psyclone.psyir.transformations import OMPParallelTrans
     >>> singletrans = OMPSingleTrans()
     >>> paralleltrans = OMPParallelTrans()
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
     >>>
     >>> # Enclose all of these loops within a single OpenMP
     >>> # SINGLE region
@@ -817,20 +837,14 @@ class OMPMasterTrans(ParallelRegionTrans):
 
     For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "test11_different_iterates_over_one_invoke.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>>
     >>> from psyclone.transformations import OMPMasterTrans
     >>> from psyclone.psyir.transformations import OMPParallelTrans
     >>> mastertrans = OMPMasterTrans()
     >>> paralleltrans = OMPParallelTrans()
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
     >>>
     >>> # Enclose all of these loops within a single OpenMP
     >>> # MASTER region
@@ -838,8 +852,6 @@ class OMPMasterTrans(ParallelRegionTrans):
     >>> # Enclose all of these loops within a single OpenMP
     >>> # PARALLEL region
     >>> paralleltrans.apply(schedule.children)
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
 
     '''
     # The types of node that this transformation cannot enclose
@@ -1036,22 +1048,7 @@ class ACCParallelTrans(ParallelRegionTrans):
 
 class LFRicAsyncHaloExchangeTrans(Transformation):
     '''Splits a synchronous halo exchange into a halo exchange start and
-    halo exchange end. For example:
-
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "lfric"
-    >>> ast, invokeInfo = parse("file.f90", api=api)
-    >>> psy=PSyFactory(api).create(invokeInfo)
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>>
-    >>> from psyclone.transformations import LFRicAsyncHaloExchangeTrans
-    >>> trans = LFRicAsyncHaloExchangeTrans()
-    >>> trans.apply(schedule.children[0])
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
+    halo exchange end.
 
     '''
 
@@ -1124,31 +1121,19 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
     number of quadrature points are fixed in the kernel rather than
     being passed in by argument.
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "lfric"
-    >>> ast, invokeInfo = parse("file.f90", api=api)
-    >>> psy=PSyFactory(api).create(invokeInfo)
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>>
-    >>> from psyclone.transformations import LFRicKernelConstTrans
-    >>> trans = LFRicKernelConstTrans()
-    >>> for kernel in schedule.coded_kernels():
-    >>>     trans.apply(kernel, number_of_layers=150)
-    >>>     kernel_schedule = kernel.get_callees()[0]
-    >>>     # Uncomment the following line to see a text view of the
-    >>>     # symbol table
-    >>>     # print(kernel_schedule.symbol_table.view())
+    .. code-block:: python
+
+        from psyclone.transformations import LFRicKernelConstTrans
+        trans = LFRicKernelConstTrans()
+        for kernel in schedule.coded_kernels():
+            trans.apply(kernel, number_of_layers=150)
+            kernel_schedule = kernel.get_callees()[0]
 
     '''
 
     # ndofs per 3D cell for different function spaces on a quadrilateral
     # element for different orders. Formulas kindly provided by Tom Melvin and
     # Thomas Gibson (modified in 2024 to reflect splitting of element orders).
-    # See the Qr table at http://femtable.org/background.html,
-    # for computed values of w0, w1, w2 and w3 up to order 7.
     # Note: w2*trace spaces have dofs only on cell faces and no volume dofs.
     # As there is currently no dedicated structure for face dofs in kernel
     # constants, w2*trace dofs are included here. w2*trace ndofs formulas
@@ -1458,21 +1443,16 @@ class ACCEnterDataTrans(Transformation):
     Adds an OpenACC "enter data" directive to a Schedule.
     For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "test11_different_iterates_over_one_invoke.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>>
-    >>> from psyclone.transformations import \
-        ACCEnterDataTrans, ACCLoopTrans, ACCParallelTrans
+    >>> from psyclone.transformations import (
+    ...     ACCEnterDataTrans, ACCParallelTrans)
+    >>> from psyclone.psyir.transformations import ACCLoopTrans
     >>> dtrans = ACCEnterDataTrans()
     >>> ltrans = ACCLoopTrans()
     >>> ptrans = ACCParallelTrans()
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
     >>>
     >>> # Apply the OpenACC Loop transformation to *every* loop in the schedule
     >>> for child in schedule.children[:]:
@@ -1483,9 +1463,6 @@ class ACCEnterDataTrans(Transformation):
     >>>
     >>> # Add an enter data directive
     >>> dtrans.apply(schedule)
-    >>>
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
 
     '''
     def __str__(self):
@@ -1612,19 +1589,20 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin,
     (causing it to be compiled for the OpenACC accelerator device).
     For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "test11_different_iterates_over_one_invoke.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>>
+    >>> from psyclone.psyGen import CodedKern
     >>> from psyclone.transformations import ACCRoutineTrans
     >>> rtrans = ACCRoutineTrans()
+    >>> from psyclone.domain.common.transformations import (
+    ...     KernelModuleInlineTrans)
+    >>> itrans = KernelModuleInlineTrans()
     >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>> kern = schedule.children[0].children[0].children[0]
+    >>> kern = schedule.walk(CodedKern)[0]
+    >>> # Bring the kernel into the same module
+    >>> itrans.apply(kern)
     >>> # Transform the kernel
     >>> rtrans.apply(kern)
 
@@ -1731,25 +1709,48 @@ class ACCDataTrans(RegionTrans):
 
     For example:
 
-    >>> from psyclone.psyir.frontend import FortranReader
-    >>> psyir = FortranReader().psyir_from_source(NEMO_SOURCE_FILE)
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.tests.utilities import get_examples_path
+    >>> filename = get_examples_path("nemo/code/tra_adv.F90")
+    >>> psyir = FortranReader().psyir_from_file(filename)
     >>>
     >>> from psyclone.transformations import ACCDataTrans
     >>> from psyclone.psyir.transformations import ACCKernelsTrans
+    >>> from psyclone.psyir.nodes import Loop
     >>> ktrans = ACCKernelsTrans()
     >>> dtrans = ACCDataTrans()
     >>>
-    >>> schedule = psyir.children[0]
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
+    >>> # Get the first outer-loop
+    >>> loop = psyir.children[0].walk(Loop)[0]
     >>>
     >>> # Add a kernels construct for execution on the device
-    >>> kernels = schedule.children[9]
-    >>> ktrans.apply(kernels)
+    >>> ktrans.apply(loop)
     >>>
     >>> # Enclose the kernels in a data construct
-    >>> kernels = schedule.children[9]
-    >>> dtrans.apply(kernels)
+    >>> kernel = loop.parent.parent
+    >>> dtrans.apply(kernel)
+    >>>
+    >>> # Print the resulting code
+    >>> print(kernel.parent.parent.debug_string())
+    !$acc data copyout(mydomain,pun,pvn,pwn,tmask,tsn,umask,vmask)
+    !$acc kernels
+    do jk = 1, jpk, 1
+      do jj = 1, jpj, 1
+        do ji = 1, jpi, 1
+          umask(ji,jj,jk) = ji * jj * jk / r
+          mydomain(ji,jj,jk) = ji * jj * jk / r
+          pun(ji,jj,jk) = ji * jj * jk / r
+          pvn(ji,jj,jk) = ji * jj * jk / r
+          pwn(ji,jj,jk) = ji * jj * jk / r
+          vmask(ji,jj,jk) = ji * jj * jk / r
+          tsn(ji,jj,jk) = ji * jj * jk / r
+          tmask(ji,jj,jk) = ji * jj * jk / r
+        enddo
+      enddo
+    enddo
+    !$acc end kernels
+    !$acc end data
+    <BLANKLINE>
 
     '''
     excluded_node_types = (CodeBlock, Return, PSyDataNode)

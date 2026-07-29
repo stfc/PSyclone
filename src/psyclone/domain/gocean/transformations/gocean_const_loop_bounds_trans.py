@@ -70,22 +70,15 @@ class GOConstLoopBoundsTrans(Transformation):
     In practice, the application of the constant loop bounds transformation
     looks something like, e.g.:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> import os
-    >>> TEST_API = "gocean"
-    >>> _, info = parse(os.path.join("tests", "test_files", "gocean1p0",
-    ...                              "single_invoke.f90"),
-    ...                 api=TEST_API)
-    >>> psy = PSyFactory(TEST_API).create(info)
-    >>> invoke = psy.invokes.get('invoke_0_compute_cu')
-    >>> schedule = invoke.schedule
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "single_invoke.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>>
-    >>> from psyclone.transformations import GOConstLoopBoundsTrans
+    >>> from psyclone.domain.gocean.transformations import \
+    GOConstLoopBoundsTrans
     >>> clbtrans = GOConstLoopBoundsTrans()
     >>>
     >>> clbtrans.apply(schedule)
-    >>> print(schedule.view())
 
     '''
 
@@ -253,7 +246,7 @@ class GOConstLoopBoundsTrans(Transformation):
                 start_expr = "1"
             psyir = fortran_reader.psyir_from_expression(
                     start_expr, node.symbol_table)
-            loop.children[0].replace_with(psyir)
+            loop.start_expr.replace_with(psyir)
 
             # Set the upper bound
             stop_expr = bounds["stop"].format(start='2', stop=stop)
@@ -262,4 +255,4 @@ class GOConstLoopBoundsTrans(Transformation):
                 stop_expr = "1"
             psyir = fortran_reader.psyir_from_expression(
                     stop_expr, node.symbol_table)
-            loop.children[1].replace_with(psyir)
+            loop.stop_expr.replace_with(psyir)

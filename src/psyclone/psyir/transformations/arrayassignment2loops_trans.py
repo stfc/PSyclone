@@ -47,7 +47,7 @@ from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     Assignment, Call, IntrinsicCall, Loop, Literal, Node, Range, Reference,
-    CodeBlock, Routine, BinaryOperation)
+    CodeBlock, Routine, BinaryOperation, ArrayConstructor)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin)
@@ -240,6 +240,17 @@ class ArrayAssignment2LoopsTrans(Transformation):
         if node.has_descendant(CodeBlock):
             message = (f"{self.name} does not support array assignments that"
                        f" contain a CodeBlock anywhere in the expression")
+            if verbose:
+                node.append_preceding_comment(message)
+            raise TransformationError(LazyString(
+                lambda: f"{message}, but found:\n{node.debug_string()}"))
+
+        # Do not allow to transform expressions with ArrayConstructors
+        # This could be relaxed in future
+        if node.has_descendant(ArrayConstructor):
+            message = (f"{self.name} does not support array assignments that"
+                       " contain an ArrayConstructor anywhere in"
+                       " the expression")
             if verbose:
                 node.append_preceding_comment(message)
             raise TransformationError(LazyString(

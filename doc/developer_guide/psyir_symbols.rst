@@ -337,7 +337,7 @@ specialisations are possible:
     >>> # The following statement would fail because the initial_value doesn't
     >>> # match the datatype of the symbol:
     >>> # sym2.specialise(DataSymbol, datatype=ScalarType.integer_type(),
-    ...                   initial_value=3.14)
+    >>> #                 initial_value=3.14)
     >>> # The following statement is valid and initial_value is set to 3
     >>> # (and is_constant will default to False):
     >>> sym2.specialise(DataSymbol, datatype=ScalarType.integer_type(), initial_value=3)

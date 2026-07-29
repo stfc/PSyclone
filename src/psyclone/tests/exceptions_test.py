@@ -32,103 +32,50 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. J. Voysey, Met Office
+# Modified: S. Siso, STFC Daresbury Lab
 
 ''' Test exception classes to ensure consistent __repr__ & __str__ methods. '''
-
-import pkgutil
 import inspect
 import importlib
+import psyclone
+import pkgutil
 
-from psyclone.errors import PSycloneError
+from psyclone import errors
 
 
-class DummyPSycloneError(PSycloneError):
+class DummyPSycloneError(errors.PSycloneError):
     ''' Provides a dummy PSyclone specific error class as for use in this test
     '''
-    def __init__(self):
-        PSycloneError.__init__(self, "")
-        self.value = "Dummy PSyclone Error"
+    def __init__(self, value):
+        super().__init__(value)
+        self.value = f"Dummy PSyclone Error: {value}"
 
 
-def all_sub_exceptions(expt):
-    ''' Recursively find the set of all the exceptions which are subclasses of
-        the given exception class. '''
-
-    new_sub_except = [add_except for sub_except in expt.__subclasses__()
-                      for add_except in all_sub_exceptions(sub_except)]
-    return set(expt.__subclasses__()).union(new_sub_except)
-
-
-def import_submodules(package, recursive=True):
-    """ Import all submodules of a module, recursively, including subpackages
-
-    :param package: package (name or actual module)
-    :type package: str | module
-
-    :rtype: dict[str, types.ModuleType]
-    """
-    if isinstance(package, str):
-        package = importlib.import_module(package)
-    results = {}
-    for _, name, is_pkg in pkgutil.walk_packages(package.__path__):
-        full_name = package.__name__ + '.' + name
-        if "test" not in full_name:
-            results[full_name] = importlib.import_module(full_name)
-            if recursive and is_pkg:
-                results.update(import_submodules(full_name))
-    return results
-
-
-def test_exception_repr():
+def test_exception_str_and_repr():
     ''' Test the properties of Exception classes defined by PSyclone. '''
 
-    modules = {}
+    for module_info in pkgutil.walk_packages(psyclone.__path__,
+                                             psyclone.__name__ + "."):
+        module = importlib.import_module(module_info.name)
 
-    # Recursively walk through the psyclone module, importing sub-modules.
-    # Store any class definitions we come across.
+        for name, obj in inspect.getmembers(module, inspect.isclass):
+            # Only classes defined in this module, not imported
+            if obj.__module__ != module_info.name:
+                continue
+            # Only check Exceptions
+            if not issubclass(obj, Exception):
+                continue
+            # That are not the base exception class
+            if name == "PSycloneError":
+                continue
+            # Ensure PSyclone exceptions inherit from PSycloneError
+            assert issubclass(obj, errors.PSycloneError)
+            # Ensure there are __str__ & __repr__ methods implemented which
+            # are not inherited from the parent Exception class
+            assert obj.__str__ is not Exception.__str__
+            assert obj.__repr__ is not Exception.__repr__
 
-    modules = import_submodules("psyclone")
-    for mod in modules:
-        _ = importlib.import_module(mod)
-
-    all_exceptions = all_sub_exceptions(Exception)
-    psy_excepts = [exc for exc in all_exceptions if "psyclone." in str(exc)]
-    psy_excepts.append(DummyPSycloneError)
-
-    # Different versions of pytest behave differently with respect to their
-    # handling of an exception's representation. This can lead to some tests
-    # passing/failing assertions depending on which pytest version is
-    # installed.
-    #
-    # To avoid this we will enforce the following conditions for exceptions
-    # defined by psyclone: -
-    # i) Exceptions will implement their own __str__ and __repr__ methods.
-    # ii) These will not be the same as each other for a given exception.
-    # iii) The string returned by the __str__ method will not be contained
-    #      with that returned by the __repr__ method,
-    #
-    # When these conditions are met, assertion behaviour is consistent across
-    # all pytest versions.
-
-    for psy_except in psy_excepts:
-
-        # Check if the exception inherits PSycloneError
-        assert issubclass(psy_except, PSycloneError)
-
-        # Ensure there are __str__ & __repr__ methods implemented which are not
-        # inherited from the parent Exception class
-        assert psy_except.__str__ is not Exception.__str__
-        assert psy_except.__repr__ is not Exception.__repr__
-
-        # Simulate arguments to the exception constructor
-        arglist = list(inspect.getfullargspec(psy_except).args)
-        args = [None for arg in arglist if arg != 'self']
-
-        # Check that the _str__ & __repr__ do not return the same string, and
-        # that one is not contained within the other
-        if len(args) > 0:
-            assert str(psy_except(*args)) != str(repr(psy_except(*args)))
-            assert str(psy_except(*args)) not in repr(psy_except(*args))
-        else:
-            assert str(psy_except()) != repr(psy_except())
-            assert str(psy_except()) not in repr(psy_except())
+    # Now test that an example error class behaves as expected
+    testerror = DummyPSycloneError("my msg")
+    assert str(testerror) == "Dummy PSyclone Error: my msg"
+    assert repr(testerror) == "DummyPSycloneError()"

@@ -44,10 +44,6 @@ In the case where a space is defined as "any_space" in a kernel, the
 associated ndofs value will not be modified (as the actual value could
 change from one call to the next).
 
-The LFRicKernelConstTrans transformation is work in progress and the
-current version is limited to printing out the arguments that would be
-transformed and the values they would take.
-
 This script can be applied via the '-s' option when running PSyclone:
 
 $ psyclone -api lfric -s ./kernel_constants.py \
@@ -56,8 +52,9 @@ $ psyclone -api lfric -s ./kernel_constants.py \
 
 '''
 
-from psyclone.transformations import LFRicKernelConstTrans, \
-    TransformationError
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.psyir.nodes import FileContainer
+from psyclone.transformations import LFRicKernelConstTrans
 
 # The number of layers to use when modifying a kernel to make the
 # associated kernel value constant (rather than passing it in by
@@ -73,23 +70,29 @@ ELEMENT_ORDER_V = 0
 CONSTANT_QUADRATURE = True
 
 
-def trans(psyir):
+def trans(psyir: FileContainer):
     '''PSyclone transformation script for the LFRic API to make the
     kernel values of ndofs, nlayers and nquadrature-point sizes constant.
 
     :param psyir: the PSyIR of the PSy-layer.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
+    mod_inline_trans = KernelModuleInlineTrans()
     const_trans = LFRicKernelConstTrans()
 
+    done = set()
     for kernel in psyir.coded_kernels():
-        print(f"  kernel '{kernel.name.lower()}'")
-        try:
-            const_trans.apply(kernel,
-                              {"number_of_layers": NUMBER_OF_LAYERS,
-                               "element_order_h": ELEMENT_ORDER_H,
-                               "element_order_v": ELEMENT_ORDER_V,
-                               "quadrature": CONSTANT_QUADRATURE})
-        except TransformationError:
-            print(f"    Failed to modify kernel '{kernel.name}'")
+        kname = kernel.name.lower()
+        if kname in done:
+            # We only need to transform each distinct kernel once.
+            continue
+        print(f"  kernel '{kname}'")
+        mod_inline_trans.apply(kernel)
+        # TODO #3498 update to use keyword arguments and extend support
+        # to NLEVELS/NDATA.
+        const_trans.apply(kernel,
+                          {"number_of_layers": NUMBER_OF_LAYERS,
+                           "element_order_h": ELEMENT_ORDER_H,
+                           "element_order_v": ELEMENT_ORDER_V,
+                           "quadrature": CONSTANT_QUADRATURE})
+        done.add(kname)

@@ -45,7 +45,7 @@ from psyclone.domain.lfric import KernStubArgList, LFRicKern, LFRicKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Assignment, IfBlock, Loop
-from psyclone.tests.utilities import get_invoke, get_ast
+from psyclone.tests.utilities import get_psylayer_schedule, get_invoke, get_ast
 
 # Constants
 API = "nemo"
@@ -208,9 +208,9 @@ def test_nemo_array_range(fortran_reader):
 def test_goloop():
     ''' Check the handling of PSyKAL (e.g. GOLoops) do loops. '''
 
-    _, invoke = get_invoke("single_invoke_two_kernels_scalars.f90",
-                           "gocean", name="invoke_0")
-    do_loop = invoke.schedule.children[0]
+    schedule = get_psylayer_schedule(
+        "single_invoke_two_kernels_scalars.f90", api="gocean")
+    do_loop = schedule.children[0]
     assert isinstance(do_loop, Loop)
 
     # The third argument is GO_GRID_X_MAX_INDEX, which is scalar
@@ -234,13 +234,7 @@ def test_lfric():
     from the kernel metadata, not the actual kernel usage.
 
     '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "lfric",
-                                 "1_single_invoke.f90"),
-                    api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_type')
-    schedule = invoke.schedule
+    schedule = get_psylayer_schedule("1_single_invoke.f90", api="lfric")
     var_accesses = schedule.reference_accesses()
     assert str(var_accesses) == (
         "a: READ, cell: WRITE+READ, f1_data: INC, f2_data: READ, field_type: "
@@ -309,9 +303,9 @@ def test_lfric_ref_element():
     '''Test handling of variables if an LFRic's RefElement is used.
 
     '''
-    psy, invoke_info = get_invoke("23.4_ref_elem_all_faces_invoke.f90",
-                                  "lfric", idx=0)
-    var_info = str(invoke_info.schedule.reference_accesses())
+    schedule = get_psylayer_schedule("23.4_ref_elem_all_faces_invoke.f90",
+                                     "lfric")
+    var_info = str(schedule.reference_accesses())
     assert "normals_to_faces: READ," in var_info
     assert "out_normals_to_faces: READ," in var_info
     assert "nfaces_re: READ," in var_info
@@ -322,15 +316,15 @@ def test_lfric_operator():
     handled correctly.
 
     '''
-    psy, invoke_info = get_invoke("6.1_eval_invoke.f90", "lfric", idx=0)
-    var_info = str(invoke_info.schedule.reference_accesses())
+    schedule = get_psylayer_schedule("6.1_eval_invoke.f90", "lfric")
+    var_info = str(schedule.reference_accesses())
     assert "f0_data: INC," in var_info
     assert "cmap_data: READ," in var_info
     assert "basis_w0_on_w0: READ," in var_info
     assert "diff_basis_w1_on_w0: READ," in var_info
 
 
-def test_lfric_cma(fortran_writer):
+def test_lfric_cma():
     '''Test that parameters related to CMA operators are handled
     correctly in the variable usage analysis.
 

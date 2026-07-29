@@ -51,11 +51,6 @@ import abc
 from typing import Any, Dict, Optional, Union
 import warnings
 
-try:
-    from sphinx.util.typing import stringify_annotation
-except ImportError:
-    # No Sphinx available so use our own, simpler version.
-    from psyclone.utils import stringify_annotation
 
 from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
 from psyclone.core import AccessType
@@ -65,11 +60,12 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     ArrayReference, Call, Container, Literal, Loop, Node, OMPDoDirective,
     Reference, Directive, Routine, Schedule, Statement, Assignment,
-    IntrinsicCall, BinaryOperation, FileContainer)
+    IntrinsicCall, BinaryOperation, FileContainer, OMPParallelDirective)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, ScalarType,
     UnresolvedType, ImportInterface, RoutineSymbol)
 from psyclone.psyir.symbols.symbol_table import SymbolTable
+from psyclone.utils import stringify_annotation
 
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
@@ -203,15 +199,6 @@ class PSy():
                                  optimisation and generation. Produced \
                                  by the function :func:`parse.algorithm.parse`.
     :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo`
-
-    For example:
-
-    >>> from psyclone.parse.algorithm import parse
-    >>> ast, info = parse("argspec.F90")
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "..."
-    >>> psy = PSyFactory(api).create(info)
-    >>> print(psy.gen)
 
     '''
 
@@ -630,21 +617,10 @@ class InvokeSchedule(Routine):
     Stores schedule information for an invocation call. Schedules can be
     optimised using transformations.
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> ast, info = parse("algorithm.f90")
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "..."
-    >>> psy = PSyFactory(api).create(info)
-    >>> invokes = psy.invokes
-    >>> invokes.names
-    >>> invoke = invokes.get("name")
-    >>> schedule = invoke.schedule
-    >>> print(schedule.view())
-
     :param symbol: RoutineSymbol representing the invoke.
     :type symbol: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
-    :param type KernFactory: class instance of the factory to use when \
-     creating Kernels. e.g. \
+    :param type KernFactory: class instance of the factory to use when
+        creating Kernels. e.g. \
      :py:class:`psyclone.domain.lfric.LFRicKernCallFactory`.
     :param type BuiltInFactory: class instance of the factory to use when \
      creating built-ins. e.g. \
@@ -918,8 +894,6 @@ class Kern(Statement):
         reductions, if specified.
 
         :raises GenerationError: if the variable to initialise is not a scalar.
-        :raises GenerationError: if the reprod_pad_size (read from the
-            configuration file) is less than 1.
         :raises GenerationError: for a reduction into a scalar that is
             neither 'real' nor 'integer'.
 
@@ -967,6 +941,73 @@ class Kern(Statement):
             insert_loc.addchild(assign, cursor)
         return new_node
 
+    def store_thread_private_value_to_shared_array(
+            self, parallel_region_body: Schedule,
+            table: SymbolTable
+    ) -> None:
+        '''
+        Generate the appropriate code to transfer the private reduction
+        temporary into the shared array for reproducible reductions.
+        The assignment is always placed as the final child of parent.
+
+        This method is designed to be used *after* a Kern has been lowered
+        (and thus detached) and therefore does not use `self.scope`.
+
+        :param parallel_region_body: the schedule to which to add the
+            assignment as a child.
+        :param table: the SymbolTable to use.
+        '''
+        tag = f"{self.name}:{self._reduction_arg.name}:local"
+        array_symbol = table.lookup_with_tag(tag)
+        local_var = table.lookup_with_tag(
+            f"{self.name}:{self._reduction_arg.name}:templocal")
+        thread_idx = table.lookup_with_tag("omp_thread_index")
+        arr_ref = ArrayReference.create(
+            array_symbol, [Reference(thread_idx)]
+        )
+
+        assign = Assignment.create(
+            arr_ref, Reference(local_var)
+        )
+
+        assign.preceding_comment = (
+            "Store the thread private value of the reduction into the "
+            "shared array."
+        )
+
+        # Add the assignment at the end of the parallel region.
+        parallel_region_body.addchild(assign)
+
+    def create_thread_private_variable(
+        self, parallel_directive: OMPParallelDirective,
+        position: int, table: SymbolTable
+    ) -> None:
+        '''
+        Generate the appropriate code to initialise the scalar reduction
+        variable inside the parallel region, and add it to the private clause.
+
+        This method is designed to be used *after* a Kern has been lowered
+        (and thus detached) and therefore does not use `self.scope`.
+
+        :param parallel_directive: the parallel region to which to add
+            the initialisation as a child.
+        :param position: where in the parent's list of children to add
+                        the new Loop.
+        :param table: the SymbolTable to use.
+        '''
+        local_var = table.lookup_with_tag(
+            f"{self.name}:{self._reduction_arg.name}:templocal")
+        assign = Assignment.create(Reference(local_var),
+                                   Literal("0", local_var.datatype))
+        parallel_directive.dir_body.addchild(assign, position)
+        assign.preceding_comment = (
+            "Initialise thread-private reduction variable"
+        )
+        # The local var also needs to be thread private.
+        parallel_directive.private_clause.addchild(
+                Reference(local_var)
+        )
+
     def reduction_sum_loop(self,
                            parent: Node,
                            position: int,
@@ -1006,8 +1047,7 @@ class Kern(Statement):
                BinaryOperation.Operator.ADD,
                Reference(var_symbol),
                ArrayReference.create(local_symbol,
-                                     [Literal("1", ScalarType.integer_type()),
-                                      Reference(thread_idx)]))))
+                                     [Reference(thread_idx)]))))
         do_loop.append_preceding_comment(
                     "sum the partial results sequentially")
         do_loop.parent.addchild(
@@ -1020,7 +1060,7 @@ class Kern(Statement):
         Return the reference to the reduction variable if OpenMP is set to
         be unreproducible, as we will be using the OpenMP reduction clause.
         Otherwise we will be computing the reduction ourselves and therefore
-        need to store values into a (padded) array separately for each
+        need to store values into a temporary variable for each
         thread.
 
         :returns: reference to the variable to be reduced.
@@ -1031,12 +1071,8 @@ class Kern(Statement):
         symtab = self.ancestor(InvokeSchedule).symbol_table
         if self.reprod_reduction:
             local_var = symtab.lookup_with_tag(
-                f"{self.name}:{self._reduction_arg.name}:local")
-            # Return a multi-valued ArrayReference for a reproducible reduction
-            array_dim = [
-                Literal("1", ScalarType.integer_type()),
-                Reference(symtab.lookup_with_tag("omp_thread_index"))]
-            return ArrayReference.create(local_var, array_dim)
+                f"{self.name}:{self._reduction_arg.name}:templocal")
+            return Reference(local_var)
         # Return a single-valued Reference for a non-reproducible reduction
         local_var = symtab.lookup_with_tag(
             f"AlgArgs_{self._reduction_arg.text}")
@@ -1094,24 +1130,22 @@ class Kern(Statement):
             # For reproducible reductions, we need a rank-2 array to store
             # the thread-local results.
             nthreads = table.lookup_with_tag("omp_num_threads")
-            if Config.get().reprod_pad_size < 1:
-                raise GenerationError(
-                    f"REPROD_PAD_SIZE in {Config.get().filename} should be a "
-                    f"positive integer, but it is set to "
-                    f"'{Config.get().reprod_pad_size}'.")
-            pad_size = Literal(str(Config.get().reprod_pad_size),
-                               ScalarType.integer_type())
 
             array_type = ArrayType(arg_sym.datatype,
-                                   2*[ArrayType.Extent.DEFERRED])
+                                   [ArrayType.Extent.DEFERRED])
+            # Create a scalar temp to store to in the loop.
+            _ = table.find_or_create_tag(
+                root_name=f"thread_private_{self._reduction_arg.name}",
+                tag=f"{self.name}:{self._reduction_arg.name}:templocal",
+                symbol_type=DataSymbol, datatype=arg_sym.datatype)
             local_var = table.find_or_create_tag(
-                root_name="local_"+self._reduction_arg.name,
+                root_name="array_of_partial_"+self._reduction_arg.name,
                 tag=f"{self.name}:{self._reduction_arg.name}:local",
                 symbol_type=DataSymbol, datatype=array_type)
             alloc = IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.ALLOCATE,
                 [ArrayReference.create(local_var,
-                                       [pad_size, Reference(nthreads)])])
+                                       [Reference(nthreads)])])
             # Find a safe location to allocate it.
             insert_loc = self.ancestor((Loop, Directive))
             while insert_loc:
@@ -2209,18 +2243,6 @@ class TransInfo():
         This utility will not find Transformations under the new file
         structure (TODO #620) and is deprecated.
 
-    For example:
-
-    >>> from psyclone.psyGen import TransInfo
-    >>> t = TransInfo()
-    >>> print(t.list)
-    There is 1 transformation available:
-      1: SwapTrans, A test transformation
-    >>> # accessing a transformation by index
-    >>> trans = t.get_trans_num(1)
-    >>> # accessing a transformation by name
-    >>> trans = t.get_trans_name("SwapTrans")
-
     '''
 
     def __init__(self, module=None, base_class=None):
@@ -2460,7 +2482,12 @@ class Transformation(metaclass=abc.ABCMeta):
         :raises ValueError: if option_name is not found in the valid options
                             for the Transformation.
         '''
-        valid_options = type(self).get_valid_options()
+        valid_options = {}
+        # dict.update keeps the last value if multiple dicts contain the
+        # same key, so we do the type(self) update last.
+        for subtrans in type(self)._SUB_TRANSFORMATIONS:
+            valid_options.update(subtrans.get_valid_options())
+        valid_options.update(type(self).get_valid_options())
         if option_name not in valid_options.keys():
             raise ValueError(f"option '{option_name}' is not a valid option "
                              f"for '{type(self).__name__}'. Valid options "
@@ -2529,6 +2556,12 @@ class Transformation(metaclass=abc.ABCMeta):
         wrong_types = {}
         for option in kwargs:
             if option not in valid_options:
+                # This is needed to enable metatransformations where
+                # only some inherited classes have options set on
+                # superclasses
+                # TODO #2668: Deprecate options dict.
+                if option == "options":
+                    continue
                 invalid_options.append(option)
                 continue
             if valid_options[option].type is not None:

@@ -38,7 +38,9 @@ metadata associated with a generic LFRic argument. Supports the
 creation, modification and Fortran output of such an argument.
 
 '''
+from typing import Optional, Union
 from fparser.two import Fortran2003
+from fparser.two import utils as fp_utils
 
 from psyclone.domain.lfric.kernel.common_metadata import CommonMetadata
 
@@ -47,7 +49,7 @@ class CommonArgMetadata(CommonMetadata):
     '''Class to capture common LFRic kernel argument metadata.'''
 
     # The fparser2 class that captures this metadata.
-    fparser2_class = Fortran2003.Part_Ref
+    fparser2_class = Fortran2003.Structure_Constructor
 
     @staticmethod
     def check_boolean(value, name):
@@ -64,19 +66,17 @@ class CommonArgMetadata(CommonMetadata):
                 f"'{type(value).__name__}'.")
 
     @staticmethod
-    def check_nargs(fparser2_tree, nargs):
+    def check_nargs(fparser2_tree: Union[Fortran2003.Part_Ref,
+                                         Fortran2003.Structure_Constructor],
+                    nargs: Union[int, tuple[int, int]]) -> None:
         '''Checks that the metadata has the number of arguments specified
         by the 'nargs' argument, otherwise an exception is raised.
 
         :param fparser2_tree: fparser2 tree capturing a metadata argument.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
-            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
-        :param nargs: the number of expected arguments. This can \
-            either be a single value or a list containing a lower and an \
-            upper value.
-        :type nargs: int or Tuple[int, int]
+        :param nargs: the number of expected arguments. This can either be
+            a single value or a list containing a lower and an upper value.
 
-        :raises ValueError: if the kernel metadata does not contain \
+        :raises ValueError: if the kernel metadata does not contain
             the expected number of arguments (nargs).
 
         '''
@@ -103,11 +103,11 @@ class CommonArgMetadata(CommonMetadata):
         Structure_Constructor which captures a metadata argument.
 
         :param fparser2_tree: fparser2 tree capturing a metadata argument.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` |
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
         :param str type_name: the name of the argument datatype.
 
-        :raises ValueError: if the kernel metadata is not in \
+        :raises ValueError: if the kernel metadata is not in
             the form arg_type(...).
 
         '''
@@ -149,6 +149,50 @@ class CommonArgMetadata(CommonMetadata):
         except IndexError:
             # Metadata at the specified index does not exist.
             return None
+
+    @staticmethod
+    def get_named_arg(fparser2_tree: fp_utils.Base,
+                      name: str
+                      ) -> Optional[str]:
+        '''
+        Searches the supplied metadata for 'name=value' expressions and
+        returns the value corresponding to the supplied name if found.
+        Otherwise returns None. If the value is a string then it is
+        lower-cased.
+
+        :param fparser2_tree: the parse tree of the metadata.
+        :param name: the name of the metadata element that we want.
+
+        :returns: the value of the named metadata element or None if not found.
+
+        '''
+        for child in fp_utils.walk(fparser2_tree, Fortran2003.Component_Spec):
+            if child.children[0].tostr().lower() == name:
+                text = child.children[1].tostr()
+                if isinstance(child.children[1],
+                              Fortran2003.Char_Literal_Constant):
+                    # TODO fparser/#295 - fparser keeps the quotation marks
+                    # in character strings.
+                    return text[1:-1].lower()
+                return text
+        return None
+
+    @staticmethod
+    def _validate_named_args(fparser2_tree: fp_utils.Base,
+                             valid_names: list[str]) -> None:
+        '''
+        Checks that any named arguments in the supplied parse tree match
+        with the names in `valid_names`.
+
+        :raises ValueError: if an unsupported named argument is found in
+            the supplied metadata.
+        '''
+        for child in fp_utils.walk(fparser2_tree, Fortran2003.Component_Spec):
+            name = child.children[0].tostr().lower()
+            if name not in valid_names:
+                raise ValueError(
+                    f"Kernel metadata contains keyword argument '{name}' "
+                    f"which is not one of the valid options: {valid_names}.")
 
 
 __all__ = ["CommonArgMetadata"]

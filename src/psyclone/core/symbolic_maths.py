@@ -50,10 +50,13 @@ class SymbolicMaths:
     provides convenience functions for PSyclone. It has a Singleton
     access, e.g.:
 
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.core import SymbolicMaths
     >>> sympy = SymbolicMaths.get()
-    >>> # Assume lhs is the PSyIR of 'i+j', and rhs is 'j+i'
+    >>> reader = FortranReader()
+    >>> lhs = reader.psyir_from_expression('i+j')
+    >>> rhs = reader.psyir_from_expression('j+i')
     >>> if sympy.equal(lhs, rhs):
     ...     writer = FortranWriter()
     ...     print(f"'{writer(lhs)}' and '{writer(rhs)}' are equal.")

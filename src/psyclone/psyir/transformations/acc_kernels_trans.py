@@ -67,18 +67,40 @@ class ACCKernelsTrans(RegionTrans):
 
     For example:
 
-    >>> from psyclone.psyir.frontend import FortranReader
-    >>> psyir = FortranReader().psyir_from_source(NEMO_SOURCE_FILE)
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.tests.utilities import get_examples_path
+    >>> filename = get_examples_path("nemo/code/tra_adv.F90")
+    >>> psyir = FortranReader().psyir_from_file(filename)
     >>>
     >>> from psyclone.psyir.transformations import ACCKernelsTrans
+    >>> from psyclone.psyir.nodes import Loop
     >>> ktrans = ACCKernelsTrans()
     >>>
-    >>> schedule = psyir.children[0]
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>> kernels = schedule.children[9]
-    >>> # Transform the kernel
-    >>> ktrans.apply(kernels)
+    >>> # Get the first outer-loop
+    >>> loop = psyir.children[0].walk(Loop)[0]
+    >>> # Add a kernels construct for execution on the device
+    >>> ktrans.apply(loop)
+    >>>
+    >>> # Print the resulting code
+    >>> kernel = loop.parent.parent
+    >>> print(kernel.debug_string())
+    !$acc kernels
+    do jk = 1, jpk, 1
+      do jj = 1, jpj, 1
+        do ji = 1, jpi, 1
+          umask(ji,jj,jk) = ji * jj * jk / r
+          mydomain(ji,jj,jk) = ji * jj * jk / r
+          pun(ji,jj,jk) = ji * jj * jk / r
+          pvn(ji,jj,jk) = ji * jj * jk / r
+          pwn(ji,jj,jk) = ji * jj * jk / r
+          vmask(ji,jj,jk) = ji * jj * jk / r
+          tsn(ji,jj,jk) = ji * jj * jk / r
+          tmask(ji,jj,jk) = ji * jj * jk / r
+        enddo
+      enddo
+    enddo
+    !$acc end kernels
+    <BLANKLINE>
 
     '''
     excluded_node_types = (CodeBlock, Return, PSyDataNode,
