@@ -248,7 +248,7 @@ InvokeSchedule[invoke='invoke_0', dm=False]
         Reference[name:'loop0_stop']
         Literal[value:'1']
         Schedule[]
-            CodedKern matrix_vector_kernel_code(m_lumped,ones,mb) [module_inline=False]
+            CodedKern matrix_vector_kernel_code(m_lumped,ones,mb)
     Loop[type='dofs', field_space='any_space_1', it_space='dofs', upper_bound='ndofs']
         Reference[name:'loop1_start']
         Reference[name:'loop1_stop']

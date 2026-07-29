@@ -202,7 +202,7 @@ class GOOpenCLTrans(Transformation):
         # any form of global data (that is not a routine argument or just
         # type information).
         for kern in node.kernels():
-            if not kern.module_inline:
+            if kern.routine.symbol.is_import:
                 KernelModuleInlineTrans().validate(kern)
             for ksched in kern.get_callees():
 
