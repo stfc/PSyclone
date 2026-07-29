@@ -288,7 +288,7 @@ holding the loop bounds have been omitted for all but the first loop):
                             ...
                             Schedule[]
                                 0: CodedKern compute_unew_code(unew_fld,uold_fld,z_fld,
-                                           cv_fld,h_fld,tdt,dy) [module_inline=False]
+                                           cv_fld,h_fld,tdt,dy)
                 1: Loop[type='outer',field_space='cv',it_space='internal_pts']
                     ...
                     Schedule[]
@@ -296,7 +296,7 @@ holding the loop bounds have been omitted for all but the first loop):
                             ...
                             Schedule[]
                                 0: CodedKern compute_vnew_code(vnew_fld,vold_fld,z_fld,
-                                           cu_fld,h_fld,tdt,dy) [module_inline=False]
+                                           cu_fld,h_fld,tdt,dy)
                 2: Loop[type='outer',field_space='ct',it_space='internal_pts']
                     ...
                     Schedule[]
@@ -304,7 +304,7 @@ holding the loop bounds have been omitted for all but the first loop):
                             ...
                             Schedule[]
                                 0: CodedKern compute_pnew_code(pnew_fld,pold_fld,cu_fld,
-                                           cv_fld,tdt,dx,dy) [module_inline=False]
+                                           cv_fld,tdt,dx,dy)
 
 And now the same schedule when instrumenting kernels. In this case
 each loop nest and kernel call will be contained in a separate
@@ -325,7 +325,7 @@ region:
                             ...
                             Schedule[]
                                 0: CodedKern compute_unew_code(unew_fld,uold_fld,z_fld,
-                                        cv_fld,h_fld,tdt,dy) [module_inline=False]
+                                        cv_fld,h_fld,tdt,dy)
         1: [Profile]
             Schedule[]
                 0: Loop[type='outer',field_space='go_cv',it_space='go_internal_pts']
@@ -336,7 +336,7 @@ region:
                                 ...
                                 Schedule[]
                                     0: CodedKern compute_vnew_code(vnew_fld,vold_fld,z_fld,
-                                        cu_fld,h_fld,tdt,dy) [module_inline=False]
+                                        cu_fld,h_fld,tdt,dy)
         2: [Profile]
             Schedule[]
                 0: Loop[type='outer',field_space='go_ct',it_space='go_internal_pts']
@@ -347,7 +347,7 @@ region:
                             ...
                             Schedule[]
                                 0: CodedKern compute_pnew_code(pnew_fld,pold_fld,
-                                        cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
+                                        cu_fld,cv_fld,tdt,dx,dy)
 
 Both options can be specified at the same time:
 
@@ -369,7 +369,7 @@ Both options can be specified at the same time:
                                     ...
                                     Schedule[]
                                         0: CodedKern compute_unew_code(unew_fld,uold_fld,
-                                                ...) [module_inline=False]
+                                                ...)
                 1: [Profile]
                     Schedule[]
                         0: Loop[type='outer',field_space='go_cv',
@@ -381,7 +381,7 @@ Both options can be specified at the same time:
                                         ...
                                         Schedule[]
                                             0: CodedKern compute_vnew_code(vnew_fld,vold_fld,
-                                                ...) [module_inline=False]
+                                                ...)
                 2: [Profile]
                     Schedule[]
                         0: Loop[type='outer',field_space='go_ct',
@@ -393,7 +393,7 @@ Both options can be specified at the same time:
                                     ...
                                     Schedule[]
                                         0: CodedKern compute_pnew_code(pnew_fld,pold_fld,
-                                                ...) [module_inline=False]
+                                                ...)
 
 
 Profiling in Scripts - ``ProfileTrans``
@@ -544,7 +544,6 @@ For the :ref:`LFRic <lfric-api>` and
                               Literal[value:'1', DataType.INTEGER]
                               Schedule[]
                                   0: CodedKern testkern_code(a,f1,f2,m1,m2)
-                                     [module_inline=False]
 
     This is the code created for this example:
 
