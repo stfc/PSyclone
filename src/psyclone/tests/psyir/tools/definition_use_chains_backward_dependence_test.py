@@ -1167,7 +1167,7 @@ def test_backward_access_unsupported_ref_in_codeblock(fortran_reader):
     assert isinstance(assign.lhs.datatype, UnsupportedType)
 
     assert len(reaches) == 1
-    assert reaches[0] is psyir.walk(CodeBlock)[1]
+    assert reaches[0] is psyir.walk(CodeBlock)[1].children[0]
 
 
 def test_backward_accesses_unsupported_lhs_in_loop(fortran_reader):

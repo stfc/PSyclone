@@ -539,6 +539,25 @@ class DefinitionUseChain:
         self._stop_point = save_stop_position
         return self._reaches
 
+    def _check_forward_parent_codeblock(self, reference: Reference) -> None:
+        """
+        Updates the defsout and killed dicts when a Codeblock is found
+        as a parent of a Reference during _compute_forward_uses.
+
+        :param reference: The Reference contained in a CodeBlock.
+
+        """
+        for i, ref in enumerate(self._references[:]):
+            if ref.symbol.is_automatic:
+                continue  # We use the standard reference logic
+            # If not, assume the worst for a CodeBlock and we count
+            # them as killed and defsout and uses.
+            sig = self._reference_signatures[i]
+            if self._defsout[sig]:
+                self._killed[sig].extend(self._defsout[sig])
+                self._defsout[sig] = []
+            self._defsout[sig].append(reference)
+
     def _check_forward_codeblock(self, reference: CodeBlock) -> bool:
         """
         Updates the defsout and killed dicts when a CodeBlock is
@@ -585,18 +604,6 @@ class DefinitionUseChain:
                             self._defsout[sig] = []
                         self._defsout[sig].append(reference)
                 continue
-            # Otherwise we check if ref appears in the CodeBlock.
-            if (
-                ref.symbol.name
-                in reference.get_symbol_names()
-            ):
-                # Assume the worst for a CodeBlock and we count
-                # them as killed and defsout.
-                sig = self._reference_signatures[i]
-                if self._defsout[sig]:
-                    self._killed[sig].extend(self._defsout[sig])
-                    self._defsout[sig] = []
-                self._defsout[sig].append(reference)
         return False
 
     def _check_forward_call(self, reference: Call) -> None:
@@ -665,7 +672,7 @@ class DefinitionUseChain:
                 # this is a use.
                 if not self._defsout[sig]:
                     self._uses[sig].append(reference)
-        elif reference.ancestor(Call):
+        elif reference.ancestor((Call, CodeBlock)):
             # Otherwise we assume read/write access for now.
             if self._defsout[sig]:
                 self._killed[sig].extend(self._defsout[sig])
@@ -791,15 +798,7 @@ class DefinitionUseChain:
                         reference.parent.arguments[0] is reference):
                     continue
                 if isinstance(reference.parent, CodeBlock):
-                    for i, ref in enumerate(self._references[:]):
-                        if ref.symbol.is_automatic:
-                            continue  # We use the standard reference logic
-                        # If not, assume the worst for a CodeBlock and we count
-                        # them as killed and defsout and uses.
-                        sig = self._reference_signatures[i]
-                        if defs_out[sig] is not None:
-                            self._killed[sig].append(defs_out[sig])
-                        defs_out[sig] = reference
+                    self._check_forward_parent_codeblock(reference)
                 if isinstance(reference, CodeBlock):
                     stop = self._check_forward_codeblock(reference)
                     if stop:
@@ -985,15 +984,6 @@ class DefinitionUseChain:
                         self._defsout[sig].append(reference)
                 continue
 
-            if (ref.symbol.name in reference.get_symbol_names()):
-                # Assume the worst for a CodeBlock and we count
-                # them as killed and defsout.
-                sig = self._reference_signatures[i]
-                if self._defsout[sig]:
-                    self._killed[sig].extend(self._defsout[sig])
-                    self._defsout[sig] = []
-                self._defsout[sig].append(reference)
-
     def _check_backward_call(self, reference: Call) -> None:
         """
         Updates the defsout, uses, and killed dicts when a Call is
@@ -1083,7 +1073,7 @@ class DefinitionUseChain:
                 # this is a use.
                 if not self._defsout[sig]:
                     self._uses[sig].append(reference)
-        elif reference.ancestor(Call):
+        elif reference.ancestor((Call, CodeBlock)):
             # Otherwise we assume read/write access for now.
             if self._defsout[sig]:
                 self._killed[sig].extend(self._defsout[sig])
@@ -1159,6 +1149,25 @@ class DefinitionUseChain:
                 if not self._defsout[sig]:
                     self._uses[sig].append(reference)
 
+    def _check_backward_parent_codeblock(self, reference: Reference) -> None:
+        """
+        Updates the defsout and killed dicts when a Codeblock is found
+        as a parent of a Reference during _compute_backward_uses.
+
+        :param reference: The Reference contained in a CodeBlock.
+
+        """
+        for i, ref in enumerate(self._references[:]):
+            if ref.symbol.is_automatic:
+                continue  # We use the standard reference logic
+            # If not, assume the worst for a CodeBlock and we count
+            # them as killed and defsout and uses.
+            sig = self._reference_signatures[i]
+            if self._defsout[sig]:
+                self._killed[sig].extend(self._defsout[sig])
+                self._defsout[sig] = []
+            self._defsout[sig].append(reference)
+
     def _compute_backward_uses(self, basic_block_list: list[Node]) -> None:
         """
         Compute the backward uses for self._reference for the
@@ -1220,15 +1229,7 @@ class DefinitionUseChain:
                         reference.parent.arguments[0] is reference):
                     continue
                 if isinstance(reference.parent, CodeBlock):
-                    for i, ref in enumerate(self._references[:]):
-                        if ref.symbol.is_automatic:
-                            continue  # We use the standard reference logic
-                        # If not, assume the worst for a CodeBlock and we count
-                        # them as killed and defsout and uses.
-                        sig = self._reference_signatures[i]
-                        if defs_out[sig] is not None:
-                            self._killed[sig].append(defs_out[sig])
-                        defs_out[sig] = reference
+                    self._check_backward_parent_codeblock(reference)
                 if isinstance(reference, CodeBlock):
                     # CodeBlocks only find symbols, so we can only do as good
                     # as checking the symbol - this means we can get false
