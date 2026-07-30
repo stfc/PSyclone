@@ -220,7 +220,8 @@ class DataSymbol(TypedSymbol):
             Assignment, Node, Literal, Operation, Reference,
             CodeBlock, Call, ArrayConstructor)
         from psyclone.psyir.symbols.datatypes import (
-            ScalarType, ArrayType, UnsupportedType, DataTypeSymbol)
+            ScalarType, ArrayType, UnsupportedType, DataTypeSymbol
+        )
 
         if new_value is not None:
             if self.is_argument:
@@ -233,9 +234,9 @@ class DataSymbol(TypedSymbol):
                                UnsupportedType, DataTypeSymbol)):
                 raise ValueError(
                     f"Error setting initial value for symbol '{self.name}'. "
-                    f"A DataSymbol with an initial value must be a scalar or "
-                    f"an array or DataTypeSymbol or UnsupportedType but found "
-                    f"'{type(self.datatype).__name__}'.")
+                    f"A DataSymbol with an initial value must be a scalar, "
+                    f"an array, a DataTypeSymbol, or an UnsupportedType but "
+                    f"found '{type(self.datatype).__name__}'.")
 
             if isinstance(new_value, Node):
                 for node in new_value.walk(Node):
