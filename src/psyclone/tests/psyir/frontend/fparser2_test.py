@@ -947,6 +947,25 @@ def test_decln_structure_type(fortran_reader):
                       DataTypeSymbol)
 
 
+def test_decln_array_of_structure_type(fortran_reader):
+    '''
+    Check that the frontend allows initialisers containing
+    an array-of-structures constructor.
+    '''
+    code = '''
+    module my_mod
+    use some_other_mod
+    contains
+    subroutine my_sub
+       type(some_type) :: x(1) = [some_type()]
+    end subroutine my_sub
+    end module my_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert isinstance(routine.symbol_table.lookup('x').datatype, ArrayType)
+
+
 @pytest.mark.usefixtures("f2008_parser")
 def test_unsupported_decln_duplicate_symbol():
     ''' Check that we raise the expected error when an unsupported declaration
