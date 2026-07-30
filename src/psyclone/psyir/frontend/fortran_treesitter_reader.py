@@ -40,6 +40,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 import logging
 from typing import Callable, Iterable, Iterator, Optional, TYPE_CHECKING, Union
+from collections.abc import Generator
 
 from psyclone.psyir import nodes, symbols
 from psyclone.psyir.nodes.codeblock import TreeSitterCodeBlock, CodeBlock
@@ -75,6 +76,35 @@ def to_str(node: 'TSNode') -> str:
     :returns: the string representing the node in utf8.
     '''
     return node.text.decode('utf8') if node.text else ""
+
+
+def direct_child_of_type(
+    tsnode: Optional['TSNode'], node_type: str
+) -> Generator['TSNode']:
+    '''Return the first direct child having the supplied type.
+
+    :param tsnode: tree-sitter node whose children are searched.
+    :param node_type: tree-sitter type to find.
+
+    :returns: matching child, or ``None`` if no child matches.
+    '''
+    if tsnode:
+        for child in tsnode.children:
+            if child.type == node_type:
+                yield child
+
+
+def next_of_type(
+    tsnode: Optional['TSNode'], node_type: str
+) -> Optional['TSNode']:
+    '''Return the first direct child having the supplied type.
+
+    :param tsnode: tree-sitter node whose children are searched.
+    :param node_type: tree-sitter type to find.
+
+    :returns: matching child, or ``None`` if no child matches.
+    '''
+    return next(direct_child_of_type(tsnode, node_type), None)
 
 
 @dataclass(frozen=True)
@@ -209,7 +239,7 @@ class FortranTreeSitterReader():
         self._current_scope: Optional[symbols.SymbolTable] = None
 
     # ---------------------------------------------------------------------
-    # Source parsing and generic dispatch
+    # Public methods
     # ---------------------------------------------------------------------
 
     def generate_parse_tree_from_file(self, file_path) -> 'TSNode':
@@ -271,18 +301,76 @@ class FortranTreeSitterReader():
 
         :returns: the equivalent PSyIR Node.
         '''
-        return self.process_nodes(parse_tree)[0]
+        return self._process_nodes(parse_tree)[0]
 
-    def process_nodes(
+    # Utility methods
+
+    @contextmanager
+    def _using_scope(
+        self, symtab: symbols.SymbolTable
+    ) -> Iterator[None]:
+        ''' Make the given symtab the new parsing scope, but keep a reference
+        to the previous scope in order to restore it when leaving this new
+        scope (by graceful exit or an exception).
+
+        :param symtab: symbol table for the scope being translated.
+
+        :yields: while ``symtab`` is the reader's current scope.
+        '''
+        previous_scope = self._current_scope
+        self._current_scope = symtab
+        try:
+            yield
+        finally:
+            self._current_scope = previous_scope
+
+    @contextmanager
+    def _using_temporary_scope(
+        self, parent: nodes.ScopingNode
+    ) -> Iterator[nodes.ScopingNode]:
+        '''
+        Like `_using_scope`, but it creates a dummy symbol_table and scope,
+        soft linked to the current parent. This is useful to create disposable
+        symbol tables when the resulting PSyIR does not need them, but they
+        still need to be linked to the parent scope.
+
+        For example in the body of a derived type:
+
+        .. code-block:: fortran
+
+        module m
+           integer, parameter :: size = 10
+           type myt
+              integer, dimension(size) :: array
+           end type
+        end module
+
+        :param parent: real host scope used for lexical lookup.
+
+        :yields: disposable ScopingNode.
+        '''
+        symtab = symbols.SymbolTable()
+        temporary_scope = nodes.ScopingNode(symbol_table=symtab)
+        # This intentionally bypasses child validation.
+        # pylint: disable=protected-access
+        temporary_scope._parent = parent
+        self._current_scope = symtab
+        try:
+            yield temporary_scope
+        finally:
+            # Remove soft link
+            temporary_scope._parent = None
+            symtab.detach()
+            self._current_scope = parent.symbol_table
+
+    def _process_nodes(
         self,
         tsnodes: Union["TSNode", Iterable["TSNode"]],
     ):
-        '''Create PSyIR for one or more tree-sitter nodes.
-
-        This is the statement-boundary dispatcher. Unsupported syntax is
+        '''
+        This is the tsnodes handler dispatcher. Unsupported syntax is
         deliberately caught here rather than in individual handlers so that
-        nested expression failures replace their whole Fortran statement with
-        one valid CodeBlock.
+        contiguours unsupprted nodes are places in a single CodeBlock.
 
         :param tsnodes: one tree-sitter node or an iterable of nodes.
 
@@ -365,65 +453,6 @@ class FortranTreeSitterReader():
                 f"Unsupported '{tsnode.type}' tree-sitter node.") from None
         return handler
 
-    @contextmanager
-    def _using_scope(
-        self, symtab: symbols.SymbolTable
-    ) -> Iterator[None]:
-        ''' Make the given symtab the new parsing scope, but keep a reference
-        to the previous scope in order to restore it when leaving this new
-        scope (by graceful exit or an exception).
-
-        :param symtab: symbol table for the scope being translated.
-
-        :yields: while ``symtab`` is the reader's current scope.
-        '''
-        previous_scope = self._current_scope
-        self._current_scope = symtab
-        try:
-            yield
-        finally:
-            self._current_scope = previous_scope
-
-    @contextmanager
-    def _using_temporary_scope(
-        self, parent: nodes.ScopingNode
-    ) -> Iterator[nodes.ScopingNode]:
-        '''
-        Like `_using_scope`, but it creates a dummy symbol_table and scope,
-        soft linked to the current parent. This is useful to create disposable
-        symbol tables when the resulting PSyIR does not need them, but they
-        still need to be linked to the parent scope.
-
-        For example in the body of a derived type:
-
-        .. code-block:: fortran
-
-        module m
-           integer, parameter :: size = 10
-           type myt
-              integer, dimension(size) :: array
-           end type
-        end module
-
-        :param parent: real host scope used for lexical lookup.
-
-        :yields: disposable ScopingNode.
-        '''
-        symtab = symbols.SymbolTable()
-        temporary_scope = nodes.ScopingNode(symbol_table=symtab)
-        # This intentionally bypasses child validation.
-        # pylint: disable=protected-access
-        temporary_scope._parent = parent
-        self._current_scope = symtab
-        try:
-            yield temporary_scope
-        finally:
-            # Calling Node.detach() would be incorrect because the temporary
-            # scope was never inserted into the parent's child list.
-            temporary_scope._parent = None
-            symtab.detach()
-            self._current_scope = parent.symbol_table
-
     @staticmethod
     @contextmanager
     def _temporary_parent(
@@ -490,7 +519,6 @@ class FortranTreeSitterReader():
                 node.symbol_table.remove(symbol)
             symbol.interface = original_interface
 
-
     # ---------------------------------------------------------------------
     # Parse-tree navigation and Fortran scope handlers
     # ---------------------------------------------------------------------
@@ -507,33 +535,9 @@ class FortranTreeSitterReader():
         file_container = nodes.FileContainer("")
         with self._using_scope(file_container.symbol_table):
             file_container.children.extend(
-                self.process_nodes(tsnode.children)
+                self._process_nodes(tsnode.children)
             )
         return file_container
-
-    @staticmethod
-    def _child(tsnode: 'TSNode', node_type: str) -> Optional['TSNode']:
-        '''Return the first direct child having the supplied type.
-
-        :param tsnode: tree-sitter node whose children are searched.
-        :param node_type: tree-sitter type to find.
-
-        :returns: matching child, or ``None`` if no child matches.
-        '''
-        return next((child for child in tsnode.children
-                     if child.type == node_type), None)
-
-    @staticmethod
-    def _children(tsnode: 'TSNode', *node_types: str) -> list['TSNode']:
-        '''Return direct children having one of the supplied types.
-
-        :param tsnode: tree-sitter node whose children are searched.
-        :param node_types: tree-sitter types to find.
-
-        :returns: children whose type is in ``node_types``.
-        '''
-        return [child for child in tsnode.children
-                if child.type in node_types]
 
     @staticmethod
     def _split_extent(
@@ -570,8 +574,8 @@ class FortranTreeSitterReader():
         :raises NotImplementedError: if the module has an unsupported child.
         :raises NotImplementedError: if the module permits implicit variables.
         '''
-        statement = self._child(tsnode, "module_statement")
-        name = self._child(statement, "name") if statement else None
+        statement = next_of_type(tsnode, "module_statement")
+        name = next_of_type(statement, "name")
         if not any(child.type == "implicit_statement" and
                    "none" in [item.type for item in child.children]
                    for child in tsnode.children):
@@ -585,15 +589,15 @@ class FortranTreeSitterReader():
             unsupported_specs = self._process_specification_part(
                 tsnode.children)
 
-            internal = self._child(tsnode, "internal_procedures")
+            internal = next_of_type(tsnode, "internal_procedures")
             container.children.extend(unsupported_specs)
             if internal:
                 container.children.extend(
-                    self.process_nodes(
+                    self._process_nodes(
                         [child for child in internal.children
                          if child.type != "contains_statement"]))
 
-            container.children.extend(self.process_nodes(
+            container.children.extend(self._process_nodes(
                 [child for child in tsnode.children
                  if child.type not in self._MODULE_NON_EXECUTABLE_TYPES]))
             self._apply_visibility(visibility_map)
@@ -664,11 +668,10 @@ class FortranTreeSitterReader():
         if parent_symtab is None:
             raise RuntimeError(
                 "A Routine must be translated within a current scope")
-        statement = self._child(tsnode, f"{routine_kind}_statement")
-        name_node = self._child(statement, "name") if statement else None
+        statement = next_of_type(tsnode, f"{routine_kind}_statement")
+        name_node = next_of_type(statement, "name")
         name = to_str(name_node) if name_node else routine_kind
-        parameters = (self._child(statement, "parameters")
-                      if statement else None)
+        parameters = next_of_type(statement, "parameters")
         argument_names = tuple(
             to_str(child) for child in parameters.children
             if child.type == "identifier") if parameters else ()
@@ -718,7 +721,7 @@ class FortranTreeSitterReader():
                 }
                 specification.update(self._SPECIFICATION_TYPES)
                 routine.children.extend(unsupported_specs)
-                routine.children.extend(self.process_nodes(
+                routine.children.extend(self._process_nodes(
                     [child for child in tsnode.children
                      if child.type not in specification]))
                 self._apply_visibility(visibility_map)
@@ -740,8 +743,8 @@ class FortranTreeSitterReader():
         if routine_kind != "function":
             return None, None
 
-        result = self._child(statement, "function_result")
-        result_name = self._child(result, "identifier") if result else None
+        result = next_of_type(statement, "function_result")
+        result_name = next_of_type(result, "identifier")
         return_name = to_str(result_name) if result_name else routine_name
         type_node = next(
             (child for child in statement.children
@@ -866,7 +869,9 @@ class FortranTreeSitterReader():
             raise NotImplementedError(
                 "A variable declaration has no supported type specification")
 
-        qualifiers = self._children(tsnode, "type_qualifier")
+        # qualifiers = direct_child_of_type(tsnode, "type_qualifier")
+        qualifiers = [child for child in tsnode.children
+                      if child.type == "type_qualifier"]
         qualifier_names = frozenset(
             child.children[0].type
             for child in qualifiers if child.children)
@@ -880,8 +885,7 @@ class FortranTreeSitterReader():
             base_type = None
 
         dimension = next(
-            (self._child(item, "argument_list")
-             for item in qualifiers
+            (next_of_type(item, "argument_list") for item in qualifiers
              if item.children and item.children[0].type == "dimension"), None)
         intent = next(
             (item for item in qualifiers
@@ -891,7 +895,6 @@ class FortranTreeSitterReader():
             frozenset(unsupported),
             to_str(tsnode).split("::", maxsplit=1)[0].strip())
 
-        
         for declarator in tsnode.children:
             if declarator.type in (
                     "identifier", "sized_declarator", "init_declarator"):
@@ -906,7 +909,7 @@ class FortranTreeSitterReader():
         :param common_attr: properties shared by the complete declaration.
         '''
         id_node = (declarator if declarator.type == "identifier"
-                      else self._child(declarator, "identifier"))
+                   else next_of_type(declarator, "identifier"))
         name = to_str(id_node)
         datatype, initial_value = self._declarator_datatype(
             declarator, common_attr)
@@ -957,7 +960,7 @@ class FortranTreeSitterReader():
         # Array shape and initialisation belong to an individual entity, so
         # derive a fresh datatype from the common base type.
         datatype = common_attr.base_type
-        shape_node = self._child(declarator, "size") or common_attr.dimension
+        shape_node = next_of_type(declarator, "size") or common_attr.dimension
         is_allocatable = "allocatable" in common_attr.qualifiers
         if datatype and shape_node:
             try:
@@ -1055,7 +1058,7 @@ class FortranTreeSitterReader():
         symtab = self._current_scope
         if tsnode.type == "derived_type":
             keyword = tsnode.children[0].type
-            name_node = self._child(tsnode, "type_name")
+            name_node = next_of_type(tsnode, "type_name")
             name = to_str(name_node)
             if keyword == "class":
                 raise NotImplementedError(
@@ -1082,7 +1085,7 @@ class FortranTreeSitterReader():
                 f"Intrinsic type '{intrinsic}' has no PSyIR representation")
         precision = symbols.ScalarType.Precision.UNDEFINED
         length = None
-        kind_node = self._child(tsnode, "kind")
+        kind_node = next_of_type(tsnode, "kind")
         if kind_node:
             values = [child for child in kind_node.children
                       if child.type not in ("(", ")")]
@@ -1264,10 +1267,10 @@ class FortranTreeSitterReader():
             existing non-container symbol.
         '''
         symtab = self._current_scope
-        module_node = self._child(tsnode, "module_name")
+        module_node = next_of_type(tsnode, "module_name")
         module_name = to_str(module_node)
         intrinsic = any(child.type == "intrinsic" for child in tsnode.children)
-        included = self._child(tsnode, "included_items")
+        included = next_of_type(tsnode, "included_items")
         wildcard = included is None
         try:
             container = symtab.lookup(module_name)
@@ -1332,14 +1335,13 @@ class FortranTreeSitterReader():
             existing non-datatype symbol.
         '''
         symtab = self._current_scope
-        statement = self._child(tsnode, "derived_type_statement")
-        name_node = self._child(statement, "type_name") if statement else None
+        statement = next_of_type(tsnode, "derived_type_statement")
+        name_node = next_of_type(statement, "type_name")
         name = to_str(name_node)
         unsupported = any(child.type == "derived_type_procedures"
                           for child in tsnode.children)
         datatype = None
         if not unsupported:
-            component_table = symbols.SymbolTable()
             parent = symtab.node
             if not isinstance(parent, nodes.ScopingNode):
                 raise RuntimeError(
@@ -1348,7 +1350,7 @@ class FortranTreeSitterReader():
                 visibility_map = self._process_access_statements(
                     tsnode.children)
                 try:
-                    for declaration in self._children(
+                    for declaration in direct_child_of_type(
                             tsnode, "variable_declaration"):
                         self._variable_declaration_handler(declaration)
                     self._apply_visibility(visibility_map)
@@ -1364,7 +1366,7 @@ class FortranTreeSitterReader():
             datatype = symbols.UnsupportedFortranType(to_str(tsnode).strip())
 
         visibility = symtab.default_visibility
-        access = self._child(statement, "access_specifier")
+        access = next_of_type(statement, "access_specifier")
         if access:
             visibility = (symbols.Symbol.Visibility.PRIVATE
                           if "private" in to_str(access).lower() else
@@ -1392,17 +1394,17 @@ class FortranTreeSitterReader():
             unsupported.
         '''
         symtab = self._current_scope
-        statement = self._child(tsnode, "interface_statement")
-        name_node = (self._child(statement, "name") if statement else None)
+        statement = next_of_type(tsnode, "interface_statement")
+        name_node = next_of_type(statement, "name")
         if not name_node:
             raise NotImplementedError(
                 "Abstract and operator interfaces are not supported")
         name = to_str(name_node)
         routines = []
-        for procedure in self._children(tsnode, "procedure_statement"):
+        for procedure in direct_child_of_type(tsnode, "procedure_statement"):
             from_container = "module" in [
                 child.type for child in procedure.children[0].children]
-            for method in self._children(procedure, "method_name"):
+            for method in direct_child_of_type(procedure, "method_name"):
                 routine_name = to_str(method)
                 try:
                     routine = symtab.lookup(routine_name)
@@ -1559,9 +1561,9 @@ class FortranTreeSitterReader():
         if name_node.type == "derived_type_member_expression":
             return self._structure_reference(
                 name_node,
-                trailing_arguments=self._child(tsnode, "argument_list"))
+                trailing_arguments=next_of_type(tsnode, "argument_list"))
         name = to_str(name_node).lower()
-        argument_list = self._child(tsnode, "argument_list")
+        argument_list = next_of_type(tsnode, "argument_list")
         try:
             symbol = self._lookup(name)
         except KeyError:
@@ -1742,7 +1744,7 @@ class FortranTreeSitterReader():
             base = tsnode.children[0]
             name, indices, members = self._decompose_structure(base)
             arguments = self._arguments(
-                self._child(tsnode, "argument_list"))
+                next_of_type(tsnode, "argument_list"))
             if any(isinstance(arg, tuple) for arg in arguments):
                 raise NotImplementedError(
                     "Named arguments in structure accesses are not supported")
@@ -1754,7 +1756,7 @@ class FortranTreeSitterReader():
         if tsnode.type == "derived_type_member_expression":
             name, indices, members = self._decompose_structure(
                 tsnode.children[0])
-            member = self._child(tsnode, "type_member")
+            member = next_of_type(tsnode, "type_member")
             if member is None:
                 raise NotImplementedError(
                     "Malformed structure component access")
@@ -1774,7 +1776,7 @@ class FortranTreeSitterReader():
 
         :raises NotImplementedError: for an implied-DO constructor.
         '''
-        if self._child(tsnode, "implied_do_loop_expression"):
+        if next_of_type(tsnode, "implied_do_loop_expression"):
             raise NotImplementedError(
                 "Array constructors with implied-DO loops are not supported")
         elems = [self._expression(child) for child in tsnode.children
@@ -1881,7 +1883,7 @@ class FortranTreeSitterReader():
         if not isinstance(symbol, symbols.RoutineSymbol):
             raise NotImplementedError(
                 f"Called object '{name}' is not a routine")
-        args = self._arguments(self._child(tsnode, "argument_list"))
+        args = self._arguments(next_of_type(tsnode, "argument_list"))
         return nodes.Call.create(symbol, args)
 
     def _keyword_statement_handler(
@@ -1912,7 +1914,7 @@ class FortranTreeSitterReader():
 
         :raises NotImplementedError: if the statement has no condition.
         '''
-        condition_node = self._child(tsnode, "parenthesized_expression")
+        condition_node = next_of_type(tsnode, "parenthesized_expression")
         if not condition_node:
             raise NotImplementedError("IF statement has no condition")
         structural = {
@@ -1921,15 +1923,15 @@ class FortranTreeSitterReader():
         }
         body_nodes = [child for child in tsnode.children
                       if child.type not in structural]
-        else_clause = self._child(tsnode, "else_clause")
-        else_ifs = self._children(tsnode, "elseif_clause")
+        else_clause = next_of_type(tsnode, "else_clause")
+        else_ifs = list(direct_child_of_type(tsnode, "elseif_clause"))
         annotations = []
-        if not self._child(tsnode, "end_if_statement"):
+        if not next_of_type(tsnode, "end_if_statement"):
             annotations.append("was_single_stmt")
-        if_body = self.process_nodes(body_nodes)
+        if_body = self._process_nodes(body_nodes)
         else_body = None
         if else_clause:
-            else_body = self.process_nodes(
+            else_body = self._process_nodes(
                 [child for child in else_clause.children
                  if child.type != "else"])
         for else_if in reversed(else_ifs):
@@ -1950,19 +1952,19 @@ class FortranTreeSitterReader():
 
         :returns: annotated PSyIR IfBlock.
         '''
-        condition = self._child(tsnode, "parenthesized_expression")
+        condition = next_of_type(tsnode, "parenthesized_expression")
         structural = {"else", "if", "parenthesized_expression", "then",
                       "else_clause", "elseif_clause"}
-        body = self.process_nodes(
+        body = self._process_nodes(
             [child for child in tsnode.children
              if child.type not in structural])
-        trailing = self._child(tsnode, "elseif_clause")
+        trailing = next_of_type(tsnode, "elseif_clause")
         otherwise = (
             [self._if_clause(trailing, final_else)] if trailing else
-            self.process_nodes(
+            self._process_nodes(
                 [child for child in
-                 (self._child(tsnode, "else_clause").children
-                  if self._child(tsnode, "else_clause") else [])
+                 (next_of_type(tsnode, "else_clause").children
+                  if next_of_type(tsnode, "else_clause") else [])
                  if child.type != "else"]) or final_else)
         result = nodes.IfBlock.create(
             self._expression(condition), body, otherwise)
@@ -1980,10 +1982,10 @@ class FortranTreeSitterReader():
 
         :raises NotImplementedError: if counted-loop control is unsupported.
         '''
-        statement = self._child(tsnode, "do_statement")
-        control = self._child(statement, "loop_control_expression")
-        while_node = self._child(statement, "while_statement")
-        body = self.process_nodes(
+        statement = next_of_type(tsnode, "do_statement")
+        control = next_of_type(statement, "loop_control_expression")
+        while_node = next_of_type(statement, "while_statement")
+        body = self._process_nodes(
             [child for child in tsnode.children
              if child.type not in ("do_statement",
                                    "end_do_loop_statement")])
@@ -2011,7 +2013,7 @@ class FortranTreeSitterReader():
                 variable, self._expression(parts[1]),
                 self._expression(parts[2]), step, body)
         if while_node:
-            condition = self._child(
+            condition = next_of_type(
                 while_node, "parenthesized_expression")
             return nodes.WhileLoop.create(
                 self._expression(condition), body)
@@ -2029,22 +2031,22 @@ class FortranTreeSitterReader():
 
         :returns: annotated PSyIR IfBlock.
         '''
-        condition = self._child(tsnode, "parenthesized_expression")
+        condition = next_of_type(tsnode, "parenthesized_expression")
         structural = {"where", "parenthesized_expression",
                       "elsewhere_clause", "end_where_statement"}
-        body = self.process_nodes(
+        body = self._process_nodes(
             [child for child in tsnode.children
              if child.type not in structural])
-        elsewhere = self._child(tsnode, "elsewhere_clause")
+        elsewhere = next_of_type(tsnode, "elsewhere_clause")
         other = (
-            self.process_nodes(
+            self._process_nodes(
                 [child for child in elsewhere.children
                  if child.type != "elsewhere"])
             if elsewhere else None)
         result = nodes.IfBlock.create(
             self._expression(condition), body, other)
         result.annotations.extend(
-            ["was_where"] if self._child(
+            ["was_where"] if next_of_type(
                 tsnode, "end_where_statement") else
             ["was_where", "was_single_stmt"])
         return result
@@ -2063,30 +2065,30 @@ class FortranTreeSitterReader():
 
         :raises NotImplementedError: if no conditional CASE can be produced.
         '''
-        selector_node = self._child(
-            self._child(tsnode, "selector"), "identifier")
+        selector_node = next_of_type(
+            next_of_type(tsnode, "selector"), "identifier")
         if selector_node is None:
             selector = self._expression(
                 [child for child in
-                 self._child(tsnode, "selector").children
+                 next_of_type(tsnode, "selector").children
                  if child.type not in ("(", ")")][0])
         else:
             selector = self._expression(selector_node)
-        cases = self._children(tsnode, "case_statement")
+        cases = list(direct_child_of_type(tsnode, "case_statement"))
         default_body = None
         normal = []
         for case in cases:
-            if self._child(case, "default"):
-                default_body = self.process_nodes(
+            if next_of_type(case, "default"):
+                default_body = self._process_nodes(
                     [child for child in case.children
                      if child.type not in ("case", "default")])
             else:
-                values = self._child(case, "case_value_range_list")
+                values = next_of_type(case, "case_value_range_list")
                 if values is None:
                     raise NotImplementedError(
                         "Malformed CASE value list")
                 structural = {"case", "(", ")", "case_value_range_list"}
-                body = self.process_nodes(
+                body = self._process_nodes(
                     [child for child in case.children
                      if child.type not in structural])
                 normal.append((values, body))
@@ -2229,12 +2231,12 @@ class FortranTreeSitterReader():
 
         :raises NotImplementedError: if the object is not a data symbol.
         '''
-        ident = self._child(tsnode, "identifier")
+        ident = next_of_type(tsnode, "identifier")
         reference = self._identifier_handler(ident)
         if not isinstance(reference.symbol, symbols.DataSymbol):
             raise NotImplementedError(
                 "An ALLOCATE object must be a data symbol")
-        size = self._child(tsnode, "size")
+        size = next_of_type(tsnode, "size")
         indices = [
             self._allocation_extent(extent)
             for extent in size.children
