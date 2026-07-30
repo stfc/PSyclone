@@ -102,6 +102,7 @@ jobs:
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
         pytest -n ${NUM_PARALLEL} --f90=nvfortran --compile --compileopencl src/psyclone/tests
     - name: Unit tests with OpenMP compilation - gfortran
+      run: |
         . .runner_venv/bin/activate
         module load gcc/${GFORTRAN_VERSION} openmpi/${OPENMPI_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
