@@ -101,12 +101,7 @@ def trans(psyir):
                 max_trans.apply(icall)
 
         # Remove any loop invariant assignments inside k-loops to make
-        # them perfectly nested. At the moment this transformation
-        # does not perform any dependence analysis validation so could
-        # move code that should not be moved, see issue
-        # #1387. However, it is known that it is safe do apply this
-        # transformation to this particular code
-        # (tra_adv_compute.F90).
+        # them perfectly nested.
         for loop in subroutine.walk(Loop, stop_type=Loop):  # outermost only
             for child in loop.loop_body[:]:
                 if isinstance(child, Assignment):
