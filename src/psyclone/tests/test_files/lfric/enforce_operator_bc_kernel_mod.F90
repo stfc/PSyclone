@@ -1,6 +1,6 @@
 ! -----------------------------------------------------------------------------
 ! Original under:
-! (C) Crown copyright 2021 Met Office. All rights reserved.
+! (C) Crown copyright 2017 Met Office. All rights reserved.
 ! For further details please refer to Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
 ! -----------------------------------------------------------------------------

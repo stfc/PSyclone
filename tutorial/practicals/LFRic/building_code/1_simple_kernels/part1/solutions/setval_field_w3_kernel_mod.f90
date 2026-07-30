@@ -4,6 +4,8 @@
 ! SPDX-License-Identifier: BSD-3-Clause
 ! See the full LICENSE file in the project root for details.
 ! -----------------------------------------------------------------------------
+
+! A kernel that assigns a value to a field on a discontinuous function space W3
 module setval_field_w3_kernel_mod
 
   use argument_mod,      only: arg_type,            &

@@ -1,9 +1,9 @@
-! -----------------------------------------------------------------------------
-! SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
-!                         Facilities Council
-! SPDX-License-Identifier: BSD-3-Clause
-! See the full LICENSE file in the project root for details.
-! -----------------------------------------------------------------------------
+!!=====================================================================================
+!! ***  traadv kernel extracted from the NEMO software (http://www.nemo-ocean.eu ) ***
+!! ***          governed by the CeCILL licence (http://www.cecill.info)            ***
+!!                                                   
+!! ***                             IS-ENES2 - CMCC/STFC                            ***
+!!=====================================================================================
 
 module tra_adv_compute_mod
 

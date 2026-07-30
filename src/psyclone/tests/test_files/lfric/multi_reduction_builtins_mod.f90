@@ -4,6 +4,9 @@
 ! SPDX-License-Identifier: BSD-3-Clause
 ! See the full LICENSE file in the project root for details.
 ! -----------------------------------------------------------------------------
+
+!> @brief Meta-data for the LFRic built-in operations.
+!> @details This meta-data is broken for testing purposes.
 module lfric_builtins_mod
 
   use argument_mod
