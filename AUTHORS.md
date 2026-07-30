@@ -47,13 +47,12 @@ Remembered with gratitude for the vision and contributions that established the 
 - M. Shin, Met Office
 - N. Nobre, STFC Daresbury Laboratory
 - O. Brunt, Met Office
-- P. Elson
+- P. Elson, Met Office
 - P. Peterson 
-- R. Hatcher
-- S. Cusworth
+- R. Hatcher, NCAS
+- S. Cusworth, Met Office
 - S. Mullerworth, Met Office
 - S. Pickles, STFC Daresbury Laboratory
-- S. Valat, Inria
 - S. Valat, Inria / Laboratoire Jean Kuntzmann
 - S. Wales, University of Melbourne
 - T. H. Gibson, Advanced Micro Devices, Inc.
