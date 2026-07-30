@@ -81,10 +81,7 @@ def modify_psyir_tree():
     # node type to a subclass of type without changing the memory
     # location of the instance. Note, any additional subclass properties would
     # have to be added manually. In this case we have to set `datatype`.
-    # TODO #1113, the specialise routine needs extending to support the setting
-    # of such additional properties.
-    symbol.specialise(RoutineSymbol)
-    symbol.datatype = NoType()
+    symbol.specialise(RoutineSymbol, datatype=NoType())
 
     # In some cases we may want to replace one node with another. This
     # can be simply done using a node's `replace_with` method.
