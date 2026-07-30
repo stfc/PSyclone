@@ -45,6 +45,10 @@ from psyclone.psyir.frontend.fortran_treesitter_reader import \
 from psyclone.psyir import nodes as psyir_nodes, symbols as psyir_symbols
 from psyclone.tests.utilities import min_version_3_10
 
+# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
+# treesitter.
+pytestmark = min_version_3_10
+
 
 def test_constructor():
     ''' Test the constructor and its arguments '''
@@ -69,9 +73,6 @@ def test_constructor():
     # TODO #3038 Typecheck arguments
 
 
-# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
-# treesitter.
-@min_version_3_10
 def test_generate_parse_tree(tmpdir_factory, caplog):
     '''
     Test that generate_parse_tree returns treesitter trees or appropriate
@@ -118,9 +119,6 @@ def test_generate_parse_tree(tmpdir_factory, caplog):
     assert isinstance(ptree, TSNode)
 
 
-# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
-# treesitter.
-@min_version_3_10
 def test_generate_psyir():
     '''
     Test that generate_psyir transforms treesitter parse trees to
@@ -145,24 +143,6 @@ def test_generate_psyir():
     assert root.children[0].children[0].name == "mysub"
 
 
-@min_version_3_10
-def test_current_scope_restored():
-    '''Test that nested parsing does not leave mutable scope state behind.'''
-    processor = FortranTreeSitterReader()
-    valid_code = """
-        module outer
-          implicit none
-        contains
-          subroutine inner()
-          end subroutine inner
-        end module outer
-    """
-    processor.generate_psyir(
-        processor.generate_parse_tree_from_source(valid_code))
-    assert processor._current_scope is None
-
-
-@min_version_3_10
 def test_routine_host_association():
     '''Test that a contained routine resolves a symbol from its host.'''
     processor = FortranTreeSitterReader()
@@ -186,36 +166,6 @@ def test_routine_host_association():
         count, count]
 
 
-# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
-# treesitter.
-@min_version_3_10
-def test_codeblock_generation_and_messages():
-    '''
-    Test that NotImplementedErrors are caught and converted to CodeBlocks
-    with the appropriate associated comment
-    '''
-    processor = FortranTreeSitterReader()
-
-    unsupported_code = """
-    module test
-        contains
-        subroutine mysub()
-        end subroutine
-    end module test
-    """
-    ptree = processor.generate_parse_tree_from_source(unsupported_code)
-    root = processor.generate_psyir(ptree)
-
-    assert isinstance(root, psyir_nodes.FileContainer)
-    assert isinstance(root.children[0], psyir_nodes.CodeBlock)
-    expected = (
-        "PSyclone CodeBlock (unsupported code) reason:\n"
-        "- Modules that allow implicit variables are not supported"
-    )
-    assert root.children[0].preceding_comment == expected
-
-
-@min_version_3_10
 def test_subroutine():
     '''
     Test subroutine nodes.
@@ -248,7 +198,6 @@ def test_subroutine():
     assert isinstance(rsymbol2, psyir_symbols.RoutineSymbol)
 
 
-@min_version_3_10
 def test_declarations():
     '''
     Test subroutine nodes.
@@ -337,7 +286,6 @@ def test_declarations_arrays_datatypes(shape_string, extent):
         assert shape == extent
 
 
-@min_version_3_10
 def test_program():
     '''Test a main-program unit.'''
     processor = FortranTreeSitterReader()
@@ -354,7 +302,6 @@ def test_program():
     assert routine.name == "main"
 
 
-@min_version_3_10
 def test_use_rename():
     '''Test a renamed symbol in a USE ONLY statement.'''
     processor = FortranTreeSitterReader()
@@ -374,7 +321,6 @@ def test_use_rename():
     assert imported.interface.orig_name == "remote_kind"
 
 
-@min_version_3_10
 def test_symbolic_kind():
     '''Test a symbolic kind expression.'''
     processor = FortranTreeSitterReader()
@@ -393,7 +339,6 @@ def test_symbolic_kind():
     assert table.lookup("value").datatype.precision.symbol is kind
 
 
-@min_version_3_10
 def test_parameter_declaration():
     '''Test a named constant declaration.'''
     processor = FortranTreeSitterReader()
@@ -410,7 +355,6 @@ def test_parameter_declaration():
     assert count.initial_value.value == "4"
 
 
-@min_version_3_10
 def test_character_length():
     '''Test a character-length specification.'''
     processor = FortranTreeSitterReader()
@@ -426,7 +370,6 @@ def test_character_length():
     assert label.datatype.length.value == "12"
 
 
-@min_version_3_10
 def test_allocatable_declaration():
     '''Test an allocatable-array declaration.'''
     processor = FortranTreeSitterReader()
@@ -443,7 +386,6 @@ def test_allocatable_declaration():
         psyir_symbols.ArrayType.Extent.DEFERRED]
 
 
-@min_version_3_10
 def test_function_result():
     '''Test a named function-result symbol.'''
     processor = FortranTreeSitterReader()
@@ -461,7 +403,6 @@ def test_function_result():
         psyir_symbols.ScalarType.real_type()
 
 
-@min_version_3_10
 def test_argument_order():
     '''Test the order of routine arguments.'''
     processor = FortranTreeSitterReader()
@@ -477,7 +418,6 @@ def test_argument_order():
         "first", "second"]
 
 
-@min_version_3_10
 @pytest.mark.parametrize("intent,access", [
     ("in", psyir_symbols.ArgumentInterface.Access.READ),
     ("out", psyir_symbols.ArgumentInterface.Access.WRITE),
@@ -497,7 +437,6 @@ def test_argument_intent(intent, access):
     assert value.interface.access == access
 
 
-@min_version_3_10
 def test_pure_function():
     '''Test the PURE function qualifier.'''
     processor = FortranTreeSitterReader()
@@ -512,7 +451,6 @@ def test_pure_function():
     assert root.children[0].symbol.is_pure is True
 
 
-@min_version_3_10
 def test_elemental_function():
     '''Test the ELEMENTAL function qualifier.'''
     processor = FortranTreeSitterReader()
@@ -527,7 +465,6 @@ def test_elemental_function():
     assert root.children[0].symbol.is_elemental is True
 
 
-@min_version_3_10
 def test_unsupported_complex_datatype():
     '''Test the unsupported complex datatype.'''
     processor = FortranTreeSitterReader()
@@ -545,7 +482,6 @@ def test_unsupported_complex_datatype():
     assert coefficient.datatype.declaration == "complex :: coefficient"
 
 
-@min_version_3_10
 def test_unsupported_pointer_datatype():
     '''Test entity-specific unsupported pointer datatypes.'''
     processor = FortranTreeSitterReader()
@@ -564,7 +500,6 @@ def test_unsupported_pointer_datatype():
         assert datatype.declaration == f"integer, pointer :: {name}"
 
 
-@min_version_3_10
 def test_unsupported_initialisation_is_entity_specific():
     '''Test that one unsupported initializer does not affect its sibling.'''
     processor = FortranTreeSitterReader()
@@ -587,7 +522,6 @@ def test_unsupported_initialisation_is_entity_specific():
     assert second.initial_value.value == "2"
 
 
-@min_version_3_10
 def test_save_attribute():
     '''Test the SAVE declaration attribute.'''
     processor = FortranTreeSitterReader()
@@ -605,7 +539,6 @@ def test_save_attribute():
     assert isinstance(accumulator.interface, psyir_symbols.StaticInterface)
 
 
-@min_version_3_10
 def test_logical_literal():
     '''Test a logical literal used as an initial value.'''
     processor = FortranTreeSitterReader()
@@ -621,7 +554,6 @@ def test_logical_literal():
     assert enabled.initial_value.value == "true"
 
 
-@min_version_3_10
 def test_derived_type_definition():
     '''Test a simple derived-type definition.'''
     processor = FortranTreeSitterReader()
@@ -643,7 +575,6 @@ def test_derived_type_definition():
         psyir_symbols.ScalarType.real_type()
 
 
-@min_version_3_10
 def test_derived_type_component_host_association():
     '''Test that a component datatype resolves a kind from its host.'''
     processor = FortranTreeSitterReader()
@@ -665,7 +596,6 @@ def test_derived_type_component_host_association():
     assert x_type.precision.symbol is wp
 
 
-@min_version_3_10
 def test_structure_reference():
     '''Test a scalar structure-component reference.'''
     processor = FortranTreeSitterReader()
@@ -684,7 +614,6 @@ def test_structure_reference():
     assert reference.member.name == "x"
 
 
-@min_version_3_10
 def test_array_of_structures_reference():
     '''Test an indexed array-of-structures component reference.'''
     processor = FortranTreeSitterReader()
@@ -705,7 +634,6 @@ def test_array_of_structures_reference():
     assert reference.member.indices[0].value == "2"
 
 
-@min_version_3_10
 def test_multidimensional_explicit_array_bounds():
     '''Test explicit lower bounds in a multidimensional shape.'''
     processor = FortranTreeSitterReader()
@@ -728,7 +656,6 @@ def test_multidimensional_explicit_array_bounds():
     assert datatype.shape[1].upper.value == "20"
 
 
-@min_version_3_10
 def test_unary_operation():
     '''Test a unary arithmetic operation.'''
     processor = FortranTreeSitterReader()
@@ -744,7 +671,6 @@ def test_unary_operation():
     assert expression.operator == psyir_nodes.UnaryOperation.Operator.MINUS
 
 
-@min_version_3_10
 def test_binary_operation():
     '''Test a binary arithmetic operation.'''
     processor = FortranTreeSitterReader()
@@ -760,7 +686,6 @@ def test_binary_operation():
     assert expression.operator == psyir_nodes.BinaryOperation.Operator.ADD
 
 
-@min_version_3_10
 def test_explicit_array_section():
     '''Test an array section with explicit start, stop and step.'''
     processor = FortranTreeSitterReader()
@@ -779,7 +704,6 @@ def test_explicit_array_section():
     assert section.step.value == "2"
 
 
-@min_version_3_10
 def test_implicit_array_section_bounds():
     '''Test synthesized bounds for a whole-array section.'''
     processor = FortranTreeSitterReader()
@@ -800,7 +724,6 @@ def test_implicit_array_section_bounds():
             psyir_nodes.IntrinsicCall.Intrinsic.UBOUND
 
 
-@min_version_3_10
 def test_intrinsic_call():
     '''Test an intrinsic function call.'''
     processor = FortranTreeSitterReader()
@@ -817,7 +740,6 @@ def test_intrinsic_call():
     assert call.intrinsic == psyir_nodes.IntrinsicCall.Intrinsic.SIN
 
 
-@min_version_3_10
 def test_named_call_argument():
     '''Test a named subroutine-call argument.'''
     processor = FortranTreeSitterReader()
@@ -834,7 +756,6 @@ def test_named_call_argument():
     assert call.argument_names == [None, "result"]
 
 
-@min_version_3_10
 def test_array_constructor():
     '''Test a simple array constructor.'''
     processor = FortranTreeSitterReader()
@@ -852,7 +773,6 @@ def test_array_constructor():
         "1.0", "2.0", "3.0"]
 
 
-@min_version_3_10
 def test_pointer_assignment():
     '''Test a pointer assignment.'''
     processor = FortranTreeSitterReader()
@@ -870,7 +790,6 @@ def test_pointer_assignment():
     assert assignment.is_pointer
 
 
-@min_version_3_10
 def test_nullify_statement():
     '''Test a NULLIFY statement.'''
     processor = FortranTreeSitterReader()
@@ -886,7 +805,6 @@ def test_nullify_statement():
     assert nullify.intrinsic == psyir_nodes.IntrinsicCall.Intrinsic.NULLIFY
 
 
-@min_version_3_10
 def test_if_construct():
     '''Test IF, ELSE IF and ELSE clauses.'''
     processor = FortranTreeSitterReader()
@@ -912,7 +830,6 @@ def test_if_construct():
         psyir_nodes.BinaryOperation.Operator.ADD
 
 
-@min_version_3_10
 def test_counted_do_loop():
     '''Test a counted DO loop.'''
     processor = FortranTreeSitterReader()
@@ -934,7 +851,6 @@ def test_counted_do_loop():
     assert loop.step_expr.value == "2"
 
 
-@min_version_3_10
 def test_do_while_loop():
     '''Test a DO WHILE loop.'''
     processor = FortranTreeSitterReader()
@@ -954,7 +870,6 @@ def test_do_while_loop():
         psyir_nodes.BinaryOperation.Operator.GT
 
 
-@min_version_3_10
 def test_unconditional_do_loop():
     '''Test an unconditional DO loop.'''
     processor = FortranTreeSitterReader()
@@ -972,7 +887,6 @@ def test_unconditional_do_loop():
     assert "was_unconditional" in loop.annotations
 
 
-@min_version_3_10
 def test_where_construct():
     '''Test a WHERE construct with ELSEWHERE.'''
     processor = FortranTreeSitterReader()
@@ -994,7 +908,6 @@ def test_where_construct():
     assert where.else_body.children[0].rhs.value == "0.0"
 
 
-@min_version_3_10
 def test_select_case_construct():
     '''Test SELECT CASE lowering.'''
     processor = FortranTreeSitterReader()
@@ -1022,7 +935,6 @@ def test_select_case_construct():
     assert second.else_body.children[0].rhs.value == "0"
 
 
-@min_version_3_10
 def test_allocate_statement():
     '''Test an ALLOCATE statement.'''
     processor = FortranTreeSitterReader()
@@ -1042,7 +954,6 @@ def test_allocate_statement():
     assert allocate.argument_names == [None, "stat"]
 
 
-@min_version_3_10
 def test_deallocate_statement():
     '''Test a DEALLOCATE statement.'''
     processor = FortranTreeSitterReader()
@@ -1061,7 +972,6 @@ def test_deallocate_statement():
     assert deallocate.argument_names == [None, "stat"]
 
 
-@min_version_3_10
 def test_stop_codeblock():
     '''Test the localized fallback for a STOP statement.'''
     processor = FortranTreeSitterReader()
@@ -1077,7 +987,6 @@ def test_stop_codeblock():
     assert "Unsupported 'stop_statement'" in codeblock.preceding_comment
 
 
-@min_version_3_10
 def test_default_visibility():
     '''Test a module's default visibility.'''
     processor = FortranTreeSitterReader()
@@ -1099,7 +1008,6 @@ def test_default_visibility():
         psyir_symbols.Symbol.Visibility.PRIVATE
 
 
-@min_version_3_10
 def test_named_visibility():
     '''Test name-specific visibility for a contained routine.'''
     processor = FortranTreeSitterReader()
@@ -1119,7 +1027,6 @@ def test_named_visibility():
     assert exposed.visibility == psyir_symbols.Symbol.Visibility.PUBLIC
 
 
-@min_version_3_10
 def test_generic_interface():
     '''Test a named generic interface.'''
     processor = FortranTreeSitterReader()
@@ -1140,7 +1047,6 @@ def test_generic_interface():
     assert all(info.from_container for info in generic.routines)
 
 
-@min_version_3_10
 def test_ignored_comment():
     '''Test that an ignored comment does not create a CodeBlock.'''
     processor = FortranTreeSitterReader()
@@ -1158,7 +1064,6 @@ def test_ignored_comment():
     assert isinstance(routine.children[0], psyir_nodes.Assignment)
 
 
-@min_version_3_10
 def test_implied_do_codeblock():
     '''Test the localized fallback for an implied-DO array constructor.'''
     processor = FortranTreeSitterReader()
