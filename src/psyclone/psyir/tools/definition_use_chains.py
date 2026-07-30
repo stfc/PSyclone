@@ -531,14 +531,12 @@ class DefinitionUseChain:
         self._stop_point = save_stop_position
         return self._reaches
 
-    def _check_forward_codeblock(self, reference: CodeBlock,
-                                 defs_out: dict[str, Node]) -> bool:
+    def _check_forward_codeblock(self, reference: CodeBlock) -> bool:
         """
-        Updates the defs_out and killed dicts when a CodeBlock is
+        Updates the defsout and killed dicts when a CodeBlock is
         found during _compute_forward_uses.
 
         :param reference: The CodeBlock being analysed.
-        :param defs_out: The local defs_out array from _compute_forward_uses
 
         :returns: whether the calling function should terminate.
         """
@@ -555,9 +553,6 @@ class DefinitionUseChain:
         if isinstance(
             reference.parse_tree_nodes[0], (Exit_Stmt, Cycle_Stmt)
         ):
-            for sig in self._reference_signatures:
-                if defs_out[sig] is not None:
-                    self._defsout[sig].append(defs_out[sig])
             return True
 
         for i, ref in enumerate(self._references[:]):
@@ -575,11 +570,12 @@ class DefinitionUseChain:
                         # Assume the worst for a CodeBlock and we count them
                         # as killed and defsout.
                         sig = self._reference_signatures[i]
-                        if defs_out[sig] is not None:
-                            self._killed[sig].append(
-                                defs_out[sig]
+                        if self._defsout[sig]:
+                            self._killed[sig].extend(
+                                self._defsout[sig]
                             )
-                        defs_out[sig] = reference
+                            self._defsout[sig] = []
+                        self._defsout[sig].append(reference)
                 continue
             # Otherwise we check if ref appears in the CodeBlock.
             if (
@@ -589,15 +585,15 @@ class DefinitionUseChain:
                 # Assume the worst for a CodeBlock and we count
                 # them as killed and defsout.
                 sig = self._reference_signatures[i]
-                if defs_out[sig] is not None:
-                    self._killed[sig].append(defs_out[sig])
-                defs_out[sig] = reference
+                if self._defsout[sig]:
+                    self._killed[sig].extend(self._defsout[sig])
+                    self._defsout[sig] = []
+                self._defsout[sig].append(reference)
         return False
 
-    def _check_forward_call(self, reference: Call,
-                            defs_out: dict[str, Node]):
+    def _check_forward_call(self, reference: Call) -> None:
         """
-        Updates the defs_out and killed dicts when a Call is
+        Updates the defsout and killed dicts when a Call is
         found during _compute_forward_uses.
 
         :param reference: The Call being analysed.
@@ -620,18 +616,17 @@ class DefinitionUseChain:
             # For now just assume calls are bad if we have a non-local
             # variable: we treat them as though they were a write.
             sig = self._reference_signatures[i]
-            if defs_out[sig] is not None:
-                self._killed[sig].append(defs_out[sig])
-            defs_out[sig] = reference
+            if self._defsout[sig]:
+                self._killed[sig].extend(self._defsout[sig])
+                self._defsout[sig] = []
+            self._defsout[sig].append(reference)
 
-    def _check_forward_matched_reference(self, reference: Reference,
-                                         defs_out: dict[str, Node]) -> None:
+    def _check_forward_matched_reference(self, reference: Reference) -> None:
         """
-        Updates the defs_out, uses and killed dicts when a Reference
+        Updates the defsout, uses and killed dicts when a Reference
         is matched by name during _compute_forward_uses.
 
         :param reference: The Reference being analysed.
-        :param defs_out: The local defs_out array from _compute_forward_uses
         """
         sig = reference.get_signature_and_indices()[0]
         # Work out if it's read only or not.
@@ -639,12 +634,13 @@ class DefinitionUseChain:
         if assign is not None:
             if assign.lhs is reference:
                 # This is a write to the reference, so kill the previous
-                # defs_out and set this to be the defs_out.
-                if defs_out[sig] is not None:
-                    self._killed[sig].append(defs_out[sig])
-                defs_out[sig] = reference
+                # defsout and set this to be the defsout.
+                if self._defsout[sig]:
+                    self._killed[sig].extend(self._defsout[sig])
+                    self._defsout[sig] = []
+                self._defsout[sig].append(reference)
             elif (
-                assign.lhs is defs_out[sig]
+                self._defsout[sig] and assign.lhs is self._defsout[sig][-1]
                 and len(self._killed[sig]) == 0
                 and assign.lhs.get_signature_and_indices()[0] == sig
                 and any(
@@ -659,28 +655,27 @@ class DefinitionUseChain:
             else:
                 # Read only, so if we've not yet set written to this variable
                 # this is a use.
-                if defs_out[sig] is None:
+                if not self._defsout[sig]:
                     self._uses[sig].append(reference)
         elif reference.ancestor(Call):
             # Otherwise we assume read/write access for now.
-            if defs_out[sig] is not None:
-                self._killed[sig].append(defs_out[sig])
-            defs_out[sig] = reference
+            if self._defsout[sig]:
+                self._killed[sig].extend(self._defsout[sig])
+                self._defsout[sig] = []
+            self._defsout[sig].append(reference)
         else:
             # Reference outside an Assignment - read only. This could be
             # References inside a While loop conndition for example.
-            if defs_out[sig] is None:
+            if not self._defsout[sig]:
                 self._uses[sig].append(reference)
 
-    def _check_forward_unsupported_type(self, reference: Reference,
-                                        defs_out: dict[str, Node]) -> None:
+    def _check_forward_unsupported_type(self, reference: Reference) -> None:
         """
-        Updates the defs_out and killed dicts when a Reference
+        Updates the defsout and killed dicts when a Reference
         with an UnsupportedType datatype is matched
         during _compute_forward_uses.
 
         :param reference: The Reference being analysed.
-        :param defs_out: The local defs_out array from _compute_forward_uses
 
         """
         # If it's accessed on the lhs of an assignment or as an
@@ -695,14 +690,16 @@ class DefinitionUseChain:
                         UnsupportedType
                     ):
                         continue
-                    if defs_out[sig] is not None:
-                        self._killed[sig].append(defs_out[sig])
-                    defs_out[sig] = reference
+                    if self._defsout[sig]:
+                        self._killed[sig].extend(self._defsout[sig])
+                        self._defsout[sig] = []
+                    self._defsout[sig].append(reference)
             # If the reference is on the rhs of an assignment where the lhs
             # is a write to any of the signatures then this should be added
             # to the uses for that signature if it's also an UnsupportedType.
             elif (
-                any((defs_out[sig] is assign.lhs and
+                any((self._defsout[sig] and
+                     self._defsout[sig][-1] is assign.lhs and
                      len(self._killed[sig]) == 0) for sig in
                     self._reference_signatures)
             ):
@@ -712,7 +709,7 @@ class DefinitionUseChain:
                         UnsupportedType
                     ):
                         continue
-                    if (defs_out[sig] is assign.lhs and
+                    if (self._defsout[sig][-1] is assign.lhs and
                             len(self._killed[sig]) == 0):
                         self._uses[sig].append(reference)
             else:
@@ -724,7 +721,7 @@ class DefinitionUseChain:
                         UnsupportedType
                     ):
                         continue
-                    if defs_out[sig] is None:
+                    if not self._defsout[sig]:
                         self._uses[sig].append(reference)
 
         elif reference.ancestor(Call):
@@ -734,9 +731,10 @@ class DefinitionUseChain:
                 if not isinstance(self._references[i].datatype,
                                   UnsupportedType):
                     continue
-                if defs_out[sig] is not None:
-                    self._killed[sig].append(defs_out[sig])
-                defs_out[sig] = reference
+                if self._defsout[sig]:
+                    self._killed[sig].extend(self._defsout[sig])
+                    self._defsout[sig] = []
+                self._defsout[sig].append(reference)
         else:
             # Otherwise all other UnsupportedType References
             # count as a read to all UnsupportedType inputs.
@@ -744,7 +742,7 @@ class DefinitionUseChain:
                 if not isinstance(self._references[i].datatype,
                                   UnsupportedType):
                     continue
-                if defs_out[sig] is None:
+                if not self._defsout[sig]:
                     self._uses[sig].append(reference)
 
     def _compute_forward_uses(self, basic_block_list: list[Node]) -> None:
@@ -765,9 +763,9 @@ class DefinitionUseChain:
                                      region.
         """
         # For a basic block we will only ever have one defsout per reference.
-        defs_out = {}
+        self._defsout = {}
         for sig in self._reference_signatures:
-            defs_out[sig] = None
+            self._defsout[sig] = []
         for region in basic_block_list:
             for reference in region.walk((Reference, Call, CodeBlock, Return)):
                 # Store the position instead of computing it twice.
@@ -777,9 +775,6 @@ class DefinitionUseChain:
                 if isinstance(reference, Return):
                     # When we find a return statement any following statements
                     # can be ignored so we can return.
-                    for sig in self._reference_signatures:
-                        if defs_out[sig] is not None:
-                            self._defsout[sig].append(defs_out[sig])
                     return
                 # If its parent is an inquiry function then it's neither
                 # a read nor write if it's the first argument.
@@ -788,22 +783,19 @@ class DefinitionUseChain:
                         reference.parent.arguments[0] is reference):
                     continue
                 if isinstance(reference, CodeBlock):
-                    stop = self._check_forward_codeblock(reference, defs_out)
+                    stop = self._check_forward_codeblock(reference)
                     if stop:
                         return
                 elif isinstance(reference, Call):
-                    self._check_forward_call(reference, defs_out)
+                    self._check_forward_call(reference)
                 elif (reference.get_signature_and_indices()[0] in
                       self._reference_signatures):
-                    self._check_forward_matched_reference(reference, defs_out)
+                    self._check_forward_matched_reference(reference)
                 # If we have a reference whose datatype is an
                 # UnsupportedType then we must assume it is aliased and
                 # therefore can access any other UnsupportedType Reference.
                 elif isinstance(reference.datatype, UnsupportedType):
-                    self._check_forward_unsupported_type(reference, defs_out)
-        for sig in self._reference_signatures:
-            if defs_out[sig] is not None:
-                self._defsout[sig].append(defs_out[sig])
+                    self._check_forward_unsupported_type(reference)
 
     def _find_basic_blocks(
         self, nodelist: list[Node]
@@ -949,14 +941,12 @@ class DefinitionUseChain:
             control_flow_nodes.append(None)
         return control_flow_nodes, basic_blocks
 
-    def _check_backward_codeblock(self, reference: CodeBlock,
-                                  defs_out: dict[str, Node]) -> None:
+    def _check_backward_codeblock(self, reference: CodeBlock) -> None:
         """
-        Updates the defs_out, uses, and killed dicts when a CodeBlock is
+        Updates the defsout, uses, and killed dicts when a CodeBlock is
         found during _compute_backward_uses.
 
         :param reference: The CodeBlock being analysed.
-        :param defs_out: The local defs_out array from _compute_backward_uses
         """
         for i, ref in enumerate(self._references[:]):
             # If the DUC's searched Reference is to an UnsupportedType then
@@ -971,30 +961,27 @@ class DefinitionUseChain:
                         # Assume the worst for a CodeBlock and we count them
                         # as killed and defsout.
                         sig = self._reference_signatures[i]
-                        if defs_out[sig] is not None:
-                            self._killed[sig].append(
-                                defs_out[sig]
-                            )
-                        defs_out[sig] = reference
+                        if self._defsout[sig]:
+                            self._killed[sig].extend(self._defsout[sig])
+                            self._defsout[sig] = []
+                        self._defsout[sig].append(reference)
                 continue
 
             if (ref.symbol.name in reference.get_symbol_names()):
                 # Assume the worst for a CodeBlock and we count
                 # them as killed and defsout.
                 sig = self._reference_signatures[i]
-                if defs_out[sig] is not None:
-                    self._killed[sig].append(defs_out[sig])
-                defs_out[sig] = reference
+                if self._defsout[sig]:
+                    self._killed[sig].extend(self._defsout[sig])
+                    self._defsout[sig] = []
+                self._defsout[sig].append(reference)
 
-    def _check_backward_call(
-        self, reference: Call, defs_out: dict[str, Node]
-    ) -> None:
+    def _check_backward_call(self, reference: Call) -> None:
         """
-        Updates the defs_out, uses, and killed dicts when a Call is
+        Updates the defsout, uses, and killed dicts when a Call is
         found during _compute_backward_uses.
 
         :param reference: The Call being analysed.
-        :param defs_out: The local defs_out array from _compute_backward_uses
         """
         # If it's a local variable we can ignore it as we'll catch
         # the Reference later if it's passed into the Call.
@@ -1011,28 +998,28 @@ class DefinitionUseChain:
                 continue
             if reference.is_pure:
                 # Pure subroutines only touch their arguments, so we'll catch
-                # the arguments that are passed into the call later as References.
+                # the arguments that are passed into the call later as
+                # References.
                 continue
             # For now just assume calls are bad if we have a non-local variable
             # and we treat them as though they were a write.
             sig = self._reference_signatures[i]
-            if defs_out[sig] is not None:
-                self._killed[sig].append(defs_out[sig])
-            defs_out[sig] = reference
+            if self._defsout[sig]:
+                self._killed[sig].extend(self._defsout[sig])
+                self._defsout[sig] = []
+            self._defsout[sig].append(reference)
 
-    def _check_backward_matched_reference(self, reference: Reference,
-                                          defs_out: dict[str, Node]) -> None:
+    def _check_backward_matched_reference(self, reference: Reference) -> None:
         """
-        Updates the defs_out, uses, and killed dicts when a Reference matches
+        Updates the defsout, uses, and killed dicts when a Reference matches
         by name is found during _compute_backward_uses.
 
         :param reference: The Reference being analysed.
-        :param defs_out: The local defs_out array from _compute_backward_uses
         """
         sig = reference.get_signature_and_indices()[0]
         # Work out if it's read only or not.
         assign = reference.ancestor(Assignment)
-        # RHS reads occur "before" LHS writes, so if we hit the LHS or an 
+        # RHS reads occur "before" LHS writes, so if we hit the LHS or an
         # assignment then we won't have a dependency to the value used from
         # the LHS.
         if assign is not None:
@@ -1054,10 +1041,11 @@ class DefinitionUseChain:
                 if found:
                     return
                 # This is a write to the reference, so kill the previous
-                # defs_out and set this to be the defs_out.
-                if defs_out[sig] is not None:
-                    self._killed[sig].append(defs_out[sig])
-                defs_out[sig] = reference
+                # defsout and set this to be the defsout.
+                if self._defsout[sig]:
+                    self._killed[sig].extend(self._defsout[sig])
+                    self._defsout[sig] = []
+                self._defsout[sig].append(reference)
             elif (
                 assign.lhs.get_signature_and_indices()[0] == sig
                 and any(
@@ -1075,28 +1063,26 @@ class DefinitionUseChain:
             else:
                 # Read only, so if we've not yet set written to this variable
                 # this is a use.
-                if defs_out[sig] is None:
+                if not self._defsout[sig]:
                     self._uses[sig].append(reference)
         elif reference.ancestor(Call):
             # Otherwise we assume read/write access for now.
-            if defs_out[sig] is not None:
-                self._killed[sig].append(defs_out[sig])
-            defs_out[sig] = reference
+            if self._defsout[sig]:
+                self._killed[sig].extend(self._defsout[sig])
+                self._defsout[sig] = []
+            self._defsout[sig].append(reference)
         else:
             # Reference outside an Assignment - read only. This could be
             # References inside a While loop condition for example.
-            if defs_out[sig] is None:
+            if not self._defsout[sig]:
                 self._uses[sig].append(reference)
 
-    def _check_backward_unsupported_type(self, reference: Reference,
-                                         defs_out: dict[str, Node]) -> None:
+    def _check_backward_unsupported_type(self, reference: Reference) -> None:
         """
-        Updates the defs_out and killed dicts when a Reference
-        with an UnsupportedType datatype is matched
-        during _compute_backward_uses.
+        Updates the defsout and killed dicts when a Reference with an
+        UnsupportedType datatype is matched during _compute_backward_uses.
 
         :param reference: The Reference being analysed.
-        :param defs_out: The local defs_out array from _compute_backward_uses
 
         """
         assign = reference.ancestor(Assignment)
@@ -1115,9 +1101,10 @@ class DefinitionUseChain:
                     if (any(self._references[i] is ref for
                             ref in assign.rhs.walk(Reference))):
                         continue
-                    if defs_out[sig] is not None:
-                        self._killed[sig].append(defs_out[sig])
-                    defs_out[sig] = reference
+                    if self._defsout[sig]:
+                        self._killed[sig].extend(self._defsout[sig])
+                        self._defsout[sig] = []
+                    self.defsout[sig].append(reference)
             else:
                 # If the LHS of an Assignment is an UnsupportedType then we
                 # can skip the RHS of this Assignment for UnsupportedTypes.
@@ -1131,7 +1118,7 @@ class DefinitionUseChain:
                         UnsupportedType
                     ):
                         continue
-                    if defs_out[sig] is None:
+                    if not self._defsout[sig]:
                         self._uses[sig].append(reference)
         elif reference.ancestor(Call):
             # If it's an argument to a Call then it is considered a readwrite
@@ -1140,9 +1127,10 @@ class DefinitionUseChain:
                 if not isinstance(self._references[i].datatype,
                                   UnsupportedType):
                     continue
-                if defs_out[sig] is not None:
-                    self._killed[sig].append(defs_out[sig])
-                defs_out[sig] = reference
+                if self._defsout[sig]:
+                    self._killed[sig].extend(self._defsout[sig])
+                    self._defsout[sig] = []
+                self._defsout[sig].append(reference)
         else:
             # Otherwise all other UnsupportedType References count as a read
             # to all UnsupportedType inputs.
@@ -1150,7 +1138,7 @@ class DefinitionUseChain:
                 if not isinstance(self._references[i].datatype,
                                   UnsupportedType):
                     continue
-                if defs_out[sig] is None:
+                if not self._defsout[sig]:
                     self._uses[sig].append(reference)
 
     def _compute_backward_uses(self, basic_block_list: list[Node]) -> None:
@@ -1173,9 +1161,9 @@ class DefinitionUseChain:
                                      region.
         """
         # For a basic block we will only ever have one defsout per reference.
-        defs_out = {}
+        self._defsout = {}
         for sig in self._reference_signatures:
-            defs_out[sig] = None
+            self._defsout[sig] = []
         # Working backwards so reverse the basic_block_list
         basic_block_list.reverse()
         stop_position = self._stop_point
@@ -1222,20 +1210,17 @@ class DefinitionUseChain:
                             "DefinitionUseChains can't handle code containing"
                             " GOTO statements."
                         )
-                    self._check_backward_codeblock(reference, defs_out)
+                    self._check_backward_codeblock(reference)
                 elif isinstance(reference, Call):
-                    self._check_backward_call(reference, defs_out)
+                    self._check_backward_call(reference)
                 elif (reference.get_signature_and_indices()[0] in
                       self._reference_signatures):
-                    self._check_backward_matched_reference(reference, defs_out)
+                    self._check_backward_matched_reference(reference)
                 # If we have a reference whose datatype is an
                 # UnsupportedType then we must assume it is aliased and
                 # therefore can access any other UnsupportedType Reference.
                 elif isinstance(reference.datatype, UnsupportedType):
-                    self._check_backward_unsupported_type(reference, defs_out)
-        for sig in self._reference_signatures:
-            if defs_out[sig] is not None:
-                self._defsout[sig].append(defs_out[sig])
+                    self._check_backward_unsupported_type(reference)
 
     def find_backward_accesses(self) -> dict[Signature, list[Node]]:
         """
