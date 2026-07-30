@@ -75,8 +75,8 @@ def test_kernelimportstoargumentstrans_no_wildcard_import():
     trans = KernelImportsToArguments()
     with pytest.raises(TransformationError) as err:
         trans.apply(kernel)
-    assert ("'kernel_with_use_code' contains accesses to 'rdt' which is "
-            "unresolved" in str(err.value))
+    assert ("'kernel_with_use_code_inlined_' contains accesses to 'rdt' which "
+            "is unresolved" in str(err.value))
 
 
 def test_kernelimportstoargumentstrans(fortran_writer):
@@ -136,8 +136,8 @@ def test_kernelimportstoargumentstrans(fortran_writer):
 
     # Check the kernel code is generated as expected
     kernel_code = fortran_writer(kernel.get_callees()[0])
-    assert ("subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, "
-            "rdt, magic)" in kernel_code)
+    assert ("subroutine kernel_with_use_code_inlined_(ji, jj, istep, ssha, "
+            "tmask, rdt, magic)" in kernel_code)
     assert "real(kind=go_wp), intent(in) :: rdt" in kernel_code
     assert "real(kind=go_wp), intent(inout) :: magic" in kernel_code
 
@@ -145,7 +145,7 @@ def test_kernelimportstoargumentstrans(fortran_writer):
     # and argument call
     generated_code = str(psy.gen)
     assert "use model_mod, only : magic, rdt" in generated_code
-    assert ("call kernel_with_use_code(i, j, oldu_fld, cu_fld%data, "
+    assert ("call kernel_with_use_code_inlined_(i, j, oldu_fld, cu_fld%data, "
             "cu_fld%grid%tmask, rdt, magic)" in generated_code)
     assert invoke.schedule.symbol_table.lookup("model_mod")
     assert invoke.schedule.symbol_table.lookup("rdt")
@@ -181,8 +181,8 @@ def test_kernelimportstoargumentstrans_constant(monkeypatch, fortran_writer):
     kernels = kernel.get_callees()
     kernel_code = fortran_writer(kernels[0])
 
-    assert ("subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt, "
-            "magic)" in kernel_code)
+    assert ("subroutine kernel_with_use_code_inlined_(ji, jj, istep, ssha, "
+            "tmask, rdt, magic)" in kernel_code)
     assert "integer, intent(in) :: rdt" in kernel_code
 
 
@@ -218,7 +218,7 @@ def test_kernelimportstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
             in str(err.value))
 
 
-def test_kernelimportstoarguments_multiple_kernels(fortran_writer):
+def test_kernelimportstoarguments_multiple_kernels():
     ''' Check the KernelImportsToArguments transformation with an invoke with
     three kernel calls, two of them duplicated and the third one sharing the
     same imported module'''
@@ -232,15 +232,15 @@ def test_kernelimportstoarguments_multiple_kernels(fortran_writer):
     # The kernels are checked before the psy.gen, so they don't include the
     # modified suffix.
     expected = [
-        ["subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt, "
-         "magic)",
+        ["subroutine kernel_with_use_code_inlined_(ji, jj, istep, ssha, "
+         "tmask, rdt, magic)",
          "real(kind=go_wp), intent(in) :: rdt"],
-        ["subroutine kernel_with_use2_code(ji, jj, istep, ssha, tmask, cbfr,"
-         " rdt)",
+        ["subroutine kernel_with_use2_code_inlined_(ji, jj, istep, ssha, "
+         "tmask, cbfr, rdt)",
          "real(kind=go_wp), intent(inout) :: cbfr\n    real(kind=go_wp), "
          "intent(in) :: rdt"],
-        ["subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt, "
-         "magic)",
+        ["subroutine kernel_with_use_code_inlined_(ji, jj, istep, ssha, "
+         "tmask, rdt, magic)",
          "real(kind=go_wp), intent(in) :: rdt\n    real(kind=go_wp), "
          "intent(inout) :: magic"]]
 
@@ -259,9 +259,9 @@ def test_kernelimportstoarguments_multiple_kernels(fortran_writer):
         for part in expected[num]:
             assert part in generated_code, part
 
-    # Kernels not imported anymore.
-    assert "use kernel_with_use_mod" not in generated_code
-    assert "use kernel_with_use2_mod" not in generated_code
+    # The original imports are left unchanged.
+    assert "use kernel_with_use_mod, only : " in generated_code
+    assert "use kernel_with_use2_mod, only : " in generated_code
 
 
 def test_kernelimportstoarguments_noimports(fortran_writer):

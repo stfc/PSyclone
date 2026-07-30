@@ -1026,9 +1026,8 @@ def test_fw_container_2(fortran_reader, fortran_writer, tmpdir):
     container.children[0].children.append(Container("child"))
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer(container)
-    assert ("The Fortran back-end requires all children of a Container "
-            "to be either CodeBlocks or sub-classes of Routine but found: "
-            "['Routine', 'Container']" in str(excinfo.value))
+    assert ("The Fortran backend does not support nested Containers but "
+            "found: ['child']." in str(excinfo.value))
 
 
 def test_fw_container_3(fortran_reader, fortran_writer, monkeypatch):
