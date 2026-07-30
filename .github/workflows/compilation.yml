@@ -53,6 +53,7 @@ on:
 env:
   CUDA_VERSION: "13"
   GFORTRAN_VERSION: "15"
+  INTEL_VERSION: "2026.1.0"
   HDF5_VERSION: "2.1"
   NETCDF_C_VERSION: "4.10"
   NETCDF_FORTRAN_VERSION: "4.6"
@@ -101,12 +102,12 @@ jobs:
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
         pytest -n ${NUM_PARALLEL} --f90=nvfortran --compile --compileopencl src/psyclone/tests
-    - name: Unit tests with OpenMP compilation - gfortran
+    - name: Unit tests with OpenMP compilation - ifx
       run: |
         . .runner_venv/bin/activate
-        module load gcc/${GFORTRAN_VERSION} openmpi/${OPENMPI_VERSION}
+        module load oneapi/${INTEL_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
-        pytest -n ${NUM_PARALLEL} --f90=gfortran --f90flags="-ffree-line-length-none -fopenmp" --compile  src/psyclone/tests
+        pytest -n ${NUM_PARALLEL} --f90=ifx --f90flags="-ffree-line-length-none -fopenmp" --compile  src/psyclone/tests
     - name: Libraries compilation - gfortran
       run: |
         . .runner_venv/bin/activate
