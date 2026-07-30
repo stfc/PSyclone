@@ -155,14 +155,15 @@ module testkern_int_field_mod
   public
 
   contains
-  subroutine testkern_int_field_code(nlayers, field_1_wtheta, field_2_w3_v1, \
-field_2_w3_v2, field_2_w3_v3, field_3_w2trace, field_3_stencil_size, \
+  subroutine testkern_int_field_code(nlayers_field_1, field_1_wtheta, \
+field_2_w3_v1, field_2_w3_v2, field_2_w3_v3, field_3_w2trace, \
+field_3_stencil_size, \
 field_3_stencil_dofmap, ndf_wtheta, undf_wtheta, map_wtheta, \
 basis_wtheta_qr_xyoz, ndf_w3, undf_w3, map_w3, basis_w3_qr_xyoz, \
 diff_basis_w3_qr_xyoz, ndf_w2trace, undf_w2trace, map_w2trace, \
 np_xy_qr_xyoz, np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)
     use constants_mod
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers_field_1
     integer(kind=i_def), intent(in) :: ndf_w2trace
     integer(kind=i_def), dimension(ndf_w2trace), intent(in) :: map_w2trace
     integer(kind=i_def), intent(in) :: ndf_w3
@@ -217,14 +218,15 @@ module testkern_stencil_multi_int_field_mod
   public
 
   contains
-  subroutine testkern_stencil_multi_int_field_code(nlayers, field_1_w2broken, \
+  subroutine testkern_stencil_multi_int_field_code(nlayers_field_1, \
+field_1_w2broken, \
 field_2_w1, field_2_stencil_size, field_2_stencil_dofmap, field_3_w0, \
 field_3_stencil_size, field_3_direction, field_3_stencil_dofmap, field_4_w2v, \
 field_4_stencil_size, field_4_stencil_dofmap, ndf_w2broken, undf_w2broken, \
 map_w2broken, ndf_w1, undf_w1, map_w1, ndf_w0, undf_w0, map_w0, ndf_w2v, \
 undf_w2v, map_w2v)
     use constants_mod
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers_field_1
     integer(kind=i_def), intent(in) :: ndf_w0
     integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
     integer(kind=i_def), intent(in) :: ndf_w1
@@ -284,14 +286,14 @@ module testkern_field_mod
   public
 
   contains
-  subroutine testkern_field_code(nlayers, rscalar_1, field_2_w1, field_3_w2, \
-field_4_wtheta, field_5_w3, iscalar_6, ndf_w1, undf_w1, map_w1, \
+  subroutine testkern_field_code(nlayers_field_2, rscalar_1, field_2_w1, \
+field_3_w2, field_4_wtheta, field_5_w3, iscalar_6, ndf_w1, undf_w1, map_w1, \
 basis_w1_qr_xyoz, diff_basis_w1_qr_xyoz, ndf_w2, undf_w2, map_w2, ndf_wtheta, \
 undf_wtheta, map_wtheta, ndf_w3, undf_w3, map_w3, basis_w3_qr_xyoz, \
 diff_basis_w3_qr_xyoz, np_xy_qr_xyoz, np_z_qr_xyoz, weights_xy_qr_xyoz, \
 weights_z_qr_xyoz)
     use constants_mod
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers_field_2
     integer(kind=i_def), intent(in) :: ndf_w1
     integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
     integer(kind=i_def), intent(in) :: ndf_w2

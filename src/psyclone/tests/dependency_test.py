@@ -448,7 +448,7 @@ def test_lfric_stub_args():
     assert "ndf_w1: READ," in var_info
     assert "ndf_w2: READ," in var_info
     assert "ndf_w3: READ," in var_info
-    assert "nlayers: READ," in var_info
+    assert "nlayers_field_1: READ," in var_info
     assert "undf_w1: READ," in var_info
     assert "undf_w2: READ," in var_info
     assert "undf_w3: READ" in var_info

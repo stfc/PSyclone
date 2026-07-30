@@ -120,11 +120,11 @@ module testkern_three_scalars_mod
   public
 
   contains
-  subroutine testkern_three_scalars_code(nlayers, rscalar_1, field_2_w1, \
-field_3_w2, field_4_w2, field_5_w3, lscalar_6, iscalar_7, ndf_w1, undf_w1, \
-map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)
+  subroutine testkern_three_scalars_code(nlayers_field_2, rscalar_1, \
+field_2_w1, field_3_w2, field_4_w2, field_5_w3, lscalar_6, iscalar_7, \
+ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)
     use constants_mod
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers_field_2
     integer(kind=i_def), intent(in) :: ndf_w1
     integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
     integer(kind=i_def), intent(in) :: ndf_w2
@@ -176,12 +176,12 @@ module testkern_scalar_array_mod
   public
 
   contains
-  subroutine testkern_scalar_array_code(nlayers, field_1_w1, \
+  subroutine testkern_scalar_array_code(nlayers_field_1, field_1_w1, \
 dims_rscalar_array_2, rscalar_array_2, dims_lscalar_array_3, \
 lscalar_array_3, dims_iscalar_array_4, iscalar_array_4, \
 iscalar_5, ndf_w1, undf_w1, map_w1)
     use constants_mod
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers_field_1
     integer(kind=i_def), intent(in) :: ndf_w1
     integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
     integer(kind=i_def), intent(in) :: undf_w1

@@ -1342,18 +1342,18 @@ module columnwise_op_asm_kernel_mod
   public
 
   contains
-  subroutine columnwise_op_asm_kernel_code(cell, nlayers, ncell_2d, \
+  subroutine columnwise_op_asm_kernel_code(cell, nlayers_op_1, ncell_2d, \
 op_1_ncell_3d, op_1, cma_op_2, cma_op_2_nrow, cma_op_2_ncol, \
 cma_op_2_bandwidth, cma_op_2_alpha, cma_op_2_beta, cma_op_2_gamma_m, \
 cma_op_2_gamma_p, ndf_ads1_op_1, cbanded_map_ads1_op_1, ndf_ads2_op_1, \
 cbanded_map_ads2_op_1)
     use constants_mod
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers_op_1
     integer(kind=i_def), intent(in) :: ndf_ads1_op_1
-    integer(kind=i_def), dimension(ndf_ads1_op_1,nlayers), intent(in) :: \
+    integer(kind=i_def), dimension(ndf_ads1_op_1,nlayers_op_1), intent(in) :: \
 cbanded_map_ads1_op_1
     integer(kind=i_def), intent(in) :: ndf_ads2_op_1
-    integer(kind=i_def), dimension(ndf_ads2_op_1,nlayers), intent(in) :: \
+    integer(kind=i_def), dimension(ndf_ads2_op_1,nlayers_op_1), intent(in) :: \
 cbanded_map_ads2_op_1
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_2d
@@ -1394,21 +1394,21 @@ module columnwise_op_asm_field_kernel_mod
   public
 
   contains
-  subroutine columnwise_op_asm_field_kernel_code(cell, nlayers, ncell_2d, \
-field_1_as1_field_1, op_2_ncell_3d, op_2, cma_op_3, cma_op_3_nrow, \
+  subroutine columnwise_op_asm_field_kernel_code(cell, nlayers_field_1, \
+ncell_2d, field_1_as1_field_1, op_2_ncell_3d, op_2, cma_op_3, cma_op_3_nrow, \
 cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, \
 cma_op_3_gamma_m, cma_op_3_gamma_p, ndf_as1_field_1, undf_as1_field_1, \
 map_as1_field_1, cbanded_map_as1_field_1, ndf_as2_op_2, cbanded_map_as2_op_2)
     use constants_mod
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers_field_1
     integer(kind=i_def), intent(in) :: ndf_as1_field_1
     integer(kind=i_def), dimension(ndf_as1_field_1), intent(in) :: \
 map_as1_field_1
-    integer(kind=i_def), dimension(ndf_as1_field_1,nlayers), intent(in) :: \
-cbanded_map_as1_field_1
+    integer(kind=i_def), dimension(ndf_as1_field_1,nlayers_field_1), \
+intent(in) :: cbanded_map_as1_field_1
     integer(kind=i_def), intent(in) :: ndf_as2_op_2
-    integer(kind=i_def), dimension(ndf_as2_op_2,nlayers), intent(in) :: \
-cbanded_map_as2_op_2
+    integer(kind=i_def), dimension(ndf_as2_op_2,nlayers_field_1), \
+intent(in) :: cbanded_map_as2_op_2
     integer(kind=i_def), intent(in) :: undf_as1_field_1
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_2d
@@ -1451,18 +1451,18 @@ module columnwise_op_asm_same_fs_kernel_mod
   public
 
   contains
-  subroutine columnwise_op_asm_same_fs_kernel_code(cell, nlayers, ncell_2d, \
-op_1_ncell_3d, op_1, field_2_as1_op_1, cma_op_3, cma_op_3_nrow, \
+  subroutine columnwise_op_asm_same_fs_kernel_code(cell, nlayers_op_1, \
+ncell_2d, op_1_ncell_3d, op_1, field_2_as1_op_1, cma_op_3, cma_op_3_nrow, \
 cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m, \
 cma_op_3_gamma_p, ndf_as1_op_1, undf_as1_op_1, map_as1_op_1, \
 ndf_as2_op_1, cbanded_map_as2_op_1)
     use constants_mod
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers_op_1
     integer(kind=i_def), intent(in) :: ndf_as1_op_1
     integer(kind=i_def), dimension(ndf_as1_op_1), intent(in) :: \
 map_as1_op_1
     integer(kind=i_def), intent(in) :: ndf_as2_op_1
-    integer(kind=i_def), dimension(ndf_as2_op_1,nlayers), intent(in) :: \
+    integer(kind=i_def), dimension(ndf_as2_op_1,nlayers_op_1), intent(in) :: \
 cbanded_map_as2_op_1
     integer(kind=i_def), intent(in) :: undf_as1_op_1
     integer(kind=i_def), intent(in) :: cell

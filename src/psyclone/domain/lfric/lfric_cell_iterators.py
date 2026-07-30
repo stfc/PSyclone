@@ -112,13 +112,14 @@ class LFRicCellIterators(LFRicCollection):
             symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
             self.symtab.append_argument(symbol)
 
-        first_arg: LFRicKernelArgument = (
-            kern.arguments.first_field_or_operator)
-        sym = self.symtab.find_or_create_tag(
-            f"nlayers_{first_arg.name}",
-            symbol_type=LFRicTypes("MeshHeightDataSymbol"))
-        _update_arg_properties(sym)
-        self._nlayers_names[sym.name] = first_arg
+        if kern.cma_operation not in ["apply", "matrix-matrix"]:
+            first_arg: LFRicKernelArgument = (
+                kern.arguments.first_field_or_operator)
+            sym = self.symtab.find_or_create_tag(
+                f"nlayers_{first_arg.name}",
+                symbol_type=LFRicTypes("MeshHeightDataSymbol"))
+            _update_arg_properties(sym)
+            self._nlayers_names[sym.name] = first_arg
 
         # We must also check for any subsequent arguments that have
         # a number of layers or ndata specified by a label in the metadata.

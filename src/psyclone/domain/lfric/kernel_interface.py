@@ -40,8 +40,9 @@
 kernel based on the kernel metadata.
 
 '''
-from typing import TYPE_CHECKING
-from psyclone.core import AccessType
+from typing import Optional, TYPE_CHECKING
+
+from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.lfric_types import LFRicTypes
@@ -111,14 +112,12 @@ class KernelInterface(ArgOrdering):
         # as arguments.
         self._forced_symtab = SymbolTable()
 
-    def generate(self, var_accesses=None):
+    def generate(self, var_accesses: Optional[VariablesAccessMap] = None):
         '''Call the generate base class then add the argument list as it can't
         be appended as we go along.
 
-        :param var_accesses: an unused optional argument that stores \
+        :param var_accesses: an unused optional argument that stores
             information about variable accesses.
-        :type var_accesses: :\
-            py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         super().generate(var_accesses=var_accesses)
@@ -144,14 +143,14 @@ class KernelInterface(ArgOrdering):
                         mode=mapping[symbol.interface.access])
         self._arglist = self._arglist[:len_arglist]
 
-    def cell_position(self, var_accesses=None):
+    def cell_position(self,
+                      var_accesses: Optional[VariablesAccessMap] = None
+                      ) -> None:
         '''Create an LFRic cell-position object and add it to the symbol table
         and argument list.
 
-        :param var_accesses: an unused optional argument that stores \
+        :param var_accesses: an unused optional argument that stores
             information about variable accesses.
-        :type var_accesses: :\
-            py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         symbol = self._symtab.find_or_create_tag(
@@ -159,20 +158,39 @@ class KernelInterface(ArgOrdering):
             interface=self._read_access)
         self._arglist.append(symbol)
 
-    def mesh_height(self, var_accesses=None):
-        '''Create an LFRic mesh height object and add it to the symbol table
-        and argument list.
+    def mesh_height(self,
+                    var_accesses: Optional[VariablesAccessMap] = None
+                    ) -> None:
+        '''Create an LFRic mesh height (nlayers) object and add it to the
+        symbol table and argument list. Also add any custom values of
+        nlayers and ndata needed by other field arguments.
 
-        :param var_accesses: an unused optional argument that stores \
+        :param var_accesses: an unused optional argument that stores
             information about variable accesses.
-        :type var_accesses: :\
-            py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         symbol = self._symtab.find_or_create_tag(
-            "nlayers", symbol_type=LFRicTypes("MeshHeightDataSymbol"),
+            f"nlayers_{self._kern.arguments.first_field_or_operator.name}",
+            symbol_type=LFRicTypes("MeshHeightDataSymbol"),
             interface=self._read_access)
         self._arglist.append(symbol)
+
+        for arg in self._kern.arguments.args:
+            if arg.nlayers and not arg.nlayers.isnumeric():
+                sym = self.symtab.find_or_create_tag(
+                    f"nlayers_{arg.nlayers}",
+                    symbol_type=LFRicTypes("MeshHeightDataSymbol"),
+                    interface=self._read_access)
+                if sym not in self._arglist:
+                    self._arglist.append(sym)
+        for arg in self._kern.arguments.args:
+            if arg.ndata and not arg.ndata.isnumeric():
+                sym = self.symtab.find_or_create_tag(
+                    f"ndata_{arg.ndata}",
+                    # TODO - shouldn't be MeshHeightDataSymbol
+                    symbol_type=LFRicTypes("MeshHeightDataSymbol"))
+                if sym not in self._arglist:
+                    self._arglist.append(sym)
 
     def _mesh_ncell2d(self, var_accesses=None):
         '''Not implemented.
