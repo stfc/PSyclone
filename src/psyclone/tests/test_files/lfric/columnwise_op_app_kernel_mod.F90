@@ -1,6 +1,6 @@
 ! -----------------------------------------------------------------------------
 ! Original under:
-! Copyright (c) 2017-2026,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017-2026, Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
 ! -----------------------------------------------------------------------------
