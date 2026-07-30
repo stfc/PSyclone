@@ -134,9 +134,9 @@ def test_create_from_fparser2():
     # _get_metadata called
     with pytest.raises(TypeError) as info:
         ScalarArgMetadata.create_from_fparser2(None)
-    assert ("Expected kernel metadata to be encoded as an fparser2 Part_Ref "
-            "object but found type 'NoneType' with value 'None'."
-            in str(info.value))
+    assert ("Expected kernel metadata to be encoded as an fparser2 "
+            "Part_Ref object but found type 'NoneType' with "
+            "value 'None'." in str(info.value))
 
     # check_remaining_args called
     fparser2_tree = ScalarArgMetadata.create_fparser2(

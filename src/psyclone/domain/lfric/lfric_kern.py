@@ -129,6 +129,9 @@ class LFRicKern(CodedKern):
         api_config = Config.get().api_conf("lfric")
         self._argument_kinds = {api_config.default_kind["real"],
                                 api_config.default_kind["integer"]}
+        # TODO #2054 - this 'routine' property can be replaced once this
+        # class sub-classes Call.
+        self.routine: Optional[Reference] = None
 
     def reference_accesses(self) -> VariablesAccessMap:
         '''

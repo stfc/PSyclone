@@ -959,18 +959,18 @@ def test_fw_filecontainer_2(fortran_writer):
 def test_fw_filecontainer_error1(fortran_writer):
     '''Check that an instance of the FortranWriter class raises the
     expected exception if the symbol table associated with a
-    FileContainer node contains any symbols.
+    FileContainer node contains any data symbols.
 
     '''
     symbol_table = SymbolTable()
-    symbol_table.add(Symbol("x"))
+    symbol_table.add(DataSymbol("x", ScalarType.integer_type()))
     file_container = FileContainer.create("None", symbol_table, [])
     with pytest.raises(VisitorError) as info:
         _ = fortran_writer(file_container)
     assert (
         "In the Fortran backend, a file container should not have any "
-        "symbols associated with it other than RoutineSymbols, but found "
-        "x: Symbol<Automatic>." in str(info.value))
+        "data symbols associated with it, but found x: DataSymbol"
+        in str(info.value))
 
     # Check that a routine symbol is fine.
     symbol_table = SymbolTable()
@@ -1058,9 +1058,8 @@ def test_fw_container_2(fortran_reader, fortran_writer, tmpdir):
     container.children[0].children.append(Container("child"))
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer(container)
-    assert ("The Fortran back-end requires all children of a Container "
-            "to be either CodeBlocks or sub-classes of Routine but found: "
-            "['Routine', 'Container']" in str(excinfo.value))
+    assert ("The Fortran backend does not support nested Containers but "
+            "found: ['child']." in str(excinfo.value))
 
 
 def test_fw_container_3(fortran_reader, fortran_writer, monkeypatch):

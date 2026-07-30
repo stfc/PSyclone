@@ -1,17 +1,6 @@
-
-
-
-
-
-
-
-
-
-
-
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
-! For further details please refer to the file LICENCE.original which you
+! For further details please refer to the file LICENCE which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
 
@@ -57,10 +46,10 @@ module argument_mod
   !> @defgroup argument_type Enumeration of argument type property descriptors.
   !> @{
   integer, public, parameter :: GH_SCALAR              = 397
+  integer, public, parameter :: GH_SCALAR_ARRAY        = 973
   integer, public, parameter :: GH_FIELD               = 507
   integer, public, parameter :: GH_OPERATOR            = 735
   integer, public, parameter :: GH_COLUMNWISE_OPERATOR = 841
-  integer, public, parameter :: GH_SCALAR_ARRAY        = 973
   !> @}
 
   !> @defgroup data_type Enumeration of argument data type property descriptors.
@@ -77,7 +66,6 @@ module argument_mod
   integer, public, parameter :: GH_READWRITE = 811
   integer, public, parameter :: GH_INC       = 542
   integer, public, parameter :: GH_READINC   = 420
-  integer, public, parameter :: GH_REDUCTION = 991
   integer, public, parameter :: GH_SUM       = 563
   integer, public, parameter :: GH_MIN       = 718
   integer, public, parameter :: GH_MAX       = 391
@@ -202,6 +190,10 @@ module argument_mod
   integer, public, parameter :: DOF                        = 712
   !> @}
 
+  !> The maximum length of those elements of argument metadata that
+  !! are of character type.
+  integer, private, parameter :: METADATA_CHAR_LENGTH = 40
+
   !> Metadata for the argument type description, stored in the `arg_type` type
   !! as an array of `meta_args`. We need to know how many scalars, fields
   !! and/or operators are passed to the kernel and in what order they are
@@ -236,6 +228,13 @@ module argument_mod
      !> Optional metadata (fields only) for inter-grid mapping kernels.
      !! One of {GH_FINE, GH_COARSE}.
      integer :: mesh_arg    = -1
+     !> Optional metadata (fields only) specifying how many data values
+     !! there are at each DoF. Defaults to 1.
+     character(len=METADATA_CHAR_LENGTH) :: ndata = "1"
+     !> Optional metadata specifying how many vertical levels
+     !! the field has. Default is to use the number associated with the
+     !! first field/operator kernel argument.
+     character(len=METADATA_CHAR_LENGTH) :: nlevels = ""
   end type arg_type
 
   !> Optional metadata for the basis/differential basis functions required with

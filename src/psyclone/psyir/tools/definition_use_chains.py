@@ -172,13 +172,21 @@ class DefinitionUseChain:
                 )
             self._scope = control_flow_region
 
-        # The uses, defsout and killed sets as defined for each basic block.
+        # These are maps of signatures to node for the region of code provided
+        # to the DUC, for every singature:
+        # - The uses collects every possible read reached from the start of the
+        # region (until we find any guaranteed write).
         self._uses = {}
+        # - The defout collects the nodes that could represent end points of
+        # the signature use chain (all writes before the guaranteed write).
         self._defsout = {}
+        # - The killed is a working collection used by compute_x_uses to store
+        # writes found that are defenitely not the final write.
         self._killed = {}
-
-        # The output map, mapping between nodes and the reach of that node.
+        # - The reaches collects all nodes that can be reached for each
+        # signature from the start of the region.
         self._reaches = {}
+
         # Initialise the maps.
         for sig in self._reference_signatures:
             self._uses[sig] = []
@@ -782,6 +790,16 @@ class DefinitionUseChain:
                         reference.parent.is_inquiry and
                         reference.parent.arguments[0] is reference):
                     continue
+                if isinstance(reference.parent, CodeBlock):
+                    for i, ref in enumerate(self._references[:]):
+                        if ref.symbol.is_automatic:
+                            continue  # We use the standard reference logic
+                        # If not, assume the worst for a CodeBlock and we count
+                        # them as killed and defsout and uses.
+                        sig = self._reference_signatures[i]
+                        if defs_out[sig] is not None:
+                            self._killed[sig].append(defs_out[sig])
+                        defs_out[sig] = reference
                 if isinstance(reference, CodeBlock):
                     stop = self._check_forward_codeblock(reference)
                     if stop:
@@ -1201,6 +1219,16 @@ class DefinitionUseChain:
                         reference.parent.is_inquiry and
                         reference.parent.arguments[0] is reference):
                     continue
+                if isinstance(reference.parent, CodeBlock):
+                    for i, ref in enumerate(self._references[:]):
+                        if ref.symbol.is_automatic:
+                            continue  # We use the standard reference logic
+                        # If not, assume the worst for a CodeBlock and we count
+                        # them as killed and defsout and uses.
+                        sig = self._reference_signatures[i]
+                        if defs_out[sig] is not None:
+                            self._killed[sig].append(defs_out[sig])
+                        defs_out[sig] = reference
                 if isinstance(reference, CodeBlock):
                     # CodeBlocks only find symbols, so we can only do as good
                     # as checking the symbol - this means we can get false

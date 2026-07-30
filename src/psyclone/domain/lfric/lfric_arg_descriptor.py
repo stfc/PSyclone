@@ -40,9 +40,8 @@ This module contains the LFRicArgDescriptor class and related constants
 and properties.
 '''
 
-# Imports
-
 import os
+from typing import Optional
 
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
@@ -51,7 +50,8 @@ from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import InternalError
 import psyclone.expression as expr
-from psyclone.parse.kernel import Descriptor, get_stencil, get_mesh
+from psyclone.parse.kernel import (
+    Descriptor, get_stencil, get_mesh, get_char_value)
 from psyclone.parse.utils import ParseError
 
 # API configuration
@@ -109,6 +109,11 @@ class LFRicArgDescriptor(Descriptor):
         self._function_space2 = None
         self._stencil = None
         self._mesh = None
+        # No. of vertical levels associated with the argument. Defaults to
+        # using that of the first field/operator argument to a kernel.
+        self._nlevels = None
+        # No. of data values per dof - defaults to 1.
+        self._ndata = "1"
         self._nargs = 0
 
         # Check for the correct argument type descriptor
@@ -372,8 +377,8 @@ class LFRicArgDescriptor(Descriptor):
                 f"{nargs_field_min} arguments if its first argument is of "
                 f"{const.VALID_FIELD_NAMES} type, but found {self._nargs} in "
                 f"'{arg_type}'.")
-        # There must be at most 5 arguments
-        nargs_field_max = 5
+        # There must be at most 7 arguments
+        nargs_field_max = 7
         if self._nargs > nargs_field_max:
             raise ParseError(
                 f"In the LFRic API each 'meta_arg' entry must have at most "
@@ -400,27 +405,33 @@ class LFRicArgDescriptor(Descriptor):
                 f"'{arg_type.args[prop_ind].name}' in '{arg_type}'.")
         self._function_space1 = arg_type.args[prop_ind].name
 
-        # The optional 5th argument is either a stencil specification
-        # or a mesh identifier (for inter-grid kernels)
-        prop_ind = 4
-        if self._nargs == nargs_field_max:
-            try:
-                if "stencil" in str(arg_type.args[prop_ind]):
-                    self._stencil = get_stencil(
-                        arg_type.args[prop_ind],
-                        const.VALID_STENCIL_TYPES)
-                elif "mesh" in str(arg_type.args[prop_ind]):
-                    self._mesh = get_mesh(arg_type.args[prop_ind],
-                                          const.VALID_MESH_TYPES)
-                else:
-                    raise ParseError("Unrecognised metadata entry")
-            except ParseError as err:
-                raise ParseError(
-                    f"In the LFRic API argument {prop_ind+1} of a 'meta_arg' "
-                    f"field entry must be either a valid stencil specification"
-                    f" or a mesh identifier (for inter-grid kernels). However,"
-                    f" entry '{arg_type}' raised the following error: "
-                    f"{err}.") from err
+        num_args = len(arg_type.args)
+        if num_args > 4:
+            for prop_ind in range(4, num_args):
+                try:
+                    if "stencil" in str(arg_type.args[prop_ind]):
+                        self._stencil = get_stencil(
+                            arg_type.args[prop_ind],
+                            const.VALID_STENCIL_TYPES)
+                    elif "mesh" in str(arg_type.args[prop_ind]):
+                        self._mesh = get_mesh(arg_type.args[prop_ind],
+                                              const.VALID_MESH_TYPES)
+                    elif "nlevels" in str(arg_type.args[prop_ind]):
+                        self._nlevels = get_char_value(arg_type.args[prop_ind],
+                                                       "nlevels")
+                    elif "ndata" in str(arg_type.args[prop_ind]):
+                        self._ndata = get_char_value(arg_type.args[prop_ind],
+                                                     "ndata")
+                    else:
+                        raise ParseError("Unrecognised metadata entry")
+                except ParseError as err:
+                    raise ParseError(
+                        f"In the LFRic API argument {prop_ind+1} of a "
+                        f"'meta_arg' field entry must be either a valid "
+                        f"stencil specification, a number of levels, a number "
+                        f"of data values per dof or a mesh identifier (for "
+                        f"inter-grid kernels). However, entry '{arg_type}' "
+                        f"raised the following error: {err}.") from err
 
         # Test allowed accesses for fields
         field_disc_accesses = [AccessType.READ, AccessType.WRITE,
@@ -795,39 +806,54 @@ class LFRicArgDescriptor(Descriptor):
                             f"'{self._argument_type}'.")
 
     @property
-    def vector_size(self):
+    def nlevels(self) -> Optional[str]:
+        '''
+        :returns: a label (or integer, encoded as a string) identifying the
+            number of vertical levels associated with this argument or None
+            if the default (the number of levels associated with the first
+            kernel argument) is to be used.
+        '''
+        return self._nlevels
+
+    @property
+    def ndata(self) -> str:
+        '''
+        :returns: a label (or integer, encoded as a string) identifying the
+            number of data values associated with each DoF of the argument.
+        '''
+        return self._ndata
+
+    @property
+    def vector_size(self) -> int:
         '''
         Returns the vector size of the argument. This will be 1 if ``*n``
         has not been specified for all argument types except scalars
         (their vector size is set to 0).
 
         :returns: vector size of the argument.
-        :rtype: int
 
         '''
         return self._vector_size
 
     @property
-    def array_ndims(self):
+    def array_ndims(self) -> int:
         '''
         Returns the array rank of the argument. This will be 1 if ``*n``
         has not been specified for all argument types except scalars
         (their array rank is set to 0).
 
         :returns: array rank of the argument.
-        :rtype: int
 
         '''
         return self._array_ndims
 
-    def __str__(self):
+    def __str__(self) -> str:
         '''
         Creates a string representation of the argument descriptor. This
         is type and access for scalars with the addition of function
         space(s) for fields and operators.
 
         :returns: string representation of the argument descriptor.
-        :rtype: str
 
         :raises InternalError: if an invalid argument type is passed in.
 

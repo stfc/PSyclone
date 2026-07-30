@@ -839,7 +839,7 @@ def test_definition_use_chain_find_forward_accesses_codeblock(
     chains = DefinitionUseChain(ref)
     reaches = chains.find_forward_accesses()[sig]
     assert len(reaches) == 1
-    assert reaches[0] is routine.walk(CodeBlock)[0]
+    assert reaches[0] is routine.walk(CodeBlock)[0].children[0]
 
 
 def test_definition_use_chain_find_forward_accesses_codeblock_and_call_nlocal(
@@ -862,7 +862,7 @@ def test_definition_use_chain_find_forward_accesses_codeblock_and_call_nlocal(
     chains = DefinitionUseChain(ref)
     reaches = chains.find_forward_accesses()[sig]
     assert len(reaches) == 1
-    assert reaches[0] is routine.walk(CodeBlock)[0]
+    assert reaches[0] is routine.walk(CodeBlock)[0].children[0]
 
 
 def test_definition_use_chain_find_forward_accesses_codeblock_and_call_cflow(
@@ -888,7 +888,7 @@ def test_definition_use_chain_find_forward_accesses_codeblock_and_call_cflow(
     chains = DefinitionUseChain(ref)
     reaches = chains.find_forward_accesses()[sig]
     assert len(reaches) == 2
-    assert reaches[0] is routine.walk(CodeBlock)[0]
+    assert reaches[0] is routine.walk(CodeBlock)[0].children[0]
     assert reaches[1] is routine.walk(Call)[1]
 
 
@@ -913,7 +913,7 @@ def test_definition_use_chain_find_forward_accesses_codeblock_and_call_local(
     chains = DefinitionUseChain(ref)
     reaches = chains.find_forward_accesses()[sig]
     assert len(reaches) == 1
-    assert reaches[0] is routine.walk(CodeBlock)[0]
+    assert reaches[0] is routine.walk(CodeBlock)[0].children[0]
 
 
 def test_definition_use_chain_find_forward_accesses_call_and_codeblock_nlocal(

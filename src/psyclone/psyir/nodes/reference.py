@@ -130,6 +130,7 @@ class Reference(DataNode):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.assignment import Assignment
         from psyclone.psyir.nodes.call import Call
+        from psyclone.psyir.nodes.codeblock import CodeBlock
         from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
         from psyclone.psyir.nodes.loop import Loop
         parent = self.parent
@@ -144,6 +145,9 @@ class Reference(DataNode):
             return True
         # The reference that is the LHS of an assignment is a write.
         if isinstance(parent, Assignment) and parent.lhs is self:
+            return True
+        # Assume the worst for CodeBlocks
+        if isinstance(parent, CodeBlock):
             return True
         # Loop control variable is also a write
         if isinstance(parent, Loop) and parent.variable_reference is self:
