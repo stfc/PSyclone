@@ -1138,7 +1138,7 @@ def test_backward_accesses_unsupported_if_condition(fortran_reader):
     assert isinstance(psyir.walk(Assignment)[0].lhs.datatype,
                       UnsupportedType)
 
-    # The result should be the b argument to call test(b) and the
+    # The result should be the access to b in the if condition and the
     # previous access to a as both are UnsupportedTypes.
     assert len(reaches[a_sig]) == 2
     assert reaches[a_sig][0] is psyir.walk(IfBlock)[0].condition

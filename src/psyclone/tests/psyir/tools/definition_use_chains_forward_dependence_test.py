@@ -1186,7 +1186,7 @@ def test_forward_accesses_lhs_unsupported_type_rhs_supported_type(
 def test_forward_accesses_supported_types_ignore_unsupported_types(
     fortran_reader
 ):
-    """Test that we don't update non-unsupported type uses with
+    """Test that we don't update supported type uses with
     unsupported types."""
     code = """subroutine x
     integer :: i, j
@@ -1198,12 +1198,12 @@ def test_forward_accesses_supported_types_ignore_unsupported_types(
     b = c
     end subroutine x"""
     psyir = fortran_reader.psyir_from_source(code)
-    # Start the chain from a = 1.
+    # Start the chain from i = 1.
     assigns = psyir.walk(Assignment)
     ref = assigns[0].lhs
-    sig = ref.get_signature_and_indices()[0]
+    i_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
-    reaches = chains.find_forward_accesses()[sig]
+    reaches = chains.find_forward_accesses()[i_sig]
 
     # Check the unsupported datatypes.
     assert isinstance(assigns[1].lhs.datatype, UnsupportedType)
@@ -1214,7 +1214,7 @@ def test_forward_accesses_supported_types_ignore_unsupported_types(
 def test_forward_accesses_multiple_supported_types_ignore_unsupported_types(
     fortran_reader
 ):
-    """Test that we don't update non-unsupported type uses with unsupported
+    """Test that we don't update unsupported type uses with unsupported
     types with multiple inputs"""
     code = """subroutine x
     integer :: i, j
@@ -1226,13 +1226,13 @@ def test_forward_accesses_multiple_supported_types_ignore_unsupported_types(
     b = c
     end subroutine x"""
     psyir = fortran_reader.psyir_from_source(code)
-    # Start the chain from a = 1.
+    # Start the chain from j = i + b
     assigns = psyir.walk(Assignment)
-    ref = assigns[0].rhs.children[0]
-    sig = ref.get_signature_and_indices()[0]
-    ref2 = assigns[0].rhs.children[1]
-    chains = DefinitionUseChain([ref, ref2])
-    reaches = chains.find_forward_accesses()[sig]
+    i_ref = assigns[0].rhs.children[0]
+    i_sig = i_ref.get_signature_and_indices()[0]
+    b_ref = assigns[0].rhs.children[1]
+    chains = DefinitionUseChain([i_ref, b_ref])
+    reaches = chains.find_forward_accesses()[i_sig]
     # Check unsupported type datatypes.
     assert isinstance(assigns[1].lhs.datatype, UnsupportedType)
     assert isinstance(assigns[1].rhs.datatype, UnsupportedType)
@@ -1258,12 +1258,12 @@ def test_forward_accesses_unsupported_types_if_condition(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     # Start the chain from a = 1.
     assigns = psyir.walk(Assignment)
-    ref = assigns[0].lhs
-    sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain(ref)
-    reaches = chains.find_forward_accesses()[sig]
+    a_ref = assigns[0].lhs
+    a_sig = a_ref.get_signature_and_indices()[0]
+    chains = DefinitionUseChain(a_ref)
+    reaches = chains.find_forward_accesses()[a_sig]
     # Check datatypes
-    assert isinstance(ref.datatype, UnsupportedType)
+    assert isinstance(a_ref.datatype, UnsupportedType)
     assert isinstance(psyir.walk(IfBlock)[0].condition.datatype,
                       UnsupportedType)
     assert len(reaches) == 2
@@ -1272,10 +1272,10 @@ def test_forward_accesses_unsupported_types_if_condition(fortran_reader):
     # The second reached is the a = 2 assignment lhs
     assert reaches[1] is assigns[3].lhs
     # Test also from b = 2
-    ref = assigns[1].lhs
-    sig = ref.get_signature_and_indices()[0]
-    chains = DefinitionUseChain(ref)
-    reaches = chains.find_forward_accesses()[sig]
+    b_ref = assigns[1].lhs
+    b_sig = b_ref.get_signature_and_indices()[0]
+    chains = DefinitionUseChain(b_ref)
+    reaches = chains.find_forward_accesses()[b_sig]
     assert len(reaches) == 1
     assert reaches[0] is assigns[2].lhs
 
