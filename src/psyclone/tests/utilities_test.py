@@ -149,8 +149,8 @@ def test_compiler_with_flags(monkeypatch):
     the compiler complains. This test is skipped if no compilation
     tests have been requested (--compile flag to py.test). '''
     if not Compile.TEST_COMPILE or Compile.F90 == "ifx":
-        # If compilation is disable, use '/usr/bin/true' as 'compile'
-        # to cover more lines:
+        # If compilation is disabled, or the compiler is ifx
+        # use '/usr/bin/true' as 'compile' to cover more lines:
         monkeypatch.setattr(Compile, "TEST_COMPILE", True)
         monkeypatch.setattr(Compile, "F90", "false")
 
