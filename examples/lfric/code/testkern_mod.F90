@@ -30,7 +30,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory
-! Modified: I. Kavcic, Met Office
+! Modified: I. Kavcic and A. Pirrie, Met Office
 
 module testkern_mod
 
@@ -42,12 +42,13 @@ module testkern_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_type
-     type(arg_type), dimension(5) :: meta_args =        &
-          (/ arg_type(gh_scalar, gh_real, gh_read),     &
-             arg_type(gh_field,  gh_real, gh_inc,  w1), &
-             arg_type(gh_field,  gh_real, gh_read, w2), &
-             arg_type(gh_field,  gh_real, gh_read, w2), &
-             arg_type(gh_field,  gh_real, gh_read, w3)  &
+     type(arg_type), dimension(6) :: meta_args =              &
+          (/ arg_type(gh_scalar,       gh_real, gh_read   ),  &
+             arg_type(gh_scalar_array, gh_real, gh_read, 2 ), &
+             arg_type(gh_field,        gh_real, gh_inc,  w1), &
+             arg_type(gh_field,        gh_real, gh_read, w2), &
+             arg_type(gh_field,        gh_real, gh_read, w2), &
+             arg_type(gh_field,        gh_real, gh_read, w3)  &
            /)
      integer :: operates_on = cell_column
    contains
@@ -56,10 +57,11 @@ module testkern_mod
 
 contains
 
-  subroutine testkern_code(nlayers, ascalar,        &
-                           fld1, fld2, fld3, fld4,  &
-                           ndf_w1, undf_w1, map_w1, &
-                           ndf_w2, undf_w2, map_w2, &
+  subroutine testkern_code(nlayers, ascalar,                  &
+                           dims_ascalar_array, ascalar_array, &
+                           fld1, fld2, fld3, fld4,            &
+                           ndf_w1, undf_w1, map_w1,           &
+                           ndf_w2, undf_w2, map_w2,           &
                            ndf_w3, undf_w3, map_w3)
     implicit none
 
@@ -71,6 +73,8 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_w1) :: map_w1
     integer(kind=i_def), intent(in), dimension(ndf_w2) :: map_w2
     integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
+    integer(kind=i_def), intent(in), dimension(2) :: dims_ascalar_array
+    real(kind=r_def), intent(in), dimension(dims_ascalar_array(1), dims_ascalar_array(2)) :: ascalar_array
     real(kind=r_def), intent(in) :: ascalar
     real(kind=r_def), intent(inout), dimension(undf_w1) :: fld1
     real(kind=r_def), intent(in), dimension(undf_w2)  :: fld2
