@@ -53,10 +53,10 @@ path::
     > psyclone -s /home/me/PSyclone/scripts/optimise.py input_source.f90
 
 PSyclone will not take ``PYTHONPATH`` into account when importing the script,
-so the user must ensure that the script is found: For this, it must either be
+so the user must ensure that the script is found: for this, it must either be
 in the current working directory (if no path is specified at all), or be
 specified with a valid (relative or absolute) path. PSyclone will add the
-directory of the script to its Python's ``sys.path``, meaning the PSyclone
+directory of the script to Python's ``sys.path``, meaning the transformation
 script can import any helper script in the same directory without additional
 setup.
 
