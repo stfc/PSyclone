@@ -1,3 +1,6 @@
+   18) PR #3504 for #3500. Adds StandaloneDirective as valid child of
+   Container.
+
    17) PR #3290 for #2846. KernelModuleInlineTrans renames inlined routines
    to avoid clashes.
 
