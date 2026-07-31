@@ -937,7 +937,7 @@ def test_decln_structure_type(fortran_reader):
     use some_other_mod
     contains
     subroutine my_sub
-       type(some_type), parameter :: x = func()
+       type(some_type), parameter :: x = some_type()
     end subroutine my_sub
     end module my_mod
     '''
