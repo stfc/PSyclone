@@ -1,3 +1,5 @@
+   19) PR #3515 for #3513. Add a compilation test job with ifx and OpenMP flags.
+
    18) PR #3504 for #3500. Adds StandaloneDirective as valid child of
    Container.
 
