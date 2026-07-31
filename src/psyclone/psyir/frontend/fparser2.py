@@ -2564,6 +2564,9 @@ class Fparser2Reader():
             if isinstance(child, (Fortran2003.Interface_Stmt,
                                   Fortran2003.End_Interface_Stmt)):
                 continue
+            # TODO #3517: Comments inside an Interface statement are ignored.
+            if isinstance(child, Fortran2003.Comment):
+                continue
             if isinstance(child, Fortran2003.Procedure_Stmt):
                 # Keep track of whether these are module procedures.
                 is_module = child.children[1] == 'MODULE'
@@ -5649,6 +5652,8 @@ class Fparser2Reader():
             if (
                 isinstance(routine_symbol, RoutineSymbol) and
                 isinstance(node, Fortran2003.Call_Stmt)
+                and not isinstance(routine_symbol.datatype,
+                                   UnsupportedFortranType)
             ):
                 routine_symbol.datatype = NoType()
 
