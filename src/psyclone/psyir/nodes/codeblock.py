@@ -457,5 +457,5 @@ class TreeSitterCodeBlock(CodeBlock):
         '''
         :returns: the name of all symbols accessed in the CodeBlock.
         '''
-        # Treesitter support is incomplete
+        # TODO #3083: Treesitter support is incomplete
         return []
