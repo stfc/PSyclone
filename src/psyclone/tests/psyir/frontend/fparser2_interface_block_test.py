@@ -399,7 +399,7 @@ def test_unnamed_interface(fortran_reader, code, start, end):
     assert interface_symbol.visibility == Symbol.Visibility.PUBLIC
 
 
-def test_unsupported_intercave_kept(fortran_reader, fortran_writer):
+def test_unsupported_interface_kept(fortran_reader, fortran_writer):
     ''' Test that a call to an unsupported interface doesn't replace
     its datatype with NoType.'''
     code = """module test

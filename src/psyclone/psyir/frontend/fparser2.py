@@ -5652,6 +5652,8 @@ class Fparser2Reader():
             if (
                 isinstance(routine_symbol, RoutineSymbol) and
                 isinstance(node, Fortran2003.Call_Stmt)
+                # Also don't overwrite UnsupportedFortranType as their text is
+                # needed to reproduce the declaration of this symbol
                 and not isinstance(routine_symbol.datatype,
                                    UnsupportedFortranType)
             ):
