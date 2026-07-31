@@ -45,7 +45,6 @@ functions.
 '''
 
 import logging
-import os
 from pathlib import Path
 import re
 import shutil
@@ -508,7 +507,7 @@ def test_script_null_trans_relative(monkeypatch, tmp_path):
     alg1, psy1 = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
                           api="lfric")
     empty_script = script_factory(tmp_path, "def trans(psyir):\n  pass")
-    basename = os.path.basename(empty_script)
+    basename = empty_script.name
 
     # Change into the script's directory so it's found as a relative import.
     monkeypatch.chdir(tmp_path)
@@ -807,9 +806,9 @@ def test_main_api():
     assert Config.get().api == "lfric"
 
 
-def test_keep_comments_and_keep_directives(capsys, caplog, tmpdir_factory):
+def test_keep_comments_and_keep_directives(capsys, caplog, tmp_path):
     ''' Test the keep comments and keep directives arguments to main. '''
-    filename = str(tmpdir_factory.mktemp('psyclone_test').join("test.f90"))
+    filename = tmp_path / "test.f90"
     code = """subroutine a()
     ! Here is a comment
     integer :: a
@@ -826,7 +825,7 @@ def test_keep_comments_and_keep_directives(capsys, caplog, tmpdir_factory):
     with open(filename, "w", encoding='utf-8') as wfile:
         wfile.write(code)
 
-    main([filename, "--keep-comments"])
+    main([str(filename), "--keep-comments"])
     output, _ = capsys.readouterr()
 
     correct = """subroutine a()
@@ -843,7 +842,7 @@ end subroutine a
 """
     assert output == correct
 
-    main([filename, "--keep-comments", "--keep-directives"])
+    main([str(filename), "--keep-comments", "--keep-directives"])
     output, _ = capsys.readouterr()
 
     correct = """subroutine a()
@@ -866,12 +865,12 @@ end subroutine a
     assert output == correct
 
     with caplog.at_level(logging.WARNING, logger="psyclone.generator"):
-        main([filename, "--keep-directives"])
+        main([str(filename), "--keep-directives"])
     assert ("keep_directives requires keep_comments so "
             "PSyclone enabled keep_comments." in caplog.text)
 
 
-def test_conditional_openmp_statements(capsys, tmpdir_factory):
+def test_conditional_openmp_statements(capsys, tmp_path):
     ''' Check that the Conditional OpenMP statements are ignored
     or parser depending on the flags provided to psyclone.
     '''
@@ -884,10 +883,10 @@ def test_conditional_openmp_statements(capsys, tmpdir_factory):
     i = 1
     !$ omp_threads = omp_get_num_threads()
     end subroutine x"""
-    filename = str(tmpdir_factory.mktemp('psyclone_test').join("test.f90"))
+    filename = tmp_path / "test.f90"
     with open(filename, "w", encoding='utf-8') as wfile:
         wfile.write(code)
-    main([filename])
+    main([str(filename)])
     output, _ = capsys.readouterr()
     correct = """subroutine x()
   integer :: i
@@ -899,7 +898,7 @@ end subroutine x
 """
     assert output == correct
 
-    main([filename, "--keep-conditional-openmp-statements"])
+    main([str(filename), "--keep-conditional-openmp-statements"])
     output, _ = capsys.readouterr()
     correct = """subroutine x()
   use omp_lib
@@ -951,9 +950,7 @@ def test_config_flag():
         file references in the environment variable.
     '''
     filename = str(LFRIC_BASE_PATH / "1_single_invoke.f90")
-    config_name = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               "test_files", "dummy_config.cfg")
-
+    config_path = Path(get_base_path("lfric")) / ".." / "dummy_config.cfg"
     # Test with no option
     Config._HAS_CONFIG_BEEN_INITIALISED = False
     main([filename, "-api", "lfric"])
@@ -962,13 +959,13 @@ def test_config_flag():
 
     # Test with with --config
     Config._HAS_CONFIG_BEEN_INITIALISED = False
-    main([filename, "--config", config_name, "-api", "lfric"])
+    main([filename, "--config", str(config_path), "-api", "lfric"])
     assert Config.get().api == "lfric"
     assert Config.has_config_been_initialised() is True
 
     # Test with with -c
     Config._HAS_CONFIG_BEEN_INITIALISED = False
-    main([filename, "-c", config_name, "-api", "lfric"])
+    main([filename, "-c", str(config_path), "-api", "lfric"])
     assert Config.get().api == "lfric"
     assert Config.has_config_been_initialised() is True
 
@@ -1501,7 +1498,7 @@ def test_main_write_psy_file(capsys, tmp_path):
     main([alg_filename, '-api', 'lfric', '-opsy', str(psy_filename)])
 
     # check psy file is created
-    assert os.path.isfile(psy_filename)
+    assert psy_filename.is_file()
 
     # extract psy file content
     with open(psy_filename, encoding="utf8") as psy_file:
@@ -1541,10 +1538,9 @@ def test_main_no_invoke_alg_file(capsys, tmp_path):
     with open(alg_filename, encoding="utf8") as expected_file:
         expected_alg_str = expected_file.read()
         assert expected_alg_str == kern_str
-    os.remove(alg_filename)
 
     # check psy file is not created
-    assert not os.path.isfile(psy_filename)
+    assert not psy_filename.exists()
 
 
 def test_main_kern_output_no_dir(capsys):
@@ -1569,8 +1565,8 @@ def test_main_kern_output_no_write(tmp_path, capsys):
     alg_filename = str(LFRIC_BASE_PATH / "1_single_invoke.f90")
     # Create a new directory and make it readonly
     new_dir = tmp_path / "no_write_access"
-    os.mkdir(new_dir)
-    os.chmod(new_dir, stat.S_IREAD)
+    new_dir.mkdir()
+    new_dir.chmod(stat.S_IREAD)
     with pytest.raises(SystemExit) as err:
         main([alg_filename, '-api', 'lfric', '-okern', str(new_dir)])
     assert str(err.value) == "1"
@@ -1591,7 +1587,7 @@ def test_main_kern_output_dir(tmp_path):
     # If no kernel_output_dir is set, it should default to the
     # current directory
     Config.get().kernel_output_dir = None
-    assert Config.get().kernel_output_dir == str(os.getcwd())
+    assert Config.get().kernel_output_dir == str(Path.cwd())
 
 
 def test_enable_cache_flag(tmp_path, monkeypatch):
@@ -1683,8 +1679,7 @@ def test_main_include_path(capsys):
             in str(err.value))
     # Now specify two locations to search with only the second containing
     # the necessary header file
-    inc_path1 = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "test_files")
+    inc_path1 = Path(get_base_path("lfric"))
     inc_path2 = str(NEMO_BASE_PATH / "include_files")
     main([alg_file, '-I', str(inc_path1), '-I', str(inc_path2)])
     stdout, _ = capsys.readouterr()
