@@ -1667,14 +1667,51 @@ def test_omp_loop_directive_validate_global_constraints():
         omploop.validate_global_constraints()
     assert ("OMPLoopDirective must have as many immediately nested loops as "
             "the collapse clause specifies but 'OMPLoopDirective[collapse=2]'"
-            " has a collapse=2 and the nested statement at depth 1 is a "
-            "Assignment rather than a Loop."
+            " has a collapse=2 and the nested body at depth 1 cannot be "
+            "collapsed."
             in str(err.value))
 
     # Check with an OMPLoop and collapse is 2 and 2 nested loops inside
     loop2 = loop.copy()
     loop.loop_body.children[0].replace_with(loop2)
     omploop.validate_global_constraints()  # This is valid
+
+
+def test_omp_loop_directive_collapse_with_intervening_directive():
+    '''Test that OMPLoopDirective collapse validation uses the same
+    schedule-based check as OMPDoDirective.'''
+    symboltable = SymbolTable()
+    i_sym = symboltable.new_symbol("i", symbol_type=DataSymbol,
+                                   datatype=ScalarType.integer_type())
+    j_sym = symboltable.new_symbol("j", symbol_type=DataSymbol,
+                                   datatype=ScalarType.integer_type())
+    var_sym = symboltable.new_symbol("var", symbol_type=DataSymbol,
+                                     datatype=ScalarType.integer_type())
+    stmt = Assignment.create(
+        Reference(var_sym), Literal("1", ScalarType.integer_type()))
+    inner_loop = Loop.create(j_sym,
+                             Literal("1", ScalarType.integer_type()),
+                             Literal("10", ScalarType.integer_type()),
+                             Literal("1", ScalarType.integer_type()),
+                             [OMPBarrierDirective(), stmt])
+    outer_loop = Loop.create(i_sym,
+                             Literal("1", ScalarType.integer_type()),
+                             Literal("10", ScalarType.integer_type()),
+                             Literal("1", ScalarType.integer_type()),
+                             [inner_loop])
+    omploop = OMPLoopDirective(children=[outer_loop], collapse=2)
+    ompparallel = OMPParallelDirective()
+    ompparallel.dir_body.addchild(omploop)
+
+    omploop.validate_global_constraints()
+
+    omploop.collapse = 3
+    with pytest.raises(GenerationError) as err:
+        omploop.validate_global_constraints()
+    assert ("OMPLoopDirective must have as many immediately nested loops as "
+            "the collapse clause specifies but 'OMPLoopDirective[collapse=3]'"
+            " has a collapse=3 and the nested body at depth 2 cannot be "
+            "collapsed." in str(err.value))
 
 
 def test_omploop_equality():
