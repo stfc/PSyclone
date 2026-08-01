@@ -331,6 +331,35 @@ def test_sympy_writer_type_map(expr, sym_map, fortran_reader):
     assert writer._sympy_type_map.keys() == sym_map.keys()
 
 
+def test_sympy_writer_type_map_wildcard_import(fortran_reader, monkeypatch):
+    '''Tests that `_sympy_type_map` uses the Reference symbol if lookup
+    raises KeyError, as happens for some symbols imported via wildcard USE.
+
+    '''
+    source = '''program test_prog
+                use constants_mod
+                real :: x
+                x = epsi06
+                end program test_prog '''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    expr = psyir.children[0].children[0].rhs
+    original_lookup = SymbolTable.lookup
+
+    def patched_lookup(self, name, *args, **kwargs):
+        '''Raise KeyError for the wildcard imported symbol.'''
+        if name.lower() == "epsi06":
+            raise KeyError(name)
+        return original_lookup(self, name, *args, **kwargs)
+
+    monkeypatch.setattr(SymbolTable, "lookup", patched_lookup)
+
+    writer = SymPyWriter()
+    result = writer([expr])
+    assert writer._sympy_type_map == {"epsi06": Symbol("epsi06")}
+    assert result == [Symbol("epsi06")]
+
+
 def test_sympy_writer_type_map_non_canonical(fortran_reader):
     ''' Test we get an error when the intrinsic can't have argument names
     computed.'''
