@@ -128,6 +128,47 @@ def test_apply_nested(fortran_reader, fortran_writer):
     assert "loop_stop_1" in routine_symtab
 
 
+def test_apply_reuses_existing_bounds(fortran_reader, fortran_writer):
+    '''Test the apply method reuses previously hoisted loop bounds in the
+    same parent schedule.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        module test_mod
+            contains
+            subroutine test(A)
+                real, dimension(:), intent(inout) :: A
+                integer :: i,j
+                do i=LBOUND(a,1), UBOUND(a,1)
+                    A(i) = 1
+                enddo
+                do j=LBOUND(a,1), UBOUND(a,1)
+                    A(j) = 2
+                enddo
+            end subroutine test
+        end module test_mod
+    ''')
+    trans = HoistLoopBoundExprTrans()
+    for loop in psyir.walk(Loop):
+        trans.apply(loop)
+    result = fortran_writer(psyir)
+
+    assert result.count("loop_start = LBOUND(a, dim=1)") == 1
+    assert result.count("loop_stop = UBOUND(a, dim=1)") == 1
+    assert "loop_start_1" not in result
+    assert "loop_stop_1" not in result
+    expected = """
+    loop_stop = UBOUND(a, dim=1)
+    loop_start = LBOUND(a, dim=1)
+    do i = loop_start, loop_stop, 1
+      a(i) = 1
+    enddo
+    do j = loop_start, loop_stop, 1
+      a(j) = 2
+    enddo\n"""
+    assert expected in result
+
+
 def test_validate_loop_with_directive(fortran_reader):
     '''Test that the validate method rejects bound expression hoisting when
     the loop construct has a parent schedule belonging to a directive.

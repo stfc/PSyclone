@@ -39,6 +39,7 @@ places them in integer scalar assignments before the loop.
 
 '''
 
+from psyclone.core import SymbolicMaths
 from psyclone.psyir.nodes import (
     Assignment,
     Directive,
@@ -95,6 +96,43 @@ class HoistLoopBoundExprTrans(LoopTrans):
 
     '''
 
+    @staticmethod
+    def _existing_bound_symbol(parent, position, bound):
+        '''Find any preceding assignment that already computes the supplied
+        loop-bound expression.
+
+        :param parent: parent of the target loop.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+        :param int position: position of the target loop in its parent.
+        :param bound: loop-bound expression to compare.
+        :type bound: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: symbol assigned to the equivalent expression, if any.
+        :rtype: Optional[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+
+        '''
+        assigned_symbols = set()
+        for child in reversed(parent.children[:position]):
+            if not isinstance(child, Assignment):
+                continue
+            if not isinstance(child.lhs, Reference):
+                continue
+            symbol = child.lhs.symbol
+            if not (isinstance(symbol, DataSymbol) and
+                    isinstance(symbol.datatype, ScalarType) and
+                    symbol.datatype.intrinsic ==
+                    ScalarType.Intrinsic.INTEGER):
+                continue
+            if symbol in assigned_symbols:
+                continue
+            try:
+                if SymbolicMaths.equal(bound, child.rhs):
+                    return symbol
+            except Exception:  # pylint: disable=broad-exception-caught
+                continue
+            assigned_symbols.add(symbol)
+        return None
+
     def apply(self, node: Loop, options=None, **kwargs):
         '''Move complex bounds expressions out of the given loop construct and
         place them in integer scalar assignments before the loop.
@@ -120,6 +158,11 @@ class HoistLoopBoundExprTrans(LoopTrans):
                 continue
             if isinstance(bound, Reference) and not \
                     isinstance(bound, StructureReference):
+                continue
+
+            symbol = self._existing_bound_symbol(parent, position, bound)
+            if symbol is not None:
+                bound.replace_with(Reference(symbol))
                 continue
 
             # Create new symbol
