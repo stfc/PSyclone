@@ -365,6 +365,39 @@ def test_derived_type_self_ref(type_name):
     assert symtab.lookup("var").datatype is sym
 
 
+def test_derived_type_self_ref_copy(f2008_parser):
+    '''Test that copying PSyIR containing unsupported self-referential
+    derived-type declarations does not recurse indefinitely and rebinds
+    partial datatype information to the copied DataTypeSymbol.'''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "module timing\n"
+        "  implicit none\n"
+        "  private\n"
+        "  type :: timer\n"
+        "    type(timer), pointer :: s_next, s_prev, s_parent\n"
+        "  end type timer\n"
+        "contains\n"
+        "  subroutine timing_finalize(sd_root)\n"
+        "    type(timer), pointer, intent(inout) :: sd_root\n"
+        "  end subroutine timing_finalize\n"
+        "end module timing\n")
+    psyir = processor.generate_psyir(f2008_parser(reader))
+    container = psyir.children[0]
+    timer_symbol = container.symbol_table.lookup("timer")
+
+    copied = psyir.copy()
+
+    copied_container = copied.children[0]
+    copied_timer_symbol = copied_container.symbol_table.lookup("timer")
+    assert copied_timer_symbol is not timer_symbol
+    for component_name in ["s_next", "s_prev", "s_parent"]:
+        datatype = (
+            copied_timer_symbol.datatype.components[component_name].datatype)
+        assert isinstance(datatype, UnsupportedFortranType)
+        assert datatype.partial_datatype is copied_timer_symbol
+
+
 @pytest.mark.usefixtures("f2008_parser")
 def test_derived_type_accessibility():
     '''

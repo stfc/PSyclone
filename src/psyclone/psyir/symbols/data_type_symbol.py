@@ -154,7 +154,13 @@ class DataTypeSymbol(Symbol):
 
         '''
         super().replace_symbols_using(table_or_symbol)
-        self.datatype.replace_symbols_using(table_or_symbol)
+        if getattr(self, "_replacing_symbols", False):
+            return
+        self._replacing_symbols = True
+        try:
+            self.datatype.replace_symbols_using(table_or_symbol)
+        finally:
+            del self._replacing_symbols
 
 
 # For automatic documentation generation
