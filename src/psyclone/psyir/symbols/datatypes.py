@@ -311,7 +311,16 @@ class UnsupportedFortranType(UnsupportedType):
             :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        if self.partial_datatype:
+        if isinstance(self.partial_datatype, DataTypeSymbol):
+            if isinstance(table_or_symbol, Symbol):
+                if (table_or_symbol.name.lower() ==
+                        self.partial_datatype.name.lower()):
+                    self._partial_datatype = table_or_symbol
+            else:
+                self._partial_datatype = table_or_symbol.lookup(
+                    self.partial_datatype.name,
+                    otherwise=self.partial_datatype)
+        elif self.partial_datatype:
             self.partial_datatype.replace_symbols_using(table_or_symbol)
 
     @property

@@ -1150,6 +1150,19 @@ def test_unsupported_fortran_type_replace_symbols():
     stype2.replace_symbols_using(table)
     assert stype2.partial_datatype.precision.symbol is newp
 
+    decl3 = "type(some_type), pointer :: var"
+    utype2 = UnsupportedFortranType(decl3, partial_datatype=stype)
+    table2 = SymbolTable()
+    utype2.replace_symbols_using(table2)
+    assert utype2.partial_datatype is stype
+    newtype = stype.copy()
+    table2.add(newtype)
+    utype2.replace_symbols_using(table2)
+    assert utype2.partial_datatype is newtype
+    newesttype = stype.copy()
+    utype2.replace_symbols_using(newesttype)
+    assert utype2.partial_datatype is newesttype
+
 
 def test_unsupported_fortran_type_get_all_accessed_symbols():
     '''

@@ -362,7 +362,13 @@ def test_derived_type_self_ref(type_name):
     assert isinstance(sym.datatype, StructureType)
     assert isinstance(sym.datatype.components["next"].datatype,
                       UnsupportedFortranType)
+    assert sym.datatype.components["next"].datatype.partial_datatype is sym
     assert symtab.lookup("var").datatype is sym
+    copied_parent = fake_parent.copy()
+    copied_sym = copied_parent.symbol_table.lookup("my_type")
+    copied_next_type = copied_sym.datatype.components["next"].datatype
+    assert copied_next_type.partial_datatype is copied_sym
+    assert copied_parent.symbol_table.lookup("var").datatype is copied_sym
 
 
 @pytest.mark.usefixtures("f2008_parser")
