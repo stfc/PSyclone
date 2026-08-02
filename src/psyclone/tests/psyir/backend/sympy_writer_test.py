@@ -331,6 +331,23 @@ def test_sympy_writer_type_map(expr, sym_map, fortran_reader):
     assert writer._sympy_type_map.keys() == sym_map.keys()
 
 
+def test_sympy_writer_type_map_reference_symbol_fallback(fortran_reader):
+    '''Test that a Reference's symbol is used if scope lookup fails.'''
+    source = '''program test_prog
+                integer :: x, y
+                y = x
+                end program test_prog '''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    routine = psyir.children[0]
+    expr = routine.children[0].rhs
+    routine.symbol_table.remove(routine.symbol_table.lookup("x"))
+
+    writer = SymPyWriter()
+    _ = writer([expr])
+    assert writer._sympy_type_map == {"x": Symbol("x")}
+
+
 def test_sympy_writer_type_map_non_canonical(fortran_reader):
     ''' Test we get an error when the intrinsic can't have argument names
     computed.'''
