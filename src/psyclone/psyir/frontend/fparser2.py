@@ -2512,7 +2512,8 @@ class Fparser2Reader():
                     # Ensure the interface to this Symbol is static
                     symbol.interface = StaticInterface()
 
-    def _process_interface_block(self, node, symbol_table, visibility_map):
+    def _process_interface_block(self, node, symbol_table, visibility_map,
+                                 preceding_comments):
         '''
         Processes a Fortran2003.Interface_Block. If the interface is named
         and consists only of [module] procedure :: <procedure-list> then a
@@ -2527,6 +2528,9 @@ class Fparser2Reader():
             in the current scope.
         :type visibility_map: dict[
             str, :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
+        :param preceding_comments: list of comments/directives immediately
+            preceding the interface block.
+        :type preceding_comments: List[:py:class:`fparser.two.utils.Base`]
 
         '''
         # Fortran 2003 standard R1203 says that:
@@ -2541,10 +2545,12 @@ class Fparser2Reader():
             # interface being kept within an UnsupportedFortranType. As a
             # result the visibility and interface details of the RoutineSymbol
             # do not matter.
-            symbol_table.new_symbol(
+            sym = symbol_table.new_symbol(
                 root_name="_psyclone_internal_interface",
                 symbol_type=RoutineSymbol,
                 datatype=UnsupportedFortranType(str(node).lower()))
+            sym.preceding_comment = self._comments_list_to_string(
+                preceding_comments)
             return
 
         # This interface has a name.
@@ -2556,6 +2562,7 @@ class Fparser2Reader():
         #     [MODULE] PROCEDURE :: <name-list>
         # to specify these.
         rsymbols = []
+        interface_comments = []
         # This flag will be set to False in the loop below if an unsupported
         # feature is found.
         supported_interface = True
@@ -2564,8 +2571,9 @@ class Fparser2Reader():
             if isinstance(child, (Fortran2003.Interface_Stmt,
                                   Fortran2003.End_Interface_Stmt)):
                 continue
-            # TODO #3517: Comments inside an Interface statement are ignored.
-            if isinstance(child, Fortran2003.Comment):
+            if isinstance(child, (Fortran2003.Comment,
+                                  Fortran2003.Directive)):
+                self.process_comment(child, interface_comments)
                 continue
             if isinstance(child, Fortran2003.Procedure_Stmt):
                 # Keep track of whether these are module procedures.
@@ -2595,15 +2603,19 @@ class Fparser2Reader():
                 # GenericInterfaceSymbol. (There will be calls to it
                 # although there will be no corresponding implementation
                 # with that name.)
-                symbol_table.add(GenericInterfaceSymbol(
-                    name, rsymbols, visibility=vis))
+                sym = GenericInterfaceSymbol(name, rsymbols, visibility=vis)
+                symbol_table.add(sym)
             else:
                 # We've not been able to determine the list of
                 # RoutineSymbols that this interface maps to so we just
                 # create a RoutineSymbol of UnsupportedFortranType.
-                symbol_table.add(RoutineSymbol(
+                sym = RoutineSymbol(
                     name, datatype=UnsupportedFortranType(str(node).lower()),
-                    visibility=vis))
+                    visibility=vis)
+                symbol_table.add(sym)
+            if preceding_comments or interface_comments:
+                sym.preceding_comment = self._comments_list_to_string(
+                    preceding_comments + interface_comments)
         except KeyError:
             # This symbol has already been declared. This can happen when
             # an interface overloads a constructor for a type (as the interface
@@ -2611,11 +2623,13 @@ class Fparser2Reader():
             # capture the interface so we store it in the PSyIR as an
             # UnsupportedFortranType with an internal name as we do
             # for unnamed interfaces.
-            symbol_table.new_symbol(
+            sym = symbol_table.new_symbol(
                 root_name=f"_PSYCLONE_INTERNAL_{name}",
                 symbol_type=RoutineSymbol,
                 datatype=UnsupportedFortranType(str(node).lower()),
                 visibility=vis)
+            sym.preceding_comment = self._comments_list_to_string(
+                preceding_comments + interface_comments)
 
     def process_declarations(self, parent, nodes, arg_list,
                              visibility_map=None):
@@ -2714,7 +2728,9 @@ class Fparser2Reader():
                         f"declarations not supported but found '{node}'")
             elif isinstance(node, Fortran2003.Interface_Block):
                 self._process_interface_block(node, parent.symbol_table,
-                                              visibility_map)
+                                              visibility_map,
+                                              preceding_comments)
+                preceding_comments = []
 
             elif isinstance(node, (Fortran2003.Type_Declaration_Stmt,
                                    Fortran2003.Procedure_Declaration_Stmt)):
