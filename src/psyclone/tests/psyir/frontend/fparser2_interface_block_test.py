@@ -228,7 +228,7 @@ def test_named_interface_wrong_symbol_type(f2008_parser):
     processor = Fparser2Reader()
     # This should raise an InternalError...
     with pytest.raises(InternalError) as err:
-        processor._process_interface_block(node, table, {})
+        processor._process_interface_block(node, table, {}, [])
     assert ("Expected 'test_code_r4' referenced by generic interface 'test' "
             "to be a Symbol or a RoutineSymbol but found 'DataSymbol'" in
             str(err.value))
@@ -430,7 +430,8 @@ def test_interface_with_comments_is_supported(fortran_writer):
     '''
     code = """
     module test
-        interface inter1 ! Some comment here
+        interface inter1
+           ! Some comment here
            module procedure     func1, func2
         end interface
        contains
@@ -444,9 +445,11 @@ def test_interface_with_comments_is_supported(fortran_writer):
     # Get the interface
     sym = psyir.children[0].symbol_table.lookup("inter1")
     assert isinstance(sym.datatype, UnresolvedType)
+    assert sym.preceding_comment == "Some comment here"
 
     correct = """module test
   implicit none
+  ! Some comment here
   interface inter1
     module procedure :: func1, func2
   end interface inter1
@@ -462,6 +465,29 @@ def test_interface_with_comments_is_supported(fortran_writer):
 end module test"""
     out = fortran_writer(psyir)
     assert correct in out
-    assert "Some comment here" not in out
-    pytest.xfail(reason="TODO #3517 Comments in declarations are lost "
-                        "inside Interface blocks.")
+
+
+def test_interface_with_directive_is_supported(fortran_writer):
+    ''' Test that the frontend preserves directive lines inside interface
+    blocks.
+    '''
+    code = """
+    module test
+        interface inter1
+           !$TEST_DIRECTIVE
+           module procedure func1
+        end interface
+       contains
+        subroutine test
+           call inter1()
+        end subroutine test
+
+    end module"""
+    fortran_reader = FortranReader(ignore_comments=False,
+                                   ignore_directives=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    sym = psyir.children[0].symbol_table.lookup("inter1")
+    assert isinstance(sym, GenericInterfaceSymbol)
+    assert sym.preceding_comment == "$TEST_DIRECTIVE"
+    out = fortran_writer(psyir)
+    assert "! $TEST_DIRECTIVE\n  interface inter1" in out

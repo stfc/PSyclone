@@ -522,11 +522,14 @@ def test_gen_interfacedecl(fortran_writer):
             "got 'str'" in str(err.value))
     isub = GenericInterfaceSymbol("subx", [(RoutineSymbol("sub1"), False),
                                            (RoutineSymbol("sub2"), True)])
+    isub.preceding_comment = "Preceding comment"
+    isub.inline_comment = "Inline comment"
     out = fortran_writer.gen_interfacedecl(isub)
-    assert (out == '''interface subx
+    assert (out == '''! Preceding comment
+interface subx
   module procedure :: sub2
   procedure :: sub1
-end interface subx
+end interface subx ! Inline comment
 ''')
 
 

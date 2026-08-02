@@ -697,7 +697,12 @@ class FortranWriter(LanguageWriter):
                 f"gen_interfacedecl only supports 'GenericInterfaceSymbol's "
                 f"but got '{type(symbol).__name__}'")
 
-        decln = f"{self._nindent}interface {symbol.name}\n"
+        decln = ""
+        if len(symbol.preceding_comment) > 0:
+            for line in symbol.preceding_comment.splitlines():
+                decln += f"{self._nindent}{self._COMMENT_PREFIX}{line}\n"
+
+        decln += f"{self._nindent}interface {symbol.name}\n"
         self._depth += 1
         # Any module procedures.
         routines = ", ".join([rsym.name for rsym in symbol.container_routines])
@@ -708,7 +713,10 @@ class FortranWriter(LanguageWriter):
         if routines:
             decln += f"{self._nindent}procedure :: {routines}\n"
         self._depth -= 1
-        decln += f"{self._nindent}end interface {symbol.name}\n"
+        decln += f"{self._nindent}end interface {symbol.name}"
+        if symbol.inline_comment != "":
+            decln += f" {self._COMMENT_PREFIX}{symbol.inline_comment}"
+        decln += "\n"
 
         return decln
 
