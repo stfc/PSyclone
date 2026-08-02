@@ -1667,13 +1667,29 @@ def test_omp_loop_directive_validate_global_constraints():
         omploop.validate_global_constraints()
     assert ("OMPLoopDirective must have as many immediately nested loops as "
             "the collapse clause specifies but 'OMPLoopDirective[collapse=2]'"
-            " has a collapse=2 and the nested statement at depth 1 is a "
-            "Assignment rather than a Loop."
+            " has a collapse=2 and the nested body at depth 1 cannot be "
+            "collapsed."
             in str(err.value))
 
-    # Check with an OMPLoop and collapse is 2 and 2 nested loops inside
+    # Check with an OMPLoop and collapse is 2 but there is an OpenMP directive
+    # before the next loop.
     loop2 = loop.copy()
+    loop.loop_body.addchild(loop2)
+    loop.loop_body.children[0].replace_with(OMPBarrierDirective())
+    with pytest.raises(GenerationError) as err:
+        omploop.validate_global_constraints()
+    assert ("OMPLoopDirective must have as many immediately nested loops as "
+            "the collapse clause specifies but 'OMPLoopDirective[collapse=2]'"
+            " has a collapse=2 and the nested body at depth 1 cannot be "
+            "collapsed."
+            in str(err.value))
+
+    # Check with an OMPLoop and collapse is 2 and 2 nested loops inside. The
+    # innermost loop body can contain an OpenMP directive.
+    loop2.detach()
+    loop.loop_body.children[0].detach()
     loop.loop_body.children[0].replace_with(loop2)
+    loop2.loop_body.addchild(OMPBarrierDirective())
     omploop.validate_global_constraints()  # This is valid
 
 

@@ -2349,19 +2349,7 @@ class OMPLoopDirective(OMPRegionDirective):
                 f"OMPLoopDirective must be inside a OMPTargetDirective or a "
                 f"OMPParallelDirective, but '{self}' is not.")
 
-        # If there is a collapse clause, there must be as many immediately
-        # nested loops as the collapse value
-        if self._collapse:
-            cursor = self.dir_body.children[0]
-            for depth in range(self._collapse):
-                if not isinstance(cursor, Loop):
-                    raise GenerationError(
-                        f"OMPLoopDirective must have as many immediately "
-                        f"nested loops as the collapse clause specifies but "
-                        f"'{self}' has a collapse={self._collapse} and the "
-                        f"nested statement at depth {depth} is a "
-                        f"{type(cursor).__name__} rather than a Loop.")
-                cursor = cursor.loop_body.children[0]
+        OMPDoDirective._validate_collapse_value(self)
 
         super().validate_global_constraints()
 
