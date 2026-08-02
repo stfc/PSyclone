@@ -4,7 +4,7 @@ program test_compare
 
     implicit none
 
-    real, dimension(10) :: a_single, a_single_correct
+    real, dimension(10) :: sngl, sngl_correct
     double precision, dimension(15) :: a_dbl, a_dbl_correct
     integer, dimension(15) :: a_int, a_int_correct
 
@@ -20,11 +20,11 @@ program test_compare
     ! Test single precision. Note that single precision cannot store an
     ! error of 1e-9, so we only test up to 1e-6:
     ! resulting in counts of: 1 0 2 3 4
-    a_single_correct = 1.0
-    a_single( 1: 1) = 1.0
-    a_single( 2: 3) = 1.0+1d-7
-    a_single( 4: 6) = 1.0+1d-4
-    a_single( 7:10) = 1.0+1d-1
+    sngl_correct = 1.0
+    sngl( 1: 1) = 1.0
+    sngl( 2: 3) = 1.0+1d-7
+    sngl( 4: 6) = 1.0+1d-4
+    sngl( 7:10) = 1.0+1d-1
 
     ! Test integer, max. value is 2147483648, so use 2*10^9
     ! to create errors with 1e-9 etc
@@ -37,7 +37,7 @@ program test_compare
 
     call compare_init(3)
     call compare("a_dbl", a_dbl, a_dbl_correct)
-    call compare("a_single", a_single, a_single_correct)
+    call compare("sngl", sngl, sngl_correct)
     call compare("a_int", a_int, a_int_correct)
     call compare_summary()
 

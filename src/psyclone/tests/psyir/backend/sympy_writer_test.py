@@ -48,7 +48,8 @@ from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
-        Assignment, Literal, Node, IntrinsicCall, Reference, Call
+        Assignment, IfBlock, Literal, Node, IntrinsicCall, Reference, Call,
+        Routine
 )
 from psyclone.psyir.symbols import ArrayType, ScalarType, SymbolTable
 
@@ -329,6 +330,33 @@ def test_sympy_writer_type_map(expr, sym_map, fortran_reader):
     expr.detach()
     _ = writer([expr])
     assert writer._sympy_type_map.keys() == sym_map.keys()
+
+
+def test_sympy_writer_type_map_unqualified_import(fortran_reader):
+    '''Test that a reference to an unqualified module-level import can still
+    be converted after the routine context is detached.
+
+    '''
+    source = '''module ice_mod
+                use ice_constants
+                contains
+                subroutine ice_perm_eff(pfrld)
+                  real, intent(in) :: pfrld
+                  if (pfrld > epsi06) then
+                    continue
+                  end if
+                end subroutine ice_perm_eff
+                end module ice_mod'''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    routine = psyir.walk(Routine)[0]
+    condition = routine.walk(IfBlock)[0].condition
+    routine.detach()
+
+    writer = SymPyWriter()
+    _ = writer(condition)
+    assert writer.type_map == {"epsi06": Symbol("epsi06"),
+                               "pfrld": Symbol("pfrld")}
 
 
 def test_sympy_writer_type_map_non_canonical(fortran_reader):

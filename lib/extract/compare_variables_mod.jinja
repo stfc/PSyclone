@@ -134,7 +134,7 @@ contains
         character(256) :: out_format
 
         ! First compute the format, based on maximum name length:
-        max_name_len = -1
+        max_name_len = len("Variable")
 
         do i=1, current_index
             if (len(trim(all_names(i))) > max_name_len) then

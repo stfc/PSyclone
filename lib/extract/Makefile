@@ -68,8 +68,9 @@ make test: test_compare
 	# errors. Only check these counts, not the computed floating point
 	# differences (which are the next 4 columns), since they might
 	# slightly vary between compilers and hardware platforms.
+	./test_compare | grep "Variable" > /dev/null
 	./test_compare | grep "a_dbl    *15 *1 *2 *3 *4 *5" > /dev/null
-	./test_compare | grep "a_single *10 *1 *0 *2 *3 *4" > /dev/null
+	./test_compare | grep "sngl    *10 *1 *0 *2 *3 *4" > /dev/null
 	./test_compare | grep "a_int    *15 *1 *2 *3 *4 *5" > /dev/null
 
 %.o: %.F90
