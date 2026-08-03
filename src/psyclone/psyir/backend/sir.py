@@ -4,7 +4,7 @@
 # Copyright (c) 2019-2026, Science and Technology Facilities Council
 # All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
+# Redistribution and use in source and binary forms, with or withou
 # modification, are permitted provided that the following conditions are met:
 #
 # * Redistributions of source code must retain the above copyright notice, this
@@ -69,7 +69,7 @@ def gen_stencil(node):
     :returns: the SIR stencil access format for the array access.
     :rtype: str
 
-    :raises VisitorError: if the node is not the expected type or the \
+    :raises VisitorError: if the node is not the expected type or the
     array access is not in a recognised stencil form.
 
     '''
@@ -82,7 +82,7 @@ def gen_stencil(node):
         if isinstance(child, Reference):
             dims.append("0")
         elif isinstance(child, BinaryOperation):
-            if isinstance(child.children[0], Reference) and \
+            if isinstance(child.children[0], Reference) and
                isinstance(child.children[1], Literal):
                 if child.operator == BinaryOperation.Operator.SUB:
                     dims.append("-"+child.children[1].value)
@@ -102,18 +102,18 @@ def gen_stencil(node):
 
 
 class SIRWriter(PSyIRVisitor):
-    '''Implements a PSyIR-to-SIR back end for PSyIR kernel code (not
+    '''Implements a PSyIR-to-SIR back end for PSyIR kernel code (no
     currently PSyIR PSy-layer code which has its own gen method for
     generating Fortran).
 
-    :param bool skip_nodes: if skip_nodes is False then an exception \
-    is raised if a visitor method for a PSyIR node has not been \
-    implemented, otherwise the visitor continues, printing out a \
-    representation of the unsupported node. This is an optional \
+    :param bool skip_nodes: if skip_nodes is False then an exception
+    is raised if a visitor method for a PSyIR node has not been
+    implemented, otherwise the visitor continues, printing out a
+    representation of the unsupported node. This is an optional
     argument which defaults to False.
-    :param str indent_string: specifies what to use for indentation. This \
+    :param str indent_string: specifies what to use for indentation. This
     is an optional argument that defaults to two spaces.
-    :param int initial_indent_depth: Specifies how much indentation to \
+    :param int initial_indent_depth: Specifies how much indentation to
     start with. This is an optional argument that defaults to 0.
 
     '''
@@ -126,8 +126,8 @@ class SIRWriter(PSyIRVisitor):
         self._field_names = set()
         # The _scalar_names variable stores the unique scalar names
         # found in the PSyIR. The current assumption is that scalars
-        # are temporaries. This is not necessarily correct, scalar 
-        # temporaries can be declared as field temporaries as the 
+        # are temporaries. This is not necessarily correct, scalar
+        # temporaries can be declared as field temporaries as the
         # Dawn backend works out what is required.
         self._scalar_names = set()
 
@@ -158,10 +158,10 @@ class SIRWriter(PSyIRVisitor):
             result += self._visit(child)
         self._depth -= 1
         result += f"{self._nindent}[ {type(node).__name__} end ]\n"
-        return result
+        return resul
 
     def loop_node(self, loop_node):
-        '''Supported loops are triply nested with particular indices (not
+        '''Supported loops are triply nested with particular indices (no
         yet checked) and should contain only computation. If this is not the
         case then it is not possible to translate so an exception is
         raised.
@@ -201,8 +201,8 @@ class SIRWriter(PSyIRVisitor):
                 f"SIR:\n"
                 f"{loop3.debug_string()}")
 
-        # The interval values are hardcoded for the moment
-        result = f"{self._nindent}interval = "\
+        # The interval values are hardcoded for the momen
+        result = f"{self._nindent}interval = "
                  f"make_interval(Interval.Start, Interval.End, 0, 0)\n"
         result += f"{self._nindent}body_ast = make_ast([\n"
         self._depth += 1
@@ -215,10 +215,10 @@ class SIRWriter(PSyIRVisitor):
         result += f"{self._nindent}])\n"
         # For the moment there is a hard coded assumption that the
         # vertical looping is in the forward (1..n) direction
-        result += f"{self._nindent}vertical_region_fns.append("\
-                  f"make_vertical_region_decl_stmt(body_ast, interval, "\
+        result += f"{self._nindent}vertical_region_fns.append("
+                  f"make_vertical_region_decl_stmt(body_ast, interval, "
                   f"VerticalRegion.Forward))\n"
-        return result
+        return resul
 
     def routine_node(self, node):
         '''This method is called when a Routine instance is found
@@ -253,8 +253,8 @@ class SIRWriter(PSyIRVisitor):
             functions.append(
                 f"make_field(\"{name}\", make_field_dimensions_cartesian())")
         # The current assumption is that scalars are temporaries. This
-        # is not necessarily correct, scalar temporaries can be 
-        # declared as field temporaries as the Dawn backend works out
+        # is not necessarily correct, scalar temporaries can be
+        # declared as field temporaries as the Dawn backend works ou
         # what is required.
         for name in self._scalar_names:
             functions.append(
@@ -263,7 +263,7 @@ class SIRWriter(PSyIRVisitor):
         result += ", ".join(functions)
         result += "]\n"
         result += f"{self._nindent}{self._indent})\n{self._nindent}])\n"
-        return result
+        return resul
 
     def assignment_node(self, node):
         '''This method is called when an Assignment instance is found in the
@@ -285,7 +285,7 @@ class SIRWriter(PSyIRVisitor):
         result = result.rstrip("\n")
         result += ",\n"
         result += f"{self._nindent}{self._indent}\"=\"),\n"
-        return result
+        return resul
 
     def binaryoperation_node(self, node):
         '''This method is called when a BinaryOperation instance is found in
@@ -297,7 +297,7 @@ class SIRWriter(PSyIRVisitor):
         :returns: the SIR Python code.
         :rtype: str
 
-        :raises VisitorError: if there is no mapping from the PSyIR \
+        :raises VisitorError: if there is no mapping from the PSyIR
         operator to SIR.
 
         '''
@@ -332,9 +332,9 @@ class SIRWriter(PSyIRVisitor):
         result = f"{self._nindent}make_binary_operator(\n{lhs}"
         # For better formatting, remove the newline if one exists.
         result = result.rstrip("\n") + ",\n"
-        result += f"{self._nindent}{self._indent}\"{oper}\",\n{rhs}\n"\
+        result += f"{self._nindent}{self._indent}\"{oper}\",\n{rhs}\n"
             f"{self._nindent}{self._indent})\n"
-        return result
+        return resul
 
     def reference_node(self, node):
         '''This method is called when a Reference instance is found in the
@@ -353,10 +353,10 @@ class SIRWriter(PSyIRVisitor):
             raise VisitorError(
                 "Method reference_node in class SIRWriter: SIR Reference "
                 "node is not expected to have any children.")
-        # _scalar_names is a set so duplicates will be ignored. It
+        # _scalar_names is a set so duplicates will be ignored. I
         # captures all unique scalar names as scalars are currently
         # treated as temporaries. The simplest way to declare a scalar
-        # temporary in Dawn is to treat it as a field temporary (as 
+        # temporary in Dawn is to treat it as a field temporary (as
         # the Dawn backend works out if a scalar is required).
         self._scalar_names.add(node.name)
 
@@ -374,13 +374,13 @@ class SIRWriter(PSyIRVisitor):
 
         '''
         stencil = gen_stencil(node)
-        result = f"{self._nindent}make_field_access_expr(\"{node.name}\", "\
+        result = f"{self._nindent}make_field_access_expr(\"{node.name}\", "
                  f"{stencil})"
-        # _field_names is a set so duplicates will be ignored. It
+        # _field_names is a set so duplicates will be ignored. I
         # captures all unique field names as the SIR declares field
         # names after the computation.
         self._field_names.add(node.name)
-        return result
+        return resul
 
     def literal_node(self, node):
         '''This method is called when a Literal instance is found in the PSyIR
@@ -401,7 +401,7 @@ class SIRWriter(PSyIRVisitor):
                 f"PSyIR type '{node.datatype}' has no representation in the "
                 f"SIR backend.") from err
 
-        return f"{self._nindent}make_literal_access_expr(\"{result}\", "\
+        return f"{self._nindent}make_literal_access_expr(\"{result}\", "
                f"{datatype})"
 
     def unaryoperation_node(self, node):
@@ -414,8 +414,8 @@ class SIRWriter(PSyIRVisitor):
         :returns: the SIR Python code.
         :rtype: str
 
-        :raises VisitorError: if there is no mapping from the PSyIR \
-        operator to SIR, or if the child of the PSyIR operator is not \
+        :raises VisitorError: if there is no mapping from the PSyIR
+        operator to SIR, or if the child of the PSyIR operator is no
         a literal (as only -<literal> is currently supported).
 
         '''
@@ -444,10 +444,10 @@ class SIRWriter(PSyIRVisitor):
                     f"'-' operator.")
             result = literal.value
             datatype = TYPE_MAP_TO_SIR[literal.datatype.intrinsic]
-            return f"{self._nindent}make_literal_access_expr(\"{oper}{result}"\
+            return f"{self._nindent}make_literal_access_expr(\"{oper}{result}"
                    f"\", {datatype})"
 
-        # The unary minus operator is being applied to something that
+        # The unary minus operator is being applied to something tha
         # is not a literal. Default to REAL as we currently have no
         # way of finding out the type, see issue #658. Replace -x with
         # -1.0 * x.
@@ -457,9 +457,9 @@ class SIRWriter(PSyIRVisitor):
         operator = f"{self._nindent}\"*\""
         rhs = self._visit(node.children[0])
         self._depth -= 1
-        result = f"{self._nindent}make_binary_operator"\
+        result = f"{self._nindent}make_binary_operator"
                  f"(\n{lhs},\n{operator},\n{rhs})\n"
-        return result
+        return resul
 
     def ifblock_node(self, node):
         '''This method is called when an IfBlock instance is found in
@@ -480,12 +480,12 @@ class SIRWriter(PSyIRVisitor):
 
         if node.else_body:
             else_statements = self._visit(node.else_body)
-            else_part = "make_block_stmt([" + \
+            else_part = "make_block_stmt([" +
                         else_statements.lstrip().rstrip(",\n") + "])"
         else:
             else_part = "None"
 
-        return f"{self._nindent}make_if_stmt({cond_part}, {then_part}, "\
+        return f"{self._nindent}make_if_stmt({cond_part}, {then_part}, "
                f"{else_part}),\n"
 
     def schedule_node(self, node):
@@ -507,7 +507,7 @@ class SIRWriter(PSyIRVisitor):
         result = ""
         for child in node.children:
             result += self._visit(child)
-        return result
+        return resul
 
     def intrinsiccall_node(self, node):
         '''This method is called when an Intrinsic node is found in
@@ -519,7 +519,7 @@ class SIRWriter(PSyIRVisitor):
         :returns: the SIR Python code.
         :rtype: str
 
-        :raises VisitorError: if there is no mapping from the PSyIR \
+        :raises VisitorError: if there is no mapping from the PSyIR
             operator to SIR.
 
         '''
@@ -565,4 +565,4 @@ class SIRWriter(PSyIRVisitor):
                       f"\"{intrinsic}\", {arg_str})")
 
         self._depth -= 1
-        return result
+        return resul

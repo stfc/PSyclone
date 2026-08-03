@@ -41,8 +41,7 @@ to have them compiled for an OpenACC accelerator. '''
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import Loop
 from psyclone.transformations import (
-    ACCParallelTrans, ACCEnterDataTrans, ACCRoutineTrans,
-    TransformationError)
+    ACCParallelTrans, ACCEnterDataTrans, ACCRoutineTrans)
 from psyclone.psyir.transformations import ACCLoopTrans
 
 

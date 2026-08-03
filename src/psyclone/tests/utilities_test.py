@@ -361,7 +361,7 @@ def test_change_directory():
 
     with change_dir("/tmp"):
         tmp_dir = os.getcwd()
-        #on MacOS the temporary directory is /private/tmp
+        # on MacOS the temporary directory is /private/tmp
         assert tmp_dir.endswith("/tmp")
 
     assert os.getcwd() == old_dir
