@@ -2844,7 +2844,7 @@ def test_apply_symbol_dependencies(fortran_reader, fortran_writer, tmp_path):
     original = psyir.children[0].find_routine_psyir("sub")
     original_output = fortran_writer(original)
     assert "real, dimension(ilen,ilen) :: work" in original_output
-    
+
     # The resulting code must be valid Fortran
     output = fortran_writer(psyir)
     assert Compile(tmp_path).string_compiles(output)
