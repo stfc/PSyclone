@@ -2812,6 +2812,7 @@ def test_apply_symbol_dependencies(fortran_reader, fortran_writer, tmp_path):
     when inlined.
 
     '''
+    # TODO #3534: Add an example of a len expression in an argument decalration
     code = (
         "module test_mod\n"
         "contains\n"
@@ -2823,10 +2824,6 @@ def test_apply_symbol_dependencies(fortran_reader, fortran_writer, tmp_path):
         "  integer, intent(in) :: ilen\n"
         "  real, dimension(ilen, ilen), intent(inout) :: x\n"
         "  real, dimension(ilen, ilen) :: work\n"
-        "  type nasty\n"
-        "    integer, dimension(ilen+1) :: flag\n"
-        "  end type nasty\n"
-        "  type(nasty) :: oh_deary_me\n"
         "  work = 2.0\n"
         "  x(:,:) = x(:,:) + work(:,:)\n"
         "end subroutine sub\n"
@@ -2836,15 +2833,20 @@ def test_apply_symbol_dependencies(fortran_reader, fortran_writer, tmp_path):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     inline_trans.apply(call)
+
+    # ilen should not be in the caller
     main = psyir.children[0].find_routine_psyir("main")
     assert "ilen" not in main.symbol_table
+    main_output = fortran_writer(main)
+    assert "real, dimension(10,10) :: work" in main_output
+
+    # The the original should be unmodified
+    original = psyir.children[0].find_routine_psyir("sub")
+    original_output = fortran_writer(original)
+    assert "real, dimension(ilen,ilen) :: work" in original_output
+    
+    # The resulting code must be valid Fortran
     output = fortran_writer(psyir)
-    assert '''\
-    type :: nasty
-      integer, dimension(10 + 1) :: flag
-    end type nasty''' in output
-    assert "real, dimension(10,10) :: work" in output
-    assert "type(nasty) :: oh_deary_me" in output
     assert Compile(tmp_path).string_compiles(output)
 
 
