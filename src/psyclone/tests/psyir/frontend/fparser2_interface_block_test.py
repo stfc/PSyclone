@@ -17,10 +17,12 @@ from fparser.two.utils import walk
 
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import (
     DataSymbol, DataTypeSymbol, GenericInterfaceSymbol, ScalarType,
-    NoType, RoutineSymbol, Symbol, SymbolTable, UnsupportedFortranType)
+    NoType, RoutineSymbol, Symbol, SymbolTable, UnsupportedFortranType,
+    UnresolvedType)
 
 
 @pytest.mark.parametrize("mod_txt", ["", "module "])
@@ -365,3 +367,71 @@ def test_unnamed_interface(fortran_reader, code, start, end):
     assert interface_symbol.datatype.declaration.startswith(start)
     assert interface_symbol.datatype.declaration.endswith(end)
     assert interface_symbol.visibility == Symbol.Visibility.PUBLIC
+
+
+def test_unsupported_interface_kept(fortran_reader, fortran_writer):
+    ''' Test that a call to an unsupported interface doesn't replace
+    its datatype with NoType.'''
+    code = """module test
+      interface my_interface
+         subroutine test1(a)
+         end subroutine
+         subroutine test2(a, b)
+         end subroutine test2
+      end interface
+
+      contains
+
+      subroutine myfunc()
+      integer :: a
+      call my_interface(a)
+      end subroutine
+      end module"""
+    psyir = fortran_reader.psyir_from_source(code)
+    sym = psyir.children[0].symbol_table.lookup("my_interface")
+    assert isinstance(sym.datatype, UnsupportedFortranType)
+    out = fortran_writer(psyir)
+    assert "interface my_interface" in out
+
+
+def test_interface_with_comments_is_supported(fortran_writer):
+    ''' Test that the frontend correctly handles interface blocks with
+    comments enabled, and the datatype is not an UnsupportedFortranType.
+    '''
+    code = """
+    module test
+        interface inter1 ! Some comment here
+           module procedure     func1, func2
+        end interface
+       contains
+        subroutine test
+           call inter1()
+        end subroutine test
+
+    end module"""
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    # Get the interface
+    sym = psyir.children[0].symbol_table.lookup("inter1")
+    assert isinstance(sym.datatype, UnresolvedType)
+
+    correct = """module test
+  implicit none
+  interface inter1
+    module procedure :: func1, func2
+  end interface inter1
+  public
+
+  contains
+  subroutine test()
+
+    call inter1()
+
+  end subroutine test
+
+end module test"""
+    out = fortran_writer(psyir)
+    assert correct in out
+    assert "Some comment here" not in out
+    pytest.xfail(reason="TODO #3517 Comments in declarations are lost "
+                        "inside Interface blocks.")

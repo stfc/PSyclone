@@ -49,7 +49,7 @@ def test_directive_in_decls():
     assert """  ! $omp firstprivate
   integer, dimension(100) :: i ! dir$ aligned""" in out
 
-    pytest.xfail(reason="TODO #3178 PSyclone can't store directives in "
+    pytest.xfail(reason="TODO #3517 PSyclone can't store directives in "
                         "declarations as directives.")
 
 

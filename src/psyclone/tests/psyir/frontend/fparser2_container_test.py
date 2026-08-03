@@ -296,5 +296,5 @@ def test_module_with_directives(fortran_writer):
     # Directives in declarations are not supported correctly yet in PSyclone.
     out = fortran_writer(psyir)
     assert "! $TEST_DIRECTIVE_1\n" in out
-    pytest.xfail(reason="TODO #3178 PSyclone can't store directives in "
+    pytest.xfail(reason="TODO #3517 PSyclone can't store directives in "
                         "declarations as directives.")
