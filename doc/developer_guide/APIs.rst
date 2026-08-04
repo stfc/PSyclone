@@ -1161,8 +1161,9 @@ Implicit Loops
 --------------
 
 Many of the loops in NEMO are written using Fortran array notation. Such
-use of array notation is encouraged in the NEMO Coding Conventions
-:footcite:t:`nemo_code_conv` and identifying these loops can be important
+use of array notation is encouraged in the NEMO Coding Conventions as
+detailed in Appendix G of :footcite:t:`nemo_ocean_engine`. Identifying
+these loops can be important
 when introducing, e.g. OpenMP. These implicit loops are not
 automatically represented as PSyIR Loop instances but can be converted
 to explicit loops using the ``ArrayAssignment2LoopsTrans``
