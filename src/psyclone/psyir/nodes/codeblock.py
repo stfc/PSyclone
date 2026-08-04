@@ -258,6 +258,26 @@ class CodeBlock(Statement, DataNode):
             return []
         raise NotImplementedError("Use appropriate CodeBlock subclass")
 
+    def next_accesses(self) -> list[Node]:
+        '''
+        Abstract method for finding the next_accesses of a statement.
+        Subclasses should override this according to their own structure to
+        return future accesses to any References contained in the statement.
+
+        :returns: an empty list.
+        '''
+        # FIXME Implement
+        return []
+
+    def previous_accesses(self) -> list[Node]:
+        '''
+        Abstract method for finding the previous_accesses of a statement.
+        Subclasses should override this according to their own structure to
+        return previous accesses to any References contained in the statement.
+        '''
+        # FIXME Implement
+        return []
+
 
 class Fparser2CodeBlock(CodeBlock):
     ''' The fparser2 implementation of CodeBlock. '''

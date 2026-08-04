@@ -45,13 +45,13 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import (
     CodeBlock, PSyDataNode, Schedule, Return, Routine)
 from psyclone.parse import ModuleManager
-from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.psyir.symbols import (
     ContainerSymbol, ImportInterface, SymbolTable, DataTypeSymbol,
     UnresolvedType, DataSymbol, UnsupportedFortranType)
 from psyclone.psyGen import Kern
 from psyclone.tests.utilities import get_base_path, get_invoke
+from psyclone.tests.test_files.dummy_statement import DummyStatement
 
 
 # -----------------------------------------------------------------------------
@@ -174,7 +174,7 @@ def test_psy_data_node_tree_correct():
 
     # 3. No parent, but children:
     # ===========================
-    children = [Statement(), Statement()]
+    children = [DummyStatement(), DummyStatement()]
     psy_node = PSyDataNode.create(children, SymbolTable())
 
     # The children must be connected to the schedule, which is
@@ -193,10 +193,10 @@ def test_psy_data_node_tree_correct():
     # =======================
     parent = Schedule()
     # The children must be added to the parent before creating the ExtractNode
-    parent.addchild(Statement())
-    parent.addchild(Statement())
+    parent.addchild(DummyStatement())
+    parent.addchild(DummyStatement())
     # Add another child that must stay with the parent node
-    third_child = Statement()
+    third_child = DummyStatement()
     parent.addchild(third_child)
     assert parent.children[2] is third_child
     # Only move the first two children, leave the third where it is

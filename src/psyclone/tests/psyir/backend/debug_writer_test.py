@@ -85,6 +85,12 @@ def test_debug_writer_higher_abstraction_nodes(fortran_reader):
         def validate_global_constraints(self):
             raise NotImplementedError("This should not be called")
 
+        def next_accesses(self):
+            '''Needed on all Statement subclasses.'''
+
+        def previous_accesses(self):
+            '''Needed on all Statement subclasses.'''
+
     class MyDSLDataNode(DataNode):
         ''' A dummy DSL DataNode that doesn't like being lowered '''
         def lower_to_language_level(self):

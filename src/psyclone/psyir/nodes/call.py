@@ -40,7 +40,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import List, Tuple, Union, Optional
+from typing import Tuple, Union, Optional
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessMap
@@ -49,6 +49,7 @@ from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import (
@@ -531,7 +532,7 @@ class Call(Statement, DataNode):
 
         return new_copy
 
-    def get_callees(self) -> List[Routine]:
+    def get_callees(self) -> list[Routine]:
         '''
         Searches for the implementation(s) of all potential target routines
         for this Call. It does *not* attempt to resolve static polymorphism
@@ -787,7 +788,7 @@ class Call(Statement, DataNode):
                     f"'{routine_arg_str}' ({dummy_type})"
                 )
 
-    def get_argument_map(self, routine: Routine) -> List[int]:
+    def get_argument_map(self, routine: Routine) -> list[int]:
         '''Return a list of indices mapping from each argument of this
         call to the corresponding entry in the argument list of the
         supplied routine.
@@ -803,7 +804,7 @@ class Call(Statement, DataNode):
         '''
         # Create a copy of the list of actual arguments to the routine.
         # Once an argument has been successfully matched, set it to 'None'
-        routine_argument_list: List[DataSymbol] = (
+        routine_argument_list: list[DataSymbol] = (
             routine.symbol_table.argument_list[:]
         )
 
@@ -888,7 +889,7 @@ class Call(Statement, DataNode):
     def get_callee(
             self,
             use_first_callee_and_no_arg_check: bool = False
-    ) -> Tuple[Routine, List[int]]:
+    ) -> Tuple[Routine, list[int]]:
         '''
         Searches for the implementation(s) of the target routine for this Call
         including argument checks.
@@ -940,3 +941,23 @@ class Call(Statement, DataNode):
             f"No matching routine found for '{call_str}':"
             "\n" + error_msg
         )
+
+    def next_accesses(self) -> list[Node]:
+        '''
+        Abstract method for finding the next_accesses of a statement.
+        Subclasses should override this according to their own structure to
+        return future accesses to any References contained in the statement.
+
+        :returns: an empty list.
+        '''
+        # FIXME Implement
+        return []
+
+    def previous_accesses(self) -> list[Node]:
+        '''
+        Abstract method for finding the previous_accesses of a statement.
+        Subclasses should override this according to their own structure to
+        return previous accesses to any References contained in the statement.
+        '''
+        # FIXME Implement
+        return []

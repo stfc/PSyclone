@@ -39,6 +39,7 @@
 from psyclone.core import VariablesAccessMap
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.statement import Statement
 
@@ -154,3 +155,23 @@ class WhileLoop(Statement):
         var_accesses = self.condition.reference_accesses()
         var_accesses.update(self.loop_body.reference_accesses())
         return var_accesses
+
+    def next_accesses(self) -> list[Node]:
+        '''
+        Abstract method for finding the next_accesses of a statement.
+        Subclasses should override this according to their own structure to
+        return future accesses to any References contained in the statement.
+
+        :returns: an empty list.
+        '''
+        # FIXME Implement
+        return []
+
+    def previous_accesses(self) -> list[Node]:
+        '''
+        Abstract method for finding the previous_accesses of a statement.
+        Subclasses should override this according to their own structure to
+        return previous accesses to any References contained in the statement.
+        '''
+        # FIXME Implement
+        return []

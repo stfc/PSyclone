@@ -50,6 +50,7 @@ from psyclone.errors import InternalError
 from psyclone.psyir.nodes.array_of_structures_reference import (
     ArrayOfStructuresReference)
 from psyclone.psyir.nodes.clause import Clause
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.statement import Statement
@@ -179,6 +180,26 @@ class Directive(Statement, metaclass=abc.ABCMeta):
                     access_dict[sig[:depth+1]] = base_cls.create(
                         *base_args, members)
         return read_only, write_only, readwrites
+
+    def next_accesses(self) -> list[Node]:
+        '''
+        Abstract method for finding the next_accesses of a statement.
+        Subclasses should override this according to their own structure to
+        return future accesses to any References contained in the statement.
+
+        :returns: an empty list.
+        '''
+        # FIXME Implement
+        return []
+
+    def previous_accesses(self) -> list[Node]:
+        '''
+        Abstract method for finding the previous_accesses of a statement.
+        Subclasses should override this according to their own structure to
+        return previous accesses to any References contained in the statement.
+        '''
+        # FIXME Implement
+        return []
 
 
 class RegionDirective(Directive):

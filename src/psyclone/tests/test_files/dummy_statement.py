@@ -31,44 +31,21 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic, Met Office
-#         J. Henrichs, Bureau of Meteorology
-# -----------------------------------------------------------------------------
+# Author A. B. G. Chalk, STFC Daresbury Lab
 
-''' This module contains the Return node implementation.'''
+'''This module contains a DummyStatement class used for tests where Statement
+nodes are initialised.'''
 
-from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.nodes import Statement
 
 
-class Return(Statement):
-    '''
-    Node representing a Return statement (subroutine break without return
-    value).
+class DummyStatement(Statement):
 
-    '''
-    # Textual description of the node.
-    _children_valid_format = "<LeafNode>"
-    _text_name = "Return"
-    _colour = "yellow"
+    def next_accesses(self) -> None:
+        '''Empty implementation of the required next_accesses
+        abstractmethod.'''
 
-    def next_accesses(self) -> list[Node]:
+    def previous_accesses(self) -> None:
+        '''Empty implementation of the required previous_accesses
+        abstractmethod.
         '''
-        Abstract method for finding the next_accesses of a statement.
-        Subclasses should override this according to their own structure to
-        return future accesses to any References contained in the statement.
-
-        :returns: an empty list.
-        '''
-        # FIXME Implement
-        return []
-
-    def previous_accesses(self) -> list[Node]:
-        '''
-        Abstract method for finding the previous_accesses of a statement.
-        Subclasses should override this according to their own structure to
-        return previous accesses to any References contained in the statement.
-        '''
-        # FIXME Implement
-        return []

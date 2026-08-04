@@ -46,11 +46,12 @@ from psyclone.psyGen import Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     Assignment, Call, IntrinsicCall, Loop, Node, Reference,
-    Routine, Statement)
+    Routine)
 from psyclone.psyir.symbols import (
     AutomaticInterface, DataSymbol, ImportInterface, UnresolvedType)
 from psyclone.psyir.transformations import (
     InlineTrans, TransformationError)
+from psyclone.tests.test_files.dummy_statement import DummyStatement
 from psyclone.tests.utilities import Compile, get_invoke
 
 MY_TYPE = ("  integer, parameter :: ngrids = 10\n"
@@ -2691,10 +2692,10 @@ def test_validate_automatic_array_sized_by_arg(fortran_reader, monkeypatch):
     inline_trans.validate(call)
     # Break Reference.previous_accesses() to exercise the InternalError.
     monkeypatch.setattr(call.arguments[1], "previous_accesses",
-                        lambda: [Statement()])
+                        lambda: [DummyStatement()])
     with pytest.raises(InternalError) as err:
         inline_trans.validate(call)
-    assert ("Unexpected node type (Statement) returned from Reference."
+    assert ("Unexpected node type (DummyStatement) returned from Reference."
             "previous_accesses()" in str(err.value))
 
 
