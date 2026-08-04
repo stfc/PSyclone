@@ -53,7 +53,6 @@ from psyclone.psyir.symbols import (
     ArrayType,
     ScalarType,
     DataSymbol,
-    StructureType,
     SymbolError,
     UnresolvedType,
     UnsupportedType,
@@ -277,7 +276,6 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                     )
                     new_shape.append(ArrayType.ArrayBounds(lower, upper))
             sym.datatype = ArrayType(sym.datatype.elemental_type, new_shape)
-
 
         # Copy the nodes from the Routine into the call site.
         # TODO #924 - while doing this we should ensure that any References
