@@ -46,9 +46,10 @@ from psyclone.psyGen import Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     Assignment, Call, IntrinsicCall, Loop, Node, Reference,
-    Routine, Statement)
+    Routine, Statement, Literal)
 from psyclone.psyir.symbols import (
-    AutomaticInterface, DataSymbol, ImportInterface, UnresolvedType)
+    AutomaticInterface, DataSymbol, ImportInterface, UnresolvedType,
+    ScalarType)
 from psyclone.psyir.transformations import (
     InlineTrans, TransformationError)
 from psyclone.tests.utilities import Compile, get_invoke
@@ -2825,6 +2826,7 @@ def test_apply_symbol_dependencies(fortran_reader, fortran_writer, tmp_path):
         "  integer, intent(in) :: ilen\n"
         "  real, dimension(N+ilen, ilen), intent(inout) :: x\n"
         "  real, dimension(N+ilen, ilen) :: work\n"
+        "  character(len=3) :: string_work\n"
         "  work = 2.0\n"
         "  x(:,:) = x(:,:) + work(:,:)\n"
         "end subroutine sub\n"
@@ -2849,6 +2851,18 @@ def test_apply_symbol_dependencies(fortran_reader, fortran_writer, tmp_path):
     # The resulting code must be valid Fortran
     output = fortran_writer(psyir)
     assert Compile(tmp_path).string_compiles(output)
+
+    # After inlining whe should be able to modify them independently (
+    # whithout )
+    str_work = main.symbol_table.lookup("string_work")
+    str_work.datatype.length = Literal("1", ScalarType.integer_type())
+    main_output = fortran_writer(main)
+    original_output = fortran_writer(original)
+    assert "character(len=1) :: string_work" in main_output
+    if "character(len=1) :: string_work" in original_output:
+        # This should still be (len=3)
+        pytest.xfail("#3536: After inlining symbols should be independent"
+                     "copies")
 
 
 def test_apply_array_access_check_unresolved_override_option(
