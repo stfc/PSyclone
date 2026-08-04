@@ -1150,9 +1150,11 @@ Usage
 In general, the details of how PSyclone is used when building a
 particular model (such as LFRic) are left to the build system of
 that model. However, PSyclone support for the NEMO model is still
-evolving very rapidly and is not yet a part of the official NEMO
-repository. Consequently, the PSyclone repository contains two
-example scripts that are used when building the NEMO model.
+evolving very rapidly. Although it is a part of the official NEMO
+repository, the associated scripts are tightly linked to specific
+versions of PSyclone. Consequently, the PSyclone repository contains
+example scripts that work with the head of the master branch and
+are used when building the NEMO model for the integration tests.
 These scripts may be found in ``examples/nemo/scripts`` and their
 use is described in the ``README.md`` file in that directory.
 
@@ -1192,13 +1194,9 @@ Since PSyclone does not currently attempt to fully resolve all symbols
 when parsing NEMO code, this information is not available and therefore
 such statements are not identified as loops.
 
-In order to improve the PSyclone capabilities to convert implicit loops,
-the details of externally declared symbols can be resolved by using the
-`resolve_imports` method of the symbol table:
-
-.. code-block:: python
-
-   import_symbol = symbol_table.lookup(module_name)
-   symbol_table.resolve_imports(container_symbols=[import_symbol])
+In order to improve PSyclone's capability to convert implicit loops,
+the details of externally declared symbols can be resolved by setting
+``RESOLVE_IMPORTS`` appropriately within a transformation script
+(see :ref:`sec_script_globals`).
 
 .. footbibliography::
