@@ -238,6 +238,9 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                 f"have been caught by the validate() method. Original error "
                 f"was {err}") from err
 
+        # TODO #3536: A shallow copy will create common subtrees/references
+        # between the inlined and the original.
+
         # Replace any references to formal arguments with copies of the
         # actual arguments.
         formal_args = routine_table.argument_list
@@ -275,33 +278,6 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                     new_shape.append(ArrayType.ArrayBounds(lower, upper))
             sym.datatype = ArrayType(sym.datatype.elemental_type, new_shape)
 
-        for sym in table.datatypesymbols:
-            if not isinstance(sym.datatype, StructureType):
-                continue
-            for name, ctype in sym.datatype.components.items():
-                if isinstance(ctype.datatype, ArrayType):
-                    new_shape = []
-                    for dim in ctype.datatype.shape:
-                        lower = self._replace_formal_args_in_expr(
-                            dim.lower, node, formal_args,
-                            routine_node=routine,
-                            use_first_callee_and_no_arg_check=(
-                                use_first_callee_and_no_arg_check),
-                        )
-                        upper = self._replace_formal_args_in_expr(
-                            dim.upper, node, formal_args,
-                            routine_node=routine,
-                            use_first_callee_and_no_arg_check=(
-                                use_first_callee_and_no_arg_check),
-                        )
-                        new_shape.append(ArrayType.ArrayBounds(lower, upper))
-                    sym.datatype.components[name] = (
-                        StructureType.ComponentType(
-                            name=name,
-                            datatype=ArrayType(ctype.datatype.elemental_type,
-                                               new_shape),
-                            visibility=ctype.visibility,
-                            initial_value=ctype.initial_value))
 
         # Copy the nodes from the Routine into the call site.
         # TODO #924 - while doing this we should ensure that any References
