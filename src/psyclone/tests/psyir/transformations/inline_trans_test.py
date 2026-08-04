@@ -2815,15 +2815,16 @@ def test_apply_symbol_dependencies(fortran_reader, fortran_writer, tmp_path):
     # TODO #3534: Add an example of a len expression in an argument decalration
     code = (
         "module test_mod\n"
+        "  integer, parameter :: N = 10\n"
         "contains\n"
         "subroutine main()\n"
-        "  real, dimension(10, 10) :: var = 0.0\n"
+        "  real, dimension(N+10, 10) :: var = 0.0\n"
         "  call sub(var, 10)\n"
         "end subroutine main\n"
         "subroutine sub(x, ilen)\n"
         "  integer, intent(in) :: ilen\n"
-        "  real, dimension(ilen, ilen), intent(inout) :: x\n"
-        "  real, dimension(ilen, ilen) :: work\n"
+        "  real, dimension(N+ilen, ilen), intent(inout) :: x\n"
+        "  real, dimension(N+ilen, ilen) :: work\n"
         "  work = 2.0\n"
         "  x(:,:) = x(:,:) + work(:,:)\n"
         "end subroutine sub\n"
@@ -2838,12 +2839,12 @@ def test_apply_symbol_dependencies(fortran_reader, fortran_writer, tmp_path):
     main = psyir.children[0].find_routine_psyir("main")
     assert "ilen" not in main.symbol_table
     main_output = fortran_writer(main)
-    assert "real, dimension(10,10) :: work" in main_output
+    assert "real, dimension(n + 10,10) :: work" in main_output
 
     # The the original should be unmodified
     original = psyir.children[0].find_routine_psyir("sub")
     original_output = fortran_writer(original)
-    assert "real, dimension(ilen,ilen) :: work" in original_output
+    assert "real, dimension(n + ilen,ilen) :: work" in original_output
 
     # The resulting code must be valid Fortran
     output = fortran_writer(psyir)
