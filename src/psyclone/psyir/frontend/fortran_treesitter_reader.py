@@ -109,7 +109,7 @@ def next_of_type(
 
 
 @dataclass(frozen=True)
-class _CommonDeclAttributes:
+class _SharedDeclAttributes:
     ''' Properties shared by all entities of a fortran declaration (the lhs
     of ::)
 
@@ -759,7 +759,7 @@ class FortranTreeSitterReader():
         intent = next(
             (item for item in qualifiers
              if item.children and item.children[0].type == "intent"), None)
-        common_attr = _CommonDeclAttributes(
+        common_attr = _SharedDeclAttributes(
             base_type, dimension, intent, qualifier_names,
             frozenset(unsupported),
             to_str(tsnode).split("::", maxsplit=1)[0].strip())
@@ -770,7 +770,7 @@ class FortranTreeSitterReader():
                 self._declare_entity(declarator, common_attr)
 
     def _declare_entity(
-        self, declarator: 'TSNode', common_attr: _CommonDeclAttributes
+        self, declarator: 'TSNode', common_attr: _SharedDeclAttributes
     ):
         '''Translate one entity and add it to the current symbol table.
 
@@ -801,7 +801,7 @@ class FortranTreeSitterReader():
         self._add_or_update_datasymbol(declared_symbol)
 
     def _declarator_datatype(
-        self, declarator: 'TSNode', common_attr: _CommonDeclAttributes
+        self, declarator: 'TSNode', common_attr: _SharedDeclAttributes
     ):
         '''Translate one entity's datatype and initial value.
 
@@ -851,7 +851,7 @@ class FortranTreeSitterReader():
         return datatype, initial_value
 
     def _declaration_interface(
-        self, name: str, common_attr: _CommonDeclAttributes
+        self, name: str, common_attr: _SharedDeclAttributes
     ):
         '''Return the PSyIR interface for one declared entity.
 
