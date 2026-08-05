@@ -286,10 +286,13 @@ class DataSymbol(TypedSymbol):
             new_init_value = self.initial_value.copy()
         else:
             new_init_value = None
-        if self.is_array:
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
+        if self.is_array or isinstance(self.datatype, UnsupportedFortranType):
             # Ensure any References in the shape definition of an ArrayType
-            # are also copied. They will still point to the
-            # same Symbols as the original.
+            # or in the partial datatype of an UnsupportedFortranType are also
+            # copied. They will still point to the same Symbols as the
+            # original.
             new_datatype = self.datatype.copy()
         else:
             new_datatype = self.datatype

@@ -272,7 +272,8 @@ class UnsupportedFortranType(UnsupportedType):
         have matching names. If there is no match for a given Symbol then it
         is left unchanged.
 
-        This base implementation simply propagates the call to any child Nodes.
+        A partial datatype that is a DataTypeSymbol is replaced directly. It
+        must not be traversed because the datatype definition may be recursive.
 
         :param table_or_symbol: the symbol table from which to get replacement
             symbols or a single, replacement Symbol.
@@ -280,8 +281,23 @@ class UnsupportedFortranType(UnsupportedType):
             :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        if self.partial_datatype:
-            self.partial_datatype.replace_symbols_using(table_or_symbol)
+        partial_datatype = self.partial_datatype
+        if not partial_datatype:
+            return
+
+        if not isinstance(partial_datatype, DataTypeSymbol):
+            partial_datatype.replace_symbols_using(table_or_symbol)
+            return
+
+        if isinstance(table_or_symbol, Symbol):
+            if table_or_symbol.name.lower() != partial_datatype.name.lower():
+                return
+            replacement = table_or_symbol
+        else:
+            replacement = table_or_symbol.lookup(
+                partial_datatype.name, otherwise=partial_datatype)
+
+        self._partial_datatype = replacement
 
     @property
     def intrinsic(self):
@@ -1436,16 +1452,20 @@ class StructureType(DataType):
                         component.datatype.name, otherwise=component.datatype)
 
             else:
-                component.datatype.replace_symbols_using(table_or_symbol)
-                new_type = component.datatype
+                # Make a copy before updating any Symbol references so that
+                # replacing them does not modify the original StructureType.
+                new_type = component.datatype.copy()
+                new_type.replace_symbols_using(table_or_symbol)
 
-            if component.initial_value:
-                component.initial_value.replace_symbols_using(table_or_symbol)
+            initial_value = component.initial_value
+            if initial_value:
+                initial_value = initial_value.copy()
+                initial_value.replace_symbols_using(table_or_symbol)
 
             # Construct the new ComponentType
             key_name = component.name.lower()
             self.add(key_name, new_type, component.visibility,
-                     component.initial_value,
+                     initial_value,
                      preceding_comment=component.preceding_comment,
                      inline_comment=component.inline_comment)
 
