@@ -430,6 +430,7 @@ def test_interface_with_comments_is_supported(fortran_writer):
     '''
     code = """
     module test
+        ! Preceding comment
         interface inter1 ! Some comment here
            ! comment on module procedure
            module procedure     func1, func2 ! inline comment
@@ -449,9 +450,6 @@ def test_interface_with_comments_is_supported(fortran_writer):
     correct = """module test
   implicit none
   interface inter1
-    module procedure :: func1, func2
-  end interface inter1
-  interface inter1
   ! some comment here
   ! comment on module procedure
   module procedure func1, func2
@@ -468,6 +466,8 @@ end interface
 
 end module test"""
     out = fortran_writer(psyir)
+    print(out)
+    assert False
     assert correct in out
     pytest.xfail(reason="Fparser #521 Inline comments in interface and "
                         "module procedure declarations are out of order "
