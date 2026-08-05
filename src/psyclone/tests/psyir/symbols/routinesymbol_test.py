@@ -188,6 +188,12 @@ def test_routinesymbol_copy():
     assert new_sym4.interface is not interf
     assert new_sym4.interface.container_symbol is csym
 
+    # Test when the routine has a preceding comment
+    sym5 = RoutineSymbol("Hello")
+    sym5.preceding_comment = "Here is my preceding comment"
+    new_sym5 = sym5.copy()
+    assert new_sym5.preceding_comment == "Here is my preceding comment"
+
 
 def test_routinesymbol_copy_properties():
     '''

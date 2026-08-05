@@ -2582,10 +2582,6 @@ class Fparser2Reader():
                     # RoutineSymbol.
                     rsym = symbol_table.find_or_create(
                         routine_name.string)
-                    rsym.preceding_comment = self._comments_list_to_string(
-                            current_comments
-                    )
-                    current_comments = []
                     if type(rsym) is Symbol:
                         rsym.specialise(RoutineSymbol)
                     elif not isinstance(rsym, RoutineSymbol):
@@ -2593,6 +2589,10 @@ class Fparser2Reader():
                             f"Expected '{rsym.name}' referenced by generic "
                             f"interface '{name}' to be a Symbol or a "
                             f"RoutineSymbol but found '{type(rsym).__name__}'")
+                    rsym.preceding_comment = self._comments_list_to_string(
+                            current_comments
+                    )
+                    current_comments = []
                     rsymbols.append((rsym, is_module))
             else:
                 # Interface block contains an unsupported entry so
@@ -2607,12 +2607,13 @@ class Fparser2Reader():
                 # with that name.)
                 interface_sym = GenericInterfaceSymbol(
                     name, rsymbols, visibility=vis)
-                interface_sym.preceding_comments = (
+                symbol_table.add(interface_sym)
+                interface_sym.preceding_comment = (
                     self._comments_list_to_string(
                         preceding_comments
                     )
                 )
-                symbol_table.add(interface_sym)
+            else:
                 # We've not been able to determine the list of
                 # RoutineSymbols that this interface maps to so we just
                 # create a RoutineSymbol of UnsupportedFortranType.

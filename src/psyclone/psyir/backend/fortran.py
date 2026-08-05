@@ -696,17 +696,28 @@ class FortranWriter(LanguageWriter):
             raise InternalError(
                 f"gen_interfacedecl only supports 'GenericInterfaceSymbol's "
                 f"but got '{type(symbol).__name__}'")
-
-        decln = f"{self._nindent}interface {symbol.name}\n"
+        decln = ""
+        if symbol.preceding_comment:
+            for line in symbol.preceding_comment.splitlines():
+                decln += f"{self._nindent}!{line}\n"
+        decln += f"{self._nindent}interface {symbol.name}\n"
         self._depth += 1
         # Any module procedures.
-        routines = ", ".join([rsym.name for rsym in symbol.container_routines])
-        if routines:
-            decln += f"{self._nindent}module procedure :: {routines}\n"
+        routines = [(rsym.preceding_comment, rsym.name)
+                    for rsym in symbol.container_routines]
+        for routine in routines:
+            if routine[0]:
+                for line in routine[0].splitlines():
+                    decln += f"{self._nindent}!{line}\n"
+            decln += f"{self._nindent}module procedure :: {routine[1]}\n"
         # Any other (external) procedures.
-        routines = ", ".join([rsym.name for rsym in symbol.external_routines])
-        if routines:
-            decln += f"{self._nindent}procedure :: {routines}\n"
+        routines = [(rsym.preceding_comment, rsym.name)
+                    for rsym in symbol.external_routines]
+        for routine in routines:
+            if routine[0]:
+                for line in routine[0].splitlines():
+                    decln += f"{self._nindent}!{line}\n"
+            decln += f"{self._nindent}procedure :: {routine[1]}\n"
         self._depth -= 1
         decln += f"{self._nindent}end interface {symbol.name}\n"
 

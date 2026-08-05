@@ -493,9 +493,9 @@ def has_cmp_interface(code):
 
     # Check that the generic interface is in the code
     assert '''interface test_psyclone_internal_cmp
-    procedure :: test_psyclone_internal_cmp_int, \
-test_psyclone_internal_cmp_logical, \
-test_psyclone_internal_cmp_char
+    procedure :: test_psyclone_internal_cmp_int
+    procedure :: test_psyclone_internal_cmp_logical
+    procedure :: test_psyclone_internal_cmp_char
   end interface test_psyclone_internal_cmp
 ''' in code
 
@@ -581,9 +581,9 @@ def test_find_or_create_psyclone_internal_cmp(fortran_writer):
 
     # Check that the interface new names are internally consistent
     assert '''interface test_psyclone_internal_cmp_1
-    procedure :: test_psyclone_internal_cmp_int_1, \
-test_psyclone_internal_cmp_logical_1, \
-test_psyclone_internal_cmp_char_1
+    procedure :: test_psyclone_internal_cmp_int_1
+    procedure :: test_psyclone_internal_cmp_logical_1
+    procedure :: test_psyclone_internal_cmp_char_1
   end interface test_psyclone_internal_cmp_1''' in fortran_writer(container)
 
     # And that from now on the tag refers to the new symbol
