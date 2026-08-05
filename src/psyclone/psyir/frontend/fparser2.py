@@ -2512,7 +2512,10 @@ class Fparser2Reader():
                     # Ensure the interface to this Symbol is static
                     symbol.interface = StaticInterface()
 
-    def _process_interface_block(self, node, symbol_table, visibility_map):
+    def _process_interface_block(self, node: Fortran2003.Interface_Block,
+                                 symbol_table: SymbolTable,
+                                 visibility_map: dict[str, Symbol.Visibility],
+                                 preceding_comments: Iterable[str] = ()):
         '''
         Processes a Fortran2003.Interface_Block. If the interface is named
         and consists only of [module] procedure :: <procedure-list> then a
@@ -2520,13 +2523,9 @@ class Fparser2Reader():
         UnsupportedFortranType is created.
 
         :param node: the parse tree for the interface block.
-        :type node: :py:class:`fparser.two.Fortran2003.Interface_Block`
         :param symbol_table: the table to which to add new symbols.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param visibility_map: information on any explicit symbol visibilities
             in the current scope.
-        :type visibility_map: dict[
-            str, :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
 
         '''
         # Fortran 2003 standard R1203 says that:
@@ -2559,13 +2558,20 @@ class Fparser2Reader():
         # This flag will be set to False in the loop below if an unsupported
         # feature is found.
         supported_interface = True
+        current_comments = []
         # Loop over the child nodes of the Interface definition.
         for child in node.children:
             if isinstance(child, (Fortran2003.Interface_Stmt,
                                   Fortran2003.End_Interface_Stmt)):
                 continue
-            # TODO #3517: Comments inside an Interface statement are ignored.
+            # Inline comments inside an Interface statement are
+            # not distinguishable from comments in the interface block.
+            # Inline comments on declarations may also be lost as they
+            # are not added to the Procedure_Stmt in fparser2, otherwise
+            # they will appear before the following statement. See
+            # fparser issue #521.
             if isinstance(child, Fortran2003.Comment):
+                self.process_comment(child, current_comments)
                 continue
             if isinstance(child, Fortran2003.Procedure_Stmt):
                 # Keep track of whether these are module procedures.
@@ -2576,6 +2582,10 @@ class Fparser2Reader():
                     # RoutineSymbol.
                     rsym = symbol_table.find_or_create(
                         routine_name.string)
+                    rsym.preceding_comment = self._comments_list_to_string(
+                            current_comments
+                    )
+                    current_comments = []
                     if type(rsym) is Symbol:
                         rsym.specialise(RoutineSymbol)
                     elif not isinstance(rsym, RoutineSymbol):
@@ -2595,9 +2605,14 @@ class Fparser2Reader():
                 # GenericInterfaceSymbol. (There will be calls to it
                 # although there will be no corresponding implementation
                 # with that name.)
-                symbol_table.add(GenericInterfaceSymbol(
-                    name, rsymbols, visibility=vis))
-            else:
+                interface_sym = GenericInterfaceSymbol(
+                    name, rsymbols, visibility=vis)
+                interface_sym.preceding_comments = (
+                    self._comments_list_to_string(
+                        preceding_comments
+                    )
+                )
+                symbol_table.add(interface_sym)
                 # We've not been able to determine the list of
                 # RoutineSymbols that this interface maps to so we just
                 # create a RoutineSymbol of UnsupportedFortranType.
@@ -2714,7 +2729,9 @@ class Fparser2Reader():
                         f"declarations not supported but found '{node}'")
             elif isinstance(node, Fortran2003.Interface_Block):
                 self._process_interface_block(node, parent.symbol_table,
-                                              visibility_map)
+                                              visibility_map,
+                                              preceding_comments)
+                preceding_comments = []
 
             elif isinstance(node, (Fortran2003.Type_Declaration_Stmt,
                                    Fortran2003.Procedure_Declaration_Stmt)):
