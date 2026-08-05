@@ -74,7 +74,8 @@ class DataTypeSymbol(Symbol):
         :rtype: :py:class:`psyclone.psyir.symbols.TypeSymbol`
 
         '''
-        copy = type(self)(self.name, self.datatype, visibility=self.visibility,
+        copy = type(self)(self.name, self.datatype.copy(),
+                          visibility=self.visibility,
                           interface=self.interface.copy())
         copy.preceding_comment = self.preceding_comment
         copy.inline_comment = self.inline_comment
