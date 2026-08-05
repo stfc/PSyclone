@@ -44,7 +44,7 @@ from psyclone.psyir.nodes import FileContainer, Loop
 from psyclone.gocean1p0 import GOKern
 from psyclone.psyGen import InvokeSchedule
 
-from fuse_loops import trans as fuse_trans
+from copy_kernels_and_fuse_loops import trans as fuse_trans
 
 
 def trans(psyir: FileContainer) -> None:

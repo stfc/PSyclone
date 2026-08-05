@@ -1,3 +1,13 @@
+   20) PR #3518 for #3516. Fix issue with disappearing Interface declarations.
+
+   19) PR #3515 for #3513. Add a compilation test job with ifx and OpenMP flags.
+
+   18) PR #3504 for #3500. Adds StandaloneDirective as valid child of
+   Container.
+
+   17) PR #3290 for #2846. KernelModuleInlineTrans renames inlined routines
+   to avoid clashes.
+
    16) PR #3209 towards #868. Add support for nlayer and ndata components in
    the field metadata (this PR does not introduce the psy-layer generation to
    match those field specifications yet).
