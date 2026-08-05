@@ -2852,8 +2852,7 @@ def test_apply_symbol_dependencies(fortran_reader, fortran_writer, tmp_path):
     output = fortran_writer(psyir)
     assert Compile(tmp_path).string_compiles(output)
 
-    # After inlining whe should be able to modify them independently (
-    # whithout )
+    # After inlining whe should be able to modify them independently
     str_work = main.symbol_table.lookup("string_work")
     str_work.datatype.length = Literal("1", ScalarType.integer_type())
     main_output = fortran_writer(main)
