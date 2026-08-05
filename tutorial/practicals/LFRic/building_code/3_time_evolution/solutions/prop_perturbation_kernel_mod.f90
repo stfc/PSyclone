@@ -4,6 +4,11 @@
 ! SPDX-License-Identifier: BSD-3-Clause
 ! See the full LICENSE file in the project root for details.
 ! -----------------------------------------------------------------------------
+
+! A kernel that propagates a perturbation field on W3 function space as:
+!   perturbation = max(perturbation_height - z, 0)/perturbation_scale* &
+!                      exp( -((x - x_centre - u_vel*t_tot)/half_width_x)**2 &
+!                           -((y - y_centre - v_vel*t_tot)/half_width_y)**2 )
 module prop_perturbation_kernel_mod
 
   use argument_mod,      only: arg_type, func_type,   &
