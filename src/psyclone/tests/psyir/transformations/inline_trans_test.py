@@ -2858,10 +2858,11 @@ def test_apply_symbol_dependencies(fortran_reader, fortran_writer, tmp_path):
     main_output = fortran_writer(main)
     original_output = fortran_writer(original)
     assert "character(len=1) :: string_work" in main_output
-    if "character(len=1) :: string_work" in original_output:
-        # This should still be (len=3)
-        pytest.xfail("#3536: After inlining symbols should be independent"
-                     "copies")
+
+    # The original should be (len=3)
+    assert "character(len=1) :: string_work" in original_output
+    pytest.xfail("#3536: After inlining symbols should be independent"
+                 "copies")
 
 
 def test_apply_array_access_check_unresolved_override_option(
