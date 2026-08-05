@@ -2904,10 +2904,9 @@ class Fparser2Reader():
 
     @staticmethod
     def _process_common_blocks(nodes, psyir_parent):
-        ''' Process the fparser2 common block declaration statements. This is
-        done after the other declarations and it will keep the statement
-        as a UnsupportedFortranType and update the referenced symbols to a
-        CommonBlockInterface.
+        ''' Process the fparser2 common block declaration statements. This
+        is done after the symbols have already been created, it just assigns
+        the CommonBlockInterface to them.
 
         :param nodes: fparser2 AST nodes containing declaration statements.
         :type nodes: List[:py:class:`fparser.two.utils.Base`]
@@ -2925,22 +2924,16 @@ class Fparser2Reader():
         '''
         for node in nodes:
             if isinstance(node, Fortran2003.Common_Stmt):
-                # Place the declaration statement into a UnsupportedFortranType
-                # (for now we just want to reproduce it). The name of the
-                # commonblock is not in the same namespace as the variable
-                # symbols names (and there may be multiple of them in a
-                # single statement). So we use an internal symbol name.
-                psyir_parent.symbol_table.new_symbol(
-                    root_name="_PSYCLONE_INTERNAL_COMMONBLOCK",
-                    symbol_type=DataSymbol,
-                    datatype=UnsupportedFortranType(str(node)))
-
                 # Get the names of the symbols accessed with the commonblock,
                 # they are already defined in the symbol table but they must
                 # now have a common-block interface.
                 try:
                     # Loop over every COMMON block defined in this Common_Stmt
                     for cb_object in node.children[0]:
+                        # Get the name of the common block
+                        name = cb_object[0]
+                        name_str = name.string if name is not None else ""
+
                         for symbol_name in cb_object[1].items:
                             sym = psyir_parent.symbol_table.lookup(
                                         str(symbol_name))
@@ -2951,7 +2944,7 @@ class Fparser2Reader():
                                     f" ({sym.initial_value.debug_string()}) "
                                     f"but appears in a common block. This is "
                                     f"not valid Fortran.")
-                            sym.interface = CommonBlockInterface()
+                            sym.interface = CommonBlockInterface(name_str)
                 except KeyError as error:
                     raise NotImplementedError(
                         f"The symbol interface of a common block variable "
