@@ -927,26 +927,43 @@ def test_unsupported_decln(fortran_reader):
     assert "Unrecognised attribute type 'str'" in str(error.value)
 
 
-def test_unsupported_decln_structure_type(fortran_reader):
+def test_decln_structure_type(fortran_reader):
     '''
-    Check that the frontend generated code for unsupported values when
-    creating a DataSymbol.
+    Check that the frontend allows initialisers containing
+    a structure constructor.
     '''
     code = '''
     module my_mod
     use some_other_mod
     contains
     subroutine my_sub
-       type(some_type), parameter :: x = func()
+       type(some_type), parameter :: x = some_type()
     end subroutine my_sub
     end module my_mod
     '''
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     assert isinstance(routine.symbol_table.lookup('x').datatype,
-                      UnsupportedFortranType)
-    assert (routine.symbol_table.lookup('x').datatype.declaration ==
-            "TYPE(some_type), PARAMETER :: x = func()")
+                      DataTypeSymbol)
+
+
+def test_decln_array_of_structure_type(fortran_reader):
+    '''
+    Check that the frontend allows initialisers containing
+    an array-of-structures constructor.
+    '''
+    code = '''
+    module my_mod
+    use some_other_mod
+    contains
+    subroutine my_sub
+       type(some_type) :: x(1) = [some_type()]
+    end subroutine my_sub
+    end module my_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert isinstance(routine.symbol_table.lookup('x').datatype, ArrayType)
 
 
 @pytest.mark.usefixtures("f2008_parser")

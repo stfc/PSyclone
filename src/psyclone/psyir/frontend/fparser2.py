@@ -2200,15 +2200,7 @@ class Fparser2Reader():
                                      is_constant=has_constant_value,
                                      initial_value=init_expr)
                 except ValueError as error:
-                    # DataSymbol can raise a ValueError in a number of ways.
-                    # We check for the ones that come from valid Fortran
-                    # that we aren't supporting and raise NotImplementedError
-                    # for those.
-                    if not isinstance(
-                            datatype,
-                            (ScalarType, ArrayType, UnsupportedType)):
-                        raise NotImplementedError
-                    # Otherwise we have an invalid Fortran declaration.
+                    # We have an invalid Fortran declaration.
                     raise InternalError(
                         f"Invalid variable declaration "
                         f"found in _process_decln for "
@@ -2563,6 +2555,9 @@ class Fparser2Reader():
         for child in node.children:
             if isinstance(child, (Fortran2003.Interface_Stmt,
                                   Fortran2003.End_Interface_Stmt)):
+                continue
+            # TODO #3517: Comments inside an Interface statement are ignored.
+            if isinstance(child, Fortran2003.Comment):
                 continue
             if isinstance(child, Fortran2003.Procedure_Stmt):
                 # Keep track of whether these are module procedures.
@@ -5649,6 +5644,10 @@ class Fparser2Reader():
             if (
                 isinstance(routine_symbol, RoutineSymbol) and
                 isinstance(node, Fortran2003.Call_Stmt)
+                # Also don't overwrite UnsupportedFortranType as their text is
+                # needed to reproduce the declaration of this symbol
+                and not isinstance(routine_symbol.datatype,
+                                   UnsupportedFortranType)
             ):
                 routine_symbol.datatype = NoType()
 

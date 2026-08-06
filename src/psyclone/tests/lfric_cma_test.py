@@ -345,6 +345,25 @@ def test_cma_mdata_asm_fld_stencil_error():
             in str(excinfo.value))
 
 
+@pytest.mark.parametrize("mdata_name", ["NLEVELS", "NDATA"])
+def test_cma_mdata_asm_fld_nlevels_ndata_error(mdata_name):
+    '''
+    Check that we raise the expected error if a CMA kernel has an argument
+    with a non-default value of either NLEVELS or NDATA.
+    '''
+    code = CMA_ASSEMBLE.replace(
+        "arg_type(gh_field, gh_real, gh_read, any_space_1)",
+        f"arg_type(gh_field, gh_real, gh_read, any_space_1, "
+        f"{mdata_name}='bad')", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_cma_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = LFRicKernMetadata(ast, name=name)
+    assert (f"Kernel 'testkern_cma_type' takes a CMA operator but has an "
+            f"argument with a non-default value ('bad') of {mdata_name}."
+            in str(excinfo.value))
+
+
 def test_invoke_uniq_declns_valid_access_cma_op():
     ''' Tests that all valid access modes for user-defined CMA operator
     arguments (AccessType.READ, AccessType.WRITE, AccessType.READWRITE)
