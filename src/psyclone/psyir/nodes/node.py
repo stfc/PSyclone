@@ -1888,13 +1888,13 @@ class Node():
 
         return current_node is potential_ancestor
 
-    def last_node(self) -> "Node":
+    def get_last_descendent_node(self) -> "Node":
         '''
         :returns: the last node in the subtree of this Node if this Node has
             children, else returns itself.
         '''
         if self.children:
-            return self.children[-1].last_node()
+            return self.children[-1].get_last_descendent_node()
         return self
 
 

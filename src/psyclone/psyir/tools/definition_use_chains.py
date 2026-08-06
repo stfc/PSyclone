@@ -300,9 +300,7 @@ class DefinitionUseChain:
                     # the ancestor statement.
                     sub_stop_point = (
                         self._references[0].ancestor(Statement)
-                        .walk(Node)[-1]
-                        .abs_position
-                        + 1
+                        .get_last_descendent_node().abs_position + 1
                     )
                     # If we have a basic block with no children then skip it,
                     # e.g. for an if block with no code before the else
@@ -341,7 +339,7 @@ class DefinitionUseChain:
                     if (ancestor.lhs is self._references[0]
                             and len(self._references) == 1):
                         # Find the last node in the assignment
-                        last_node = ancestor.walk(Node)[-1]
+                        last_node = ancestor.get_last_descendent_node()
                         # Modify the start_point to only include the node after
                         # this assignment.
                         self._start_point = last_node.abs_position
@@ -481,7 +479,7 @@ class DefinitionUseChain:
                 # RHS.
                 if any([ancestor.lhs is ref for ref in self._references]):
                     # Find the last node in the assignment
-                    last_node = ancestor.walk(Node)[-1]
+                    last_node = ancestor.get_last_descendent_node()
                     # Modify the start_point to only include the node after
                     # this assignment.
                     self._start_point = last_node.abs_position
@@ -1082,7 +1080,9 @@ class DefinitionUseChain:
                     body = ancestor.loop_body.children[:]
                     # Find the stop point - this needs to be the last node
                     # in the ancestor loop
-                    sub_stop_point = ancestor.walk(Node)[-1].abs_position + 1
+                    sub_stop_point = (
+                        ancestor.get_last_descendent_node().abs_position + 1
+                    )
                     # We make a copy of the reference to have a detached
                     # node to avoid handling the special cases based on
                     # the parents of the reference.
@@ -1126,7 +1126,7 @@ class DefinitionUseChain:
                     # If the reference is not the lhs then we can ignore
                     # the RHS.
                     if any([ancestor.lhs is ref for ref in self._references]):
-                        end = ancestor.walk(Node)[-1]
+                        end = ancestor.get_last_descendent_node()
                         # Add the rhs as a potential basic block with
                         # different start and stop positions.
                         chain = DefinitionUseChain(

@@ -144,7 +144,7 @@ class MaximalOMPParallelRegionTrans(MaximalRegionTrans):
         # w.r.t performance as this is probably the worst option but
         # easy to read.
         start_position = node.lhs.abs_position
-        end_position = last_element.walk(Node)[-1].abs_position
+        end_position = last_element.get_last_descendent_node().abs_position
 
         for access in accesses:
             # We can ignore writes as this overwrites any data from
