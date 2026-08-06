@@ -137,14 +137,8 @@ class MaximalOMPParallelRegionTrans(MaximalRegionTrans):
         accesses = node.lhs.next_accesses()
         # Find the abs_position of the final node in the current_block.
         last_element = current_block[-1]
-        # For reviewer - this could be implemented using
-        # following_node.abs_position-1, but if there is no following_node
-        # we'd still need to return to this (or I guess some recursive
-        # loop over children[-1]. Let me know if you have a preference
-        # w.r.t performance as this is probably the worst option but
-        # easy to read.
         start_position = node.lhs.abs_position
-        end_position = last_element.get_last_descendent_node().abs_position
+        end_position = last_element.get_last_descendant_node().abs_position
 
         for access in accesses:
             # We can ignore writes as this overwrites any data from
