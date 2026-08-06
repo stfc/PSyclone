@@ -1,3 +1,8 @@
+   23) PR #3507 for #3502. Adds support for initialisers for variables of a 
+   derived type.
+
+   22) PR #3541 for #3539. Update NEMO documentation and references.
+
    21) PR #3521 for #3460. Fixes issues with recursive datatype copies.
 
    20) PR #3518 for #3516. Fix issue with disappearing Interface declarations.
