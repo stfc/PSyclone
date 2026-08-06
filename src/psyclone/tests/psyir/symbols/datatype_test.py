@@ -1392,3 +1392,64 @@ def test_structuretype___copy__():
     # The components should be the same objects
     assert copied.components["nancy"] == stype.components["nancy"]
     assert copied.components["peggy"] == stype.components["peggy"]
+
+
+def test_copy_with_recursions(fortran_reader):
+    '''Test the copy operation when the datatypes contain recursions between
+    them.'''
+    code = '''
+    MODULE recursions
+       IMPLICIT NONE
+
+       TYPE(recursive_type), POINTER :: use_before_decl
+       TYPE recursive_type
+          TYPE(recursive_type) :: supported
+          TYPE(recursive_type), POINTER :: unsupported
+       END TYPE recursive_type
+       TYPE(recursive_type), POINTER :: use_after_decl
+
+    CONTAINS
+       SUBROUTINE mysub(arg)
+          TYPE(recursive_type), POINTER, INTENT(inout) :: arg
+       END SUBROUTINE mysub
+
+    END MODULE recursions
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    copiedtree = psyir.copy()
+
+    original_type = psyir.children[0].symbol_table.lookup("recursive_type")
+    copied_type = copiedtree.children[0].symbol_table.lookup("recursive_type")
+    assert copied_type is not original_type
+
+    # Both components of the copied type must refer to the copied type symbol,
+    # and the equivalent components in the original must remain unchanged.
+    original_supported = original_type.datatype.lookup("supported").datatype
+    copied_supported = copied_type.datatype.lookup("supported").datatype
+    assert original_supported is original_type
+    assert copied_supported is copied_type
+
+    original_unsupported = original_type.datatype.lookup(
+        "unsupported").datatype.partial_datatype
+    copied_unsupported = copied_type.datatype.lookup(
+        "unsupported").datatype.partial_datatype
+    assert original_unsupported is original_type
+    assert copied_unsupported is copied_type
+
+    # Symbols declared both before and after the type definition must refer to
+    # the type symbol belonging to their respective trees.
+    for name in ["use_before_decl", "use_after_decl"]:
+        original_symbol = psyir.children[0].symbol_table.lookup(name)
+        copied_symbol = copiedtree.children[0].symbol_table.lookup(name)
+        assert copied_symbol is not original_symbol
+        assert copied_symbol.datatype is not original_symbol.datatype
+        assert original_symbol.datatype.partial_datatype is original_type
+        assert copied_symbol.datatype.partial_datatype is copied_type
+
+    # The routine arguments must similarly refer to the type symbol belonging
+    # to their respective trees.
+    original_arg = psyir.walk(Routine)[0].symbol_table.lookup("arg")
+    copied_arg = copiedtree.walk(Routine)[0].symbol_table.lookup("arg")
+    assert copied_arg is not original_arg
+    assert original_arg.datatype.partial_datatype is original_type
+    assert copied_arg.datatype.partial_datatype is copied_type
