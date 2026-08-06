@@ -46,9 +46,10 @@ from psyclone.psyGen import Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     Assignment, Call, IntrinsicCall, Loop, Node, Reference,
-    Routine, Statement)
+    Routine, Statement, Literal)
 from psyclone.psyir.symbols import (
-    AutomaticInterface, DataSymbol, ImportInterface, UnresolvedType)
+    AutomaticInterface, DataSymbol, ImportInterface, UnresolvedType,
+    ScalarType)
 from psyclone.psyir.transformations import (
     InlineTrans, TransformationError)
 from psyclone.tests.utilities import Compile, get_invoke
@@ -2812,21 +2813,20 @@ def test_apply_symbol_dependencies(fortran_reader, fortran_writer, tmp_path):
     when inlined.
 
     '''
+    # TODO #3534: Add an example of a len expression in an argument decalration
     code = (
         "module test_mod\n"
+        "  integer, parameter :: N = 10\n"
         "contains\n"
         "subroutine main()\n"
-        "  real, dimension(10, 10) :: var = 0.0\n"
+        "  real, dimension(N+10, 10) :: var = 0.0\n"
         "  call sub(var, 10)\n"
         "end subroutine main\n"
         "subroutine sub(x, ilen)\n"
         "  integer, intent(in) :: ilen\n"
-        "  real, dimension(ilen, ilen), intent(inout) :: x\n"
-        "  real, dimension(ilen, ilen) :: work\n"
-        "  type nasty\n"
-        "    integer, dimension(ilen+1) :: flag\n"
-        "  end type nasty\n"
-        "  type(nasty) :: oh_deary_me\n"
+        "  real, dimension(N+ilen, ilen), intent(inout) :: x\n"
+        "  real, dimension(N+ilen, ilen) :: work\n"
+        "  character(len=3) :: string_work\n"
         "  work = 2.0\n"
         "  x(:,:) = x(:,:) + work(:,:)\n"
         "end subroutine sub\n"
@@ -2836,16 +2836,33 @@ def test_apply_symbol_dependencies(fortran_reader, fortran_writer, tmp_path):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     inline_trans.apply(call)
+
+    # ilen should not be in the caller
     main = psyir.children[0].find_routine_psyir("main")
     assert "ilen" not in main.symbol_table
+    main_output = fortran_writer(main)
+    assert "real, dimension(n + 10,10) :: work" in main_output
+
+    # The the original should be unmodified
+    original = psyir.children[0].find_routine_psyir("sub")
+    original_output = fortran_writer(original)
+    assert "real, dimension(n + ilen,ilen) :: work" in original_output
+
+    # The resulting code must be valid Fortran
     output = fortran_writer(psyir)
-    assert '''\
-    type :: nasty
-      integer, dimension(10 + 1) :: flag
-    end type nasty''' in output
-    assert "real, dimension(10,10) :: work" in output
-    assert "type(nasty) :: oh_deary_me" in output
     assert Compile(tmp_path).string_compiles(output)
+
+    # After inlining whe should be able to modify them independently
+    str_work = main.symbol_table.lookup("string_work")
+    str_work.datatype.length = Literal("1", ScalarType.integer_type())
+    main_output = fortran_writer(main)
+    original_output = fortran_writer(original)
+    assert "character(len=1) :: string_work" in main_output
+
+    # The original should be (len=3)
+    assert "character(len=1) :: string_work" in original_output
+    pytest.xfail("#3536: After inlining symbols should be independent"
+                 "copies")
 
 
 def test_apply_array_access_check_unresolved_override_option(

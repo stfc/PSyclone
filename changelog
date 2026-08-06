@@ -1,3 +1,12 @@
+   21) PR #3521 for #3460. Fixes issues with recursive datatype copies.
+
+   20) PR #3518 for #3516. Fix issue with disappearing Interface declarations.
+
+   19) PR #3515 for #3513. Add a compilation test job with ifx and OpenMP flags.
+
+   18) PR #3504 for #3500. Adds StandaloneDirective as valid child of
+   Container.
+
    17) PR #3290 for #2846. KernelModuleInlineTrans renames inlined routines
    to avoid clashes.
 
