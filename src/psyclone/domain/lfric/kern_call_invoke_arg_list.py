@@ -48,7 +48,6 @@ from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, UnresolvedType, SymbolTable,
     ContainerSymbol, ImportInterface)
-from psyclone.psyir.nodes import Reference
 if TYPE_CHECKING:
     from psyclone.lfric import LFRicKernelArgument
 
