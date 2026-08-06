@@ -45,14 +45,15 @@ pointers to integer arrays; and adding dofmap-related declarations to a
 Kernel stub.
 
 LFRicDofmaps is used in the LFRicInvoke module.
-'''
 
+'''
 from collections import OrderedDict
 
 from psyclone import psyGen
 from psyclone.domain.lfric import LFRicCollection, LFRicTypes, LFRicConstants
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import Assignment, Reference, StructureReference
+from psyclone.psyir.nodes import (Assignment, IntrinsicCall, Reference,
+                                  StructureReference)
 from psyclone.psyir.symbols import (
     UnsupportedFortranType, DataSymbol, ArgumentInterface, ArrayType)
 
@@ -218,18 +219,13 @@ class LFRicDofmaps(LFRicCollection):
         Declare all unique function space dofmaps in the PSy layer as pointers
         to integer arrays of rank 2.
 
-        TODO #2577 - the partial datatype of each UnsupportedFortranType that
-        is created should really have an initial value set
-        (IntrinsicCall.create(Intrinsic.NULL)) but this requires support for
-        pointer assignments.
-
         '''
         super().invoke_declarations()
 
         intrinsic_type = LFRicTypes("LFRicIntegerScalarDataType")()
         atype = ArrayType(
-                    intrinsic_type,
-                    [ArrayType.Extent.DEFERRED, ArrayType.Extent.DEFERRED])
+            intrinsic_type,
+            [ArrayType.Extent.DEFERRED, ArrayType.Extent.DEFERRED])
 
         # Function space dofmaps
         for dmap in sorted(self._unique_fs_maps):
@@ -239,7 +235,9 @@ class LFRicDofmaps(LFRicCollection):
                 f":: {dmap}(:,:) => null()",
                 partial_datatype=atype.copy())
             dmap_sym = self.symtab.find_or_create_tag(
-              dmap, symbol_type=DataSymbol, datatype=dtype)
+                dmap, symbol_type=DataSymbol, datatype=dtype,
+                initial_value=IntrinsicCall.create(
+                    IntrinsicCall.Intrinsic.NULL))
 
         # Column-banded dofmaps
         for dmap in sorted(self._unique_cbanded_maps):
@@ -248,7 +246,9 @@ class LFRicDofmaps(LFRicCollection):
                     dmap, UnsupportedFortranType(
                         f"integer(kind=i_def), pointer :: {dmap}(:,:) "
                         f"=> null()",
-                        partial_datatype=atype.copy()))
+                        partial_datatype=atype.copy()),
+                    initial_value=IntrinsicCall.create(
+                        IntrinsicCall.Intrinsic.NULL))
                 self.symtab.add(dmap_sym, tag=dmap)
 
         # CMA operator indirection dofmaps
@@ -258,7 +258,9 @@ class LFRicDofmaps(LFRicCollection):
                     dmap, UnsupportedFortranType(
                         f"integer(kind=i_def), pointer :: {dmap}(:) "
                         "=> null()",
-                        partial_datatype=atype.copy()))
+                        partial_datatype=atype.copy()),
+                    initial_value=IntrinsicCall.create(
+                        IntrinsicCall.Intrinsic.NULL))
                 self.symtab.add(dmap_sym, tag=dmap)
 
     def stub_declarations(self):
