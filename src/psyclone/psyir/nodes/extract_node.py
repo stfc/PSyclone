@@ -66,7 +66,7 @@ from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
     ArrayType, ContainerSymbol, DataSymbol, DataType, ImportInterface,
-    ScalarType, Symbol, SymbolTable)
+    ScalarType, Symbol, SymbolTable, UnsupportedFortranType)
 
 if TYPE_CHECKING:
     from psyclone.psyir.tools import ReadWriteInfo
@@ -393,19 +393,35 @@ class ExtractNode(PSyDataNode):
                 symbol = already_flattened[flattened_name]
             except KeyError:
                 symtab = structure_ref.ancestor(Routine).symbol_table
+                dtype = self._flatten_datatype(structure_ref)
                 symbol = symtab.new_symbol(
                             flattened_name,
                             symbol_type=DataSymbol,
-                            datatype=self._flatten_datatype(structure_ref))
+                            datatype=dtype)
+                is_pointer = False
+                # Now that we have a definitive name (wihtout clashes), we
+                # need to fix the UnsupportedFortranType text
+                if isinstance(dtype, UnsupportedFortranType):
+                    dtype._declaration = dtype._declaration.replace(
+                        'PLACEHOLDER', symbol.name)
+                    # And record if it's a pointer type
+                    if "pointer" in dtype.declaration.lower():
+                        is_pointer = True
+
                 already_flattened[flattened_name] = symbol
                 # We also need two assignments to copy the initial and final
                 # values to/from the flattened temporary
                 self.parent.addchild(Assignment.create(Reference(symbol),
-                                                       structure_ref.copy()),
+                                                       structure_ref.copy(),
+                                                       is_pointer),
                                      index=self.position)
-                self.parent.addchild(Assignment.create(structure_ref.copy(),
-                                                       Reference(symbol)),
-                                     index=self.position+1)
+                if not is_pointer:
+                    # If its not a pointer, we will need to copy back the
+                    # results
+                    self.parent.addchild(
+                        Assignment.create(structure_ref.copy(),
+                                          Reference(symbol)),
+                        index=self.position+1)
 
             # Replace the structure access with the flattened reference
             structure_ref.replace_with(Reference(symbol))
@@ -436,13 +452,19 @@ class ExtractNode(PSyDataNode):
                     f"in the config file '{Config.get().filename}'.")
             if gocean_property.intrinsic_type == 'real':
                 scalar_type = ScalarType.real8_type()
+                intr_str = "real*8"
             else:
                 scalar_type = ScalarType.integer_type()
+                intr_str = "integer"
             if gocean_property.type == "scalar":
                 return scalar_type
             # Everything else is a 2D field
-            return ArrayType(scalar_type, [ArrayType.Extent.DEFERRED,
-                                           ArrayType.Extent.DEFERRED])
+            return UnsupportedFortranType(
+                f"{intr_str}, pointer, dimension(:,:) :: PLACEHOLDER",
+                partial_datatype=ArrayType(
+                    scalar_type, [ArrayType.Extent.DEFERRED,
+                                  ArrayType.Extent.DEFERRED])
+            )
 
         # Everything else defaults to integer
         return ScalarType.integer_type()

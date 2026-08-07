@@ -415,28 +415,23 @@ def test_driver_creation_same_symbol():
     code = psy.gen
 
     # Only one version of the flattened symbol is created and given
-    # the value back
+    # the value back (for any non-pointer variable)
     assert """
     out_fld_internal_ystart = out_fld%internal%ystart
     out_fld_internal_ystop = out_fld%internal%ystop
     out_fld_internal_xstart = out_fld%internal%xstart
     out_fld_internal_xstop = out_fld%internal%xstop
-    out_fld_data = out_fld%data
-    in_out_fld_data = in_out_fld%data
-    in_fld_data = in_fld%data
-    dx_data = dx%data
+    out_fld_data => out_fld%data
+    in_out_fld_data => in_out_fld%data
+    in_fld_data => in_fld%data
+    dx_data => dx%data
     in_fld_grid_dx = in_fld%grid%dx
-    in_fld_grid_gphiu = in_fld%grid%gphiu
+    in_fld_grid_gphiu => in_fld%grid%gphiu
     CALL extract_psy_data % PreStart("module_name", "local_name", 10, 6)
     """ in code
     assert """
     CALL extract_psy_data % PostEnd
-    in_fld%grid%gphiu = in_fld_grid_gphiu
     in_fld%grid%dx = in_fld_grid_dx
-    dx%data = dx_data
-    in_fld%data = in_fld_data
-    in_out_fld%data = in_out_fld_data
-    out_fld%data = out_fld_data
     out_fld%internal%xstop = out_fld_internal_xstop
     out_fld%internal%xstart = out_fld_internal_xstart
     out_fld%internal%ystop = out_fld_internal_ystop
