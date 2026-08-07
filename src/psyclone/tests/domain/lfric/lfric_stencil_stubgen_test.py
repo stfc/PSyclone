@@ -57,7 +57,7 @@ def test_stub_stencil_extent(fortran_writer):
     '''
     ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_stencil_mod.f90"),
                       ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -84,7 +84,7 @@ def test_stub_cross2d_stencil(fortran_writer):
                                    "testkern_stencil_cross2d_mod.f90"),
                       ignore_comments=False)
 
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -112,7 +112,7 @@ def test_stub_stencil_direction(fortran_writer):
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_stencil_xory1d_mod.f90"),
                       ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     code = fortran_writer(kernel.gen_stub)
@@ -135,7 +135,7 @@ def test_stub_stencil_vector(fortran_writer):
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_stencil_vector_mod.f90"),
                       ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     code = fortran_writer(kernel.gen_stub)
@@ -158,7 +158,7 @@ def test_stub_stencil_multi(fortran_writer):
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_stencil_multi_mod.f90"),
                       ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     code = fortran_writer(kernel.gen_stub)

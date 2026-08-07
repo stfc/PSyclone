@@ -70,10 +70,12 @@ module testkern_halo_mod
 contains
   subroutine testkern_halo_code(nlevels, halo_depth, a, b, c, d)
     integer, intent(in) :: nlevels, halo_depth
+    real, intent(inout) :: a, b, c
+    integer, intent(in) :: d
   end subroutine testkern_halo_code
 end module testkern_halo_mod
 ''', ignore_comments=False)
-    dkm = LFRicKernMetadata(ast, name="testkern_halo_type")
+    dkm = LFRicKernMetadata.create_from_fortran_string(str(ast), name="testkern_halo_type")
     assert dkm.iterates_over == operates_on
 
 
@@ -95,10 +97,12 @@ def test_stencil_halo_kernel(operates_on):
   end type testkern_domain_type
 contains
   subroutine testkern_domain_code(a, b, c, d)
+    real, intent(inout) :: a, b, c
+    integer, intent(in) :: d
   end subroutine testkern_domain_code
 end module testkern_domain_mod
 ''', ignore_comments=False)
-    mdata = LFRicKernMetadata(ast, name="testkern_domain_type")
+    mdata = LFRicKernMetadata.create_from_fortran_string(str(ast), name="testkern_domain_type")
     assert mdata.iterates_over == operates_on
 
 

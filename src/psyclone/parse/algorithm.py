@@ -56,7 +56,8 @@ from fparser.two.Fortran2003 import Main_Program, Module, \
 from psyclone.configuration import Config, LFRIC_API_NAMES
 from psyclone.errors import InternalError
 from psyclone.parse.kernel import (
-    BuiltInKernelTypeFactory, get_kernel_ast, KernelType, KernelTypeFactory)
+    BuiltInKernelTypeFactory, get_kernel_psyir_for_module,
+    KernelTypeFactory)
 from psyclone.parse.utils import check_api, check_line_length, ParseError, \
     parse_fp2
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -436,11 +437,12 @@ class Parser():
                 f"this API)")
             raise ParseError(message) from info
 
-        modast = get_kernel_ast(module_name, self._alg_filename,
-                                self._kernel_paths, self._line_length)
+        kernel_psyir = get_kernel_psyir_for_module(
+            module_name, self._alg_filename, self._kernel_paths,
+            self._line_length)
         return KernelCall(module_name,
                           KernelTypeFactory(api=self._api).create(
-                              modast, name=kernel_name), args)
+                              kernel_psyir, name=kernel_name), args)
 
     def update_arg_to_module_map(self, statement):
         '''Takes a use statement and adds its contents to the internal
@@ -994,7 +996,7 @@ class KernelCall(ParsedCall):
         information about the arguments associated with the call to the kernel.
 
     '''
-    def __init__(self, module_name: str, ktype: KernelType, args: list[Arg]):
+    def __init__(self, module_name: str, ktype, args: list[Arg]):
         ParsedCall.__init__(self, ktype, args)
         self._module_name = module_name
 

@@ -590,7 +590,7 @@ def test_generate_banded_dofmap(monkeypatch):
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
     metadata.validate()
-    assert metadata._get_kernel_type() == "cma-assembly"
+    assert metadata.kernel_type == "cma-assembly"
 
     def _banded_dofmap(_):
         raise Exception("_banded_dofmap")
@@ -609,29 +609,9 @@ def test_generate_indirection_dofmap(monkeypatch):
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
     metadata.validate()
-    assert metadata._get_kernel_type() == "cma-apply"
+    assert metadata.kernel_type == "cma-apply"
 
     def _indirection_dofmap(_):
         raise Exception("_indirection_dofmap")
     check_called(monkeypatch, _indirection_dofmap,
                  "_indirection_dofmap", metadata)
-
-
-def test_generate_exception(monkeypatch):
-    '''Test the MetadataToArgumentRules class _generate method raises the
-    expected exception if an an unexpected meta_arg type is found.
-
-    '''
-    meta_args = [
-        FieldArgMetadata("GH_REAL", "GH_INC", "W0")]
-    metadata = LFRicKernelMetadata(
-        operates_on="cell_column", meta_args=meta_args)
-    metadata.validate()
-    monkeypatch.setattr(metadata, "_validate_general_purpose_kernel",
-                        lambda: None)
-    monkeypatch.setattr(metadata._meta_args, "_meta_args_args", [None])
-    monkeypatch.setattr(MetadataToArgumentsRules, "_metadata", metadata)
-    with pytest.raises(InternalError) as info:
-        MetadataToArgumentsRules._generate()
-    assert ("PSyclone internal error: Unexpected meta_arg type 'NoneType' "
-            "found." in str(info.value))

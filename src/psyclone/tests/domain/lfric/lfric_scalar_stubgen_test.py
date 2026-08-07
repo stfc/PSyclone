@@ -42,6 +42,7 @@ Module containing pytest tests for kernel stub code generation for the
 LFRic scalar arguments.
 '''
 
+from dataclasses import replace
 import os
 import pytest
 
@@ -70,12 +71,12 @@ def test_lfricscalars_stub_err():
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_one_int_scalar_mod.f90"),
                       ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Sabotage the scalar argument to make it have an invalid data type
     arg = kernel.arguments.args[1]
-    arg.descriptor._data_type = "gh_invalid_scalar"
+    arg._arg = replace(arg.descriptor, data_type="gh_invalid_scalar")
     with pytest.raises(InternalError) as err:
         LFRicScalarArgs(kernel).stub_declarations()
     const = LFRicConstants()
@@ -93,12 +94,12 @@ def test_lfricscalararray_stub_err():
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_scalar_array_mod.f90"),
                       ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Sabotage the scalar argument to make it have an invalid data type
     arg = kernel.arguments.args[1]
-    arg.descriptor._data_type = "gh_invalid_scalar"
+    arg._arg = replace(arg.descriptor, data_type="gh_invalid_scalar")
     with pytest.raises(InternalError) as err:
         LFRicScalarArrayArgs(kernel).stub_declarations()
     const = LFRicConstants()
@@ -159,8 +160,8 @@ def test_stub_generate_with_scalar_sums_err():
             api=TEST_API)
     assert (
         "A user-supplied LFRic kernel must not write/update a scalar "
-        "argument but kernel 'simple_with_reduction_type' has a scalar "
-        "argument with 'gh_reduction' access." in str(err.value))
+        "argument but kernel 'simple_with_reduction_type' does."
+        in str(err.value))
 
 
 def test_stub_generate_with_scalar_array():

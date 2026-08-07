@@ -1383,8 +1383,12 @@ class CodedKern(Kern):
         # If we've already got the AST then just return it
         if self._fp2_ast:
             return self._fp2_ast
-        # Use the fparser1 AST to generate Fortran source
-        fortran = self._module_code.tofortran()
+        # New parsers retain the source as language-level PSyIR. Keep this
+        # compatibility property for callers that still require fparser2.
+        if isinstance(self._module_code, Node):
+            fortran = FortranWriter()(self._module_code)
+        else:
+            fortran = self._module_code.tofortran()
         # Create an fparser2 Fortran parser
         std = Config.get().fortran_standard
         my_parser = parser.ParserFactory().create(std=std)

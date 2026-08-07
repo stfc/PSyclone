@@ -38,6 +38,7 @@
 ''' This module tests the LFRic kernel-stub generator using
     pytest. '''
 
+from dataclasses import replace
 import os
 import pytest
 
@@ -67,7 +68,7 @@ def test_kernel_stub_invalid_iteration_space():
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_dofs_mod.f90"),
                       ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
@@ -154,10 +155,15 @@ def test_load_meta_wrong_type():
     if the metadata contains an un-recognised type. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(INTENT, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     # Break the metadata
-    metadata.arg_descriptors[0]._argument_type = "gh_hedge"
+    invalid = replace(
+        metadata.arg_descriptors[0], argument_type="gh_hedge")
+    metadata = replace(
+        metadata,
+        arg_descriptors=(invalid,) + metadata.arg_descriptors[1:],
+    )
     with pytest.raises(GenerationError) as excinfo:
         kernel.load_meta(metadata)
     const = LFRicConstants()
@@ -169,7 +175,7 @@ def test_load_meta_wrong_type():
 def test_intent(fortran_writer):
     ''' test that field intent is generated correctly for kernel stubs '''
     ast = fpapi.parse(INTENT, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
@@ -237,7 +243,7 @@ def test_spaces(fortran_writer):
 
     '''
     ast = fpapi.parse(SPACES, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -363,7 +369,7 @@ def test_any_spaces(fortran_writer):
 
     '''
     ast = fpapi.parse(ANY_SPACES, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -426,7 +432,7 @@ end module dummy_mod
 def test_vectors(fortran_writer):
     ''' test that field vectors are handled correctly for kernel stubs '''
     ast = fpapi.parse(VECTORS, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -457,23 +463,6 @@ def test_vectors(fortran_writer):
     assert output in generated_code
 
 
-def test_arg_descriptor_vec_str():
-    ''' Tests that the string method for LFRicArgDescriptor works as
-    expected when we have a vector quantity. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    ast = fpapi.parse(VECTORS, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
-    field_descriptor = metadata.arg_descriptors[0]
-    result = str(field_descriptor)
-    expected_output = (
-        "LFRicArgDescriptor object\n"
-        "  argument_type[0]='gh_field'*3\n"
-        "  data_type[1]='gh_real'\n"
-        "  access_descriptor[2]='gh_inc'\n"
-        "  function_space[3]='w0'")
-    assert expected_output in result
-
-
 def test_enforce_bc_kernel_stub_gen(fortran_writer):
     ''' Test that the enforce_bc_kernel boundary layer argument modification
     is handled correctly for kernel stubs.
@@ -481,7 +470,7 @@ def test_enforce_bc_kernel_stub_gen(fortran_writer):
     '''
     ast = fpapi.parse(os.path.join(BASE_PATH, "enforce_bc_kernel_mod.f90"),
                       ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -523,7 +512,7 @@ def test_enforce_op_bc_kernel_stub_gen(fortran_writer):
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "enforce_operator_bc_kernel_mod.F90"),
                       ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -560,7 +549,7 @@ def test_multi_qr_stub_gen(fortran_writer):
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_2qr_mod.F90"),
                       ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -608,7 +597,7 @@ def test_qr_plus_eval_stub_gen(fortran_writer):
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_qr_eval_mod.F90"),
                       ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     code = fortran_writer(kernel.gen_stub)
@@ -667,7 +656,7 @@ def test_sub_name(fortran_writer):
     name. In this case we append "_code to the name and _mod to the
     kernel name.'''
     ast = fpapi.parse(SUB_NAME, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)

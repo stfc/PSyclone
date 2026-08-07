@@ -61,7 +61,6 @@ from psyclone.domain.lfric import (
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import Arg, KernelCall
-from psyclone.parse.kernel import getkerneldescriptors
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (Arguments, DataAccess, InvokeSchedule, Kern,
                              KernelArgument, HaloExchange)
@@ -212,18 +211,10 @@ class LFRicFuncDescriptor():
 
 
 class RefElementMetaData():
-    '''
-    Class responsible for parsing reference-element metadata and storing
-    the properties that a kernel requires.
+    '''Namespace for the reference-element property vocabulary.
 
-    :param str kernel_name: name of the Kernel that the metadata is for.
-    :param type_declns: list of fparser1 parse tree nodes representing type \
-                        declaration statements
-    :type type_declns: list of :py:class:`fparser.one.typedecl_statements.Type`
-
-    :raises ParseError: if an unrecognised reference-element property is found.
-    :raises ParseError: if a duplicate reference-element property is found.
-
+    Parsing and validation are performed by the immutable PSyIR metadata
+    implementation in :mod:`psyclone.domain.lfric.kernel.metadata`.
     '''
     # pylint: disable=too-few-public-methods
     class Property(Enum):
@@ -240,50 +231,6 @@ class RefElementMetaData():
         OUTWARD_NORMALS_TO_VERTICAL_FACES = 5
         OUTWARD_NORMALS_TO_FACES = 6
 
-    def __init__(self, kernel_name, type_declns):
-        # The list of properties requested in the metadata (if any)
-        self.properties = []
-
-        re_properties = []
-        # Search the supplied list of type declarations for the one
-        # describing the reference-element properties required by the kernel.
-        for line in type_declns:
-            for entry in line.selector:
-                if entry == "reference_element_data_type":
-                    # getkerneldescriptors raises a ParseError if the named
-                    # element cannot be found.
-                    re_properties = getkerneldescriptors(
-                        kernel_name, line, var_name="meta_reference_element",
-                        var_type="reference_element_data_type")
-                    break
-            if re_properties:
-                # Optimisation - stop searching if we've found a type
-                # declaration for the reference-element data
-                break
-        try:
-            # The metadata entry is a declaration of a Fortran array of type
-            # reference_element_data_type. The initialisation of each member
-            # of this array is done as a Fortran structure constructor, the
-            # argument to which gives a property of the reference element.
-            for re_prop in re_properties:
-                for arg in re_prop.args:
-                    self.properties.append(
-                        self.Property[str(arg).upper()])
-        except KeyError as err:
-            # We found a reference-element property that we don't recognise.
-            # Sort for consistency when testing.
-            sorted_names = sorted([prop.name for prop in self.Property])
-            raise ParseError(
-                f"Unsupported reference-element property: '{arg}'. Supported "
-                f"values are: {sorted_names}") from err
-
-        # Check for duplicate properties
-        for prop in self.properties:
-            if self.properties.count(prop) > 1:
-                raise ParseError(f"Duplicate reference-element property "
-                                 f"found: '{prop}'.")
-
-
 class MeshProperty(Enum):
     '''
     Enumeration of the various properties of the mesh that a kernel may
@@ -296,70 +243,6 @@ class MeshProperty(Enum):
     NCELL_2D = 2
     NCELL_2D_NO_HALOS = 3
 
-
-class MeshPropertiesMetaData():
-    '''
-    Parses any mesh-property kernel metadata and stores the properties that
-    a kernel requires.
-
-    :param str kernel_name: name of the kernel that the metadata is for.
-    :param type_declns: list of fparser1 parse tree nodes representing type \
-                        declaration statements.
-    :type type_declns: list of :py:class:`fparser.one.typedecl_statements.Type`
-
-    :raises ParseError: if an unrecognised mesh property is found.
-    :raises ParseError: if a duplicate mesh property is found.
-
-    '''
-    # pylint: disable=too-few-public-methods
-    # The properties that may be specified in kernel metadata are a subset
-    # of the MeshProperty enumeration values.
-    supported_properties = [MeshProperty.ADJACENT_FACE]
-
-    def __init__(self, kernel_name, type_declns):
-        # The list of mesh properties requested in the metadata.
-        self.properties = []
-
-        mesh_props = []
-        # Search the supplied list of type declarations for the one
-        # describing the reference-element properties required by the kernel.
-        for line in type_declns:
-            for entry in line.selector:
-                if entry == "mesh_data_type":
-                    # getkerneldescriptors raises a ParseError if the named
-                    # element cannot be found.
-                    mesh_props = getkerneldescriptors(
-                        kernel_name, line, var_name="meta_mesh",
-                        var_type="mesh_data_type")
-                    break
-            if mesh_props:
-                # Optimisation - stop searching if we've found a type
-                # declaration for the mesh data
-                break
-        try:
-            # The metadata entry is a declaration of a Fortran array of type
-            # mesh_data_type. The initialisation of each member
-            # of this array is done as a Fortran structure constructor, the
-            # argument to which gives a mesh property.
-            for prop in mesh_props:
-                for arg in prop.args:
-                    mesh_prop = MeshProperty[str(arg).upper()]
-                    if mesh_prop not in self.supported_properties:
-                        raise KeyError()
-                    self.properties.append(mesh_prop)
-        except KeyError as err:
-            # We found a mesh property that we don't recognise or that
-            # is not supported.
-            supported_mesh_prop = [pr.name for pr in self.supported_properties]
-            raise ParseError(f"Unsupported mesh property in metadata: "
-                             f"'{arg}'. Supported values are: "
-                             f"{supported_mesh_prop}") from err
-
-        # Check for duplicate properties
-        for prop in self.properties:
-            if self.properties.count(prop) > 1:
-                raise ParseError(f"Duplicate mesh property "
-                                 f"found: '{prop}'.")
 
 # --------------------------------------------------------------------------- #
 # ========== Second section : PSy specialisations =========================== #

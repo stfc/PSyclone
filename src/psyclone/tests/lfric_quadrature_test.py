@@ -754,7 +754,7 @@ def test_lfrickern_setup(monkeypatch):
     ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_qr_mod.F90"),
                       ignore_comments=False)
     name = "testkern_qr_type"
-    dkm = LFRicKernMetadata(ast, name=name)
+    dkm = LFRicKernMetadata.create_from_fortran_string(str(ast), name=name)
     # Finally, call the _setup() method
     with pytest.raises(InternalError) as excinfo:
         kern._setup(dkm, "my module", None, None)
@@ -814,7 +814,7 @@ def test_qr_basis_stub(fortran_writer):
 
     '''
     ast = fpapi.parse(BASIS, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -929,7 +929,7 @@ def test_stub_basis_wrong_shape(monkeypatch):
     for quadrature raises the correct errors if the kernel metadata is
     broken '''
     ast = fpapi.parse(BASIS, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     monkeypatch.setattr(kernel, "_eval_shapes",
@@ -959,7 +959,7 @@ def test_stub_dbasis_wrong_shape(monkeypatch):
     diff_basis = BASIS.replace("gh_basis", "gh_diff_basis")
 
     ast = fpapi.parse(diff_basis, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     monkeypatch.setattr(kernel, "_eval_shapes",

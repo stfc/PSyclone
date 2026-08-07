@@ -40,6 +40,7 @@
 pytest. At the moment the tests here do not fully cover LFRicKern as
 tests for other classes end up covering the rest.'''
 
+from dataclasses import replace
 import os
 import pytest
 
@@ -54,7 +55,6 @@ from psyclone.domain.lfric import (LFRicConstants, LFRicTypes, LFRicKern,
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
     Container, KernelSchedule, Literal, Reference, Routine)
 from psyclone.psyir.symbols import (
@@ -91,6 +91,7 @@ module testkern_qr
   end type testkern_qr_type
 contains
   subroutine testkern_qr_code(a, b, c, d)
+    real, intent(inout) :: a, b, c, d
   end subroutine testkern_qr_code
 end module testkern_qr
 '''
@@ -104,11 +105,15 @@ def test_scalar_kernel_load_meta_err():
     '''
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
-    metadata = LFRicKernMetadata(ast, name=name)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast), name=name)
     kernel = LFRicKern()
     # Get a scalar argument descriptor and set an invalid data type
-    scalar_arg = metadata.arg_descriptors[5]
-    scalar_arg._data_type = "gh_triple"
+    scalar_arg = replace(
+        metadata.arg_descriptors[5], data_type="gh_triple")
+    metadata = replace(
+        metadata,
+        arg_descriptors=metadata.arg_descriptors[:5] + (scalar_arg,),
+    )
     with pytest.raises(InternalError) as err:
         kernel.load_meta(metadata)
     const = LFRicConstants()
@@ -167,9 +172,8 @@ def test_kern_get_callees(monkeypatch):
     # Check the internal error for the case where we fail to get any
     # implementation for the kernel.
     kernel._schedules = None
-    # Monkeypatch the frontend so that it just returns an empty Container.
-    monkeypatch.setattr(Fparser2Reader, "generate_psyir",
-                        lambda _1, _2: Container("dummy_mod"))
+    # Replace the retained source PSyIR with an empty Container.
+    kernel._module_code = Container("dummy_mod")
     with pytest.raises(InternalError) as err:
         kernel.get_callees()
     assert ("Failed to find any routines for Kernel 'matrix_vector_code'"

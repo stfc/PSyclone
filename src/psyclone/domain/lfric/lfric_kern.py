@@ -55,7 +55,6 @@ from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import Arg, KernelCall
 from psyclone.psyGen import InvokeSchedule, CodedKern, args_filter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
     Loop, Literal, Reference, KernelSchedule, Container, Routine)
 from psyclone.psyir.symbols import (
@@ -258,7 +257,9 @@ class LFRicKern(CodedKern):
         for descriptor in kmetadata.func_descriptors:
             if len(descriptor.operator_names) > 0:
                 self._basis_required = True
-                self._eval_shapes = kmetadata.eval_shapes[:]
+                # Metadata is immutable but the kernel-layer view is
+                # intentionally mutable so transformations can specialise it.
+                self._eval_shapes = list(kmetadata.eval_shapes)
                 break
 
     def _setup(self,
@@ -857,7 +858,7 @@ class LFRicKern(CodedKern):
         # Otherwise, get the PSyIR Kernel Schedule(s) from the original
         # parse tree.
         if not routines:
-            orig_psyir = Fparser2Reader().generate_psyir(self.ast)
+            orig_psyir = self._module_code.copy()
             for container in orig_psyir.walk(Container):
                 names = container.resolve_routine(self.name)
                 routines = []

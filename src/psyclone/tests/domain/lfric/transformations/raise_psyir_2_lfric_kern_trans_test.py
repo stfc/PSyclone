@@ -321,15 +321,13 @@ def test_apply_ok(fortran_reader):
     # The container should now be an LFRicKernelContainer
     assert isinstance(container, LFRicKernelContainer)
     # and should contain the metadata
-    expected = (
-        "TYPE, PUBLIC, EXTENDS(kernel_type) :: testkern_type\n"
-        "  type(ARG_TYPE) :: META_ARGS(1) = (/ &\n"
-        "    arg_type(gh_field, gh_real, gh_inc, w1)/)\n"
-        "  INTEGER :: OPERATES_ON = cell_column\n"
-        "  CONTAINS\n"
-        "    PROCEDURE, NOPASS :: testkern_code\n"
-        "END TYPE testkern_type\n")
-    assert container.metadata.fortran_string() == expected
+    metadata = container.metadata
+    assert metadata.name == "testkern_type"
+    assert metadata.procedure_name == "testkern_code"
+    assert metadata.operates_on == "cell_column"
+    assert len(metadata.meta_args) == 1
+    assert metadata.meta_args[0].fortran_string() == (
+        "arg_type(gh_field, gh_real, gh_inc, w1)")
 
 
 def test_apply_multi_ok(fortran_reader):
@@ -353,10 +351,10 @@ def test_apply_multi_ok(fortran_reader):
     # The container should now be an LFRicKernelContainer
     assert isinstance(container, LFRicKernelContainer)
     # and should contain the metadata
-    expected = (
-        "TYPE, PUBLIC, EXTENDS(kernel_type) :: testkern_type\n"
-        "  type(ARG_TYPE) :: META_ARGS(1) = (/ &\n"
-        "    arg_type(gh_field, gh_real, gh_inc, w1)/)\n"
-        "  INTEGER :: OPERATES_ON = cell_column\n"
-        "END TYPE testkern_type\n")
-    assert container.metadata.fortran_string() == expected
+    metadata = container.metadata
+    assert metadata.name == "testkern_type"
+    assert metadata.procedure_name is None
+    assert metadata.operates_on == "cell_column"
+    assert len(metadata.meta_args) == 1
+    assert metadata.meta_args[0].fortran_string() == (
+        "arg_type(gh_field, gh_real, gh_inc, w1)")

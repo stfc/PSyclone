@@ -1303,7 +1303,7 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
         if quadrature and arg_list_info.nqp_positions:
             # TODO #705 - support the transformation of kernels requiring
             # other quadrature types (face/edge, multiple).
-            if kernel.eval_shapes == ["gh_quadrature_xyoz"]:
+            if tuple(kernel.eval_shapes) == ("gh_quadrature_xyoz",):
                 make_constant(symbol_table,
                               arg_list_info.nqp_positions[0]["horizontal"],
                               element_order_h+3)

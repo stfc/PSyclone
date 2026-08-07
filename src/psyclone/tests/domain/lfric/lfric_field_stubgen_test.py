@@ -41,6 +41,7 @@ Module containing pytest tests for kernel stub code generation and the related
 functionality for the LFRic fields.
 '''
 
+from dataclasses import replace
 import os
 import pytest
 import fparser
@@ -94,13 +95,14 @@ def test_lfricfields_stub_err():
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(FIELD_CODE, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
 
     # Sabotage the field argument to make it have an invalid intrinsic type
     fld_arg = kernel.arguments.args[1]
-    fld_arg.descriptor._data_type = "gh_invalid_type"
+    fld_arg._arg = replace(
+        fld_arg.descriptor, data_type="gh_invalid_type")
     with pytest.raises(InternalError) as err:
         LFRicFields(kernel).stub_declarations()
     const = LFRicConstants()
@@ -145,7 +147,7 @@ def test_int_field_gen_stub(fortran_writer):
 
     '''
     ast = fpapi.parse(INTEGER_FIELD_CODE, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -207,7 +209,7 @@ def test_int_field_all_stencils_gen_stub(fortran_writer):
     ast = fpapi.parse(
         os.path.join(BASE_PATH, "testkern_stencil_multi_int_field_mod.f90"),
         ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -274,7 +276,7 @@ def test_real_int_field_gen_stub(fortran_writer):
         "func_type(w1, gh_basis),",
         "func_type(w1, gh_basis, gh_diff_basis),", 1)
     ast = fpapi.parse(code, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)

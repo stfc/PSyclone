@@ -58,15 +58,15 @@ from psyclone.configuration import Config, ConfigurationError
 from psyclone.core import Signature
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.gocean import GOceanConstants, GOSymbolTable
+from psyclone.domain.gocean.kernel import (
+    GOceanArgDescriptor, GOceanKernelMetadata, GOceanStencil)
 from psyclone.errors import GenerationError, InternalError
 import psyclone.expression as expr
 from psyclone.parse.algorithm import Arg, KernelCall
-from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (
     PSy, Invokes, Invoke, InvokeSchedule, CodedKern, Arguments, Argument,
     KernelArgument, args_filter, AccessType, HaloExchange)
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Literal, Schedule, KernelSchedule, StructureReference, IntrinsicCall,
@@ -1123,9 +1123,9 @@ class GOKern(CodedKern):
         if self._schedules:
             return self._schedules
 
-        # Construct the PSyIR of the Fortran parse tree.
-        astp = Fparser2Reader()
-        psyir = astp.generate_psyir(self.ast)
+        # Work from a copy because raising removes the metadata symbol and
+        # specialises the container in-place.
+        psyir = self._module_code.copy()
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.gocean.transformations import (
             RaisePSyIR2GOceanKernTrans)
@@ -1301,7 +1301,13 @@ class GOKernelArguments(Arguments):
         # position in the argument list of the argument to which this
         # descriptor corresponds. (This argument is appended in the code
         # below.)
-        descriptor = Descriptor(None, argument_type, len(self.args))
+        descriptor = GOceanArgDescriptor(
+            AccessType.READ,
+            argument_type,
+            len(self.args),
+            GOceanStencil(),
+            "scalar",
+        )
 
         # Create the argument and append it to the argument list
         arg = Arg("variable", name)
@@ -1852,201 +1858,8 @@ class GOStencil():
         return self._stencil[index0+1][index1+1]
 
 
-class GO1p0Descriptor(Descriptor):
-    ''' Description of a GOcean 1.0 kernel argument, as obtained by
-    parsing the kernel metadata.
-
-    :param str kernel_name: the name of the kernel metadata type \
-                            that contains this metadata.
-    :param kernel_arg: the relevant part of the parser's AST.
-    :type kernel_arg: :py:class:`psyclone.expression.FunctionVar`
-    :param int metadata_index: the position of this argument in the list of \
-                               arguments specified in the metadata.
-
-    :raises ParseError: if a kernel argument has an invalid grid-point type.
-    :raises ParseError: for an unrecognised grid property.
-    :raises ParseError: for an invalid number of arguments.
-    :raises ParseError: for an invalid access argument.
-
-    '''
-
-    def __init__(self, kernel_name, kernel_arg, metadata_index):
-        # pylint: disable=too-many-locals
-        nargs = len(kernel_arg.args)
-        stencil_info = None
-
-        const = GOceanConstants()
-        if nargs == 3:
-            # This kernel argument is supplied by the Algorithm layer
-            # and is either a field or a scalar
-
-            access = kernel_arg.args[0].name
-            funcspace = kernel_arg.args[1].name
-            stencil_info = GOStencil()
-            stencil_info.load(kernel_arg.args[2],
-                              kernel_name)
-
-            # Valid values for the grid-point type that a kernel argument
-            # may have. (We use the funcspace argument for this as it is
-            # similar to the space in Finite-Element world.)
-            valid_func_spaces = const.VALID_FIELD_GRID_TYPES + \
-                const.VALID_SCALAR_TYPES
-
-            self._grid_prop = ""
-            if funcspace.lower() in const.VALID_FIELD_GRID_TYPES:
-                self._argument_type = "field"
-            elif funcspace.lower() in const.VALID_SCALAR_TYPES:
-                self._argument_type = "scalar"
-            else:
-                raise ParseError(f"Meta-data error in kernel {kernel_name}: "
-                                 f"argument grid-point type is '{funcspace}' "
-                                 f"but must be one of {valid_func_spaces}")
-
-        elif nargs == 2:
-            # This kernel argument is a property of the grid. The grid
-            # properties are special because they must be supplied by
-            # the PSy layer.
-            access = kernel_arg.args[0].name
-            grid_var = kernel_arg.args[1].name
-            funcspace = ""
-
-            self._grid_prop = grid_var
-            self._argument_type = "grid_property"
-            api_config = Config.get().api_conf("gocean")
-
-            if grid_var.lower() not in api_config.grid_properties:
-                valid_keys = str(api_config.grid_properties.keys())
-                raise ParseError(
-                    f"Meta-data error in kernel {kernel_name}: un-recognised "
-                    f"grid property '{grid_var}' requested. Must be one of "
-                    f"{valid_keys}")
-        else:
-            raise ParseError(
-                f"Meta-data error in kernel {kernel_name}: 'arg' type "
-                f"expects 2 or 3 arguments but found '{len(kernel_arg.args)}' "
-                f"in '{kernel_arg.args}'")
-
-        config = Config.get()
-        api_config = config.api_conf("gocean")
-        access_mapping = config.get_constants().ACCESS_MAPPING
-        try:
-            access_type = access_mapping[access]
-        except KeyError as err:
-            valid_names = sorted(access_mapping.keys())
-            raise ParseError(
-                f"Meta-data error in kernel {kernel_name}: argument access is "
-                f"given as '{access}' but must be one of {valid_names}"
-            ) from err
-
-        # Finally we can call the __init__ method of our base class
-        super().__init__(access_type, funcspace, metadata_index,
-                         stencil=stencil_info,
-                         argument_type=self._argument_type)
-
-    def __str__(self):
-        return repr(self)
-
-    @property
-    def grid_prop(self):
-        '''
-        :returns: the name of the grid-property that this argument is to \
-                  supply to the kernel.
-        :rtype: str
-
-        '''
-        return self._grid_prop
-
-
-class GOKernelType1p0(KernelType):
-    ''' Description of a kernel including the grid index-offset it
-        expects and the region of the grid that it expects to
-        operate upon '''
-
-    def __str__(self):
-        return ('GOcean 1.0 kernel ' + self._name + ', index-offset = ' +
-                self._index_offset + ', iterates-over = ' +
-                self._iterates_over)
-
-    def __init__(self, ast, name=None):
-        # Initialise the base class
-        KernelType.__init__(self, ast, name=name)
-
-        # What grid offset scheme this kernel expects
-        self._index_offset = self._ktype.get_variable('index_offset').init
-
-        const = GOceanConstants()
-        if self._index_offset is None:
-            raise ParseError(f"Meta-data error in kernel {name}: an "
-                             f"INDEX_OFFSET must be specified and must be "
-                             f"one of {const.VALID_OFFSET_NAMES}")
-
-        if self._index_offset.lower() not in const.VALID_OFFSET_NAMES:
-            raise ParseError(f"Meta-data error in kernel {name}: "
-                             f"INDEX_OFFSET has value '{self._index_offset}'"
-                             f" but must be one of {const.VALID_OFFSET_NAMES}")
-
-        const = GOceanConstants()
-        # Check that the meta-data for this kernel is valid
-        if self._iterates_over is None:
-            raise ParseError(f"Meta-data error in kernel {name}: "
-                             f"ITERATES_OVER is missing. (Valid values are: "
-                             f"{const.VALID_ITERATES_OVER})")
-
-        if self._iterates_over.lower() not in const.VALID_ITERATES_OVER:
-            raise ParseError(f"Meta-data error in kernel {name}: "
-                             f"ITERATES_OVER has value '"
-                             f"{self._iterates_over.lower()}' but must be "
-                             f"one of {const.VALID_ITERATES_OVER}")
-
-        # The list of kernel arguments
-        self._arg_descriptors = []
-        have_grid_prop = False
-        for idx, init in enumerate(self._inits):
-            if init.name != 'go_arg':
-                raise ParseError(f"Each meta_arg value must be of type "
-                                 f"'go_arg' for the gocean api, but "
-                                 f"found '{init.name}'")
-            # Pass in the name of this kernel for the purposes
-            # of error reporting
-            new_arg = GO1p0Descriptor(name, init, idx)
-            # Keep track of whether this kernel requires any
-            # grid properties
-            have_grid_prop = (have_grid_prop or
-                              (new_arg.argument_type == "grid_property"))
-            self._arg_descriptors.append(new_arg)
-
-        # If this kernel expects a grid property then check that it
-        # has at least one field object as an argument (which we
-        # can use to access the grid)
-        if have_grid_prop:
-            have_fld = False
-            for arg in self.arg_descriptors:
-                if arg.argument_type == "field":
-                    have_fld = True
-                    break
-            if not have_fld:
-                raise ParseError(
-                    f"Kernel {name} requires a property of the grid but does "
-                    f"not have any field objects as arguments.")
-
-    # Override nargs from the base class so that it returns the no.
-    # of args specified in the algorithm layer (and thus excludes those
-    # that must be added in the PSy layer). This is done to simplify the
-    # check on the no. of arguments supplied in any invoke of the kernel.
-    @property
-    def nargs(self):
-        ''' Count and return the number of arguments that this kernel
-            expects the Algorithm layer to provide '''
-        count = 0
-        for arg in self.arg_descriptors:
-            if arg.argument_type != "grid_property":
-                count += 1
-        return count
-
-    @property
-    def index_offset(self):
-        ''' Return the grid index-offset that this kernel expects '''
-        return self._index_offset
+GO1p0Descriptor = GOceanArgDescriptor
+GOKernelType1p0 = GOceanKernelMetadata
 
 
 class GOACCEnterDataDirective(ACCEnterDataDirective):

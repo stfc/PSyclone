@@ -77,6 +77,14 @@ BASE_PATH = os.path.join(
 API = "lfric"
 
 
+@pytest.fixture(autouse=True)
+def restore_builtin_definitions():
+    """Do not let deliberately-invalid definitions leak between tests."""
+    filename = lfric_builtins.BUILTIN_DEFINITIONS_FILE
+    yield
+    lfric_builtins.BUILTIN_DEFINITIONS_FILE = filename
+
+
 def builtin_from_file(filename: str):
     '''
     :param filename: the name of the file to check for the builtin.
@@ -176,7 +184,7 @@ def test_lfric_builtin_builtin_metadata():
     meta_args = [FieldArgMetadata("gh_real", "gh_write", "w0")]
     kernel_metadata = Dummy3._builtin_metadata(meta_args)
     assert isinstance(kernel_metadata, LFRicKernelMetadata)
-    assert kernel_metadata.meta_args == meta_args
+    assert kernel_metadata.meta_args == tuple(meta_args)
     assert kernel_metadata.operates_on == "dof"
     assert kernel_metadata.procedure_name == "test_code"
     assert kernel_metadata.name == "test"
@@ -349,18 +357,18 @@ def test_builtin_no_field_args(monkeypatch):
     # Define the built-in name and test file
     test_builtin_name = "setval_X"
     test_builtin_file = "15.7.2_" + test_builtin_name + "_builtin.f90"
-    lfric_builtins.BUILTIN_DEFINITIONS_FILE = \
-        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        test_builtin_file),
-                           api=API)
-    lfric_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    monkeypatch.setattr(
+        lfric_builtins,
+        "BUILTIN_DEFINITIONS_FILE",
+        os.path.join(BASE_PATH, "invalid_builtins_mod.f90"),
+    )
     with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory(API,
-                       distributed_memory=False).create(invoke_info)
-    assert (f"A built-in kernel in the LFRic API must have at least "
-            f"one field as an argument but kernel "
-            f"'{test_builtin_name.lower()}' has none" in str(excinfo.value))
+        parse(os.path.join(BASE_PATH, test_builtin_file), api=API)
+    assert (
+        "Kernel metadata not operating on the domain must contain at least "
+        "one field or operator argument."
+        in str(excinfo.value)
+    )
 
 
 def test_builtin_invalid_argument_type(monkeypatch):
@@ -1331,7 +1339,7 @@ def test_inc_a_times_X_and_its_int_version(fortran_writer):
     metadata = lfric_builtins.LFRicIncATimesXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
     assert len(metadata.meta_args) == 2
-    assert isinstance(metadata.meta_args[1], ScalarArgMetadata)
+    assert isinstance(metadata.meta_args[0], ScalarArgMetadata)
     assert metadata.meta_args[0].access == "gh_read"
     assert metadata.meta_args[1].access == "gh_readwrite"
     assert metadata.meta_args[1].function_space == "any_space_1"
@@ -2186,9 +2194,10 @@ def test_scalar_int_builtin_error(monkeypatch):
         _, _ = parse(os.path.join(BASE_PATH,
                                   "16.2_integer_scalar_sum.f90"),
                      api=API)
-    assert ("In the LFRic API a reduction access 'gh_reduction' is only valid "
-            "with a real scalar argument, but a scalar argument with "
-            "'gh_integer' data type was found" in str(excinfo.value))
+    assert (
+        "Reduction access is only valid for a real scalar argument."
+        in str(excinfo.value)
+    )
 
 
 def test_field_access_info_for_arrays_in_builtins():

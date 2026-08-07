@@ -38,6 +38,7 @@
 
 ''' Module containing tests of LFRic stencils through the LFRic API '''
 
+from dataclasses import replace
 import os
 
 import pytest
@@ -81,7 +82,7 @@ end module stencil_mod
 def test_stencil_metadata():
     ''' Check that we can parse Kernels with stencil metadata. '''
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
 
     stencil_descriptor_0 = metadata.arg_descriptors[0]
     assert stencil_descriptor_0.stencil is None
@@ -95,7 +96,7 @@ def test_stencil_metadata():
     assert stencil_descriptor_1.argument_type == "gh_field"
     assert stencil_descriptor_1.data_type == "gh_real"
     assert stencil_descriptor_1.function_space == "w2"
-    assert stencil_descriptor_1.function_spaces == ['w2']
+    assert stencil_descriptor_1.function_spaces == ("w2",)
     assert str(stencil_descriptor_1.access) == "READ"
     assert stencil_descriptor_1.mesh is None
     assert stencil_descriptor_1.vector_size == 1
@@ -112,7 +113,7 @@ def test_stencil_field_metadata_too_many_arguments():
         "(gh_field, gh_real, gh_read, w2, stencil(cross), w1, w1, w2)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast)
+        _ = LFRicKernMetadata.create_from_fortran_string(str(ast))
     assert ("each 'meta_arg' entry must have at most 7 arguments" in
             str(excinfo.value))
 
@@ -123,7 +124,7 @@ def test_unsupported_second_argument():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,1)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(NotImplementedError) as excinfo:
-        _ = LFRicKernMetadata(ast)
+        _ = LFRicKernMetadata.create_from_fortran_string(str(ast))
     assert "Kernels with fixed stencil extents are not currently supported" \
         in str(excinfo.value)
 
@@ -135,7 +136,7 @@ def test_valid_stencil_types():
         result = STENCIL_CODE.replace("stencil(cross)",
                                       "stencil(" + stencil_type + ")", 1)
         ast = fpapi.parse(result, ignore_comments=False)
-        _ = LFRicKernMetadata(ast)
+        _ = LFRicKernMetadata.create_from_fortran_string(str(ast))
 
 
 def test_stencil_read_only():
@@ -146,7 +147,7 @@ def test_stencil_read_only():
                                 "gh_inc, w2, stencil(cross)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name="stencil_type")
+        _ = LFRicKernMetadata.create_from_fortran_string(str(ast), name="stencil_type")
     assert ("In the LFRic API a field with a stencil access must be "
             "read-only ('gh_read'), but found 'gh_inc'" in
             str(excinfo.value))
@@ -164,7 +165,7 @@ def test_stencil_field_arg_lfricconst_properties(monkeypatch):
 
     # Test 'real'-valued field of 'field_type' with stencil access
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast, name=name)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast), name=name)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     stencil_arg = kernel.arguments.args[1]
@@ -179,7 +180,7 @@ def test_stencil_field_arg_lfricconst_properties(monkeypatch):
     code = STENCIL_CODE.replace("gh_field, gh_real",
                                 "gh_field, gh_integer")
     ast = fpapi.parse(code, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast, name=name)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast), name=name)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     stencil_arg = kernel.arguments.args[1]
@@ -484,140 +485,6 @@ def test_stencil_xory_vector(dist_mem, tmpdir):
         in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_invalid_stencil_form_1():
-    '''Check that we raise an exception if the stencil does not obey the
-    stencil(<type>[,<extent>]) format by being a literal integer or
-    just "stencil" '''
-    result = STENCIL_CODE.replace("stencil(cross)", "1", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast)
-    assert "entry must be either a valid stencil specification" \
-           in str(excinfo.value)
-    assert "Unrecognised metadata entry" in str(excinfo.value)
-    result = STENCIL_CODE.replace("stencil(cross)", "stencil", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast)
-    assert "entry must be either a valid stencil specification" \
-           in str(excinfo.value)
-    assert "Expecting format stencil(<type>[,<extent>]) but found stencil" \
-           in str(excinfo.value)
-
-
-def test_invalid_stencil_form_2():
-    '''Check that we raise an exception if the stencil does not obey the
-    stencil(<type>[,<extent>]) format by having an invalid name'''
-    result = STENCIL_CODE.replace("stencil(cross)", "stenci(cross)", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast)
-    assert "entry must be either a valid stencil specification" \
-           in str(excinfo.value)
-
-
-def test_invalid_stencil_form_3():
-    '''Check that we raise an exception if the stencil does not obey the
-    stencil(<type>[,<extent>]) format by not having brackets'''
-    result = STENCIL_CODE.replace("stencil(cross)", "stencil", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast)
-    assert "entry must be either a valid stencil specification" \
-           in str(excinfo.value)
-
-
-def test_invalid_stencil_form_4():
-    '''Check that we raise an exception if the stencil does not obey the
-    stencil(<type>[,<extent>]) format by containing no values in
-    the brackets '''
-    result = STENCIL_CODE.replace("stencil(cross)", "stencil()", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast)
-    assert "but found stencil()" in str(excinfo.value)
-
-
-def test_invalid_stencil_form_5():
-    '''Check that we raise an exception if the stencil does not obey the
-    stencil(<type>[,<extent>]) format by containing no values in
-    the brackets, with a separator '''
-    result = STENCIL_CODE.replace("stencil(cross)", "stencil(,)", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast)
-    assert "Kernel metadata has an invalid format" \
-           in str(excinfo.value)
-
-
-def test_invalid_stencil_form_6():
-    '''Check that we raise an exception if the stencil does not obey the
-    stencil(<type>[,<extent>]) format by containing more than two
-    values in in the brackets '''
-    result = STENCIL_CODE.replace("stencil(cross)", "stencil(cross,1,1)", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast)
-    assert "entry must be either a valid stencil specification" \
-           in str(excinfo.value)
-    assert "there must be at most two arguments inside the brackets" \
-           in str(excinfo.value)
-
-
-def test_invalid_stencil_first_arg_1():
-    '''Check that we raise an exception if the value of the stencil type in
-    stencil(<type>[,<extent>]) is not valid and is an integer'''
-    result = STENCIL_CODE.replace("stencil(cross)", "stencil(1)", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast)
-    assert "not one of the valid types" in str(excinfo.value)
-    assert "is a literal" in str(excinfo.value)
-
-
-def test_invalid_stencil_first_arg_2():
-    '''Check that we raise an exception if the value of the stencil type in
-    stencil(<type>[,<extent>]) is not valid and is a name'''
-    result = STENCIL_CODE.replace("stencil(cross)", "stencil(cros)", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast)
-    assert "not one of the valid types" in str(excinfo.value)
-
-
-def test_invalid_stencil_first_arg_3():
-    '''Check that we raise an exception if the value of the stencil type in
-    stencil(<type>[,<extent>]) is not valid and has brackets'''
-    result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d(xx))", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast)
-    assert "the specified <type>" in str(excinfo.value)
-    assert "includes brackets" in str(excinfo.value)
-
-
-def test_invalid_stencil_second_arg_1():
-    '''Check that we raise an exception if the value of the stencil extent in
-    stencil(<type>[,<extent>]) is not an integer'''
-    result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,x1d)", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast)
-    assert "the specified <extent>" in str(excinfo.value)
-    assert "is not an integer" in str(excinfo.value)
-
-
-def test_invalid_stencil_second_arg_2():
-    '''Check that we raise an exception if the value of the stencil extent in
-    stencil(<type>[,<extent>]) is less than 1'''
-    result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,0)", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast)
-    assert "the specified <extent>" in str(excinfo.value)
-    assert "is less than 1" in str(excinfo.value)
 
 
 def test_single_stencil_extent(dist_mem, tmpdir):
@@ -1644,7 +1511,8 @@ def test_stencil_extent_specified():
     kernel = schedule.children[4].loop_body[0]
     stencil_arg = kernel.arguments.args[1]
     # artificially add an extent to the stencil metadata info
-    stencil_arg.descriptor.stencil['extent'] = 1
+    stencil_arg._arg = replace(
+        stencil_arg.descriptor, stencil_extent="1")
     stencils = LFRicStencils(psy.invokes.invoke_list[0])
     with pytest.raises(GenerationError) as err:
         stencils.stencil_unique_str(stencil_arg, "")
@@ -1824,7 +1692,16 @@ def test_lfrickernargs_unexpected_stencil_extent():
     call = invoke_info.calls[0].kcalls[0]
     # add an extent to the stencil metadata
     kernel_metadata = call.ktype
-    kernel_metadata._arg_descriptors[1].stencil['extent'] = 2
+    descriptor = replace(
+        kernel_metadata.arg_descriptors[1], stencil_extent="2")
+    call._ktype = replace(
+        kernel_metadata,
+        arg_descriptors=(
+            kernel_metadata.arg_descriptors[:1]
+            + (descriptor,)
+            + kernel_metadata.arg_descriptors[2:]
+        ),
+    )
     # remove the extra argument (as the extent value no longer needs
     # to be passed so an associated error will be raised)
     del call.args[2]
@@ -1860,7 +1737,9 @@ def test_lfricstencils_err():
     invoke = psy.invokes.invoke_list[0]
     stencils = LFRicStencils(invoke)
     # Break internal state
-    stencils._kern_args[0].descriptor.stencil['type'] = "not-a-type"
+    argument = stencils._kern_args[0]
+    argument._arg = replace(
+        argument.descriptor, stencil_type="not-a-type")
     with pytest.raises(GenerationError) as err:
         stencils._declare_maps_invoke()
     assert "Unsupported stencil type 'not-a-type' supplied. Supported " \

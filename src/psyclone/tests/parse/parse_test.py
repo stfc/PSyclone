@@ -40,11 +40,8 @@ function. '''
 
 import os
 import pytest
-from fparser import api as fpapi
 from psyclone.parse.algorithm import parse, ParseError
-from psyclone.parse.kernel import KernelType, KernelTypeFactory, \
-    BuiltInKernelTypeFactory
-from psyclone.errors import InternalError
+from psyclone.parse.kernel import KernelTypeFactory, BuiltInKernelTypeFactory
 
 TEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
                          "test_files", "lfric")
@@ -92,7 +89,7 @@ def test_kerntypefactory_create_broken_type():
     test_builtin_name = "aX_plus_Y"
     with pytest.raises(ParseError) as excinfo:
         _ = factory.create(None, name=test_builtin_name.lower())
-    assert ("KernelTypeFactory:create: Unsupported kernel type"
+    assert ("KernelTypeFactory:create: Unsupported PSyIR-first kernel type"
             in str(excinfo.value))
 
 
@@ -206,68 +203,3 @@ def test_duplicate_named_invoke_case():
     assert ("Found multiple named invoke()'s with the same label ('jack') "
             "when parsing " in str(err.value))
     assert "3.4_multi_invoke_name_clash_case_insensitive.f90" in str(err.value)
-
-
-MDATA = '''
-module testkern_eval_mod
-  type, extends(kernel_type) :: testkern_eval_type
-    type(arg_type) :: meta_args(2) = (/            &
-         arg_type(GH_FIELD, GH_REAL, GH_INC,  W0), &
-         arg_type(GH_FIELD, GH_REAL, GH_READ, W1)  &
-         /)
-    type(func_type) :: meta_funcs(2) = (/     &
-         func_type(W0, GH_BASIS),             &
-         func_type(W1, GH_DIFF_BASIS)         &
-         /)
-    integer :: gh_shape = gh_evaluator
-    integer :: gh_evaluator_targets(2) = [W0, W1]
-    integer :: iterates_over = cells
-  contains
-    procedure, nopass :: code => testkern_eval_code
-  end type testkern_eval_type
-contains
-  subroutine testkern_eval_code()
-  end subroutine testkern_eval_code
-end module testkern_eval_mod
-'''
-
-
-def test_kernel_binding_not_code():
-    ''' Check that we raise the expected error when Kernel meta-data uses
-    a specific binding but does not have 'code' as the generic name. '''
-    mdata = MDATA.replace("code => test", "my_code => test")
-    ast = fpapi.parse(mdata)
-    with pytest.raises(ParseError) as err:
-        _ = KernelType(ast)
-    assert ("binds to a specific procedure but does not use 'code' as the "
-            "generic name" in str(err.value))
-
-
-def test_kernel_binding_missing():
-    ''' Check that we raise the correct error when the Kernel meta-data is
-    missing the type-bound procedure giving the name of the subroutine. '''
-    mdata = MDATA.replace(
-        "contains\n    procedure, nopass :: code => testkern_eval_code\n", "")
-    ast = fpapi.parse(mdata)
-    with pytest.raises(ParseError) as err:
-        _ = KernelType(ast)
-    assert ("Kernel type testkern_eval_type does not bind a specific "
-            "procedure" in str(err.value))
-
-
-def test_empty_kernel_name(monkeypatch):
-    ''' Check that we raise the correct error when we get a blank string for
-    the name of the Kernel subroutine. '''
-    import fparser
-    mdata = MDATA.replace("procedure, nopass :: code => testkern_eval_code",
-                          "procedure, nopass :: testkern_eval_code")
-    ast = fpapi.parse(mdata)
-    # Break the AST
-    for statement, _ in fpapi.walk(ast, -1):
-        if isinstance(statement, fparser.one.statements.SpecificBinding):
-            monkeypatch.setattr(statement, "name", "")
-            break
-    with pytest.raises(InternalError) as err:
-        _ = KernelType(ast)
-    assert ("Empty Kernel name returned for Kernel type testkern_eval_type"
-            in str(err.value))

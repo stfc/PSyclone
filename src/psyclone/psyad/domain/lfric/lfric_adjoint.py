@@ -40,6 +40,7 @@ adjoint code.
 '''
 
 import logging
+from dataclasses import replace
 
 from psyclone.domain.lfric import ArgIndexToMetadataIndex, LFRicConstants
 from psyclone.domain.lfric.kernel import (
@@ -151,21 +152,32 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
     metadata = ad_container.metadata
 
     # Change the type and procedure names
-    metadata.name = create_adjoint_name(metadata.name)
+    metadata = replace(
+        metadata, name=create_adjoint_name(metadata.name))
     if metadata.procedure_name:
-        metadata.procedure_name = create_adjoint_name(metadata.procedure_name)
+        metadata = replace(
+            metadata,
+            procedure_name=create_adjoint_name(metadata.procedure_name))
     else:
         # Issue #2236. We are not yet able to to raise multi-precision
-        # metadata to LFRic-specific metadata, so return without
-        # making any further modifications.
+        # metadata to LFRic-specific metadata. Publish the renamed immutable
+        # metadata before returning without modifying its argument accesses.
+        # pylint: disable=protected-access
+        ad_container._metadata = metadata
+        # pylint: enable=protected-access
         return ad_psyir
 
     # Change the meta_args access metadata
     for var_name in active_variables:
-        access = _update_access_metadata(var_name, arg_symbols, metadata)
+        access, metadata = _update_access_metadata(
+            var_name, arg_symbols, metadata)
         if access:
             # Add in any new access symbols.
             _check_or_add_access_symbol(ad_container, access)
+    # LFRic metadata is immutable, so publish the accumulated replacement.
+    # pylint: disable=protected-access
+    ad_container._metadata = metadata
+    # pylint: enable=protected-access
     return ad_psyir
 
 
@@ -183,9 +195,10 @@ def _update_access_metadata(var_name, arg_symbols, metadata):
     :type metadata:
         :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
 
-    :returns: the access metadata or None if the active variable is
-        not passed by argument.
-    :rtype: Optional[str]
+    :returns: the access metadata (or None if the active variable is not
+        passed by argument) and the immutable metadata value containing any
+        update.
+    :rtype: Tuple[Optional[str], LFRicKernelMetadata]
 
     :raises GenerationError: if the argument position does not match
         the metadata.
@@ -206,7 +219,7 @@ def _update_access_metadata(var_name, arg_symbols, metadata):
             break
     else:
         # No, the active variable is not passed by argument.
-        return None
+        return None, metadata
 
     arg_index = arg_symbols.index(found_symbol)
     try:
@@ -258,8 +271,13 @@ def _update_access_metadata(var_name, arg_symbols, metadata):
         raise InternalError(
             f"Found unexpected access '{var_access}' for "
             f"'{found_symbol.name}'.")
-    meta_arg.access = access
-    return access
+    replacement = replace(meta_arg, access=access)
+    arguments = (
+        metadata.meta_args[:meta_arg_index]
+        + (replacement,)
+        + metadata.meta_args[meta_arg_index + 1:]
+    )
+    return access, replace(metadata, meta_args=arguments)
 
 
 def _check_or_add_access_symbol(container, access):

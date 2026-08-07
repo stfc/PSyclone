@@ -41,7 +41,7 @@ classes.
 '''
 import pytest
 
-from psyclone.domain.gocean.kernel import GOceanContainer
+from psyclone.domain.gocean.kernel import GOceanContainer, GOceanKernelMetadata
 from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
 from psyclone.domain.gocean.transformations.raise_psyir_2_gocean_kern_trans \
     import find_symbol
@@ -187,8 +187,8 @@ def test_validate_iterates_over(fortran_reader):
     err_txt = str(info.value)
     assert ("Failed to create metadata for kernel 'compute_cu' from PSyIR"
             in err_txt)
-    assert ("'iterates_over' was not found in TYPE, EXTENDS(kernel_type) :: "
-            "compute_cu" in err_txt)
+    assert ("Missing GOcean metadata component(s): ['iterates_over']"
+            in err_txt)
 
 
 def test_validate_container2(fortran_reader):
@@ -293,4 +293,8 @@ def test_apply_ok(fortran_reader):
     # The container should now be a GOceanContainer
     assert isinstance(container, GOceanContainer)
     # and should contain the metadata
-    assert container.metadata.fortran_string() == METADATA
+    assert (
+        GOceanKernelMetadata.create_from_fortran_string(
+            container.metadata.fortran_string())
+        == GOceanKernelMetadata.create_from_fortran_string(METADATA)
+    )

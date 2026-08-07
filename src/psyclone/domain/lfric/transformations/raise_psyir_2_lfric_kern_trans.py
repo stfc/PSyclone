@@ -37,9 +37,8 @@
 LFRic kernel-layer-specific PSyIR which uses specialised classes.
 
 '''
-from psyclone.domain.lfric.kernel.lfric_kernel_metadata import \
-    LFRicKernelMetadata
-from psyclone.domain.lfric.kernel.psyir import LFRicKernelContainer
+from psyclone.domain.lfric.kernel import (
+    LFRicKernelContainer, LFRicKernelMetadata)
 from psyclone.psyGen import Transformation
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, ScopingNode, FileContainer

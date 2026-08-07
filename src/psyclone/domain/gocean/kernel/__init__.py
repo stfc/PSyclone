@@ -37,9 +37,27 @@
 layer.
 
 '''
-from psyclone.domain.gocean.kernel.psyir import GOceanContainer, \
-    GOceanKernelMetadata
+
+from psyclone.domain.gocean.kernel.metadata import (
+    GOceanArgDescriptor,
+    GOceanFieldArgMetadata,
+    GOceanGridPropertyArgMetadata,
+    GOceanKernelMetadata,
+    GOceanKernelProcedure,
+    GOceanScalarArgMetadata,
+    GOceanStencil,
+    find_metadata_symbol,
+)
+from psyclone.domain.gocean.kernel.psyir import GOceanContainer
 
 __all__ = [
+    "GOceanArgDescriptor",
+    "GOceanContainer",
+    "GOceanFieldArgMetadata",
+    "GOceanGridPropertyArgMetadata",
     "GOceanKernelMetadata",
+    "GOceanKernelProcedure",
+    "GOceanScalarArgMetadata",
+    "GOceanStencil",
+    "find_metadata_symbol",
 ]

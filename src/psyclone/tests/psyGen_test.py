@@ -39,6 +39,7 @@
 ''' Performs py.test tests on the psyGen module '''
 
 
+from dataclasses import replace
 import os
 import logging
 import warnings
@@ -758,7 +759,7 @@ def test_codedkern_node_str():
 
     '''
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     my_kern = LFRicKern()
     my_kern.load_meta(metadata)
     out = my_kern.node_str()
@@ -869,7 +870,7 @@ def test_kern_children_validation():
     '''
     # We use a subclass (CodedKern->LFRicKern) to test this functionality.
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kern = LFRicKern()
     kern.load_meta(metadata)
 
@@ -887,7 +888,7 @@ def test_codedkern_get_callees(monkeypatch):
 
     '''
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
     kern = LFRicKern()
     kern.load_meta(metadata)
     monkeypatch.setattr(kern, "__class__", CodedKern)
@@ -948,10 +949,15 @@ def test_incremented_arg():
     # Therefore, we change the object produced by parsing the metadata
     # instead
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
-    for descriptor in metadata.arg_descriptors:
-        if descriptor.access == AccessType.INC:
-            descriptor._access = AccessType.READ
+    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = replace(
+        metadata,
+        arg_descriptors=tuple(
+            replace(descriptor, access=AccessType.READ)
+            if descriptor.access == AccessType.INC else descriptor
+            for descriptor in metadata.arg_descriptors
+        ),
+    )
     my_kern = LFRicKern()
     my_kern.load_meta(metadata)
     with pytest.raises(FieldNotFoundError) as excinfo:

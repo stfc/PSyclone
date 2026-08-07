@@ -780,10 +780,11 @@ module testkern_mod
   end type testkern_type
 contains
   subroutine testkern_code(a, b, c, d)
+    real, intent(inout) :: a, b, c, d
   end subroutine testkern_code
 end module testkern_mod
 ''', ignore_comments=False)
-    dkm = LFRicKernMetadata(ast, name="testkern_type")
+    dkm = LFRicKernMetadata.create_from_fortran_string(str(ast), name="testkern_type")
     kern = LFRicKern()
     kern.load_meta(dkm)
     with pytest.raises(GenerationError) as err:

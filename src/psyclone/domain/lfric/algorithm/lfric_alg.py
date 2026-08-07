@@ -48,11 +48,12 @@ from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
 from psyclone.domain.lfric import LFRicKern
 from psyclone.errors import InternalError
-from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
+from psyclone.parse.kernel import (
+    get_kernel_psyir_from_file, KernelTypeFactory)
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (Assignment, Container, Literal,
-                                  Reference, Routine)
+from psyclone.psyir.nodes import (
+    Assignment, Container, FileContainer, Literal, Reference, Routine)
 from psyclone.psyir.symbols import (
     UnresolvedType, UnsupportedFortranType, DataTypeSymbol, DataSymbol,
     ArrayType, ImportInterface, ContainerSymbol, RoutineSymbol,
@@ -89,20 +90,19 @@ class LFRicAlg:
         sub = cont.walk(Routine)[0]
         table = sub.symbol_table
 
-        # Parse the kernel metadata. Currently this uses fparser1 as that's
-        # what the existing meta-data handling is based upon. Ultimately, this
-        # will be replaced by the new, fparser2-based functionality being
-        # implemented in #1631.
-        parse_tree = get_kernel_parse_tree(kernel_path)
+        kernel_psyir = get_kernel_psyir_from_file(kernel_path)
 
         # Get the name of the module that contains the kernel and create a
         # ContainerSymbol for it.
-        kernel_mod_name = parse_tree.content[0].name
-        # TODO #1806. The current meta-data parsing requires that we specify
-        # the name of the kernel. It would be much better if we could query the
-        # meta-data for the name of the kernel. For now we require that the
-        # LFRic naming scheme is strictly adhered to (since this is simpler
-        # than trying to walk through the deprecated fparser1 parse tree).
+        modules = [
+            node for node in kernel_psyir.walk(Container)
+            if not isinstance(node, FileContainer)
+        ]
+        if len(modules) != 1:
+            raise ParseError(
+                f"The supplied kernel ({kernel_path}) must contain exactly "
+                "one module.")
+        kernel_mod_name = modules[0].name
         if not kernel_mod_name.endswith("_mod"):
             raise NotImplementedError(
                 f"The supplied kernel ({kernel_path}) contains a module named "
@@ -118,7 +118,7 @@ class LFRicAlg:
             datatype=UnresolvedType(),
             interface=ImportInterface(kernel_mod))
 
-        kern = self.kernel_from_metadata(parse_tree, kernel_name)
+        kern = self.kernel_from_metadata(kernel_psyir, kernel_name)
 
         # Declare and initialise the data structures required by the kernel
         # arguments. Appropriate symbols are added to the symbol table
@@ -405,13 +405,13 @@ class LFRicAlg:
                                       f"'{shape}' is not yet implemented.")
 
     @staticmethod
-    def kernel_from_metadata(parse_tree, kernel_name):
+    def kernel_from_metadata(psyir, kernel_name):
         '''
-        Given an fparser1 parse tree for an LFRic kernel, creates and returns
-        an LFRicKern object.
+        Given language-level PSyIR for an LFRic kernel, create and return an
+        LFRicKern object.
 
-        :param parse_tree: the fparser1 parse tree for the LFRic kernel.
-        :type parse_tree: :py:class:`fparser.one.block_statements.BeginSource`
+        :param psyir: language-level PSyIR for the LFRic kernel.
+        :type psyir: :py:class:`psyclone.psyir.nodes.Node`
         :param str kernel_name: the name of the kernel contained in the \
             supplied parse tree for which an LFRicKern is to be created.
 
@@ -422,12 +422,12 @@ class LFRicAlg:
                             be found in the supplied parse tree.
         '''
         try:
-            ktype = KernelTypeFactory(api="lfric").create(parse_tree,
+            ktype = KernelTypeFactory(api="lfric").create(psyir,
                                                           name=kernel_name)
-        except ParseError as err:
+        except (ParseError, TypeError) as err:
             raise ValueError(
                 f"Failed to find kernel '{kernel_name}' in supplied "
-                f"code: '{parse_tree}'. Is it a valid LFRic kernel? Original "
+                f"PSyIR: '{psyir}'. Is it a valid LFRic kernel? Original "
                 f"error was '{err}'.") from err
         # Construct an LFRicKern using the metadata.
         kern = LFRicKern()

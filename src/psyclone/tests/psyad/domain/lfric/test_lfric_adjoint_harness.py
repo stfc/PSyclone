@@ -39,13 +39,13 @@
    functionality.'''
 
 import pytest
-from fparser import api as fpapi
 
 from psyclone.domain.lfric import LFRicTypes
 from psyclone.domain.lfric.algorithm import (
     LFRicBuiltinFunctor, LFRicAlg, LFRicBuiltinFunctorFactory,
     LFRicKernelFunctor)
 from psyclone.errors import InternalError, GenerationError
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyad.domain.lfric import lfric_adjoint_harness
 from psyclone.psyad.domain.lfric.lfric_adjoint_harness import (
     _compute_lfric_inner_products,
@@ -399,8 +399,8 @@ contains
   end subroutine testkern_code
 end module testkern_mod
 '''
-    ptree = fpapi.parse(code)
-    kern = LFRicAlg().kernel_from_metadata(ptree, "testkern_type")
+    psyir = FortranReader().psyir_from_source(code)
+    kern = LFRicAlg().kernel_from_metadata(psyir, "testkern_type")
     # Invalid argument index.
     with pytest.raises(ValueError) as err:
         _validate_geom_arg(kern, -1, "var", None, None)

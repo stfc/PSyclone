@@ -404,7 +404,7 @@ def test_parser_createinvokecall_error():
 
 def test_parser_codedkernelcall_kernel_paths():
     '''Check that the Parser class passes the kernel_paths information
-    through to the get_kernel_ast() function from the
+    through to the get_kernel_psyir_for_module() function from the
     coded_kernel_call() method.
 
     '''
@@ -468,15 +468,16 @@ def test_parser_caseinsensitive2(monkeypatch):
     parser.update_arg_to_module_map(use)
 
     def dummy_func(arg1, arg2, arg3, arg4):
-        '''A dummy function used by monkeypatch to override the get_kernel_ast
-        function. We don't care about the arguments as we just want to
-        raise an exception.
+        '''A dummy function used by monkeypatch to override
+        get_kernel_psyir_for_module(). We don't care about the arguments as
+        we just want to raise an exception.
 
         '''
         raise NotImplementedError("test_parser_caseinsensitive2")
-    monkeypatch.setattr("psyclone.parse.algorithm.get_kernel_ast", dummy_func)
+    monkeypatch.setattr(
+        "psyclone.parse.algorithm.get_kernel_psyir_for_module", dummy_func)
     with pytest.raises(NotImplementedError) as excinfo:
-        # We have monkeypatched the function 'get_kernel_ast' to
+        # We have monkeypatched 'get_kernel_psyir_for_module' to
         # return 'NotImplementedError' with a string associated with
         # this test so we know that we have got to this function if
         # this exception is raised. The case insensitive test we
