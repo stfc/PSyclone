@@ -9,9 +9,9 @@ include ../lfric_common.mk
 
 ALG_NAME = nlayers_ndata_eg_alg
 
-OBJ = testkern_nlayers_ndata_mod.o ${ALG_NAME}_psy.o ${ALG_NAME}.o
+OBJ = testkern_nlayers_ndata_mod.o testkern_nlayers_ndata2_mod.o ${ALG_NAME}_psy.o ${ALG_NAME}.o
 GENERATED_FILES = ${ALG_NAME}.f90 ${ALG_NAME}_psy.f90 \
-    testkern_nlayers_ndata_mod.F90 *.o \
+    testkern_nlayers_ndata_mod.F90 testkern_nlayers_ndata2_mod.F90 *.o \
     *.mod will_not_run.exe
 
 # Although we link an executable, the example is too simplistic to
