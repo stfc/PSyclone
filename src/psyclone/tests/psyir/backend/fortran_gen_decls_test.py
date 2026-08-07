@@ -500,6 +500,34 @@ def test_gen_interfacedecl(fortran_writer):
 end interface subx
 ''')
 
+    # Check we get the preceding comment as expected
+    isub.preceding_comment = "Here is my preceding comment"
+    out = fortran_writer.gen_interfacedecl(isub)
+    assert (out == """!Here is my preceding comment
+interface subx
+  module procedure :: sub2
+  procedure :: sub1
+end interface subx
+""")
+    # Add a preceding comment to one of the routines.
+    routine1 = RoutineSymbol("sub1")
+    routine1.preceding_comment = "Here is the sub comment"
+    routine2 = RoutineSymbol("sub2")
+    routine2.preceding_comment = "Another sub comment"
+    isub = GenericInterfaceSymbol("subx", [(routine1, False),
+                                           (routine2, True)])
+    isub.preceding_comment = "Here is my preceding comment"
+
+    out = fortran_writer.gen_interfacedecl(isub)
+    assert (out == """!Here is my preceding comment
+interface subx
+  !Another sub comment
+  module procedure :: sub2
+  !Here is the sub comment
+  procedure :: sub1
+end interface subx
+""")
+
 
 def test_procedure_declaration_pointers(fortran_reader, fortran_writer):
     ''' Check that the procedure declarations are generated, and they have the

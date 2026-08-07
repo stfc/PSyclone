@@ -400,8 +400,10 @@ def test_interface_with_comments_is_supported(fortran_writer):
     '''
     code = """
     module test
+        ! Preceding comment
         interface inter1 ! Some comment here
-           module procedure     func1, func2
+           ! comment on module procedure
+           module procedure     func1, func2 ! inline comment
         end interface
        contains
         subroutine test
@@ -417,8 +419,12 @@ def test_interface_with_comments_is_supported(fortran_writer):
 
     correct = """module test
   implicit none
+  !Preceding comment
   interface inter1
-    module procedure :: func1, func2
+    !Some comment here
+    !comment on module procedure
+    module procedure :: func1
+    module procedure :: func2
   end interface inter1
   public
 
@@ -432,6 +438,8 @@ def test_interface_with_comments_is_supported(fortran_writer):
 end module test"""
     out = fortran_writer(psyir)
     assert correct in out
-    assert "Some comment here" not in out
-    pytest.xfail(reason="TODO #3517 Comments in declarations are lost "
+    # We lost the inline comment at the end
+    assert "inline_comment" not in out
+    pytest.xfail(reason="Fparser #521 Inline comments in interface and "
+                        "module procedure declarations are out of order "
                         "inside Interface blocks.")

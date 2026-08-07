@@ -135,11 +135,15 @@ class RoutineSymbol(TypedSymbol):
         '''
         # The constructors for all Symbol-based classes have 'name' as the
         # first positional argument.
-        return type(self)(self.name, self.datatype.copy(),
+        copy = type(self)(self.name, self.datatype.copy(),
                           visibility=self.visibility,
                           interface=self.interface.copy(),
                           is_pure=self.is_pure,
                           is_elemental=self.is_elemental)
+        # Copy the preceding comment as well.
+        # Inline comments are not yet supported, see fparser issue #521.
+        copy.preceding_comment = self.preceding_comment
+        return copy
 
     def copy_properties(self,
                         symbol_in: RoutineSymbol,
