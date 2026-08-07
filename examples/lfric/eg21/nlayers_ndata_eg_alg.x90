@@ -1,7 +1,4 @@
-module nlayers_ndata_eg_alg_mod
-  implicit none
-contains
-  subroutine my_alg()
+program my_alg
     use constants_mod, only: r_def
     use field_mod, only: field_type
     use testkern_nlayers_ndata_mod, only: testkern_nlayers_ndata_type
@@ -11,5 +8,5 @@ contains
 
     call invoke( &
        testkern_nlayers_ndata_type(scalar, fld1, fld2, fld3, fld4, fld5, fld6) )
-  end subroutine my_alg
-end module
+
+end program

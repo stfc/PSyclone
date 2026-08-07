@@ -1,46 +1,21 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
-# Modifications: A. R. Porter, STFC Daresbury Laboratory,
-#                I. Kavcic, Met Office
+# SPDX-FileCopyrightText: Copyright (c) 2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
+# -----------------------------------------------------------------------------
 
 include ../lfric_common.mk
 
-ALG_NAME = nlayers_ndata_eg_alg_mod
-OBJ = testkern_nlayers_ndata_mod.o ${ALG_NAME}_psy.o ${ALG_NAME}.o
-GENERATED_FILES = ${ALG_NAME}_psy.f90 testkern_nlayers_ndata_mod.F90
+ALG_NAME = nlayers_ndata_eg_alg
 
+OBJ = testkern_nlayers_ndata_mod.o ${ALG_NAME}_psy.o ${ALG_NAME}.o
+GENERATED_FILES = ${ALG_NAME}.f90 ${ALG_NAME}_psy.f90 \
+    testkern_nlayers_ndata_mod.F90 *.o \
+    *.mod will_not_run.exe
+
+# Although we link an executable, the example is too simplistic to
+# actually execute.
 run: compile
 	@echo "lfric/eg21 is not executable."
 
@@ -51,15 +26,17 @@ run: compile
 # Keep the generated psy and alg files
 .precious: ${ALG_NAME}_psy.f90 ${ALG_NAME}.f90
 
-
 transform: ${ALG_NAME}_psy.f90
 
 # Process the algorithm layer with PSyclone to generate a compilable
 # algorithm file and a suitable PSy-layer subroutine.
-${ALG_NAME}_psy.f90 ${ALG_NAME}.f90: nlayers_ndata_eg_alg_mod.x90
+${ALG_NAME}_psy.f90 ${ALG_NAME}.f90: ${ALG_NAME}.x90
 	${PSYCLONE} -api lfric -d ../code -opsy ${ALG_NAME}_psy.f90 -oalg ${ALG_NAME}.f90 $<
 
+# Compile and link purely to test correctness - the resulting executable
+# won't actually work.
 compile: transform ${LFRIC_LIB} ${OBJ}
+	${F90} ${F90FLAGS} -o will_not_run.exe ${OBJ} ${LDFLAGS}
 
 allclean: clean
 	make -C $(LFRIC_PATH) allclean
