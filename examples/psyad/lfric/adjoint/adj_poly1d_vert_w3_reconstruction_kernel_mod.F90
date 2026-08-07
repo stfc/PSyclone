@@ -1,3 +1,10 @@
+! -----------------------------------------------------------------------------
+! SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+!                         Facilities Council
+! SPDX-License-Identifier: BSD-3-Clause
+! See the full LICENSE file in the project root for details.
+! -----------------------------------------------------------------------------
+
 module adj_poly1d_vert_w3_reconstruction_kernel_mod
   use argument_mod, only : any_discontinuous_space_1, arg_type, cell_column, func_type, gh_basis, gh_field, gh_inc, gh_integer, &
 &gh_logical, gh_read, gh_real, gh_scalar, reference_element_data_type, gh_readwrite
