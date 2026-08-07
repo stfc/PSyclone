@@ -12,7 +12,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Assignment, Loop
+from psyclone.psyir.nodes import Assignment, Loop, Routine
 from psyclone.psyir.tools import DependencyTools, DTCode
 from psyclone.tests.utilities import get_invoke
 
@@ -45,6 +45,7 @@ def test_messages():
     assert str(msg) == "Warning: warning-test. Variable: 'a'."
     assert msg.code == DTCode.WARN_SCALAR_REDUCTION
     assert msg.var_names == ["a"]
+    assert msg.var_infos is None
 
     dep_tools._add_message("error-test", DTCode.ERROR_DEPENDENCY, [])
     msg = dep_tools.get_all_messages()[2]
@@ -72,7 +73,6 @@ def test_messages():
             "be a list of Signature/AccessSequence pairs") in str(err.value)
 
 
-# -----------------------------------------------------------------------------
 def test_dep_tool_constructor_errors():
     '''Test that invalid loop types raise an error in the constructor.
     '''
@@ -88,7 +88,7 @@ def test_dep_tool_constructor_errors():
 
 
 # -----------------------------------------------------------------------------
-def test_loop_parallelise_errors():
+def test_loop_parallelise_errors(fortran_reader):
     '''Tests errors that should be raised from the can_loop_be_parallelised
     function.'''
 
@@ -98,6 +98,23 @@ def test_loop_parallelise_errors():
         loop = 1
         dep_tools.can_loop_be_parallelised(loop)
     assert "node must be an instance of class Loop but got" in str(err.value)
+
+    code = '''
+    program my_prog
+      integer :: i
+      integer, dimension(10) :: a
+      do i = 1, 10
+        write (*,*) a(i)
+      end do
+    end program
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    prog = psyir.walk(Routine)[0]
+    # Force the situation where a symbol referenced from a CodeBlock
+    # cannot be found.
+    prog.symbol_table._symbols.pop("a")
+    loop = psyir.walk(Loop)[0]
+    assert not dep_tools.can_loop_be_parallelised(loop)
 
 
 # -----------------------------------------------------------------------------
@@ -143,6 +160,7 @@ def test_arrays_parallelise(fortran_reader):
             "causes a write-write race condition" in str(msg))
     assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
     assert msg.var_names == ["mask"]
+    assert msg.var_infos is None
 
     # Write to array that does not depend on the parallel loop variable
     parallel = dep_tools.can_loop_be_parallelised(loops[1])
@@ -163,9 +181,9 @@ def test_arrays_parallelise(fortran_reader):
             "Variable: 'mask'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
     assert msg.var_names == ["mask"]
+    assert msg.var_infos is None
 
 
-# -----------------------------------------------------------------------------
 # This list contains the test cases and expected partition information.
 # The first two entries of each 3-tuple are the LHS and RHS. The third
 # element is the partition information, which is a list of partitions. Each
