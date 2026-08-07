@@ -1,40 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter, STFC Daresbury Lab
-# Modified: S. Siso, STFC Daresbury Lab
-# Modified: by J. Henrichs, Bureau of Meteorology
-# Modified: A. B. G. Chalk, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Perform py.test tests on the psyclone.psyir.symbols.datatype module. '''
@@ -1392,3 +1360,64 @@ def test_structuretype___copy__():
     # The components should be the same objects
     assert copied.components["nancy"] == stype.components["nancy"]
     assert copied.components["peggy"] == stype.components["peggy"]
+
+
+def test_copy_with_recursions(fortran_reader):
+    '''Test the copy operation when the datatypes contain recursions between
+    them.'''
+    code = '''
+    MODULE recursions
+       IMPLICIT NONE
+
+       TYPE(recursive_type), POINTER :: use_before_decl
+       TYPE recursive_type
+          TYPE(recursive_type) :: supported
+          TYPE(recursive_type), POINTER :: unsupported
+       END TYPE recursive_type
+       TYPE(recursive_type), POINTER :: use_after_decl
+
+    CONTAINS
+       SUBROUTINE mysub(arg)
+          TYPE(recursive_type), POINTER, INTENT(inout) :: arg
+       END SUBROUTINE mysub
+
+    END MODULE recursions
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    copiedtree = psyir.copy()
+
+    original_type = psyir.children[0].symbol_table.lookup("recursive_type")
+    copied_type = copiedtree.children[0].symbol_table.lookup("recursive_type")
+    assert copied_type is not original_type
+
+    # Both components of the copied type must refer to the copied type symbol,
+    # and the equivalent components in the original must remain unchanged.
+    original_supported = original_type.datatype.lookup("supported").datatype
+    copied_supported = copied_type.datatype.lookup("supported").datatype
+    assert original_supported is original_type
+    assert copied_supported is copied_type
+
+    original_unsupported = original_type.datatype.lookup(
+        "unsupported").datatype.partial_datatype
+    copied_unsupported = copied_type.datatype.lookup(
+        "unsupported").datatype.partial_datatype
+    assert original_unsupported is original_type
+    assert copied_unsupported is copied_type
+
+    # Symbols declared both before and after the type definition must refer to
+    # the type symbol belonging to their respective trees.
+    for name in ["use_before_decl", "use_after_decl"]:
+        original_symbol = psyir.children[0].symbol_table.lookup(name)
+        copied_symbol = copiedtree.children[0].symbol_table.lookup(name)
+        assert copied_symbol is not original_symbol
+        assert copied_symbol.datatype is not original_symbol.datatype
+        assert original_symbol.datatype.partial_datatype is original_type
+        assert copied_symbol.datatype.partial_datatype is copied_type
+
+    # The routine arguments must similarly refer to the type symbol belonging
+    # to their respective trees.
+    original_arg = psyir.walk(Routine)[0].symbol_table.lookup("arg")
+    copied_arg = copiedtree.walk(Routine)[0].symbol_table.lookup("arg")
+    assert copied_arg is not original_arg
+    assert original_arg.datatype.partial_datatype is original_type
+    assert copied_arg.datatype.partial_datatype is copied_type
