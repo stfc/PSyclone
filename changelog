@@ -1,7 +1,11 @@
+   25) PR #3481 towards #3463. Adds support for adding standalone Assignment
+   statements into an OMP parallel region. Also adds a new
+   `get_last_descendant_node()` method to the Node class.
+
    24) PR #3508 towards #1995. Shortens license/copyright on all .py and
    .f90 files.
 
-   23) PR #3507 for #3502. Adds support for initialisers for variables of a 
+   23) PR #3507 for #3502. Adds support for initialisers for variables of a
    derived type.
 
    22) PR #3541 for #3539. Update NEMO documentation and references.

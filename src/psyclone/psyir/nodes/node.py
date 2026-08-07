@@ -1855,6 +1855,15 @@ class Node():
 
         return current_node is potential_ancestor
 
+    def get_last_descendant_node(self) -> "Node":
+        '''
+        :returns: the last node in the subtree of this Node if this Node has
+            children, else returns itself.
+        '''
+        if self.children:
+            return self.children[-1].get_last_descendant_node()
+        return self
+
 
 # For automatic documentation generation
 # TODO #913 the 'colored' routine shouldn't be in this module.
