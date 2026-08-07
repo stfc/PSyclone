@@ -1,40 +1,8 @@
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-#          J. Henrichs, Bureau of Meteorology
-#          I. Kavcic, Met Office
-# Modified: A. B. G. Chalk, STFC Daresbury Lab
-#           M. Naylor, University of Cambridge, UK
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module provides the fparser2 to PSyIR front-end, it follows a
@@ -2200,15 +2168,7 @@ class Fparser2Reader():
                                      is_constant=has_constant_value,
                                      initial_value=init_expr)
                 except ValueError as error:
-                    # DataSymbol can raise a ValueError in a number of ways.
-                    # We check for the ones that come from valid Fortran
-                    # that we aren't supporting and raise NotImplementedError
-                    # for those.
-                    if not isinstance(
-                            datatype,
-                            (ScalarType, ArrayType, UnsupportedType)):
-                        raise NotImplementedError
-                    # Otherwise we have an invalid Fortran declaration.
+                    # We have an invalid Fortran declaration.
                     raise InternalError(
                         f"Invalid variable declaration "
                         f"found in _process_decln for "
@@ -2563,6 +2523,9 @@ class Fparser2Reader():
         for child in node.children:
             if isinstance(child, (Fortran2003.Interface_Stmt,
                                   Fortran2003.End_Interface_Stmt)):
+                continue
+            # TODO #3517: Comments inside an Interface statement are ignored.
+            if isinstance(child, Fortran2003.Comment):
                 continue
             if isinstance(child, Fortran2003.Procedure_Stmt):
                 # Keep track of whether these are module procedures.
@@ -5649,6 +5612,10 @@ class Fparser2Reader():
             if (
                 isinstance(routine_symbol, RoutineSymbol) and
                 isinstance(node, Fortran2003.Call_Stmt)
+                # Also don't overwrite UnsupportedFortranType as their text is
+                # needed to reproduce the declaration of this symbol
+                and not isinstance(routine_symbol.datatype,
+                                   UnsupportedFortranType)
             ):
                 routine_symbol.datatype = NoType()
 
