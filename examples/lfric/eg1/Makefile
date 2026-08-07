@@ -44,10 +44,10 @@ transform:
 	@echo "Sequential code:"
 	${PSYCLONE} -api lfric -d ../code -nodm ./single_invoke.x90
 	@echo "With distributed-memory support:"
-	${PSYCLONE} -api lfric -d ../code ./single_invoke.x90
+	${PSYCLONE} -api lfric -d ../code ./single_invoke.x90 -opsy single_invoke_psy.f90 -oalg single_invoke.f90
 
 compile: transform
-	@echo "No compilation supported for lfric/eg1"
+	$(F90) -c $(F90FLAGS) single_invoke.f90
 
 run: compile
 	@echo "No run targets for lfric/eg1"

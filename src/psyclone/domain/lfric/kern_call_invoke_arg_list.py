@@ -137,6 +137,15 @@ class KernCallInvokeArgList(ArgOrdering):
         precision_name = consts.SCALAR_PRECISION_MAP[scalar_arg.intrinsic_type]
         LFRicTypes.add_precision_symbol(self._symtab, precision_name)
 
+        if scalar_arg.is_scalar_array:
+            dims_sym = self._symtab.find_or_create_tag(
+                    tag="dims_" + scalar_arg.name,
+                    symbol_type=DataSymbol,
+                    datatype=ArrayType(
+                        LFRicTypes("LFRicIntegerScalarDataType")(),
+                        [scalar_arg._array_ndims]))
+            self.psyir_append(dims_sym)
+
         sym = self._symtab.new_symbol(scalar_arg.name,
                                       symbol_type=DataSymbol,
                                       datatype=datatype)
