@@ -5,8 +5,10 @@
 ! See the full LICENSE file in the project root for details.
 ! -----------------------------------------------------------------------------
 
-!> An example LFRic algorithm layer that invokes two different kernels that
-!! both have field arguments with custom values of NLAYERS and NDATA.
+!> A (non-executable) example LFRic algorithm layer that invokes two different
+!! kernels that both have field arguments with custom values of NLAYERS and NDATA.
+!! The example is not executable because it omits all the initialisation
+!! required to construct fully valid field objects.
 program my_alg
   use constants_mod, only: r_def
   use field_mod, only: field_type
