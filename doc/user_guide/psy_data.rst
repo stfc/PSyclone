@@ -291,11 +291,12 @@ The syntax for a variable specification is one of:
 ``PSY_VALUE_RANGE="variable=..."``
     The specified variable name is tested in any instrumented code region.
 
-Note that you have to use the variable names used in the created psy-layer.
-For example, in GOcean, the field ``f`` will become ``f%data`` and in LFRic
-field ``f`` will become ``f_data``. You must make sure to specify the actual names,
-otherwise your test will not be executed as expected. You can always just
-look at the created psy-layer file to find the exact names.
+Note that in LFRic you have to use the variable names used in the created
+psy-layer - the field ``f`` will become ``f_data``. You must make sure to
+specify the actual names, otherwise your test will not be executed as expected.
+GOcean supports the usage of the original field names.
+You can always just look at the created psy-layer file to find the exact names.
+
 
 A value range is specified as a ``:`` separated tuple::
 

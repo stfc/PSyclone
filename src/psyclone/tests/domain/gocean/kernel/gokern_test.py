@@ -122,20 +122,19 @@ def test_gok_construction():
     ref_i = schedule.symbol_table.lookup("i")
     ref_j = schedule.symbol_table.lookup("j")
     kern.arguments._args = [kern.arguments._args[0]]
-    assert kern.prototype_from_metadata(ref_i, ref_j)[0].debug_string() == (
-        "cu_fld%data(i,j) = 1\n"
-    )
+    assignment = kern.prototype_from_metadata(ref_i, ref_j)[0]
+    assert assignment.debug_string() == "cu_fld%data(i,j) = 1\n"
+    # Check that the proper dsl name has been added
+    assert assignment.lhs.dsl_name == "cu_fld"
 
     # Now add two write fields, this will return 2 assignments
     kern.arguments._args = [kern.arguments._args[0], kern.arguments._args[0]]
     prototype = kern.prototype_from_metadata(ref_i, ref_j)
     assert len(prototype) == 2
-    assert kern.prototype_from_metadata(ref_i, ref_j)[0].debug_string() == (
-        "cu_fld%data(i,j) = 1\n"
-    )
-    assert kern.prototype_from_metadata(ref_i, ref_j)[1].debug_string() == (
-        "cu_fld%data(i,j) = 1\n"
-    )
+    assert prototype[0].debug_string() == "cu_fld%data(i,j) = 1\n"
+    assert prototype[0].lhs.dsl_name == "cu_fld"
+    assert prototype[1].debug_string() == "cu_fld%data(i,j) = 1\n"
+    assert prototype[1].lhs.dsl_name == "cu_fld"
 
     # # Now add two write fields, this is not a valid
     kern.arguments._args = []
