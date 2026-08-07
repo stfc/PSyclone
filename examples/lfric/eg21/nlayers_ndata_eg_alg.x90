@@ -14,10 +14,10 @@ program my_alg
   use testkern_nlayers_ndata_mod, only: testkern_nlayers_ndata_type
   implicit none
   real(kind=r_def) :: scalar
-  type(field_type) :: fld1, fld2, fld3, fld4, fld5, fld6
+  type(field_type) :: fld1, fld2, fld3, fld4, fld5, fld6, fld_2d
 
   call invoke( &
      testkern_nlayers_ndata_type(scalar, fld1, fld2, fld3, fld4, fld5, fld6), &
-     testkern_nlayers_ndata2_type(fld1, fld2, fld3, fld4) )
+     testkern_nlayers_ndata2_type(fld1, fld2, fld3, fld4, fld_2d) )
 
 end program
