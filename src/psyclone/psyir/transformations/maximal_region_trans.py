@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2025-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: A. B. G. Chalk, STFC Daresbury Lab
-# Modified: S. Siso, STFC Daresbury Lab
 
 '''This module contains the MaximalRegionTrans.'''
 
@@ -76,7 +47,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
     #: only barriers doesn't need to be transformed). Defaults to any Node.
     _required_nodes = (Node)
 
-    def _node_allowed(self, node: Node) -> bool:
+    def _node_allowed(self, node: Node, current_block: list[Node]) -> bool:
         '''Returns whether the provided node is allowed in the _transformation.
 
         The default implementation checks whether the node is an instance
@@ -85,6 +56,8 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         function is pure).
 
         :param node: the candidate node to be in the transformation region.
+        :param current_block: The current block that node would be added into.
+
         :returns: whether the node is allowed to be in the transformed region.
         '''
         return isinstance(node, self._allowed_contiguous_statements)
@@ -108,39 +81,41 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                 return True
         return False
 
-    def _can_be_in_region(self, node: Node) -> bool:
+    def _can_be_in_region(
+        self, node: Node, current_block: list[Node]
+    ) -> bool:
         '''Returns whether the provided node can be included in a
         region. Loops and if statements are recursed into to check if their
         children can be.
 
         :param node: the candidate Node to be placed into a transformed
             region.
+        :param current_block: The current block that node would be added into.
 
         :returns: whether it is safe to add the node to a transformed region.
         '''
-        if self._node_allowed(node):
+        if self._node_allowed(node, current_block):
             return True
 
         if isinstance(node, (Loop, WhileLoop)):
             # Check that all contents of the loop body can be part
             # of the region.
             for child in node.loop_body:
-                if not self._can_be_in_region(child):
-                    break
-            else:
-                return True
-            return False
+                if not self._can_be_in_region(child, current_block):
+                    return False
+            return True
 
         if isinstance(node, IfBlock):
             # Check that all contents of each branch body can be part
             # of the region.
             allowed = True
             for child in node.if_body:
-                allowed = (allowed and self._can_be_in_region(child))
+                allowed = (allowed and self._can_be_in_region(child,
+                                                              current_block))
             if node.else_body and allowed:
                 for child in node.else_body:
                     allowed = (allowed and
-                               self._can_be_in_region(child))
+                               self._can_be_in_region(child, current_block))
             return allowed
 
         # All other node types we default to False.
@@ -168,7 +143,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         # Initially test if the entire region can be transformed without
         # breaking it up into pieces.
         for child in n_list:
-            if not self._can_be_in_region(child):
+            if not self._can_be_in_region(child, current_block):
                 break
         else:
             try:
@@ -185,7 +160,7 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
         for child in reversed(n_list):
             # If the child can be added to a transformed region then add it
             # to the current block of nodes.
-            if self._can_be_in_region(child):
+            if self._can_be_in_region(child, current_block):
                 # Check that validation still succeeds if we add this child
                 # to the current block.
                 try:
@@ -211,16 +186,16 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                 if isinstance(child, IfBlock):
                     if child.else_body:
                         else_blocks = self._compute_transformable_sections(
-                            child.else_body, trans, trans_kwargs
+                            child.else_body[:], trans, trans_kwargs
                         )
                         all_blocks = else_blocks + all_blocks
                     if_blocks = self._compute_transformable_sections(
-                            child.if_body, trans, trans_kwargs
+                            child.if_body[:], trans, trans_kwargs
                     )
                     all_blocks = if_blocks + all_blocks
                 if isinstance(child, (Loop, WhileLoop)):
                     loop_blocks = self._compute_transformable_sections(
-                        child.loop_body, trans, trans_kwargs
+                        child.loop_body[:], trans, trans_kwargs
                     )
                     all_blocks = loop_blocks + all_blocks
         # If any nodes are left in the current block at the end of the
@@ -260,6 +235,21 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                     f"{prev_position}.")
             prev_position = child.position
 
+    def _apply_transformation(self, block: list[Node],
+                              **kwargs):
+        '''
+        Applies the transformation defined by self._transformation to the
+        block supplied, with the kwargs provided.
+
+        The default implementation does nothing else, however the
+        functionality is provided so subclasses can perform specific
+        operations (or provide additional specific options) as required for
+        their transformations.
+
+        :param block: The block to apply the transformations to.
+        '''
+        self._transformation().apply(block, **kwargs)
+
     def apply(self, nodes: Union[Node, Schedule, list[Node]], **kwargs):
         '''Applies the transformation to the nodes provided.
 
@@ -278,4 +268,4 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
 
         # Apply the transformation to all of the blocks found.
         for block in all_blocks:
-            par_trans.apply(block, **tr_kwargs)
+            self._apply_transformation(block, **tr_kwargs)

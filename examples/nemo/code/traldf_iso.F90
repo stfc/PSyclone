@@ -1,3 +1,10 @@
+!!=====================================================================================
+!! ***  traadv kernel extracted from the NEMO software (http://www.nemo-ocean.eu ) ***
+!! ***          governed by the CeCILL licence (http://www.cecill.info)            ***
+!!                                                   
+!! ***                             IS-ENES2 - CMCC/STFC                            ***
+!!=====================================================================================
+
 MODULE traldf_iso
    !!======================================================================
    !!                   ***  MODULE  traldf_iso  ***
