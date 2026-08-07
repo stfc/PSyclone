@@ -146,7 +146,7 @@ class KernelInterface(ArgOrdering):
 
         for arg in self._kern.arguments.args:
             if arg.nlayers and not arg.nlayers.isnumeric():
-                sym = self.symtab.find_or_create_tag(
+                sym = self._symtab.find_or_create_tag(
                     f"nlayers_{arg.nlayers}",
                     symbol_type=LFRicTypes("MeshHeightDataSymbol"),
                     interface=self._read_access)
@@ -154,7 +154,7 @@ class KernelInterface(ArgOrdering):
                     self._arglist.append(sym)
         for arg in self._kern.arguments.args:
             if arg.ndata and not arg.ndata.isnumeric():
-                sym = self.symtab.find_or_create_tag(
+                sym = self._symtab.find_or_create_tag(
                     f"ndata_{arg.ndata}",
                     # TODO - shouldn't be MeshHeightDataSymbol
                     symbol_type=LFRicTypes("MeshHeightDataSymbol"))

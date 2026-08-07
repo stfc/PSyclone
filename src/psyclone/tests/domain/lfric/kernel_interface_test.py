@@ -157,6 +157,37 @@ def test_mesh_height():
     assert kernel_interface._arglist[-1] is symbol
 
 
+def test_mesh_height_named_values():
+    """Test mesh_height handles named nlayers and ndata values by
+    creating the corresponding nlayers_<name> and ndata_<name> symbols and
+    adding them to the argument list only once even if repeated in the
+    metadata."""
+    _, invoke = get_invoke("1.5.6_single_invoke_nlayers_ndata.f90",
+                           api="lfric", idx=0)
+    kern = invoke.schedule.walk(LFRicKern)[0]
+    kernel_interface = KernelInterface(kern)
+    kernel_interface.mesh_height()
+
+    # The first field is f1 so expect nlayers_f1
+    nlayers_f1 = kernel_interface._symtab.lookup("nlayers_f1")
+    assert isinstance(nlayers_f1, LFRicTypes("MeshHeightDataSymbol"))
+    assert nlayers_f1 in kernel_interface._arglist
+
+    # Named nlayers value 'shallow' should create nlayers_shallow
+    nlayers_shallow = kernel_interface._symtab.lookup("nlayers_shallow")
+    assert isinstance(nlayers_shallow, LFRicTypes("MeshHeightDataSymbol"))
+    assert nlayers_shallow in kernel_interface._arglist
+    # Even though two args used the same named nlayers, the symbol should
+    # only appear once in the argument list
+    assert kernel_interface._arglist.count(nlayers_shallow) == 1
+
+    # Named ndata value 'precip' should create ndata_precip
+    ndata_precip = kernel_interface._symtab.lookup("ndata_precip")
+    assert isinstance(ndata_precip, LFRicTypes("MeshHeightDataSymbol"))
+    assert ndata_precip in kernel_interface._arglist
+    # Ensure it appears only once even if used multiple times
+    assert kernel_interface._arglist.count(ndata_precip) == 1
+
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_mesh_ncell2d():
     '''Test that the KernelInterface.mesh_ncell2d() method adds the

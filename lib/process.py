@@ -68,64 +68,65 @@ parser.add_argument("-generic-provide", action="store_true",
                     help="Declare generic interfaces for "
                     "ProvideVariable functions.", default=False)
 
-args = parser.parse_args()
+if __name__ == '__main__':
+    args = parser.parse_args()
 
-# ---------------------------------------------------------
-# This is a mapping from the command line option name
-# to the tuple that is required for the jinja templates:
-TYPE_DATA = {"real": ("Real", "real(kind=real32)"),
-             "double": ("Double", "real(kind=real64)"),
-             "int": ("Int", "integer(kind=int32)"),
-             "char": ("Char", "character(*)"),
-             "logical": ("Logical", "Logical(kind=4)"),
-             "long": ("Long", "integer(kind=int64)")}
+    # ---------------------------------------------------------
+    # This is a mapping from the command line option name
+    # to the tuple that is required for the jinja templates:
+    TYPE_DATA = {"real": ("Real", "real(kind=real32)"),
+                 "double": ("Double", "real(kind=real64)"),
+                 "int": ("Int", "integer(kind=int32)"),
+                 "char": ("Char", "character(*)"),
+                 "logical": ("Logical", "Logical(kind=4)"),
+                 "long": ("Long", "integer(kind=int64)")}
 
-# ---------------------------------------------------------
-# Check type information:
-types = [type.lower() for type in args.types.split(",")]
+    # ---------------------------------------------------------
+    # Check type information:
+    types = [type.lower() for type in args.types.split(",")]
 
-# If types is empty (e.g. in profiling no types are actually
-# required), the parsers assigns ['']. Convert to an empty list:
-if types == ['']:
-    types = []
+    # If types is empty (e.g. in profiling no types are actually
+    # required), the parsers assigns ['']. Convert to an empty list:
+    if types == ['']:
+        types = []
 
-for my_type in types:
-    if my_type not in TYPE_DATA:
-        print(f"Type '{my_type}' is not supported.", file=sys.stderr)
-        valid_str = ",".join(list(TYPE_DATA.keys()))
-        print(f"Use one or more of {valid_str}", file=sys.stderr)
-        sys.exit(-1)
-all_types = [TYPE_DATA[my_type] for my_type in types]
+    for my_type in types:
+        if my_type not in TYPE_DATA:
+            print(f"Type '{my_type}' is not supported.", file=sys.stderr)
+            valid_str = ",".join(list(TYPE_DATA.keys()))
+            print(f"Use one or more of {valid_str}", file=sys.stderr)
+            sys.exit(-1)
+    all_types = [TYPE_DATA[my_type] for my_type in types]
 
-# ---------------------------------------------------------
-# check dimension
-dims = args.dims.split(",")
+    # ---------------------------------------------------------
+    # check dimension
+    dims = args.dims.split(",")
 
-# Convert to empty list if an empty dims argument was given:
-if dims == ['']:
-    dims = []
+    # Convert to empty list if an empty dims argument was given:
+    if dims == ['']:
+        dims = []
 
-for dim in dims:
-    try:
-        int_dim = int(dim)
-    except ValueError:
-        print(f"Dimension value '{dim}' is not valid.",
-              file=sys.stderr)
-        sys.exit(-1)
-    if int_dim < 1 or int_dim > 7:
-        print(f"Dimension value '{dim}' is not between 1 and 7.",
-              file=sys.stderr)
-        sys.exit(-1)
+    for dim in dims:
+        try:
+            int_dim = int(dim)
+        except ValueError:
+            print(f"Dimension value '{dim}' is not valid.",
+                  file=sys.stderr)
+            sys.exit(-1)
+        if int_dim < 1 or int_dim > 7:
+            print(f"Dimension value '{dim}' is not between 1 and 7.",
+                  file=sys.stderr)
+            sys.exit(-1)
 
-dims = [int(dim) for dim in dims]
-# ---------------------------------------------------------
-with open(args.template_name, "r", encoding='utf-8') as file:
-    template_string = "".join(file.readlines())
+    dims = [int(dim) for dim in dims]
+    # ---------------------------------------------------------
+    with open(args.template_name, "r", encoding='utf-8') as file:
+        template_string = "".join(file.readlines())
 
-env = Environment(trim_blocks=True, lstrip_blocks=True)
-template = env.from_string(template_string)
+    env = Environment(trim_blocks=True, lstrip_blocks=True)
+    template = env.from_string(template_string)
 
-print(template.render(ALL_TYPES=all_types, ALL_DIMS=dims,
-                      PREFIX=args.prefix,
-                      GENERIC_DECLARE=args.generic_declare,
-                      GENERIC_PROVIDE=args.generic_provide))
+    print(template.render(ALL_TYPES=all_types, ALL_DIMS=dims,
+                          PREFIX=args.prefix,
+                          GENERIC_DECLARE=args.generic_declare,
+                          GENERIC_PROVIDE=args.generic_provide))
