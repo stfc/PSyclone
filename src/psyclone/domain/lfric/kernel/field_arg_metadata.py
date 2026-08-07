@@ -33,7 +33,7 @@ class FieldArgMetadata(ScalarArgMetadata):
     form = "gh_field"
     # The relative positions of LFRic metadata. Metadata for a field
     # argument is provided in the following format 'arg_type(form,
-    # datatype, access, function_space, nlevels=..., ndata=...)'. Therefore,
+    # datatype, access, function_space, nlayers=..., ndata=...)'. Therefore,
     # for example, the index of the form argument (form_arg_index) is 0.
     form_arg_index = 0
     datatype_arg_index = 1
@@ -50,12 +50,12 @@ class FieldArgMetadata(ScalarArgMetadata):
 
     def __init__(self, datatype: str, access: str, function_space: str,
                  stencil: Optional[str] = None,
-                 nlevels: Optional[str] = None,
+                 nlayers: Optional[str] = None,
                  ndata: Optional[str] = "1"):
         super().__init__(datatype, access)
         self.function_space = function_space
         self.stencil = stencil
-        self.nlevels = nlevels
+        self.nlayers = nlayers
         self.ndata = ndata
 
     @classmethod
@@ -73,7 +73,7 @@ class FieldArgMetadata(ScalarArgMetadata):
             for this argument.
 
         :returns: a tuple containing the datatype, access, function
-            space, stencil, nlevels and ndata metadata.
+            space, stencil, nlayers and ndata metadata.
 
         '''
         datatype, access = super()._get_metadata(fparser2_tree)
@@ -81,10 +81,10 @@ class FieldArgMetadata(ScalarArgMetadata):
             fparser2_tree, cls.function_space_arg_index)
         stencil = cls.get_stencil(fparser2_tree)
         super()._validate_named_args(fparser2_tree,
-                                     ["nlevels", "ndata"])
-        nlevels = cls.get_named_arg(fparser2_tree, "nlevels")
+                                     ["nlayers", "ndata"])
+        nlayers = cls.get_named_arg(fparser2_tree, "nlayers")
         ndata = cls.get_named_arg(fparser2_tree, "ndata")
-        return (datatype, access, function_space, stencil, nlevels, ndata)
+        return (datatype, access, function_space, stencil, nlayers, ndata)
 
     @classmethod
     def get_stencil(
@@ -129,8 +129,8 @@ class FieldArgMetadata(ScalarArgMetadata):
                   f"{self.function_space}")
         if self.stencil:
             result += f", stencil({self.stencil})"
-        if self.nlevels:
-            result += f", nlevels='{self.nlevels}'"
+        if self.nlayers:
+            result += f", nlayers='{self.nlayers}'"
         if self.ndata and self.ndata != "1":
             result += f", ndata='{self.ndata}'"
         result += ")"

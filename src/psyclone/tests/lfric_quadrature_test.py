@@ -794,8 +794,8 @@ module dummy_mod
   public
 
   contains
-  subroutine dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, op_2, \
-field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, op_6_ncell_3d, op_6, \
+  subroutine dummy_code(cell, nlayers_field_1, field_1_w0, op_2_ncell_3d, \
+op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, op_6_ncell_3d, op_6, \
 field_7_w2v, op_8_ncell_3d, op_8, field_9_wchi, op_10_ncell_3d, op_10, \
 field_11_w2htrace, op_12_ncell_3d, op_12, ndf_w0, undf_w0, map_w0, \
 basis_w0_qr_xyoz, ndf_w1, basis_w1_qr_xyoz, ndf_w2, undf_w2, map_w2, \
@@ -807,7 +807,7 @@ basis_w2trace_qr_xyoz, ndf_w2htrace, undf_w2htrace, map_w2htrace, \
 basis_w2htrace_qr_xyoz, ndf_w2vtrace, basis_w2vtrace_qr_xyoz, np_xy_qr_xyoz, \
 np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)
     use constants_mod
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers_field_1
     integer(kind=i_def), intent(in) :: ndf_w0
     integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
     integer(kind=i_def), intent(in) :: ndf_w2

@@ -1744,6 +1744,8 @@ meshes cannot be on the same function space while those on the same
 mesh must also be on the same function space.
 
 
+.. _number-of-layers-metadata:
+
 Number of Layers Metadata
 """""""""""""""""""""""""
 
@@ -1774,6 +1776,7 @@ If two or more field/operator arguments are on the same function space
 and have the same number of layers (whether a literal or a name) then
 only one dofmap is passed to the kernel for those arguments.
 
+.. _ndata-metadata:
 
 Multi-Data Metadata
 """""""""""""""""""
@@ -2090,11 +2093,23 @@ conventions, are:
 
 1) If an LMA operator is passed then include the ``cells`` argument.
    ``cells`` is an ``integer`` of kind ``i_def`` and has intent ``in``.
-2) Include ``nlayers``, the number of layers in a column. ``nlayers``
-   is an ``integer`` of kind ``i_def`` and has intent ``in``. PSyclone
-   will obtain the value of ``nlayers`` to use for a particular kernel
-   from the first field or operator in the argument list.
-3) For each scalar/field/vector_field/operator/ScalarArray in the order specified by
+
+2) Include each unique value of ``nlayers``, the number of layers in a
+   column, for all of the field/operator arguments. ``nlayers``
+   is an ``integer`` of kind ``i_def`` and has intent ``in``. A typical
+   kernel will have just one value of ``nlayers`` which PSyclone will
+   obtain from the first field/operator argument in the list. For those
+   kernels which have field arguments with ``nlayers`` specified by a
+   label in the metadata (see :ref:`number-of-layers-metadata`), include
+   a value of ``nlayers`` for every unique label, in the same
+   order as they occur in the ``meta_args`` list.
+
+3) If any field/operator arguments have custom values of ``ndata`` (see
+   :ref:`ndata-metadata`) then, for each unique label, include an ``ndata``
+   argument in the same order as they appear in the ``meta_args`` list. Each
+   ``ndata`` is an ``integer`` of kind ``i_def`` and has intent ``in``.
+
+4) For each scalar/field/vector_field/operator/ScalarArray in the order specified by
    the meta_args metadata:
 
    1) If the current entry is a scalar quantity then include the Fortran
@@ -2131,16 +2146,7 @@ conventions, are:
       4) If the field entry stencil access is of type ``XORY1D`` then
          add an additional ``integer`` direction argument of kind
          ``i_def`` and with intent ``in``.
-      5) If the field is multi-data and the value of ``NDATA`` is unknown
-         (i.e. it is specified in the metadata using a label)
-         then add an additional ``integer``, scalar argument of kind ``i_def``
-         and intent ``in``. If the ``NDATA`` value is common to more than one
-         kernel argument, it is only added for the first such argument.
-      6) If the field has an unknown (i.e. specified in the metadata using a
-         label), custom number of vertical levels then pass this as an
-         additional ``integer``, scalar argument of kind ``i_def`` and
-         intent ``in``. If the number of vertical levels is common to more than
-         one kernel argument, it is only added for the first such argument.
+
    3) If the current entry is a field vector then for each dimension
       of the vector, include a field array. The field array name is
       specified as
@@ -2166,7 +2172,7 @@ conventions, are:
       the data type and kind specified in the metadata. The ScalarArray
       must be denoted with intent ``in`` to match its read-only nature.
 
-4) DoF maps for function spaces are handled in the order they appear in the
+5) DoF maps for function spaces are handled in the order they appear in the
    metadata arguments (the ``to`` function space of an operator is considered
    to be before the ``from`` function space of the same operator as it appears
    first in lexicographic order). Note that if two fields on a given function
@@ -2247,7 +2253,7 @@ conventions, are:
       |               |           | W2Vtrace, W3, Wtheta, Wchi         |
       +---------------+-----------+------------------------------------+
 
-5) If either the ``normals_to_horizontal_faces`` or
+6) If either the ``normals_to_horizontal_faces`` or
    ``outward_normals_to_horizontal_faces`` properties of the reference
    element are required then pass the number of horizontal faces of the
    reference element (``nfaces_re_h``). Similarly, if either the
@@ -2269,7 +2275,7 @@ conventions, are:
       a rank-2 ``integer`` array of kind ``i_def`` with dimensions
       ``(3, nfaces_re)``.
 
-6) If the ``adjacent_face`` mesh property is required then:
+7) If the ``adjacent_face`` mesh property is required then:
 
    1) If the number of horizontal cell faces obtained from the reference
       element (``nfaces_re_h``) is not already being passed to the kernel (due
@@ -2278,7 +2284,7 @@ conventions, are:
    2) Pass a rank-1, ``integer`` array of kind ``i_def`` and extent
       ``nfaces_re_h``.
 
-7) If Quadrature is required (``gh_shape = gh_quadrature_*``) then, for
+8) If Quadrature is required (``gh_shape = gh_quadrature_*``) then, for
    each shape in the order specified in the ``gh_shape`` metadata:
 
    1) Include ``integer``, scalar arguments of kind ``i_def`` with intent

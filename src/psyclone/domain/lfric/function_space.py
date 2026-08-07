@@ -34,9 +34,15 @@ class FunctionSpace():
     ## and field names.
     MAX_NAME_LEN = 21
 
-    def __init__(self, name: str, kernel_args: "LFRicKernelArguments"):
+    def __init__(self,
+                 name: str,
+                 kernel_args: "LFRicKernelArguments",
+                 nlayers: Optional[str] = None,
+                 ndata: Optional[str] = "1"):
         self._orig_name = name
         self._kernel_args = kernel_args
+        self._nlayers = nlayers
+        self._ndata = ndata
 
         const = LFRicConstants()
         # Check whether the function space name is a valid name
@@ -76,20 +82,35 @@ class FunctionSpace():
         const = LFRicConstants()
         if (self._orig_name not in const.VALID_ANY_SPACE_NAMES +
                 const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES):
-            return self._orig_name
+            if (not self._nlayers) and self._ndata == "1":
+                return self._orig_name
+            base_name = self._orig_name
+        else:
+            base_name = ""
+            # List kernel arguments
+            args = self._kernel_args.args
+            # Mangle the function space name for any_*_space
+            lorig_name = self._orig_name.lower()
+            for arg in args:
+                for fspace in arg.function_spaces:
+                    if (fspace and fspace.orig_name.lower() == lorig_name):
+                        base_name = f"{self.short_name}_{arg.name}"
+                        break
+                if base_name:
+                    break
+            else:
+                # Raise an error if there are no kernel arguments on this
+                # function space
+                raise FieldNotFoundError(
+                    f"No kernel argument found for function "
+                    f"space '{self._orig_name}'")
 
-        # List kernel arguments
-        args = self._kernel_args.args
-        # Mangle the function space name for any_*_space
-        lorig_name = self._orig_name.lower()
-        for arg in args:
-            for fspace in arg.function_spaces:
-                if (fspace and fspace.orig_name.lower() == lorig_name):
-                    return self._shorten_name(f"{self.short_name}_{arg.name}")
-        # Raise an error if there are no kernel arguments on this
-        # function space
-        raise FieldNotFoundError(f"No kernel argument found for function "
-                                 f"space '{self._orig_name}'")
+        parts = [base_name]
+        if self._nlayers:
+            parts.append(self._nlayers)
+        if self._ndata != "1":
+            parts.append(self._ndata)
+        return self._shorten_name("_".join(parts))
 
     @staticmethod
     def _shorten_name(name: str) -> str:

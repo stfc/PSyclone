@@ -419,18 +419,18 @@ class LFRicKernMetadata(KernelType):
                     f"argument must only have field arguments with 'gh_real' "
                     f"data type but kernel '{self.name}' has a field argument "
                     f"with '{arg.data_type}' data type.")
-            # No arguments with non-default values for nlevels or ndata are
+            # No arguments with non-default values for nlayers or ndata are
             # permitted.
             if arg.ndata != "1":
                 raise ParseError(
                     f"Kernel '{self.name}' takes a CMA operator but has an "
                     f"argument with a non-default value ('{arg.ndata}') of "
                     f"NDATA. This is forbidden.")
-            if arg.nlevels:
+            if arg.nlayers:
                 raise ParseError(
                     f"Kernel '{self.name}' takes a CMA operator but has an "
-                    f"argument with a non-default value ('{arg.nlevels}') of "
-                    f"NLEVELS. This is forbidden.")
+                    f"argument with a non-default value ('{arg.nlayers}') of "
+                    f"NLAYERS. This is forbidden.")
 
         # Count the number of CMA operators that are written to
         write_count = 0

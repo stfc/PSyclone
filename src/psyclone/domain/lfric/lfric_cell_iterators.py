@@ -8,12 +8,17 @@
 ''' This module implements the LFRicCellIterators collection which handles
     the requirements of kernels that operator on cells.'''
 
+from typing import TYPE_CHECKING, Union
+
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
+from psyclone.domain.lfric.lfric_invoke import LFRicInvoke
 from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import Assignment, Reference
-from psyclone.psyir.symbols import ArgumentInterface
+from psyclone.psyir.symbols import ArgumentInterface, DataSymbol
+if TYPE_CHECKING:
+    from psyclone.domain.lfric import LFRicKernelArgument
 
 
 class LFRicCellIterators(LFRicCollection):
@@ -22,84 +27,149 @@ class LFRicCellIterators(LFRicCollection):
 
     :param kern_or_invoke: the Kernel or Invoke for which to manage cell
                            iterators.
-    :type kern_or_invoke: :py:class:`psyclone.domain.lfric.LFRicKern` |
-                          :py:class:`psyclone.lfric.LFRicInvoke`
 
     :raises GenerationError: if an Invoke has no field or operator arguments.
 
     '''
-    def __init__(self, kern_or_invoke):
+    def __init__(self,
+                 kern_or_invoke: Union[LFRicKern, LFRicInvoke]):
         super().__init__(kern_or_invoke)
 
-        # Dictionary to hold the names of the various nlayers variables and
-        # (for invokes) the kernel argument to which each corresponds.
-        self._nlayers_names = {}
+        # Dictionary to hold the names of the various nlayers/ndata variables
+        # and (for invokes) the kernel argument to which each corresponds.
+        self._nlayers_names: dict[str, LFRicKernelArgument] = {}
+        self._ndata_names: dict[str, LFRicKernelArgument] = {}
 
-        if self._invoke:
-            # Each kernel that operates on either the domain or cell-columns
-            # needs an 'nlayers' obtained from the first field/operator
-            # argument.
-            for kern in self._invoke.schedule.walk(LFRicKern):
-                if kern.iterates_over != "dof":
-                    arg = kern.arguments.first_field_or_operator
-                    sym = self.symtab.find_or_create_tag(
-                        f"nlayers_{arg.name}",
-                        symbol_type=LFRicTypes("MeshHeightDataSymbol"))
+        if not self._invoke:
+            return
+
+        # Each kernel that operates on either the domain or cell-columns needs
+        # an 'nlayers' obtained from the first field/operator argument.
+        for kern in self._invoke.schedule.walk(LFRicKern):
+            if kern.iterates_over != "dof":
+                self._declare_kern_args(kern)
+
+        for var in self._invoke.psy_unique_vars:
+            if not var.is_scalar:
+                break
+        else:
+            raise GenerationError(
+                "Cannot create an Invoke with no field/operator arguments.")
+        self._first_var = var
+
+    def _declare_kern_args(self,
+                           kern: LFRicKern,
+                           for_stub: bool = False) -> None:
+        '''
+        Creates the Symbols for the nlayers and ndata arguments to the
+        supplied Kernel. If `for_stub` is True, then we are generating a
+        Kernel stub (subroutine) and the new symbols are declared as read-only
+        arguments.
+
+        :param kern: the LFRic kernel for which to generate nlayers and ndata
+                     arguments.
+        :param for_stub: whether or not we are creating a Kernel stub.
+
+        '''
+        def _update_arg_properties(symbol: DataSymbol) -> None:
+            '''
+            Update the supplied symbol to be a dummy argument if `for_stub`
+            is True.
+            '''
+            if not for_stub:
+                return
+            symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+            self.symtab.append_argument(symbol)
+
+        if kern.cma_operation not in ["apply", "matrix-matrix"]:
+            first_arg: LFRicKernelArgument = (
+                kern.arguments.first_field_or_operator)
+            sym = self.symtab.find_or_create_tag(
+                f"nlayers_{first_arg.name}",
+                symbol_type=LFRicTypes("MeshHeightDataSymbol"))
+            _update_arg_properties(sym)
+            self._nlayers_names[sym.name] = first_arg
+
+        # We must also check for any subsequent arguments that have
+        # a number of layers or ndata specified by a label in the metadata.
+        for arg in kern.arguments.args:
+            if arg.nlayers and not arg.nlayers.isnumeric():
+                sym = self.symtab.find_or_create_tag(
+                    f"nlayers_{arg.nlayers}",
+                    symbol_type=LFRicTypes("MeshHeightDataSymbol"))
+                if sym.name not in self._nlayers_names:
                     self._nlayers_names[sym.name] = arg
+                    _update_arg_properties(sym)
+        for arg in kern.arguments.args:
+            if arg.ndata and not arg.ndata.isnumeric():
+                sym = self.symtab.find_or_create_tag(
+                    f"ndata_{arg.ndata}",
+                    # TODO - shouldn't be MeshHeightDataSymbol
+                    symbol_type=LFRicTypes("MeshHeightDataSymbol"))
+                if sym.name not in self._ndata_names:
+                    self._ndata_names[sym.name] = arg
+                    _update_arg_properties(sym)
 
-            first_var = None
-            for var in self._invoke.psy_unique_vars:
-                if not var.is_scalar:
-                    first_var = var
-                    break
-            if not first_var:
-                raise GenerationError(
-                    "Cannot create an Invoke with no field/operator "
-                    "arguments.")
-            self._first_var = first_var
-
-    def stub_declarations(self):
+    def stub_declarations(self) -> None:
         '''
         Declare entities required for a kernel stub that operates on
         cell-columns.
 
         '''
         super().stub_declarations()
-        if self._kernel.cma_operation not in ["apply", "matrix-matrix"]:
-            nlayers = self.symtab.find_or_create_tag(
-                "nlayers",
-                symbol_type=LFRicTypes("MeshHeightDataSymbol")
-            )
-            nlayers.interface = ArgumentInterface(
-                                        ArgumentInterface.Access.READ)
-            self.symtab.append_argument(nlayers)
 
-    def initialise(self, cursor):
+        self._declare_kern_args(self._kernel, for_stub=True)
+
+    def initialise(self, cursor: int) -> int:
         '''
-        Look-up the number of vertical layers in the mesh in the PSy layer.
+        Look-up the number(s) of vertical layers and number(s) of data values
+        per dof in the PSy layer.
 
-        :param int cursor: position where to add the next initialisation
+        :param cursor: position where to add the next initialisation
             statements.
 
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
-        if not self._nlayers_names or not self._invoke:
-            return cursor
+        cursor = self._initialise_var_list(cursor, self._nlayers_names,
+                                           "get_nlayers",
+                                           "number of layers")
+        cursor = self._initialise_var_list(cursor, self._ndata_names,
+                                           "get_ndata",
+                                           "number of data values per dof")
+        return cursor
 
+    def _initialise_var_list(self,
+                             cursor: int,
+                             name_map: dict[str, "LFRicKernelArgument"],
+                             fn_name: str,
+                             comment: str
+                             ) -> int:
+        '''
+        A utility to generate the initialisation statements for the
+        kernel arguments named in the supplied map.
+
+        :param cursor: the current position at which to add content in
+            the PSy-layer schedule.
+        :param name_map: dict holding descriptions of each kernel argument,
+            indexed by name.
+        :param fn_name: the name of the type-bound procedure that must be
+            called to get the initial vaue of each argument.
+        :param comment: text to use in the associated comment in the
+            generated PSy-layer code.
+
+        '''
         # Sort for test reproducibility
-        sorted_names = list(self._nlayers_names.keys())
-        sorted_names.sort()
+        sorted_names = sorted(list(name_map.keys()))
         init_cursor = cursor
         for name in sorted_names:
             symbol = self.symtab.lookup(name)
-            var = self._nlayers_names[name]
+            var = name_map[name]
             stmt = Assignment.create(
-                    lhs=Reference(symbol),
-                    rhs=var.generate_method_call("get_nlayers"))
+                lhs=Reference(symbol),
+                rhs=var.generate_method_call(fn_name))
             if cursor == init_cursor:
-                stmt.preceding_comment = "Initialise number of layers"
+                stmt.preceding_comment = f"Initialise {comment}"
             self._invoke.schedule.addchild(stmt, cursor)
             cursor += 1
         return cursor

@@ -113,10 +113,10 @@ def test_get_named_arg():
     assert test_cls.get_named_arg(fparser_tree, "red") is None
     # Named argument with a string value
     fparser_tree2 = CommonArgMetadata.create_fparser2(
-        "arg_type(GH_FIELD, GH_REAL, GH_READ, nlevels='crazy')",
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, nlayers='crazy')",
         Fortran2003.Component_Spec)
     assert test_cls.get_named_arg(fparser_tree2, "red") is None
-    assert test_cls.get_named_arg(fparser_tree2, "nlevels") == "crazy"
+    assert test_cls.get_named_arg(fparser_tree2, "nlayers") == "crazy"
     # Named argument with a parameter value
     fparser_tree3 = test_cls.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, mesh=GH_FINE)",
