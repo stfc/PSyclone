@@ -163,7 +163,7 @@ def test_symbol_interface_setter_and_is_properties():
     assert not symbol.is_commonblock
     assert not symbol.is_unknown_interface
 
-    symbol.interface = CommonBlockInterface()
+    symbol.interface = CommonBlockInterface("")
     assert not symbol.is_automatic
     assert not symbol.is_import
     assert not symbol.is_argument

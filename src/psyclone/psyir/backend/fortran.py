@@ -672,6 +672,12 @@ class FortranWriter(LanguageWriter):
         if symbol.inline_comment != "":
             result += f" {self._COMMENT_PREFIX}{symbol.inline_comment}"
 
+        if isinstance(symbol, Symbol) and symbol.is_commonblock:
+            result += (
+                f"\n{self._nindent}common /{symbol.interface.name}/ "
+                f"{symbol.name}"
+            )
+
         return result + "\n"
 
     def gen_interfacedecl(self, symbol):
