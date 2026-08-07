@@ -1,41 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
-# Modified J. Henrichs, Bureau of Meteorology
-# Modified A. R. Porter, A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
-# Modified J. Remy, Université Grenoble Alpes, Inria
-# Modified M. Naylor, University of Cambridge, UK
 
 '''PSyIR Fortran backend. Implements a visitor that generates Fortran code
 from a PSyIR tree. '''
@@ -1154,14 +1122,15 @@ class FortranWriter(LanguageWriter):
         if not node.name:
             raise VisitorError("Expected Container node name to have a value.")
 
-        # All children must be either Routines or CodeBlocks as modules within
+        # All children must not be Containers as modules within
         # modules are not supported.
-        if not all(isinstance(child, (Routine, CodeBlock)) for
-                   child in node.children):
+        if any(isinstance(child, (Container)) for child in node.children):
+            containers = [child.name for child in node.children if
+                          isinstance(child, Container)]
             raise VisitorError(
-                f"The Fortran back-end requires all children of a Container "
-                f"to be either CodeBlocks or sub-classes of Routine but found:"
-                f" {[type(child).__name__ for child in node.children]}.")
+                f"The Fortran backend does not support nested Containers but "
+                f"found: {containers}."""
+            )
 
         result = f"{self._nindent}module {node.name}\n"
 

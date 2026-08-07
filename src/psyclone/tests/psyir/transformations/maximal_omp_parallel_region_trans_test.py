@@ -1,0 +1,337 @@
+# -----------------------------------------------------------------------------
+# SPDX-FileCopyrightText: Copyright (c) 2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
+# -----------------------------------------------------------------------------
+
+'''This module contains the tests for the MaximalOMPParallelRegionTrans.'''
+
+from psyclone.psyir.nodes import (
+    Loop,
+    Routine,
+    OMPBarrierDirective,
+    OMPParallelDirective,
+)
+from psyclone.psyir.transformations import (
+    MaximalOMPParallelRegionTrans,
+    OMPLoopTrans
+)
+
+
+def test_maximal_ompparallel_region_trans_apply(fortran_reader):
+    ''' Test the apply method of the ompparallel region transformation.'''
+    code = """subroutine x
+    integer :: i
+    i = 1
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    MaximalOMPParallelRegionTrans().apply(psyir.children[0].children[:])
+    assert len(psyir.walk(OMPParallelDirective)) == 0
+
+    # Test that we only get a single parallel region when we have Ifblocks
+    # and loops around some of the parallel do region.
+    code = """subroutine x(arr)
+    integer :: i, j, k
+    integer, dimension(:,:,:) :: arr
+
+    !Adding omp do here.
+    do i = 1, 100
+        do j = 1, 100
+            do k = 1, 100
+               arr(k,j,i) = 1
+            end do
+        end do
+    end do
+
+    if(.true.) then
+      !Adding omp do here.
+        do i = 1, 100
+            do j = 1, 100
+                do k = 1, 100
+                   arr(k,j,i) = 2
+                end do
+            end do
+        end do
+    else
+      !Adding omp do here.
+        do i = 1, 100
+            do j = 1, 100
+                do k = 1, 100
+                   arr(k,j,i) = 2
+                end do
+            end do
+        end do
+    end if
+
+    do i = 1, 100
+      !Adding omp do here.
+      do j = 1, 100
+          do k = 1, 100
+             arr(k,j,i) = 2
+          end do
+      end do
+
+    end do
+
+    end subroutine x"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    ltrans = OMPLoopTrans()
+    loops = psyir.walk(Loop)
+    # Add omp do directives to the comments loops in the code fragment.
+    ltrans.apply(loops[0], collapse=True)
+    ltrans.apply(loops[3], collapse=True)
+    ltrans.apply(loops[6], collapse=True)
+    ltrans.apply(loops[10], collapse=True)
+    # Apply the maximal parallel region trans to the code.
+    MaximalOMPParallelRegionTrans().apply(psyir.children[0].children[:])
+    # The routine should now have one child and it should be the only
+    # OMPParallelDirective
+    assert len(psyir.walk(OMPParallelDirective)) == 1
+    assert len(psyir.children[0].children) == 1
+    assert isinstance(psyir.children[0].children[0], OMPParallelDirective)
+
+    # Check that we don't get a parallel directive around only barriers.
+    code = """subroutine x
+    integer :: i, j, k
+    integer, dimension(:,:,:) :: arr
+
+    !Adding omp do here.
+    do i = 1, 100
+        do j = 1, 100
+            do k = 1, 100
+               arr(k,j,i) = 1
+            end do
+        end do
+    end do
+
+    ! parallel region won't go past the assignment here.
+    arr = 2
+
+    ! Add some barriers here.
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    ltrans.apply(loops[0], collapse=True)
+    # Add two barriers at the end
+    psyir.children[0].addchild(OMPBarrierDirective())
+    psyir.children[0].addchild(OMPBarrierDirective())
+    # Apply the maximal parallel region trans to the code.
+    MaximalOMPParallelRegionTrans().apply(psyir.children[0].children[:])
+    # The routine should now have four children and the first should be the
+    # only OMPParallelDirective, and the last two still the barriers.
+    assert len(psyir.walk(OMPParallelDirective)) == 1
+    assert len(psyir.children[0].children) == 4
+    assert isinstance(psyir.children[0].children[0], OMPParallelDirective)
+    assert isinstance(psyir.children[0].children[2], OMPBarrierDirective)
+    assert isinstance(psyir.children[0].children[3], OMPBarrierDirective)
+
+
+def test_maximal_ompparallel_region_trans_apply_provided_forceprivate(
+    fortran_reader, fortran_writer
+):
+    '''Test that the provided force_private option is correctly passed
+    to the subtransformation.'''
+    psyir = fortran_reader.psyir_from_source('''
+        module my_mod
+            contains
+            subroutine my_subroutine()
+                integer :: ji, jj, jk, jpkm1, jpjm1, jpim1, scalar1
+                real, dimension(10, 10, 10) :: array1, array2
+                array2 = 1
+                do jk = 2, jpkm1, 1
+                  do jj = 2, jpjm1, 1
+                    do ji = 2, jpim1, 1
+                       array2(ji,jj,jk) = array2(ji,jj,jk) + 1
+                       array1(ji,jj,jk) = array2(ji,jj,jk)
+                    enddo
+                  enddo
+                enddo
+            end subroutine
+        end module my_mod''')
+    ltrans = OMPLoopTrans()
+    loops = psyir.walk(Loop)
+    ltrans.apply(loops[0])
+    maxpartrans = MaximalOMPParallelRegionTrans()
+    routine = psyir.walk(Routine)[0]
+
+    maxpartrans.apply(routine, force_private=['array2'])
+    # array2 is requested private, the shared_attibute_inference promotes it to
+    # firstprivate because it is read first
+    expected = '''\
+    !$omp parallel default(shared) private(ji,jj,jk) firstprivate(array2)
+    !$omp do schedule(auto)
+    do jk = 2, jpkm1, 1\n'''
+
+    gen = fortran_writer(psyir)
+    assert expected in gen
+
+
+def test_maximal_ompparallel_region_trans_apply_assignment(
+    fortran_reader, fortran_writer
+):
+    '''Test that assignments to scalars can appear in the
+    parallel region as expected.'''
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+    use omp_lib, only: omp_get_thread_num
+    integer :: tid, i
+    integer, dimension(100) :: arr
+
+    tid = omp_get_thread_num()
+    do i = 1, 100
+        arr(i) = i + tid
+    end do
+    end subroutine test''')
+    ltrans = OMPLoopTrans()
+    loops = psyir.walk(Loop)
+    ltrans.apply(loops[0])
+    maxpartrans = MaximalOMPParallelRegionTrans()
+    routine = psyir.walk(Routine)[0]
+    maxpartrans.apply(routine)
+    out = fortran_writer(psyir)
+    correct = """  !$omp parallel default(shared) private(i,tid)
+  tid = omp_get_thread_num()
+  !$omp do schedule(auto)
+  do i = 1, 100, 1
+    arr(i) = i + tid
+  enddo
+  !$omp end do
+  !$omp end parallel"""
+    assert correct in out
+
+
+def test_maximal_ompparallel_region_trans_node_allowed_valid_assignment(
+    fortran_reader
+):
+    '''Test the _node_allowed function of MaximalOMPParallelRegionTrans
+    allows assignments if the current_block reads from it, but otherwise
+    only nodes of types listed in the _allowed_contiguous_statements
+    definition.'''
+
+    maxpartrans = MaximalOMPParallelRegionTrans()
+    # Any of the _allowed_contiguous_statements are always allowed.
+    barrier = OMPBarrierDirective()
+    assert maxpartrans._node_allowed(barrier, [])
+
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+
+    integer :: a
+    integer :: b, i
+
+    print *, a
+    a = 1
+    do i = 1, 100
+       b = a
+    end do
+    a = 2
+
+    end subroutine test''')
+
+    # Other non-assignments are never allowed.
+    print_stmt = psyir.children[0].children[0]
+    assert not maxpartrans._node_allowed(print_stmt, [])
+
+    # Assignment is not allowed if current block is empty.
+    assignment = psyir.children[0].children[1]
+    assert not maxpartrans._node_allowed(assignment, [])
+
+    loop = psyir.children[0].children[2]
+    # Assignment is allowed if the current_block only reads
+    # from it.
+    assert maxpartrans._node_allowed(assignment, [loop])
+
+
+def test_maximal_ompparallel_region_trans_node_allowed_incrementing_assign(
+    fortran_reader, fortran_writer
+):
+    '''Tests that the _node_allowed doesn't allowed assignments that both
+    read and write from the same variable into the parallel region.'''
+
+    maxpartrans = MaximalOMPParallelRegionTrans()
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+
+    integer :: a
+    integer :: b, i
+
+    a = a + 1
+    do i = 1, 100
+       b = a
+    end do
+    a = 2
+
+    end subroutine test''')
+    assign = psyir.children[0].children[0]
+    loop = psyir.children[0].children[1]
+    # Assignment is not allowed if there is a read of the lhs on the rhs of
+    # the assignment.
+    assert not maxpartrans._node_allowed(assign, [loop])
+
+
+def test_maximal_ompparallel_region_trans_node_allowed_read_outside_region(
+    fortran_reader, fortran_writer
+):
+    '''Tests that _node_allowed doesn't allow an assignment to be added
+    to the parallel region if the lhs is read outside the current_block.'''
+
+    maxpartrans = MaximalOMPParallelRegionTrans()
+    # Assignment is not allowed if the next access outside the current_block
+    # is a read.
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+
+    integer :: a
+    integer :: b, i
+
+    a =  1
+    do i = 1, 100
+       b = a
+    end do
+    b = a
+
+    end subroutine test''')
+    assign = psyir.children[0].children[0]
+    loop = psyir.children[0].children[1]
+    # Assignment is not allowed if there is a read of the lhs outside
+    # the curent block.
+    assert not maxpartrans._node_allowed(assign, [loop])
+
+
+def test_maximal_ompparallel_region_trans_privatisation(fortran_reader,
+                                                        fortran_writer):
+    '''Test that the correct variables are added to the private clause
+    and the comment is updated'''
+    code = """subroutine test
+
+    integer :: a
+    integer :: i
+    integer, dimension(100) :: b
+
+    a = 1
+    do i = 1, 100
+       b(i) = b(i) + a
+    end do
+
+    end subroutine test"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    ltrans = OMPLoopTrans()
+    loops = psyir.walk(Loop)
+    ltrans.apply(loops[0])
+    MaximalOMPParallelRegionTrans().apply(psyir.children[0].children[:])
+
+    correct = """\
+! MaximalOMPParallelRegionTrans forced ['a'] variable(s) to be \
+private in this parallel region.
+  !$omp parallel default(shared) private(a,i)
+  a = 1
+  !$omp do schedule(auto)
+  do i = 1, 100, 1
+    b(i) = b(i) + a
+  enddo
+  !$omp end do
+  !$omp end parallel"""
+    assert correct in fortran_writer(psyir)
