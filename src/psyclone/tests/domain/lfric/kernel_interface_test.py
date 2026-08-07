@@ -149,7 +149,7 @@ def test_mesh_height():
     kern = invoke.schedule.walk(LFRicKern)[0]
     kernel_interface = KernelInterface(kern)
     kernel_interface.mesh_height()
-    symbol = kernel_interface._symtab.lookup("nlayers")
+    symbol = kernel_interface._symtab.lookup("nlayers_f1")
     assert isinstance(symbol, LFRicTypes("MeshHeightDataSymbol"))
     assert isinstance(symbol.interface, ArgumentInterface)
     assert (symbol.interface.access ==
