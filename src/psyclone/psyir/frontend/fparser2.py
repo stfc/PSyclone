@@ -2168,15 +2168,7 @@ class Fparser2Reader():
                                      is_constant=has_constant_value,
                                      initial_value=init_expr)
                 except ValueError as error:
-                    # DataSymbol can raise a ValueError in a number of ways.
-                    # We check for the ones that come from valid Fortran
-                    # that we aren't supporting and raise NotImplementedError
-                    # for those.
-                    if not isinstance(
-                            datatype,
-                            (ScalarType, ArrayType, UnsupportedType)):
-                        raise NotImplementedError
-                    # Otherwise we have an invalid Fortran declaration.
+                    # We have an invalid Fortran declaration.
                     raise InternalError(
                         f"Invalid variable declaration "
                         f"found in _process_decln for "

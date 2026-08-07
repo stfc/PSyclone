@@ -255,8 +255,9 @@ def test_datasymbol_initial_value_setter_invalid():
     with pytest.raises(ValueError) as error:
         sym.initial_value = 1.0
     assert ("Error setting initial value for symbol 'a'. A DataSymbol with an"
-            " initial value must be a scalar or an array or of UnsupportedType"
-            " but found 'UnresolvedType'." in str(error.value))
+            " initial value must be a scalar, an array, a DataTypeSymbol,"
+            " or an UnsupportedType but found 'UnresolvedType'."
+            in str(error.value))
 
     # Test with invalid initial expressions
     ct_expr = Return()
@@ -265,7 +266,8 @@ def test_datasymbol_initial_value_setter_invalid():
                        initial_value=ct_expr)
     assert ("Error setting initial value for symbol 'a'. PSyIR static "
             "expressions can only contain PSyIR Literal, Operation, Reference,"
-            " IntrinsicCall or CodeBlock nodes but found:" in str(error.value))
+            " Call, CodeBlock, or ArrayConstructor nodes but found:"
+            in str(error.value))
 
     with pytest.raises(ValueError) as error:
         DataSymbol('a', ScalarType.integer_single_type(),

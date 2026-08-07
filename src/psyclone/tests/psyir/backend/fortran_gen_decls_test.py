@@ -539,3 +539,16 @@ def test_procedure_declaration_pointers(fortran_reader, fortran_writer):
     assert "procedure(my_public_inter), public :: proc_ptr_public\n" in output
     assert ("procedure(my_save_inter), pointer, save :: proc_ptr => null()\n"
             in output)
+
+
+def test_structure_initialiser(fortran_reader, fortran_writer):
+    ''' Check a variable declaration with a structure intialiser.'''
+    code = """
+    subroutine my_sub
+        type(some_type), parameter :: x = some_type()
+    end subroutine my_sub
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    table = psyir.walk(Routine)[0].symbol_table
+    result = fortran_writer._gen_parameter_decls(table)
+    assert result == "type(some_type), parameter :: x = some_type()\n"
