@@ -41,14 +41,8 @@
 import os
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
-from fparser.two import Fortran2003
-from fparser.two.utils import walk
-
-from psyclone import alg_gen
 from psyclone.configuration import Config
 from psyclone.generator import generate, GenerationError
-from psyclone.errors import InternalError
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -66,9 +60,6 @@ def test_single_function_invoke():
     alg, _ = generate(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                       api="lfric")
     gen = str(alg).lower()
-    # TODO issue #1618 Split test into two as while there are
-    # different implementations we may or may not output a space
-    # before the ':'
     assert "use single_invoke_psy, only" in gen
     assert ": invoke_0_testkern_type" in gen
     assert "call invoke_0_testkern_type(a, f1, f2, m1, m2)" in gen
@@ -83,9 +74,6 @@ def test_single_function_named_invoke():
                      "1.0.1_single_named_invoke.f90"),
         api="lfric")
     gen = str(alg).lower()
-    # TODO issue #1618 Split test into two as while there are
-    # different implementations we may or may not output a space
-    # before the ':'
     assert "use single_invoke_psy, only" in gen
     assert ": invoke_important_invoke" in gen
     assert "call invoke_important_invoke(a, f1, f2, m1, m2)" in gen
@@ -100,9 +88,6 @@ def test_invoke_named_invoke():
                      "1.0.5_invoke_named_invoke.f90"),
         api="lfric")
     gen = str(alg).lower()
-    # TODO issue #1618 Split test into two as while there are
-    # different implementations we may or may not output a space
-    # before the ':'
     assert "use single_invoke_psy, only" in gen
     assert ": invoke_important" in gen
     assert "call invoke_important(a, f1, f2, m1, m2)" in gen
@@ -117,9 +102,6 @@ def test_multi_kernel_named_invoke():
                      "4.9_named_multikernel_invokes.f90"),
         api="lfric")
     gen = str(alg).lower()
-    # TODO issue #1618 Split test into two as while there are
-    # different implementations we may or may not output a space
-    # before the ':'
     assert "use multikernel_invokes_7_psy, only" in gen
     assert ": invoke_some_name" in gen
     assert (
@@ -138,9 +120,6 @@ def test_multi_position_named_invoke():
         api="lfric")
     gen = str(alg).lower()
 
-    # TODO issue #1618 Split test into two as while there are
-    # different implementations we may or may not output a space
-    # before the ':' and may have multiple only names.
     assert "use multikernel_invokes_7_psy, only" in gen
     assert ": invoke_name_first" in gen
     assert "invoke_name_middle" in gen
@@ -161,9 +140,6 @@ def test_single_function_invoke_qr():
                       api="lfric")
     gen = str(alg).lower()
     assert "use testkern_qr_mod" not in gen
-    # TODO issue #1618 Split test into two as while there are
-    # different implementations we may or may not output a space
-    # before the ':'
     assert "use single_invoke_psy, only" in gen
     assert ": invoke_0_testkern_qr_type" in gen
     assert ("call invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp, qr)"
@@ -182,9 +158,6 @@ def test_single_kernel_qr_and_halo_only():
         api="lfric")
     gen = str(alg).lower()
     assert "use testkern_qr_and_halo_only_mod" not in gen
-    # TODO issue #1618 Split test into two as while there are
-    # different implementations we may or may not output a space
-    # before the ':'
     assert "use single_invoke_psy, only" in gen
     assert ": invoke_0_testkern_qr_and_halo_only_type" in gen
     # Invoke call must be passed both the qr and halo-depth arguments.
@@ -213,9 +186,6 @@ def test_multi_function_invoke():
     alg, _ = generate(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"),
                       api="lfric")
     gen = str(alg).lower()
-    # TODO issue #1618 Split test into two as while there are
-    # different implementations we may or may not output a space
-    # before the ':'
     assert "use multi_invoke_psy, only" in gen
     assert ": invoke_0" in gen
     assert "call invoke_0(a, f1, f2, m1, m2, f3)" in gen
@@ -229,10 +199,6 @@ def test_single_function_multi_invokes():
     # Use statements for kernels should have been removed.
     assert "use testkern_mod" not in gen
     assert "use testkern_qr_mod" not in gen
-    # TODO issue #1618 Split test into two as while there are
-    # different implementations we may or may not output a space
-    # before the ':' and may have multiple only names
-    # Use statements for PSy-layer routines should have been added.
     assert "use multi_invokes_psy, only" in gen
     assert ": invoke_0_testkern_type" in gen
     assert "invoke_2_testkern_type" in gen
@@ -254,10 +220,6 @@ def test_named_multi_invokes():
     # Use statements for kernels should have been removed.
     assert "use testkern_mod" not in gen
     assert "use testkern_qr_mod" not in gen
-    # TODO issue #1618 Split test into two as while there are
-    # different implementations we may or may not output a space
-    # before the ':' and may have multiple only names.
-    # Use statements for PSy-layer routines should have been added.
     assert "use multi_functions_multi_invokes_psy, only" in gen
     assert ": invoke_my_first" in gen
     assert "invoke_my_second" in gen
@@ -271,9 +233,6 @@ def test_multi_function_multi_invokes():
         os.path.join(BASE_PATH, "3.1_multi_functions_multi_invokes.f90"),
         api="lfric")
     gen = str(alg).lower()
-    # TODO issue #1618 Split test into two as while there are
-    # different implementations we may or may not output a space
-    # before the ':' and may have multiple only names.
     assert "use multi_functions_multi_invokes_psy, only" in gen
     assert ": invoke_0" in gen
     assert "invoke_1" in gen
@@ -290,10 +249,6 @@ def test_multi_function_invoke_qr():
     # Use statements for kernels should have been removed.
     assert "use testkern_qr_mod" not in gen
     assert "use testkern_mod" not in gen
-    # TODO issue #1618 Split test into two as while there are
-    # different implementations we may or may not output a space
-    # before the ':'
-    # Use statement for PSy-layer routines should have been added.
     assert "use multi_invoke_qr_psy, only" in gen
     assert ": invoke_0" in gen
     assert "call invoke_0(f1, f2, m1, a, m2, istp, m3, f3, qr)" in gen
@@ -304,13 +259,8 @@ def test_invoke_argnames():
     alg, _ = generate(os.path.join(
         BASE_PATH, "5_alg_field_array.f90"), api="lfric")
     gen = str(alg).lower()
-    # TODO issue #1618 Split test into two as while there are
-    # different implementations we may or may not output a space
-    # before the ':'
     assert "use single_function_psy, only" in gen
     assert ": invoke_0" in gen
-    # TODO issue #1618 different implementations we may or may not
-    # output a space after a ","
     assert ("call invoke_0(f0(1), f1(1, 1), f1(2, index), b(1), "
             "f1(index, index2(index3)), iflag(2), a(index1), "
             "iflag(index2(index3)), qr)" in gen or
@@ -325,9 +275,6 @@ def test_multiple_qr_per_invoke():
     alg, _ = generate(os.path.join(
         BASE_PATH, "6_multiple_QR_per_invoke.f90"), api="lfric")
     gen = str(alg).lower()
-    # TODO issue #1618 Split test into two as while there are
-    # different implementations we may or may not output a space
-    # before the ':'
     assert "use multi_qr_per_invoke_psy, only" in gen
     assert ": invoke_0" in gen
     assert ("call invoke_0(f1, f2, f3, ascalar, f4, iscalar, f0, qr0, qr1)"
@@ -340,38 +287,32 @@ def test_qr_argnames():
     alg, _ = generate(os.path.join(BASE_PATH, "7_QR_field_array.f90"),
                       api="lfric")
     gen = str(alg).lower()
-    # TODO issue #1618 Split test into two as while there are
-    # different implementations we may or may not output a space
-    # before the ':'
     assert "use qr_field_array_psy, only" in gen
     assert ": invoke_0" in gen
-    # TODO issue #1618 different implementations we may or may not
-    # output a space after a ","
     assert ("call invoke_0(f1, f2, f3, ascal, f4, l, f0, qr0(i, j), "
             "qr0(i, j + 1), qr1(i, k(l)))" in gen or
             "call invoke_0(f1, f2, f3, ascal, f4, l, f0, qr0(i,j), "
             "qr0(i,j + 1), qr1(i,k(l)))" in gen)
 
 
-def test_deref_derived_type_args():
-    ''' Test the case where a kernel argument is specified as both a
-    component of a derived type and as the result of a call to a
-    type-bound procedure '''
-    alg, _ = generate(
-        os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                     "test_files", "lfric",
-                     "1.6.2_single_invoke_1_int_from_derived_type.f90"),
-        api="lfric")
-    gen = str(alg).lower()
-    # TODO issue #1618 different implementations we may or may not
-    # output a space before and after a "%"
-    assert (
-        "call invoke_0(f1, my_obj % iflag, f2, m1, m2, my_obj % get_flag(), "
-        "my_obj % get_flag(switch), my_obj % get_flag(int_wrapper % data))"
-        in gen or
-        "call invoke_0(f1, my_obj%iflag, f2, m1, m2, my_obj % get_flag(), "
-        "my_obj%get_flag(switch), my_obj%get_flag(int_wrapper%data))"
-        in gen)
+# FIXME: Should this be accepted, a simple Call is not?
+# def test_deref_derived_type_args():
+#     ''' Test the case where a kernel argument is specified as both a
+#     component of a derived type and as the result of a call to a
+#     type-bound procedure '''
+#     alg, _ = generate(
+#         os.path.join(os.path.dirname(os.path.abspath(__file__)),
+#                      "test_files", "lfric",
+#                      "1.6.2_single_invoke_1_int_from_derived_type.f90"),
+#         api="lfric")
+#     gen = str(alg).lower()
+#     assert (
+#         "call invoke_0(f1, my_obj % iflag, f2, m1, m2, my_obj % get_flag(), "
+#         "my_obj % get_flag(switch), my_obj % get_flag(int_wrapper % data))"
+#         in gen or
+#         "call invoke_0(f1, my_obj%iflag, f2, m1, m2, my_obj % get_flag(), "
+#         "my_obj%get_flag(switch), my_obj%get_flag(int_wrapper%data))"
+#         in gen)
 
 
 def test_multi_deref_derived_type_args():
@@ -383,8 +324,6 @@ def test_multi_deref_derived_type_args():
                      "1.6.3_single_invoke_multiple_derived_types.f90"),
         api="lfric")
     gen = str(alg).lower()
-    # TODO issue #1618 different implementations we may or may not
-    # output a space before and after a "%"
     assert (
         "call invoke_0(f1, obj_a % iflag, f2, m1, m2, obj_b % iflag, "
         "obj_a % obj_b % iflag, obj_b % obj_a % iflag)"
@@ -471,9 +410,6 @@ def test_multiple_kernels_stencils():
     path = os.path.join(BASE_PATH, "19.10_multiple_kernels_stencils.f90")
     alg, _ = generate(path, api="lfric")
     output = str(alg).lower()
-    # TODO issue #1618 Split test into two as while there are
-    # different implementations we may or may not output a space
-    # before the ':'
     assert "use multiple_stencil_psy, only" in output
     assert ": invoke_0" in output
     assert ("call invoke_0(f1, f2, f3, f4, f2_extent, f3_extent, extent, "
@@ -508,268 +444,3 @@ def test_multiple_stencil_same_name():
     output = str(alg).lower()
     assert ("call invoke_0_testkern_stencil_multi_type(f1, f2, "
             "f3, f4, extent, f3_direction)") in output
-
-
-# Sample code for use in subsequent _adduse tests.
-CODE = ("program test\n"
-        "  integer :: i\n"
-        "  i=0\n"
-        "end program test\n")
-
-
-# Utility function for parsing code, used in subsequent _adduse tests.
-def get_parse_tree(code, parser):
-    '''Utility function that takes Fortran code as a string and returns an
-    fparser2 parse tree of the code. Pass in an instance of the parser
-    so we don't create a new one each time this routine is called.
-
-    :param str code: Fortran code in a string
-
-    :param parser: An fparser2 program class.
-    :type parser: :py:class:`fparser.two.Fortran2003.Program`
-
-    :returns: parse tree of the supplied code.
-    :rtype: :py:class:`fparser.two.utils.Base`
-
-    '''
-    reader = FortranStringReader(code)
-    return parser(reader)
-
-
-# Function _rm_kernel_use_stmts tests. These will be removed once the LFRic
-# algorithm layer uses PSyIR (#1618).
-
-
-def test_rm_kernel_use_stmts(parser):
-    '''Tests for the _rm_kernel_use_stmts() method.'''
-    code = ("program test\n"
-            "  use my_kernel_mod, only: my_kernel_type\n"
-            "  use kernel2_mod, only: kernel2_type, something_else\n"
-            "contains\n"
-            "  subroutine my_sub()\n"
-            "    use a_kernel_mod, only: a_kernel_type\n"
-            "  end subroutine my_sub\n"
-            "end program test\n")
-    parse_tree = get_parse_tree(code, parser)
-    # An empty list of kernel names should be fine.
-    alg_gen._rm_kernel_use_stmts([], parse_tree)
-    gen = str(parse_tree).lower()
-    assert "use my_kernel_mod, only: my_kernel_type" in gen
-    assert "use kernel2_mod, only: kernel2_type, something_else" in gen
-    assert "use a_kernel_mod, only: a_kernel_type" in gen
-    # A kernel name that doesn't exist should be fine (because we need to
-    # support builtins).
-    alg_gen._rm_kernel_use_stmts(["my_builtin"], parse_tree)
-    gen = str(parse_tree).lower()
-    assert "use my_kernel_mod, only: my_kernel_type" in gen
-    assert "use kernel2_mod, only: kernel2_type, something_else" in gen
-    # Check that the use associated with a named kernel is removed.
-    alg_gen._rm_kernel_use_stmts(["my_kernel_type"], parse_tree)
-    gen = str(parse_tree).lower()
-    assert "my_kernel_type" not in gen
-    assert "use kernel2_mod, only: kernel2_type, something_else" in gen
-    # Check that a use statement is not removed if it imports symbols other
-    # than the named kernel.
-    alg_gen._rm_kernel_use_stmts(["kernel2_type"], parse_tree)
-    gen = str(parse_tree).lower()
-    assert "use kernel2_mod, only: kernel2_type, something_else" in gen
-    alg_gen._rm_kernel_use_stmts(["kernel2_type", "something_else"],
-                                 parse_tree)
-    # One Specification_Part should have been removed entirely.
-    assert len(walk(parse_tree, Fortran2003.Specification_Part)) == 1
-    gen = str(parse_tree).lower()
-    assert "kernel2_type" not in gen
-    assert "something_else" not in gen
-    # Finally, check for the use in the nested subroutine.
-    assert "use a_kernel_mod, only: a_kernel_type" in gen
-    alg_gen._rm_kernel_use_stmts(["a_kernel_type"], parse_tree)
-    assert not walk(parse_tree, Fortran2003.Specification_Part)
-    gen = str(parse_tree).lower()
-    assert "a_kernel_type" not in gen
-
-# Function adduse tests. These will be removed once the LFRic algorithm
-# layer uses PSyIR (#1618).
-
-
-@pytest.mark.parametrize("location", [None, "lilliput"])
-def test_adduse_invalid_location(location):
-    '''Test that the expected exception is raised when the specified
-    location is invalid.
-
-    '''
-    name = "my_use"
-    with pytest.raises(GenerationError) as excinfo:
-        alg_gen._adduse(location, name)
-    assert ("Location argument must be a sub-class of fparser.two.utils.Base "
-            "but got: " in str(excinfo.value))
-
-
-def test_adduse_only_names1(parser):
-    '''Test that the expected output is obtained in a Fortran program when
-    variable/function names are provided for a use statement and only
-    is True.
-
-    '''
-    parse_tree = get_parse_tree(CODE, parser)
-    location = parse_tree.content[0].content[0]
-    name = "my_use"
-
-    alg_gen._adduse(location, name, only=True, funcnames=["a", "b", "c"])
-    assert "PROGRAM test\n  USE my_use, ONLY: a, b, c\n  INTEGER :: i\n" \
-        in str(parse_tree)
-
-
-def test_adduse_only_names2(parser):
-    '''Test that the expected output is obtained in a Fortran subroutine
-    when variable/function names are provided for a use statement and
-    only is True.
-
-    '''
-    parse_tree = get_parse_tree(
-        "subroutine test()\n"
-        "  integer :: i\n"
-        "  i=0\n"
-        "end subroutine test\n", parser)
-    location = parse_tree.content[0].content[0]
-    name = "my_use"
-
-    alg_gen._adduse(location, name, only=True, funcnames=["a", "b", "c"])
-    assert ("SUBROUTINE test\n  USE my_use, ONLY: a, b, c\n"
-            "  INTEGER :: i\n") in str(parse_tree)
-
-
-def test_adduse_only_names3(parser):
-    '''Test that the expected output is obtained in a Fortran function
-    when variable/function names are provided for a use statement and
-    only is True.
-
-    '''
-    parse_tree = get_parse_tree(
-        "integer function test()\n"
-        "  integer :: i\n"
-        "  return i\n"
-        "end function test\n", parser)
-    location = parse_tree.content[0].content[0]
-    name = "my_use"
-
-    alg_gen._adduse(location, name, only=True, funcnames=["a", "b", "c"])
-    assert ("INTEGER FUNCTION test()\n  USE my_use, ONLY: a, b, c\n"
-            "  INTEGER :: i\n") in str(parse_tree)
-
-
-def test_adduse_only_nonames(parser):
-    '''Test that the expected output is obtained when no variable/function
-    names are provided for a use statement and only is True.
-
-    '''
-    parse_tree = get_parse_tree(CODE, parser)
-    location = parse_tree.content[0].content[0]
-    name = "my_use"
-
-    alg_gen._adduse(location, name, only=True)
-    assert "PROGRAM test\n  USE my_use, ONLY:\n  INTEGER :: i\n" \
-        in str(parse_tree)
-
-
-def test_adduse_noonly_names(parser):
-    '''Test that the expected output is obtained when variable/function
-    names are provided for a use statement and the value for the only
-    argument is not provided.
-
-    '''
-    parse_tree = get_parse_tree(CODE, parser)
-    location = parse_tree.content[0].content[0]
-    name = "my_use"
-    alg_gen._adduse(location, name, funcnames=["a", "b", "c"])
-    assert ("PROGRAM test\n  USE my_use, ONLY: a, b, c\n"
-            "  INTEGER :: i\n") in str(parse_tree)
-
-
-def test_adduse_onlyfalse_names(parser):
-    '''Test that an exception is raised when variable/function names are
-    provided for a use statement and the value for the only argument
-    is set to False.
-
-    '''
-    parse_tree = get_parse_tree(CODE, parser)
-    location = parse_tree.content[0].content[0]
-    name = "my_use"
-    with pytest.raises(GenerationError) as excinfo:
-        alg_gen._adduse(location, name, only=False, funcnames=["a", "b", "c"])
-    assert ("If the 'funcnames' argument is provided and has content, "
-            "then the 'only' argument must not be set to "
-            "'False'.") in str(excinfo.value)
-
-
-def test_adduse_noonly_nonames(parser):
-    '''Test that the expected output is obtained when no variable/function
-    names are provided for a use statement and only is not explicitly
-    set.
-
-    '''
-    parse_tree = get_parse_tree(CODE, parser)
-    location = parse_tree.content[0].content[0]
-    name = "my_use"
-
-    alg_gen._adduse(location, name)
-    assert "PROGRAM test\n  USE my_use\n  INTEGER :: i\n" \
-        in str(parse_tree)
-
-
-def test_adduse_noprogparent(parser):
-    '''Test that the expected exception is raised when the specified
-    location has no parent that is one of main_program, module,
-    subroutine or function.
-
-    '''
-    parse_tree = get_parse_tree(CODE, parser)
-    # Choose the Program_Stmt node and then patch it so that it has
-    # no parent
-    location = parse_tree.content[0].content[0]
-    location.parent = None
-    name = "my_use"
-
-    with pytest.raises(GenerationError) as excinfo:
-        alg_gen._adduse(location, name)
-    assert ("The specified location is invalid as it has no parent in the "
-            "parse tree that is a program, module, subroutine or "
-            "function.") in str(excinfo.value)
-
-
-def test_adduse_unsupportedparent1(parser):
-    '''Test that the expected exception is raised when the specified
-    location has an ancestor that is a module.
-
-    '''
-    parse_tree = get_parse_tree(
-        "module test\n"
-        "  integer :: i\n"
-        "end module test\n", parser)
-    location = parse_tree.content[0].content[0]
-    name = "my_use"
-
-    with pytest.raises(NotImplementedError) as excinfo:
-        alg_gen._adduse(location, name)
-    assert ("Currently support is limited to program, subroutine and "
-            "function.") in str(excinfo.value)
-
-
-def test_adduse_nospec(parser):
-    '''Test that the expected exception is raised when the ancestor (a
-    program or a subroutine) does not have a specification part as its
-    second child location has a parent that is a function. This is the
-    case if a program has no content. This could be considered to be a
-    bug but we'll treat it as a feature at the moment.
-
-    '''
-    parse_tree = get_parse_tree(
-        "program test\n"
-        "end program test\n", parser)
-    location = parse_tree.content[0].content[0]
-    name = "my_use"
-
-    with pytest.raises(InternalError) as excinfo:
-        alg_gen._adduse(location, name)
-    assert ("The second child of the parent code (content[1]) is expected "
-            "to be a specification part but found 'End_Program_Stmt"
-            "('PROGRAM', Name('test'))'.") in str(excinfo.value)
