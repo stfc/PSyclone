@@ -2502,6 +2502,29 @@ def test_nodes_to_code_block_3():
             in str(excinfo.value))
 
 
+def test_codeblock_symbol_propagation(f2008_parser):
+    ''' Check what happens in symbols that are only found inside a Codeblock'''
+    reader = FortranStringReader('''
+        module test
+            use other
+            contains
+            recursive subroutine sub1
+                use another
+                a = 1
+            end subroutine
+        end module test
+
+        module main
+            use test
+            integer :: a
+        end module
+        ''')
+    prog = f2008_parser(reader)
+    processor = Fparser2Reader(resolve_modules=True)
+    _ = processor.generate_psyir(prog)
+    assert False
+
+
 def test_named_and_wildcard_use_var(f2008_parser):
     ''' Check that we handle the case where a variable is accessed first by
     a wildcard import and then by a named import. '''
