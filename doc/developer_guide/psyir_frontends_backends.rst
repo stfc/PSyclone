@@ -318,7 +318,7 @@ The SIR back-end is limited in a number of ways:
   loops is supported. Imperfectly nested loops, doubly nested loops,
   etc will cause a ``VisitorError`` exception.
 - anything other than real arrays (integer, logical etc.) will cause
-  incorrect SIR code to be produced (see issue #468).
+  incorrect SIR code to be produced.
 - calls are not supported (and will cause a VisitorError exception).
 - loop bounds are not analysed so it is not possible to add in offset
   and loop ordering for the vertical. This also means that the ordering
@@ -364,8 +364,7 @@ it to its required dimensionality (so PSyIR local scalar variables are
 output as scalars by the Dawn back end even though they are specified
 as fields). A limitation of the current translation from PSyIR to SIR
 is that all PSyIR scalars are assumed to be local and all PSyIR arrays
-are assumed to be global, which may not be the case. This limitation
-is captured in issue #521.
+are assumed to be global, which may not be the case.
 
 
 .. _uplifting-lowering:

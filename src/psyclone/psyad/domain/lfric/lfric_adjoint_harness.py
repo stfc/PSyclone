@@ -541,7 +541,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     # Parse the kernel metadata. This still uses fparser1 as that's what
     # the meta-data handling is currently based upon. We therefore have to
     # convert back from PSyIR to Fortran for the moment.
-    # TODO #1806 - replace this with the new PSyIR-based metadata handling.
+    # TODO #2151 - replace this with the new PSyIR-based metadata handling.
     # pylint: disable=import-outside-toplevel
     from psyclone.psyir.backend.fortran import FortranWriter
     writer = FortranWriter()
@@ -577,7 +577,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
 
     # Construct an LFRicKern using the metadata and then use it to construct
     # the kernel argument list.
-    # TODO #1806 - once we have the new PSyIR-based metadata handling then
+    # TODO #2151 - once we have the new PSyIR-based metadata handling then
     # we can pass PSyIR to this routine rather than an fparser1 parse tree.
     kern = lfalg.kernel_from_metadata(parse_tree, kernel_name)
 

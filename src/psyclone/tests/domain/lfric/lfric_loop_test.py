@@ -183,7 +183,7 @@ def test_mesh_name():
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
+    # TODO #2905. Replace this psy.gen with a call to lower_to_language_level()
     # pylint: disable=pointless-statement
     psy.gen
     loops = psy.invokes.invoke_list[0].schedule.walk(LFRicLoop)
@@ -199,7 +199,7 @@ def test_mesh_name_intergrid():
                                         "22.1_intergrid_restrict.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
+    # TODO #2905. Replace this psy.gen with a call to lower_to_language_level()
     # pylint: disable=pointless-statement
     psy.gen
     loops = psy.invokes.invoke_list[0].schedule.walk(LFRicLoop)

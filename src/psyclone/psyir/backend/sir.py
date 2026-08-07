@@ -22,7 +22,7 @@ from psyclone.psyir.symbols import ScalarType
 # so we don't include it here.
 # We do not yet deal with precision e.g. the SIR supports a DOUBLE
 # type which would probably be equivalent to PSyIR's
-# Precision.DOUBLE. This is the subject of issue #741.
+# Precision.DOUBLE.
 
 TYPE_MAP_TO_SIR = {ScalarType.Intrinsic.REAL: "BuiltinType.Float",
                    ScalarType.Intrinsic.INTEGER: "BuiltinType.Integer"}
@@ -97,10 +97,9 @@ class SIRWriter(PSyIRVisitor):
         self._field_names = set()
         # The _scalar_names variable stores the unique scalar names
         # found in the PSyIR. The current assumption is that scalars
-        # are temporaries. This is not necessarily correct and this
-        # problem is captured in issue #521. Scalar temporaries can be
-        # declared as field temporaries as the Dawn backend works out
-        # what is required.
+        # are temporaries. This is not necessarily correct, scalar
+        # temporaries can be declared as field temporaries as the
+        # Dawn backend works out what is required.
         self._scalar_names = set()
 
     def node_node(self, node):
@@ -173,7 +172,7 @@ class SIRWriter(PSyIRVisitor):
                 f"SIR:\n"
                 f"{loop3.debug_string()}")
 
-        # The interval values are hardcoded for the moment (see #470).
+        # The interval values are hardcoded for the moment
         result = f"{self._nindent}interval = "\
                  f"make_interval(Interval.Start, Interval.End, 0, 0)\n"
         result += f"{self._nindent}body_ast = make_ast([\n"
@@ -186,8 +185,7 @@ class SIRWriter(PSyIRVisitor):
         result = result.rstrip(",\n") + "\n"
         result += f"{self._nindent}])\n"
         # For the moment there is a hard coded assumption that the
-        # vertical looping is in the forward (1..n) direction (see
-        # #470).
+        # vertical looping is in the forward (1..n) direction
         result += f"{self._nindent}vertical_region_fns.append("\
                   f"make_vertical_region_decl_stmt(body_ast, interval, "\
                   f"VerticalRegion.Forward))\n"
@@ -226,9 +224,9 @@ class SIRWriter(PSyIRVisitor):
             functions.append(
                 f"make_field(\"{name}\", make_field_dimensions_cartesian())")
         # The current assumption is that scalars are temporaries. This
-        # is not necessarily correct and this problem is captured in
-        # issue #521. Scalar temporaries can be declared as field
-        # temporaries as the Dawn backend works out what is required.
+        # is not necessarily correct, scalar temporaries can be
+        # declared as field temporaries as the Dawn backend works out
+        # what is required.
         for name in self._scalar_names:
             functions.append(
                 f"make_field(\"{name}\", make_field_dimensions_cartesian(), "
@@ -328,10 +326,9 @@ class SIRWriter(PSyIRVisitor):
                 "node is not expected to have any children.")
         # _scalar_names is a set so duplicates will be ignored. It
         # captures all unique scalar names as scalars are currently
-        # treated as temporaries (#521 captures this). The simplest
-        # way to declare a scalar temporary in Dawn is to treat it as
-        # a field temporary (as the Dawn backend works out if a scalar
-        # is required).
+        # treated as temporaries. The simplest way to declare a scalar
+        # temporary in Dawn is to treat it as a field temporary (as
+        # the Dawn backend works out if a scalar is required).
         self._scalar_names.add(node.name)
 
         return f"{self._nindent}make_field_access_expr(\"{node.name}\")"

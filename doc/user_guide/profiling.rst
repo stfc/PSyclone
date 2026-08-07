@@ -414,7 +414,7 @@ names). For example:
 
    If "region_name" is misspelt in the options dictionary then the
    option will be silently ignored. This is true for all
-   options. Issue #613 captures this problem.
+   options. Issue #2668 captures this problem.
    
 .. warning::
  

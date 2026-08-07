@@ -76,8 +76,6 @@ for var in varinfo:
             # statement. Find if and where it was previously
             # written:
             node = all_accessed[read_var][0].node
-            # TODO: #3143 atm requires to provide a stop_point,
-            # otherwise the call itself is returned.
             if not isinstance(node, Statement):
                 stop_position = node.ancestor(Statement).abs_position
             else:

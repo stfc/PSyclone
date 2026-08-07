@@ -575,8 +575,7 @@ def test_array_datatype(fortran_reader):
     assert dtype5.shape[0].lower.value == "1"
     assert dtype5.shape[0].upper.debug_string() == "4 - 2 + 1"
 
-    # TODO 2448 Test that we get an UnresolvedType if the symbol
-    # is a structure symbol.
+    # Test that we get an UnresolvedType if the symbol is a structure symbol.
     generic_sym = Symbol("test")
     aref6 = ArrayReference(generic_sym)
     test_struct_sym = DataSymbol("test", StructureType())
@@ -585,8 +584,8 @@ def test_array_datatype(fortran_reader):
     aref6._symbol = test_struct_sym
     assert isinstance(aref6.datatype, UnresolvedType)
 
-    # TODO #2448 - we don't handle an array access to something that we
-    # don't know is an array.
+    # Test we don't handle an array access to something that we don't know is
+    # an array.
     aref7 = ArrayReference(generic_sym)
     aref7.addchild(one.copy())
     aref7._symbol = DataSymbol("int_test", ScalarType.integer_type())

@@ -5907,12 +5907,6 @@ class LFRicKernelArgument(KernelArgument):
                 f"'{self.name}' in '{self._call.name}' does not.")
 
         if self.access == AccessType.REDUCTION:
-            # Treat reductions separately to other scalars as it
-            # is expected that they should match the precision of
-            # the field they are reducing. At the moment there is
-            # an assumption that the precision will always be a
-            # particular value (the default), see issue #1570.
-
             # Only real reductions are supported.
             if not self.intrinsic_type == "real":
                 raise NotImplementedError(
