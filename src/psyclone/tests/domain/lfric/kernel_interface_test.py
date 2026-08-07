@@ -181,6 +181,16 @@ def test_mesh_height_named_values():
     # only appear once in the argument list
     assert kernel_interface._arglist.count(nlayers_shallow) == 1
 
+
+def test_ndata_named_values():
+    """Test that field_ndata adds appropriate arguments for distinct values
+    of ndata."""
+    _, invoke = get_invoke("1.5.6_single_invoke_nlayers_ndata.f90",
+                           api="lfric", idx=0)
+    kern = invoke.schedule.walk(LFRicKern)[0]
+    kernel_interface = KernelInterface(kern)
+    kernel_interface.field_ndata()
+
     # Named ndata value 'precip' should create ndata_precip
     ndata_precip = kernel_interface._symtab.lookup("ndata_precip")
     assert isinstance(ndata_precip, LFRicTypes("MeshHeightDataSymbol"))

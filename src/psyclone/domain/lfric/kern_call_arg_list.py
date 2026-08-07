@@ -257,8 +257,8 @@ class KernCallArgList(ArgOrdering):
                     continue
                 ndata_names.add(sym.name)
                 self.psyir_append(Reference(sym))
-                # ARPDBG TODO
-                # self._nlayers_positions.append(self.num_args)
+                # TODO #3498 keep track of positions of ndata
+                # arguments c.f. nlayers
 
     def scalar(self, scalar_arg,
                var_accesses: Optional[VariablesAccessMap] = None):

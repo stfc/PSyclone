@@ -130,20 +130,22 @@ class KernelInterface(ArgOrdering):
     def mesh_height(self,
                     var_accesses: Optional[VariablesAccessMap] = None
                     ) -> None:
-        '''Create an LFRic mesh height (nlayers) object and add it to the
-        symbol table and argument list. Also add any custom values of
-        nlayers and ndata needed by other field arguments.
+        '''Create LFRic mesh height (nlayers) objects and add to the
+        symbol table and argument list.
 
         :param var_accesses: an unused optional argument that stores
             information about variable accesses.
 
         '''
+        # By default we always pass the nlayers value associated with the first
+        # field or operator argument.
         symbol = self._symtab.find_or_create_tag(
             f"nlayers_{self._kern.arguments.first_field_or_operator.name}",
             symbol_type=LFRicTypes("MeshHeightDataSymbol"),
             interface=self._read_access)
         self._arglist.append(symbol)
 
+        # Check for arguments that specify a different value for nlayers
         for arg in self._kern.arguments.args:
             if arg.nlayers and not arg.nlayers.isnumeric():
                 sym = self._symtab.find_or_create_tag(
@@ -152,6 +154,16 @@ class KernelInterface(ArgOrdering):
                     interface=self._read_access)
                 if sym not in self._arglist:
                     self._arglist.append(sym)
+
+    def field_ndata(self,
+                    var_accesses: Optional[VariablesAccessMap] = None) -> None:
+        '''Add any distinct values of ndata (number of data values per dof)
+        required by field arguments to the argument list. Also add these
+        accesses to `var_accesses` if supplied.
+
+        :param var_accesses: optional VariablesAccessMap instance to store
+            the information about variable accesses.
+        '''
         for arg in self._kern.arguments.args:
             if arg.ndata and not arg.ndata.isnumeric():
                 sym = self._symtab.find_or_create_tag(
