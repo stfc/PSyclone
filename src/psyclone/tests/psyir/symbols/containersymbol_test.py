@@ -159,7 +159,7 @@ def test_containersymbol_resolve_external_container(monkeypatch):
     sym = ContainerSymbol("my_mod")
 
     monkeypatch.setattr(sym._interface, "get_container",
-                        lambda x: "MockContainer")
+                        lambda x, _: "MockContainer")
 
     # At the beginning the reference is never resolved (lazy evaluation)
     assert not sym._reference
@@ -170,14 +170,14 @@ def test_containersymbol_resolve_external_container(monkeypatch):
 
     # Check that subsequent invocations do not update the container reference
     monkeypatch.setattr(sym._interface, "get_container",
-                        staticmethod(lambda x: "OtherContainer"))
+                        staticmethod(lambda x, _: "OtherContainer"))
     assert sym.find_container_psyir() == "MockContainer"
 
 
 def test_containersymbol_generic_interface():
     '''Check ContainerSymbolInterface abstract methods '''
 
-    abstractinterface = ContainerSymbolInterface
+    abstractinterface = ContainerSymbolInterface()
 
     with pytest.raises(NotImplementedError) as error:
         abstractinterface.get_container("name")
@@ -188,13 +188,13 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
     '''Check that the FortranModuleInterface imports Fortran modules
     as containers or produces the appropriate errors'''
 
-    fminterface = FortranModuleInterface
+    fminterface = FortranModuleInterface()
     path = str(tmpdir)
 
     # Try with a non-existent module and no include path
     monkeypatch.setattr(Config.get(), "_include_paths", [])
     with pytest.raises(SymbolError) as error:
-        fminterface.get_container("fake_module")
+        fminterface.get_container("fake_module", True)
     assert ("Module 'fake_module' not found in any of the include_paths "
             "directories []." in str(error.value))
 
