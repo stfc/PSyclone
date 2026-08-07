@@ -188,6 +188,7 @@ def test_mesh_height_named_values():
     # Ensure it appears only once even if used multiple times
     assert kernel_interface._arglist.count(ndata_precip) == 1
 
+
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_mesh_ncell2d():
     '''Test that the KernelInterface.mesh_ncell2d() method adds the
