@@ -4938,7 +4938,7 @@ class Fparser2Reader():
             else:
                 # No elsewhere clauses were found so put the whole body into
                 # the single if block.
-                self.process_nodes(sched, node.content[1:-1])
+                self.process_nodes(sched, node.content[first_non_comment+1:-1])
         # Convert all uses of array syntax to indexed accesses
         self._array_syntax_to_indexed(ifblock, loop_vars)
 
