@@ -355,7 +355,7 @@ def test_routine_update_parent_symbol_table_illegal_parent(fortran_reader):
     # Need a CodeBlock routine
     code = '''module my_mod
     contains
-        recursive subroutine routine()
+        module subroutine routine()
         end subroutine routine
     end module my_mod'''
     psyir = fortran_reader.psyir_from_source(code)

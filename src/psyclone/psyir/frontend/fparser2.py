@@ -82,7 +82,7 @@ INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
                   "inout": ArgumentInterface.Access.READWRITE}
 
 #: Those routine prefix specifications that we support.
-SUPPORTED_ROUTINE_PREFIXES = ["ELEMENTAL", "PURE", "IMPURE"]
+SUPPORTED_ROUTINE_PREFIXES = ["ELEMENTAL", "PURE", "IMPURE", "RECURSIVE"]
 
 
 def _first_type_match(nodelist, typekind):
@@ -5887,6 +5887,8 @@ class Fparser2Reader():
                             raise NotImplementedError(
                                 f"Routine has unsupported prefix: "
                                 f"{child.string}")
+                        if child.string == "RECURSIVE":
+                            routine.annotations.append("had_recursive_hint")
                     else:
                         base_type, _ = self._process_type_spec(routine, child)
 

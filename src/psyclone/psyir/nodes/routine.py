@@ -45,6 +45,7 @@ class Routine(Schedule, CommentableMixin):
     # Textual description of the node.
     _children_valid_format = "[Statement]*"
     _text_name = "Routine"
+    valid_annotations = ("had_recursive_hint",)
 
     def __init__(self, symbol, is_program=False, **kwargs):
         if not isinstance(symbol, RoutineSymbol):
