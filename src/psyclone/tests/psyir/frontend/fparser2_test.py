@@ -2517,7 +2517,7 @@ def test_nodes_to_code_block_3():
             in str(excinfo.value))
 
 
-def test_codeblock_symbol_propagation(f2008_parser, monkeypatch):
+def test_codeblock_symbol_propagation(f2008_parser, monkeypatch, tmp_path):
     '''Check that unresolved symbols do not cross a module boundary.'''
 
     def codeblock_subroutine_handler(_, node, parent):
@@ -2560,6 +2560,38 @@ def test_codeblock_symbol_propagation(f2008_parser, monkeypatch):
     # for example there would be a clash with 'another' here)
     assert "a" not in psyir.children[1].symbol_table
     assert isinstance(psyir.children[1].symbol_table.lookup("another"),
+                      ContainerSymbol)
+
+    # Repeat the test but with an external module to show that the behaviour
+    # is the same
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmp_path)])
+    filename = tmp_path / "test.f90"
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module test
+            use other
+            contains
+            subroutine sub1
+                use another
+                a = 1
+            end subroutine
+        end module test
+        ''')
+    reader = FortranStringReader('''
+        module main
+            use test
+            use another
+        end module
+        ''')
+    prog = f2008_parser(reader)
+    processor = Fparser2Reader(resolve_modules=True)
+    psyir = processor.generate_psyir(prog)
+    # Check that the external module is actually resolved
+    interface = psyir.children[0].symbol_table.lookup("test").interface
+    assert interface.get_container("test")
+    # And the UnresolvedInterface symbols are not propagated
+    assert "a" not in psyir.children[0].symbol_table
+    assert isinstance(psyir.children[0].symbol_table.lookup("another"),
                       ContainerSymbol)
 
 

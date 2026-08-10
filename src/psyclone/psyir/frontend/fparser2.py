@@ -6114,7 +6114,7 @@ class Fparser2Reader():
         program-units. This is captured with a FileContainer node.
 
         :param node: top level node in fparser2 parse tree.
-        :param parent: parent node of the PSyIR node we are constructing.
+        :param _parent: parent node of the PSyIR node we are constructing.
 
         :returns: PSyIR representation of the program.
 
