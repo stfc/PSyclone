@@ -1,3 +1,5 @@
+   26) PR #3545 for #3537. Fix issues with WHERE constructs with comments.
+
    25) PR #3481 towards #3463. Adds support for adding standalone Assignment
    statements into an OMP parallel region. Also adds a new
    `get_last_descendant_node()` method to the Node class.
