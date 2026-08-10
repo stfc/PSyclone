@@ -1676,8 +1676,7 @@ class Fparser2Reader():
             # External modules are resolved only when requested
             if (not container._reference and (
                     self._resolve_all_modules or
-                    lowered_name in self._modules_to_resolve)
-            ):
+                    lowered_name in self._modules_to_resolve)):
                 parent.symbol_table.resolve_imports([container])
 
             if visibility_map:

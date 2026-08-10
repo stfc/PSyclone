@@ -28,7 +28,7 @@ from psyclone.psyir.nodes import (
     Schedule, CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation,
     IfBlock, Reference, ArrayReference, Literal, KernelSchedule,
     RegionDirective, Routine, StandaloneDirective,
-    Call, IntrinsicCall, ArrayConstructor)
+    Call, IntrinsicCall, ArrayConstructor, Fparser2CodeBlock)
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, ArgumentInterface, ArrayType,
     SymbolError, ScalarType, RoutineSymbol, UnsupportedFortranType,
@@ -2517,13 +2517,21 @@ def test_nodes_to_code_block_3():
             in str(excinfo.value))
 
 
-def test_codeblock_symbol_propagation(f2008_parser):
-    ''' Check what happens in symbols that are only found inside a Codeblock'''
+def test_codeblock_symbol_propagation(f2008_parser, monkeypatch):
+    '''Check that unresolved symbols do not cross a module boundary.'''
+
+    def codeblock_subroutine_handler(_, node, parent):
+        '''Represent every subroutine as a CodeBlock for this test.'''
+        return Fparser2CodeBlock(node, CodeBlock.Structure.STATEMENT,
+                                 parent=parent)
+
+    monkeypatch.setattr(Fparser2Reader, "_subroutine_handler",
+                        codeblock_subroutine_handler)
     reader = FortranStringReader('''
         module test
             use other
             contains
-            recursive subroutine sub1
+            subroutine sub1
                 use another
                 a = 1
             end subroutine
@@ -2532,12 +2540,27 @@ def test_codeblock_symbol_propagation(f2008_parser):
         module main
             use test
             use another
-            integer :: a
         end module
         ''')
     prog = f2008_parser(reader)
     processor = Fparser2Reader()
-    _ = processor.generate_psyir(prog)
+    psyir = processor.generate_psyir(prog)
+
+    # 'a' and 'another' have unresolved interfaces in 'test' because we only
+    # know they may exist (and reserve the names), but we don't know where they
+    # originate
+    assert isinstance(
+        psyir.children[0].symbol_table.lookup("another").interface,
+        UnresolvedInterface)
+    assert isinstance(
+        psyir.children[0].symbol_table.lookup("a").interface,
+        UnresolvedInterface)
+
+    # But they do not cross the module boundary (because it would not be safe,
+    # for example there would be a clash with 'another' here)
+    assert "a" not in psyir.children[1].symbol_table
+    assert isinstance(psyir.children[1].symbol_table.lookup("another"),
+                      ContainerSymbol)
 
 
 def test_named_and_wildcard_use_var(f2008_parser):
