@@ -441,6 +441,12 @@ def test_fw_routine_recursive_prefix(fortran_reader, fortran_writer,
     output = fortran_writer(container)
     assert f"recursive {routine_type} sub" in output
 
+    routine = container.walk(Routine)[0]
+    for is_recursive in [False, None]:
+        routine.is_recursive = is_recursive
+        output = fortran_writer(container)
+        assert f"recursive {routine_type} sub" not in output
+
 
 def test_fw_standalone_routine(fortran_reader, fortran_writer):
     '''

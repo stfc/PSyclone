@@ -5888,7 +5888,7 @@ class Fparser2Reader():
                                 f"Routine has unsupported prefix: "
                                 f"{child.string}")
                         if child.string == "RECURSIVE":
-                            routine.annotations.append("had_recursive_hint")
+                            routine.is_recursive = True
                     else:
                         base_type, _ = self._process_type_spec(routine, child)
 

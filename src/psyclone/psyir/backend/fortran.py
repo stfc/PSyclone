@@ -1197,7 +1197,7 @@ class FortranWriter(LanguageWriter):
                 elif rsym.is_pure:
                     prefix = "pure "
 
-            if "had_recursive_hint" in node.annotations:
+            if node.is_recursive:
                 prefix = f"recursive {prefix}"
 
             args = [symbol.name for symbol in node.symbol_table.argument_list]

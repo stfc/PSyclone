@@ -30,6 +30,10 @@ def test_routine_constructor():
     with pytest.raises(TypeError) as err:
         Routine(symbol, is_program=1)
     assert "'is_program' must be a bool" in str(err.value)
+    with pytest.raises(TypeError) as err:
+        Routine(symbol, is_recursive="maybe")
+    assert ("is_recursive for a Routine must be a bool or None but got "
+            "'str'" in str(err.value))
     node = Routine(symbol)
     assert node.name == "hello"
     assert isinstance(node._symbol, RoutineSymbol)
@@ -42,6 +46,7 @@ def test_routine_properties():
     assert node1.dag_name == "routine_hello_0"
     assert node1.return_symbol is None
     assert node1.is_program is False
+    assert node1.is_recursive is None
     assert node1.name == "hello"
     # Give the Routine a child to get full coverage of __str__ method
     node1.addchild(Assignment())
@@ -52,6 +57,17 @@ def test_routine_properties():
 
     node3 = Routine.create("gutentag", is_program=True)
     assert node3.is_program
+
+    node3.is_recursive = True
+    assert node3.is_recursive is True
+    node3.is_recursive = False
+    assert node3.is_recursive is False
+    node3.is_recursive = None
+    assert node3.is_recursive is None
+    with pytest.raises(TypeError) as err:
+        node3.is_recursive = "true"
+    assert ("is_recursive for a Routine must be a bool or None but got "
+            "'str'" in str(err.value))
 
     with pytest.raises(TypeError) as excinfo:
         node3.symbol = "123"
@@ -175,12 +191,13 @@ def test_routine_create():
     cntr = Container("my_mod")
     kschedule = Routine.create("mod_name", symbol_table, [assignment],
                                is_program=True, return_symbol_name=symbol.name,
-                               parent=cntr)
+                               parent=cntr, is_recursive=True)
     assert isinstance(kschedule, Routine)
     check_links(kschedule, [assignment])
     assert kschedule.symbol_table is symbol_table
     assert symbol_table.node is kschedule
     assert kschedule.is_program
+    assert kschedule.is_recursive is True
     assert kschedule.return_symbol is symbol
     assert kschedule.parent is cntr
 
@@ -208,6 +225,10 @@ def test_routine_equality(monkeypatch):
     ksched2._symbol_table = symbol_table
     ksched2.return_symbol = symbol
     assert ksched1 == ksched2
+
+    # Test non-equality if the recursive-hint status differs.
+    ksched2.is_recursive = True
+    assert ksched1 != ksched2
 
     # Test non-equality if different names.
     assignment2.detach()
@@ -246,6 +267,8 @@ def test_routine_copy():
     symbol = DataSymbol("my_result", ScalarType.real_type())
     routine.symbol_table.add(symbol)
     routine.return_symbol = symbol
+    routine._is_program = True
+    routine.is_recursive = True
 
     # After a copy the symbol tables are separate and the return symbol
     # references a internal copy of the symbol
@@ -254,6 +277,8 @@ def test_routine_copy():
     assert routine2.symbol_table.node is routine2
     assert routine2.return_symbol in routine2.symbol_table.symbols
     assert routine2.return_symbol not in routine.symbol_table.symbols
+    assert routine2.is_recursive
+    assert routine2.is_program
 
 
 def test_routine_copy_in_container(fortran_reader):

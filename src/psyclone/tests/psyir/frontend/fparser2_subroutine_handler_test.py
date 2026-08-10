@@ -402,7 +402,7 @@ def test_unsupported_routine_prefix(fortran_reader, fn_prefix, routine_type):
 
 @pytest.mark.parametrize("routine_type", ["function", "subroutine"])
 def test_recursive_routine_prefix(fortran_reader, routine_type):
-    '''Check that a recursive-prefix hint is represented as an annotation.'''
+    '''Check that a recursive prefix is represented by a property.'''
     code = (
         f"module a\n"
         f"contains\n"
@@ -413,7 +413,8 @@ def test_recursive_routine_prefix(fortran_reader, routine_type):
         f"end module\n")
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
-    assert routine.annotations == ["had_recursive_hint"]
+    assert routine.is_recursive
+    assert routine.annotations == []
 
 
 def test_char_len_function(fortran_reader):
