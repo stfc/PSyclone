@@ -1843,6 +1843,34 @@ def test_process_resolving_modules_give_correct_types(
     assert assigns[2].rhs.is_pure
 
 
+def test_modules_info_from_same_filecontainer(f2008_parser):
+    ''' Check that modules are connected to their implementations when they
+    are in the same file container.'''
+    reader = FortranStringReader('''
+        module test
+            integer :: a
+            contains
+            subroutine sub1
+            end subroutine
+        end module test
+
+        module main
+            use test
+            integer :: b
+        end module
+        ''')
+    prog = f2008_parser(reader)
+    processor = Fparser2Reader()
+    root = processor.generate_psyir(prog)
+    main = [m for m in root.children if m.name == "main"][0]
+    # The 'main' module has the local symbols
+    assert "test" in main.symbol_table
+    assert "b" in main.symbol_table
+    # And also the imported ones
+    assert "a" in main.symbol_table
+    assert "sub1" in main.symbol_table
+
+
 def test_intrinsic_use_stmt(parser):
     ''' Tests that intrinsic value is set correctly for an intrinsic module
     use statement.'''
@@ -2503,13 +2531,13 @@ def test_codeblock_symbol_propagation(f2008_parser):
 
         module main
             use test
+            use another
             integer :: a
         end module
         ''')
     prog = f2008_parser(reader)
-    processor = Fparser2Reader(resolve_modules=True)
+    processor = Fparser2Reader()
     _ = processor.generate_psyir(prog)
-    assert False
 
 
 def test_named_and_wildcard_use_var(f2008_parser):
