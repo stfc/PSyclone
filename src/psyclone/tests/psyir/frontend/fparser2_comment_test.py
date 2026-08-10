@@ -603,3 +603,61 @@ end module A"""
     reader = FortranReader(ignore_comments=False)
     psyir = reader.psyir_from_source(code)
     assert directive not in psyir.debug_string()
+
+
+def test_labels_found_with_comments(fortran_reader, fortran_writer):
+    """ Test that the FortanReader correctly finds labels and produced a
+    CodeBlock when the labelled statement is preceded by comments."""
+    code = """
+   subroutine foo()
+      integer :: i, j
+      integer :: a
+      logical :: cond1, cond2
+
+      if (cond1) then
+          a = 1
+      end if
+
+100   do i = 1, 10
+          if (i > 5) then
+              a = 2
+          end if
+      end do
+      goto 100
+      if (cond2) then
+          a = 3
+      end if
+   end subroutine
+    """
+    reader = FortranReader(ignore_comments=False)
+    psyir = reader.psyir_from_source(code)
+    out = fortran_writer(psyir)
+    # Correct is formatted strangely to avoid issues with
+    # linting due to empty lines or trailing whitespace.
+    correct = """subroutine foo()
+  integer :: i
+  integer :: j
+  integer :: a
+  logical :: cond1
+  logical :: cond2
+
+  if (cond1) then
+    a = 1
+  end if
+
+  ! PSyclone CodeBlock (unsupported code) reason:
+  !  - Unsupported labelled statement
+  !  - Unsupported statement: Goto_Stmt\n  \n  100\
+ DO i = 1, 10
+    IF (i > 5) THEN
+      a = 2
+    END IF
+  END DO
+  GO TO 100
+  if (cond2) then
+    a = 3
+  end if
+
+end subroutine foo
+"""
+    assert correct in out
