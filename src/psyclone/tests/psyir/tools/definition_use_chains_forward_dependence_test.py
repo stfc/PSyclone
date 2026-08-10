@@ -947,6 +947,7 @@ def test_definition_use_chains_goto_statement(
     subroutine x()
     integer :: a
     a = a + 2
+    print *, a
     GOTO 100
     100 a = a + 3
     end subroutine"""
@@ -971,6 +972,7 @@ def test_definition_use_chains_exit_statement(
     a = 1
     do i = 1, 100
        a = a + i
+       print *, a
        exit
        b = a + 2
     end do

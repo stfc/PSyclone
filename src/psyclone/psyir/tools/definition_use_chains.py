@@ -566,19 +566,24 @@ class DefinitionUseChain:
         :param reference: The CodeBlock being analysed.
 
         :returns: whether the calling function should terminate.
+
+        :raises NotImplementedError: If a GOTO statement is found in the code
+                                     region.
         """
         # CodeBlocks only find symbols, so we can only do as good
         # as checking the symbol - this means we can get false
         # positives for structure accesses inside CodeBlocks.
-        if isinstance(reference.parse_tree_nodes[0], Goto_Stmt):
+        if any([isinstance(node, Goto_Stmt) for node in
+                reference.parse_tree_nodes]):
             raise NotImplementedError(
                 "DefinitionUseChains can't handle code containing"
                 " GOTO statements."
             )
         # If we find an Exit or Cycle statement, we can't
         # reach further in this code region so we can return.
-        if isinstance(
-            reference.parse_tree_nodes[0], (Exit_Stmt, Cycle_Stmt)
+        if any([isinstance(
+            ref, (Exit_Stmt, Cycle_Stmt)) for ref in 
+            reference.parse_tree_nodes]
         ):
             return True
 
@@ -673,14 +678,15 @@ class DefinitionUseChain:
                 if not self._defsout[sig]:
                     self._uses[sig].append(reference)
         elif reference.ancestor((Call, CodeBlock)):
-            # Otherwise we assume read/write access for now.
+            # Otherwise we assume read/write access as PSyclone does not
+            # know information about intents or CodeBlock accesses.
             if self._defsout[sig]:
                 self._killed[sig].extend(self._defsout[sig])
                 self._defsout[sig] = []
             self._defsout[sig].append(reference)
         else:
             # Reference outside an Assignment - read only. This could be
-            # References inside a While loop conndition for example.
+            # References inside a While loop condition for example.
             if not self._defsout[sig]:
                 self._uses[sig].append(reference)
 
@@ -694,8 +700,9 @@ class DefinitionUseChain:
 
         """
         # If it's accessed on the lhs of an assignment or as an
-        # argument of a call then it's a write to every signature,
-        # otherwise it's a read to every signature.
+        # argument of a call then it's a write to every signature of
+        # a Reference of an UnsupportedType, otherwise it's a read
+        # to every signature of a Reference of an UnsupportedType.
         assign = reference.ancestor(Assignment)
         if assign is not None:
             if assign.lhs is reference:
@@ -938,8 +945,8 @@ class DefinitionUseChain:
                 # careful, i.e. if we add support for the if clause.
                 # We add a basic block for each of the parts of the
                 # RegionDirective. We don't need to do anything with the
-                # control flow storing for now.
-                # This assumes that data in clauses is inquiry for now.
+                # control flow storage.
+                # This assumes that data in clauses is inquiry.
                 control_flow_nodes.append(None)
                 basic_blocks.append([node.dir_body])
             elif isinstance(node, PSyDataNode):
@@ -1019,7 +1026,7 @@ class DefinitionUseChain:
 
     def _check_backward_matched_reference(self, reference: Reference) -> None:
         """
-        Updates the defsout, uses, and killed dicts when a Reference matches
+        Updates the defsout, uses, and killed dicts when a Reference matched
         by name is found during _compute_backward_uses.
 
         :param reference: The Reference being analysed.
@@ -1036,18 +1043,15 @@ class DefinitionUseChain:
                 # in since equality is not what we want here. We also only
                 # stop if the stop_point of the chain is in the assignment's
                 # rhs.
-                found = False
+                # If the RHS contains the self._reference, then this LHS is
+                # "after" so we skip it
                 for ref in assign.rhs.walk(Reference):
                     if (
                         any([ref is ref2 for
                              ref2 in self._references])
                         and self._stop_point == ref.abs_position
                     ):
-                        found = True
-                # If the RHS contains the self._reference, then this LHS is
-                # "after" so we skip it
-                if found:
-                    return
+                        return
                 # This is a write to the reference, so kill the previous
                 # defsout and set this to be the defsout.
                 if self._defsout[sig]:
@@ -1074,7 +1078,8 @@ class DefinitionUseChain:
                 if not self._defsout[sig]:
                     self._uses[sig].append(reference)
         elif reference.ancestor((Call, CodeBlock)):
-            # Otherwise we assume read/write access for now.
+            # Otherwise we assume read/write access as PSyclone does not
+            # know information about intents or CodeBlock accesses.
             if self._defsout[sig]:
                 self._killed[sig].extend(self._defsout[sig])
                 self._defsout[sig] = []
@@ -1207,8 +1212,9 @@ class DefinitionUseChain:
                 if isinstance(reference, Return):
                     stop_position = min(reference.abs_position, stop_position)
                 if isinstance(reference, CodeBlock):
-                    if isinstance(
-                        reference.parse_tree_nodes[0], (Exit_Stmt, Cycle_Stmt)
+                    if any([isinstance(
+                        ref, (Exit_Stmt, Cycle_Stmt)) for ref in 
+                        reference.parse_tree_nodes]
                     ):
                         stop_position = min(
                             reference.abs_position, stop_position
@@ -1234,7 +1240,8 @@ class DefinitionUseChain:
                     # CodeBlocks only find symbols, so we can only do as good
                     # as checking the symbol - this means we can get false
                     # positives for structure accesses inside CodeBlocks.
-                    if isinstance(reference.parse_tree_nodes[0], Goto_Stmt):
+                    if any([isinstance(node, Goto_Stmt) for node in
+                            reference.parse_tree_nodes]):
                         raise NotImplementedError(
                             "DefinitionUseChains can't handle code containing"
                             " GOTO statements."
