@@ -217,8 +217,10 @@ class GenericInterfaceSymbol(RoutineSymbol):
                           visibility=self.visibility,
                           interface=self.interface.copy())
         # Copy the preceding comment as well.
-        # Inline comments are not yet supported, see fparser issue #521.
         copy.preceding_comment = self.preceding_comment
+        # Inline comments are not yet supported by the backend but we can
+        # still copy them.
+        copy.inline_comment = self.inline_comment
         return copy
 
     @property

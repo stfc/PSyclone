@@ -141,8 +141,10 @@ class RoutineSymbol(TypedSymbol):
                           is_pure=self.is_pure,
                           is_elemental=self.is_elemental)
         # Copy the preceding comment as well.
-        # Inline comments are not yet supported, see fparser issue #521.
         copy.preceding_comment = self.preceding_comment
+        # Inline comments are not yet supported by the backend but we can
+        # still copy them.
+        copy.inline_comment = self.inline_comment
         return copy
 
     def copy_properties(self,

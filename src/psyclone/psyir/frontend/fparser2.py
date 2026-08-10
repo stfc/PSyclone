@@ -2486,6 +2486,8 @@ class Fparser2Reader():
         :param symbol_table: the table to which to add new symbols.
         :param visibility_map: information on any explicit symbol visibilities
             in the current scope.
+        :param preceding_comments: the list of preceding_comments for this
+            block.
 
         '''
         # Fortran 2003 standard R1203 says that:
@@ -2518,7 +2520,6 @@ class Fparser2Reader():
         # This flag will be set to False in the loop below if an unsupported
         # feature is found.
         supported_interface = True
-        current_comments = []
         # Loop over the child nodes of the Interface definition.
         for child in node.children:
             if isinstance(child, (Fortran2003.Interface_Stmt,
@@ -2529,9 +2530,14 @@ class Fparser2Reader():
             # Inline comments on declarations may also be lost as they
             # are not added to the Procedure_Stmt in fparser2, otherwise
             # they will appear before the following statement. See
-            # fparser issue #521.
+            # fparser issue 521: https://github.com/stfc/fparser/issues/521.
             if isinstance(child, Fortran2003.Comment):
-                self.process_comment(child, current_comments)
+                # Comments inside the Interface are lost, as we have
+                # nowhere to safely store them in PSyclone. If we were
+                # to add them to the symbol they could be modified by
+                # other interfaces or a declaration of the routine itself
+                # later, and override the comment in this Interface block
+                # which is not the desired behaviour.
                 continue
             if isinstance(child, Fortran2003.Procedure_Stmt):
                 # Keep track of whether these are module procedures.
@@ -2549,10 +2555,6 @@ class Fparser2Reader():
                             f"Expected '{rsym.name}' referenced by generic "
                             f"interface '{name}' to be a Symbol or a "
                             f"RoutineSymbol but found '{type(rsym).__name__}'")
-                    rsym.preceding_comment = self._comments_list_to_string(
-                            current_comments
-                    )
-                    current_comments = []
                     rsymbols.append((rsym, is_module))
             else:
                 # Interface block contains an unsupported entry so
@@ -2577,9 +2579,15 @@ class Fparser2Reader():
                 # We've not been able to determine the list of
                 # RoutineSymbols that this interface maps to so we just
                 # create a RoutineSymbol of UnsupportedFortranType.
-                symbol_table.add(RoutineSymbol(
+                interface_sym = RoutineSymbol(
                     name, datatype=UnsupportedFortranType(str(node).lower()),
-                    visibility=vis))
+                    visibility=vis)
+                symbol_table.add(interface_sym)
+                interface_sym.preceding_comment = (
+                    self._comments_list_to_string(
+                        preceding_comments
+                    )
+                )
         except KeyError:
             # This symbol has already been declared. This can happen when
             # an interface overloads a constructor for a type (as the interface

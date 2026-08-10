@@ -503,7 +503,7 @@ end interface subx
     # Check we get the preceding comment as expected
     isub.preceding_comment = "Here is my preceding comment"
     out = fortran_writer.gen_interfacedecl(isub)
-    assert (out == """!Here is my preceding comment
+    assert (out == """! Here is my preceding comment
 interface subx
   module procedure :: sub2
   procedure :: sub1
@@ -519,11 +519,11 @@ end interface subx
     isub.preceding_comment = "Here is my preceding comment"
 
     out = fortran_writer.gen_interfacedecl(isub)
-    assert (out == """!Here is my preceding comment
+    assert (out == """! Here is my preceding comment
 interface subx
-  !Another sub comment
+  ! Another sub comment
   module procedure :: sub2
-  !Here is the sub comment
+  ! Here is the sub comment
   procedure :: sub1
 end interface subx
 """)
