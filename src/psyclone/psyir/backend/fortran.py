@@ -191,7 +191,6 @@ def add_attributes_to_unsupported_declaration(
     return "::".join([first_part]+parts[1:])
 
 
-
 class FortranWriter(LanguageWriter):
     # pylint: disable=too-many-public-methods
     '''Implements a PSyIR-to-Fortran back end for PSyIR kernel code (not
@@ -253,14 +252,14 @@ class FortranWriter(LanguageWriter):
 
     def gen_preceding_comments(self, obj: CommentableMixin) -> str:
         '''
-        :returns: The Fortran string for the preceding comments for the provided
-            obj
+        :returns: The Fortran string for the preceding comments for the
+            provided obj
         '''
         comments = ""
         if obj.preceding_comment:
             for line in obj.preceding_comment.splitlines():
                 comments += f"{self._nindent}{self._COMMENT_PREFIX}{line}\n"
-    
+
         return comments
 
     def gen_datatype(self,
@@ -1481,7 +1480,9 @@ class FortranWriter(LanguageWriter):
 
                 # For the keyword substitution to work we have to handle
                 # any preceding comment separately
-                comment = self.gen_preceding_comments(node.else_body.children[0])
+                comment = self.gen_preceding_comments(
+                    node.else_body.children[0]
+                )
                 node.else_body.children[0].preceding_comment = ""
 
                 # Get the else body text
