@@ -81,18 +81,8 @@ psy.f90 ${HARNESS_F90_FILE}: ${HARNESS_X90_FILE} ${ADJ_KERNEL_F90_FILE}
 ${ADJ_KERNEL_X90_FILE} ${HARNESS_X90_FILE}: ${TL_KERNEL_FILE}
 	$(PSYAD) -api lfric $< -otest ${HARNESS_X90_FILE} -oad ${ADJ_KERNEL_X90_FILE} ${GEOMETRY_VAR_LIST} -a ${ACTIVE_VAR_LIST}
 
-# Currently PSyAD does not update the kernel metadata (issue #1453)
-# so we do that manually here. We have to allow for the case where
-# the kernel contains multiple implementations (for mixed precision).
-#
-# WARNING: the metadata may still be incorrect as we do not change
-# the ACCESS properties of the arguments.
-# TODO #1772.
-${ADJ_KERNEL_F90_FILE}: ${ADJ_KERNEL_X90_FILE}
-	sed -e 's/PROCEDURE, NOPASS :: ${TL_PROC_NAME}/PROCEDURE, NOPASS :: ${ADJ_PROC_NAME}/' -e 's/:: ${TL_KERNEL_TYPE}/:: ${ADJ_KERNEL_TYPE}/' \
--e 's/interface ${TL_PROC_NAME}/interface ${ADJ_PROC_NAME}/' \
--e 's/module procedure ${TL_PROC_NAME}.*\w/&_adj/' \
--e 's/public :: ${TL_PROC_NAME}$$/public :: ${ADJ_PROC_NAME}/' $< > $@
+ ${ADJ_KERNEL_F90_FILE}: ${ADJ_KERNEL_X90_FILE}
+     cp $< $@
 
 compile:
 	@echo No compilation supported: the generated Algorithm must be called from within an LFRic mini-app.
