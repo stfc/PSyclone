@@ -1,10 +1,15 @@
 !-----------------------------------------------------------------------------
+! Original under:
 ! (c) Crown copyright 2021-2026 Met Office. All rights reserved.
-! The file LICENCE, distributed with this code, contains details of the terms
-! under which the code may be used.
-!-----------------------------------------------------------------------------
-!
-!-------------------------------------------------------------------------------
+! For further details please refer to Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+! -----------------------------------------------------------------------------
+! Modifications under:
+! SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+!                         Facilities Council
+! SPDX-License-Identifier: BSD-3-Clause
+! See the full LICENSE file in the project root for details.
+! -----------------------------------------------------------------------------
 
 !> @brief Kernel which computes horizontal reconstructions of a field
 !!        through fitting a high order 1D upwind reconstruction.
