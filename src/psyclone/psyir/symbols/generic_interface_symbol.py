@@ -216,10 +216,7 @@ class GenericInterfaceSymbol(RoutineSymbol):
         copy = type(self)(self.name, rt_info,
                           visibility=self.visibility,
                           interface=self.interface.copy())
-        # Copy the preceding comment as well.
         copy.preceding_comment = self.preceding_comment
-        # Inline comments are not yet supported by the backend but we can
-        # still copy them.
         copy.inline_comment = self.inline_comment
         return copy
 

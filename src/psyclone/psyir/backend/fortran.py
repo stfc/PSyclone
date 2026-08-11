@@ -252,6 +252,8 @@ class FortranWriter(LanguageWriter):
 
     def gen_preceding_comments(self, obj: CommentableMixin) -> str:
         '''
+        :param obj: The object whose preceding comments should be generated.
+
         :returns: The Fortran string for the preceding comments for the
             provided obj
         '''
@@ -681,11 +683,9 @@ class FortranWriter(LanguageWriter):
         self._depth += 1
         # Any module procedures.
         for routine in symbol.container_routines:
-            decln += self.gen_preceding_comments(routine)
             decln += f"{self._nindent}module procedure :: {routine.name}\n"
         # Any other (external) procedures.
         for routine in symbol.external_routines:
-            decln += self.gen_preceding_comments(routine)
             decln += f"{self._nindent}procedure :: {routine.name}\n"
         self._depth -= 1
         decln += f"{self._nindent}end interface {symbol.name}\n"

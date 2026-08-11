@@ -447,7 +447,7 @@ end module test"""
 
 
 def test_unsupported_interface_keep_comment(fortran_writer):
-    ''' Test that an unsupported interface keeps the proceeding comments.'''
+    ''' Test that an unsupported interface keeps the preceding comments.'''
     code = """module test
       ! Here is a preceding comment.
       interface my_interface

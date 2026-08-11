@@ -2679,8 +2679,8 @@ class Fparser2Reader():
             if isinstance(node, Fortran2003.Implicit_Part):
                 for comment in walk(node, (Fortran2003.Comment,
                                            Fortran2003.Directive)):
+                    # Add the comments to the preceding_comments list.
                     self.process_comment(comment, preceding_comments)
-                    continue
                 # Anything other than a PARAMETER statement or an
                 # IMPLICIT NONE means we can't handle this code.
                 # Any PARAMETER statements are handled separately by the
@@ -2696,18 +2696,19 @@ class Fparser2Reader():
                     raise NotImplementedError(
                         f"Error processing implicit-part: implicit variable "
                         f"declarations not supported but found '{node}'")
-            elif isinstance(node, Fortran2003.Interface_Block):
+                # This block needs to skip the preceding_comment reset block
+                # so we can continue.
+                continue
+            if isinstance(node, Fortran2003.Interface_Block):
                 self._process_interface_block(node, parent.symbol_table,
                                               visibility_map,
                                               preceding_comments)
-                preceding_comments = []
 
             elif isinstance(node, (Fortran2003.Type_Declaration_Stmt,
                                    Fortran2003.Procedure_Declaration_Stmt)):
                 self._process_decl_or_create_unsupported(
                     parent, parent.symbol_table, node, visibility_map,
                     statics_list, preceding_comments)
-                preceding_comments = []
 
             elif isinstance(node, (Fortran2003.Access_Stmt,
                                    Fortran2003.Save_Stmt,
@@ -2718,7 +2719,6 @@ class Fparser2Reader():
                                    Fortran2003.Use_Stmt)):
                 # These node types are handled separately
                 pass
-
             elif isinstance(node, Fortran2003.Namelist_Stmt):
                 # Place the declaration statement into the symbol table using
                 # an internal symbol name. In case that we need more details
@@ -2730,11 +2730,15 @@ class Fparser2Reader():
                     root_name="_PSYCLONE_INTERNAL_NAMELIST",
                     symbol_type=DataSymbol,
                     datatype=UnsupportedFortranType(str(node)))
-
+                # Reset preceding_comments to avoid placing comments
+                # on following nodes.
             else:
                 raise NotImplementedError(
                     f"Error processing declarations: fparser2 node of type "
                     f"'{type(node).__name__}' not supported")
+            # Reset preceding_comments to avoid placing comments
+            # on following nodes.
+            preceding_comments = []
 
         # Process the nodes again, looking for PARAMETER statements. This is
         # done after the main declarations loop because they modify existing
