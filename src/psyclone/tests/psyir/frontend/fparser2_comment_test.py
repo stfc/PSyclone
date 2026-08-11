@@ -606,8 +606,10 @@ end module A"""
 
 
 def test_labels_found_with_comments(fortran_reader, fortran_writer):
-    """ Test that the FortanReader correctly finds labels and produced a
-    CodeBlock when the labelled statement is preceded by comments."""
+    """ Test that the FortanReader correctly finds labels and produces a
+    CodeBlock when the labelled statement is preceded by comments, in this
+    test the comment in the first code segment is a blank line (which is
+    passed from Fparser as a Fortran2003.Comment(""))."""
     code = """
    subroutine foo()
       integer :: i, j
@@ -646,9 +648,65 @@ def test_labels_found_with_comments(fortran_reader, fortran_writer):
   end if
 
   ! PSyclone CodeBlock (unsupported code) reason:
-  !  - Unsupported labelled statement
+  !  - Unsupported labelled block
   !  - Unsupported statement: Goto_Stmt\n  \n  100\
  DO i = 1, 10
+    IF (i > 5) THEN
+      a = 2
+    END IF
+  END DO
+  GO TO 100
+  if (cond2) then
+    a = 3
+  end if
+
+end subroutine foo
+"""
+    assert correct in out
+    # Do the same test but with a non-blank comment.
+    code = """
+   subroutine foo()
+      integer :: i, j
+      integer :: a
+      logical :: cond1, cond2
+
+      if (cond1) then
+          a = 1
+      end if
+      !Comment line
+100   do i = 1, 10
+          if (i > 5) then
+              a = 2
+          end if
+      end do
+      goto 100
+      if (cond2) then
+          a = 3
+      end if
+   end subroutine
+    """
+    reader = FortranReader(ignore_comments=False)
+    psyir = reader.psyir_from_source(code)
+    out = fortran_writer(psyir)
+    # The comment kept as part of the CodeBlock doesn't
+    # get formatted by PSyclone, but keeps its original
+    # formatting.
+    correct = """subroutine foo()
+  integer :: i
+  integer :: j
+  integer :: a
+  logical :: cond1
+  logical :: cond2
+
+  if (cond1) then
+    a = 1
+  end if
+
+  ! PSyclone CodeBlock (unsupported code) reason:
+  !  - Unsupported labelled block
+  !  - Unsupported statement: Goto_Stmt
+  !Comment line
+  100 DO i = 1, 10
     IF (i > 5) THEN
       a = 2
     END IF

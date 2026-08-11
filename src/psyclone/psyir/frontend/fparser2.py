@@ -3194,18 +3194,15 @@ class Fparser2Reader():
             # within it. We must allow for the cases where the block is empty
             # or only consists of comments though.
             if child.content:
-                first_non_comment = 0
-                while (len(child.content) > first_non_comment and
-                       isinstance(child.content[first_non_comment],
-                                  Fortran2003.Comment)):
-                    first_non_comment = first_non_comment + 1
-            if (child.content and child.content[first_non_comment] and
-                    (not isinstance(child.content[first_non_comment],
-                                    (Fortran2003.Comment,
-                                     Fortran2003.Directive))) and
-                    child.content[first_non_comment].item and
-                    child.content[first_non_comment].item.label):
-                raise NotImplementedError("Unsupported labelled statement")
+                first_non_comment = next(
+                    (node for node in child.content if not
+                     isinstance(node, (Fortran2003.Comment,
+                                       Fortran2003.Directive))),
+                    None)
+            if (child.content and first_non_comment and
+                    first_non_comment.item and
+                    first_non_comment.item.label):
+                raise NotImplementedError("Unsupported labelled block")
         elif isinstance(child, StmtBase):
             if child.item and child.item.label:
                 raise NotImplementedError("Unsupported labelled statement")
