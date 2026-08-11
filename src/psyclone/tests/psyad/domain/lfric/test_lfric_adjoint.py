@@ -210,8 +210,8 @@ def test_generate_lfric_adjoint_multi_precision(
         fortran_reader, fortran_writer):
     '''Check that generate_lfric_adjoint makes no changes to the metadata
     apart from the name of the type if this is a multi-precision
-    kernel (due to issue #2236). We can't yet parse multi-precision
-    metadata (again due to issue #2236) so modify the PSyIR directly
+    kernel (due to issue #3546). We can't yet parse multi-precision
+    metadata (again due to issue #3546) so modify the PSyIR directly
     (removing the procedure part of the metadata).
 
     '''

@@ -46,7 +46,7 @@ F90FLAGS += -ffree-line-length-none
 # (res_dot_product) did not exist in the original code and is a by-product
 # of psyad replacing a dot_product intrinsic with equivalent code. This and
 # all other local variables will not need to be specified on the command line
-# once issue #1556 has been addressed.
+# once issue #1595 has been addressed.
 ACTIVE_VAR_LIST ?= r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad grad_theta_v_at_quad exner_e exner_at_quad res_dot_product
 # PSyAD arguments that specify which (if any) of the arguments described in
 # the kernel metadata contain geometric information that must not be modified
