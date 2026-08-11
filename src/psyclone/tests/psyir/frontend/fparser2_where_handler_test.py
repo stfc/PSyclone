@@ -1396,3 +1396,40 @@ def test_where_with_preceding_comment_and_reduction_intrinsic():
     pytest.xfail(
         "Xfail #1960: Reduction intrinsics in where's are not supported"
         "when they return an array.")
+
+
+def test_where_with_empty_line_before(fortran_writer):
+    """Test that a single element where statement with an empty line preceding
+    it doesn't cause issues with keep-comments correctly."""
+
+    code = """subroutine x(arr2)
+    integer, dimension(:) :: arr1, arr2
+
+    arr1(:) = arr2(:)
+
+    WHERE(arr1(:) == -1)
+       arr1(:) = 999999
+    END WHERE
+
+    arr1(:) = -1 * arr1(:)
+    end subroutine x"""
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    # We shouldn't have any codeblocks left
+    assert len(psyir.walk(CodeBlock)) == 0
+    out = fortran_writer(psyir)
+    correct = """subroutine x(arr2)
+  integer, dimension(:) :: arr2
+  integer, dimension(:) :: arr1
+  integer :: widx1
+
+  arr1(:) = arr2(:)
+  do widx1 = 1, SIZE(arr1, dim=1), 1
+    if (arr1(LBOUND(arr1, dim=1) + widx1 - 1) == (-1)) then
+      arr1(LBOUND(arr1, dim=1) + widx1 - 1) = 999999
+    end if
+  enddo
+  arr1(:) = -1 * arr1(:)
+
+end subroutine x"""
+    assert correct in out
