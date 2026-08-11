@@ -605,11 +605,11 @@ end module A"""
     assert directive not in psyir.debug_string()
 
 
-def test_labels_found_with_comments(fortran_reader, fortran_writer):
+def test_labels_found_with_comments(fortran_writer):
     """ Test that the FortanReader correctly finds labels and produces a
     CodeBlock when the labelled statement is preceded by comments, in this
-    test the comment in the first code segment is a blank line (which is
-    passed from Fparser as a Fortran2003.Comment(""))."""
+    test fparser returns a comment in the first code segment (as blank
+    lines are parsed as a Fortran2003.Comment(""))."""
     code = """
    subroutine foo()
       integer :: i, j
@@ -663,7 +663,8 @@ def test_labels_found_with_comments(fortran_reader, fortran_writer):
 end subroutine foo
 """
     assert correct in out
-    # Do the same test but with a non-blank comment.
+    # Do the same test but with a non-blank comment and with
+    # a directive.
     code = """
    subroutine foo()
       integer :: i, j
@@ -674,6 +675,7 @@ end subroutine foo
           a = 1
       end if
       !Comment line
+      !$some directive
 100   do i = 1, 10
           if (i > 5) then
               a = 2
@@ -685,12 +687,13 @@ end subroutine foo
       end if
    end subroutine
     """
-    reader = FortranReader(ignore_comments=False)
+    reader = FortranReader(ignore_comments=False,
+                           ignore_directives=False)
     psyir = reader.psyir_from_source(code)
     out = fortran_writer(psyir)
-    # The comment kept as part of the CodeBlock doesn't
+    # The comment and directive kept as part of the CodeBlock doesn't
     # get formatted by PSyclone, but keeps its original
-    # formatting.
+    # formatting from fparser.
     correct = """subroutine foo()
   integer :: i
   integer :: j
@@ -706,6 +709,7 @@ end subroutine foo
   !  - Unsupported labelled block
   !  - Unsupported statement: Goto_Stmt
   !Comment line
+    !$some directive
   100 DO i = 1, 10
     IF (i > 5) THEN
       a = 2

@@ -3190,9 +3190,10 @@ class Fparser2Reader():
         # We don't support statements with labels.
         if isinstance(child, BlockBase):
             # An instance of BlockBase describes a block of code (no surprise
-            # there), so we have to examine the first non-comment statement
-            # within it. We must allow for the cases where the block is empty
-            # or only consists of comments though.
+            # there), so we have to examine the first non-comment,
+            # non-directive statement within it. We must allow for the cases
+            # where the block is empty or only consists of comments or
+            # directives though.
             if child.content:
                 first_non_comment = next(
                     (node for node in child.content if not
