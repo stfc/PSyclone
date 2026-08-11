@@ -582,7 +582,7 @@ class DefinitionUseChain:
         # If we find an Exit or Cycle statement, we can't
         # reach further in this code region so we can return.
         if any([isinstance(
-            ref, (Exit_Stmt, Cycle_Stmt)) for ref in 
+            ref, (Exit_Stmt, Cycle_Stmt)) for ref in
             reference.parse_tree_nodes]
         ):
             return True
@@ -1065,12 +1065,16 @@ class DefinitionUseChain:
                      ref in self._references]
                 )
             ):
-                # Reference is on the rhs of an assignment such as a = a + 1.
+                # TODO #3552: This block is not well explained or understood
+                # but is necessary to avoid incorrect results. An improved
+                # implementation or comments explaining why will be added
+                # later.
+                # reference is on the rhs of an assignment such as a = a + 1.
                 # Since we're looping through the tree walk in reverse, we
-                # find the a on the RHS of the statement before the a on the
-                # LHS. Since the LHS of the statement is a write to this
-                # symbol, the RHS needs to not be a dependency when working
-                # backwards.
+                # find the a on the RHS of the statement separately from the
+                # LHS when inside a loop and one of the self._references
+                # appears in this RHS. In this case we avoid adding anything
+                # from this RHS to the chain for these cases.
                 return
             else:
                 # Read only, so if we've not yet set written to this variable
@@ -1121,6 +1125,10 @@ class DefinitionUseChain:
             else:
                 # If the LHS of an Assignment is an UnsupportedType then we
                 # can skip the RHS of this Assignment for UnsupportedTypes.
+                # TODO #3552: This block is not well explained or understood
+                # but is necessary to avoid incorrect results. An improved
+                # implementation or comments explaining why will be added
+                # later.
                 if isinstance(assign.lhs.datatype, UnsupportedType):
                     return
                 # If it's on the RHS of an Assignment then we
@@ -1213,7 +1221,7 @@ class DefinitionUseChain:
                     stop_position = min(reference.abs_position, stop_position)
                 if isinstance(reference, CodeBlock):
                     if any([isinstance(
-                        ref, (Exit_Stmt, Cycle_Stmt)) for ref in 
+                        ref, (Exit_Stmt, Cycle_Stmt)) for ref in
                         reference.parse_tree_nodes]
                     ):
                         stop_position = min(

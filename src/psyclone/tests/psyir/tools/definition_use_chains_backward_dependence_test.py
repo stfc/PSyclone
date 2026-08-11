@@ -67,7 +67,7 @@ def test_definition_use_chain_compute_backward_uses(fortran_reader):
     a_3 = psyir.walk(Reference)[3]
     # Check this is the lhs of the assignment
     assert a_3 is psyir.walk(Assignment)[1].rhs
-    sig = a_3.get_signature_and_indices()[0]
+    a_sig = a_3.get_signature_and_indices()[0]
     duc = DefinitionUseChain(
         a_3, control_flow_region=[routine]
     )
@@ -77,9 +77,9 @@ def test_definition_use_chain_compute_backward_uses(fortran_reader):
     duc._start_point = routine.children[0].abs_position
     duc._stop_point = a_3.abs_position-1
     duc._compute_backward_uses(basic_block_list)
-    assert len(duc.defsout[sig]) == 1
+    assert len(duc.defsout[a_sig]) == 1
     # The lhs of a = a + 1
-    assert duc.defsout[sig][0] is psyir.walk(Reference)[0]
+    assert duc.defsout[a_sig][0] is psyir.walk(Reference)[0]
 
     # Next we test a Reference with a write then a read - we should only get
     # the write, which should be in uses and defsout.
@@ -94,7 +94,7 @@ def test_definition_use_chain_compute_backward_uses(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     a_3 = psyir.walk(Reference)[4]
-    sig = a_3.get_signature_and_indices()[0]
+    a_sig = a_3.get_signature_and_indices()[0]
     duc = DefinitionUseChain(
         a_3, control_flow_region=[routine]
     )
@@ -104,10 +104,11 @@ def test_definition_use_chain_compute_backward_uses(fortran_reader):
     duc._start_point = routine.children[0].abs_position
     duc._stop_point = a_3.abs_position - 1
     duc._compute_backward_uses(basic_block_list)
-    assert len(duc.uses[sig]) == 0
-    assert len(duc.defsout[sig]) == 1
-    assert len(duc.killed[sig]) == 0
-    assert duc.defsout[sig][0] is psyir.walk(Reference)[2]  # The lhs of a = 2
+    assert len(duc.uses[a_sig]) == 0
+    assert len(duc.defsout[a_sig]) == 1
+    assert len(duc.killed[a_sig]) == 0
+    # The lhs of a = 2
+    assert duc.defsout[a_sig][0] is psyir.walk(Reference)[2]
 
 
 def test_definition_use_chain_find_backward_accesses_basic_example(
@@ -144,11 +145,11 @@ end subroutine bar
     routine = psyir.walk(Routine)[0]
     # Creating use chain for the a in a = 2
     ref = routine.walk(Assignment)[8].lhs
-    sig = ref.get_signature_and_indices()[0]
+    a_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(
         ref, [routine]
     )
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     # We find 2 results
     # the a in e = a**3
     # The call bar(c, b) as a isn't local and we can't guarantee its behaviour.
@@ -158,9 +159,9 @@ end subroutine bar
 
     # Create use chain for c in b = c + d
     ref = routine.walk(Assignment)[5].rhs.children[0]
-    sig = ref.get_signature_and_indices()[0]
+    c_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref, [routine])
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[c_sig]
     # We should find 2 results
     # C = d * a
     # d = C + 2.0
@@ -184,9 +185,9 @@ def test_definition_use_chain_find_backward_accesses_assignment(
     routine = psyir.walk(Routine)[0]
     # Start chain from A = a * a
     ref = routine.walk(Assignment)[1].lhs
-    sig = ref.get_signature_and_indices()[0]
+    a_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     # We should find 3 results, both 3 references in
     # a = A * A
     # and A = 1
@@ -218,9 +219,9 @@ def test_definition_use_chain_find_backward_accesses_ifelse_example(
     routine = psyir.walk(Routine)[0]
     # Start the chain from b = A + d.
     ref = routine.walk(Assignment)[4].rhs.children[0]
-    sig = ref.get_signature_and_indices()[0]
+    a_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     # TODO #2760 For now the if statement doesn't kill the accesses,
     # even though it will always be written to.
     assert len(reaches) == 4
@@ -232,9 +233,9 @@ def test_definition_use_chain_find_backward_accesses_ifelse_example(
     # Also check that a = 4 backward access is not a = 3.
     a_3 = routine.walk(Assignment)[2].lhs
     a_4 = routine.walk(Assignment)[3].lhs
-    sig = a_4.get_signature_and_indices()[0]
+    a_sig = a_4.get_signature_and_indices()[0]
     chains = DefinitionUseChain([a_4])
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     assert len(reaches) == 2
     assert reaches[0] is not a_3
     assert reaches[1] is not a_3
@@ -269,9 +270,9 @@ def test_definition_use_chain_find_backward_accesses_psy_data_node_example(
     p_trans.apply(routine[1:])
     # Start the chain from b = A + d.
     ref = routine.walk(Assignment)[4].rhs.children[0]
-    sig = ref.get_signature_and_indices()[0]
+    a_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     # Inside the ProfileRegion the DUC has to work as before, the 'a' has
     # 4 backwards accesses as shown in the previous test.
     assert len(reaches) == 4
@@ -298,9 +299,9 @@ def test_definition_use_chain_find_backward_accesses_loop_example(
     routine = psyir.walk(Routine)[0]
     # Start the chain from A = a + i.
     ref = routine.walk(Assignment)[1].lhs
-    sig = ref.get_signature_and_indices()[0]
+    a_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     # We should have 4? reaches
     # First  b = A + 2
     # Second a = A + i
@@ -334,9 +335,9 @@ def test_definition_use_chain_find_backward_accesses_loop_example(
     routine = psyir.walk(Routine)[0]
     # Start the chain from I = 1231.
     ref = routine.walk(Assignment)[2].lhs
-    sig = ref.get_signature_and_indices()[0]
+    i_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[i_sig]
     # We should have 1 reaches
     # It should be the loop
     assert len(reaches) == 1
@@ -362,9 +363,9 @@ def test_definition_use_chain_find_backward_accesses_while_loop_example(
     routine = psyir.walk(Routine)[0]
     # Start the chain from A = a + 3.
     ref = routine.children[2].loop_body.children[0].lhs
-    sig = ref.get_signature_and_indices()[0]
+    a_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
 
     assert len(reaches) == 4
     assert reaches[0] is routine.walk(WhileLoop)[0].condition.children[0]
@@ -397,9 +398,9 @@ def test_definition_use_chain_backward_accesses_nested_loop_example(
     # Start the chain from b = b + A.
     loops = routine.walk(WhileLoop)
     ref = loops[1].walk(Assignment)[0].rhs.children[1]
-    sig = ref.get_signature_and_indices()[0]
+    a_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     # TODO #2760 The backwards accesses should not continue past a = a + 3 as
     # to reach the b = b + a statement we must have passed through the
     # a = a + 3 statement.
@@ -449,9 +450,9 @@ def test_definition_use_chain_find_backward_accesses_no_control_flow_example(
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     ref = routine.walk(Assignment)[0].lhs
-    sig = ref.get_signature_and_indices()[0]
+    a_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     assert len(reaches) == 1
     assert reaches[0] is routine.walk(Assignment)[0].rhs.children[0]
 
@@ -471,9 +472,9 @@ def test_definition_use_chain_find_backward_accesses_codeblock(
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     ref = routine.walk(Assignment)[1].lhs
-    sig = ref.get_signature_and_indices()[0]
+    a_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     # We consider CodeBlocks as guaranteed write (even if in this case it
     # is not), so the backwards only reaches to the print statement
     assert len(reaches) == 1
@@ -496,9 +497,9 @@ def test_definition_use_chain_find_backward_accesses_codeblock_and_call_nlocal(
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     ref = routine.walk(Assignment)[0].rhs.children[0]
-    sig = ref.get_signature_and_indices()[0]
+    a_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     assert len(reaches) == 1
     # Result is the argument of the call
     assert reaches[0] is routine.walk(Call)[0].children[1]
@@ -523,9 +524,9 @@ def test_definition_use_chain_find_backward_accesses_codeblock_and_call_cflow(
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     ref = routine.walk(Assignment)[0].rhs.children[0]
-    sig = ref.get_signature_and_indices()[0]
+    a_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     assert len(reaches) == 2
     assert reaches[0] is routine.walk(Call)[1].children[1]
     assert reaches[1] is routine.walk(Call)[0]
@@ -548,9 +549,9 @@ def test_definition_use_chain_find_backward_accesses_codeblock_and_call_local(
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     ref = routine.walk(Assignment)[0].rhs.children[0]
-    sig = ref.get_signature_and_indices()[0]
+    a_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     assert len(reaches) == 1
     assert reaches[0] is routine.walk(CodeBlock)[0].children[0]
 
@@ -571,9 +572,9 @@ def test_definition_use_chain_find_backward_accesses_call_and_codeblock_nlocal(
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     ref = routine.walk(Assignment)[0].lhs
-    sig = ref.get_signature_and_indices()[0]
+    a_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     assert len(reaches) == 1
     assert reaches[0] is routine.walk(Call)[0]
 
@@ -622,9 +623,9 @@ def test_definition_use_chains_exit_statement(
     routine = psyir.walk(Routine)[0]
     # Start the chain from a = A +i.
     ref = routine.walk(Assignment)[1].rhs.children[0]
-    sig = ref.get_signature_and_indices()[0]
+    a_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     # We should have 2 reaches
     # First is A = a + i
     # Second is A = 1
@@ -659,9 +660,9 @@ def test_definition_use_chains_cycle_statement(
     routine = psyir.walk(Routine)[0]
     # Start the chain from a = A +i.
     ref = routine.walk(Assignment)[1].rhs.children[0]
-    sig = ref.get_signature_and_indices()[0]
+    a_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     # We should have 2 reaches
     # A = b * 4
     # A = 1
@@ -693,9 +694,9 @@ def test_definition_use_chains_return_statement(
     routine = psyir.walk(Routine)[0]
     # Start the chain from a = A +i.
     ref = routine.walk(Assignment)[1].rhs.children[0]
-    sig = ref.get_signature_and_indices()[0]
+    a_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     # We should have 2 reaches
     # A = b * 4
     # A = 1
@@ -725,9 +726,9 @@ end module
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[1]
     ref = routine.walk(Assignment)[0].rhs
-    sig = ref.get_signature_and_indices()[0]
+    a_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     assert len(reaches) == 0
 
 
@@ -752,9 +753,9 @@ def test_definition_use_chains_backward_accesses_nonassign_reference_in_loop(
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     ref = routine.walk(Call)[0].children[1]
-    sig = ref.get_signature_and_indices()[0]
+    a_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     # TODO #2760 The backwards accesses should not continue past a = a + i
     # when searching backwards in the loop, or to a = 1
     assert len(reaches) == 3
@@ -785,9 +786,9 @@ def test_definition_use_chains_backward_accesses_empty_schedules(
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     ref = routine.walk(Assignment)[1].lhs
-    sig = ref.get_signature_and_indices()[0]
+    a_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     assert len(reaches) == 3
     assert reaches[0] is routine.walk(Assignment)[1].rhs.children[1]
     assert reaches[1] is routine.walk(Assignment)[1].rhs.children[0]
@@ -812,9 +813,9 @@ def test_definition_use_chains_backward_accesses_inquiry_func(
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     ref = routine.walk(Assignment)[1].lhs
-    sig = ref.get_signature_and_indices()[0]
+    a_sig = ref.get_signature_and_indices()[0]
     chains = DefinitionUseChain(ref)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     assert len(reaches) == 0
 
 
@@ -841,9 +842,9 @@ def test_definition_use_chain_find_backward_accesses_pure_call(
     # Find the a in the rhs of the second assignment
     assign2 = routine.walk(Assignment)[1]
     rhs_a = assign2.rhs.children[0]
-    sig = rhs_a.get_signature_and_indices()[0]
+    a_sig = rhs_a.get_signature_and_indices()[0]
     chains = DefinitionUseChain([rhs_a])
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     assert len(reaches) == 1
     # Result is lhs of the first assignment
     lhs_assign1 = routine.walk(Assignment)[0].lhs
@@ -851,9 +852,9 @@ def test_definition_use_chain_find_backward_accesses_pure_call(
 
     # Get the lhs of the b = 1 assignment
     lhs_assign3 = routine.walk(Assignment)[2].lhs
-    sig = lhs_assign3.get_signature_and_indices()[0]
+    b_sig = lhs_assign3.get_signature_and_indices()[0]
     chains = DefinitionUseChain([lhs_assign3])
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[b_sig]
     assert len(reaches) == 1
     # We should find the argument in the pure subroutine call
     assert reaches[0] is routine.walk(Call)[0].children[1]
@@ -880,9 +881,9 @@ def test_definition_use_chain_find_backward_accesses_ancestor_call(
     routine = psyir.find_routine_psyir("foo")
     call = psyir.walk(Call)[0]
     arg = call.arguments[1]
-    sig = arg.get_signature_and_indices()[0]
+    b_sig = arg.get_signature_and_indices()[0]
     chain = DefinitionUseChain([arg])
-    all_prev = chain.find_backward_accesses()[sig]
+    all_prev = chain.find_backward_accesses()[b_sig]
     # Check that the ancestor call of b isn't a backward access.
     assert not isinstance(all_prev[0], Call)
     # The correct previous access should be the Reference to b in
@@ -906,9 +907,9 @@ def test_backward_accesses_nested_loop(fortran_reader):
     end subroutine x"""
     psyir = fortran_reader.psyir_from_source(code)
     lhs = psyir.walk(Assignment)[0].lhs
-    sig = lhs.get_signature_and_indices()[0]
+    l_sig = lhs.get_signature_and_indices()[0]
     chains = DefinitionUseChain([lhs])
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[l_sig]
     assert len(reaches) == 1
 
 
@@ -928,9 +929,9 @@ def test_backward_accesses_unsupported_type_simple_assignment(fortran_reader):
 
     psyir = fortran_reader.psyir_from_source(code)
     assign = psyir.walk(Assignment)[-1]
-    sig = assign.lhs.get_signature_and_indices()[0]
+    b_sig = assign.lhs.get_signature_and_indices()[0]
     chains = DefinitionUseChain(assign.lhs)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[b_sig]
     # Check the datatypes of the input and output are as expected.
     assert isinstance(assign.lhs.datatype, UnsupportedType)
     assert isinstance(psyir.walk(Assignment)[1].lhs.datatype,
@@ -958,9 +959,9 @@ def test_backward_accesses_unsupported_type_assignment_lhs(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     assigns = psyir.walk(Assignment)
     assign = assigns[-1]
-    sig = assign.lhs.get_signature_and_indices()[0]
+    a_sig = assign.lhs.get_signature_and_indices()[0]
     chains = DefinitionUseChain(assign.lhs)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
 
     # Check the datatypes of the input and outputs are as expected.
     assert isinstance(assign.lhs.datatype, UnsupportedType)
@@ -993,16 +994,17 @@ def test_backward_accesses_unsupported_type_assignment_rhs(fortran_reader):
     assigns = psyir.walk(Assignment)
     assign = assigns[-1]
     # Start from a = b + C.
-    sig = assign.rhs.children[1].get_signature_and_indices()[0]
+    c_sig = assign.rhs.children[1].get_signature_and_indices()[0]
     chains = DefinitionUseChain(assign.rhs.children[1])
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[c_sig]
 
     # Check the datatype of the input and outputs are as expected.
     assert isinstance(assign.rhs.children[1].datatype, UnsupportedType)
     assert isinstance(assign.rhs.children[0].datatype, UnsupportedType)
 
-    # The result should be a = B + c and C = 2 (both are UnsupportedTypes so
-    # could reference the same memory).
+    # The result should be a = B + c and C = 2 (both b and c are
+    # UnsupportedTypes so could reference the same memory, therefore the
+    # DefinitionUseChains treats them as the same variable).
     assert len(reaches) == 2
     assert reaches[0] is assigns[2].rhs.children[0]
     assert reaches[1] is assigns[1].lhs
@@ -1020,9 +1022,9 @@ def test_backward_accesses_supported_unsupported_assignments(fortran_reader):
     end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
     assign = psyir.walk(Assignment)[-1]
-    sig = assign.rhs.get_signature_and_indices()[0]
+    a_sig = assign.rhs.get_signature_and_indices()[0]
     chains = DefinitionUseChain(assign.rhs)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     # Check the datatypes are as expected
     assert not isinstance(assign.rhs, UnsupportedType)
     assert isinstance(psyir.walk(Assignment)[0].lhs.datatype,
@@ -1071,9 +1073,9 @@ def test_backward_accesses_unsupported_type_lhs_ends_chain(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     assigns = psyir.walk(Assignment)
     assign = assigns[-1]
-    sig = assign.lhs.get_signature_and_indices()[0]
+    a_sig = assign.lhs.get_signature_and_indices()[0]
     chains = DefinitionUseChain(assign.lhs)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     assert isinstance(assign.lhs.datatype, UnsupportedType)
     assert isinstance(assigns[0].lhs.datatype, UnsupportedType)
     assert isinstance(assigns[0].rhs.datatype, UnsupportedType)
@@ -1101,9 +1103,9 @@ def test_backward_accesses_unsupported_type_puresub_arguments(fortran_reader):
     routine = psyir.walk(Routine)[1]
     assigns = routine.walk(Assignment)
     assign = assigns[-1]
-    sig = assign.lhs.get_signature_and_indices()[0]
+    c_sig = assign.lhs.get_signature_and_indices()[0]
     chains = DefinitionUseChain(assign.lhs)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[c_sig]
 
     # Check the datatypes
     assert isinstance(assign.lhs.datatype, UnsupportedType)
@@ -1131,7 +1133,7 @@ def test_backward_accesses_unsupported_if_condition(fortran_reader):
     assign = psyir.walk(Assignment)[-1]
     a_sig = assign.lhs.get_signature_and_indices()[0]
     c_sig = assign.rhs.get_signature_and_indices()[0]
-    chains = DefinitionUseChain([assign.lhs, assign.rhs])
+    chains = DefinitionUseChain(assign.children)
     reaches = chains.find_backward_accesses()
 
     # Check the datatypes
@@ -1162,9 +1164,9 @@ def test_backward_access_unsupported_ref_in_codeblock(fortran_reader):
     end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
     assign = psyir.walk(Assignment)[-1]
-    sig = assign.lhs.get_signature_and_indices()[0]
+    a_sig = assign.lhs.get_signature_and_indices()[0]
     chains = DefinitionUseChain(assign.lhs)
-    reaches = chains.find_backward_accesses()[sig]
+    reaches = chains.find_backward_accesses()[a_sig]
     # Check datatypes
     assert isinstance(assign.lhs.datatype, UnsupportedType)
 
