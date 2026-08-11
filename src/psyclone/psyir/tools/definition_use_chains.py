@@ -1,37 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2024-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: A. B. G. Chalk, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 """This module contains the DefinitionUseChain class"""
 
@@ -300,9 +271,7 @@ class DefinitionUseChain:
                     # the ancestor statement.
                     sub_stop_point = (
                         self._references[0].ancestor(Statement)
-                        .walk(Node)[-1]
-                        .abs_position
-                        + 1
+                        .get_last_descendant_node().abs_position + 1
                     )
                     # If we have a basic block with no children then skip it,
                     # e.g. for an if block with no code before the else
@@ -341,7 +310,7 @@ class DefinitionUseChain:
                     if (ancestor.lhs is self._references[0]
                             and len(self._references) == 1):
                         # Find the last node in the assignment
-                        last_node = ancestor.walk(Node)[-1]
+                        last_node = ancestor.get_last_descendant_node()
                         # Modify the start_point to only include the node after
                         # this assignment.
                         self._start_point = last_node.abs_position
@@ -481,7 +450,7 @@ class DefinitionUseChain:
                 # RHS.
                 if any([ancestor.lhs is ref for ref in self._references]):
                     # Find the last node in the assignment
-                    last_node = ancestor.walk(Node)[-1]
+                    last_node = ancestor.get_last_descendant_node()
                     # Modify the start_point to only include the node after
                     # this assignment.
                     self._start_point = last_node.abs_position
@@ -1328,7 +1297,9 @@ class DefinitionUseChain:
                     body = ancestor.loop_body.children[:]
                     # Find the stop point - this needs to be the last node
                     # in the ancestor loop
-                    sub_stop_point = ancestor.walk(Node)[-1].abs_position + 1
+                    sub_stop_point = (
+                        ancestor.get_last_descendant_node().abs_position + 1
+                    )
                     # We make a copy of the reference to have a detached
                     # node to avoid handling the special cases based on
                     # the parents of the reference.
@@ -1372,7 +1343,7 @@ class DefinitionUseChain:
                     # If the reference is not the lhs then we can ignore
                     # the RHS.
                     if any([ancestor.lhs is ref for ref in self._references]):
-                        end = ancestor.walk(Node)[-1]
+                        end = ancestor.get_last_descendant_node()
                         # Add the rhs as a potential basic block with
                         # different start and stop positions.
                         chain = DefinitionUseChain(
