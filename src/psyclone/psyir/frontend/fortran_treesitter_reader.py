@@ -138,21 +138,6 @@ class FortranTreeSitterReader():
     :param conditional_openmp: whether to parse conditional OpenMP statements.
     '''
 
-    # These nodes belong to a Fortran specification part and update a symbol
-    # table rather than producing executable PSyIR children.
-    _SPECIFICATION_TYPES = {
-        "use_statement", "variable_declaration", "derived_type_definition",
-        "interface"
-    }
-
-    # Punctuation and grammar-only nodes are listed explicitly at each scope
-    # boundary. This makes it clear which tree-sitter children are consumed by
-    # the scope handler and prevents them from becoming accidental CodeBlocks.
-    _MODULE_NON_EXECUTABLE_TYPES = _SPECIFICATION_TYPES.union({
-        "module_statement", "end_module_statement", "implicit_statement",
-        "internal_procedures", "public_statement", "private_statement"
-    })
-
     # Centralising these maps documents the supported Fortran spellings and
     # avoids recreating identical dictionaries for every parsed operation.
     _UNARY_OPERATORS = {
@@ -494,9 +479,17 @@ class FortranTreeSitterReader():
 
         with self._using_scope(container.symbol_table):
             visibility_map = self._process_access_statements(tsnode.children)
-            self._process_nodes(
-                direct_child_of_type(tsnode, self._SPECIFICATION_TYPES),
-                _NodeExpectation.NONE)
+
+            # Specification nodes precede executable nodes, so processing in
+            # source order ensures that symbols are declared before use.
+            structural = {
+                "module_statement", "end_module_statement",
+                "implicit_statement", "internal_procedures",
+                "public_statement", "private_statement"
+            }
+            container.children.extend(self._process_nodes(
+                [child for child in tsnode.children
+                 if child.type not in structural], _NodeExpectation.LIST))
 
             internal = next_of_type(tsnode, "internal_procedures")
             if internal:
@@ -505,11 +498,6 @@ class FortranTreeSitterReader():
                         [child for child in internal.children
                          if child.type != "contains_statement"],
                         _NodeExpectation.LIST))
-
-            container.children.extend(self._process_nodes(
-                [child for child in tsnode.children
-                 if child.type not in self._MODULE_NON_EXECUTABLE_TYPES],
-                _NodeExpectation.LIST))
             self._apply_visibility(visibility_map)
         return container
 
@@ -560,10 +548,16 @@ class FortranTreeSitterReader():
         with self._using_temporary_scope(parent, routine):
             visibility_map = self._process_access_statements(
                 tsnode.children)
-            self._process_nodes(
-                (child for child in tsnode.children
-                 if child.type in self._SPECIFICATION_TYPES),
-                _NodeExpectation.NONE)
+
+            structural = {
+                f"{routine_kind}_statement",
+                f"end_{routine_kind}_statement",
+                "implicit_statement", "public_statement",
+                "private_statement"
+            }
+            routine.children.extend(self._process_nodes(
+                [child for child in tsnode.children
+                 if child.type not in structural], _NodeExpectation.LIST))
 
             args = [routine.symbol_table.lookup(name)
                     for name in argument_names]
@@ -571,17 +565,6 @@ class FortranTreeSitterReader():
             if return_name:
                 routine.return_symbol = routine.symbol_table.lookup(
                     return_name)
-
-            specification = {
-                f"{routine_kind}_statement",
-                f"end_{routine_kind}_statement",
-                "implicit_statement", "public_statement",
-                "private_statement"
-            }
-            specification.update(self._SPECIFICATION_TYPES)
-            routine.children.extend(self._process_nodes(
-                [child for child in tsnode.children
-                 if child.type not in specification], _NodeExpectation.LIST))
             self._apply_visibility(visibility_map)
         return routine
 
