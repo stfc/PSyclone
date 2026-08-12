@@ -636,6 +636,13 @@ def test_labels_found_with_comments(fortran_writer):
     out = fortran_writer(psyir)
     # Correct is formatted strangely to avoid issues with
     # linting due to empty lines or trailing whitespace.
+    # The \n   \n  100\ section appears as:
+    #!  - Unsupported statement: Goto_Stmt
+    #
+    #  100 DO i=...
+    # in the code output, but formatting correct like that
+    # results in errors from flake8, so this is chosen to mitigate those
+    # errors.
     correct = """subroutine foo()
   integer :: i
   integer :: j
