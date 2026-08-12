@@ -133,8 +133,10 @@ def test_generate_lfric_adjoint_multi_routine(fortran_reader, fortran_writer):
     assert "subroutine adj_test_code_r8()" in result
     # Check that the names of the routines in the two interfaces have
     # been updated.
-    assert "module procedure :: adj_test_code_r4, adj_test_code_r8" in result
-    assert "module procedure :: adj_test_code_r8, adj_test_code_r4" in result
+    assert "module procedure :: adj_test_code_r4" in result
+    assert "module procedure :: adj_test_code_r8" in result
+    assert "module procedure :: adj_test_code_r8" in result
+    assert "module procedure :: adj_test_code_r4" in result
     # Check that the name of the interface associated with the kernel
     # implementation has been updated.
     assert "end type adj_test_type" in result
