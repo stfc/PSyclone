@@ -1,3 +1,6 @@
+   27) PR #3550 for #3544. Fixes issues with UnresolvedInterface propogation,
+   and adds support for the recursive keyword.
+
    26) PR #3545 for #3537. Fix issues with WHERE constructs with comments.
 
    25) PR #3481 towards #3463. Adds support for adding standalone Assignment
