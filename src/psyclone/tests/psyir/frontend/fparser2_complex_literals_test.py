@@ -10,8 +10,9 @@
     PSyIR front-end '''
 
 from psyclone.psyir.nodes import (
-    Literal, ComplexLiteral, Assignment, Reference, Routine, Call)
+    Literal, ComplexLiteral, Assignment, Reference, Routine, Call, CodeBlock)
 from psyclone.psyir.symbols import ScalarType, ArrayType
+from psyclone.core.signature import Signature
 
 
 def test_complex_type(fortran_reader):
@@ -219,3 +220,18 @@ end subroutine'''
     assert isinstance(ass.rhs.datatype, ArrayType)
     assert ass.rhs.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert ass.rhs.datatype.precision == ScalarType.Precision.UNDEFINED
+
+
+def test_complex_literal_codeblock(fortran_reader):
+    '''Test a complex literal with a named constant in a codeblock'''
+    code = '''
+subroutine foo()
+  real, parameter :: r = 10.0
+  complex :: c
+  block
+    c = (1.0, r)
+  end block
+end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    cb = psyir.walk(CodeBlock)[0]
+    assert Signature("r") in cb.reference_accesses()
