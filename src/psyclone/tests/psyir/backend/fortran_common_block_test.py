@@ -37,13 +37,16 @@ def test_fw_common_blocks(fortran_reader, fortran_writer, tmpdir):
     assert code == (
         "subroutine sub()\n"
         "  integer :: a\n"
+        "  common /name1/ a\n"
         "  integer :: b\n"
+        "  common /name1/ b\n"
         "  integer :: c\n"
+        "  common /name1/ c\n"
         "  real :: d\n"
+        "  common /name2/ d\n"
         "  real :: e\n"
+        "  common // e\n"
         "  real :: f\n"
-        "  COMMON /name1/ a, b\n"
-        "  COMMON /name1/ c /name2/ d\n"
-        "  COMMON // e, f\n\n\n"
+        "  common // f\n\n\n"
         "end subroutine sub\n")
     assert Compile(tmpdir).string_compiles(fortran_writer(psyir))

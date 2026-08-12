@@ -400,8 +400,10 @@ def test_interface_with_comments_is_supported(fortran_writer):
     '''
     code = """
     module test
+        ! Preceding comment
         interface inter1 ! Some comment here
-           module procedure     func1, func2
+           ! comment on module procedure
+           module procedure     func1, func2 ! inline comment
         end interface
        contains
         subroutine test
@@ -417,8 +419,10 @@ def test_interface_with_comments_is_supported(fortran_writer):
 
     correct = """module test
   implicit none
+  ! Preceding comment
   interface inter1
-    module procedure :: func1, func2
+    module procedure :: func1
+    module procedure :: func2
   end interface inter1
   public
 
@@ -431,7 +435,36 @@ def test_interface_with_comments_is_supported(fortran_writer):
 
 end module test"""
     out = fortran_writer(psyir)
+    # We lose all the comments on the module procedures and the
+    # inline comment on the interface.
     assert correct in out
-    assert "Some comment here" not in out
-    pytest.xfail(reason="TODO #3517 Comments in declarations are lost "
-                        "inside Interface blocks.")
+    # We lost the inline comment at the end
+    assert "inline_comment" not in out
+    pytest.xfail(reason="#3517 Inline comments in interface and "
+                        "module procedure declarations are not supported "
+                        "inside Interface blocks. This is a limitation "
+                        "partly due to Fparser issue 521.")
+
+
+def test_unsupported_interface_keep_comment(fortran_writer):
+    ''' Test that an unsupported interface keeps the preceding comments.'''
+    code = """module test
+      ! Here is a preceding comment.
+      interface my_interface
+         subroutine test1(a)
+         end subroutine
+         subroutine test2(a, b)
+         end subroutine test2
+      end interface
+
+      contains
+
+      subroutine myfunc()
+      integer :: a
+      call my_interface(a)
+      end subroutine
+      end module"""
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    out = fortran_writer(psyir)
+    assert "Here is a preceding comment" in out
