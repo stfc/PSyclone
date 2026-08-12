@@ -240,7 +240,7 @@ def test_generating_unsupportedtype_routine_imports(
               contains
               subroutine test()
                   real, pointer :: x
-                  x = unsupported_type_symbol()
+                  x => unsupported_type_symbol()
               end subroutine test
           end module test_mod
       ''')

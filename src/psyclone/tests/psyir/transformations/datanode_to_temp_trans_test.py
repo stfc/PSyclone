@@ -63,7 +63,7 @@ def test_datanodetotemptrans_validate(fortran_reader):
     code = """subroutine test
         complex, pointer :: a, b
 
-        b = a
+        b => a
     end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
     assign = psyir.walk(Assignment)[0]

@@ -298,7 +298,6 @@ def test_function_unsupported_type(fortran_reader):
         "contains\n"
         "  function my_func()\n"
         "    complex, pointer :: my_func\n"
-        "    my_func = null()\n"
         "  end function my_func\n"
         "\n"
         "  module function Agrif_CFixed()\n"
