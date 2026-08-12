@@ -297,12 +297,11 @@ def test_function_unsupported_type(fortran_reader):
         "module a\n"
         "contains\n"
         "  function my_func()\n"
-        "    complex :: my_func\n"
-        "    my_func = CMPLX(1.0, 1.0)\n"
+        "    complex, pointer :: my_func\n"
+        "    my_func = null()\n"
         "  end function my_func\n"
         "\n"
-        "  complex function Agrif_CFixed()\n"
-        "    Agrif_CFixed = (0.0, 1.0)\n"
+        "  module function Agrif_CFixed()\n"
         "  end function Agrif_CFixed\n"
         "end module\n")
     psyir = fortran_reader.psyir_from_source(code)
@@ -311,7 +310,7 @@ def test_function_unsupported_type(fortran_reader):
     assert isinstance(routines[0].return_symbol.datatype,
                       UnsupportedFortranType)
     assert (routines[0].return_symbol.datatype.declaration.lower() ==
-            "complex :: my_func")
+            "complex, pointer :: my_func")
     # The Agrif_CFixed function ends up as a CodeBlock because of the
     # unsupported type prefix.
     assert isinstance(routines[0].parent.children[1], CodeBlock)

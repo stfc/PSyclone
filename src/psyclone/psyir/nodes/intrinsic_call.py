@@ -315,6 +315,20 @@ def _type_of_intrinsic_with_precision_of_named_arg(
     )
 
 
+def _complex_to_real(arg_type: DataType) -> DataType:
+    """Convert a COMPLEX argument to REAL of the same precision. Other
+    types pass through unchanged."""
+    if (isinstance(arg_type, ScalarType) and
+            arg_type.intrinsic == ScalarType.Intrinsic.COMPLEX):
+        return ScalarType(ScalarType.Intrinsic.REAL,
+                          arg_type.precision)
+    if (isinstance(arg_type, ArrayType) and
+            arg_type.intrinsic == ScalarType.Intrinsic.COMPLEX):
+        return ArrayType(ScalarType(ScalarType.Intrinsic.REAL,
+                                    arg_type.precision))
+    return arg_type
+
+
 def _findloc_return_type(node: IntrinsicCall) -> DataType:
     """Helper function for the FINDLOC case.
 
@@ -633,8 +647,8 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("a",),)),
             optional_args={},
-            # TODO 1590 Complex to real conversion unsupported.
-            return_type=lambda node: _type_of_named_argument(node, "a"),
+            return_type=lambda node:
+                _complex_to_real(_type_of_named_argument(node, "a")),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(node)
             ),
@@ -744,8 +758,11 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("z",),)),
             optional_args={},
-            # TODO #1590 Complex numbers' precision unsupported.
-            return_type=lambda node: UnsupportedFortranType(""),
+            return_type=lambda node:
+                _type_of_intrinsic_with_precision_of_named_arg(
+                    node, ScalarType.Intrinsic.REAL,
+                    "z"
+                ),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -1526,8 +1543,11 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={"y": DataNode, "kind": DataNode},
-            # TODO #1590 Complex numbers unsupported.
-            return_type=lambda node: UnsupportedFortranType(""),
+            return_type=lambda node:
+                _type_of_scalar_with_optional_kind(
+                    node, ScalarType.Intrinsic.COMPLEX,
+                    "kind"
+                ),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node, constant_named_args=["kind"]
@@ -1679,8 +1699,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("z",),)),
             optional_args={},
-            # TODO #1590 Complex numbers unsupported.
-            return_type=lambda node: UnsupportedFortranType(""),
+            return_type=lambda node: _type_of_named_argument(node, "z"),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -4390,8 +4409,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            # TODO 1590 Complex conversion unsupported.
-            return_type=lambda node: UnsupportedFortranType(""),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node

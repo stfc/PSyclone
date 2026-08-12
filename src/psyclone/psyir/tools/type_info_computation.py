@@ -104,8 +104,6 @@ def compute_scalar_type(
             return argtypes[0].elemental_type
         return argtypes[0]
 
-    # TODO 1590 - ensure support for complex numbers here in the future.
-
     # If the arguments are the same type but have different precisions then
     # we need to compute the resulting precision.
     if argtypes[0].intrinsic == argtypes[1].intrinsic:
@@ -114,15 +112,15 @@ def compute_scalar_type(
                                        argtypes[1].precision])
         return ScalarType(argtypes[0].intrinsic, precision)
 
-    # If either has REAL intrinsic type, the result is a REAL.
-    if argtypes[0].intrinsic == ScalarType.Intrinsic.REAL:
-        if isinstance(argtypes[0], ArrayType):
-            return argtypes[0].elemental_type
-        return argtypes[0]
-    if argtypes[1].intrinsic == ScalarType.Intrinsic.REAL:
-        if isinstance(argtypes[1], ArrayType):
-            return argtypes[1].elemental_type
-        return argtypes[1]
+    # If either has COMPLEX intrinsic type, the result is a COMPLEX.
+    # Otherwise, if either has REAL intrinsic type, the result is a REAL.
+    for intrin in [ScalarType.Intrinsic.COMPLEX,
+                   ScalarType.Intrinsic.REAL]:
+        for argtype in argtypes:
+            if argtype.intrinsic == intrin:
+                if isinstance(argtype, ArrayType):
+                    return argtype.elemental_type
+                return argtype
 
     # Otherwise, the type of the result is not consistent with
     # a numerical operation

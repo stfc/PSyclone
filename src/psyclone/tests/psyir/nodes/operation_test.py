@@ -182,6 +182,9 @@ def test_binaryop_scalar_datatype():
     iref2 = Reference(DataSymbol("itmp2", ScalarType.integer_single_type()))
     binop3 = BinaryOperation.create(oper, iref1.copy(), iref2)
     assert binop3.datatype == ScalarType.integer_single_type()
+    cref1 = Reference(DataSymbol("rtmp1", ScalarType.complex_single_type()))
+    binop4 = BinaryOperation.create(oper, ref1.copy(), cref1)
+    assert binop4.datatype == ScalarType.complex_single_type()
     # When any one of the arguments is of UnsupportedType then we know
     # nothing about the type of the result.
     uref1 = Reference(
@@ -201,8 +204,8 @@ def test_binaryop_scalar_datatype():
         _ = binop6.datatype
     assert ("Invalid argument(s) of type(s) '['Intrinsic.BOOLEAN']' to "
             "numerical operation 'Operator.ADD' in 'itmp1 + switch'. "
-            "Currently only ScalarType.Intrinsic.REAL/INTEGER are supported "
-            "(TODO #1590)" in str(err.value))
+            "Currently only ScalarType.Intrinsic.REAL/INTEGER/COMPLEX are "
+            "supported" in str(err.value))
 
 
 def test_binaryop_operands():

@@ -340,9 +340,11 @@ def test_rrbl_annotating_fortran_code_because_complex_not_literal(
 ):
     """test fortran code annotation with transformation warning"""
 
+    # This example is not valid Fortran (parameters cannot be pointers).
+    # It's not clear if this code path can be exercised by valid Fortran.
     source = """subroutine foo()
-    complex, parameter ::  a = (1.0, 1.0)
-    complex :: x
+    complex, pointer, parameter :: a = null()
+    complex, pointer :: x
     x = a
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(source)
@@ -358,7 +360,7 @@ def test_rrbl_annotating_fortran_code_because_complex_not_literal(
     assert (
         f"{rbbl.name}: only "
         f"support constant (parameter) but UnsupportedFortranType"
-        f"('COMPLEX, PARAMETER :: a = (1.0, 1.0)') "
+        f"('COMPLEX, POINTER, PARAMETER :: a = NULL()') "
         f"is not seen by Psyclone as a constant."
         in written_code
     )

@@ -102,6 +102,7 @@ def test_notype_eq():
                                        ScalarType.Precision.UNDEFINED])
 @pytest.mark.parametrize("intrinsic", [ScalarType.Intrinsic.INTEGER,
                                        ScalarType.Intrinsic.REAL,
+                                       ScalarType.Intrinsic.COMPLEX,
                                        ScalarType.Intrinsic.BOOLEAN,
                                        ScalarType.Intrinsic.CHARACTER])
 def test_scalartype_enum_precision(intrinsic, precision):
@@ -135,6 +136,7 @@ def test_scalartypeattribute(attribute):
 @pytest.mark.parametrize("precision", [1, 8, 16])
 @pytest.mark.parametrize("intrinsic", [ScalarType.Intrinsic.INTEGER,
                                        ScalarType.Intrinsic.REAL,
+                                       ScalarType.Intrinsic.COMPLEX,
                                        ScalarType.Intrinsic.BOOLEAN,
                                        ScalarType.Intrinsic.CHARACTER])
 def test_scalartype_int_precision(intrinsic, precision):
@@ -153,6 +155,7 @@ def test_scalartype_int_precision(intrinsic, precision):
 
 @pytest.mark.parametrize("intrinsic", [ScalarType.Intrinsic.INTEGER,
                                        ScalarType.Intrinsic.REAL,
+                                       ScalarType.Intrinsic.COMPLEX,
                                        ScalarType.Intrinsic.BOOLEAN,
                                        ScalarType.Intrinsic.CHARACTER])
 def test_scalartype_datasymbol_precision(intrinsic):

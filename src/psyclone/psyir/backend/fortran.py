@@ -19,8 +19,8 @@ from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, TYPE_MAP_FROM_FORTRAN)
 from psyclone.psyir.nodes import (
     ArrayConstructor, BinaryOperation, Call, Container, CodeBlock,
-    DataNode, IntrinsicCall, Literal, Member, Node, OMPDependClause,
-    OMPReductionClause, Operation, Range, Routine, Schedule,
+    ComplexLiteral, DataNode, IntrinsicCall, Literal, Member, Node,
+    OMPDependClause, OMPReductionClause, Operation, Range, Routine, Schedule,
     UnaryOperation, UnknownDirective, IfBlock)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataType,
@@ -1355,6 +1355,16 @@ class FortranWriter(LanguageWriter):
             step = self._visit(node.step)
             result += f":{step}"
         return result
+
+    def complexliteral_node(self, node: ComplexLiteral) -> str:
+        '''This method is called when a ComplexLiteral instance is found
+        in the PSyIR tree.
+
+        :param node: a ComplexLiteral PSyIR node.
+        :returns: the Fortran code for the literal.
+        '''
+        return ("(" + self._visit(node.children[0]) + ", " +
+                self._visit(node.children[1]) + ")")
 
     def literal_node(self, node):
         '''This method is called when a Literal instance is found in the PSyIR
