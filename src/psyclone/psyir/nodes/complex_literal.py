@@ -45,7 +45,8 @@ class ComplexLiteral(DataNode):
         :param parent: the parent node of this ComplexLiteral in the PSyIR.
         '''
         lit = ComplexLiteral(parent=parent)
-        lit.extend(re_part, im_part)
+        lit.children.extend([re_part, im_part])
+        return lit
 
     @staticmethod
     def _validate_child(position: int, child: Node) -> bool:

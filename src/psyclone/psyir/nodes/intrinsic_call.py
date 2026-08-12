@@ -325,7 +325,7 @@ def _complex_to_real(arg_type: DataType) -> DataType:
     if (isinstance(arg_type, ArrayType) and
             arg_type.intrinsic == ScalarType.Intrinsic.COMPLEX):
         return ArrayType(ScalarType(ScalarType.Intrinsic.REAL,
-                                    arg_type.precision))
+                                    arg_type.precision), arg_type.shape)
     return arg_type
 
 

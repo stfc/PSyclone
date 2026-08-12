@@ -572,17 +572,6 @@ def default_real_type():
                       default_precision(ScalarType.Intrinsic.REAL))
 
 
-def default_complex_type():
-    '''Returns the default complex datatype specified by the front end.
-
-    :returns: the default complex datatype.
-    :rtype: :py:class:`psyclone.psyir.symbols.ScalarType`
-
-    '''
-    return ScalarType(ScalarType.Intrinsic.COMPLEX,
-                      default_precision(ScalarType.Intrinsic.COMPLEX))
-
-
 def get_literal_precision(fparser2_node, psyir_literal_parent):
     '''Takes a Fortran2003 literal node as input and returns the appropriate
      PSyIR precision type for that node. Adds a UnresolvedType DataSymbol in

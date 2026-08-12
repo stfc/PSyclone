@@ -23,7 +23,7 @@ from psyclone.psyir.nodes import (
     Schedule, Routine, Return, FileContainer, IfBlock, OMPTaskloopDirective,
     OMPMasterDirective, OMPParallelDirective, Loop, OMPNumTasksClause,
     OMPDependClause, IntrinsicCall, OMPReductionClause, UnknownDirective,
-    ArrayConstructor)
+    ArrayConstructor, ComplexLiteral)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ContainerSymbol, DataSymbol, GenericInterfaceSymbol,
     ImportInterface, RoutineSymbol, StaticInterface, Symbol, SymbolTable,
@@ -1860,6 +1860,18 @@ def test_fw_literal_node(fortran_writer):
     lit1 = Literal("hello", my_type)
     result = fortran_writer(lit1)
     assert result == "1_'hello'"
+
+
+def test_fw_complexliteral_node(fortran_writer):
+    ''' Test the PSyIR complex literals are converted to the proper Fortran
+    format when necessary. '''
+    lit1 = Literal("1.0", ScalarType(ScalarType.Intrinsic.REAL,
+                                     ScalarType.Precision.UNDEFINED))
+    lit2 = Literal("2.0", ScalarType(ScalarType.Intrinsic.REAL,
+                                     ScalarType.Precision.UNDEFINED))
+    lit = ComplexLiteral.create(lit1, lit2)
+    result = fortran_writer(lit)
+    assert result == "(1.0, 2.0)"
 
 
 def test_fw_call_node(fortran_writer):
