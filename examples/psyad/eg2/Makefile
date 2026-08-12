@@ -81,8 +81,8 @@ psy.f90 ${HARNESS_F90_FILE}: ${HARNESS_X90_FILE} ${ADJ_KERNEL_F90_FILE}
 ${ADJ_KERNEL_X90_FILE} ${HARNESS_X90_FILE}: ${TL_KERNEL_FILE}
 	$(PSYAD) -api lfric $< -otest ${HARNESS_X90_FILE} -oad ${ADJ_KERNEL_X90_FILE} ${GEOMETRY_VAR_LIST} -a ${ACTIVE_VAR_LIST}
 
- ${ADJ_KERNEL_F90_FILE}: ${ADJ_KERNEL_X90_FILE}
-     cp $< $@
+${ADJ_KERNEL_F90_FILE}: ${ADJ_KERNEL_X90_FILE}
+	cp $< $@
 
 compile:
 	@echo No compilation supported: the generated Algorithm must be called from within an LFRic mini-app.
