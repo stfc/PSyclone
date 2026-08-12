@@ -49,6 +49,8 @@ contains
   subroutine example(precond_option, mmd)
 
     use precondition_mod, only : precondition
+    use constants_mod, only : r_def, i_def
+    use field_mod, only : field_type
 
     implicit none
 

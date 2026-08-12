@@ -64,6 +64,9 @@ module advective_inc_alg_mod
   use operator_mod,                   only: operator_type
   use quadrature_xyoz_mod,            only: quadrature_xyoz_type
   use quadrature_rule_gaussian_mod,   only: quadrature_rule_gaussian_type
+  use quadrature_face_mod,            only: quadrature_face_type
+  use other,                          only: reference_element, chi_stencil_extent
+
 
   ! PsyKAl PSYClone kernels
   use rtheta_bd_kernel_mod,           only: rtheta_bd_kernel_type
