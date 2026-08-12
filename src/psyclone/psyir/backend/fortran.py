@@ -17,6 +17,7 @@ from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, TYPE_MAP_FROM_FORTRAN)
+from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.nodes import (
     ArrayConstructor, BinaryOperation, Call, Container, CodeBlock,
     DataNode, IntrinsicCall, Literal, Member, Node, OMPDependClause,
@@ -248,6 +249,20 @@ class FortranWriter(LanguageWriter):
             # than one.
             if mapping_key not in reverse_dict:
                 reverse_dict[mapping_key] = mapping_value.upper()
+
+    def gen_preceding_comments(self, obj: CommentableMixin) -> str:
+        '''
+        :param obj: The object whose preceding comments should be generated.
+
+        :returns: The Fortran string for the preceding comments for the
+            provided obj
+        '''
+        comments = ""
+        if obj.preceding_comment:
+            for line in obj.preceding_comment.splitlines():
+                comments += f"{self._nindent}{self._COMMENT_PREFIX}{line}\n"
+
+        return comments
 
     def gen_datatype(self,
                      datatype: Union[DataType, DataTypeSymbol],
@@ -549,9 +564,7 @@ class FortranWriter(LanguageWriter):
                                 )
 
         result = ""
-        if len(symbol.preceding_comment) > 0:
-            for line in symbol.preceding_comment.splitlines():
-                result += f"{self._nindent}{self._COMMENT_PREFIX}{line}\n"
+        result += self.gen_preceding_comments(symbol)
 
         # Whether we're dealing with an array declaration and, if so, the
         # shape of that array.
@@ -670,17 +683,16 @@ class FortranWriter(LanguageWriter):
             raise InternalError(
                 f"gen_interfacedecl only supports 'GenericInterfaceSymbol's "
                 f"but got '{type(symbol).__name__}'")
-
-        decln = f"{self._nindent}interface {symbol.name}\n"
+        decln = ""
+        decln += self.gen_preceding_comments(symbol)
+        decln += f"{self._nindent}interface {symbol.name}\n"
         self._depth += 1
         # Any module procedures.
-        routines = ", ".join([rsym.name for rsym in symbol.container_routines])
-        if routines:
-            decln += f"{self._nindent}module procedure :: {routines}\n"
+        for routine in symbol.container_routines:
+            decln += f"{self._nindent}module procedure :: {routine.name}\n"
         # Any other (external) procedures.
-        routines = ", ".join([rsym.name for rsym in symbol.external_routines])
-        if routines:
-            decln += f"{self._nindent}procedure :: {routines}\n"
+        for routine in symbol.external_routines:
+            decln += f"{self._nindent}procedure :: {routine.name}\n"
         self._depth -= 1
         decln += f"{self._nindent}end interface {symbol.name}\n"
 
@@ -724,9 +736,7 @@ class FortranWriter(LanguageWriter):
                 f"'{symbol.name}' of type '{type(symbol.datatype).__name__}'")
 
         result = ""
-        if symbol.preceding_comment != "":
-            for line in symbol.preceding_comment.splitlines():
-                result += f"{self._nindent}{self._COMMENT_PREFIX}{line}\n"
+        result += self.gen_preceding_comments(symbol)
 
         result += f"{self._nindent}type"
 
@@ -1476,7 +1486,9 @@ class FortranWriter(LanguageWriter):
 
                 # For the keyword substitution to work we have to handle
                 # any preceding comment separately
-                comment = node.else_body.children[0].preceding_comment
+                comment = self.gen_preceding_comments(
+                    node.else_body.children[0]
+                )
                 node.else_body.children[0].preceding_comment = ""
 
                 # Get the else body text
@@ -1487,12 +1499,7 @@ class FortranWriter(LanguageWriter):
                 # with the current if construct
                 else_block = "\n".join(else_block.split('\n')[:-2]) + "\n"
                 # Prepend back the comment at the elseif level
-                if comment:
-                    for line in reversed(comment.splitlines()):
-                        else_block = (
-                            f"{self._nindent}{self._COMMENT_PREFIX}{line}\n"
-                            f"{else_block}"
-                        )
+                else_block = f"{comment}{else_block}"
             else:
                 else_block = f"{self._nindent}else\n"
                 self._depth += 1

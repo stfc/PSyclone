@@ -2474,7 +2474,10 @@ class Fparser2Reader():
                     # Ensure the interface to this Symbol is static
                     symbol.interface = StaticInterface()
 
-    def _process_interface_block(self, node, symbol_table, visibility_map):
+    def _process_interface_block(self, node: Fortran2003.Interface_Block,
+                                 symbol_table: SymbolTable,
+                                 visibility_map: dict[str, Symbol.Visibility],
+                                 preceding_comments: Iterable[str] = ()):
         '''
         Processes a Fortran2003.Interface_Block. If the interface is named
         and consists only of [module] procedure :: <procedure-list> then a
@@ -2482,13 +2485,11 @@ class Fparser2Reader():
         UnsupportedFortranType is created.
 
         :param node: the parse tree for the interface block.
-        :type node: :py:class:`fparser.two.Fortran2003.Interface_Block`
         :param symbol_table: the table to which to add new symbols.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param visibility_map: information on any explicit symbol visibilities
             in the current scope.
-        :type visibility_map: dict[
-            str, :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
+        :param preceding_comments: the list of preceding_comments for this
+            block.
 
         '''
         # Fortran 2003 standard R1203 says that:
@@ -2526,8 +2527,19 @@ class Fparser2Reader():
             if isinstance(child, (Fortran2003.Interface_Stmt,
                                   Fortran2003.End_Interface_Stmt)):
                 continue
-            # TODO #3517: Comments inside an Interface statement are ignored.
+            # Inline comments inside an Interface statement are
+            # not distinguishable from comments in the interface block.
+            # Inline comments on declarations may also be lost as they
+            # are not added to the Procedure_Stmt in fparser2, otherwise
+            # they will appear before the following statement. See
+            # fparser issue 521: https://github.com/stfc/fparser/issues/521.
             if isinstance(child, Fortran2003.Comment):
+                # Comments inside the Interface are lost, as we have
+                # nowhere to safely store them in PSyclone. If we were
+                # to add them to the symbol they could be modified by
+                # other interfaces or a declaration of the routine itself
+                # later, and override the comment in this Interface block
+                # which is not the desired behaviour.
                 continue
             if isinstance(child, Fortran2003.Procedure_Stmt):
                 # Keep track of whether these are module procedures.
@@ -2557,15 +2569,27 @@ class Fparser2Reader():
                 # GenericInterfaceSymbol. (There will be calls to it
                 # although there will be no corresponding implementation
                 # with that name.)
-                symbol_table.add(GenericInterfaceSymbol(
-                    name, rsymbols, visibility=vis))
+                interface_sym = GenericInterfaceSymbol(
+                    name, rsymbols, visibility=vis)
+                symbol_table.add(interface_sym)
+                interface_sym.preceding_comment = (
+                    self._comments_list_to_string(
+                        preceding_comments
+                    )
+                )
             else:
                 # We've not been able to determine the list of
                 # RoutineSymbols that this interface maps to so we just
                 # create a RoutineSymbol of UnsupportedFortranType.
-                symbol_table.add(RoutineSymbol(
+                interface_sym = RoutineSymbol(
                     name, datatype=UnsupportedFortranType(str(node).lower()),
-                    visibility=vis))
+                    visibility=vis)
+                symbol_table.add(interface_sym)
+                interface_sym.preceding_comment = (
+                    self._comments_list_to_string(
+                        preceding_comments
+                    )
+                )
         except KeyError:
             # This symbol has already been declared. This can happen when
             # an interface overloads a constructor for a type (as the interface
@@ -2657,8 +2681,8 @@ class Fparser2Reader():
             if isinstance(node, Fortran2003.Implicit_Part):
                 for comment in walk(node, (Fortran2003.Comment,
                                            Fortran2003.Directive)):
+                    # Add the comments to the preceding_comments list.
                     self.process_comment(comment, preceding_comments)
-                    continue
                 # Anything other than a PARAMETER statement or an
                 # IMPLICIT NONE means we can't handle this code.
                 # Any PARAMETER statements are handled separately by the
@@ -2674,16 +2698,19 @@ class Fparser2Reader():
                     raise NotImplementedError(
                         f"Error processing implicit-part: implicit variable "
                         f"declarations not supported but found '{node}'")
-            elif isinstance(node, Fortran2003.Interface_Block):
+                # This block needs to skip the preceding_comment reset block
+                # so we can continue.
+                continue
+            if isinstance(node, Fortran2003.Interface_Block):
                 self._process_interface_block(node, parent.symbol_table,
-                                              visibility_map)
+                                              visibility_map,
+                                              preceding_comments)
 
             elif isinstance(node, (Fortran2003.Type_Declaration_Stmt,
                                    Fortran2003.Procedure_Declaration_Stmt)):
                 self._process_decl_or_create_unsupported(
                     parent, parent.symbol_table, node, visibility_map,
                     statics_list, preceding_comments)
-                preceding_comments = []
 
             elif isinstance(node, (Fortran2003.Access_Stmt,
                                    Fortran2003.Save_Stmt,
@@ -2694,7 +2721,6 @@ class Fparser2Reader():
                                    Fortran2003.Use_Stmt)):
                 # These node types are handled separately
                 pass
-
             elif isinstance(node, Fortran2003.Namelist_Stmt):
                 # Place the declaration statement into the symbol table using
                 # an internal symbol name. In case that we need more details
@@ -2706,11 +2732,13 @@ class Fparser2Reader():
                     root_name="_PSYCLONE_INTERNAL_NAMELIST",
                     symbol_type=DataSymbol,
                     datatype=UnsupportedFortranType(str(node)))
-
             else:
                 raise NotImplementedError(
                     f"Error processing declarations: fparser2 node of type "
                     f"'{type(node).__name__}' not supported")
+            # Reset preceding_comments to avoid placing comments
+            # on following nodes.
+            preceding_comments = []
 
         # Process the nodes again, looking for PARAMETER statements. This is
         # done after the main declarations loop because they modify existing
