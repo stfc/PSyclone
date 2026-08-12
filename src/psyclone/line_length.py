@@ -44,6 +44,8 @@ def find_break_point(line: str, max_index: int, key_list: list[str]) -> int:
         if isinstance(key, re.Pattern):
             match = re.search(key, search_string)
         else:
+            # For string input keys, we reverse them in case they are of
+            # length >1 as we are searching backwards.
             match = re.search(re.escape(key[::-1]), search_string)
         if match:
             # If max_index is larger than the line length, we need to compute
@@ -103,7 +105,7 @@ class FortLineLength():
                           "unknown": "&"}
         # If using regexs to defined keys of length >1, the regex
         # must be in reverse as the matching is done on the reversed
-        # string.
+        # string. Non-regex keys are reversed automatically if needed.
         self._key_lists = {"statement": [", ", ",", " "],
                            "openmp_directive": [" ", ",", ")", "="],
                            "openacc_directive": [" ", ",", ")", "="],
