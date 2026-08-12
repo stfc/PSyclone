@@ -1100,6 +1100,8 @@ class Fparser2Reader():
                 parse_tree = Fortran2003.Pointer_Assignment_Stmt(source_code)
             elif partial_code == "statement":
                 parse_tree = Fortran2003.Execution_Part(reader)
+            elif partial_code == "specs":
+                parse_tree = Fortran2003.Specification_Part(reader)
             # When parsing intermediate expressione a None value
             # is the same as a NoMatch, unrecognised 'partial_code'
             # values will also be considered a NoMatch

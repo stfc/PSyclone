@@ -88,7 +88,7 @@ def test_multiple_commonblocks_and_comments():
     processor = Fparser2Reader()
 
     # And provide a common block containing two named blocks
-    reader = FortranStringReader('''
+    code = ('''
         integer :: a, b, c, d
         ! This is the first common block
         common /name1/ a, b /name2/ c  ! Inline comment
@@ -96,7 +96,8 @@ def test_multiple_commonblocks_and_comments():
         common /name2/ d  ! Inline comment
         ! Comment after
         ''')
-    fparser2spec = Specification_Part(reader)
+    fparser2spec = processor.generate_parse_tree_from_source(
+        code, partial_code="specs")
     processor.process_declarations(routine, fparser2spec.content, [])
 
     # The variables have been updated to a common block interface
@@ -106,6 +107,9 @@ def test_multiple_commonblocks_and_comments():
     assert symtab.lookup("b").interface == name1_cb
     assert symtab.lookup("c").interface == name2_cb
     assert symtab.lookup("d").interface == name2_cb
+
+    # The comments are currently discarded
+    assert symtab.lookup("a").preceding_comment == ""
 
 
 @pytest.mark.usefixtures("f2008_parser")
