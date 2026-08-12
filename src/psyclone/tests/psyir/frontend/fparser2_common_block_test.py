@@ -107,9 +107,9 @@ def test_unnamed_commonblock():
 
 
 @pytest.mark.usefixtures("f2008_parser")
-def test_multiple_commonblocks_in_statement():
+def test_multiple_commonblocks_and_comments():
     ''' Test that common block statements with multiple common blocks
-    are handled correctly.'''
+    and comments are handled correctly.'''
 
     # Create a dummy test routine
     routine = Routine.create("test_routine")
@@ -119,8 +119,12 @@ def test_multiple_commonblocks_in_statement():
     # And provide a common block containing two named blocks
     reader = FortranStringReader('''
         integer :: a, b, c, d
-        common /name1/ a, b /name2/ c
-        common /name2/ d''')
+        ! This is the first common block
+        common /name1/ a, b /name2/ c  ! Inline comment
+        ! This is the second common block
+        common /name2/ d  ! Inline comment
+        ! Comment after
+        ''')
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(routine, fparser2spec.content, [])
 
