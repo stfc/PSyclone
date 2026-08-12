@@ -603,3 +603,21 @@ end module A"""
     reader = FortranReader(ignore_comments=False)
     psyir = reader.psyir_from_source(code)
     assert directive not in psyir.debug_string()
+
+
+def test_comments_in_type_decl():
+    """Test that comments are kept coorectly inside a type declaration."""
+    code = """subroutine test
+    type mytype
+       ! comment1
+       integer :: i
+       ! comment2
+       integer, pointer :: j, k
+    end type
+    end subroutine test"""
+    reader = FortranReader(ignore_comments=False)
+    psyir = reader.psyir_from_source(code)
+    mytype = psyir.walk(Routine)[0].symbol_table.lookup('mytype').datatype
+    assert mytype.components['i'].preceding_comment == "comment1"
+    assert mytype.components['j'].preceding_comment == "comment2"
+    assert mytype.components['k'].preceding_comment == ""
