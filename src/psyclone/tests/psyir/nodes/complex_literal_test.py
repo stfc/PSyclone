@@ -84,7 +84,7 @@ def test_complex_literal_reference_accesses(fortran_reader):
     '''Tests complex literal reference_accesses() method'''
     code = '''
 subroutine foo()
-  complex :: c
+  complex(4) :: c
   real, parameter :: foo = 1.0
   integer, parameter :: k = 4
   c = (1.0_k, foo)
