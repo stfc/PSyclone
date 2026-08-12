@@ -38,6 +38,7 @@ def find_break_point(line: str, max_index: int, key_list: list[str]) -> int:
     # We should never break the line before the first element on the
     # line.
     first_non_whitespace = len(line) - len(line.lstrip())
+    # We create the appropriate substring and then index it backwards.
     search_string = (line[first_non_whitespace+1:max_index])[::-1]
     for key in key_list:
         if isinstance(key, re.Pattern):
@@ -100,6 +101,9 @@ class FortLineLength():
                           "openacc_directive": " &",
                           "comment": "",
                           "unknown": "&"}
+        # If using regexs to defined keys of length >1, the regex
+        # must be in reverse as the matching is done on the reversed
+        # string.
         self._key_lists = {"statement": [", ", ",", " "],
                            "openmp_directive": [" ", ",", ")", "="],
                            "openacc_directive": [" ", ",", ")", "="],
