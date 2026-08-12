@@ -507,13 +507,16 @@ def test_unsupported_complex_datatype():
     assert coefficient.datatype.declaration == "complex :: coefficient"
 
 
-def test_unsupported_pointer_datatype():
-    '''Test entity-specific unsupported pointer datatypes.'''
+@pytest.mark.parametrize("qualifier", ["pointer", "protected"])
+def test_unsupported_qualifier_datatype(qualifier):
+    '''Test entity-specific unsupported declaration qualifiers, including
+    those that are not in a predefined list.
+    '''
     processor = FortranTreeSitterReader()
-    valid_code = """
+    valid_code = f"""
         module declarations
           implicit none
-          integer, pointer :: first, second
+          integer, {qualifier} :: first, second
         end module declarations
     """
     root = processor.generate_psyir(
@@ -522,7 +525,7 @@ def test_unsupported_pointer_datatype():
     for name in ("first", "second"):
         datatype = table.lookup(name).datatype
         assert isinstance(datatype, psyir_symbols.UnsupportedFortranType)
-        assert datatype.declaration == f"integer, pointer :: {name}"
+        assert datatype.declaration == f"integer, {qualifier} :: {name}"
 
 
 def test_unsupported_initialisation_is_entity_specific():
