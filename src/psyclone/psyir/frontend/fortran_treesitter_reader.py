@@ -178,6 +178,20 @@ class FortranTreeSitterReader():
         "inout": symbols.ArgumentInterface.Access.READWRITE,
     }
 
+    # Some tree-sitter node types share a handler.
+    _HANDLER_REDIRECTIONS = {
+        "subroutine": "_routine_handler",
+        "function": "_routine_handler",
+        "program": "_routine_handler",
+        "unary_expression": "_operation",
+        "logical_expression": "_operation",
+        "relational_expression": "_operation",
+        "math_expression": "_operation",
+        "allocate_statement": "_memory_statement",
+        "deallocate_statement": "_memory_statement",
+        "nullify_statement": "_memory_statement",
+    }
+
     # These arguments intentionally mirror the other Fortran reader API.
     # pylint: disable=too-many-arguments,too-many-positional-arguments
     def __init__(
@@ -213,10 +227,6 @@ class FortranTreeSitterReader():
         # having it as argument everywhere. The initial one here is a
         # disposable instance (but prevents having to deal with the None type)
         self._current_scope: symbols.SymbolTable = symbols.SymbolTable()
-
-    # ---------------------------------------------------------------------
-    # Public methods
-    # ---------------------------------------------------------------------
 
     def generate_parse_tree_from_file(self, file_path) -> 'TSNode':
         '''
@@ -278,10 +288,6 @@ class FortranTreeSitterReader():
         :returns: the equivalent PSyIR Node.
         '''
         return self._process_nodes(parse_tree)[0]
-
-    # ---------------------------------------------------------------------
-    # Utility methods
-    # ---------------------------------------------------------------------
 
     @contextmanager
     def _using_scope(
@@ -405,16 +411,19 @@ class FortranTreeSitterReader():
         :raises NotImplementedError: if the given node type does not have a
             handler for it.
         '''
-        try:
-            handler = getattr(self, f"_{tsnode.type}_handler")
-        except AttributeError:
-            raise NotImplementedError(
-                f"Unsupported '{tsnode.type}' tree-sitter node.") from None
-        return handler
+        # Some nodes use a common handler
+        redirection = self._HANDLER_REDIRECTIONS.get(tsnode.type)
+        if redirection:
+            return getattr(self, redirection)
 
-    # ---------------------------------------------------------------------
-    # Node handlers (and helper functions for those handlers)
-    # ---------------------------------------------------------------------
+        # Otherwise use the handler that matches its name
+        handler = getattr(self, f"_{tsnode.type}_handler", None)
+        if handler is not None:
+            return handler
+
+        # If at this point we still don't have a handler, it is unsupported
+        raise NotImplementedError(
+            f"Unsupported '{tsnode.type}' tree-sitter node.") from None
 
     def _translation_unit_handler(
         self, tsnode: 'TSNode'
@@ -466,50 +475,15 @@ class FortranTreeSitterReader():
             self._apply_visibility(visibility_map)
         return container
 
-    def _subroutine_handler(
-        self, tsnode: 'TSNode'
-    ) -> nodes.Node:
-        ''' Handle a treesitter 'subroutine' node.
-
-        :param tsnode: the treesitter node the process.
-
-        :returns: the equivalent PSyIR Node.
-        '''
-        return self._routine_handler(tsnode, "subroutine")
-
-    def _function_handler(
-        self, tsnode: 'TSNode'
-    ) -> nodes.Node:
-        '''Create a PSyIR Routine for a Fortran function.
-
-        :param tsnode: function tree-sitter node.
-
-        :returns: PSyIR Routine representing the function.
-        '''
-        return self._routine_handler(tsnode, "function")
-
-    def _program_handler(
-        self, tsnode: 'TSNode'
-    ) -> nodes.Node:
-        '''Create a PSyIR Routine for a main program.
-
-        :param tsnode: program tree-sitter node.
-
-        :returns: PSyIR Routine representing the program.
-        '''
-        return self._routine_handler(tsnode, "program")
-
     def _routine_handler(
-        self, tsnode: 'TSNode', routine_kind: str
+        self, tsnode: 'TSNode'
     ) -> nodes.Routine:
         '''Create PSyIR shared by programs, subroutines and functions.
 
         :param tsnode: tree-sitter node for the complete program unit.
-        :param routine_kind: one of ``program``, ``subroutine`` or
-            ``function``.
-
         :returns: translated PSyIR Routine.
         '''
+        routine_kind = tsnode.type
         parent_symtab = self._current_scope
         if parent_symtab is None:
             raise RuntimeError(
@@ -1100,10 +1074,6 @@ class FortranTreeSitterReader():
                 symtab.lookup(
                     name, scope_limit=symtab.node).visibility = visibility
 
-    # ---------------------------------------------------------------------
-    # Other specification-part symbols
-    # ---------------------------------------------------------------------
-
     def _use_statement_handler(
         self, tsnode: 'TSNode'
     ) -> None:
@@ -1269,10 +1239,6 @@ class FortranTreeSitterReader():
         symtab.add(symbols.GenericInterfaceSymbol(
             name, routines, visibility=symtab.default_visibility))
 
-    # ---------------------------------------------------------------------
-    # Expressions and references
-    # ---------------------------------------------------------------------
-
     def _identifier_handler(
         self, tsnode: 'TSNode'
     ) -> nodes.Reference:
@@ -1310,50 +1276,6 @@ class FortranTreeSitterReader():
             raise NotImplementedError(
                 "Unexpected parenthesized expression structure")
         return self._expression(content[0])
-
-    def _unary_expression_handler(
-        self, tsnode: 'TSNode'
-    ):
-        '''Translate a unary arithmetic expression.
-
-        :param tsnode: unary-expression tree-sitter node.
-
-        :returns: PSyIR UnaryOperation.
-        '''
-        return self._operation(tsnode)
-
-    def _logical_expression_handler(
-        self, tsnode: 'TSNode'
-    ):
-        '''Translate a logical expression.
-
-        :param tsnode: logical-expression tree-sitter node.
-
-        :returns: PSyIR operation representing the expression.
-        '''
-        return self._operation(tsnode)
-
-    def _relational_expression_handler(
-        self, tsnode: 'TSNode'
-    ):
-        '''Translate a relational expression.
-
-        :param tsnode: relational-expression tree-sitter node.
-
-        :returns: PSyIR BinaryOperation.
-        '''
-        return self._operation(tsnode)
-
-    def _math_expression_handler(
-        self, tsnode: 'TSNode'
-    ):
-        '''Translate an arithmetic expression.
-
-        :param tsnode: math-expression tree-sitter node.
-
-        :returns: PSyIR BinaryOperation.
-        '''
-        return self._operation(tsnode)
 
     def _operation(
         self, tsnode: 'TSNode'
@@ -1658,10 +1580,6 @@ class FortranTreeSitterReader():
         if self._ignore_comments:
             return None
         raise NotImplementedError("Comment preservation is not yet supported")
-
-    # ---------------------------------------------------------------------
-    # Executable statements and control flow
-    # ---------------------------------------------------------------------
 
     def _assignment_statement_handler(
         self, tsnode: 'TSNode'
@@ -1993,44 +1911,8 @@ class FortranTreeSitterReader():
                 nodes.BinaryOperation.Operator.OR, result, condition)
         return result
 
-    def _allocate_statement_handler(
-        self, tsnode: 'TSNode'
-    ):
-        '''Translate ALLOCATE using PSyIR's special intrinsic.
-
-        :param tsnode: allocate-statement tree-sitter node.
-
-        :returns: PSyIR ALLOCATE IntrinsicCall.
-        '''
-        return self._memory_statement(
-            tsnode, nodes.IntrinsicCall.Intrinsic.ALLOCATE)
-
-    def _deallocate_statement_handler(
-        self, tsnode: 'TSNode'
-    ):
-        '''Translate DEALLOCATE using PSyIR's special intrinsic.
-
-        :param tsnode: deallocate-statement tree-sitter node.
-
-        :returns: PSyIR DEALLOCATE IntrinsicCall.
-        '''
-        return self._memory_statement(
-            tsnode, nodes.IntrinsicCall.Intrinsic.DEALLOCATE)
-
-    def _nullify_statement_handler(
-        self, tsnode: 'TSNode'
-    ):
-        '''Translate NULLIFY using PSyIR's special intrinsic.
-
-        :param tsnode: nullify-statement tree-sitter node.
-
-        :returns: PSyIR NULLIFY IntrinsicCall.
-        '''
-        return self._memory_statement(
-            tsnode, nodes.IntrinsicCall.Intrinsic.NULLIFY)
-
     def _memory_statement(
-        self, tsnode: 'TSNode', intrinsic
+        self, tsnode: 'TSNode'
     ):
         '''Translate operands of allocation-related statements.
 
@@ -2038,13 +1920,16 @@ class FortranTreeSitterReader():
         Range children retain the requested lower and upper bounds.
 
         :param tsnode: allocation-related statement tree-sitter node.
-        :param intrinsic: ALLOCATE, DEALLOCATE or NULLIFY intrinsic.
-
         :returns: PSyIR IntrinsicCall.
 
         :raises NotImplementedError: if an object, bound or option is
             unsupported.
         '''
+        intrinsic = {
+            "allocate_statement": nodes.IntrinsicCall.Intrinsic.ALLOCATE,
+            "deallocate_statement": nodes.IntrinsicCall.Intrinsic.DEALLOCATE,
+            "nullify_statement": nodes.IntrinsicCall.Intrinsic.NULLIFY,
+        }[tsnode.type]
         args = []
         for child in tsnode.children:
             if child.type in (
