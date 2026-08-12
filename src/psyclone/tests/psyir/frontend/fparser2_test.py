@@ -28,7 +28,7 @@ from psyclone.psyir.nodes import (
     Schedule, CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation,
     IfBlock, Reference, ArrayReference, Literal, KernelSchedule,
     RegionDirective, Routine, StandaloneDirective,
-    Call, IntrinsicCall, ArrayConstructor)
+    Call, IntrinsicCall, ArrayConstructor, Fparser2CodeBlock)
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, ArgumentInterface, ArrayType,
     SymbolError, ScalarType, RoutineSymbol, UnsupportedFortranType,
@@ -1843,6 +1843,34 @@ def test_process_resolving_modules_give_correct_types(
     assert assigns[2].rhs.is_pure
 
 
+def test_modules_info_from_same_filecontainer(f2008_parser):
+    ''' Check that modules are connected to their implementations when they
+    are in the same file container.'''
+    reader = FortranStringReader('''
+        module test
+            integer :: a
+            contains
+            subroutine sub1
+            end subroutine
+        end module test
+
+        module main
+            use test
+            integer :: b
+        end module
+        ''')
+    prog = f2008_parser(reader)
+    processor = Fparser2Reader()
+    root = processor.generate_psyir(prog)
+    main = [m for m in root.children if m.name == "main"][0]
+    # The 'main' module has the local symbols
+    assert "test" in main.symbol_table
+    assert "b" in main.symbol_table
+    # And also the imported ones
+    assert "a" in main.symbol_table
+    assert "sub1" in main.symbol_table
+
+
 def test_intrinsic_use_stmt(parser):
     ''' Tests that intrinsic value is set correctly for an intrinsic module
     use statement.'''
@@ -2487,6 +2515,84 @@ def test_nodes_to_code_block_3():
         _ = Fparser2Reader.nodes_to_code_block(RegionDirective(), "hello")
     assert ("A CodeBlock with a Directive as parent is not yet supported."
             in str(excinfo.value))
+
+
+def test_codeblock_symbol_propagation(f2008_parser, monkeypatch, tmp_path):
+    '''Check that unresolved symbols do not cross a module boundary.'''
+
+    def codeblock_subroutine_handler(_, node, parent):
+        '''Represent every subroutine as a CodeBlock for this test.'''
+        return Fparser2CodeBlock(node, CodeBlock.Structure.STATEMENT,
+                                 parent=parent)
+
+    monkeypatch.setattr(Fparser2Reader, "_subroutine_handler",
+                        codeblock_subroutine_handler)
+    reader = FortranStringReader('''
+        module test
+            use other
+            contains
+            subroutine sub1
+                use another
+                a = 1
+            end subroutine
+        end module test
+
+        module main
+            use test
+            use another
+        end module
+        ''')
+    prog = f2008_parser(reader)
+    processor = Fparser2Reader()
+    psyir = processor.generate_psyir(prog)
+
+    # 'a' and 'another' have unresolved interfaces in 'test' because we only
+    # know they may exist (and reserve the names), but we don't know where they
+    # originate
+    assert isinstance(
+        psyir.children[0].symbol_table.lookup("another").interface,
+        UnresolvedInterface)
+    assert isinstance(
+        psyir.children[0].symbol_table.lookup("a").interface,
+        UnresolvedInterface)
+
+    # But they do not cross the module boundary (because it would not be safe,
+    # for example there would be a clash with 'another' here)
+    assert "a" not in psyir.children[1].symbol_table
+    assert isinstance(psyir.children[1].symbol_table.lookup("another"),
+                      ContainerSymbol)
+
+    # Repeat the test but with an external module to show that the behaviour
+    # is the same
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmp_path)])
+    filename = tmp_path / "test.f90"
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module test
+            use other
+            contains
+            subroutine sub1
+                use another
+                a = 1
+            end subroutine
+        end module test
+        ''')
+    reader = FortranStringReader('''
+        module main
+            use test
+            use another
+        end module
+        ''')
+    prog = f2008_parser(reader)
+    processor = Fparser2Reader(resolve_modules=True)
+    psyir = processor.generate_psyir(prog)
+    # Check that the external module is actually resolved
+    interface = psyir.children[0].symbol_table.lookup("test").interface
+    assert interface.get_container("test")
+    # And the UnresolvedInterface symbols are not propagated
+    assert "a" not in psyir.children[0].symbol_table
+    assert isinstance(psyir.children[0].symbol_table.lookup("another"),
+                      ContainerSymbol)
 
 
 def test_named_and_wildcard_use_var(f2008_parser):

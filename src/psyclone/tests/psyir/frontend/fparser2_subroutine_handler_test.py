@@ -375,7 +375,7 @@ def test_supported_prefix(fortran_reader, fn_prefix, routine_type):
 
 
 @pytest.mark.parametrize("routine_type", ["function", "subroutine"])
-@pytest.mark.parametrize("fn_prefix", ["recursive", "module"])
+@pytest.mark.parametrize("fn_prefix", ["module"])
 def test_unsupported_routine_prefix(fortran_reader, fn_prefix, routine_type):
     ''' Check that we get a CodeBlock if a Fortran routine has an unsupported
     prefix. '''
@@ -396,6 +396,23 @@ def test_unsupported_routine_prefix(fortran_reader, fn_prefix, routine_type):
         assert isinstance(fsym.datatype, NoType)
     else:
         assert isinstance(fsym.datatype, UnresolvedType)
+
+
+@pytest.mark.parametrize("routine_type", ["function", "subroutine"])
+def test_recursive_routine_prefix(fortran_reader, routine_type):
+    '''Check that a recursive prefix is represented by a property.'''
+    code = (
+        f"module a\n"
+        f"contains\n"
+        f"  recursive {routine_type} my_routine()\n"
+        f"    real :: my_routine\n"
+        f"    my_routine = 1.0\n"
+        f"  end {routine_type} my_routine\n"
+        f"end module\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert routine.is_recursive
+    assert routine.annotations == []
 
 
 def test_char_len_function(fortran_reader):
