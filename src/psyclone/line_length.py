@@ -38,10 +38,20 @@ def find_break_point(line: str, max_index: int, key_list: list[str]) -> int:
     # We should never break the line before the first element on the
     # line.
     first_non_whitespace = len(line) - len(line.lstrip())
+    search_string = (line[first_non_whitespace+1:max_index])[::-1]
     for key in key_list:
-        idx = line.rfind(key, first_non_whitespace+1, max_index)
-        if idx > 0:
-            return idx+len(key)
+        if isinstance(key, re.Pattern):
+            match = re.search(key, search_string)
+        else:
+            match = re.search(re.escape(key[::-1]), search_string)
+        if match:
+            # If max_index is larger than the line length, we need to compute
+            # the matched index from the the end of the line.
+            end = min(max_index, len(line))
+            # Since we're working backwards we can return the start of the
+            # match (which is the end of the matched section of the forward
+            # string).
+            return end-match.start()
     raise InternalError(
         f"Error in find_break_point. No suitable break point found"
         f" for line '{line[:max_index]}' and keys '{str(key_list)}'")
@@ -93,7 +103,15 @@ class FortLineLength():
         self._key_lists = {"statement": [", ", ",", " "],
                            "openmp_directive": [" ", ",", ")", "="],
                            "openacc_directive": [" ", ",", ")", "="],
-                           "comment": [" ", ".", ","],
+                           "comment": [" ", ".", ",",
+                                       # Comments should never fail, so
+                                       # we have backups of increasing
+                                       # desperation.
+                                       re.compile(r"[+-\\/\"'`]"),
+                                       re.compile(r"[a-zA-Z0-9]"),
+                                       # Finally anything is ok.
+                                       re.compile(r"(.)")
+                                       ],
                            "unknown": [" ", ",", "=", "+", ")"]}
         self._stat = re.compile(r'^\s*(INTEGER|REAL|TYPE|CALL|SUBROUTINE|USE)',
                                 flags=re.I)

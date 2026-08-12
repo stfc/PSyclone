@@ -45,6 +45,27 @@ def test_comment():
     output_file = fll.process(input_file)
     assert output_file == expected_output
 
+    # Test a comment with only elements from [+-\\/\"'`]
+    input_file = " !++++++++++++++++"
+    expected_output = " !+++++++++++\n!& +++++"
+    fll = FortLineLength(line_length=len(input_file)-5)
+    output_file = fll.process(input_file)
+    assert output_file == expected_output
+
+    # Test a comment with only alphanumeric characters.
+    input_file = " !asdjbhsdfajkglhsdfgkljsh"
+    expected_output = " !asdjbhsdfajkglhsdfg\n!& kljsh"
+    fll = FortLineLength(line_length=len(input_file)-5)
+    output_file = fll.process(input_file)
+    assert output_file == expected_output
+
+    # Test a comment with only other characters.
+    input_file = " !@@@@@@@@@@@@@@@@@@@@@@"
+    expected_output = " !@@@@@@@@@@@@@@@@@\n!& @@@@@"
+    fll = FortLineLength(line_length=len(input_file)-5)
+    output_file = fll.process(input_file)
+    assert output_file == expected_output
+
 
 def test_unchanged():
     ''' Tests that a file whose lines are shorter than the specified
@@ -127,7 +148,7 @@ def test_fail_to_wrap():
     ''' Tests that we raise an error if we can't find anywhere to wrap
     the line'''
     input_file = "!$OMPPARALLELDO"
-    with pytest.raises(Exception) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         fll = FortLineLength(line_length=len(input_file)-1)
         _ = fll.process(input_file)
     assert 'No suitable break point found' in str(excinfo.value)
