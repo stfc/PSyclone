@@ -5,7 +5,19 @@
 # See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
-''' PSyIR TreeSitter Fortran reader '''
+'''
+
+PSyIR fronted to ingest Fortran using the TreeSitter parse generator.
+
+The structure of the expected fortran parse tree can be found in the
+'rules' section of:
+https://github.com/stadelmanma/tree-sitter-fortran/blob/master/grammar.js
+
+To interpret the rules use:
+https://tree-sitter.github.io/tree-sitter/creating-parsers/
+2-the-grammar-dsl.html
+
+'''
 
 import codecs
 from contextlib import contextmanager
@@ -21,7 +33,8 @@ from psyclone.psyir.nodes.codeblock import TreeSitterCodeBlock, CodeBlock
 
 if TYPE_CHECKING:
     # Purposely inside typechecking because at runtime we want to lazily
-    # import the parser (only if it is actually used)
+    # import the parser only when it is actually used (import inside
+    # generate_parse_tree_from_source)
     from tree_sitter import Node as TSNode
 
 
@@ -83,47 +96,57 @@ def next_of_type(
 
 
 @dataclass(frozen=True)
-class _SharedDeclAttributes:
+class _CommonDeclAttributes:
     ''' Properties shared by all entities of a fortran declaration (the lhs
-    of ::)
+    of ::).
 
-    :param base_type: common PSyIR datatype, or ``None`` if unsupported.
-    :param dimension: common DIMENSION argument list, if present.
-    :param intent: common INTENT qualifier, if present.
+    :param datatype: common PSyIR datatype or ``None`` if unsupported.
+    :param intent: common PSyIR argument access.
     :param qualifiers: names of all declaration qualifiers.
     :param unsupported: qualifiers not represented directly in PSyIR.
-    :param prefix: declaration text preceding ``::``.
+    :param prefix: string preceding ``::`` (this is needed in case the
+        entities end up as UnsupportedFortranType).
     '''
 
-    base_type: object
-    dimension: Optional['TSNode']
-    intent: Optional['TSNode']
+    datatype: Union[symbols.DataType, symbols.DataTypeSymbol, None]
+    intent: symbols.ArgumentInterface.Access
     qualifiers: frozenset[str]
     unsupported: frozenset[str]
     prefix: str
 
 
 class _NodeExpectation(Enum):
-    '''Expected result shape when processing tree-sitter nodes.'''
+    '''Expected result of processing tree-sitter nodes.'''
 
+    #: Expect a list (of zero, one or multiple) PSyIR nodes
     LIST = auto()
+    #: Expect no result node (e.g. when processing a declaration)
     NONE = auto()
+    #: Expect exactly one node
     ONE = auto()
+    #: Expect exactly one node that is a DataNode
     EXPRESSION = auto()
 
 
 class FortranTreeSitterReader():
-    '''
-    Processes the TreeSitter parse_tree and converts it to PSyIR nodes.
-    Unsupported declarations retain their source in UnsupportedFortranType
-    while unsupported executable statements become TreeSitterCodeBlocks.
+    ''' Generate TreeSitter parse_trees and convert them to PSyIR nodes.
 
-    The structure of the expected fortran parse tree can be found in the
-    'rules' section of:
-    https://github.com/stadelmanma/tree-sitter-fortran/blob/master/grammar.js
-    To interpret the rules use:
-    https://tree-sitter.github.io/tree-sitter/creating-parsers/
-    2-the-grammar-dsl.html
+    The Reader works mostly by traversing the parse_tree with recursive
+    calls to the _process_nodes dispatching method. This method calls
+    the appropriate node handler for the given fparser node and creates
+    CodeBlocks if the handlers fail.
+
+    When Fortran scopes are found these are managed by the _using_scope
+    context manager, this utility keeps a stack of nested scopes with a
+    global reference to the top of the stack, this reference can be used
+    everywhere to access the current scope.
+
+    Note that the implementation is incomplete, its main limitations are
+    that:
+    - the Reader parameters are ignored.
+    - fparser is still not isolated, so the performance penalty of importing
+    fparser is still paid when using treesitter.
+    - the coverage of Fortran supported is more limited than in fparser.
 
     :param ignore_directives: Whether directives should be ignored or not
         (default True). Currently ignored.
@@ -138,8 +161,6 @@ class FortranTreeSitterReader():
     :param conditional_openmp: whether to parse conditional OpenMP statements.
     '''
 
-    # Centralising these maps documents the supported Fortran spellings and
-    # avoids recreating identical dictionaries for every parsed operation.
     _UNARY_OPERATORS = {
         "+": nodes.UnaryOperation.Operator.PLUS,
         "-": nodes.UnaryOperation.Operator.MINUS,
@@ -174,7 +195,7 @@ class FortranTreeSitterReader():
         "inout": symbols.ArgumentInterface.Access.READWRITE,
     }
 
-    # Some tree-sitter node types share a handler.
+    # Some tree-sitter node types share the same handler.
     _HANDLER_REDIRECTIONS = {
         "subroutine": "_routine_handler",
         "function": "_routine_handler",
@@ -199,17 +220,7 @@ class FortranTreeSitterReader():
         free_form: bool = True,
         conditional_openmp: bool = True,
     ):
-        '''Create a Fortran tree-sitter reader.
-
-        :param ignore_directives: whether directives are ignored.
-        :param last_comments_as_codeblocks: whether trailing comments in a
-            block are retained as CodeBlocks.
-        :param resolve_modules: whether imported modules are resolved.
-        :param ignore_comments: whether comments are ignored.
-        :param free_form: whether source is parsed as free-form Fortran.
-        :param conditional_openmp: whether conditional OpenMP statements are
-            parsed.
-        '''
+        ''' Create a Fortran tree-sitter reader. '''
         # TODO #3038 Arguments are currently not used nor typechecked, but if
         # we decide this is the common reader interface, this can be done in a
         # super class instead of duplicate it here.
@@ -359,7 +370,7 @@ class FortranTreeSitterReader():
         '''
         This is the tsnodes handler dispatcher. Unsupported syntax is
         deliberately caught here rather than in individual handlers so that
-        continuous unsupported nodes are placed in a single CodeBlock.
+        continuous unsupported nodes can be placed in a single CodeBlock.
 
         :param tsnodes: one tree-sitter node or an iterable of nodes.
         :param expect: expected number and kind of result nodes.
@@ -387,18 +398,25 @@ class FortranTreeSitterReader():
             if len(children) != 1:
                 raise InternalError(
                     f"Only one node was expected in this location but got:\n"
-                    f"{children}"
+                    f"{[type(c).__name__ for c in children]}"
                 )
+            if expect is _NodeExpectation.EXPRESSION:
+                if not isinstance(children[0], nodes.DataNode):
+                    raise InternalError(
+                        f"A DataNode was expected in this location but got: "
+                        f"{type(children[0]).__name__}"
+                    )
             return children[0]
         if expect is _NodeExpectation.NONE:
             if len(children) != 0:
                 raise InternalError(
                     f"No node was expected in this location but got:\n"
-                    f"{children}"
+                    f"{[type(c).__name__ for c in children]}"
                 )
             return None
         if expect is not _NodeExpectation.LIST:
-            raise InternalError(f"Unsupported node expectation '{expect}'")
+            raise InternalError(
+                    f"Unsupported node expectation '{expect}'")
         return children
 
     @staticmethod
@@ -717,18 +735,32 @@ class FortranTreeSitterReader():
             "asynchronous", "contiguous"
         })
         try:
-            base_type = self._datatype_from_type(type_node)
+            datatype = self._datatype_from_type(type_node)
         except (NotImplementedError, KeyError, TypeError):
-            base_type = None
+            datatype = None
 
         dimension = next(
             (next_of_type(item, "argument_list") for item in qualifiers
              if item.children and item.children[0].type == "dimension"), None)
-        intent = next(
+        is_allocatable = "allocatable" in qualifier_names
+        if datatype and dimension:
+            try:
+                shape = self._shape_from_node(dimension, is_allocatable)
+                datatype = symbols.ArrayType(datatype, shape)
+            except (NotImplementedError, TypeError):
+                datatype = None
+
+        intent_node = next(
             (item for item in qualifiers
              if item.children and item.children[0].type == "intent"), None)
-        common_attr = _SharedDeclAttributes(
-            base_type, dimension, intent, qualifier_names,
+        intent = symbols.ArgumentInterface.Access.UNKNOWN
+        if intent_node:
+            intent = next(
+                (self._INTENT_ACCESS[child.type]
+                 for child in intent_node.children
+                 if child.type in self._INTENT_ACCESS), intent)
+        common_attr = _CommonDeclAttributes(
+            datatype, intent, qualifier_names,
             frozenset(unsupported),
             to_str(tsnode).split("::", maxsplit=1)[0].strip())
 
@@ -738,7 +770,7 @@ class FortranTreeSitterReader():
                 self._declare_entity(declarator, common_attr)
 
     def _declare_entity(
-        self, declarator: 'TSNode', common_attr: _SharedDeclAttributes
+        self, declarator: 'TSNode', common_attr: _CommonDeclAttributes
     ):
         '''Translate one entity and add it to the current symbol table.
 
@@ -769,7 +801,7 @@ class FortranTreeSitterReader():
         self._add_or_update_datasymbol(declared_symbol)
 
     def _declarator_datatype(
-        self, declarator: 'TSNode', common_attr: _SharedDeclAttributes
+        self, declarator: 'TSNode', common_attr: _CommonDeclAttributes
     ):
         '''Translate one entity's datatype and initial value.
 
@@ -795,20 +827,30 @@ class FortranTreeSitterReader():
                 except NotImplementedError:
                     is_unsupported = True
 
-        # Array shape and initialisation belong to an individual entity, so
-        # derive a fresh datatype from the common base type.
-        datatype = common_attr.base_type
-        shape_node = next_of_type(declarator, "size") or common_attr.dimension
+        # An entity-specific shape takes precedence over a shared DIMENSION
+        # attribute. The latter has already been translated into an ArrayType,
+        # from which the elemental type can be recovered.
+        datatype = common_attr.datatype
+        shape_node = next_of_type(declarator, "size")
         is_allocatable = "allocatable" in common_attr.qualifiers
         if datatype and shape_node:
             try:
+                elemental_type = (
+                    datatype.elemental_type
+                    if isinstance(datatype, symbols.ArrayType) else datatype)
+                if isinstance(elemental_type, symbols.DataType):
+                    elemental_type = elemental_type.copy()
                 shape = self._shape_from_node(
                     shape_node, is_allocatable)
-                datatype = symbols.ArrayType(datatype, shape)
+                datatype = symbols.ArrayType(elemental_type, shape)
             except (NotImplementedError, TypeError):
                 datatype = None
-        elif is_allocatable:
+        elif is_allocatable and not isinstance(datatype, symbols.ArrayType):
             datatype = None
+        elif isinstance(datatype, symbols.DataType):
+            # A datatype can contain PSyIR expressions (e.g. array bounds or
+            # character length), which must not be shared between symbols.
+            datatype = datatype.copy()
 
         # UnsupportedFortranType is preferable to losing a declaration.
         # Keep only this entity in the saved text to avoid duplicating sibling
@@ -820,7 +862,7 @@ class FortranTreeSitterReader():
         return datatype, initial_value
 
     def _declaration_interface(
-        self, name: str, common_attr: _SharedDeclAttributes
+        self, name: str, common_attr: _CommonDeclAttributes
     ):
         '''Return the PSyIR interface for one declared entity.
 
@@ -834,14 +876,7 @@ class FortranTreeSitterReader():
         '''
         symtab = self._current_scope
         if name in symtab and symtab.lookup(name).is_argument:
-            access = symbols.ArgumentInterface.Access.UNKNOWN
-            if common_attr.intent:
-                access = next(
-                    (self._INTENT_ACCESS[child.type]
-                     for child in common_attr.intent.children
-                     if child.type in self._INTENT_ACCESS),
-                    access)
-            return symbols.ArgumentInterface(access)
+            return symbols.ArgumentInterface(common_attr.intent)
         if {"save", "parameter"}.intersection(common_attr.qualifiers):
             return symbols.StaticInterface()
         if isinstance(symtab.node, nodes.Container):

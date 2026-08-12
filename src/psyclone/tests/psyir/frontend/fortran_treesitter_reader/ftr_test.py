@@ -257,6 +257,60 @@ def test_declarations_arrays_datatypes(shape_string, extent):
         assert shape == extent
 
 
+def test_shared_dimension_is_translated_once():
+    '''Test that a shared DIMENSION is translated once and its resulting
+    PSyIR expressions are copied for each declared entity.
+    '''
+    class CountingReader(FortranTreeSitterReader):
+        '''Reader that counts declaration-shape translations.'''
+
+        def __init__(self):
+            super().__init__()
+            self.shape_translations = 0
+
+        def _shape_from_node(self, *args, **kwargs):
+            '''Count calls while preserving the original implementation.'''
+            self.shape_translations += 1
+            return super()._shape_from_node(*args, **kwargs)
+
+    processor = CountingReader()
+    valid_code = """
+        module test
+            implicit none
+            integer, parameter :: extent = 10
+            real, dimension(extent) :: first, second
+        end module
+    """
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    table = root.children[0].symbol_table
+    first_type = table.lookup("first").datatype
+    second_type = table.lookup("second").datatype
+
+    assert processor.shape_translations == 1
+    assert first_type is not second_type
+    assert first_type.shape[0].upper is not second_type.shape[0].upper
+    assert first_type.shape[0].upper.symbol is table.lookup("extent")
+    assert second_type.shape[0].upper.symbol is table.lookup("extent")
+
+
+def test_entity_dimension_overrides_shared_dimension():
+    '''Test defensive handling of an entity shape together with DIMENSION.'''
+    processor = FortranTreeSitterReader()
+    valid_code = """
+        module test
+            implicit none
+            real, dimension(10) :: field(20)
+        end module
+    """
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    datatype = root.children[0].symbol_table.lookup("field").datatype
+
+    assert isinstance(datatype, psyir_symbols.ArrayType)
+    assert datatype.shape[0].upper.value == "20"
+
+
 def test_program():
     '''Test a main-program unit.'''
     processor = FortranTreeSitterReader()
