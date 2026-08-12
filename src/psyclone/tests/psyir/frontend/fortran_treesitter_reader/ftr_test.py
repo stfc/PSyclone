@@ -485,10 +485,10 @@ def test_unsupported_initialisation_is_entity_specific():
     table = root.children[0].symbol_table
     first = table.lookup("first")
     second = table.lookup("second")
-    assert isinstance(
-        first.datatype, psyir_symbols.UnsupportedFortranType)
-    assert first.datatype.declaration == \
-        "integer :: first = [(i, i=1,2)]"
+    assert isinstance(first.datatype, psyir_symbols.ScalarType)
+    assert isinstance(first.initial_value, psyir_nodes.CodeBlock)
+    assert first.initial_value.structure == \
+        psyir_nodes.CodeBlock.Structure.EXPRESSION
     assert isinstance(second.datatype, psyir_symbols.ScalarType)
     assert second.initial_value.value == "2"
 
@@ -655,6 +655,28 @@ def test_binary_operation():
         processor.generate_parse_tree_from_source(valid_code))
     expression = root.children[0].children[0].rhs
     assert expression.operator == psyir_nodes.BinaryOperation.Operator.ADD
+
+
+def test_unsupported_expression_codeblock():
+    '''An unsupported expression becomes an expression CodeBlock without
+    replacing its enclosing statement.
+    '''
+    processor = FortranTreeSitterReader()
+    valid_code = '''
+        subroutine concatenate(value)
+          character(*) :: value
+          value = value // "suffix"
+        end subroutine concatenate
+    '''
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    assignment = root.children[0].children[0]
+    assert isinstance(assignment, psyir_nodes.Assignment)
+    assert isinstance(assignment.rhs, psyir_nodes.CodeBlock)
+    assert assignment.rhs.structure == \
+        psyir_nodes.CodeBlock.Structure.EXPRESSION
+    assert "Unsupported 'concatenation_expression'" in \
+        assignment.rhs.preceding_comment
 
 
 def test_explicit_array_section():
@@ -1047,7 +1069,10 @@ def test_implied_do_codeblock():
     """
     root = processor.generate_psyir(
         processor.generate_parse_tree_from_source(valid_code))
-    codeblock = root.children[0].children[0]
+    assignment = root.children[0].children[0]
+    assert isinstance(assignment, psyir_nodes.Assignment)
+    codeblock = assignment.rhs
     assert isinstance(codeblock, psyir_nodes.CodeBlock)
+    assert codeblock.structure == psyir_nodes.CodeBlock.Structure.EXPRESSION
     assert ("Array constructors with implied-DO loops are not supported" in
             codeblock.preceding_comment)

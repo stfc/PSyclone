@@ -378,24 +378,25 @@ class FortranTreeSitterReader():
                 if result is not None:
                     children.append(result)
             except NotImplementedError as err:
-                # TODO #3038: Add support for expression codeblocks and
-                # aggregating contiguous codeblocks into a single one.
+                # TODO #3038: Aggregate contiguous CodeBlocks.
                 children.append(self._create_codeblock(tsnode, str(err)))
         return children
 
     @staticmethod
     def _create_codeblock(
-        tsnode: 'TSNode', reason: str
+        tsnode: 'TSNode', reason: str,
+        structure: CodeBlock.Structure = CodeBlock.Structure.STATEMENT
     ) -> TreeSitterCodeBlock:
-        '''Create a statement CodeBlock for unsupported valid Fortran.
+        '''Create a CodeBlock for unsupported valid Fortran.
 
         :param tsnode: tree-sitter node containing unsupported Fortran.
         :param reason: human-readable explanation of the limitation.
+        :param structure: whether the unsupported code is a statement or an
+            expression.
 
         :returns: CodeBlock retaining the original tree-sitter node.
         '''
-        code_block = TreeSitterCodeBlock(
-            tsnode, CodeBlock.Structure.STATEMENT)
+        code_block = TreeSitterCodeBlock(tsnode, structure)
         code_block.append_preceding_comment(
             f"PSyclone CodeBlock (unsupported code) reason:\n"
             f"- {reason}"
@@ -1559,9 +1560,13 @@ class FortranTreeSitterReader():
 
         :param tsnode: expression tree-sitter node.
 
-        :returns: translated PSyIR DataNode.
+        :returns: translated PSyIR DataNode or an expression CodeBlock.
         '''
-        return self._get_handler(tsnode)(tsnode)
+        try:
+            return self._get_handler(tsnode)(tsnode)
+        except NotImplementedError as err:
+            return self._create_codeblock(
+                tsnode, str(err), CodeBlock.Structure.EXPRESSION)
 
     def _comment_handler(
         self, tsnode: 'TSNode'
