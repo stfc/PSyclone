@@ -10,10 +10,12 @@
 import codecs
 from contextlib import contextmanager
 from dataclasses import dataclass
+from enum import Enum, auto
 import logging
 from typing import Callable, Iterable, Optional, TYPE_CHECKING, Union
 from collections.abc import Generator, Container
 
+from psyclone.errors import InternalError
 from psyclone.psyir import nodes, symbols
 from psyclone.psyir.nodes.codeblock import TreeSitterCodeBlock, CodeBlock
 
@@ -99,6 +101,15 @@ class _SharedDeclAttributes:
     qualifiers: frozenset[str]
     unsupported: frozenset[str]
     prefix: str
+
+
+class _NodeExpectation(Enum):
+    '''Expected result shape when processing tree-sitter nodes.'''
+
+    LIST = auto()
+    NONE = auto()
+    ONE = auto()
+    EXPRESSION = auto()
 
 
 class FortranTreeSitterReader():
@@ -287,7 +298,7 @@ class FortranTreeSitterReader():
 
         :returns: the equivalent PSyIR Node.
         '''
-        return self._process_nodes(parse_tree)[0]
+        return self._process_nodes(parse_tree, _NodeExpectation.ONE)
 
     @contextmanager
     def _using_scope(
@@ -358,16 +369,17 @@ class FortranTreeSitterReader():
     def _process_nodes(
         self,
         tsnodes: Union["TSNode", Iterable["TSNode"]],
-    ) -> list[nodes.Node]:
+        expect: _NodeExpectation,
+    ) -> list[nodes.Node] | nodes.Node | None:
         '''
         This is the tsnodes handler dispatcher. Unsupported syntax is
         deliberately caught here rather than in individual handlers so that
         continuous unsupported nodes are placed in a single CodeBlock.
 
         :param tsnodes: one tree-sitter node or an iterable of nodes.
+        :param expect: expected number and kind of result nodes.
 
         :returns: PSyIR nodes produced from the supplied tree-sitter nodes.
-        :rtype: list[:py:class:`psyclone.psyir.nodes.Node`]
         '''
         list_of_nodes = tsnodes if isinstance(tsnodes, Iterable) else [tsnodes]
         children = []
@@ -379,7 +391,29 @@ class FortranTreeSitterReader():
                     children.append(result)
             except NotImplementedError as err:
                 # TODO #3038: Aggregate contiguous CodeBlocks.
-                children.append(self._create_codeblock(tsnode, str(err)))
+                structure = (CodeBlock.Structure.EXPRESSION
+                             if expect is _NodeExpectation.EXPRESSION
+                             else CodeBlock.Structure.STATEMENT)
+                children.append(
+                    self._create_codeblock(tsnode, str(err), structure))
+
+        # Validate that the parsed nodes match the expectations of the caller
+        if expect in (_NodeExpectation.ONE, _NodeExpectation.EXPRESSION):
+            if len(children) != 1:
+                raise InternalError(
+                    f"Only one node was expected in this location but got:\n"
+                    f"{children}"
+                )
+            return children[0]
+        if expect is _NodeExpectation.NONE:
+            if len(children) != 0:
+                raise InternalError(
+                    f"No node was expected in this location but got:\n"
+                    f"{children}"
+                )
+            return None
+        if expect is not _NodeExpectation.LIST:
+            raise InternalError(f"Unsupported node expectation '{expect}'")
         return children
 
     @staticmethod
@@ -438,7 +472,7 @@ class FortranTreeSitterReader():
         file_container = nodes.FileContainer("")
         with self._using_scope(file_container.symbol_table):
             file_container.children.extend(
-                self._process_nodes(tsnode.children)
+                self._process_nodes(tsnode.children, _NodeExpectation.LIST)
             )
         return file_container
 
@@ -461,18 +495,21 @@ class FortranTreeSitterReader():
         with self._using_scope(container.symbol_table):
             visibility_map = self._process_access_statements(tsnode.children)
             self._process_nodes(
-                direct_child_of_type(tsnode, self._SPECIFICATION_TYPES))
+                direct_child_of_type(tsnode, self._SPECIFICATION_TYPES),
+                _NodeExpectation.NONE)
 
             internal = next_of_type(tsnode, "internal_procedures")
             if internal:
                 container.children.extend(
                     self._process_nodes(
                         [child for child in internal.children
-                         if child.type != "contains_statement"]))
+                         if child.type != "contains_statement"],
+                        _NodeExpectation.LIST))
 
             container.children.extend(self._process_nodes(
                 [child for child in tsnode.children
-                 if child.type not in self._MODULE_NON_EXECUTABLE_TYPES]))
+                 if child.type not in self._MODULE_NON_EXECUTABLE_TYPES],
+                _NodeExpectation.LIST))
             self._apply_visibility(visibility_map)
         return container
 
@@ -487,7 +524,7 @@ class FortranTreeSitterReader():
         routine_kind = tsnode.type
         parent_symtab = self._current_scope
         if parent_symtab is None:
-            raise RuntimeError(
+            raise InternalError(
                 "A Routine must be translated within a current scope")
         statement = next_of_type(tsnode, f"{routine_kind}_statement")
         name_node = next_of_type(statement, "name")
@@ -518,14 +555,15 @@ class FortranTreeSitterReader():
 
         parent = parent_symtab.node
         if not isinstance(parent, nodes.ScopingNode):
-            raise RuntimeError(
+            raise InternalError(
                 "A Routine must be translated within a PSyIR scope")
         with self._using_temporary_scope(parent, routine):
             visibility_map = self._process_access_statements(
                 tsnode.children)
             self._process_nodes(
-                child for child in tsnode.children
-                if child.type in self._SPECIFICATION_TYPES)
+                (child for child in tsnode.children
+                 if child.type in self._SPECIFICATION_TYPES),
+                _NodeExpectation.NONE)
 
             args = [routine.symbol_table.lookup(name)
                     for name in argument_names]
@@ -543,7 +581,7 @@ class FortranTreeSitterReader():
             specification.update(self._SPECIFICATION_TYPES)
             routine.children.extend(self._process_nodes(
                 [child for child in tsnode.children
-                 if child.type not in specification]))
+                 if child.type not in specification], _NodeExpectation.LIST))
             self._apply_visibility(visibility_map)
         return routine
 
@@ -594,7 +632,7 @@ class FortranTreeSitterReader():
         '''
         parent_symtab = self._current_scope
         if parent_symtab is None:
-            raise RuntimeError(
+            raise InternalError(
                 "A RoutineSymbol must be created within a current scope")
         qualifiers = {
             to_str(child).lower() for child in statement.children
@@ -769,7 +807,8 @@ class FortranTreeSitterReader():
                 if child.type not in ("identifier", "=")]
             if expressions:
                 try:
-                    initial_value = self._expression(expressions[-1])
+                    initial_value = self._process_nodes(
+                        expressions[-1], _NodeExpectation.EXPRESSION)
                 except NotImplementedError:
                     is_unsupported = True
 
@@ -911,11 +950,13 @@ class FortranTreeSitterReader():
                     key = to_str(value.children[0]).lower()
                     value = value.children[-1]
                     if key == "len":
-                        length = self._expression(value)
+                        length = self._process_nodes(
+                            value, _NodeExpectation.EXPRESSION)
                     else:
                         precision = self._precision(value)
                 elif intrinsic == "character":
-                    length = self._expression(value)
+                    length = self._process_nodes(
+                        value, _NodeExpectation.EXPRESSION)
                 else:
                     precision = self._precision(value)
         return symbols.ScalarType(mapping[intrinsic], precision, length)
@@ -929,7 +970,7 @@ class FortranTreeSitterReader():
 
         :raises NotImplementedError: if the kind expression is unsupported.
         '''
-        expr = self._expression(tsnode)
+        expr = self._process_nodes(tsnode, _NodeExpectation.EXPRESSION)
         if isinstance(expr, nodes.Literal) and expr.value.isdigit():
             if expr.value == "4":
                 return symbols.ScalarType.Precision.SINGLE
@@ -1010,7 +1051,8 @@ class FortranTreeSitterReader():
             if child.type == "extent_specifier":
                 before, after, has_colon = self._split_extent(child)
                 if not has_colon:
-                    result.append(self._expression(before[0]))
+                    result.append(self._process_nodes(
+                        before[0], _NodeExpectation.EXPRESSION))
                     continue
                 if not before and not after:
                     result.append(symbols.ArrayType.Extent.DEFERRED
@@ -1018,15 +1060,20 @@ class FortranTreeSitterReader():
                                   symbols.ArrayType.Extent.ATTRIBUTE)
                 elif before and not after:
                     result.append(
-                        (self._expression(before[0]),
+                        (self._process_nodes(
+                            before[0], _NodeExpectation.EXPRESSION),
                          symbols.ArrayType.Extent.ATTRIBUTE))
                 elif after and not before:
-                    result.append(self._expression(after[0]))
+                    result.append(self._process_nodes(
+                        after[0], _NodeExpectation.EXPRESSION))
                 else:
-                    result.append((self._expression(before[0]),
-                                   self._expression(after[0])))
+                    result.append((self._process_nodes(
+                        before[0], _NodeExpectation.EXPRESSION),
+                        self._process_nodes(
+                            after[0], _NodeExpectation.EXPRESSION)))
             else:
-                result.append(self._expression(child))
+                result.append(self._process_nodes(
+                    child, _NodeExpectation.EXPRESSION))
         return result
 
     def _process_access_statements(
@@ -1163,7 +1210,7 @@ class FortranTreeSitterReader():
         if not unsupported:
             parent = symtab.node
             if not isinstance(parent, nodes.ScopingNode):
-                raise RuntimeError(
+                raise InternalError(
                     "A derived type must be translated within a PSyIR scope")
             with self._using_temporary_scope(parent):
                 visibility_map = self._process_access_statements(
@@ -1276,7 +1323,8 @@ class FortranTreeSitterReader():
         if len(content) != 1:
             raise NotImplementedError(
                 "Unexpected parenthesized expression structure")
-        return self._expression(content[0])
+        return self._process_nodes(
+            content[0], _NodeExpectation.EXPRESSION)
 
     def _operation(
         self, tsnode: 'TSNode'
@@ -1297,7 +1345,8 @@ class FortranTreeSitterReader():
                     f"Unsupported unary operator '{operator}'")
             return nodes.UnaryOperation.create(
                 self._UNARY_OPERATORS[operator],
-                self._expression(tsnode.children[1]))
+                self._process_nodes(
+                    tsnode.children[1], _NodeExpectation.EXPRESSION))
         if len(tsnode.children) == 3:
             operator = to_str(tsnode.children[1]).lower()
             if operator not in self._BINARY_OPERATORS:
@@ -1305,8 +1354,10 @@ class FortranTreeSitterReader():
                     f"Unsupported binary operator '{operator}'")
             return nodes.BinaryOperation.create(
                 self._BINARY_OPERATORS[operator],
-                self._expression(tsnode.children[0]),
-                self._expression(tsnode.children[2]))
+                self._process_nodes(
+                    tsnode.children[0], _NodeExpectation.EXPRESSION),
+                self._process_nodes(
+                    tsnode.children[2], _NodeExpectation.EXPRESSION))
         raise NotImplementedError("Unexpected operation structure")
 
     def _call_expression_handler(
@@ -1397,7 +1448,8 @@ class FortranTreeSitterReader():
             dimension += 1
             if child.type == "keyword_argument":
                 key = to_str(child.children[0])
-                result.append((key, self._expression(child.children[-1])))
+                result.append((key, self._process_nodes(
+                    child.children[-1], _NodeExpectation.EXPRESSION)))
             elif child.type == "extent_specifier":
                 if array_symbol is None:
                     raise NotImplementedError(
@@ -1405,7 +1457,8 @@ class FortranTreeSitterReader():
                 result.append(self._range(
                     child, array_symbol, dimension))
             else:
-                result.append(self._expression(child))
+                result.append(self._process_nodes(
+                    child, _NodeExpectation.EXPRESSION))
         return result
 
     def _range(
@@ -1431,15 +1484,18 @@ class FortranTreeSitterReader():
         after = [child for child in after if child.type != ":"]
         dim = nodes.Literal(str(dimension),
                             symbols.ScalarType.integer_type())
-        start = (self._expression(before[0]) if before else
+        start = (self._process_nodes(
+            before[0], _NodeExpectation.EXPRESSION) if before else
                  nodes.IntrinsicCall.create(
                      nodes.IntrinsicCall.Intrinsic.LBOUND,
                      [nodes.Reference(symbol), ("dim", dim.copy())]))
-        stop = (self._expression(after[0]) if after else
+        stop = (self._process_nodes(
+            after[0], _NodeExpectation.EXPRESSION) if after else
                 nodes.IntrinsicCall.create(
                     nodes.IntrinsicCall.Intrinsic.UBOUND,
                     [nodes.Reference(symbol), ("dim", dim.copy())]))
-        step = (self._expression(after[1])
+        step = (self._process_nodes(
+            after[1], _NodeExpectation.EXPRESSION)
                 if len(after) > 1 else None)
         return nodes.Range.create(start, stop, step)
 
@@ -1550,23 +1606,10 @@ class FortranTreeSitterReader():
         if next_of_type(tsnode, "implied_do_loop_expression"):
             raise NotImplementedError(
                 "Array constructors with implied-DO loops are not supported")
-        elems = [self._expression(child) for child in tsnode.children
+        elems = [self._process_nodes(child, _NodeExpectation.EXPRESSION)
+                 for child in tsnode.children
                  if child.type not in ("[", "]", "(/", "/)", ",")]
         return nodes.ArrayConstructor.create(elems)
-
-    def _expression(self, tsnode: 'TSNode'):
-        '''Translate one expression, allowing failures to reach its
-        statement.
-
-        :param tsnode: expression tree-sitter node.
-
-        :returns: translated PSyIR DataNode or an expression CodeBlock.
-        '''
-        try:
-            return self._get_handler(tsnode)(tsnode)
-        except NotImplementedError as err:
-            return self._create_codeblock(
-                tsnode, str(err), CodeBlock.Structure.EXPRESSION)
 
     def _comment_handler(
         self, tsnode: 'TSNode'
@@ -1600,8 +1643,10 @@ class FortranTreeSitterReader():
         if len(tsnode.children) != 3:
             raise NotImplementedError("Unexpected assignment structure")
         return nodes.Assignment.create(
-            self._expression(tsnode.children[0]),
-            self._expression(tsnode.children[2]))
+            self._process_nodes(
+                tsnode.children[0], _NodeExpectation.EXPRESSION),
+            self._process_nodes(
+                tsnode.children[2], _NodeExpectation.EXPRESSION))
 
     def _pointer_association_statement_handler(
         self, tsnode: 'TSNode'
@@ -1619,8 +1664,10 @@ class FortranTreeSitterReader():
                 "Pointer assignment with bounds remapping is not supported")
         assignment = nodes.Assignment(is_pointer=True)
         assignment.children = [
-            self._expression(tsnode.children[0]),
-            self._expression(tsnode.children[2])]
+            self._process_nodes(
+                tsnode.children[0], _NodeExpectation.EXPRESSION),
+            self._process_nodes(
+                tsnode.children[2], _NodeExpectation.EXPRESSION)]
         return assignment
 
     def _subroutine_call_handler(
@@ -1699,16 +1746,17 @@ class FortranTreeSitterReader():
         annotations = []
         if not next_of_type(tsnode, "end_if_statement"):
             annotations.append("was_single_stmt")
-        if_body = self._process_nodes(body_nodes)
+        if_body = self._process_nodes(body_nodes, _NodeExpectation.LIST)
         else_body = None
         if else_clause:
             else_body = self._process_nodes(
                 [child for child in else_clause.children
-                 if child.type != "else"])
+                 if child.type != "else"], _NodeExpectation.LIST)
         for else_if in reversed(else_ifs):
             else_body = [self._if_clause(else_if, else_body)]
         result = nodes.IfBlock.create(
-            self._expression(condition_node), if_body, else_body)
+            self._process_nodes(condition_node, _NodeExpectation.EXPRESSION),
+            if_body, else_body)
         result.annotations.extend(annotations)
         return result
 
@@ -1728,7 +1776,7 @@ class FortranTreeSitterReader():
                       "else_clause", "elseif_clause"}
         body = self._process_nodes(
             [child for child in tsnode.children
-             if child.type not in structural])
+             if child.type not in structural], _NodeExpectation.LIST)
         trailing = next_of_type(tsnode, "elseif_clause")
         otherwise = (
             [self._if_clause(trailing, final_else)] if trailing else
@@ -1736,9 +1784,11 @@ class FortranTreeSitterReader():
                 [child for child in
                  (next_of_type(tsnode, "else_clause").children
                   if next_of_type(tsnode, "else_clause") else [])
-                 if child.type != "else"]) or final_else)
+                 if child.type != "else"], _NodeExpectation.LIST)
+            or final_else)
         result = nodes.IfBlock.create(
-            self._expression(condition), body, otherwise)
+            self._process_nodes(condition, _NodeExpectation.EXPRESSION),
+            body, otherwise)
         result.annotations.append("was_elseif")
         return result
 
@@ -1759,7 +1809,8 @@ class FortranTreeSitterReader():
         body = self._process_nodes(
             [child for child in tsnode.children
              if child.type not in ("do_statement",
-                                   "end_do_loop_statement")])
+                                   "end_do_loop_statement")],
+            _NodeExpectation.LIST)
         if control:
             parts = [child for child in control.children
                      if child.type not in ("=", ",")]
@@ -1777,17 +1828,21 @@ class FortranTreeSitterReader():
                 else:
                     raise NotImplementedError(
                         "A DO variable must be a scalar integer")
-            step = (self._expression(parts[3]) if len(parts) == 4
+            step = (self._process_nodes(
+                parts[3], _NodeExpectation.EXPRESSION) if len(parts) == 4
                     else nodes.Literal(
                         "1", symbols.ScalarType.integer_type()))
             return nodes.Loop.create(
-                variable, self._expression(parts[1]),
-                self._expression(parts[2]), step, body)
+                variable,
+                self._process_nodes(parts[1], _NodeExpectation.EXPRESSION),
+                self._process_nodes(parts[2], _NodeExpectation.EXPRESSION),
+                step, body)
         if while_node:
             condition = next_of_type(
                 while_node, "parenthesized_expression")
             return nodes.WhileLoop.create(
-                self._expression(condition), body)
+                self._process_nodes(condition, _NodeExpectation.EXPRESSION),
+                body)
         result = nodes.WhileLoop.create(
             nodes.Literal("true", symbols.ScalarType.boolean_type()), body)
         result.annotations.append("was_unconditional")
@@ -1807,15 +1862,16 @@ class FortranTreeSitterReader():
                       "elsewhere_clause", "end_where_statement"}
         body = self._process_nodes(
             [child for child in tsnode.children
-             if child.type not in structural])
+             if child.type not in structural], _NodeExpectation.LIST)
         elsewhere = next_of_type(tsnode, "elsewhere_clause")
         other = (
             self._process_nodes(
                 [child for child in elsewhere.children
-                 if child.type != "elsewhere"])
+                 if child.type != "elsewhere"], _NodeExpectation.LIST)
             if elsewhere else None)
         result = nodes.IfBlock.create(
-            self._expression(condition), body, other)
+            self._process_nodes(condition, _NodeExpectation.EXPRESSION),
+            body, other)
         result.annotations.extend(
             ["was_where"] if next_of_type(
                 tsnode, "end_where_statement") else
@@ -1839,12 +1895,14 @@ class FortranTreeSitterReader():
         selector_node = next_of_type(
             next_of_type(tsnode, "selector"), "identifier")
         if selector_node is None:
-            selector = self._expression(
+            selector = self._process_nodes(
                 [child for child in
                  next_of_type(tsnode, "selector").children
-                 if child.type not in ("(", ")")][0])
+                 if child.type not in ("(", ")")][0],
+                _NodeExpectation.EXPRESSION)
         else:
-            selector = self._expression(selector_node)
+            selector = self._process_nodes(
+                selector_node, _NodeExpectation.EXPRESSION)
         cases = list(direct_child_of_type(tsnode, "case_statement"))
         default_body = None
         normal = []
@@ -1852,7 +1910,8 @@ class FortranTreeSitterReader():
             if next_of_type(case, "default"):
                 default_body = self._process_nodes(
                     [child for child in case.children
-                     if child.type not in ("case", "default")])
+                     if child.type not in ("case", "default")],
+                    _NodeExpectation.LIST)
             else:
                 values = next_of_type(case, "case_value_range_list")
                 if values is None:
@@ -1861,7 +1920,7 @@ class FortranTreeSitterReader():
                 structural = {"case", "(", ")", "case_value_range_list"}
                 body = self._process_nodes(
                     [child for child in case.children
-                     if child.type not in structural])
+                     if child.type not in structural], _NodeExpectation.LIST)
                 normal.append((values, body))
         current = default_body
         for values, body in reversed(normal):
@@ -1896,11 +1955,13 @@ class FortranTreeSitterReader():
                 if before:
                     parts.append(nodes.BinaryOperation.create(
                         nodes.BinaryOperation.Operator.GE, selector.copy(),
-                        self._expression(before[0])))
+                        self._process_nodes(
+                            before[0], _NodeExpectation.EXPRESSION)))
                 if after:
                     parts.append(nodes.BinaryOperation.create(
                         nodes.BinaryOperation.Operator.LE, selector.copy(),
-                        self._expression(after[0])))
+                        self._process_nodes(
+                            after[0], _NodeExpectation.EXPRESSION)))
                 condition = parts[0] if len(parts) == 1 else (
                     nodes.BinaryOperation.create(
                         nodes.BinaryOperation.Operator.AND,
@@ -1908,7 +1969,8 @@ class FortranTreeSitterReader():
             else:
                 condition = nodes.BinaryOperation.create(
                     nodes.BinaryOperation.Operator.EQ, selector.copy(),
-                    self._expression(child))
+                    self._process_nodes(
+                        child, _NodeExpectation.EXPRESSION))
             conditions.append(condition)
         result = conditions[0]
         for condition in conditions[1:]:
@@ -1942,11 +2004,14 @@ class FortranTreeSitterReader():
                 continue
             if child.type == "keyword_argument":
                 args.append((to_str(child.children[0]),
-                             self._expression(child.children[-1])))
+                             self._process_nodes(
+                                 child.children[-1],
+                                 _NodeExpectation.EXPRESSION)))
             elif child.type == "sized_allocation":
                 args.append(self._allocation_reference(child))
             else:
-                args.append(self._expression(child))
+                args.append(self._process_nodes(
+                    child, _NodeExpectation.EXPRESSION))
         try:
             return nodes.IntrinsicCall.create(intrinsic, args)
         except (TypeError, ValueError):
@@ -1999,15 +2064,18 @@ class FortranTreeSitterReader():
             "1", symbols.ScalarType.integer_type())
         if tsnode.type != "extent_specifier":
             return nodes.Range.create(
-                lower, self._expression(tsnode))
+                lower, self._process_nodes(
+                    tsnode, _NodeExpectation.EXPRESSION))
 
         before, after, has_colon = self._split_extent(tsnode)
         if not has_colon:
             raise NotImplementedError("Malformed allocation bound")
         if before:
-            lower = self._expression(before[0])
+            lower = self._process_nodes(
+                before[0], _NodeExpectation.EXPRESSION)
         if not after:
             raise NotImplementedError(
                 "Allocation upper bound is required")
         return nodes.Range.create(
-            lower, self._expression(after[0]))
+            lower, self._process_nodes(
+                after[0], _NodeExpectation.EXPRESSION))
