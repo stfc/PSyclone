@@ -2903,16 +2903,14 @@ class Fparser2Reader():
                 sym.interface = StaticInterface()
 
     @staticmethod
-    def _process_common_blocks(nodes, psyir_parent):
+    def _process_common_blocks(nodes: list[Base], psyir_parent: ScopingNode):
         ''' Process the fparser2 common block declaration statements. This
         is done after the symbols have already been created, it just assigns
         the CommonBlockInterface to them.
 
         :param nodes: fparser2 AST nodes containing declaration statements.
-        :type nodes: List[:py:class:`fparser.two.utils.Base`]
         :param psyir_parent: the PSyIR Node with a symbol table in which to
             add the Common Blocks and update the symbols interfaces.
-        :type psyir_parent: :py:class:`psyclone.psyir.nodes.ScopingNode`
 
         :raises NotImplementedError: if one of the Symbols in a common block
             has initialisation (including when it is a parameter). This is not

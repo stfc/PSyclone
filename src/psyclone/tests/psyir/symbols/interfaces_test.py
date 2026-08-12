@@ -91,8 +91,8 @@ def test_static_interface():
 
 
 def test_commonblockinterface():
-    '''Test we can create an CommonBlockInterface instance and
-    __str__, __eq__, copy, and get its name.
+    '''Test we can create an CommonBlockInterface instance and tests its
+    __str__, __eq__, copy, and property methods.
 
     '''
     interface = CommonBlockInterface("name")
