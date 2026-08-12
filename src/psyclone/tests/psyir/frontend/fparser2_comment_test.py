@@ -605,6 +605,133 @@ end module A"""
     assert directive not in psyir.debug_string()
 
 
+def test_labels_found_with_comments(fortran_writer):
+    """ Test that the FortanReader correctly finds labels and produces a
+    CodeBlock when the labelled statement is preceded by comments, in this
+    test fparser returns a comment in the first code segment (as blank
+    lines are parsed as a Fortran2003.Comment(""))."""
+    code = """
+   subroutine foo()
+      integer :: i, j
+      integer :: a
+      logical :: cond1, cond2
+
+      if (cond1) then
+          a = 1
+      end if
+
+100   do i = 1, 10
+          if (i > 5) then
+              a = 2
+          end if
+      end do
+      goto 100
+      if (cond2) then
+          a = 3
+      end if
+   end subroutine
+    """
+    reader = FortranReader(ignore_comments=False)
+    psyir = reader.psyir_from_source(code)
+    out = fortran_writer(psyir)
+    # Correct is formatted strangely to avoid issues with
+    # linting due to empty lines or trailing whitespace.
+    # The \n   \n  100\ section appears as:
+    # !  - Unsupported statement: Goto_Stmt
+    # <BLANKLINE>
+    #  100 DO i=...
+    # in the code output, but formatting correct like that
+    # results in errors from flake8, so this is chosen to mitigate those
+    # errors.
+    correct = """subroutine foo()
+  integer :: i
+  integer :: j
+  integer :: a
+  logical :: cond1
+  logical :: cond2
+
+  if (cond1) then
+    a = 1
+  end if
+
+  ! PSyclone CodeBlock (unsupported code) reason:
+  !  - Unsupported labelled block
+  !  - Unsupported statement: Goto_Stmt\n  \n  100\
+ DO i = 1, 10
+    IF (i > 5) THEN
+      a = 2
+    END IF
+  END DO
+  GO TO 100
+  if (cond2) then
+    a = 3
+  end if
+
+end subroutine foo
+"""
+    assert correct in out
+    # Do the same test but with a non-blank comment and with
+    # a directive.
+    code = """
+   subroutine foo()
+      integer :: i, j
+      integer :: a
+      logical :: cond1, cond2
+
+      if (cond1) then
+          a = 1
+      end if
+      !Comment line
+      !$some directive
+100   do i = 1, 10
+          if (i > 5) then
+              a = 2
+          end if
+      end do
+      goto 100
+      if (cond2) then
+          a = 3
+      end if
+   end subroutine
+    """
+    reader = FortranReader(ignore_comments=False,
+                           ignore_directives=False)
+    psyir = reader.psyir_from_source(code)
+    out = fortran_writer(psyir)
+    # The comment and directive kept as part of the CodeBlock doesn't
+    # get formatted by PSyclone, but keeps its original
+    # formatting from fparser.
+    correct = """subroutine foo()
+  integer :: i
+  integer :: j
+  integer :: a
+  logical :: cond1
+  logical :: cond2
+
+  if (cond1) then
+    a = 1
+  end if
+
+  ! PSyclone CodeBlock (unsupported code) reason:
+  !  - Unsupported labelled block
+  !  - Unsupported statement: Goto_Stmt
+  !Comment line
+    !$some directive
+  100 DO i = 1, 10
+    IF (i > 5) THEN
+      a = 2
+    END IF
+  END DO
+  GO TO 100
+  if (cond2) then
+    a = 3
+  end if
+
+end subroutine foo
+"""
+    assert correct in out
+
+
 def test_comments_in_type_decl():
     """Test that comments are kept coorectly inside a type declaration."""
     code = """subroutine test
