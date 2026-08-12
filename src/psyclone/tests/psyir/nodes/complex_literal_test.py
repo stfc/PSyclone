@@ -12,8 +12,8 @@ import pytest
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.nodes import (
-    Literal, ComplexLiteral, Assignment, BinaryOperation)
-from psyclone.psyir.symbols import ScalarType
+    Literal, ComplexLiteral, Assignment, BinaryOperation, Reference)
+from psyclone.psyir.symbols import ScalarType, DataSymbol, SymbolTable
 from psyclone.core.signature import Signature
 
 
@@ -37,15 +37,15 @@ def test_complex_literal_validation():
     lit2 = Literal("2.0", ScalarType(ScalarType.Intrinsic.REAL,
                                      ScalarType.Precision.UNDEFINED))
     with pytest.raises(GenerationError) as err:
-        ComplexLiteral.create(lit1, lit2)
+        ComplexLiteral.create(lit1.copy(), lit2.copy())
     assert ("Generation Error: Item 'Literal' can't be child 0 of "
             "'ComplexLiteral'. The valid format is: '[Literal|Reference], "
             "[Literal|Reference]'.") in str(err.value)
     with pytest.raises(GenerationError) as err:
-        ComplexLiteral.create(lit1, BinaryOperation.create(
+        ComplexLiteral.create(lit2.copy(), BinaryOperation.create(
             BinaryOperation.Operator.ADD, lit2.copy(), lit2.copy()))
-    assert ("Generation Error: Item 'Literal' can't be child 0 of "
-            "'ComplexLiteral'. The valid format is: '[Literal|Reference], "
+    assert ("Generation Error: Item 'BinaryOperation' can't be child 1 "
+            "of 'ComplexLiteral'. The valid format is: '[Literal|Reference], "
             "[Literal|Reference]'.") in str(err.value)
     with pytest.raises(GenerationError) as err:
         lit = ComplexLiteral.create(lit2.copy(), lit2.copy())
@@ -65,6 +65,7 @@ def test_complex_literal_selectors():
     assert lit3.re_part == lit1
     assert lit3.im_part == lit2
     assert lit3.re_part != lit3.im_part
+    assert lit3 == lit3
 
 
 def test_complex_literal_node_str():
@@ -93,3 +94,13 @@ end subroutine'''
     accs = ass.rhs.reference_accesses()
     assert Signature("k") in accs
     assert Signature("foo") in accs
+
+
+def test_complex_literal_replace_symbols_using():
+    '''Test the replace_symbols_using() method of ComplexLiteral.'''
+    idef = DataSymbol("idef", ScalarType.integer_single_type())
+    stype = ScalarType(ScalarType.Intrinsic.REAL, Reference(idef))
+    lit = ComplexLiteral.create(Literal("1.0", stype), Literal("2.0", stype))
+    table = SymbolTable()
+    lit.replace_symbols_using(table)
+    assert lit.datatype.precision.symbol is idef
