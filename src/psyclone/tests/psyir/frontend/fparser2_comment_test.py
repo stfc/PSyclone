@@ -603,3 +603,32 @@ end module A"""
     reader = FortranReader(ignore_comments=False)
     psyir = reader.psyir_from_source(code)
     assert directive not in psyir.debug_string()
+
+
+def test_comments_in_type_decl(fortran_writer):
+    """Test that comments are kept coorectly inside a type declaration."""
+    code = """subroutine test
+    type mytype
+       ! comment1
+       integer :: i
+       ! comment2
+       integer, pointer :: j, k
+    end type
+    end subroutine test"""
+    reader = FortranReader(ignore_comments=False)
+    psyir = reader.psyir_from_source(code)
+    out = fortran_writer(psyir)
+    correct = """\
+subroutine test()
+  type :: mytype
+    ! comment1
+    integer :: i
+    ! comment2
+    integer, pointer :: j
+    integer, pointer :: k
+  end type mytype
+
+
+end subroutine test
+"""
+    assert correct == out

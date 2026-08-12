@@ -2730,8 +2730,6 @@ class Fparser2Reader():
                     root_name="_PSYCLONE_INTERNAL_NAMELIST",
                     symbol_type=DataSymbol,
                     datatype=UnsupportedFortranType(str(node)))
-                # Reset preceding_comments to avoid placing comments
-                # on following nodes.
             else:
                 raise NotImplementedError(
                     f"Error processing declarations: fparser2 node of type "
