@@ -19,7 +19,7 @@ Run with: python utils/check_closed_issue_refs.py
 Embedded tests can be run with: pytest utils/check_closed_issue_refs.py
 
 To generate a .txt file with all references to closed issues, run:
-python utils/check_closed_issue_refs.py --quiet > audit.txt 2>&1
+python utils/check_closed_issue_refs.py > audit.txt 2>&1
 
 Exit codes: 0 = no stale references found, 1 = stale references found,
 2 = error."""
@@ -54,7 +54,7 @@ DEFAULT_EXCLUDE_DIRS = [
 REFERENCE_PATTERN = re.compile(r"(?<![A-Za-z0-9/])#([0-9]+)\b(?![a-zA-Z])")
 
 
-def run_git(root, *arguments):
+def run_git(root: str, *arguments: str) -> str | None:
     """Run a git command in the given working copy, return stripped
     stdout or None if git is unavailable or fails.
     """
@@ -70,7 +70,8 @@ def run_git(root, *arguments):
         return None
 
 
-def find_references(root, includes, exclude_dirs):
+def find_references(root: str, includes: list[str], exclude_dirs: list[str]) \
+        -> dict[int, list[tuple[str, int, str]]]:
     """Walk the directory tree starting at root and find all references to
     GitHub <number> issues, returning a dictionaty mapping issue number to
     a list of (path, line no, line text) tuples."""
@@ -107,7 +108,8 @@ def find_references(root, includes, exclude_dirs):
     return dict(references)
 
 
-def fetch_issue(repository, number, token):
+def fetch_issue(repository: str, number: int, token: str | None)\
+        -> dict | None:
     """Lookup a single issue on GitHub, returns the parsed JSON, or None if the
     issue does not exist or is closed (HTTP 404)."""
 
@@ -138,7 +140,9 @@ def fetch_issue(repository, number, token):
         )
 
 
-def classify(repository, numbers, token, workers, quiet):
+def classify(
+    repository: str, numbers: list[int], token: str | None, workers: int
+) -> tuple[dict[int, tuple[str, str]], list[int]]:
     """Sort the given issue numbers into ones that are closed and those which
     don't exist. Returns (closed, missing) where closed is a dictionary mapping
     issue"""
@@ -153,29 +157,15 @@ def classify(repository, numbers, token, workers, quiet):
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
         for number, issue in pool.map(lookup, numbers):
             done += 1
-            if not quiet:
-                print(
-                    "/rChecking "
-                    + str(done)
-                    + "/"
-                    + str(len(numbers))
-                    + " ...",
-                    end="",
-                    file=sys.stderr,
-                    flush=True,
-                )
             if issue is None:
                 missing.append(number)
             elif issue.get("state") == "closed":
                 kind = "PR" if "pull_request" in issue else "issue"
                 closed[number] = (kind, issue.get("title", ""))
-
-    if not quiet:
-        print(file=sys.stderr)
     return closed, missing
 
 
-def build_parser():
+def build_parser() -> argparse.ArgumentParser:
     """Build the command line argument parser."""
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -223,15 +213,10 @@ def build_parser():
         help="number of concurrent workers to use for GitHub API requests.\
             Default: 8",
     )
-    parser.add_argument(
-        "--quiet",
-        action="store_true",
-        help="suppress progress output",
-    )
     return parser
 
 
-def main(argv=None):
+def main(argv: list[str] | None = None) -> int:
     """Main entry point for the script. Returns process exit code."""
     arguments = build_parser().parse_args(argv)
 
@@ -260,7 +245,7 @@ def main(argv=None):
         or "master"
     )
 
-    def link(path, lineto):
+    def link(path: str, lineto: int) -> str:
         relative_path = os.path.relpath(path, arguments.root)
         return (
             "https://github.com/"
@@ -287,7 +272,6 @@ def main(argv=None):
             sorted(references),
             token,
             arguments.workers,
-            arguments.quiet,
         )
     except RuntimeError as error:
         print("Error: " + str(error), file=sys.stderr)
@@ -431,7 +415,6 @@ def test_classify_separates_closed_from_missing(monkeypatch):
         [9999999, 8888888, 7777777, 6666666],
         token=None,
         workers=2,
-        quiet=True,
     )
 
     assert set(closed) == {9999999, 6666666}
@@ -453,7 +436,7 @@ def test_main_returns_1_when_closed_reference_found(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(module, "run_git", lambda root, *a: "deadbeef")
 
-    assert main(["--root", str(tmp_path), "--quiet"]) == 1
+    assert main(["--root", str(tmp_path)]) == 1
 
 
 def test_main_returns_0_when_all_open(monkeypatch, tmp_path):
@@ -469,13 +452,13 @@ def test_main_returns_0_when_all_open(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(module, "run_git", lambda root, *a: "deadbeef")
 
-    assert main(["--root", str(tmp_path), "--quiet"]) == 0
+    assert main(["--root", str(tmp_path)]) == 0
 
 
 def test_main_returns_0_when_no_references(monkeypatch, tmp_path):
     """A tree with no references gives exit code 0."""
     (tmp_path / "a.py").write_text("nothing to see here\n")
-    assert main(["--root", str(tmp_path), "--quiet"]) == 0
+    assert main(["--root", str(tmp_path)]) == 0
 
 
 if __name__ == "__main__":
