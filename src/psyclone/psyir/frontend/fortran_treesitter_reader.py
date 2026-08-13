@@ -306,6 +306,8 @@ class FortranTreeSitterReader():
 
         :returns: the equivalent PSyIR Node.
         '''
+        # This is the public entry point, reset the scoping pointer
+        self._current_scope = symbols.SymbolTable()
         return self._process_nodes(parse_tree, _NodeExpectation.ONE)
 
     @contextmanager
@@ -900,12 +902,18 @@ class FortranTreeSitterReader():
 
         :param declared_symbol: fully translated symbol for the entity.
 
+        :raises ValueError: if the name is already used for an imported
+            module.
         :raises NotImplementedError: if an existing symbol is not a
             DataSymbol.
         '''
         symtab = self._current_scope
         if declared_symbol.name in symtab:
             symbol = symtab.lookup(declared_symbol.name)
+            if isinstance(symbol, symbols.ContainerSymbol):
+                raise ValueError(
+                    f"USE module '{symbol.name}' conflicts with another "
+                    f"symbol")
             if not isinstance(symbol, symbols.DataSymbol):
                 raise NotImplementedError(
                     f"'{declared_symbol.name}' is already declared as a "
