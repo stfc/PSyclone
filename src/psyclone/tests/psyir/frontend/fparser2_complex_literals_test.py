@@ -183,7 +183,7 @@ def test_complex_literal_nested(fortran_reader):
 subroutine foo()
   use some_mode, only: some_sub
   complex :: c
-  c = c + (1.0, 2.0) * c
+  c = c + (1, 2.0) * c
   call some_sub((1.0, 2.0))
 end subroutine'''
     psyir = fortran_reader.psyir_from_source(code)
