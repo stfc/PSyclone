@@ -94,7 +94,7 @@ def child_of_type(
 
     :returns: matching child, or ``None`` if no child matches.
 
-    :raises InternalError: if more than one node of that type exists. 
+    :raises InternalError: if more than one node of that type exists.
     '''
     children = list(iter_child_of_type(tsnode, node_type))
     if len(children) == 0:
