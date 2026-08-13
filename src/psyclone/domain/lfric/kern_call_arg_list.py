@@ -8,7 +8,7 @@
 '''This module implements a class that manages the argument for a kernel
 call. It especially adds all implicitly required parameters.
 It creates the argument in two formats: first as a list of strings, but also
-as a list of PSyIR nodes. TODO #1930: the support for the string format
+as a list of PSyIR nodes. TODO #1883: the support for the string format
 should be removed as we migrate to use PSyIR in LFRic.
 '''
 

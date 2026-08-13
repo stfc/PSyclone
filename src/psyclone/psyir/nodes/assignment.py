@@ -179,7 +179,7 @@ class Assignment(Statement):
         # It's not sufficient simply to check for a Range node as that may be
         # part of an argument to an Operator or function that performs a
         # reduction and thus returns a scalar result, e.g. a(SUM(b(:))) = 1.0
-        # TODO #658 this check for reductions needs extending to also support
+        # TODO #1799 this check for reductions needs extending to also support
         # user-implemented functions.
         if isinstance(self.lhs, (ArrayReference, StructureReference)):
             ranges = self.lhs.walk(Range)
@@ -189,7 +189,7 @@ class Assignment(Statement):
                     if opn.intrinsic in REDUCTION_INTRINSICS:
                         # We don't know if this is a reduction into
                         # a scalar or an array.
-                        # TODO #658 this could still be a reduction
+                        # TODO #1799 this could still be a reduction
                         # into an array (e.g. SUM(a(:,:), dim=1)) but
                         # we need to be able to interrogate the type
                         # of a PSyIR expression in order to be

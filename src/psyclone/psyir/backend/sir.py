@@ -420,7 +420,7 @@ class SIRWriter(PSyIRVisitor):
 
         # The unary minus operator is being applied to something that
         # is not a literal. Default to REAL as we currently have no
-        # way of finding out the type, see issue #658. Replace -x with
+        # way of finding out the type, see issue #1799. Replace -x with
         # -1.0 * x.
         datatype = TYPE_MAP_TO_SIR[ScalarType.Intrinsic.REAL]
         self._depth += 1

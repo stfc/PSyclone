@@ -413,9 +413,8 @@ names). For example:
 .. warning::
 
    If "region_name" is misspelt in the options dictionary then the
-   option will be silently ignored. This is true for all
-   options. Moving to kwargs options (#2668) captures will fix this
-   problem.
+   option will be silently ignored. This is true for all options.
+   Moving to kwargs options (#2668) will fix this problem.
    
 .. warning::
  

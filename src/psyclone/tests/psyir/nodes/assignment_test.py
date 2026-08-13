@@ -233,7 +233,7 @@ def test_array_assignment_with_reduction():
         one.copy())
     if not assignment.is_array_assignment:
         # is_array_assignment should return True
-        pytest.xfail(reason="#658 needs typing of PSyIR expressions")
+        pytest.xfail(reason="#1799 needs typing of PSyIR expressions")
 
 
 def test_is_not_array_assignment():
