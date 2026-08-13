@@ -230,7 +230,7 @@ def test_generating_unsupportedtype_routine_imports(
           module a_mod
               contains
               function unsupported_type_symbol() result(res)
-                 real, pointer :: res
+                 byte :: res
               end function unsupported_type_symbol
           end module a_mod
         ''')
@@ -239,8 +239,8 @@ def test_generating_unsupportedtype_routine_imports(
               use a_mod, only: unsupported_type_symbol
               contains
               subroutine test()
-                  real, pointer :: x
-                  x => unsupported_type_symbol()
+                  byte :: x
+                  x = unsupported_type_symbol()
               end subroutine test
           end module test_mod
       ''')

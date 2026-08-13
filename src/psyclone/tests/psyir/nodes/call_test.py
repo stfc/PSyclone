@@ -1506,7 +1506,8 @@ module my_mod
 subroutine top()
   call bottom()
 end subroutine top
-module integer function possibly()
+byte function possibly()
+    possibly = 1
 end function possibly
 end module my_mod
     '''
@@ -1749,8 +1750,9 @@ contains
     luggage = luggage + real(my_func(1))
   end subroutine top
 
-  integer module function my_func(val)
+  byte function my_func(val)
     integer, intent(in) :: val
+    my_func = 1
   end function my_func
 end module some_mod'''
     psyir = fortran_reader.psyir_from_source(code)

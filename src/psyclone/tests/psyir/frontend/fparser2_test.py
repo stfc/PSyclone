@@ -430,7 +430,7 @@ def test_get_partial_datatype():
     # No entry in symbol table.
     # Notice the space before complex keyword. This avoids it being
     # treated as a comment.
-    reader = FortranStringReader(" class(*), pointer :: c\n")
+    reader = FortranStringReader(" byte :: c\n")
     node = Specification_Part(reader).content[0]
     ids = [id(entry) for entry in walk(node)]
     dtype, init = processor._get_partial_datatype(node, fake_parent, st, {})
@@ -834,12 +834,12 @@ def test_process_unsupported_declarations(fortran_reader):
 
     # Test with unsupported intrinsic type. Note the space before complex
     # below which stops the line being treated as a comment.
-    reader = FortranStringReader(" complex, pointer     ::      c2")
+    reader = FortranStringReader(" byte     ::      c2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     c2sym = fake_parent.symbol_table.lookup("c2")
     assert isinstance(c2sym.datatype, UnsupportedFortranType)
-    assert c2sym.datatype.declaration == "COMPLEX, POINTER :: c2"
+    assert c2sym.datatype.declaration == "BYTE :: c2"
 
     # Test that CodeBlocks and references to variables initialised with a
     # CodeBlock are handled correctly
@@ -944,7 +944,7 @@ def test_unsupported_decln_duplicate_symbol():
     fake_parent.symbol_table.add(Symbol("var"))
     processor = Fparser2Reader()
     # Note leading white space to ensure fparser doesn't identify a comment
-    reader = FortranStringReader(" class(*), pointer :: var")
+    reader = FortranStringReader(" byte :: var")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(SymbolError) as err:
         processor.process_declarations(fake_parent, [fparser2spec], [])

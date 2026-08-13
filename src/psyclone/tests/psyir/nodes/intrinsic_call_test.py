@@ -132,10 +132,10 @@ def test_intrinsiccall_datatype(fortran_reader):
     # Test that when we get a AttributeError due to unresolved/unsupported
     # types that PSyclone can turn that into an UnresolvedType
     code = """subroutine test
-    real :: r
-    integer :: a(1)
+    real :: r(1)
+    integer :: s(1)
 
-    r = REAL(RESHAPE(a, a))
+    r = REAL(RESHAPE(r, s))
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(IntrinsicCall)[0]
@@ -1544,9 +1544,9 @@ def test_matmul_return_type(fortran_reader):
         ),
         (
             """subroutine x
-     complex(4) :: z4
-     real(4) :: r
-     z4 = CMPLX(r)
+     complex :: z
+     real :: r
+     z = CMPLX(r)
      end subroutine x""",
             # CMPLX return type is COMPLEX with UNDEFINED precision as
             # the kind argument has not been supplied
