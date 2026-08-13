@@ -55,9 +55,13 @@ REFERENCE_PATTERN = re.compile(r"(?<![A-Za-z0-9/])#([0-9]+)\b(?![a-zA-Z])")
 
 
 def run_git(root: str, *arguments: str) -> str | None:
-    """Run a git command in the given working copy, return stripped
-    stdout or None if git is unavailable or fails.
-    """
+    '''Run a git command in the given working copy
+    
+    :param root: the root directory of the git working copy.
+    :param arguments: the git command and its arguments.
+    
+    :returns: the stdout of the command, or None if the command failed.
+    '''
     try:
         result = subprocess.run(
             ("git", "-C", root) + arguments,
@@ -72,9 +76,16 @@ def run_git(root: str, *arguments: str) -> str | None:
 
 def find_references(root: str, includes: list[str], exclude_dirs: list[str]) \
         -> dict[int, list[tuple[str, int, str]]]:
-    """Walk the directory tree starting at root and find all references to
-    GitHub <number> issues, returning a dictionaty mapping issue number to
-    a list of (path, line no, line text) tuples."""
+    '''Walk the directory tree starting at root and find all references to
+    GitHub issues.
+
+    :param root: the starting directory.
+    :param includes: name patterns of filenames to include.
+    :param exclude_dirs: name patterns of directories to exclude.
+
+    :returns: a dictionary mapping issue numbers to their (path, line no,
+        line text) occurrences.
+    '''
 
     references = collections.defaultdict(list)
 
@@ -110,8 +121,15 @@ def find_references(root: str, includes: list[str], exclude_dirs: list[str]) \
 
 def fetch_issue(repository: str, number: int, token: str | None)\
         -> dict | None:
-    """Lookup a single issue on GitHub, returns the parsed JSON, or None if the
-    issue does not exist or is closed (HTTP 404)."""
+    '''Lookup a single issue on GitHub
+    
+    :param repository: the GitHub repository in the form "owner/name".
+    :param number: the issue or PR number to lookup.
+    :param token: the GitHub API token, or None.
+
+    :returns: the parsed JSON for the issue, or None if the issue does
+    not exist or is closed (HTTP 404).
+    '''
 
     url = (
         "https://api.github.com/repos/" + repository + "/issues/" + str(number)
@@ -143,15 +161,23 @@ def fetch_issue(repository: str, number: int, token: str | None)\
 def classify(
     repository: str, numbers: list[int], token: str | None, workers: int
 ) -> tuple[dict[int, tuple[str, str]], list[int]]:
-    """Sort the given issue numbers into ones that are closed and those which
-    don't exist. Returns (closed, missing) where closed is a dictionary mapping
-    issue"""
+    '''Sort the given issue numbers into ones that are closed and those which
+    don't exist.
+    
+    :param repository: the GitHub repository in the form "owner/name".
+    :param numbers: the issue or PR numbers to lookup.
+    :param token: the GitHub API token, or None.
+    :param workers: the number of concurrent workers to use for API requests
+    
+    :returns: a tuple of (closed issues, missing issues) where closed issues
+    is a dictionary mapping issue numbers to (kind, title) and missing issues
+    is a list of issue numbers that do not exist.'''
 
     closed = {}
     missing = []
     done = 0
 
-    def lookup(number):
+    def lookup(number: int) -> tuple[int, dict | None]:
         return number, fetch_issue(repository, number, token)
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
@@ -166,7 +192,10 @@ def classify(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Build the command line argument parser."""
+    '''Build the command line argument parser.
+    
+    :returns: the configured argument parser.
+    '''
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -217,7 +246,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Main entry point for the script. Returns process exit code."""
+    '''Main entry point for the script
+    :param argv: the command line arguments, or None to use sys.argv
+    
+    :returns: the process exit code (0 = no stale references found, 
+    1 = stale references found, 2 = error).
+    '''
     arguments = build_parser().parse_args(argv)
 
     includes = arguments.include or DEFAULT_INCLUDES
@@ -246,6 +280,12 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     def link(path: str, lineto: int) -> str:
+        '''Build a GitHub link to the given file and line number
+        :param path: the file path relative to the root of the repository.
+        :param lineto: the line number to link to.
+        
+        :returns: a URL to the file and line number on GitHub.
+        '''
         relative_path = os.path.relpath(path, arguments.root)
         return (
             "https://github.com/"
