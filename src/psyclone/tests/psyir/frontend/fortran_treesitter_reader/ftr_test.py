@@ -13,6 +13,7 @@ import pytest
 from tree_sitter import Node as TSNode
 
 from psyclone.errors import InternalError
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend import fortran_treesitter_reader as ftr
 from psyclone.psyir.frontend.fortran_treesitter_reader import (
     FortranTreeSitterReader, _CommonDeclAttributes, _NodeExpectation)
@@ -204,6 +205,27 @@ def test_routines_nodes():
     assert root.children[1].symbol is rsymbol2
     assert isinstance(rsymbol1, psyir_symbols.RoutineSymbol)
     assert isinstance(rsymbol2, psyir_symbols.RoutineSymbol)
+
+
+def test_implicitly_declared_argument_falls_back():
+    '''A valid implicitly typed argument is preserved in a procedure
+    CodeBlock because PSyIR cannot declare its type safely.
+    '''
+    valid_code = """
+        subroutine implicit_argument(value)
+          value = value + 1.0
+        end subroutine implicit_argument
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    codeblock = root.children[0]
+
+    assert isinstance(codeblock, psyir_nodes.CodeBlock)
+    assert "Implicit declaration of 'value'" in codeblock.preceding_comment
+    output = FortranWriter()(root)
+    assert "subroutine implicit_argument(value)" in output
+    assert "value = value + 1.0" in output
 
 
 def test_routine_symbol_association():
@@ -438,6 +460,22 @@ def test_save_attribute():
     assert isinstance(accumulator.interface, psyir_symbols.StaticInterface)
 
 
+def test_initialized_local_has_static_interface():
+    '''Fortran initialization implies SAVE for a local variable.'''
+    valid_code = """
+        subroutine initialise()
+          integer :: value = 1
+        end subroutine initialise
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    value = root.children[0].symbol_table.lookup("value")
+
+    assert isinstance(value.interface, psyir_symbols.StaticInterface)
+    assert "integer, save :: value = 1" in FortranWriter()(root)
+
+
 @pytest.mark.parametrize("qualifier", ["pointer", "protected"])
 def test_unsupported_qualifier_datatype(qualifier):
     '''Test entity-specific unsupported declaration qualifiers, including
@@ -538,17 +576,17 @@ def test_unsupported_initializer_translation(monkeypatch):
                       psyir_symbols.UnsupportedFortranType)
 
 
-@pytest.mark.parametrize("fortran_type,psyir_type", [
-    ("integer", psyir_symbols.ScalarType.integer_type()),
-    ("integer(kind=4)", psyir_symbols.ScalarType.integer_single_type()),
-    ("integer(8)", psyir_symbols.ScalarType.integer_double_type()),
-    ("real", psyir_symbols.ScalarType.real_type()),
-    ("real(4)", psyir_symbols.ScalarType.real_single_type()),
-    ("real(kind=8)", psyir_symbols.ScalarType.real_double_type()),
-    ("logical", psyir_symbols.ScalarType.boolean_type()),
-    ("character", psyir_symbols.ScalarType.character_type()),
+@pytest.mark.parametrize("fortran_type,intrinsic,kind", [
+    ("integer", psyir_symbols.ScalarType.Intrinsic.INTEGER, None),
+    ("integer(kind=4)", psyir_symbols.ScalarType.Intrinsic.INTEGER, "4"),
+    ("integer(8)", psyir_symbols.ScalarType.Intrinsic.INTEGER, "8"),
+    ("real", psyir_symbols.ScalarType.Intrinsic.REAL, None),
+    ("real(4)", psyir_symbols.ScalarType.Intrinsic.REAL, "4"),
+    ("real(kind=8)", psyir_symbols.ScalarType.Intrinsic.REAL, "8"),
+    ("logical", psyir_symbols.ScalarType.Intrinsic.BOOLEAN, None),
+    ("character", psyir_symbols.ScalarType.Intrinsic.CHARACTER, None),
 ])
-def test_declarations_datatypes(fortran_type, psyir_type):
+def test_declarations_datatypes(fortran_type, intrinsic, kind):
     ''' Test base declaration datatypes '''
     processor = FortranTreeSitterReader()
 
@@ -561,13 +599,21 @@ def test_declarations_datatypes(fortran_type, psyir_type):
     ptree = processor.generate_parse_tree_from_source(valid_code)
     root = processor.generate_psyir(ptree)
     module = root.children[0]
-    assert module.symbol_table.lookup("a").datatype == psyir_type
+    datatype = module.symbol_table.lookup("a").datatype
+    assert datatype.intrinsic == intrinsic
+    if kind:
+        assert isinstance(datatype.precision, psyir_nodes.Literal)
+        assert datatype.precision.value == kind
+    else:
+        assert datatype.precision == \
+            psyir_symbols.ScalarType.Precision.UNDEFINED
 
 
 def test_datatype_kind_variants():
     '''Test symbolic, literal and unsupported kinds.'''
     valid_code = """
         subroutine declarations()
+          integer, parameter :: named_kind = 4
           integer(named_kind) :: symbolic
           integer(16) :: wide
           integer(1 + 1) :: unsupported_kind
@@ -579,7 +625,7 @@ def test_datatype_kind_variants():
     table = root.children[0].symbol_table
 
     assert isinstance(table.lookup("named_kind"), psyir_symbols.DataSymbol)
-    assert table.lookup("wide").datatype.precision == 16
+    assert table.lookup("wide").datatype.precision.value == "16"
     assert isinstance(table.lookup("unsupported_kind").datatype,
                       psyir_symbols.UnsupportedFortranType)
 
@@ -597,6 +643,30 @@ def test_datatype_kind_variants():
     kind = table.lookup("local_kind")
     assert isinstance(kind, psyir_symbols.DataSymbol)
     assert table.lookup("value").datatype.precision.symbol is kind
+
+
+def test_numeric_kind_selectors_round_trip():
+    '''Numeric KIND selectors remain KIND expressions for declarations and
+    integer values for literal suffixes.
+    '''
+    valid_code = """
+        subroutine kinds()
+          integer(kind=8) :: integer_value = 1_4
+          real(kind=16) :: real_value = 1.0_8
+        end subroutine kinds
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    table = root.children[0].symbol_table
+
+    assert table.lookup("integer_value").datatype.precision.value == "8"
+    assert table.lookup("real_value").datatype.precision.value == "16"
+    assert table.lookup("integer_value").initial_value.datatype.precision == 4
+    assert table.lookup("real_value").initial_value.datatype.precision == 8
+    output = FortranWriter()(root)
+    assert "integer(kind=8), save :: integer_value = 1_4" in output
+    assert "real(kind=16), save :: real_value = 1.0_8" in output
 
 
 def test_character_length():
@@ -682,10 +752,8 @@ def test_literal_kind_variants_and_string():
         processor.generate_parse_tree_from_source(valid_code))
     table = root.children[0].symbol_table
 
-    assert table.lookup("single").initial_value.datatype.precision == \
-        psyir_symbols.ScalarType.Precision.SINGLE
-    assert table.lookup("double").initial_value.datatype.precision == \
-        psyir_symbols.ScalarType.Precision.DOUBLE
+    assert table.lookup("single").initial_value.datatype.precision == 4
+    assert table.lookup("double").initial_value.datatype.precision == 8
     assert table.lookup("explicit").initial_value.datatype.precision == 16
     precision = table.lookup("symbolic").initial_value.datatype.precision
     assert precision.symbol is table.lookup("wp")
@@ -720,6 +788,27 @@ def test_double_exponent_and_character_literal_kinds():
     numeric = routine.children[2].rhs
     assert numeric.value == "two"
     assert numeric.datatype.precision == 4
+
+
+def test_character_literal_doubled_delimiters():
+    '''Doubled quote delimiters represent one quote in a character value.'''
+    valid_code = '''
+        subroutine strings(first, second)
+          character(5) :: first, second
+          first = 'don''t'
+          second = "a ""word"""
+        end subroutine strings
+    '''
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    routine = root.children[0]
+
+    assert routine.children[0].rhs.value == "don't"
+    assert routine.children[1].rhs.value == 'a "word"'
+    output = FortranWriter()(root)
+    assert 'first = "don\'t"' in output
+    assert "second = 'a \"word\"'" in output
 
 
 def test_new_literal_kind_symbol():
@@ -761,8 +850,9 @@ def test_declarations_arrays_datatypes(shape_string, extent):
 
     array_symbol = module.symbol_table.lookup("a")
     assert isinstance(array_symbol.datatype, psyir_symbols.ArrayType)
-    assert (array_symbol.datatype.elemental_type ==
-            psyir_symbols.ScalarType.integer_single_type())
+    assert array_symbol.datatype.elemental_type.intrinsic == \
+        psyir_symbols.ScalarType.Intrinsic.INTEGER
+    assert array_symbol.datatype.elemental_type.precision.value == "4"
     shape = array_symbol.datatype.shape[0]
     if isinstance(extent, str):
         assert shape.upper.value == extent
@@ -785,6 +875,27 @@ def test_allocatable_declaration():
     values = root.children[0].symbol_table.lookup("values")
     assert values.datatype.shape == [
         psyir_symbols.ArrayType.Extent.DEFERRED]
+
+
+def test_allocatable_with_explicit_lower_bound_is_preserved():
+    '''PSyIR cannot distinguish a lower-bounded deferred extent from an
+    assumed-shape extent, so preserve this declaration verbatim.
+    '''
+    valid_code = """
+        subroutine declarations()
+          real, allocatable :: values(2:)
+        end subroutine declarations
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    values = root.children[0].symbol_table.lookup("values")
+
+    assert isinstance(values.datatype,
+                      psyir_symbols.UnsupportedFortranType)
+    assert values.datatype.declaration == \
+        "real, allocatable :: values(2:)"
+    assert "real, allocatable :: values(2:)" in FortranWriter()(root)
 
 
 def test_multidimensional_and_lower_bounded_arrays():
@@ -1045,6 +1156,32 @@ def test_use_rename():
     assert isinstance(container, psyir_symbols.ContainerSymbol)
     assert imported.interface.container_symbol is container
     assert imported.interface.orig_name == "remote_kind"
+
+
+def test_use_rename_without_only():
+    '''A rename-list alias directly beneath USE is retained as a wildcard
+    import with an explicit renamed symbol.
+    '''
+    valid_code = """
+        subroutine imports(value)
+          use source, local_value => remote_value
+          integer :: value
+          value = local_value
+        end subroutine imports
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    routine = root.children[0]
+    table = routine.symbol_table
+    container = table.lookup("source")
+    imported = table.lookup("local_value")
+
+    assert container.wildcard_import
+    assert imported.interface.container_symbol is container
+    assert imported.interface.orig_name == "remote_value"
+    assert routine.children[0].rhs.symbol is imported
+    assert "use source, local_value=>remote_value" in FortranWriter()(root)
 
 
 def test_wildcard_and_defensive_import_branches():
@@ -1853,6 +1990,34 @@ def test_allocate_statement():
     assert allocate.argument_names == [None, "stat"]
 
 
+def test_structure_component_allocation_falls_back():
+    '''An allocation whose object is a structure component becomes a
+    statement CodeBlock instead of raising an unexpected exception.
+    '''
+    valid_code = """
+        module types
+          type :: item_type
+            real, allocatable :: values(:)
+          end type item_type
+        contains
+          subroutine allocate_component(object, extent)
+            type(item_type) :: object
+            integer :: extent
+            allocate(object%values(extent))
+          end subroutine allocate_component
+        end module types
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    codeblock = root.children[0].children[0].children[0]
+
+    assert isinstance(codeblock, psyir_nodes.CodeBlock)
+    assert "Allocations of structure components" in \
+        codeblock.preceding_comment
+    assert "allocate(object%values(extent))" in FortranWriter()(root)
+
+
 def test_allocate_bounds_and_invalid_object():
     '''Test explicit allocation bounds, missing upper bound and an import.'''
     valid_code = """
@@ -2199,14 +2364,15 @@ def test_select_case_expression_and_open_ranges():
 
 
 def test_select_case_with_only_default_is_unsupported():
-    '''Test SELECT CASE with no conditional case becomes a CodeBlock.'''
+    '''A default-only SELECT CASE remains a CodeBlock so evaluation of an
+    impure selector is not discarded.
+    '''
     valid_code = """
         subroutine selection(value)
           integer :: value
-          select case(value)
+          select case(next_value())
           case default
             value = 1
-            value = 2
           end select
         end subroutine selection
     """
@@ -2214,9 +2380,13 @@ def test_select_case_with_only_default_is_unsupported():
     root = processor.generate_psyir(
         processor.generate_parse_tree_from_source(valid_code))
 
-    assert isinstance(root.children[0].children[0], psyir_nodes.CodeBlock)
+    codeblock = root.children[0].children[0]
+    assert isinstance(codeblock, psyir_nodes.CodeBlock)
     assert "only a default clause" in \
-        root.children[0].children[0].preceding_comment
+        codeblock.preceding_comment
+    output = FortranWriter()(root)
+    assert "select case(next_value())" in output
+    assert "value = 1" in output
 
 
 # pylint: disable=too-many-locals

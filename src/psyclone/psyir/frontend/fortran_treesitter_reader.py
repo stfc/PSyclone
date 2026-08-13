@@ -603,6 +603,24 @@ class FortranTreeSitterReader():
                 routine.return_symbol = routine.symbol_table.lookup(
                     return_name)
             self._apply_visibility(vis_map)
+
+            # PSyIR cannot represent implicitly declared data. Leave
+            # unresolved names alone only when a wildcard import or a
+            # CodeBlock could contain their declaration, matching the
+            # conditions under which the Fortran backend can preserve them.
+            fallback_context = (
+                routine.symbol_table.wildcard_imports() or
+                routine.walk(nodes.CodeBlock))
+            for symbol in routine.symbol_table.datasymbols:
+                if not isinstance(symbol.datatype, symbols.UnresolvedType):
+                    continue
+                if (isinstance(symbol.interface,
+                               symbols.UnresolvedInterface) and
+                        fallback_context):
+                    continue
+                raise NotImplementedError(
+                    f"Implicit declaration of '{symbol.name}' is not "
+                    "supported")
         return routine
 
     def _function_return_info(
@@ -694,14 +712,10 @@ class FortranTreeSitterReader():
             symbols.ScalarType.real_type()
             if is_real else symbols.ScalarType.integer_type())
         if kind:
-            if kind == "4":
-                precision = symbols.ScalarType.Precision.SINGLE
-            elif kind == "8":
-                precision = symbols.ScalarType.Precision.DOUBLE
-            else:
-                precision = (int(kind) if kind.isdigit()
-                             else nodes.Reference(
-                                 self._kind_symbol(kind)))
+            # A numeric Fortran KIND value is processor-specific and is not
+            # equivalent to either a byte size or PSyIR relative precision.
+            precision = (int(kind) if kind.isdigit()
+                         else nodes.Reference(self._kind_symbol(kind)))
             datatype = symbols.ScalarType(
                 datatype.intrinsic, precision)
         return nodes.Literal(value, datatype)
@@ -739,7 +753,8 @@ class FortranTreeSitterReader():
                          nodes.Reference(self._kind_symbol(kind)))
             datatype = symbols.ScalarType(
                 symbols.ScalarType.Intrinsic.CHARACTER, precision)
-        return nodes.Literal(text[quote_position + 1:-1], datatype)
+        value = text[quote_position + 1:-1].replace(quote * 2, quote)
+        return nodes.Literal(value, datatype)
 
     def _boolean_literal_handler(
         self, tsnode: 'TSNode'
@@ -836,7 +851,8 @@ class FortranTreeSitterReader():
             visibility = symbols.Symbol.Visibility.PRIVATE
 
         kwargs = {"visibility": visibility}
-        interface = self._declaration_interface(name, common_attr)
+        interface = self._declaration_interface(
+            name, common_attr, initial_value is not None)
         if interface is not None:
             kwargs["interface"] = interface
         if initial_value is not None:
@@ -908,7 +924,8 @@ class FortranTreeSitterReader():
         return datatype, initial_value
 
     def _declaration_interface(
-        self, name: str, common_attr: _CommonDeclAttributes
+        self, name: str, common_attr: _CommonDeclAttributes,
+        has_initial_value: bool = False
     ):
         '''Return the PSyIR interface for one declared entity.
 
@@ -917,13 +934,15 @@ class FortranTreeSitterReader():
 
         :param name: declared entity name.
         :param common_attr: properties shared by the complete declaration.
+        :param has_initial_value: whether the entity has an initializer.
 
         :returns: symbol interface, or ``None`` for an automatic local.
         '''
         symtab = self._current_scope
         if name in symtab and symtab.lookup(name).is_argument:
             return symbols.ArgumentInterface(common_attr.intent)
-        if {"save", "parameter"}.intersection(common_attr.qualifiers):
+        if (has_initial_value or
+                {"save", "parameter"}.intersection(common_attr.qualifiers)):
             return symbols.StaticInterface()
         if isinstance(symtab.node, nodes.Container):
             return symbols.DefaultModuleInterface()
@@ -1045,11 +1064,9 @@ class FortranTreeSitterReader():
         '''
         expr = self._process_nodes(tsnode, _NodeExpectation.EXPRESSION)
         if isinstance(expr, nodes.Literal) and expr.value.isdigit():
-            if expr.value == "4":
-                return symbols.ScalarType.Precision.SINGLE
-            if expr.value == "8":
-                return symbols.ScalarType.Precision.DOUBLE
-            return int(expr.value)
+            # Keep numeric KIND selectors as PSyIR expressions. An integer
+            # precision would instead mean a byte size to PSyIR backends.
+            return expr
         if isinstance(expr, nodes.Reference):
             # pylint: disable=unidiomatic-typecheck
             if type(expr.symbol) is symbols.Symbol:
@@ -1127,6 +1144,13 @@ class FortranTreeSitterReader():
                                   if is_allocatable else
                                   symbols.ArrayType.Extent.ATTRIBUTE)
                 elif before and not after:
+                    if is_allocatable:
+                        # PSyIR cannot currently distinguish a deferred upper
+                        # bound with an explicit lower bound from an assumed-
+                        # shape bound, so preserve the declaration verbatim.
+                        raise NotImplementedError(
+                            "An allocatable bound with an explicit lower "
+                            "bound is not supported")
                     result.append(
                         (self._process_nodes(
                             before[0], _NodeExpectation.EXPRESSION),
@@ -1221,20 +1245,24 @@ class FortranTreeSitterReader():
         # ONLY list must therefore not undo a wildcard import seen earlier.
         container.wildcard_import = container.wildcard_import or wildcard
 
-        if included:
-            for child in included.children:
-                if child.type == "identifier":
-                    local_name = to_str(child)
+        import_items = list(included.children) if included else []
+        # A rename list without ONLY is represented directly beneath the USE
+        # statement rather than inside ``included_items``.
+        import_items.extend(
+            child for child in tsnode.children
+            if child.type in ("rename", "use_rename", "use_alias"))
+        for child in import_items:
+            if child.type == "identifier":
+                local_name = to_str(child)
+                self._add_imported_symbol(
+                    local_name, local_name, container)
+            elif child.type in ("rename", "use_rename", "use_alias"):
+                names = [item for item in child.children
+                         if item.type in
+                         ("identifier", "name", "local_name")]
+                if len(names) == 2:
                     self._add_imported_symbol(
-                        local_name, local_name, container)
-                elif child.type in ("rename", "use_rename", "use_alias"):
-                    names = [item for item in child.children
-                             if item.type in
-                             ("identifier", "name", "local_name")]
-                    if len(names) == 2:
-                        self._add_imported_symbol(
-                            to_str(names[0]), to_str(names[1]),
-                            container)
+                        to_str(names[0]), to_str(names[1]), container)
 
     def _add_imported_symbol(
         self, local_name: str, remote_name: str,
@@ -2029,7 +2057,7 @@ class FortranTreeSitterReader():
                 condition, body, current)
             block.annotations.append("was_case")
             current = [block]
-        if current and len(current) == 1:
+        if normal and current and len(current) == 1:
             return current[0]
         raise NotImplementedError(
             "SELECT CASE with only a default clause has no PSyIR equivalent")
@@ -2135,6 +2163,9 @@ class FortranTreeSitterReader():
         :raises NotImplementedError: if the object is not a data symbol.
         '''
         ident = child_of_type(tsnode, "identifier")
+        if ident is None:
+            raise NotImplementedError(
+                "Allocations of structure components are not supported")
         reference = self._identifier_handler(ident)
         if not isinstance(reference.symbol, symbols.DataSymbol):
             raise NotImplementedError(
