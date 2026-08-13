@@ -522,9 +522,13 @@ class FortranTreeSitterReader():
                 "implicit_statement", "internal_procedures",
                 "public_statement", "private_statement"
             }
-            self._process_nodes(
+            # Specification statements normally only update the symbol table
+            # and therefore return no Node. Keep any unsupported statements
+            # as CodeBlocks so that valid Fortran is not lost (and, in
+            # particular, does not violate an expectation of no result).
+            container.children.extend(self._process_nodes(
                 [child for child in tsnode.children
-                 if child.type not in skip], _NodeExpectation.NONE)
+                 if child.type not in skip], _NodeExpectation.LIST))
 
             internal = child_of_type(tsnode, "internal_procedures")
             if internal:
@@ -678,9 +682,17 @@ class FortranTreeSitterReader():
         '''
         text = to_str(tsnode).lower()
         value, _, kind = text.partition("_")
-        datatype = (symbols.ScalarType.real_type()
-                    if any(char in value for char in ".ed")
-                    else symbols.ScalarType.integer_type())
+        is_real = any(char in value for char in ".ed")
+        # PSyIR stores all real exponents using ``e`` notation while the
+        # Fortran ``d`` exponent also specifies double precision.
+        has_double_exponent = "d" in value
+        if has_double_exponent:
+            value = value.replace("d", "e", 1)
+        datatype = (
+            symbols.ScalarType.real_double_type()
+            if has_double_exponent else
+            symbols.ScalarType.real_type()
+            if is_real else symbols.ScalarType.integer_type())
         if kind:
             if kind == "4":
                 precision = symbols.ScalarType.Precision.SINGLE
@@ -704,7 +716,30 @@ class FortranTreeSitterReader():
         :returns: PSyIR character Literal.
         '''
         text = to_str(tsnode)
-        return nodes.Literal(text[1:-1], symbols.ScalarType.character_type())
+        quote_positions = [position for position in
+                           (text.find("'"), text.find('"'))
+                           if position >= 0]
+        if not quote_positions:
+            raise NotImplementedError(
+                "A character literal has no quote delimiter")
+        quote_position = min(quote_positions)
+        quote = text[quote_position]
+        if text[-1] != quote:
+            raise NotImplementedError(
+                "A character literal has mismatched quote delimiters")
+
+        prefix = text[:quote_position]
+        datatype = symbols.ScalarType.character_type()
+        if prefix:
+            if not prefix.endswith("_") or len(prefix) == 1:
+                raise NotImplementedError(
+                    "Unsupported character literal kind prefix")
+            kind = prefix[:-1].lower()
+            precision = (int(kind) if kind.isdigit() else
+                         nodes.Reference(self._kind_symbol(kind)))
+            datatype = symbols.ScalarType(
+                symbols.ScalarType.Intrinsic.CHARACTER, precision)
+        return nodes.Literal(text[quote_position + 1:-1], datatype)
 
     def _boolean_literal_handler(
         self, tsnode: 'TSNode'
@@ -928,7 +963,10 @@ class FortranTreeSitterReader():
                     declared_symbol.interface, symbols.AutomaticInterface):
                 symbol.interface = declared_symbol.interface
             if declared_symbol.initial_value is not None:
-                symbol.initial_value = declared_symbol.initial_value
+                # The initial value belongs to the temporary symbol created
+                # for this declaration. Give the existing symbol its own
+                # expression tree when completing a forward reference.
+                symbol.initial_value = declared_symbol.initial_value.copy()
             if declared_symbol.is_constant:
                 symbol.is_constant = True
             return
@@ -1179,7 +1217,9 @@ class FortranTreeSitterReader():
         if not isinstance(container, symbols.ContainerSymbol):
             raise ValueError(
                 f"USE module '{module_name}' conflicts with another symbol")
-        container.wildcard_import = wildcard
+        # Multiple USE statements for the same module are cumulative. An
+        # ONLY list must therefore not undo a wildcard import seen earlier.
+        container.wildcard_import = container.wildcard_import or wildcard
 
         if included:
             for child in included.children:
@@ -1427,6 +1467,19 @@ class FortranTreeSitterReader():
             return nodes.ArrayReference.create(symbol, indices)
 
         arguments = self._arguments(argument_list)
+
+        # Explicit imports initially create a bare Symbol. Once it is used as
+        # a function, specialise it in the same way as for a CALL statement.
+        # pylint: disable=unidiomatic-typecheck
+        if type(symbol) is symbols.Symbol:
+            symbol.specialise(symbols.RoutineSymbol)
+
+        # Resolve declared routines (including generic interfaces) before
+        # considering intrinsic names since Fortran permits an intrinsic to
+        # be shadowed by a user procedure.
+        if isinstance(symbol, symbols.RoutineSymbol):
+            return nodes.Call.create(symbol, arguments)
+
         intrinsic = next(
             (item for item in nodes.IntrinsicCall.Intrinsic
              if item.name.lower() == name), None)
@@ -1440,14 +1493,13 @@ class FortranTreeSitterReader():
                     f"Unsupported argument form for intrinsic '{name}'"
                 ) from None
 
-        if not isinstance(symbol, symbols.RoutineSymbol):
-            if symbol is not None and not isinstance(
-                    symbol, symbols.DataTypeSymbol):
-                raise NotImplementedError(
-                    f"'{name}(...)' cannot be classified as an array or call")
-            symbol = symbols.RoutineSymbol(name)
-            if name not in symtab:
-                symtab.add(symbol)
+        if symbol is not None and not isinstance(
+                symbol, symbols.DataTypeSymbol):
+            raise NotImplementedError(
+                f"'{name}(...)' cannot be classified as an array or call")
+        symbol = symbols.RoutineSymbol(name)
+        if name not in symtab:
+            symtab.add(symbol)
         return nodes.Call.create(symbol, arguments)
 
     def _arguments(
@@ -1506,8 +1558,18 @@ class FortranTreeSitterReader():
         before, after, has_colon = self._split_extent(tsnode)
         if not has_colon:
             raise NotImplementedError("Malformed array range")
-        # A section can have a second colon before its step.
-        after = [child for child in after if child.type != ":"]
+        # Preserve the field separated by a second colon. In particular, an
+        # absent upper bound in ``lower::step`` must not cause the step to be
+        # interpreted as the stop expression.
+        second_colon = next(
+            (idx for idx, child in enumerate(after) if child.type == ":"),
+            None)
+        if second_colon is None:
+            upper = after
+            step_nodes = []
+        else:
+            upper = after[:second_colon]
+            step_nodes = after[second_colon + 1:]
         dim = nodes.Literal(str(dimension),
                             symbols.ScalarType.integer_type())
         start = (self._process_nodes(
@@ -1516,13 +1578,13 @@ class FortranTreeSitterReader():
                      nodes.IntrinsicCall.Intrinsic.LBOUND,
                      [nodes.Reference(symbol), ("dim", dim.copy())]))
         stop = (self._process_nodes(
-            after[0], _NodeExpectation.EXPRESSION) if after else
+            upper[0], _NodeExpectation.EXPRESSION) if upper else
                 nodes.IntrinsicCall.create(
                     nodes.IntrinsicCall.Intrinsic.UBOUND,
                     [nodes.Reference(symbol), ("dim", dim.copy())]))
         step = (self._process_nodes(
-            after[1], _NodeExpectation.EXPRESSION)
-                if len(after) > 1 else None)
+            step_nodes[0], _NodeExpectation.EXPRESSION)
+                if step_nodes else None)
         return nodes.Range.create(start, stop, step)
 
     def _derived_type_member_expression_handler(
@@ -1881,12 +1943,32 @@ class FortranTreeSitterReader():
         body = self._process_nodes(
             [child for child in tsnode.children
              if child.type not in structural], _NodeExpectation.LIST)
-        elsewhere = child_of_type(tsnode, "elsewhere_clause")
-        other = (
-            self._process_nodes(
+        elsewhere_clauses = list(iter_child_of_type(
+            tsnode, "elsewhere_clause"))
+        other = None
+        # Masked ELSEWHERE clauses have ELSE-IF semantics and are represented
+        # by nested IfBlocks. Constructing the chain backwards makes the
+        # following clause the else-body of the current masked clause.
+        for elsewhere in reversed(elsewhere_clauses):
+            mask = child_of_type(
+                elsewhere, "parenthesized_expression")
+            clause_body = self._process_nodes(
                 [child for child in elsewhere.children
-                 if child.type != "elsewhere"], _NodeExpectation.LIST)
-            if elsewhere else None)
+                 if child.type not in
+                 ("elsewhere", "parenthesized_expression")],
+                _NodeExpectation.LIST)
+            if mask:
+                nested = nodes.IfBlock.create(
+                    self._process_nodes(
+                        mask, _NodeExpectation.EXPRESSION),
+                    clause_body, other)
+                nested.annotations.append("was_where")
+                other = [nested]
+            else:
+                if other is not None:
+                    raise NotImplementedError(
+                        "An unmasked ELSEWHERE must be the final clause")
+                other = clause_body
         result = nodes.IfBlock.create(
             self._process_nodes(condition, _NodeExpectation.EXPRESSION),
             body, other)

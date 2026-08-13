@@ -136,13 +136,17 @@ def test_process_node_expectation_errors():
     '''Test defensive validation of dispatcher result expectations.'''
     valid_code = """
         subroutine assignment(first, second)
+          ! This comment produces no PSyIR node.
           integer :: first, second
           first = second
+          second = 1
         end subroutine assignment
     """
     processor = FortranTreeSitterReader()
     parse_tree = processor.generate_parse_tree_from_source(valid_code)
     assignment = _first_tsnode(parse_tree, "assignment_statement")
+    comment = _first_tsnode(parse_tree, "comment")
+    number = _first_tsnode(parse_tree, "number_literal")
 
     with pytest.raises(InternalError, match="Only one node was expected"):
         processor._process_nodes([], _NodeExpectation.ONE)
@@ -150,6 +154,10 @@ def test_process_node_expectation_errors():
         processor._process_nodes(assignment, _NodeExpectation.EXPRESSION)
     with pytest.raises(InternalError, match="Unsupported node expectation"):
         processor._process_nodes([], None)
+    assert processor._process_nodes(
+        comment, _NodeExpectation.NONE) is None
+    with pytest.raises(InternalError, match="No node was expected"):
+        processor._process_nodes(number, _NodeExpectation.NONE)
 
 
 def test_program():
@@ -349,6 +357,52 @@ def test_declarations():
     assert len(module.symbol_table.symbols) == 2
     assert "a" in module.symbol_table
     assert "b" in module.symbol_table
+
+
+def test_forward_reference_completed_by_parameter_declaration():
+    '''A named constant declaration completes a DataSymbol first created by
+    its use in an earlier array bound.
+    '''
+    valid_code = """
+        subroutine declarations()
+          integer :: values(extent)
+          integer, parameter :: extent = 10
+        end subroutine declarations
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    table = root.children[0].symbol_table
+    extent = table.lookup("extent")
+
+    assert extent.is_constant
+    assert extent.initial_value.value == "10"
+    assert isinstance(extent.interface, psyir_symbols.StaticInterface)
+    assert table.lookup("values").datatype.shape[0].upper.symbol is extent
+
+
+def test_unsupported_module_specifications_are_preserved():
+    '''Unsupported module specification statements become CodeBlocks rather
+    than causing translation to abort.
+    '''
+    valid_code = """
+        module specifications
+          integer :: value
+          save
+          common /block/ value
+          namelist /group/ value
+        end module specifications
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    children = root.children[0].children
+
+    assert len(children) == 3
+    assert all(isinstance(child, psyir_nodes.CodeBlock)
+               for child in children)
+    assert [child.parse_tree_nodes[0].type for child in children] == [
+        "save_statement", "common_statement", "namelist_statement"]
 
 
 def test_parameter_declaration():
@@ -560,6 +614,44 @@ def test_character_length():
     assert label.datatype.length.value == "12"
 
 
+def test_empty_kind_and_malformed_literal_declaration_nodes():
+    '''Test defensive handling for malformed parser nodes after establishing
+    the expected declaration and literal node forms from Fortran input.
+    '''
+    valid_code = """
+        subroutine declarations()
+          character(3) :: text = 'abc'
+        end subroutine declarations
+    """
+    processor = FortranTreeSitterReader()
+    parse_tree = processor.generate_parse_tree_from_source(valid_code)
+    string = _first_tsnode(parse_tree, "string_literal")
+    declaration = _first_tsnode(parse_tree, "variable_declaration")
+    intrinsic_type = _first_tsnode(parse_tree, "intrinsic_type")
+
+    assert processor._string_literal_handler(string).value == "abc"
+    assert declaration.type == "variable_declaration"
+    for text, message in [
+            (b"abc", "no quote delimiter"),
+            (b"'abc\"", "mismatched quote delimiters"),
+            (b"_'abc'", "kind prefix")]:
+        malformed = SimpleNamespace(text=text)
+        with pytest.raises(NotImplementedError, match=message):
+            processor._string_literal_handler(malformed)
+
+    malformed_declaration = SimpleNamespace(children=[])
+    with pytest.raises(NotImplementedError, match="no supported type"):
+        processor._variable_declaration_handler(malformed_declaration)
+
+    empty_kind_type = SimpleNamespace(
+        type="intrinsic_type",
+        text=intrinsic_type.text,
+        children=[intrinsic_type.children[0],
+                  SimpleNamespace(type="kind", children=[])])
+    assert processor._datatype_from_type(empty_kind_type) == \
+        psyir_symbols.ScalarType.character_type()
+
+
 def test_logical_literal():
     '''Test a logical literal used as an initial value.'''
     processor = FortranTreeSitterReader()
@@ -598,6 +690,36 @@ def test_literal_kind_variants_and_string():
     precision = table.lookup("symbolic").initial_value.datatype.precision
     assert precision.symbol is table.lookup("wp")
     assert table.lookup("text").initial_value.value == "hello"
+
+
+def test_double_exponent_and_character_literal_kinds():
+    '''Test normalisation of D exponents and kind-prefixed strings.'''
+    valid_code = """
+        subroutine literals()
+          integer, parameter :: char_kind = 2
+          real(kind=8) :: value
+          character(3) :: first, second
+          value = 1.0d0
+          first = char_kind_'one'
+          second = 4_'two'
+        end subroutine literals
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    routine = root.children[0]
+
+    double = routine.children[0].rhs
+    assert double.value == "1.0e0"
+    assert double.datatype.precision == \
+        psyir_symbols.ScalarType.Precision.DOUBLE
+    symbolic = routine.children[1].rhs
+    assert symbolic.value == "one"
+    assert symbolic.datatype.precision.symbol is \
+        routine.symbol_table.lookup("char_kind")
+    numeric = routine.children[2].rhs
+    assert numeric.value == "two"
+    assert numeric.datatype.precision == 4
 
 
 def test_new_literal_kind_symbol():
@@ -685,6 +807,28 @@ def test_multidimensional_and_lower_bounded_arrays():
     assert datatype.shape[0].upper.value == "10"
     assert datatype.shape[1].lower.value == "1"
     assert datatype.shape[1].upper.value == "20"
+
+
+def test_assumed_shape_explicit_lower_and_upper_bounds():
+    '''Test the individual open-bound forms accepted in assumed-shape array
+    declarations.
+    '''
+    valid_code = """
+        subroutine shapes(lower_open, upper_open)
+          real :: lower_open(2:), upper_open(:10)
+        end subroutine shapes
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    table = root.children[0].symbol_table
+    lower_open = table.lookup("lower_open").datatype.shape[0]
+    upper_open = table.lookup("upper_open").datatype.shape[0]
+
+    assert lower_open.lower.value == "2"
+    assert lower_open.upper == psyir_symbols.ArrayType.Extent.ATTRIBUTE
+    assert upper_open.lower.value == "1"
+    assert upper_open.upper.value == "10"
 
 
 def test_shared_dimension_is_given_to_all_entities():
@@ -838,6 +982,26 @@ def test_named_visibility():
     assert exposed.visibility == psyir_symbols.Symbol.Visibility.PUBLIC
 
 
+def test_visibility_of_declared_and_unsupported_names():
+    '''An access list updates declared symbols and safely ignores names whose
+    unsupported declarations did not create symbols.
+    '''
+    valid_code = """
+        module visibility
+          public :: exposed, unsupported_name
+          integer :: exposed
+        end module visibility
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    table = root.children[0].symbol_table
+
+    assert table.lookup("exposed").visibility == \
+        psyir_symbols.Symbol.Visibility.PUBLIC
+    assert "unsupported_name" not in table
+
+
 def test_declaration_visibility_and_allocatable_scalar():
     '''Test declaration access attributes and unsupported scalar
     ALLOCATABLE.'''
@@ -915,6 +1079,46 @@ def test_wildcard_and_defensive_import_branches():
     assert table.lookup("source") is container
 
 
+def test_repeated_use_preserves_wildcard_import():
+    '''An ONLY import does not undo an earlier wildcard import from the same
+    module.
+    '''
+    valid_code = """
+        subroutine imports()
+          use source
+          use source, only: value
+        end subroutine imports
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    table = root.children[0].symbol_table
+
+    assert table.lookup("source").wildcard_import
+    assert table.lookup("value").interface.container_symbol is \
+        table.lookup("source")
+
+
+def test_repeated_use_updates_existing_import_interface():
+    '''A repeated explicit import updates the existing local symbol's remote
+    name while retaining its container.
+    '''
+    valid_code = """
+        subroutine imports()
+          use source, only: value
+          use source, only: value => remote_value
+        end subroutine imports
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    table = root.children[0].symbol_table
+    imported = table.lookup("value")
+
+    assert imported.interface.container_symbol is table.lookup("source")
+    assert imported.interface.orig_name == "remote_value"
+
+
 def test_declaration_conflicts_with_import():
     '''Test that redeclaring an imported bare Symbol is localised.'''
     valid_code = """
@@ -946,6 +1150,21 @@ def test_name_conflict():
 
     message = "USE module 'other' conflicts with another symbol"
     with pytest.raises(ValueError, match=message):
+        processor.generate_psyir(
+            processor.generate_parse_tree_from_source(valid_code))
+
+
+def test_use_conflicts_with_preceding_declaration():
+    '''A USE statement cannot reuse the name of an existing data symbol.'''
+    valid_code = """
+        subroutine conflict()
+          integer :: source
+          use source
+        end subroutine conflict
+    """
+    processor = FortranTreeSitterReader()
+
+    with pytest.raises(ValueError, match="USE module 'source' conflicts"):
         processor.generate_psyir(
             processor.generate_parse_tree_from_source(valid_code))
 
@@ -1037,7 +1256,9 @@ def test_invalid_derived_type_component_falls_back():
 
 
 def test_derived_type_name_conflict():
-    '''Test a derived type whose name is already used by a data symbol.'''
+    '''A derived type whose name is already used by a data symbol is
+    preserved as unsupported module specification code.
+    '''
     valid_code = """
         module conflict
           integer :: item
@@ -1047,10 +1268,13 @@ def test_derived_type_name_conflict():
         end module conflict
     """
     processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
 
-    with pytest.raises(InternalError, match="No node was expected"):
-        processor.generate_psyir(
-            processor.generate_parse_tree_from_source(valid_code))
+    codeblock = root.children[0].children[0]
+    assert isinstance(codeblock, psyir_nodes.CodeBlock)
+    assert codeblock.parse_tree_nodes[0].type == \
+        "derived_type_definition"
 
 
 def test_generic_interface():
@@ -1125,12 +1349,14 @@ def test_interface_routine_symbol_are_consistent():
     """,
 ])
 def test_unsupported_interface_forms(valid_code):
-    '''Test unsupported interface forms are detected in declaration context.'''
+    '''Unsupported interface forms are preserved in declaration context.'''
     processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
 
-    with pytest.raises(InternalError, match="No node was expected"):
-        processor.generate_psyir(
-            processor.generate_parse_tree_from_source(valid_code))
+    codeblock = root.children[0].children[0]
+    assert isinstance(codeblock, psyir_nodes.CodeBlock)
+    assert codeblock.parse_tree_nodes[0].type == "interface"
 
 
 def test_unary_operation():
@@ -1221,6 +1447,35 @@ def test_implicit_array_section_bounds():
             psyir_nodes.IntrinsicCall.Intrinsic.LBOUND
         assert section.stop.intrinsic == \
             psyir_nodes.IntrinsicCall.Intrinsic.UBOUND
+
+
+def test_array_section_omitted_upper_bound_with_step():
+    '''A step remains the third triplet field when the upper bound is
+    omitted.
+    '''
+    valid_code = """
+        subroutine section(array)
+          real :: array(10)
+          array(1::2) = 0.0
+          array(::-1) = 1.0
+        end subroutine section
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    first = root.children[0].children[0].lhs.indices[0]
+    second = root.children[0].children[1].lhs.indices[0]
+
+    assert first.start.value == "1"
+    assert first.stop.intrinsic == \
+        psyir_nodes.IntrinsicCall.Intrinsic.UBOUND
+    assert first.step.value == "2"
+    assert second.start.intrinsic == \
+        psyir_nodes.IntrinsicCall.Intrinsic.LBOUND
+    assert second.stop.intrinsic == \
+        psyir_nodes.IntrinsicCall.Intrinsic.UBOUND
+    assert second.step.operator == psyir_nodes.UnaryOperation.Operator.MINUS
+    assert second.step.children[0].value == "1"
 
 
 def test_array_constructor():
@@ -1314,6 +1569,57 @@ def test_intrinsic_call():
     call = root.children[0].children[0].rhs
     assert isinstance(call, psyir_nodes.IntrinsicCall)
     assert call.intrinsic == psyir_nodes.IntrinsicCall.Intrinsic.SIN
+
+
+def test_imported_function_call_specialises_symbol():
+    '''A bare Symbol created by an explicit import becomes a RoutineSymbol
+    when used in a function call.
+    '''
+    valid_code = """
+        subroutine caller(result)
+          use procedures, only: imported
+          real :: result
+          result = imported()
+        end subroutine caller
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    routine = root.children[0]
+
+    assert isinstance(routine.children[0].rhs, psyir_nodes.Call)
+    assert isinstance(routine.symbol_table.lookup("imported"),
+                      psyir_symbols.RoutineSymbol)
+
+
+def test_user_routine_resolved_before_intrinsic_name():
+    '''A declared procedure whose name matches an intrinsic remains a user
+    call.
+    '''
+    valid_code = """
+        module routines
+          interface sin
+            module procedure user_sin
+          end interface sin
+        contains
+          real function user_sin()
+            user_sin = 0.0
+          end function user_sin
+          subroutine caller(result)
+            real :: result
+            result = sin()
+          end subroutine caller
+        end module routines
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    call = root.children[0].children[1].children[0].rhs
+
+    assert isinstance(call, psyir_nodes.Call)
+    assert not isinstance(call, psyir_nodes.IntrinsicCall)
+    assert isinstance(call.routine.symbol,
+                      psyir_symbols.GenericInterfaceSymbol)
 
 
 def test_invalid_array_and_intrinsic_arguments():
@@ -1777,6 +2083,68 @@ def test_where_construct():
     assert isinstance(where, psyir_nodes.IfBlock)
     assert where.annotations == ["was_where"]
     assert where.else_body.children[0].rhs.value == "0.0"
+
+
+def test_masked_and_repeated_elsewhere_clauses():
+    '''Masked ELSEWHERE clauses form a nested conditional chain and may be
+    followed by a final unmasked clause.
+    '''
+    valid_code = """
+        subroutine mask(array, first, second)
+          real :: array(10)
+          logical :: first(10), second(10)
+          where (first)
+            array = 1.0
+          elsewhere (.not. first)
+            array = 2.0
+          elsewhere (second)
+            array = 3.0
+          elsewhere
+            array = 4.0
+          end where
+        end subroutine mask
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    where = root.children[0].children[0]
+    first_masked = where.else_body.children[0]
+    second_masked = first_masked.else_body.children[0]
+
+    assert isinstance(first_masked, psyir_nodes.IfBlock)
+    assert isinstance(second_masked, psyir_nodes.IfBlock)
+    assert first_masked.annotations == ["was_where"]
+    assert second_masked.annotations == ["was_where"]
+    assert first_masked.if_body.children[0].rhs.value == "2.0"
+    assert second_masked.if_body.children[0].rhs.value == "3.0"
+    assert second_masked.else_body.children[0].rhs.value == "4.0"
+
+
+def test_unmasked_elsewhere_must_be_final():
+    '''An unmasked ELSEWHERE followed by another clause is preserved as an
+    unsupported statement instead of constructing incorrect PSyIR.
+    '''
+    valid_code = """
+        subroutine mask(array, condition)
+          real :: array(10)
+          logical :: condition(10)
+          where (condition)
+            array = 1.0
+          elsewhere
+            array = 2.0
+          elsewhere (condition)
+            array = 3.0
+          end where
+        end subroutine mask
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    codeblock = root.children[0].children[0]
+
+    assert isinstance(codeblock, psyir_nodes.CodeBlock)
+    assert "unmasked ELSEWHERE must be the final clause" in \
+        codeblock.preceding_comment
 
 
 def test_select_case_construct():
