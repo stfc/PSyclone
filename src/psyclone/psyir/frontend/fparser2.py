@@ -82,7 +82,7 @@ INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
                   "inout": ArgumentInterface.Access.READWRITE}
 
 #: Those routine prefix specifications that we support.
-SUPPORTED_ROUTINE_PREFIXES = ["ELEMENTAL", "PURE", "IMPURE"]
+SUPPORTED_ROUTINE_PREFIXES = ["ELEMENTAL", "PURE", "IMPURE", "RECURSIVE"]
 
 
 def _first_type_match(nodelist, typekind):
@@ -840,9 +840,9 @@ class Fparser2Reader():
         given block (e.g. subroutine, do, if-then body, etc.) should be kept as
         CodeBlocks or lost (default False). Only has an effect if comments
         were not ignored when creating the fparser2 AST.
-    :param resolve_modules: Whether to resolve modules while parsing a file,
-        for more precise control it also accepts a list of module names.
-        Defaults to False.
+    :param resolve_modules: Whether to resolve modules defined outside the
+        current file while parsing it. For more precise control this argument
+        also accepts a list of external module names. Defaults to False.
     :param ignore_comments: whether to let the parser ignore comments.
     :param free_form: whether to parse using Fortran free_form syntax.
     :param ignore_directives: whether to ignore directives while parsing.
@@ -1666,9 +1666,19 @@ class Fparser2Reader():
                 raise NotImplementedError(f"Found unsupported USE statement: "
                                           f"'{decl}'")
 
-            # Import symbol information from module/container (if enabled)
-            if (self._resolve_all_modules or
-                    container.name.lower() in self._modules_to_resolve):
+            # Modules already parsed in this file can always be resolved.
+            file_container = parent.ancestor(FileContainer)
+            lowered_name = container.name.lower()
+            if file_container:
+                for sibling in file_container.children:
+                    if (isinstance(sibling, Container) and
+                            sibling.name.lower() == lowered_name):
+                        parent.symbol_table.resolve_imports([container])
+
+            # External modules are resolved only when requested
+            if (not container._reference and (
+                    self._resolve_all_modules or
+                    lowered_name in self._modules_to_resolve)):
                 parent.symbol_table.resolve_imports([container])
 
             if visibility_map:
@@ -5901,6 +5911,8 @@ class Fparser2Reader():
                             raise NotImplementedError(
                                 f"Routine has unsupported prefix: "
                                 f"{child.string}")
+                        if child.string == "RECURSIVE":
+                            routine.is_recursive = True
                     else:
                         base_type, _ = self._process_type_spec(routine, child)
 
@@ -6120,20 +6132,21 @@ class Fparser2Reader():
 
     def _program_handler(self,
                          node: Fortran2003.Program,
-                         parent: Node) -> Node:
+                         _parent: Node) -> Node:
         '''Processes an fparser2 Program statement. Program is the top level
         node of a complete fparser2 tree and may contain one or more
         program-units. This is captured with a FileContainer node.
 
         :param node: top level node in fparser2 parse tree.
-        :param parent: parent node of the PSyIR node we are constructing.
+        :param _parent: parent node of the PSyIR node we are constructing.
 
         :returns: PSyIR representation of the program.
 
         '''
         # fparser2 does not keep the original filename (if there was one) so
-        # this can't be provided as the name of the FileContainer.
-        file_container = FileContainer("", parent=parent)
+        # just provide an empty string for now. Also, this will be the root by
+        # definition, so ignore the parent.
+        file_container = FileContainer("")
 
         # Create symbols for all routines defined within this file (i.e.
         # that are not within a module)
