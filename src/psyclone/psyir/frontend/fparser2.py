@@ -78,7 +78,8 @@ CONSTANT_TYPE_MAP = {
     Fortran2003.Signed_Real_Literal_Constant: ScalarType.Intrinsic.REAL,
     Fortran2003.Logical_Literal_Constant: ScalarType.Intrinsic.BOOLEAN,
     Fortran2003.Char_Literal_Constant: ScalarType.Intrinsic.CHARACTER,
-    Fortran2003.Int_Literal_Constant: ScalarType.Intrinsic.INTEGER}
+    Fortran2003.Int_Literal_Constant: ScalarType.Intrinsic.INTEGER,
+    Fortran2003.Signed_Int_Literal_Constant: ScalarType.Intrinsic.INTEGER}
 
 #: Mapping from Fortran intent to PSyIR access type
 INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
@@ -583,7 +584,8 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
         :py:class:`Fortran2003.Signed_Real_Literal_Constant` or \
         :py:class:`Fortran2003.Logical_Literal_Constant` or \
         :py:class:`Fortran2003.Char_Literal_Constant` or \
-        :py:class:`Fortran2003.Int_Literal_Constant`
+        :py:class:`Fortran2003.Int_Literal_Constant` or \
+        :py:class:`Fortran2003.Signed_Int_Literal_Constant`
     :param psyir_literal_parent: the PSyIR node that will be the \
         parent of the PSyIR literal node that will be created from the \
         fparser2 node information.
@@ -603,7 +605,8 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
                        Fortran2003.Signed_Real_Literal_Constant,
                        Fortran2003.Logical_Literal_Constant,
                        Fortran2003.Char_Literal_Constant,
-                       Fortran2003.Int_Literal_Constant)):
+                       Fortran2003.Int_Literal_Constant,
+                       Fortran2003.Signed_Int_Literal_Constant)):
         raise InternalError(
             f"Unsupported literal type '{type(fparser2_node).__name__}' found "
             f"in get_literal_precision.")
@@ -5637,7 +5640,7 @@ class Fparser2Reader():
             elif isinstance(part, Fortran2003.Signed_Int_Literal_Constant):
                 # Convert the integer literal to a real literal
                 real_type = ScalarType(ScalarType.Intrinsic.REAL,
-                                       ScalarType.Precision.UNDEFINED)
+                                       get_literal_precision(part, lit))
                 parts.append(Literal(str(part.items[0]), real_type))
             else:
                 # Handle a real literal

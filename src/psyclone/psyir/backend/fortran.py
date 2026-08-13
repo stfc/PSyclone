@@ -36,7 +36,7 @@ from psyclone.psyir.symbols import (
 # precision", which is captured as a REAL intrinsic in the PSyIR.
 TYPE_MAP_TO_FORTRAN = {}
 for key, item in TYPE_MAP_FROM_FORTRAN.items():
-    if key != "double precision":
+    if key not in ["double precision", "double complex"]:
         TYPE_MAP_TO_FORTRAN[item] = key
 
 
@@ -347,8 +347,11 @@ class FortranWriter(LanguageWriter):
             # only distinguishes relative precision for single and double
             # precision reals.
             if precision == ScalarType.Precision.DOUBLE:
-                if fortrantype.lower() == "real":
+                ty = fortrantype.lower()
+                if ty == "real":
                     return "double precision"
+                elif ty == "complex":
+                    return "double complex"
                 raise VisitorError(
                     f"ScalarType.Precision.DOUBLE is not supported for "
                     f"datatypes other than floating point numbers in "
