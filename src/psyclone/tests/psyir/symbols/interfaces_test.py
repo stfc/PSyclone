@@ -59,12 +59,30 @@ def test_static_interface():
 
 
 def test_commonblockinterface():
-    '''Test we can create an CommonBlockInterface instance and check its
-    __str__ value
+    '''Test we can create an CommonBlockInterface instance and tests its
+    __str__, __eq__, copy, and property methods.
 
     '''
-    interface = CommonBlockInterface()
-    assert str(interface) == "CommonBlock"
+    interface = CommonBlockInterface("name")
+    interface.name == "name"
+    assert str(interface) == "CommonBlock 'name'"
+
+    # Interfaces can be unnamed
+    interface2 = CommonBlockInterface("")
+    interface2.name == ""
+    assert str(interface2) == "CommonBlock ''"
+
+    # Check that they only accept strings
+    with pytest.raises(TypeError) as err:
+        _ = CommonBlockInterface(3)
+    assert ("The common block name should be a valid string, but found 'int'"
+            in str(err.value))
+
+    # Test copy and equality
+    assert interface != interface2
+    copy = interface.copy()
+    assert interface is not copy
+    assert interface == copy
 
 
 def test_unresolvedinterface():
