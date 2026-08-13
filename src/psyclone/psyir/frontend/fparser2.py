@@ -65,7 +65,8 @@ TYPE_MAP_FROM_FORTRAN = {"integer": ScalarType.Intrinsic.INTEGER,
                          "logical": ScalarType.Intrinsic.BOOLEAN,
                          "real": ScalarType.Intrinsic.REAL,
                          "double precision": ScalarType.Intrinsic.REAL,
-                         "complex": ScalarType.Intrinsic.COMPLEX}
+                         "complex": ScalarType.Intrinsic.COMPLEX,
+                         "double complex": ScalarType.Intrinsic.COMPLEX}
 
 #: Mapping from Fortran access specifiers to PSyIR visibilities
 VISIBILITY_MAP_FROM_FORTRAN = {"public": Symbol.Visibility.PUBLIC,
@@ -1732,8 +1733,8 @@ class Fparser2Reader():
                     f"Could not process {type_spec}. Only 'real', 'double "
                     f"precision', 'integer', 'logical', 'character' and "
                     f"'complex' intrinsic types are supported.") from err
-            if fort_type == "double precision":
-                # Fortran double precision is equivalent to a REAL
+            if fort_type in ["double precision", "double complex"]:
+                # Fortran double precision is equivalent to a REAL/COMLPEX
                 # intrinsic with precision DOUBLE in the PSyIR.
                 precision = ScalarType.Precision.DOUBLE
             else:

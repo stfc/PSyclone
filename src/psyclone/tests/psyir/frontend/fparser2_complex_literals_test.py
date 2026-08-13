@@ -30,6 +30,21 @@ end subroutine'''
     assert sym.is_automatic
 
 
+def test_double_complex_type(fortran_reader):
+    '''Test that a double complex type is correctly represented in PSyIR'''
+    code = '''
+subroutine foo()
+  double complex :: c
+end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    sub = psyir.walk(Routine)[0]
+    sym = sub.symbol_table.lookup("c")
+    assert sym.name == 'c'
+    assert isinstance(sym.datatype, ScalarType)
+    assert sym.datatype == ScalarType.complex_double_type()
+    assert sym.is_automatic
+
+
 def test_complex_precision(fortran_reader):
     '''Test that the precision of a complex type is correctly represented
     in PSyIR'''
@@ -49,8 +64,7 @@ end subroutine'''
 
 
 def test_complex_literal(fortran_reader):
-    '''Test that a complex literal is represented as an CMPLX
-    IntrinsicCall in PSyIR'''
+    '''Test that a complex literal is represented a ComplexLiteral node'''
     code = '''
 subroutine foo()
   complex :: c
