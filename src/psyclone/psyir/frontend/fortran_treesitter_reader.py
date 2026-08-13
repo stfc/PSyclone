@@ -66,7 +66,7 @@ def to_str(node: 'TSNode') -> str:
 
 
 def iter_child_of_type(
-    tsnode: Optional['TSNode'], types: str | Container[str]
+    tsnode: Optional['TSNode'], types: Union[str, Container[str]]
 ) -> Generator['TSNode']:
     ''' Provides a generator to iterate over the provided tsnode
     chidlren of the given type(s).
@@ -84,7 +84,7 @@ def iter_child_of_type(
 
 
 def child_of_type(
-    tsnode: Optional['TSNode'], node_type: str | Container[str]
+    tsnode: Optional['TSNode'], node_type: Union[str, Container[str]]
 ) -> Optional['TSNode']:
     ''' Return the direct child having the supplied type(s). And validate
     that is the only child of the supplied type.
@@ -384,7 +384,7 @@ class FortranTreeSitterReader():
         self,
         tsnodes: Union["TSNode", Iterable["TSNode"]],
         expect: _NodeExpectation,
-    ) -> list[nodes.Node] | nodes.Node | None:
+    ) -> Optional[Union[list[nodes.Node], nodes.Node]]:
         '''
         This is the tsnodes handler dispatcher. Unsupported syntax is
         deliberately caught here rather than in individual handlers so that
