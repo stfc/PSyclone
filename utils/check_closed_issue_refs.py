@@ -56,10 +56,10 @@ REFERENCE_PATTERN = re.compile(r"(?<![A-Za-z0-9/])#([0-9]+)\b(?![a-zA-Z])")
 
 def run_git(root: str, *arguments: str) -> str | None:
     '''Run a git command in the given working copy
-    
+
     :param root: the root directory of the git working copy.
     :param arguments: the git command and its arguments.
-    
+
     :returns: the stdout of the command, or None if the command failed.
     '''
     try:
@@ -122,7 +122,7 @@ def find_references(root: str, includes: list[str], exclude_dirs: list[str]) \
 def fetch_issue(repository: str, number: int, token: str | None)\
         -> dict | None:
     '''Lookup a single issue on GitHub
-    
+
     :param repository: the GitHub repository in the form "owner/name".
     :param number: the issue or PR number to lookup.
     :param token: the GitHub API token, or None.
@@ -163,12 +163,12 @@ def classify(
 ) -> tuple[dict[int, tuple[str, str]], list[int]]:
     '''Sort the given issue numbers into ones that are closed and those which
     don't exist.
-    
+
     :param repository: the GitHub repository in the form "owner/name".
     :param numbers: the issue or PR numbers to lookup.
     :param token: the GitHub API token, or None.
     :param workers: the number of concurrent workers to use for API requests
-    
+
     :returns: a tuple of (closed issues, missing issues) where closed issues
     is a dictionary mapping issue numbers to (kind, title) and missing issues
     is a list of issue numbers that do not exist.'''
@@ -193,7 +193,7 @@ def classify(
 
 def build_parser() -> argparse.ArgumentParser:
     '''Build the command line argument parser.
-    
+
     :returns: the configured argument parser.
     '''
     parser = argparse.ArgumentParser(
@@ -248,8 +248,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     '''Main entry point for the script
     :param argv: the command line arguments, or None to use sys.argv
-    
-    :returns: the process exit code (0 = no stale references found, 
+
+    :returns: the process exit code (0 = no stale references found,
     1 = stale references found, 2 = error).
     '''
     arguments = build_parser().parse_args(argv)
@@ -283,7 +283,7 @@ def main(argv: list[str] | None = None) -> int:
         '''Build a GitHub link to the given file and line number
         :param path: the file path relative to the root of the repository.
         :param lineto: the line number to link to.
-        
+
         :returns: a URL to the file and line number on GitHub.
         '''
         relative_path = os.path.relpath(path, arguments.root)
