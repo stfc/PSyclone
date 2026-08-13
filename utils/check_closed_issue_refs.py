@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: H. Frost, STFC Daresbury Lab
 
 """Find references to closed GitHub issues left behind in the Psyclone
 codebase and report them. The CI check only catches references to issues
@@ -74,8 +73,9 @@ def run_git(root: str, *arguments: str) -> str | None:
         return None
 
 
-def find_references(root: str, includes: list[str], exclude_dirs: list[str]) \
-        -> dict[int, list[tuple[str, int, str]]]:
+def find_references(
+    root: str, includes: list[str], exclude_dirs: list[str]
+) -> dict[int, list[tuple[str, int, str]]]:
     '''Walk the directory tree starting at root and find all references to
     GitHub issues.
 
@@ -119,8 +119,9 @@ def find_references(root: str, includes: list[str], exclude_dirs: list[str]) \
     return dict(references)
 
 
-def fetch_issue(repository: str, number: int, token: str | None)\
-        -> dict | None:
+def fetch_issue(
+    repository: str, number: int, token: str | None
+) -> dict | None:
     '''Lookup a single issue on GitHub
 
     :param repository: the GitHub repository in the form "owner/name".
@@ -128,7 +129,7 @@ def fetch_issue(repository: str, number: int, token: str | None)\
     :param token: the GitHub API token, or None.
 
     :returns: the parsed JSON for the issue, or None if the issue does
-    not exist or is closed (HTTP 404).
+        not exist or is closed (HTTP 404).
     '''
 
     url = (
@@ -247,10 +248,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     '''Main entry point for the script
+
     :param argv: the command line arguments, or None to use sys.argv
 
     :returns: the process exit code (0 = no stale references found,
-    1 = stale references found, 2 = error).
+        1 = stale references found, 2 = error).
     '''
     arguments = build_parser().parse_args(argv)
 
@@ -281,6 +283,7 @@ def main(argv: list[str] | None = None) -> int:
 
     def link(path: str, lineto: int) -> str:
         '''Build a GitHub link to the given file and line number
+
         :param path: the file path relative to the root of the repository.
         :param lineto: the line number to link to.
 
