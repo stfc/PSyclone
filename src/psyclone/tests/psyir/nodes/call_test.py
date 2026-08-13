@@ -472,12 +472,6 @@ def test_type_bound_call_reference_accesses(fortran_reader):
     assert vam.has_read_write(Signature("j"))
     assert not vam.has_read_write(Signature("k"))
     assert not vam.has_read_write(Signature("f"))
-    # We can't tell whether 'domain%get_start(i)' is an array access
-    # or a function call. We currently, dangerously, assume it is the former.
-    if not vam.has_read_write(Signature("i")):
-        pytest.xfail(reason="TODO #2823 - potential array accesses/function "
-                     "calls are always assumed to be array accesses. This is "
-                     "unsafe.")
 
 
 def test_call_argumentnames_after_removearg():
