@@ -366,6 +366,10 @@ as fields). A limitation of the current translation from PSyIR to SIR
 is that all PSyIR scalars are assumed to be local and all PSyIR arrays
 are assumed to be global, which may not be the case.
 
+.. warning::
+
+   SIR is no longer actively developed. PSyclone will keep the backend as
+   is for now, but the current limitations will not be addressed.
 
 .. _uplifting-lowering:
 
@@ -392,10 +396,5 @@ PSyIR using the ``lower_to_language_level`` node method and then processed by
 the Visitor to generate the target language.
 The language-level PSyIR is still the same IR but restricted to the subset
 of Nodes that have a direct translation into target language concepts.
-
-.. warning::
-
-   SIR is no longer actively developed. PSyclone will keep the backend as
-   is for now, but the current limitations will not be addressed.
 
 .. image:: 2level_psyir.png
