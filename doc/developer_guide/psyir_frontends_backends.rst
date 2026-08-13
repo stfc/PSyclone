@@ -393,4 +393,9 @@ the Visitor to generate the target language.
 The language-level PSyIR is still the same IR but restricted to the subset
 of Nodes that have a direct translation into target language concepts.
 
+.. warning::
+
+   SIR is no longer actively developed. PSyclone will keep the backend as
+   is for now, but the current limitations will not be addressed.
+
 .. image:: 2level_psyir.png
