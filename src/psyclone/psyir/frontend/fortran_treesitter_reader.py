@@ -65,15 +65,16 @@ def to_str(node: 'TSNode') -> str:
     return node.text.decode('utf8') if node.text else ""
 
 
-def direct_child_of_type(
+def iter_child_of_type(
     tsnode: Optional['TSNode'], types: str | Container[str]
 ) -> Generator['TSNode']:
-    '''Return the first direct child having the supplied type.
+    ''' Provides a generator to iterate over the provided tsnode
+    chidlren of the given type(s).
 
     :param tsnode: tree-sitter node whose children are searched.
     :param node_type: tree-sitter type to find.
 
-    :returns: matching child, or ``None`` if no child matches.
+    :yields: matching child, or ``None`` if no child matches.
     '''
     check_types = (types,) if isinstance(types, str) else types
     if tsnode:
@@ -83,16 +84,19 @@ def direct_child_of_type(
 
 
 def child_of_type(
-    tsnode: Optional['TSNode'], node_type: str
+    tsnode: Optional['TSNode'], node_type: str | Container[str]
 ) -> Optional['TSNode']:
-    ''' Return the direct child having the supplied type.
+    ''' Return the direct child having the supplied type(s). And validate
+    that is the only child of the supplied type.
 
     :param tsnode: tree-sitter node whose children are searched.
-    :param node_type: tree-sitter type to find.
+    :param node_type: tree-sitter type(s) to find.
 
     :returns: matching child, or ``None`` if no child matches.
+
+    :raises InternalError: if more than one node of that type exists. 
     '''
-    children = list(direct_child_of_type(tsnode, node_type))
+    children = list(iter_child_of_type(tsnode, node_type))
     if len(children) == 0:
         return None
     elif len(children) > 1:
@@ -1242,7 +1246,7 @@ class FortranTreeSitterReader():
                 visibility_map = self._process_access_statements(
                     tsnode.children)
                 try:
-                    for declaration in direct_child_of_type(
+                    for declaration in iter_child_of_type(
                             tsnode, "variable_declaration"):
                         self._variable_declaration_handler(declaration)
                     self._apply_visibility(visibility_map)
@@ -1293,10 +1297,10 @@ class FortranTreeSitterReader():
                 "Abstract and operator interfaces are not supported")
         name = to_str(name_node)
         routines = []
-        for procedure in direct_child_of_type(tsnode, "procedure_statement"):
+        for procedure in iter_child_of_type(tsnode, "procedure_statement"):
             from_container = "module" in [
                 child.type for child in procedure.children[0].children]
-            for method in direct_child_of_type(procedure, "method_name"):
+            for method in iter_child_of_type(procedure, "method_name"):
                 routine_name = to_str(method)
                 try:
                     routine = symtab.lookup(routine_name)
@@ -1756,7 +1760,7 @@ class FortranTreeSitterReader():
         body_nodes = [child for child in tsnode.children
                       if child.type not in structural]
         else_clause = child_of_type(tsnode, "else_clause")
-        else_ifs = list(direct_child_of_type(tsnode, "elseif_clause"))
+        else_ifs = list(iter_child_of_type(tsnode, "elseif_clause"))
         annotations = []
         if not child_of_type(tsnode, "end_if_statement"):
             annotations.append("was_single_stmt")
@@ -1917,7 +1921,7 @@ class FortranTreeSitterReader():
         else:
             selector = self._process_nodes(
                 selector_node, _NodeExpectation.EXPRESSION)
-        cases = list(direct_child_of_type(tsnode, "case_statement"))
+        cases = list(iter_child_of_type(tsnode, "case_statement"))
         default_body = None
         normal = []
         for case in cases:
