@@ -97,7 +97,7 @@ def test_complex_literal_initialiser(fortran_reader):
     a ComplexLiteral PSyIR node'''
     code = '''
 subroutine foo()
-  complex :: c = (1.0, 2.0)
+  complex :: c = (1.0, -2.0)
 end subroutine'''
     psyir = fortran_reader.psyir_from_source(code)
     sub = psyir.walk(Routine)[0]
@@ -116,7 +116,7 @@ end subroutine'''
            ScalarType.Precision.UNDEFINED
 
     assert isinstance(lit.children[1], Literal)
-    assert lit.children[1].value == "2.0"
+    assert lit.children[1].value == "-2.0"
     assert isinstance(lit.children[1].datatype, ScalarType)
     assert lit.children[1].datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert lit.children[1].datatype.precision == \
