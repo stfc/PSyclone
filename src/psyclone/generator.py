@@ -18,6 +18,7 @@ import argparse
 import importlib
 import logging
 import os
+import pathlib
 import shutil
 import sys
 import traceback
@@ -90,9 +91,16 @@ def load_script(
            List[str],
            Union[bool, List[str]],
            dict[str, str]]:
-    ''' Loads the specified script containing a psyclone recipe. We also
-    prepend the script path to the sys.path, so that the script itself and
-    any imports that it has from the same directory can be found.
+    ''' Loads the specified script containing a PSyclone recipe. This is done
+    without adding the imported symbol to the system list of all Python
+    modules. This will allow later to import a potentially different script
+    with the same name. The script path is also prepended to sys.path, so that
+    the script can import helper scripts from its own directory.
+
+    TODO #3514
+    To avoid that sys.path keeps growing (if PSyclone is called more than
+    once), the caller must remove the first entry of sys.path after executing
+    the script.
 
     :param script_name: name of the script to load.
     :param kwargs_str: the kwargs argument from the command line.
@@ -131,12 +139,22 @@ def load_script(
         raise GenerationError(
             f"generator: expected the script file '{filename}' to have "
             f"the '.py' extension")
-    # prepend file path - if none, the empty string equates to the current
-    # working directory - to the system path to guarantee we find the user
-    # provided module instead of a similarly named module that might
-    # already exist elsewhere in the system path
+
+    # Add the script directory to sys.path, so scripts can easily import
+    # helper scripts in the same directory (this step is not needed to
+    # import the script itself, but it maintains backwards compatibility).
     sys.path.insert(0, filepath)
-    recipe_module = importlib.import_module(module_name)
+
+    # This will import the module, but not make it part of the
+    # system list of all modules, i.e. a module of this name can be
+    # imported and used elsewhere. This will allow to import a module
+    # with the same name, which is required if PSyclone is called
+    # repeatedly from the same Python process (and each call might
+    # have different scripts with the same name, e.g. local.py in LFRic).
+    script_path = pathlib.Path(script_name)
+    spec = importlib.util.spec_from_file_location(module_name, script_path)
+    recipe_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(recipe_module)
 
     files_to_skip: list[str]
     if hasattr(recipe_module, "FILES_TO_SKIP"):
@@ -266,6 +284,8 @@ def generate(filename: str,
             # defined, otherwise an exception is raised.
             trans_func, _, _, kwargs = load_script(script_name, kwargs_str)
             trans_func(psy.container.root, **kwargs)
+            # TODO #3514: proper cleanup using with
+            del sys.path[0]
         alg_gen = None
 
     elif api in GOCEAN_API_NAMES or (api in LFRIC_API_NAMES and LFRIC_TESTING):
@@ -319,6 +339,8 @@ def generate(filename: str,
                                                "trans_alg", is_optional=True)
             if recipe:
                 recipe(psyir, **kwargs)
+            # TODO #3514: proper cleanup using with
+            del sys.path[0]
 
         # For each kernel called from the algorithm layer
         kernels: dict[int, dict[int, Node]] = {}
@@ -411,6 +433,8 @@ def generate(filename: str,
             # raised.
             trans_func, _, _, kwargs = load_script(script_name, kwargs_str)
             trans_func(psy.container.root, **kwargs)
+            # TODO #3514: proper cleanup using with
+            del sys.path[0]
 
     # TODO issue #1618 remove Alg class and tests from PSyclone
     if api in LFRIC_API_NAMES and not LFRIC_TESTING:
@@ -980,3 +1004,6 @@ def code_transformation_mode(input_file: str,
         else:
             print(f"File '{input_file}' skipped because it is listed in "
                   "FILES_TO_SKIP.", file=sys.stdout)
+
+    # TODO #3514: proper cleanup using with
+    del sys.path[0]
