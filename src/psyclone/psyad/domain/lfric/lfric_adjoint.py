@@ -85,7 +85,7 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
     # or an interface.)
 
     # Until we can query the kernel metadata to see whether it points
-    # to a kernel or an interface (issue #1807), we simply assume that we
+    # to a kernel or an interface (issue #3546), we simply assume that we
     # should allow multiple routines as they imply an interface. We
     # further assume that the implementation of the routines in the
     # interface use the same variable names which allows us to
@@ -127,7 +127,7 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
     if metadata.procedure_name:
         metadata.procedure_name = create_adjoint_name(metadata.procedure_name)
     else:
-        # Issue #2236. We are not yet able to to raise multi-precision
+        # Issue #3546. We are not yet able to to raise multi-precision
         # metadata to LFRic-specific metadata, so return without
         # making any further modifications.
         return ad_psyir

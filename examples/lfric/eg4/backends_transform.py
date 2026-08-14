@@ -8,7 +8,7 @@
 '''Python script intended to be passed to PSyclone's generate()
 function via the -s option.
 This script calls a successful exit from inside because it is a work in
-progress of the development tracked by issue #1010.
+progress of the development tracked by issue #2905.
 '''
 
 import sys
@@ -31,7 +31,7 @@ def trans(psyir):
         print("DSL level view:")
         print(schedule.view())
 
-    # TODO #1010: This script should terminate here until LFRic declares
+    # TODO #2905: This script should terminate here until LFRic declares
     # all its symbols to the symbol table.
     sys.exit(0)
 
