@@ -52,13 +52,11 @@ with NVIDIA's profiling tools, either `nvprof` or `nvvp`.
 
 ## Notes
 
-PSyclone transforms the kernel source and adds a
-`!$acc routine` to it to instruct the compiler to build it for the
-accelerator device. An alternative solution (at least, for this simple
-example) would be to use the '-Mipa=inline:reshape' compiler flag.
-(Currently PSyclone's module-inline transformation cannot be used on
-a kernel that has been transformed for use with OpenACC -
-[issue #229](https://github.com/stfc/PSyclone/issues/229).)
+PSyclone first makes a local, private copy of the kernel routine and
+then adds `!$acc routine` directive to it to instruct the compiler to
+build it for the accelerator device. An alternative solution (at least,
+for this simple example) would be to use the '-Mipa=inline:reshape'
+compiler flag.
 
 Also, the kernel currently has the extents of the field array
 as explicit arguments. This is because the NVIDIA compiler does not support

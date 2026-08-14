@@ -105,7 +105,7 @@ class LoopFuseTrans(LoopTrans):
             if not (SymbolicMaths.equal(node1.start_expr, node2.start_expr) and
                     SymbolicMaths.equal(node1.stop_expr, node2.stop_expr) and
                     SymbolicMaths.equal(node1.step_expr, node2.step_expr)):
-                # TODO #257: This transformation assumes that all domain loop
+                # TODO #2498: This transformation assumes that all domain loop
                 # bodies have only POINTWISE accesses to fields and does not
                 # perform any dependency analysis.
                 # This is wrong and it will generate incorrect code for any
