@@ -15,7 +15,8 @@ from fparser.two import Fortran2003
 
 from psyclone.psyir.frontend.fparser2 import (Fparser2Reader,
                                               _kind_find_or_create)
-from psyclone.psyir.nodes import IntrinsicCall, KernelSchedule, Reference
+from psyclone.psyir.nodes import (
+    IntrinsicCall, KernelSchedule, Reference, BinaryOperation, Call)
 from psyclone.psyir.symbols import (
     DataSymbol, ScalarType, UnsupportedFortranType, RoutineSymbol, SymbolTable,
     Symbol, UnresolvedType, ContainerSymbol, UnresolvedInterface)
@@ -51,7 +52,10 @@ def test_process_declarations_kind_new_param():
 
     '''
     fake_parent, fp2spec = process_declarations("real(kind=wp) :: var1\n"
-                                                "real(kind=Wp) :: var2\n")
+                                                "real(kind=Wp) :: var2\n"
+                                                "real(kind=1+1) :: var3\n"
+                                                "real(kind=u()) :: var4\n")
+
     var1_var = fake_parent.symbol_table.lookup("var1")
     assert isinstance(var1_var.datatype.precision, Reference)
     # Check that this has resulted in the creation of a new 'wp' symbol
@@ -62,17 +66,11 @@ def test_process_declarations_kind_new_param():
     # references the same 'wp' symbol.
     var2_var = fake_parent.symbol_table.lookup("var2")
     assert var2_var.datatype.precision == Reference(wp_var)
-    # Check that we get a symbol of unsupported type if the KIND expression has
-    # an unexpected structure
-    # Break the parse tree by changing Name('wp') into a str
-    fp2spec[0].items[0].items[1].items = ("(", "blah", ")")
-    # Change the variable name too to prevent a clash
-    fp2spec[0].children[2].children[0].items[0].string = "var3"
-    processor = Fparser2Reader()
-    processor.process_declarations(fake_parent, [fp2spec[0]], [])
-    sym = fake_parent.symbol_table.lookup("var3")
-    assert isinstance(sym, DataSymbol)
-    assert isinstance(sym.datatype, UnsupportedFortranType)
+    # Check that other kind types
+    var3_var = fake_parent.symbol_table.lookup("var3")
+    assert isinstance(var3_var.datatype.precision, BinaryOperation)
+    var4_var = fake_parent.symbol_table.lookup("var4")
+    assert isinstance(var4_var.datatype.precision, Call)
 
 
 @pytest.mark.usefixtures("f2008_parser")

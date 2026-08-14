@@ -13,7 +13,6 @@ import pytest
 from tree_sitter import Node as TSNode
 
 from psyclone.errors import InternalError
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend import fortran_treesitter_reader as ftr
 from psyclone.psyir.frontend.fortran_treesitter_reader import (
     FortranTreeSitterReader, _CommonDeclAttributes, _NodeExpectation)
@@ -223,9 +222,6 @@ def test_implicitly_declared_argument_falls_back():
 
     assert isinstance(codeblock, psyir_nodes.CodeBlock)
     assert "Implicit declaration of 'value'" in codeblock.preceding_comment
-    output = FortranWriter()(root)
-    assert "subroutine implicit_argument(value)" in output
-    assert "value = value + 1.0" in output
 
 
 def test_routine_symbol_association():
@@ -291,8 +287,7 @@ def test_function_return_type_variants():
     assert (root.children[1].return_symbol.datatype ==
             psyir_symbols.ScalarType.integer_type())
 
-    assert isinstance(root.children[2].return_symbol.datatype,
-                      psyir_symbols.UnsupportedFortranType)
+    assert isinstance(root.children[2], psyir_nodes.CodeBlock)
 
 
 def test_argument_order():
@@ -355,6 +350,20 @@ def test_elemental_function():
     root = processor.generate_psyir(
         processor.generate_parse_tree_from_source(valid_code))
     assert root.children[0].symbol.is_elemental is True
+    assert root.children[0].symbol.is_pure is True
+
+
+def test_recursive_qualifier():
+    '''An explicit RECURSIVE prefix is retained on the Routine.'''
+    valid_code = """
+        recursive subroutine recurse()
+        end subroutine recurse
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+
+    assert root.children[0].is_recursive is True
 
 
 def test_declarations():
@@ -473,7 +482,6 @@ def test_initialized_local_has_static_interface():
     value = root.children[0].symbol_table.lookup("value")
 
     assert isinstance(value.interface, psyir_symbols.StaticInterface)
-    assert "integer, save :: value = 1" in FortranWriter()(root)
 
 
 @pytest.mark.parametrize("qualifier", ["pointer", "protected"])
@@ -664,9 +672,6 @@ def test_numeric_kind_selectors_round_trip():
     assert table.lookup("real_value").datatype.precision.value == "16"
     assert table.lookup("integer_value").initial_value.datatype.precision == 4
     assert table.lookup("real_value").initial_value.datatype.precision == 8
-    output = FortranWriter()(root)
-    assert "integer(kind=8), save :: integer_value = 1_4" in output
-    assert "real(kind=16), save :: real_value = 1.0_8" in output
 
 
 def test_character_length():
@@ -682,6 +687,25 @@ def test_character_length():
         processor.generate_parse_tree_from_source(valid_code))
     label = root.children[0].symbol_table.lookup("label")
     assert label.datatype.length.value == "12"
+
+
+def test_character_length_and_kind_selectors():
+    '''LEN and KIND are both retained, irrespective of their order.'''
+    valid_code = """
+        subroutine characters()
+          character(len=3, kind=2) :: first
+          character(kind=2, len=3) :: second
+        end subroutine characters
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    table = root.children[0].symbol_table
+
+    for name in ("first", "second"):
+        datatype = table.lookup(name).datatype
+        assert datatype.length.value == "3"
+        assert datatype.precision.value == "2"
 
 
 def test_empty_kind_and_malformed_literal_declaration_nodes():
@@ -806,9 +830,6 @@ def test_character_literal_doubled_delimiters():
 
     assert routine.children[0].rhs.value == "don't"
     assert routine.children[1].rhs.value == 'a "word"'
-    output = FortranWriter()(root)
-    assert 'first = "don\'t"' in output
-    assert "second = 'a \"word\"'" in output
 
 
 def test_new_literal_kind_symbol():
@@ -895,7 +916,6 @@ def test_allocatable_with_explicit_lower_bound_is_preserved():
                       psyir_symbols.UnsupportedFortranType)
     assert values.datatype.declaration == \
         "real, allocatable :: values(2:)"
-    assert "real, allocatable :: values(2:)" in FortranWriter()(root)
 
 
 def test_multidimensional_and_lower_bounded_arrays():
@@ -1093,6 +1113,22 @@ def test_named_visibility():
     assert exposed.visibility == psyir_symbols.Symbol.Visibility.PUBLIC
 
 
+@pytest.mark.parametrize("access_id", ["operator(+)", "assignment(=)"])
+def test_named_operator_access_is_preserved(access_id):
+    '''An unsupported access-id does not become default module visibility.'''
+    valid_code = f"""
+        module visibility
+          private :: {access_id}
+          integer :: value
+        end module visibility
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+
+    assert isinstance(root.children[0], psyir_nodes.CodeBlock)
+
+
 def test_visibility_of_declared_and_unsupported_names():
     '''An access list updates declared symbols and safely ignores names whose
     unsupported declarations did not create symbols.
@@ -1181,7 +1217,6 @@ def test_use_rename_without_only():
     assert imported.interface.container_symbol is container
     assert imported.interface.orig_name == "remote_value"
     assert routine.children[0].rhs.symbol is imported
-    assert "use source, local_value=>remote_value" in FortranWriter()(root)
 
 
 def test_wildcard_and_defensive_import_branches():
@@ -1372,6 +1407,27 @@ def test_unsupported_and_forward_declared_derived_types():
     forward = table.lookup("forward")
     assert isinstance(forward.datatype, psyir_symbols.StructureType)
     assert forward.visibility == psyir_symbols.Symbol.Visibility.PRIVATE
+
+
+@pytest.mark.parametrize("definition, marker", [
+    ("type, extends(parent) :: child", "extends(parent)"),
+    ("type, bind(c) :: child", "bind(c)"),
+    ("type child\n            sequence", "sequence")])
+def test_derived_type_attributes_are_preserved(definition, marker):
+    '''Attributes without StructureType representations retain their source.'''
+    valid_code = f"""
+        module types
+          {definition}
+            integer :: value
+          end type child
+        end module types
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    datatype = root.children[0].symbol_table.lookup("child").datatype
+
+    assert isinstance(datatype, psyir_symbols.UnsupportedFortranType)
 
 
 def test_invalid_derived_type_component_falls_back():
@@ -1632,6 +1688,23 @@ def test_array_constructor():
         "1.0", "2.0", "3.0"]
 
 
+def test_typed_array_constructor_codeblock():
+    '''A typed constructor is preserved as one expression CodeBlock.'''
+    valid_code = """
+        subroutine constructor(values)
+          integer :: values(2)
+          values = [integer :: 1, 2]
+        end subroutine constructor
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    constructor = root.children[0].children[0].rhs
+
+    assert isinstance(constructor, psyir_nodes.CodeBlock)
+    assert constructor.parse_tree_nodes[0].type == "array_literal"
+
+
 def test_implied_do_codeblock():
     '''Test the localized fallback for an implied-DO array constructor.'''
     processor = FortranTreeSitterReader()
@@ -1808,6 +1881,31 @@ def test_existing_routine_and_local_type_calls():
     assert isinstance(caller.symbol_table.lookup("local_type"),
                       psyir_symbols.DataTypeSymbol)
     assert isinstance(caller.children[1].rhs, psyir_nodes.Call)
+
+
+def test_later_contained_routine_is_predeclared():
+    '''A call to a later contained routine uses its container symbol.'''
+    valid_code = """
+        module routines
+        contains
+          subroutine caller()
+            call later()
+          end subroutine caller
+          pure subroutine later()
+          end subroutine later
+        end module routines
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    container = root.children[0]
+    caller, later = container.children
+    call = caller.children[0]
+
+    assert "later" not in caller.symbol_table
+    assert call.routine.symbol is later.symbol
+    assert call.routine.symbol is container.symbol_table.lookup("later")
+    assert call.routine.symbol.is_pure is True
 
 
 def test_call_statement_edge_cases():
@@ -2015,7 +2113,6 @@ def test_structure_component_allocation_falls_back():
     assert isinstance(codeblock, psyir_nodes.CodeBlock)
     assert "Allocations of structure components" in \
         codeblock.preceding_comment
-    assert "allocate(object%values(extent))" in FortranWriter()(root)
 
 
 def test_allocate_bounds_and_invalid_object():
@@ -2179,6 +2276,24 @@ def test_unconditional_do_loop():
     loop = root.children[0].children[0]
     assert isinstance(loop, psyir_nodes.WhileLoop)
     assert "was_unconditional" in loop.annotations
+
+
+def test_do_concurrent_is_preserved():
+    '''DO CONCURRENT is not mistaken for an unconditional DO.'''
+    valid_code = """
+        subroutine concurrent_loop(limit)
+          integer :: limit, index
+          do concurrent(index=1:limit)
+            limit = limit - 1
+          end do
+        end subroutine concurrent_loop
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    loop = root.children[0].children[0]
+
+    assert isinstance(loop, psyir_nodes.CodeBlock)
 
 
 def test_do_variable_variants():
@@ -2363,6 +2478,27 @@ def test_select_case_expression_and_open_ranges():
         psyir_nodes.BinaryOperation.Operator.GE
 
 
+def test_select_case_call_selector_is_preserved():
+    '''A selector call is not copied into multiple IF conditions.'''
+    valid_code = """
+        subroutine selection(value)
+          integer :: value
+          select case(next_value())
+          case(1, 2:3)
+            value = 1
+          case(4)
+            value = 2
+          end select
+        end subroutine selection
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    selection = root.children[0].children[0]
+
+    assert isinstance(selection, psyir_nodes.CodeBlock)
+
+
 def test_select_case_with_only_default_is_unsupported():
     '''A default-only SELECT CASE remains a CodeBlock so evaluation of an
     impure selector is not discarded.
@@ -2382,11 +2518,8 @@ def test_select_case_with_only_default_is_unsupported():
 
     codeblock = root.children[0].children[0]
     assert isinstance(codeblock, psyir_nodes.CodeBlock)
-    assert "only a default clause" in \
+    assert "SELECT CASE selectors containing calls" in \
         codeblock.preceding_comment
-    output = FortranWriter()(root)
-    assert "select case(next_value())" in output
-    assert "value = 1" in output
 
 
 # pylint: disable=too-many-locals

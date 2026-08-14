@@ -532,6 +532,7 @@ class FortranTreeSitterReader():
 
             internal = child_of_type(tsnode, "internal_procedures")
             if internal:
+                self._predeclare_routines(internal.children)
                 container.children.extend(
                     self._process_nodes(
                         [child for child in internal.children
@@ -572,8 +573,15 @@ class FortranTreeSitterReader():
 
         rsymbol = self._create_routine_symbol(
             name, signature, return_type)
+        qualifiers = {
+            to_str(child).lower().replace("-", "_")
+            for child in signature.children
+            if child.type == "procedure_qualifier"}
+        is_recursive = (True if "recursive" in qualifiers else
+                        False if "non_recursive" in qualifiers else None)
         routine = nodes.Routine(
             rsymbol, is_program=routine_kind == "program",
+            is_recursive=is_recursive,
             symbol_table=routine_table)
 
         # A routine must be parsed inside a scope as it is also a declaration
@@ -589,8 +597,7 @@ class FortranTreeSitterReader():
             skip = {
                 f"{routine_kind}_statement",
                 f"end_{routine_kind}_statement",
-                "implicit_statement", "public_statement",
-                "private_statement"
+                "implicit_statement"
             }
             routine.children.extend(self._process_nodes(
                 [child for child in tsnode.children
@@ -650,8 +657,42 @@ class FortranTreeSitterReader():
         try:
             return return_name, self._datatype_from_type(type_node)
         except (NotImplementedError, KeyError, TypeError):
-            return return_name, symbols.UnsupportedFortranType(
-                to_str(signature).strip())
+            # UnsupportedFortranType must contain a valid entity declaration.
+            # A function prefix is not one, so retaining it on the result
+            # symbol makes the backend fail. Preserve the complete procedure
+            # as a CodeBlock instead.
+            raise NotImplementedError(
+                "Function return type is not supported") from None
+
+    def _predeclare_routines(self, tsnodes: Iterable['TSNode']):
+        '''Create symbols for contained procedures before translating bodies.
+
+        This makes calls in an earlier procedure resolve to the same symbol as
+        a procedure whose implementation occurs later in the source.
+
+        :param tsnodes: children of an internal-procedures node.
+        '''
+        symtab = self._current_scope
+        for procedure in tsnodes:
+            if procedure.type not in ("subroutine", "function"):
+                continue
+            signature = child_of_type(
+                procedure, f"{procedure.type}_statement")
+            name_node = child_of_type(signature, "name")
+            if name_node is None:
+                continue
+            name = to_str(name_node)
+            try:
+                _, return_type = self._function_return_info(
+                    signature, name, procedure.type)
+            except NotImplementedError:
+                # Still establish identity for calls. Translation of the
+                # procedure itself will subsequently preserve its source.
+                return_type = None
+            routine_symbol = self._create_routine_symbol(
+                name, signature, return_type)
+            if name not in symtab:
+                symtab.add(routine_symbol)
 
     def _create_routine_symbol(
         self, name: str, signature: 'TSNode', return_type
@@ -669,8 +710,12 @@ class FortranTreeSitterReader():
         :returns: RoutineSymbol representing the program unit.
         '''
         qualifiers = {
-            to_str(child).lower() for child in signature.children
+            to_str(child).lower().replace("-", "_")
+            for child in signature.children
             if child.type == "procedure_qualifier"}
+        is_elemental = "elemental" in qualifiers
+        is_pure = ("pure" in qualifiers or
+                   (is_elemental and "impure" not in qualifiers))
         visibility = self._current_scope.default_visibility
         try:
             routine_symbol = self._current_scope.lookup(name)
@@ -679,14 +724,14 @@ class FortranTreeSitterReader():
         if isinstance(routine_symbol, symbols.RoutineSymbol):
             routine_symbol.datatype = (
                 return_type or routine_symbol.datatype)
-            routine_symbol.is_pure = "pure" in qualifiers
-            routine_symbol.is_elemental = "elemental" in qualifiers
+            routine_symbol.is_pure = is_pure
+            routine_symbol.is_elemental = is_elemental
             routine_symbol.visibility = visibility
             return routine_symbol
         return symbols.RoutineSymbol(
             name, datatype=return_type or symbols.UnresolvedType(),
-            is_pure="pure" in qualifiers,
-            is_elemental="elemental" in qualifiers,
+            is_pure=is_pure,
+            is_elemental=is_elemental,
             visibility=visibility)
 
     def _number_literal_handler(
@@ -1035,9 +1080,8 @@ class FortranTreeSitterReader():
         kind_node = child_of_type(tsnode, "kind")
         if kind_node:
             values = [child for child in kind_node.children
-                      if child.type not in ("(", ")")]
-            if values:
-                value = values[0]
+                      if child.type not in ("(", ")", ",")]
+            for value in values:
                 if value.type == "keyword_argument":
                     key = to_str(value.children[0]).lower()
                     value = value.children[-1]
@@ -1182,6 +1226,13 @@ class FortranTreeSitterReader():
         for tsnode in tsnodes:
             if tsnode.type not in ("public_statement", "private_statement"):
                 continue
+            # Access rules for defined operators and assignment cannot be
+            # represented in a SymbolTable. Reject the containing scope so
+            # that it is preserved verbatim as a CodeBlock. Module handlers
+            # otherwise skip access statements after this pre-processing
+            # pass, so relying on the statement handler alone would silently
+            # discard these forms.
+            self._public_statement_handler(tsnode)
             visibility = (symbols.Symbol.Visibility.PUBLIC
                           if tsnode.type == "public_statement" else
                           symbols.Symbol.Visibility.PRIVATE)
@@ -1191,9 +1242,21 @@ class FortranTreeSitterReader():
             if names:
                 visibility_map.update({name.lower(): visibility
                                        for name in names})
-            else:
+            elif not any(child.type == "::" for child in tsnode.children):
                 symtab.default_visibility = visibility
         return visibility_map
+
+    def _public_statement_handler(self, tsnode: 'TSNode') -> None:
+        '''Retain access-id forms that PSyIR cannot represent.'''
+        if any(child.type in ("operator", "assignment")
+               for child in tsnode.children):
+            raise NotImplementedError(
+                "Named operator and assignment access rules are not "
+                "supported")
+
+    def _private_statement_handler(self, tsnode: 'TSNode') -> None:
+        '''Retain access-id forms that PSyIR cannot represent.'''
+        self._public_statement_handler(tsnode)
 
     def _apply_visibility(
         self, visibility_map: dict[str, symbols.Symbol.Visibility]
@@ -1302,8 +1365,13 @@ class FortranTreeSitterReader():
         statement = child_of_type(tsnode, "derived_type_statement")
         name_node = child_of_type(statement, "type_name")
         name = to_str(name_node)
-        unsupported = any(child.type == "derived_type_procedures"
-                          for child in tsnode.children)
+        unsupported = (
+            any(child.type == "derived_type_procedures"
+                for child in tsnode.children) or
+            any(child.type in ("base_type_specifier", "language_binding")
+                for child in statement.children) or
+            any(child.type == "sequence_statement"
+                for child in tsnode.children))
         datatype = None
         if not unsupported:
             parent = symtab.node
@@ -1327,7 +1395,8 @@ class FortranTreeSitterReader():
                 except (NotImplementedError, TypeError, ValueError):
                     datatype = None
         if datatype is None:
-            datatype = symbols.UnsupportedFortranType(to_str(tsnode).strip())
+            datatype = self._unsupported_derived_type(
+                tsnode, statement, name)
 
         visibility = symtab.default_visibility
         access = child_of_type(statement, "access_specifier")
@@ -1346,6 +1415,29 @@ class FortranTreeSitterReader():
                     f"Derived type '{name}' conflicts with another symbol")
             existing.datatype = datatype
             existing.visibility = visibility
+
+    @staticmethod
+    def _unsupported_derived_type(
+        tsnode: 'TSNode', statement: 'TSNode', name: str
+    ) -> symbols.UnsupportedFortranType:
+        '''Create a backend-compatible unsupported derived-type definition.
+
+        :param tsnode: complete derived-type definition.
+        :param statement: opening derived-type statement.
+        :param name: derived-type name.
+
+        :returns: unsupported datatype containing an equivalent definition.
+        '''
+        declaration = to_str(tsnode).strip()
+        statement_text = to_str(statement).strip()
+        if "::" not in statement_text:
+            # The backend needs the separator in order to add visibility to
+            # an unsupported declaration. It is optional in this form of a
+            # Fortran derived-type statement, so add an equivalent one.
+            prefix = statement_text[:-len(name)].rstrip()
+            replacement = f"{prefix} :: {name}"
+            declaration = replacement + declaration[len(statement_text):]
+        return symbols.UnsupportedFortranType(declaration)
 
     def _interface_handler(
         self, tsnode: 'TSNode'
@@ -1722,6 +1814,10 @@ class FortranTreeSitterReader():
         if child_of_type(tsnode, "implied_do_loop_expression"):
             raise NotImplementedError(
                 "Array constructors with implied-DO loops are not supported")
+        if any(child.type in ("intrinsic_type", "derived_type")
+               for child in tsnode.children):
+            raise NotImplementedError(
+                "Typed array constructors are not supported")
         elems = [self._process_nodes(child, _NodeExpectation.EXPRESSION)
                  for child in tsnode.children
                  if child.type not in ("[", "]", "(/", "/)", ",")]
@@ -1912,6 +2008,8 @@ class FortranTreeSitterReader():
         :raises NotImplementedError: if counted-loop control is unsupported.
         '''
         statement = child_of_type(tsnode, "do_statement")
+        if child_of_type(statement, "concurrent_statement"):
+            raise NotImplementedError("DO CONCURRENT is not supported")
         control = child_of_type(statement, "loop_control_expression")
         while_node = child_of_type(statement, "while_statement")
         body = self._process_nodes(
@@ -2031,6 +2129,9 @@ class FortranTreeSitterReader():
         else:
             selector = self._process_nodes(
                 selector_node, _NodeExpectation.EXPRESSION)
+        if selector.walk(nodes.Call) or isinstance(selector, nodes.CodeBlock):
+            raise NotImplementedError(
+                "SELECT CASE selectors containing calls are not supported")
         cases = list(iter_child_of_type(tsnode, "case_statement"))
         default_body = None
         normal = []
