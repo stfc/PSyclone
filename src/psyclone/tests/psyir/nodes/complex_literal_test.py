@@ -14,7 +14,7 @@ from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.nodes import (
     Literal, ComplexLiteral, Assignment, BinaryOperation, Reference)
 from psyclone.psyir.symbols import ScalarType, DataSymbol, SymbolTable
-from psyclone.core.signature import Signature
+from psyclone.core import Signature, AccessType
 
 
 def test_complex_literal_create():
@@ -94,6 +94,9 @@ end subroutine'''
     accs = ass.rhs.reference_accesses()
     assert Signature("k") in accs
     assert Signature("foo") in accs
+    for (_, seq) in accs.items():
+        for info in seq:
+            assert info.access_type == AccessType.CONSTANT
 
 
 def test_complex_literal_replace_symbols_using():

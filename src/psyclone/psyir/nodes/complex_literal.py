@@ -111,13 +111,18 @@ class ComplexLiteral(DataNode):
             (a sequence of AccessTypes).
 
         '''
-        access_info = super().reference_accesses()
+        access_info = VariablesAccessMap()
+        # Any references must be references to named constants
+        for (sig, seq) in super().reference_accesses().items():
+            for info in seq:
+                access_info.add_access(sig, AccessType.CONSTANT, info.node)
+        # Add any precision symbols
         dt = self.datatype
         if isinstance(dt.precision, DataNode):
             precision_symbols = dt.get_all_accessed_symbols()
             for symbol in precision_symbols:
                 access_info.add_access(
-                    Signature(symbol.name), AccessType.CONSTANT, self)
+                    Signature(symbol.name), AccessType.CONSTANT, dt.precision)
         return access_info
 
     def replace_symbols_using(self,
