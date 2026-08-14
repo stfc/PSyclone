@@ -64,11 +64,6 @@ class ComplexLiteral(DataNode):
             return False
         return True
 
-    def __eq__(self, other) -> bool:
-        is_eq = super().__eq__(other)
-        is_eq = is_eq and self.children == other.children
-        return is_eq
-
     @property
     def re_part(self) -> Union[Literal, Reference]:
         '''Return the real part'''
