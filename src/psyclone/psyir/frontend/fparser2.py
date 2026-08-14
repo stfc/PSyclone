@@ -574,26 +574,24 @@ def default_real_type():
                       default_precision(ScalarType.Intrinsic.REAL))
 
 
-def get_literal_precision(fparser2_node, psyir_literal_parent):
+def get_literal_precision(
+        fparser2_node: Union[Fortran2003.Real_Literal_Constant,
+                             Fortran2003.Signed_Real_Literal_Constant,
+                             Fortran2003.Logical_Literal_Constant,
+                             Fortran2003.Char_Literal_Constant,
+                             Fortran2003.Int_Literal_Constant,
+                             Fortran2003.Signed_Int_Literal_Constant],
+        psyir_literal_parent: Node) -> ScalarType.Precision:
     '''Takes a Fortran2003 literal node as input and returns the appropriate
      PSyIR precision type for that node. Adds a UnresolvedType DataSymbol in
     the SymbolTable if the precision is given by an undefined symbol.
 
     :param fparser2_node: the fparser2 literal node.
-    :type fparser2_node: :py:class:`Fortran2003.Real_Literal_Constant` or \
-        :py:class:`Fortran2003.Signed_Real_Literal_Constant` or \
-        :py:class:`Fortran2003.Logical_Literal_Constant` or \
-        :py:class:`Fortran2003.Char_Literal_Constant` or \
-        :py:class:`Fortran2003.Int_Literal_Constant` or \
-        :py:class:`Fortran2003.Signed_Int_Literal_Constant`
     :param psyir_literal_parent: the PSyIR node that will be the \
         parent of the PSyIR literal node that will be created from the \
         fparser2 node information.
-    :type psyir_literal_parent: :py:class:`psyclone.psyir.nodes.Node`
 
     :returns: the PSyIR Precision of this literal value.
-    :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`, int or \
-        :py:class:`psyclone.psyir.symbols.ScalarType.Precision`
 
     :raises InternalError: if the arguments are of the wrong type.
     :raises InternalError: if there's no symbol table associated with \
