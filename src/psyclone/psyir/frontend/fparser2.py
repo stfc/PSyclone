@@ -989,7 +989,8 @@ class Fparser2Reader():
             Fortran2003.Int_Literal_Constant: self._number_handler,
             Fortran2003.Char_Literal_Constant: self._char_literal_handler,
             Fortran2003.Logical_Literal_Constant: self._bool_literal_handler,
-            Fortran2003.Complex_Literal_Constant: self._cmplx_literal_handler,
+            Fortran2003.Complex_Literal_Constant:
+                self._complex_literal_handler,
             utils.BinaryOpBase: self._binary_op_handler,
             Fortran2003.End_Do_Stmt: self._ignore_handler,
             Fortran2003.End_Subroutine_Stmt: self._ignore_handler,
@@ -5617,9 +5618,9 @@ class Fparser2Reader():
             f"Expected to find '.true.' or '.false.' as fparser2 logical "
             f"literal, but found '{value}' instead.")
 
-    def _cmplx_literal_handler(self,
-                               node: Fortran2003.Complex_Literal_Constant,
-                               parent: Node) -> ComplexLiteral:
+    def _complex_literal_handler(self,
+                                 node: Fortran2003.Complex_Literal_Constant,
+                                 parent: Node) -> ComplexLiteral:
         '''
         Transforms an fparser2 complex literal into a PSyIR ComplexLiteral
         node.
