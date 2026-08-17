@@ -5636,13 +5636,8 @@ class Fparser2Reader():
             if isinstance(part, Fortran2003.Name):
                 # Handle a named parameter
                 parts.append(self._name_handler(part, lit))
-            elif isinstance(part, Fortran2003.Signed_Int_Literal_Constant):
-                # Convert the integer literal to a real literal
-                real_type = ScalarType(ScalarType.Intrinsic.REAL,
-                                       get_literal_precision(part, lit))
-                parts.append(Literal(str(part.items[0]), real_type))
             else:
-                # Handle a real literal
+                # Handle a integer or real literal
                 parts.append(self._number_handler(part, lit))
         lit.children.extend(parts)
         return lit

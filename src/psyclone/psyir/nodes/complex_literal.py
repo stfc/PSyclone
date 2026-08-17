@@ -20,12 +20,11 @@ from psyclone.psyir.symbols.datatypes import ScalarType, ArrayType, DataType
 
 class ComplexLiteral(DataNode):
     '''
-    Complex literals are not a good fit for the existing Literal class
-    because they are a composite structure and can contain named references to
-    named constants, not just numbers represented in textual form. It is more
-    natural to represent one as a node with two children, the real part and
-    the imaginary part, each of which can be a real-valued Literal or
-    a Reference.
+    Complex literals are represented as a node with two children, the real
+    part and the imaginary part, each of which can be a real/integer-valued
+    Literal/Reference. If either component is a Reference then, according
+    to the Fortran standard, it must represent a named constant, i.e. a
+    Reference to a Fortran parameter.
     '''
 
     # Textual description of the node.
