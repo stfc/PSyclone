@@ -249,3 +249,19 @@ end subroutine'''
     psyir = fortran_reader.psyir_from_source(code)
     cb = psyir.walk(CodeBlock)[0]
     assert Signature("r") in cb.reference_accesses()
+
+
+def test_complex_literal_unresolved_named_constant(fortran_reader):
+    '''Test a complex literal with unresolved named constants'''
+    code = '''
+subroutine foo()
+  use some_mod, only: x, y
+  complex :: c = (x, y)
+end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    sub = psyir.walk(Routine)[0]
+    sym = sub.symbol_table.lookup("c")
+    assert sym.name == 'c'
+    assert isinstance(sym.datatype, ScalarType)
+    assert sym.datatype == ScalarType.complex_type()
+    assert sym.datatype.precision == ScalarType.Precision.UNDEFINED

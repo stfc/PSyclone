@@ -38,6 +38,10 @@ def compute_precision(
         (this is to defend against any future extension of
         ScalarType.Precision).
     '''
+    # Check for an empty list
+    if not precisions:
+        return ScalarType.Precision.UNDEFINED
+
     # If all precisions are equal, then we can return the first.
     # This will handle the case where we have all precisions as References
     # to the same parameter as well.
