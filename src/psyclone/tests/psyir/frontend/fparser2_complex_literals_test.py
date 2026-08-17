@@ -280,3 +280,15 @@ end subroutine'''
     assert sym.name == 'c'
     assert isinstance(sym.datatype, ScalarType)
     assert sym.datatype == ScalarType.complex_type()
+
+
+def test_complex_aimag_elemental(fortran_reader):
+    '''Test the AIMAG intrinsic result datatype'''
+    code = '''
+subroutine foo()
+  real :: arr(10)
+  arr = AIMAG(arr)
+end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    ass = psyir.walk(Assignment)[0]
+    assert isinstance(ass.rhs.datatype, ArrayType)

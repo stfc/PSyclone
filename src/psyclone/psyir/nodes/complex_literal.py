@@ -60,8 +60,7 @@ class ComplexLiteral(DataNode):
             return False
         if (isinstance(child.datatype, (ScalarType, ArrayType)) and
                 child.datatype.intrinsic != ScalarType.Intrinsic.REAL and
-                child.datatype.intrinsic != ScalarType.Intrinsic.INTEGER
-                ):
+                child.datatype.intrinsic != ScalarType.Intrinsic.INTEGER):
             return False
         return True
 

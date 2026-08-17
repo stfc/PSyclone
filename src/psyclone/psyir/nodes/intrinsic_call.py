@@ -297,22 +297,30 @@ def _type_of_intrinsic_with_argname_kind_and_optional_dim(
 
 def _type_of_intrinsic_with_precision_of_named_arg(
         node: IntrinsicCall, intrinsic: ScalarType.Intrinsic,
-        argument_name: str
+        argument_name: str,
+        return_scalar: bool = False
 ) -> DataType:
     """Helper function for the common IntrinsicCall case where the
-    return type is a scalar of the type of the supplied intrinsic,
-    with the kind of the first argument.
+    return type is a scalar/array of the type of the supplied intrinsic,
+    with the kind and shape of the named argument. If the type of the
+    shape argument is a scalar, then a scalar type is returned, otherwise
+    an array of the same shape is returned.
 
     :param node: The IntrinsicCall whose return type to compute.
     :param intrinsic: The datatype intrinsic type to use.
     :param argument_name: The name of the argument to use for the precision
-                          of the datatype.
+                          and shape of the datatype.
+    :param return_scalar: If True, this function will always return a
+                          ScalarType.
 
     :returns: the computed datatype for the IntrinsicCall.
     """
-    return ScalarType(
-        intrinsic, node.argument_by_name(argument_name).datatype.precision
-    )
+    arg_type = node.argument_by_name(argument_name).datatype
+    elem_type = ScalarType(intrinsic, arg_type.precision)
+    if not return_scalar and isinstance(arg_type, ArrayType):
+        return ArrayType(elem_type, arg_type.shape)
+    else:
+        return elem_type
 
 
 def _complex_to_real(arg_type: DataType) -> DataType:
