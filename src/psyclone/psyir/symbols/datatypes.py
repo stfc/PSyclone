@@ -1,39 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified J. Henrichs, Bureau of Meteorology
-# Modified A. B. G. Chalk, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module contains the datatype definitions.'''
@@ -303,7 +272,8 @@ class UnsupportedFortranType(UnsupportedType):
         have matching names. If there is no match for a given Symbol then it
         is left unchanged.
 
-        This base implementation simply propagates the call to any child Nodes.
+        A partial datatype that is a DataTypeSymbol is replaced directly. It
+        must not be traversed because the datatype definition may be recursive.
 
         :param table_or_symbol: the symbol table from which to get replacement
             symbols or a single, replacement Symbol.
@@ -311,8 +281,23 @@ class UnsupportedFortranType(UnsupportedType):
             :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        if self.partial_datatype:
-            self.partial_datatype.replace_symbols_using(table_or_symbol)
+        partial_datatype = self.partial_datatype
+        if not partial_datatype:
+            return
+
+        if not isinstance(partial_datatype, DataTypeSymbol):
+            partial_datatype.replace_symbols_using(table_or_symbol)
+            return
+
+        if isinstance(table_or_symbol, Symbol):
+            if table_or_symbol.name.lower() != partial_datatype.name.lower():
+                return
+            replacement = table_or_symbol
+        else:
+            replacement = table_or_symbol.lookup(
+                partial_datatype.name, otherwise=partial_datatype)
+
+        self._partial_datatype = replacement
 
     @property
     def intrinsic(self):
@@ -457,7 +442,7 @@ class ScalarType(DataType):
                     f"DataSymbol must be of either 'unresolved' or "
                     f"scalar, integer type but got: ScalarType with "
                     f"datatype {dtype}")
-        # TODO #3135 If the precision is an int, then we would like to make
+        # TODO #3538 If the precision is an int, then we would like to make
         # a Literal containing it instead, however this is not currently
         # possible due to circular imports.
         self._precision = precision
@@ -643,7 +628,7 @@ class ScalarType(DataType):
         :returns: a copy of self.
         '''
         if isinstance(self.precision, int):
-            # TODO #3135 - ideally precision will always be stored as a
+            # TODO #3538 - ideally precision will always be stored as a
             # DataNode and this branch of the `if` won't be necessary.
             precision = self.precision
         else:
@@ -1467,16 +1452,20 @@ class StructureType(DataType):
                         component.datatype.name, otherwise=component.datatype)
 
             else:
-                component.datatype.replace_symbols_using(table_or_symbol)
-                new_type = component.datatype
+                # Make a copy before updating any Symbol references so that
+                # replacing them does not modify the original StructureType.
+                new_type = component.datatype.copy()
+                new_type.replace_symbols_using(table_or_symbol)
 
-            if component.initial_value:
-                component.initial_value.replace_symbols_using(table_or_symbol)
+            initial_value = component.initial_value
+            if initial_value:
+                initial_value = initial_value.copy()
+                initial_value.replace_symbols_using(table_or_symbol)
 
             # Construct the new ComponentType
             key_name = component.name.lower()
             self.add(key_name, new_type, component.visibility,
-                     component.initial_value,
+                     initial_value,
                      preceding_comment=component.preceding_comment,
                      inline_comment=component.inline_comment)
 

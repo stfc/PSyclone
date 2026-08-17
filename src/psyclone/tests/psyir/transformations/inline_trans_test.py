@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# ----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
+# -----------------------------------------------------------------------------
 
 '''This module tests the inlining transformation.
 '''
@@ -46,9 +17,10 @@ from psyclone.psyGen import Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     Assignment, Call, IntrinsicCall, Loop, Node, Reference,
-    Routine)
+    Routine, Statement, Literal)
 from psyclone.psyir.symbols import (
-    AutomaticInterface, DataSymbol, ImportInterface, UnresolvedType)
+    AutomaticInterface, DataSymbol, ImportInterface, UnresolvedType,
+    ScalarType)
 from psyclone.psyir.transformations import (
     InlineTrans, TransformationError)
 from psyclone.tests.test_files.dummy_statement import DummyStatement
@@ -546,8 +518,6 @@ def test_apply_struct_local_limits_routine(fortran_reader, fortran_writer,
         f"  end subroutine run_it\n"
         f"  subroutine sub3(y, start, stop, z)\n"
         f"    type(my_type), dimension(4:6) :: y\n"
-        # TODO #2125 - if 'start' is used for the lower bound instead of a
-        # literal then the inlined code is incorrect.
         f"    real, dimension(3:) :: z\n"
         f"    integer :: start, stop\n"
         f"    y(:)%data(2) = 2.0\n"
@@ -2813,21 +2783,20 @@ def test_apply_symbol_dependencies(fortran_reader, fortran_writer, tmp_path):
     when inlined.
 
     '''
+    # TODO #3534: Add an example of a len expression in an argument decalration
     code = (
         "module test_mod\n"
+        "  integer, parameter :: N = 10\n"
         "contains\n"
         "subroutine main()\n"
-        "  real, dimension(10, 10) :: var = 0.0\n"
+        "  real, dimension(N+10, 10) :: var = 0.0\n"
         "  call sub(var, 10)\n"
         "end subroutine main\n"
         "subroutine sub(x, ilen)\n"
         "  integer, intent(in) :: ilen\n"
-        "  real, dimension(ilen, ilen), intent(inout) :: x\n"
-        "  real, dimension(ilen, ilen) :: work\n"
-        "  type nasty\n"
-        "    integer, dimension(ilen+1) :: flag\n"
-        "  end type nasty\n"
-        "  type(nasty) :: oh_deary_me\n"
+        "  real, dimension(N+ilen, ilen), intent(inout) :: x\n"
+        "  real, dimension(N+ilen, ilen) :: work\n"
+        "  character(len=3) :: string_work\n"
         "  work = 2.0\n"
         "  x(:,:) = x(:,:) + work(:,:)\n"
         "end subroutine sub\n"
@@ -2837,16 +2806,33 @@ def test_apply_symbol_dependencies(fortran_reader, fortran_writer, tmp_path):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     inline_trans.apply(call)
+
+    # ilen should not be in the caller
     main = psyir.children[0].find_routine_psyir("main")
     assert "ilen" not in main.symbol_table
+    main_output = fortran_writer(main)
+    assert "real, dimension(n + 10,10) :: work" in main_output
+
+    # The the original should be unmodified
+    original = psyir.children[0].find_routine_psyir("sub")
+    original_output = fortran_writer(original)
+    assert "real, dimension(n + ilen,ilen) :: work" in original_output
+
+    # The resulting code must be valid Fortran
     output = fortran_writer(psyir)
-    assert '''\
-    type :: nasty
-      integer, dimension(10 + 1) :: flag
-    end type nasty''' in output
-    assert "real, dimension(10,10) :: work" in output
-    assert "type(nasty) :: oh_deary_me" in output
     assert Compile(tmp_path).string_compiles(output)
+
+    # After inlining whe should be able to modify them independently
+    str_work = main.symbol_table.lookup("string_work")
+    str_work.datatype.length = Literal("1", ScalarType.integer_type())
+    main_output = fortran_writer(main)
+    original_output = fortran_writer(original)
+    assert "character(len=1) :: string_work" in main_output
+
+    # The original should be (len=3)
+    assert "character(len=1) :: string_work" in original_output
+    pytest.xfail("#3536: After inlining symbols should be independent"
+                 "copies")
 
 
 def test_apply_array_access_check_unresolved_override_option(
