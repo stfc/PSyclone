@@ -415,8 +415,8 @@ def test_forward_reference_completed_by_parameter_declaration():
 
 
 def test_unsupported_module_specifications_are_preserved():
-    '''Unsupported module specification statements become CodeBlocks rather
-    than causing translation to abort.
+    '''Unsupported module specification statements become symbols with
+    UnsupportedFortranType
     '''
     valid_code = """
         module specifications
@@ -429,13 +429,19 @@ def test_unsupported_module_specifications_are_preserved():
     processor = FortranTreeSitterReader()
     root = processor.generate_psyir(
         processor.generate_parse_tree_from_source(valid_code))
-    children = root.children[0].children
 
-    assert len(children) == 3
-    assert all(isinstance(child, psyir_nodes.CodeBlock)
-               for child in children)
-    assert [child.parse_tree_nodes[0].type for child in children] == [
-        "save_statement", "common_statement", "namelist_statement"]
+    num_of_unsupported = 0
+    for symbol in root.children[0].symbol_table.symbols:
+        if isinstance(symbol.datatype, psyir_symbols.UnsupportedFortranType):
+            num_of_unsupported += 1
+            # Each have a placeholder unsupported name and the correc type_text
+            if symbol.name == "PSYCLONE_UNSUPPORTED":
+                symbol.datatype.type_text == "save"
+            elif symbol.name == "PSYCLONE_UNSUPPORTED_1":
+                symbol.datatype.type_text == "common /block/ value"
+            elif symbol.name == "PSYCLONE_UNSUPPORTED_2":
+                symbol.datatype.type_text == "namelist /group/ value"
+    assert num_of_unsupported == 3
 
 
 def test_parameter_declaration():
@@ -1452,7 +1458,7 @@ def test_invalid_derived_type_component_falls_back():
 
 def test_derived_type_name_conflict():
     '''A derived type whose name is already used by a data symbol is
-    preserved as unsupported module specification code.
+    rejected as an invalid name conflict.
     '''
     valid_code = """
         module conflict
@@ -1463,13 +1469,11 @@ def test_derived_type_name_conflict():
         end module conflict
     """
     processor = FortranTreeSitterReader()
-    root = processor.generate_psyir(
-        processor.generate_parse_tree_from_source(valid_code))
+    parse_tree = processor.generate_parse_tree_from_source(valid_code)
 
-    codeblock = root.children[0].children[0]
-    assert isinstance(codeblock, psyir_nodes.CodeBlock)
-    assert codeblock.parse_tree_nodes[0].type == \
-        "derived_type_definition"
+    with pytest.raises(ValueError,
+                       match="Derived type 'item' conflicts with another"):
+        processor.generate_psyir(parse_tree)
 
 
 def test_generic_interface():
@@ -1549,9 +1553,10 @@ def test_unsupported_interface_forms(valid_code):
     root = processor.generate_psyir(
         processor.generate_parse_tree_from_source(valid_code))
 
-    codeblock = root.children[0].children[0]
-    assert isinstance(codeblock, psyir_nodes.CodeBlock)
-    assert codeblock.parse_tree_nodes[0].type == "interface"
+    symtab = root.children[0].symbol_table
+    assert len(root.children[0].children) == 0
+    assert len(symtab.symbols) in (1, 2)
+    assert "end interface" in symtab.symbols[-1].datatype.type_text
 
 
 def test_unary_operation():

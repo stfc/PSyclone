@@ -100,7 +100,7 @@ def child_of_type(
     if len(children) == 0:
         return None
     elif len(children) > 1:
-        raise InternalError("Expected only 1")
+        raise InternalError(f"Expected only 1 child of type {node_type}")
     return children[0]
 
 
@@ -129,8 +129,10 @@ class _NodeExpectation(Enum):
 
     #: Expect a list (of zero, one or multiple) PSyIR nodes
     LIST = auto()
-    #: Expect no result node (e.g. when processing a declaration)
+    #: Expect no resulting node
     NONE = auto()
+    #: Expect no resulting node, NotImplemented should be UnsupportedTypes
+    SPECS = auto()
     #: Expect exactly one node
     ONE = auto()
     #: Expect exactly one node that is a DataNode
@@ -369,7 +371,7 @@ class FortranTreeSitterReader():
             scope = nodes.ScopingNode(symbol_table=symbols.SymbolTable())
 
         previous_scope = self._current_scope
-        # This intentionally bypasses child validation.
+        # Intentionally bypass bidirectional link and child validation.
         # pylint: disable=protected-access
         scope._parent = parent
         self._current_scope = scope.symbol_table
@@ -386,9 +388,9 @@ class FortranTreeSitterReader():
         expect: _NodeExpectation,
     ) -> Optional[Union[list[nodes.Node], nodes.Node]]:
         '''
-        This is the tsnodes handler dispatcher. Unsupported syntax is
-        deliberately caught here rather than in individual handlers so that
-        continuous unsupported nodes can be placed in a single CodeBlock.
+        The tsnodes handler dispatcher. Unsupported syntax is deliberately
+        caught here rather than in individual handlers so that continuous
+        unsupported nodes can be placed in a single CodeBlock.
 
         :param tsnodes: one tree-sitter node or an iterable of nodes.
         :param expect: expected number and kind of result nodes.
@@ -404,12 +406,26 @@ class FortranTreeSitterReader():
                 if result is not None:
                     children.append(result)
             except NotImplementedError as err:
-                # TODO #3083: Aggregate contiguous CodeBlocks.
-                structure = (CodeBlock.Structure.EXPRESSION
-                             if expect is _NodeExpectation.EXPRESSION
-                             else CodeBlock.Structure.STATEMENT)
-                children.append(
-                    self._create_codeblock(tsnode, str(err), structure))
+                if expect is _NodeExpectation.SPECS:
+                    # If it reaches this point it means we haven't even
+                    # identified its name, but to not lose the statement
+                    # we still add it in the symtab as an UnsupportedType
+                    symbol = self._current_scope.new_symbol(
+                        root_name="PSYCLONE_UNSUPPORTED",
+                        symbol_type=symbols.DataSymbol,
+                        datatype=symbols.UnsupportedFortranType(to_str(tsnode))
+                    )
+                    # TODO #3083: We need to hardcode the type_text until we
+                    # remove the Fparser2 logic from that class
+                    symbol.datatype._type_text = to_str(tsnode)
+                else:
+                    # Everything else we store as Codeblocks
+                    # TODO #3083: Aggregate contiguous CodeBlocks.
+                    structure = (CodeBlock.Structure.EXPRESSION
+                                 if expect is _NodeExpectation.EXPRESSION
+                                 else CodeBlock.Structure.STATEMENT)
+                    children.append(
+                        self._create_codeblock(tsnode, str(err), structure))
 
         # Validate that the parsed nodes match the expectations of the caller
         if expect in (_NodeExpectation.ONE, _NodeExpectation.EXPRESSION):
@@ -425,7 +441,7 @@ class FortranTreeSitterReader():
                         f"{type(children[0]).__name__}"
                     )
             return children[0]
-        if expect is _NodeExpectation.NONE:
+        if expect in (_NodeExpectation.NONE, _NodeExpectation.SPECS):
             if len(children) != 0:
                 raise InternalError(
                     f"No node was expected in this location but got:\n"
@@ -506,8 +522,6 @@ class FortranTreeSitterReader():
 
         :returns: the equivalent PSyIR Node.
 
-        :raises NotImplementedError: if the module has an unsupported child.
-        :raises NotImplementedError: if the module permits implicit variables.
         '''
         statement = child_of_type(tsnode, "module_statement")
         name = child_of_type(statement, "name")
@@ -522,14 +536,12 @@ class FortranTreeSitterReader():
                 "implicit_statement", "internal_procedures",
                 "public_statement", "private_statement"
             }
-            # Specification statements normally only update the symbol table
-            # and therefore return no Node. Keep any unsupported statements
-            # as CodeBlocks so that valid Fortran is not lost (and, in
-            # particular, does not violate an expectation of no result).
-            container.children.extend(self._process_nodes(
+            # Parse the specification part
+            self._process_nodes(
                 [child for child in tsnode.children
-                 if child.type not in skip], _NodeExpectation.LIST))
+                 if child.type not in skip], _NodeExpectation.SPECS)
 
+            # Parse the execution part
             internal = child_of_type(tsnode, "internal_procedures")
             if internal:
                 self._predeclare_routines(internal.children)
@@ -1358,7 +1370,7 @@ class FortranTreeSitterReader():
 
         :param tsnode: derived-type-definition tree-sitter node.
 
-        :raises NotImplementedError: if the type name conflicts with an
+        :raises ValueError: if the type name conflicts with an
             existing non-datatype symbol.
         '''
         symtab = self._current_scope
@@ -1411,7 +1423,7 @@ class FortranTreeSitterReader():
                 name, datatype, visibility=visibility))
         else:
             if not isinstance(existing, symbols.DataTypeSymbol):
-                raise NotImplementedError(
+                raise ValueError(
                     f"Derived type '{name}' conflicts with another symbol")
             existing.datatype = datatype
             existing.visibility = visibility
