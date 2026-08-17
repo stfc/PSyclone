@@ -17,7 +17,7 @@ from psyclone.psyGen import Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     Assignment, Call, IntrinsicCall, Loop, Node, Reference,
-    Routine, Statement, Literal)
+    Routine, Literal)
 from psyclone.psyir.symbols import (
     AutomaticInterface, DataSymbol, ImportInterface, UnresolvedType,
     ScalarType)
