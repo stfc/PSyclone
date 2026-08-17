@@ -6541,7 +6541,7 @@ mesh%get_last_halo_cell_all_colours_all_tiles()""" in code
             "ndf_w2, undf_w2, map_w2(:,tmap(colour,tile,cell)), ndf_w3, "
             "undf_w3, map_w3(:,tmap(colour,tile,cell)))" in code)
 
-    # TODO #2623: To compile it needs an up-to-date lfric infrastructure with
+    # TODO #3540: To compile it needs an up-to-date lfric infrastructure with
     # the new tile-colouring methods
     # assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6634,7 +6634,7 @@ def test_colour_trans_tiled_intergrid(dist_mem):
         "ndf_w1, undf_w1, map_w1, undf_w2, "
         "map_w2(:,tmap_fld_m(colour,tile,cell)))\n" in gen)
 
-    # TODO #2623: To compile it needs an up-to-date lfric infrastructure with
+    # TODO #3540: To compile it needs an up-to-date lfric infrastructure with
     # the new tile-colouring methods
     # assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6677,7 +6677,7 @@ def test_colour_trans_tiled_continuous_writer_intergrid(dist_mem):
             "(colour,tile), 1" in result)
     assert ("call restrict_w2_code(nlayers_field1, cell_map_field1(:,:,"
             "tmap_field1(colour,tile,cell))" in result)
-    # TODO #2623: To compile it needs an up-to-date lfric infrastructure with
+    # TODO #3540: To compile it needs an up-to-date lfric infrastructure with
     # the new tile-colouring methods
     # assert LFRicBuild(tmpdir).code_compiles(psy)
 

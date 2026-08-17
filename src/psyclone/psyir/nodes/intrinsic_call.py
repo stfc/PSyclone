@@ -5352,7 +5352,7 @@ NVFORTRAN_ALL = NVFORTRAN_UNIFORM + (
 # For now the default intrinsics available on GPU are the same as nvfortran-all
 DEFAULT_DEVICE_INTRINISCS = NVFORTRAN_ALL
 
-# TODO #658 this can be removed once we have support for determining the
+# TODO #1799 this can be removed once we have support for determining the
 # type of a PSyIR expression.
 # Intrinsics that perform operations on an array.
 REDUCTION_INTRINSICS = [

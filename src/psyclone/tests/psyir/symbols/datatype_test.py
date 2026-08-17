@@ -397,7 +397,7 @@ def test_scalartype_copy():
     assert rcopy.precision is not stype2.precision
 
     # Repeat but with precision as an int.
-    # TODO #3135 - once precision is always stored as a DataNode this separate
+    # TODO #3538 - once precision is always stored as a DataNode this separate
     # test won't be necessary.
     itype = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
     icopy = itype.copy()
