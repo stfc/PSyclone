@@ -61,6 +61,8 @@ def test_constructor():
     assert processor._resolve_modules is True
     assert processor._last_comments_as_codeblocks is True
 
+    # TODO #3083: Typecheck arguments
+
 
 def test_generate_parse_tree(tmpdir_factory, caplog):
     '''

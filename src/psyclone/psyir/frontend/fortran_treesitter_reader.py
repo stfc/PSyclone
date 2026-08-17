@@ -237,7 +237,7 @@ class FortranTreeSitterReader():
         conditional_openmp: bool = True,
     ):
         ''' Create a Fortran tree-sitter reader. '''
-        # TODO #3038 Arguments are currently not used nor typechecked, but if
+        # TODO #3083: Arguments are currently not used nor typechecked, but if
         # we decide this is the common reader interface, this can be done in a
         # super class instead of duplicate it here.
         self._ignore_directives = ignore_directives
@@ -404,7 +404,7 @@ class FortranTreeSitterReader():
                 if result is not None:
                     children.append(result)
             except NotImplementedError as err:
-                # TODO #3038: Aggregate contiguous CodeBlocks.
+                # TODO #3083: Aggregate contiguous CodeBlocks.
                 structure = (CodeBlock.Structure.EXPRESSION
                              if expect is _NodeExpectation.EXPRESSION
                              else CodeBlock.Structure.STATEMENT)

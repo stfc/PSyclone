@@ -32,7 +32,7 @@ already been made as large as possible). In reality, the purpose of a
 data region is to keep data on the remote GPU device for as long as
 possible, ideally between Kernel regions. However, this requires more
 sophisticated dependency analysis than is yet implemented in
-PSyclone. Issue #309 will tackle this limitation.
+PSyclone.
 
 '''
 

@@ -8,7 +8,7 @@
 '''This module implements a class that manages the argument for a kernel
 call. It especially adds all implicitly required parameters.
 It creates the argument in two formats: first as a list of strings, but also
-as a list of PSyIR nodes. TODO #1930: the support for the string format
+as a list of PSyIR nodes. TODO #1883: the support for the string format
 should be removed as we migrate to use PSyIR in LFRic.
 '''
 
@@ -357,7 +357,7 @@ class KernCallArgList(ArgOrdering):
                 dof_sym = self._symtab.find_or_create(
                     "df", tag="dof_loop_idx", symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-                # TODO #1010 removes the need to declare type and
+                # TODO #2905 removes the need to declare type and
                 # allows this to be fixed
                 self.append_array_reference(cmpt_sym.name,
                                             [Reference(dof_sym)],
@@ -398,7 +398,7 @@ class KernCallArgList(ArgOrdering):
             dof_sym = self._symtab.find_or_create(
                 "df", tag="dof_loop_idx", symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-            # TODO #1010 removes the need to declare type and
+            # TODO #2905 removes the need to declare type and
             # allows this to be fixed
             self.append_array_reference(sym.name, [Reference(dof_sym)],
                                         ScalarType.Intrinsic.INTEGER,
