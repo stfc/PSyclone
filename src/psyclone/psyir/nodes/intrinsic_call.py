@@ -259,6 +259,28 @@ def _type_of_scalar_with_optional_kind(
     )
 
 
+def _match_shape_of_named_arg(
+        node: IntrinsicCall, scalar_type: DataType,
+        arg_name: str
+) -> DataType:
+    """Helper function to lift the given scalar type to
+    an array type if the named argument is an array.
+
+    :param node: The IntrinsicCall whose return type to compute.
+    :param scalar_type: The scalar type to be considered for lifting.
+    :param arg_name: The name of the argument to use to determine
+                     whether to wrap the scalar type in an array type
+                     or not.
+
+    :returns: the computed datatype for the IntrinsicCall.
+    """
+    arg_type = node.argument_by_name(arg_name).datatype
+    if isinstance(arg_type, ArrayType):
+        return ArrayType(scalar_type, arg_type.shape)
+    else:
+        return scalar_type
+
+
 def _type_of_intrinsic_with_argname_kind_and_optional_dim(
         node: IntrinsicCall, intrinsic: ScalarType.Intrinsic,
         array_arg_name: str, kind_arg_name: str) -> DataType:
@@ -1552,9 +1574,13 @@ class IntrinsicCall(Call):
                 arg_names=(("x",),)),
             optional_args={"y": DataNode, "kind": DataNode},
             return_type=lambda node:
-                _type_of_scalar_with_optional_kind(
-                    node, ScalarType.Intrinsic.COMPLEX,
-                    "kind"
+                _match_shape_of_named_arg(
+                    node,
+                    _type_of_scalar_with_optional_kind(
+                        node, ScalarType.Intrinsic.COMPLEX,
+                        "kind"
+                    ),
+                    "x"
                 ),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(

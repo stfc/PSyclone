@@ -292,3 +292,18 @@ end subroutine'''
     psyir = fortran_reader.psyir_from_source(code)
     ass = psyir.walk(Assignment)[0]
     assert isinstance(ass.rhs.datatype, ArrayType)
+    assert ass.rhs.datatype.intrinsic == ScalarType.Intrinsic.REAL
+
+
+def test_complex_cmplx_elemental(fortran_reader):
+    '''Test the CMPLX intrinsic result datatype'''
+    code = '''
+subroutine foo()
+  complex :: arr(10)
+  real :: arr1(10), arr2(10)
+  arr = CMPLX(arr1, arr2)
+end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    ass = psyir.walk(Assignment)[0]
+    assert isinstance(ass.rhs.datatype, ArrayType)
+    assert ass.rhs.datatype.intrinsic == ScalarType.Intrinsic.COMPLEX
