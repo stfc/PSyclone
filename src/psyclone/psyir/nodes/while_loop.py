@@ -133,7 +133,7 @@ class WhileLoop(Statement):
             WhileLoop
         '''
         next_accesses = []
-        var_acceses = self.condition.next_accesses()
+        var_accesses = self.condition.next_accesses()
         self._merge_accesses(next_accesses, var_accesses)
         for child in self.loop_body:
             self._merge_accesses(next_accesses, child.next_accesses())
@@ -146,7 +146,7 @@ class WhileLoop(Statement):
         return previous accesses to any References contained in the statement.
         '''
         prev_accesses = []
-        var_acceses = self.condition.previous_accesses()
+        var_accesses = self.condition.previous_accesses()
         self._merge_accesses(prev_accesses, var_accesses)
         for child in self.loop_body:
             self._merge_accesses(prev_accesses, child.previous_accesses())

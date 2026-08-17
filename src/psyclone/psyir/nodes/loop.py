@@ -520,7 +520,7 @@ class Loop(Statement):
         :returns: the combined next_accesses for the children of this Loop.
         '''
         next_accesses = []
-        var_acceses = self.variable_reference.next_accesses()
+        var_accesses = self.variable_reference.next_accesses()
         self._merge_accesses(next_accesses, var_accesses)
         for child in self.loop_body:
             self._merge_accesses(next_accesses, child.next_accesses())
@@ -532,7 +532,7 @@ class Loop(Statement):
             Loop.
         '''
         prev_accesses = []
-        var_acceses = self.variable_reference.previous_accesses()
+        var_accesses = self.variable_reference.previous_accesses()
         self._merge_accesses(prev_accesses, var_accesses)
         for child in self.loop_body:
             self._merge_accesses(prev_accesses, child.previous_accesses())

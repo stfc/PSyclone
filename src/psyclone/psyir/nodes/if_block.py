@@ -166,7 +166,6 @@ class IfBlock(Statement):
             var_accesses.update(self.else_body.reference_accesses())
         return var_accesses
 
-
     def next_accesses(self) -> list[Node]:
         '''
         :returns: the combined next_accesses for the children of this IfBlock.
@@ -198,4 +197,4 @@ class IfBlock(Statement):
                 self._merge_accesses(prev_accesses, child.previous_accesses())
 
         # FIXME Should we sort the output in some way?
-        return previous_accesses
+        return prev_accesses
