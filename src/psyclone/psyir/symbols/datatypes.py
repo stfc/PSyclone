@@ -14,7 +14,7 @@ import copy
 from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, Union, Tuple, TYPE_CHECKING
+from typing import Any, Optional, Union, TYPE_CHECKING
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
@@ -405,8 +405,7 @@ class ScalarType(DataType):
         Intrinsic.INTEGER: int,
         Intrinsic.CHARACTER: str,
         Intrinsic.BOOLEAN: bool,
-        Intrinsic.REAL: float,
-        Intrinsic.COMPLEX: Tuple[float, float]}
+        Intrinsic.REAL: float}
 
     def __init__(
             self,
