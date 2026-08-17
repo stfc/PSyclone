@@ -7,15 +7,13 @@
 
 ''' Performs tests on the treesitter PSyIR front-end '''
 import logging
-from types import SimpleNamespace
 import pytest
 
 from tree_sitter import Node as TSNode
 
 from psyclone.errors import InternalError
-from psyclone.psyir.frontend import fortran_treesitter_reader as ftr
 from psyclone.psyir.frontend.fortran_treesitter_reader import (
-    FortranTreeSitterReader, _CommonDeclAttributes, _NodeExpectation)
+    FortranTreeSitterReader, _NodeExpectation)
 from psyclone.psyir import nodes as psyir_nodes, symbols as psyir_symbols
 from psyclone.tests.utilities import min_version_3_10
 
@@ -716,44 +714,6 @@ def test_character_length_and_kind_selectors():
         assert datatype.precision.value == "2"
 
 
-def test_empty_kind_and_malformed_literal_declaration_nodes():
-    '''Test defensive handling for malformed parser nodes after establishing
-    the expected declaration and literal node forms from Fortran input.
-    '''
-    valid_code = """
-        subroutine declarations()
-          character(3) :: text = 'abc'
-        end subroutine declarations
-    """
-    processor = FortranTreeSitterReader()
-    parse_tree = processor.generate_parse_tree_from_source(valid_code)
-    string = _first_tsnode(parse_tree, "string_literal")
-    declaration = _first_tsnode(parse_tree, "variable_declaration")
-    intrinsic_type = _first_tsnode(parse_tree, "intrinsic_type")
-
-    assert processor._string_literal_handler(string).value == "abc"
-    assert declaration.type == "variable_declaration"
-    for text, message in [
-            (b"abc", "no quote delimiter"),
-            (b"'abc\"", "mismatched quote delimiters"),
-            (b"_'abc'", "kind prefix")]:
-        malformed = SimpleNamespace(text=text)
-        with pytest.raises(NotImplementedError, match=message):
-            processor._string_literal_handler(malformed)
-
-    malformed_declaration = SimpleNamespace(children=[])
-    with pytest.raises(NotImplementedError, match="no supported type"):
-        processor._variable_declaration_handler(malformed_declaration)
-
-    empty_kind_type = SimpleNamespace(
-        type="intrinsic_type",
-        text=intrinsic_type.text,
-        children=[intrinsic_type.children[0],
-                  SimpleNamespace(type="kind", children=[])])
-    assert processor._datatype_from_type(empty_kind_type) == \
-        psyir_symbols.ScalarType.character_type()
-
-
 def test_logical_literal():
     '''Test a logical literal used as an initial value.'''
     processor = FortranTreeSitterReader()
@@ -1039,8 +999,8 @@ def test_unsupported_shape_translation(valid_code, monkeypatch):
                       psyir_symbols.UnsupportedFortranType)
 
 
-def test_direct_shape_and_argument_helpers():
-    '''Test defensive extent splitting and absent argument handling.'''
+def test_direct_extent_and_argument_helpers():
+    '''Test extent splitting and absent argument handling.'''
     valid_code = """
         subroutine shape(values)
           integer :: values(10)
@@ -1055,30 +1015,6 @@ def test_direct_shape_and_argument_helpers():
     assert not after
     assert not has_colon
     assert not processor._arguments(None)
-
-    malformed = SimpleNamespace(
-        type="extent_specifier", children=[number])
-    assert processor._shape_from_node(
-        SimpleNamespace(children=[malformed]))[0].value == "10"
-    common = _CommonDeclAttributes(
-        psyir_symbols.ScalarType.integer_type(),
-        psyir_symbols.ArgumentInterface.Access.UNKNOWN,
-        frozenset(), frozenset(), "integer")
-    empty_initializer = SimpleNamespace(
-        type="init_declarator", children=[
-            SimpleNamespace(type="identifier", text=b"value"),
-            SimpleNamespace(type="=", text=b"=")])
-    datatype, initial = processor._declarator_datatype(
-        empty_initializer, common)
-    assert isinstance(datatype, psyir_symbols.ScalarType)
-    assert initial is None
-
-    with pytest.raises(NotImplementedError, match="Malformed array range"):
-        processor._range(number, psyir_symbols.DataSymbol(
-            "values", psyir_symbols.ArrayType(
-                psyir_symbols.ScalarType.integer_type(), [10])), 1)
-    with pytest.raises(NotImplementedError, match="Malformed allocation"):
-        processor._allocation_extent(malformed)
 
 
 def test_default_visibility():
@@ -1227,9 +1163,8 @@ def test_use_rename_without_only():
     assert routine.children[0].rhs.symbol is imported
 
 
-def test_wildcard_and_defensive_import_branches():
-    '''Test wildcard import and defensive malformed/identity import
-    handling.'''
+def test_wildcard_and_identity_import():
+    '''Test a wildcard import and importing a container under its own name.'''
     valid_code = """
         module imports
           use wildcard_source
@@ -1238,25 +1173,14 @@ def test_wildcard_and_defensive_import_branches():
     processor = FortranTreeSitterReader()
     root = processor.generate_psyir(
         processor.generate_parse_tree_from_source(valid_code))
-    assert root.children[0].symbol_table.lookup(
-        "wildcard_source").wildcard_import
+    table = root.children[0].symbol_table
+    container = table.lookup("wildcard_source")
+    assert container.wildcard_import
 
-    table = psyir_symbols.SymbolTable()
     processor._current_scope = table
-    module_name = SimpleNamespace(
-        type="module_name", children=[], text=b"source")
-    malformed_rename = SimpleNamespace(
-        type="rename", children=[SimpleNamespace(
-            type="identifier", children=[], text=b"local")])
-    included = SimpleNamespace(
-        type="included_items", children=[malformed_rename])
-    use_statement = SimpleNamespace(
-        children=[module_name, included])
-    processor._use_statement_handler(use_statement)
-    container = table.lookup("source")
-
-    processor._add_imported_symbol("source", "source", container)
-    assert table.lookup("source") is container
+    processor._add_imported_symbol(
+        "wildcard_source", "wildcard_source", container)
+    assert table.lookup("wildcard_source") is container
 
 
 def test_repeated_use_preserves_wildcard_import():
@@ -1915,6 +1839,28 @@ def test_later_contained_routine_is_predeclared():
     assert call.routine.symbol.is_pure is True
 
 
+def test_predeclare_unsupported_routine():
+    '''A routine with an unsupported return type is still predeclared with an
+    unresolved type.
+    '''
+    valid_code = """
+        module routines
+        contains
+          complex function unsupported()
+          end function unsupported
+        end module routines
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    container = root.children[0]
+    symbol = container.symbol_table.lookup("unsupported")
+
+    assert isinstance(symbol, psyir_symbols.RoutineSymbol)
+    assert isinstance(symbol.datatype, psyir_symbols.UnresolvedType)
+    assert isinstance(container.children[0], psyir_nodes.CodeBlock)
+
+
 def test_call_statement_edge_cases():
     '''Test imported-symbol specialisation and invalid call targets.'''
     valid_code = """
@@ -2529,9 +2475,28 @@ def test_select_case_with_only_default_is_unsupported():
         codeblock.preceding_comment
 
 
-# pylint: disable=too-many-locals
-def test_malformed_operation_and_statement_guards(monkeypatch):
-    '''Test defensive guards for malformed expressions and statements.'''
+def test_select_case_with_only_default_and_simple_selector():
+    '''A default-only SELECT CASE with a simple selector is unsupported.'''
+    valid_code = """
+        subroutine selection(value)
+          integer :: value
+          select case(value)
+          case default
+            value = 1
+          end select
+        end subroutine selection
+    """
+    processor = FortranTreeSitterReader()
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+
+    codeblock = root.children[0].children[0]
+    assert isinstance(codeblock, psyir_nodes.CodeBlock)
+    assert "only a default clause" in codeblock.preceding_comment
+
+
+def test_invalid_memory_intrinsic_signature(monkeypatch):
+    '''Test handling of a memory intrinsic rejected by PSyIR validation.'''
     valid_code = """
         subroutine guards(array)
           real, allocatable :: array(:)
@@ -2540,54 +2505,6 @@ def test_malformed_operation_and_statement_guards(monkeypatch):
     """
     processor = FortranTreeSitterReader()
     parse_tree = processor.generate_parse_tree_from_source(valid_code)
-    number = _first_tsnode(parse_tree, "number_literal")
-
-    bad_unary = SimpleNamespace(children=[
-        SimpleNamespace(type="operator", text=b"?"), number])
-    with pytest.raises(NotImplementedError, match="unary operator"):
-        processor._operation(bad_unary)
-
-    bad_binary = SimpleNamespace(children=[
-        number, SimpleNamespace(type="operator", text=b"?"), number])
-    with pytest.raises(NotImplementedError, match="binary operator"):
-        processor._operation(bad_binary)
-    with pytest.raises(NotImplementedError, match="operation structure"):
-        processor._operation(SimpleNamespace(children=[]))
-
-    with pytest.raises(NotImplementedError, match="assignment structure"):
-        processor._assignment_statement_handler(
-            SimpleNamespace(children=[]))
-    with pytest.raises(NotImplementedError, match="bounds remapping"):
-        processor._pointer_association_statement_handler(
-            SimpleNamespace(children=[]))
-    with pytest.raises(NotImplementedError, match="IF statement"):
-        processor._if_statement_handler(SimpleNamespace(children=[]))
-
-    statement = SimpleNamespace(
-        type="do_statement",
-        children=[SimpleNamespace(
-            type="loop_control_expression", children=[])])
-    loop = SimpleNamespace(type="do_loop", children=[statement])
-    with pytest.raises(NotImplementedError, match="counted DO loop"):
-        processor._do_loop_handler(loop)
-
-    identifier = _first_tsnode(parse_tree, "identifier")
-    selector = SimpleNamespace(type="selector", children=[identifier])
-    malformed_case = SimpleNamespace(type="case_statement", children=[])
-    select = SimpleNamespace(children=[selector, malformed_case])
-    with pytest.raises(NotImplementedError, match="Malformed CASE"):
-        processor._select_case_statement_handler(select)
-
-    malformed_member = SimpleNamespace(
-        type="derived_type_member_expression",
-        children=[SimpleNamespace(
-            type="identifier", children=[], text=b"item")])
-    with pytest.raises(NotImplementedError, match="Malformed structure"):
-        processor._decompose_structure(malformed_member)
-    with pytest.raises(NotImplementedError, match="structure access base"):
-        processor._decompose_structure(
-            SimpleNamespace(type="number_literal", children=[]))
-
     allocate = _first_tsnode(parse_tree, "allocate_statement")
 
     def invalid_intrinsic(*_args, **_kwargs):
@@ -2606,6 +2523,7 @@ def test_scope_and_handler_defensive_errors():
         subroutine routine()
         end subroutine routine
         module types
+          private :: operator(+)
           type :: item
             integer :: value
           end type item
@@ -2615,11 +2533,9 @@ def test_scope_and_handler_defensive_errors():
     parse_tree = processor.generate_parse_tree_from_source(valid_code)
     routine = _first_tsnode(parse_tree, "subroutine")
     derived = _first_tsnode(parse_tree, "derived_type_definition")
-
-    duplicate = SimpleNamespace(children=[
-        SimpleNamespace(type="name"), SimpleNamespace(type="name")])
-    with pytest.raises(InternalError, match="Expected only 1"):
-        ftr.child_of_type(duplicate, "name")
+    unsupported_access = _first_tsnode(parse_tree, "private_statement")
+    with pytest.raises(NotImplementedError, match="Named operator"):
+        processor._private_statement_handler(unsupported_access)
 
     parent = psyir_nodes.ScopingNode(symbol_table=psyir_symbols.SymbolTable())
     attached = psyir_nodes.ScopingNode(

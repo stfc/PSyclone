@@ -13,6 +13,9 @@ The structure of the expected fortran parse tree can be found in the
 'rules' section of:
 https://github.com/stadelmanma/tree-sitter-fortran/blob/master/grammar.js
 
+Note that psyclone is pinned to a particular version of treesitter (in
+pyproject.toml), use that branch instead of master to follow the grammar.
+
 To interpret the rules use:
 https://tree-sitter.github.io/tree-sitter/creating-parsers/
 2-the-grammar-dsl.html
@@ -57,11 +60,13 @@ def log_decode_error_handler(err) -> tuple[str, int]:
 codecs.register_error("treesitter-encoding", log_decode_error_handler)
 
 
-def to_str(node: 'TSNode') -> str:
+def to_str(node: Optional['TSNode']) -> str:
     '''
     :param node: a given treesitter node.
     :returns: the string representing the node in utf8.
     '''
+    if node is None:
+        return ""
     return node.text.decode('utf8') if node.text else ""
 
 
@@ -94,7 +99,6 @@ def child_of_type(
 
     :returns: matching child, or ``None`` if no child matches.
 
-    :raises InternalError: if more than one node of that type exists.
     '''
     children = list(iter_child_of_type(tsnode, node_type))
     if len(children) == 0:
@@ -691,8 +695,6 @@ class FortranTreeSitterReader():
             signature = child_of_type(
                 procedure, f"{procedure.type}_statement")
             name_node = child_of_type(signature, "name")
-            if name_node is None:
-                continue
             name = to_str(name_node)
             try:
                 _, return_type = self._function_return_info(
@@ -787,24 +789,14 @@ class FortranTreeSitterReader():
         :returns: PSyIR character Literal.
         '''
         text = to_str(tsnode)
-        quote_positions = [position for position in
-                           (text.find("'"), text.find('"'))
-                           if position >= 0]
-        if not quote_positions:
-            raise NotImplementedError(
-                "A character literal has no quote delimiter")
-        quote_position = min(quote_positions)
+        quote_position = min(position for position in
+                             (text.find("'"), text.find('"'))
+                             if position >= 0)
         quote = text[quote_position]
-        if text[-1] != quote:
-            raise NotImplementedError(
-                "A character literal has mismatched quote delimiters")
 
         prefix = text[:quote_position]
         datatype = symbols.ScalarType.character_type()
         if prefix:
-            if not prefix.endswith("_") or len(prefix) == 1:
-                raise NotImplementedError(
-                    "Unsupported character literal kind prefix")
             kind = prefix[:-1].lower()
             precision = (int(kind) if kind.isdigit() else
                          nodes.Reference(self._kind_symbol(kind)))
@@ -836,10 +828,7 @@ class FortranTreeSitterReader():
         # attributes) followed by one or more entity-specific declarators.
         type_node = next((child for child in tsnode.children
                           if child.type in
-                          ("intrinsic_type", "derived_type")), None)
-        if not type_node:
-            raise NotImplementedError(
-                "A variable declaration has no supported type specification")
+                          ("intrinsic_type", "derived_type")))
 
         qualifiers = [child for child in tsnode.children
                       if child.type == "type_qualifier"]
@@ -1190,11 +1179,7 @@ class FortranTreeSitterReader():
             if child.type in ("(", ")", ","):
                 continue
             if child.type == "extent_specifier":
-                before, after, has_colon = self._split_extent(child)
-                if not has_colon:
-                    result.append(self._process_nodes(
-                        before[0], _NodeExpectation.EXPRESSION))
-                    continue
+                before, after, _ = self._split_extent(child)
                 if not before and not after:
                     result.append(symbols.ArrayType.Extent.DEFERRED
                                   if is_allocatable else
@@ -1533,30 +1518,20 @@ class FortranTreeSitterReader():
 
         :returns: PSyIR UnaryOperation or BinaryOperation.
 
-        :raises NotImplementedError: if the operator or tree shape is
-            unsupported.
         '''
         if len(tsnode.children) == 2:
             operator = to_str(tsnode.children[0]).lower()
-            if operator not in self._UNARY_OPERATORS:
-                raise NotImplementedError(
-                    f"Unsupported unary operator '{operator}'")
             return nodes.UnaryOperation.create(
                 self._UNARY_OPERATORS[operator],
                 self._process_nodes(
                     tsnode.children[1], _NodeExpectation.EXPRESSION))
-        if len(tsnode.children) == 3:
-            operator = to_str(tsnode.children[1]).lower()
-            if operator not in self._BINARY_OPERATORS:
-                raise NotImplementedError(
-                    f"Unsupported binary operator '{operator}'")
-            return nodes.BinaryOperation.create(
-                self._BINARY_OPERATORS[operator],
-                self._process_nodes(
-                    tsnode.children[0], _NodeExpectation.EXPRESSION),
-                self._process_nodes(
-                    tsnode.children[2], _NodeExpectation.EXPRESSION))
-        raise NotImplementedError("Unexpected operation structure")
+        operator = to_str(tsnode.children[1]).lower()
+        return nodes.BinaryOperation.create(
+            self._BINARY_OPERATORS[operator],
+            self._process_nodes(
+                tsnode.children[0], _NodeExpectation.EXPRESSION),
+            self._process_nodes(
+                tsnode.children[2], _NodeExpectation.EXPRESSION))
 
     def _call_expression_handler(
         self, tsnode: 'TSNode'
@@ -1685,11 +1660,8 @@ class FortranTreeSitterReader():
 
         :returns: PSyIR Range with explicit bounds.
 
-        :raises NotImplementedError: if the range is malformed.
         '''
-        before, after, has_colon = self._split_extent(tsnode)
-        if not has_colon:
-            raise NotImplementedError("Malformed array range")
+        before, after, _ = self._split_extent(tsnode)
         # Preserve the field separated by a second colon. In particular, an
         # absent upper bound in ``lower::step`` must not cause the step to be
         # interpreted as the stop expression.
@@ -1800,17 +1772,11 @@ class FortranTreeSitterReader():
             else:
                 indices = arguments
             return name, indices, members
-        if tsnode.type == "derived_type_member_expression":
-            name, indices, members = self._decompose_structure(
-                tsnode.children[0])
-            member = child_of_type(tsnode, "type_member")
-            if member is None:
-                raise NotImplementedError(
-                    "Malformed structure component access")
-            members.append(to_str(member).lower())
-            return name, indices, members
-        raise NotImplementedError(
-            f"Unsupported structure access base '{tsnode.type}'")
+        name, indices, members = self._decompose_structure(
+            tsnode.children[0])
+        member = child_of_type(tsnode, "type_member")
+        members.append(to_str(member).lower())
+        return name, indices, members
 
     def _array_literal_handler(
         self, tsnode: 'TSNode'
@@ -1854,10 +1820,7 @@ class FortranTreeSitterReader():
 
         :returns: PSyIR Assignment.
 
-        :raises NotImplementedError: if the tree shape is unexpected.
         '''
-        if len(tsnode.children) != 3:
-            raise NotImplementedError("Unexpected assignment structure")
         return nodes.Assignment.create(
             self._process_nodes(
                 tsnode.children[0], _NodeExpectation.EXPRESSION),
@@ -1873,11 +1836,7 @@ class FortranTreeSitterReader():
 
         :returns: pointer-annotated PSyIR Assignment.
 
-        :raises NotImplementedError: for bounds remapping.
         '''
-        if len(tsnode.children) != 3:
-            raise NotImplementedError(
-                "Pointer assignment with bounds remapping is not supported")
         assignment = nodes.Assignment(is_pointer=True)
         assignment.children = [
             self._process_nodes(
@@ -1946,11 +1905,8 @@ class FortranTreeSitterReader():
 
         :returns: root PSyIR IfBlock.
 
-        :raises NotImplementedError: if the statement has no condition.
         '''
         condition_node = child_of_type(tsnode, "parenthesized_expression")
-        if not condition_node:
-            raise NotImplementedError("IF statement has no condition")
         structural = {
             "if", "parenthesized_expression", "then",
             "end_if_statement", "else_clause", "elseif_clause"
@@ -2032,9 +1988,6 @@ class FortranTreeSitterReader():
         if control:
             parts = [child for child in control.children
                      if child.type not in ("=", ",")]
-            if len(parts) not in (3, 4):
-                raise NotImplementedError(
-                    "Unsupported counted DO loop control")
             variable_ref = self._identifier_handler(parts[0])
             variable = variable_ref.symbol
             if not isinstance(variable, symbols.DataSymbol):
@@ -2155,9 +2108,6 @@ class FortranTreeSitterReader():
                     _NodeExpectation.LIST)
             else:
                 values = child_of_type(case, "case_value_range_list")
-                if values is None:
-                    raise NotImplementedError(
-                        "Malformed CASE value list")
                 structural = {"case", "(", ")", "case_value_range_list"}
                 body = self._process_nodes(
                     [child for child in case.children
@@ -2311,9 +2261,7 @@ class FortranTreeSitterReader():
                 lower, self._process_nodes(
                     tsnode, _NodeExpectation.EXPRESSION))
 
-        before, after, has_colon = self._split_extent(tsnode)
-        if not has_colon:
-            raise NotImplementedError("Malformed allocation bound")
+        before, after, _ = self._split_extent(tsnode)
         if before:
             lower = self._process_nodes(
                 before[0], _NodeExpectation.EXPRESSION)
