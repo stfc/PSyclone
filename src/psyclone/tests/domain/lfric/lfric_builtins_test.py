@@ -353,7 +353,6 @@ def test_builtin_no_field_args(monkeypatch):
     monkeypatch.setattr(
         LFRicKernelArgument, "_init_data_type_properties",
         dummy_func)
-    old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
     test_builtin_name = "setval_X"
     test_builtin_file = "15.7.2_" + test_builtin_name + "_builtin.f90"

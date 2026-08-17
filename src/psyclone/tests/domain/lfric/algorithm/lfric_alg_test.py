@@ -311,7 +311,8 @@ end module testkern_mod
     psyir = FortranReader().psyir_from_source(code)
     with pytest.raises(ValueError) as err:
         LFRicAlg().kernel_from_metadata(psyir, "john")
-    assert "Failed to find kernel 'john' in supplied PSyIR: '" in str(err.value)
+    assert ("Failed to find kernel 'john' in supplied PSyIR: '"
+            in str(err.value))
     assert "Is it a valid LFRic kernel?" in str(err.value)
     # Valid PSyIR and correct name.
     kern = LFRicAlg().kernel_from_metadata(psyir, "testkern_type")

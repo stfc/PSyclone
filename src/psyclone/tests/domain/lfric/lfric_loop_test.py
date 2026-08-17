@@ -784,7 +784,8 @@ contains
   end subroutine testkern_code
 end module testkern_mod
 ''', ignore_comments=False)
-    dkm = LFRicKernMetadata.create_from_fortran_string(str(ast), name="testkern_type")
+    dkm = LFRicKernMetadata.create_from_fortran_string(
+                str(ast), name="testkern_type")
     kern = LFRicKern()
     kern.load_meta(dkm)
     with pytest.raises(GenerationError) as err:

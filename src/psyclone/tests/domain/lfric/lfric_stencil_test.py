@@ -147,7 +147,8 @@ def test_stencil_read_only():
                                 "gh_inc, w2, stencil(cross)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata.create_from_fortran_string(str(ast), name="stencil_type")
+        _ = LFRicKernMetadata.create_from_fortran_string(
+                str(ast), name="stencil_type")
     assert ("In the LFRic API a field with a stencil access must be "
             "read-only ('gh_read'), but found 'gh_inc'" in
             str(excinfo.value))
@@ -165,7 +166,8 @@ def test_stencil_field_arg_lfricconst_properties(monkeypatch):
 
     # Test 'real'-valued field of 'field_type' with stencil access
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast), name=name)
+    metadata = LFRicKernMetadata.create_from_fortran_string(
+                    str(ast), name=name)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     stencil_arg = kernel.arguments.args[1]
@@ -180,7 +182,8 @@ def test_stencil_field_arg_lfricconst_properties(monkeypatch):
     code = STENCIL_CODE.replace("gh_field, gh_real",
                                 "gh_field, gh_integer")
     ast = fpapi.parse(code, ignore_comments=False)
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast), name=name)
+    metadata = LFRicKernMetadata.create_from_fortran_string(
+                    str(ast), name=name)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     stencil_arg = kernel.arguments.args[1]

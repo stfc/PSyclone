@@ -46,9 +46,9 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
+from psyclone.domain.lfric import (FunctionSpace,
                                    LFRicConstants, LFRicKern,
-                                   LFRicKernMetadata, LFRicLoop)
+                                   LFRicLoop)
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.lfric import (
     LFRicACCEnterDataDirective, LFRicBoundaryConditions,

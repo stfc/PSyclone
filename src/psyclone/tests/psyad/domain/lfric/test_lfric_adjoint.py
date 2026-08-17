@@ -42,7 +42,6 @@ import logging
 
 import pytest
 
-from psyclone.domain.lfric import ArgIndexToMetadataIndex
 from psyclone.domain.lfric.kernel import (
     LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata,
     OperatorArgMetadata)

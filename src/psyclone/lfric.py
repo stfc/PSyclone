@@ -231,6 +231,7 @@ class RefElementMetaData():
         OUTWARD_NORMALS_TO_VERTICAL_FACES = 5
         OUTWARD_NORMALS_TO_FACES = 6
 
+
 class MeshProperty(Enum):
     '''
     Enumeration of the various properties of the mesh that a kernel may

@@ -105,7 +105,8 @@ def test_scalar_kernel_load_meta_err():
     '''
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast), name=name)
+    metadata = LFRicKernMetadata.create_from_fortran_string(
+                    str(ast), name=name)
     kernel = LFRicKern()
     # Get a scalar argument descriptor and set an invalid data type
     scalar_arg = replace(

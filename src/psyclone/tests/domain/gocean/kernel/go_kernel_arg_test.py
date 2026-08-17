@@ -54,7 +54,7 @@ from psyclone.psyir.nodes import (Node, StructureReference, Member,
 from psyclone.psyir.symbols import (SymbolTable, UnresolvedType, DataSymbol,
                                     ScalarType,
                                     ArgumentInterface, DataTypeSymbol)
-from psyclone.tests.utilities import get_base_path, get_invoke
+from psyclone.tests.utilities import get_invoke
 
 
 API = "gocean"

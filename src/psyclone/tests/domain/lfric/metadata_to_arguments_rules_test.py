@@ -45,7 +45,6 @@ from psyclone.domain.lfric.kernel import (
     InterGridArgMetadata, LFRicKernelMetadata, MetaMeshArgMetadata,
     MetaFuncsArgMetadata, OperatorArgMetadata, MetaRefElementArgMetadata,
     ScalarArgMetadata)
-from psyclone.errors import InternalError
 
 
 def check_called(monkeypatch, function, method_name, metadata):

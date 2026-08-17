@@ -75,7 +75,8 @@ contains
   end subroutine testkern_halo_code
 end module testkern_halo_mod
 ''', ignore_comments=False)
-    dkm = LFRicKernMetadata.create_from_fortran_string(str(ast), name="testkern_halo_type")
+    dkm = LFRicKernMetadata.create_from_fortran_string(
+            str(ast), name="testkern_halo_type")
     assert dkm.iterates_over == operates_on
 
 
@@ -102,7 +103,8 @@ contains
   end subroutine testkern_domain_code
 end module testkern_domain_mod
 ''', ignore_comments=False)
-    mdata = LFRicKernMetadata.create_from_fortran_string(str(ast), name="testkern_domain_type")
+    mdata = LFRicKernMetadata.create_from_fortran_string(
+                str(ast), name="testkern_domain_type")
     assert mdata.iterates_over == operates_on
 
 
