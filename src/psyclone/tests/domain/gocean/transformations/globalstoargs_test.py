@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# ----------------------------------------------------------------------------
-# Authors: A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified by R. W. Ford, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
+# -----------------------------------------------------------------------------
 
 ''' Tests the KernelImportsToArguments Transformation for the GOcean API.'''
 
@@ -104,8 +75,8 @@ def test_kernelimportstoargumentstrans_no_wildcard_import():
     trans = KernelImportsToArguments()
     with pytest.raises(TransformationError) as err:
         trans.apply(kernel)
-    assert ("'kernel_with_use_code' contains accesses to 'rdt' which is "
-            "unresolved" in str(err.value))
+    assert ("'kernel_with_use_code_inlined_' contains accesses to 'rdt' which "
+            "is unresolved" in str(err.value))
 
 
 def test_kernelimportstoargumentstrans(fortran_writer):
@@ -165,8 +136,8 @@ def test_kernelimportstoargumentstrans(fortran_writer):
 
     # Check the kernel code is generated as expected
     kernel_code = fortran_writer(kernel.get_callees()[0])
-    assert ("subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, "
-            "rdt, magic)" in kernel_code)
+    assert ("subroutine kernel_with_use_code_inlined_(ji, jj, istep, ssha, "
+            "tmask, rdt, magic)" in kernel_code)
     assert "real(kind=go_wp), intent(in) :: rdt" in kernel_code
     assert "real(kind=go_wp), intent(inout) :: magic" in kernel_code
 
@@ -174,7 +145,7 @@ def test_kernelimportstoargumentstrans(fortran_writer):
     # and argument call
     generated_code = str(psy.gen)
     assert "use model_mod, only : magic, rdt" in generated_code
-    assert ("call kernel_with_use_code(i, j, oldu_fld, cu_fld%data, "
+    assert ("call kernel_with_use_code_inlined_(i, j, oldu_fld, cu_fld%data, "
             "cu_fld%grid%tmask, rdt, magic)" in generated_code)
     assert invoke.schedule.symbol_table.lookup("model_mod")
     assert invoke.schedule.symbol_table.lookup("rdt")
@@ -210,8 +181,8 @@ def test_kernelimportstoargumentstrans_constant(monkeypatch, fortran_writer):
     kernels = kernel.get_callees()
     kernel_code = fortran_writer(kernels[0])
 
-    assert ("subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt, "
-            "magic)" in kernel_code)
+    assert ("subroutine kernel_with_use_code_inlined_(ji, jj, istep, ssha, "
+            "tmask, rdt, magic)" in kernel_code)
     assert "integer, intent(in) :: rdt" in kernel_code
 
 
@@ -247,7 +218,7 @@ def test_kernelimportstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
             in str(err.value))
 
 
-def test_kernelimportstoarguments_multiple_kernels(fortran_writer):
+def test_kernelimportstoarguments_multiple_kernels():
     ''' Check the KernelImportsToArguments transformation with an invoke with
     three kernel calls, two of them duplicated and the third one sharing the
     same imported module'''
@@ -261,15 +232,15 @@ def test_kernelimportstoarguments_multiple_kernels(fortran_writer):
     # The kernels are checked before the psy.gen, so they don't include the
     # modified suffix.
     expected = [
-        ["subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt, "
-         "magic)",
+        ["subroutine kernel_with_use_code_inlined_(ji, jj, istep, ssha, "
+         "tmask, rdt, magic)",
          "real(kind=go_wp), intent(in) :: rdt"],
-        ["subroutine kernel_with_use2_code(ji, jj, istep, ssha, tmask, cbfr,"
-         " rdt)",
+        ["subroutine kernel_with_use2_code_inlined_(ji, jj, istep, ssha, "
+         "tmask, cbfr, rdt)",
          "real(kind=go_wp), intent(inout) :: cbfr\n    real(kind=go_wp), "
          "intent(in) :: rdt"],
-        ["subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt, "
-         "magic)",
+        ["subroutine kernel_with_use_code_inlined_(ji, jj, istep, ssha, "
+         "tmask, rdt, magic)",
          "real(kind=go_wp), intent(in) :: rdt\n    real(kind=go_wp), "
          "intent(inout) :: magic"]]
 
@@ -288,9 +259,9 @@ def test_kernelimportstoarguments_multiple_kernels(fortran_writer):
         for part in expected[num]:
             assert part in generated_code, part
 
-    # Kernels not imported anymore.
-    assert "use kernel_with_use_mod" not in generated_code
-    assert "use kernel_with_use2_mod" not in generated_code
+    # The original imports are left unchanged.
+    assert "use kernel_with_use_mod, only : " in generated_code
+    assert "use kernel_with_use2_mod, only : " in generated_code
 
 
 def test_kernelimportstoarguments_noimports(fortran_writer):

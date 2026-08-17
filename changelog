@@ -1,3 +1,44 @@
+   32) PR #3535 towards #3506. Remove or replaces TODOS of closed issues.
+
+   31) PR #3556 for #3547. Add a utility to report TODOs to closed issues
+   still in the code.
+
+   30) PR #3550 for #3544. Fixes issues with UnresolvedInterface propogation,
+   and adds support for the recursive keyword.
+   
+   29) PR #3551 for #3549. Fix issues with comments before labelled statements.
+
+   28) PR #3543 for #3392. Stores commonblock names inside their interfaces
+   and adds them into the output.
+
+   27) PR #3542 towards #3516. Improve handling of declaration comments.
+   
+   26) PR #3545 for #3537. Fix issues with WHERE constructs with comments.
+
+   25) PR #3481 towards #3463. Adds support for adding standalone Assignment
+   statements into an OMP parallel region. Also adds a new
+   `get_last_descendant_node()` method to the Node class.
+
+   24) PR #3508 towards #1995. Shortens license/copyright on all .py and
+   .f90 files.
+
+   23) PR #3507 for #3502. Adds support for initialisers for variables of a
+   derived type.
+
+   22) PR #3541 for #3539. Update NEMO documentation and references.
+
+   21) PR #3521 for #3460. Fixes issues with recursive datatype copies.
+
+   20) PR #3518 for #3516. Fix issue with disappearing Interface declarations.
+
+   19) PR #3515 for #3513. Add a compilation test job with ifx and OpenMP flags.
+
+   18) PR #3504 for #3500. Adds StandaloneDirective as valid child of
+   Container.
+
+   17) PR #3290 for #2846. KernelModuleInlineTrans renames inlined routines
+   to avoid clashes.
+
    16) PR #3209 towards #868. Add support for nlayer and ndata components in
    the field metadata (this PR does not introduce the psy-layer generation to
    match those field specifications yet).

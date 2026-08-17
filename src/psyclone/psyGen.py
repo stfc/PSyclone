@@ -1,40 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified by I. Kavcic and L. Turner, Met Office
-# Modified by C.M. Maynard, Met Office / University of Reading
-# Modified by J. Henrichs, Bureau of Meteorology
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module provides generic support for PSyclone's PSy code optimisation
@@ -1200,17 +1168,15 @@ class CodedKern(Kern):
         self._schedules = None
         #: Whether or not this kernel has been transformed
         self._modified = False
-        #: Whether or not to in-line this kernel into the module containing
-        #: the PSy layer
-        self._module_inline = False
         self._opencl_options = {'local_size': 64, 'queue_number': 1}
         self.arg_descriptors = call.ktype.arg_descriptors
 
-        # If we have an ancestor InvokeSchedule then add the necessary
-        # symbols.
         # TODO #2054 - this 'routine' property can be replaced once this
         # class sub-classes Call.
         self.routine: Optional[Reference] = None
+
+        # If we have an ancestor InvokeSchedule then add the necessary
+        # symbols.
         container = self.ancestor(Container)
         if container:
             symtab = container.symbol_table
@@ -1246,6 +1212,16 @@ class CodedKern(Kern):
         '''
         raise NotImplementedError(
             f"get_callees() must be overridden in class {self.__class__}")
+
+    @property
+    def name(self) -> str:
+        '''
+        Override Kern.name to use the RoutineSymbol name if one is available.
+
+        '''
+        if self.routine:
+            return self.routine.symbol.name
+        return super().name
 
     @property
     def opencl_options(self):
@@ -1288,7 +1264,7 @@ class CodedKern(Kern):
             self._opencl_options[key] = value
 
     def __str__(self):
-        return "kern call: " + self._name
+        return f"kern call: {self.name}"
 
     @property
     def module_name(self):
@@ -1307,18 +1283,6 @@ class CodedKern(Kern):
         _, position = self._find_position(self.ancestor(Routine))
         return f"kernel_{self.name}_{position}"
 
-    @property
-    def module_inline(self) -> bool:
-        '''
-        :returns: whether or not this kernel is being module-inlined.
-        '''
-        # TODO #2054 - once this class sub-classes Call, this method should
-        # probably live in the super class.
-        if (not self.routine or self.routine.symbol.is_import or
-                self.routine.symbol.is_unresolved):
-            return False
-        return True
-
     def node_str(self, colour: Optional[bool] = True) -> str:
         ''' Returns the name of this node with (optional) control codes
         to generate coloured output in a terminal that supports it.
@@ -1328,9 +1292,8 @@ class CodedKern(Kern):
         :returns: description of this node, possibly coloured.
 
         '''
-        return (self.coloured_name(colour) + " " + self.name + "(" +
-                self.arguments.names + ") " + "[module_inline=" +
-                str(self.module_inline) + "]")
+        return (self.coloured_name(colour) +
+                f" {self.name}({self.arguments.names})")
 
     def lower_to_language_level(self) -> Node:
         '''
@@ -1343,7 +1306,7 @@ class CodedKern(Kern):
         '''
         symtab = self.ancestor(InvokeSchedule).symbol_table
 
-        rsymbol = symtab.lookup(self._name)
+        rsymbol = symtab.lookup(self.name)
 
         # Create Call to the rsymbol with the argument expressions as children
         # of the new node

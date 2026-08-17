@@ -1,41 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
-# Modified J. Henrichs, Bureau of Meteorology
-# Modified A. R. Porter, A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
-# Modified J. Remy, Université Grenoble Alpes, Inria
-# Modified M. Naylor, University of Cambridge, UK
 
 '''PSyIR Fortran backend. Implements a visitor that generates Fortran code
 from a PSyIR tree. '''
@@ -49,6 +17,7 @@ from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, TYPE_MAP_FROM_FORTRAN)
+from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.nodes import (
     ArrayConstructor, BinaryOperation, Call, Container, CodeBlock,
     DataNode, IntrinsicCall, Literal, Member, Node, OMPDependClause,
@@ -280,6 +249,20 @@ class FortranWriter(LanguageWriter):
             # than one.
             if mapping_key not in reverse_dict:
                 reverse_dict[mapping_key] = mapping_value.upper()
+
+    def gen_preceding_comments(self, obj: CommentableMixin) -> str:
+        '''
+        :param obj: The object whose preceding comments should be generated.
+
+        :returns: The Fortran string for the preceding comments for the
+            provided obj
+        '''
+        comments = ""
+        if obj.preceding_comment:
+            for line in obj.preceding_comment.splitlines():
+                comments += f"{self._nindent}{self._COMMENT_PREFIX}{line}\n"
+
+        return comments
 
     def gen_datatype(self,
                      datatype: Union[DataType, DataTypeSymbol],
@@ -581,9 +564,7 @@ class FortranWriter(LanguageWriter):
                                 )
 
         result = ""
-        if len(symbol.preceding_comment) > 0:
-            for line in symbol.preceding_comment.splitlines():
-                result += f"{self._nindent}{self._COMMENT_PREFIX}{line}\n"
+        result += self.gen_preceding_comments(symbol)
 
         # Whether we're dealing with an array declaration and, if so, the
         # shape of that array.
@@ -672,6 +653,12 @@ class FortranWriter(LanguageWriter):
         if symbol.inline_comment != "":
             result += f" {self._COMMENT_PREFIX}{symbol.inline_comment}"
 
+        if isinstance(symbol, Symbol) and symbol.is_commonblock:
+            result += (
+                f"\n{self._nindent}common /{symbol.interface.name}/ "
+                f"{symbol.name}"
+            )
+
         return result + "\n"
 
     def gen_interfacedecl(self, symbol):
@@ -696,17 +683,16 @@ class FortranWriter(LanguageWriter):
             raise InternalError(
                 f"gen_interfacedecl only supports 'GenericInterfaceSymbol's "
                 f"but got '{type(symbol).__name__}'")
-
-        decln = f"{self._nindent}interface {symbol.name}\n"
+        decln = ""
+        decln += self.gen_preceding_comments(symbol)
+        decln += f"{self._nindent}interface {symbol.name}\n"
         self._depth += 1
         # Any module procedures.
-        routines = ", ".join([rsym.name for rsym in symbol.container_routines])
-        if routines:
-            decln += f"{self._nindent}module procedure :: {routines}\n"
+        for routine in symbol.container_routines:
+            decln += f"{self._nindent}module procedure :: {routine.name}\n"
         # Any other (external) procedures.
-        routines = ", ".join([rsym.name for rsym in symbol.external_routines])
-        if routines:
-            decln += f"{self._nindent}procedure :: {routines}\n"
+        for routine in symbol.external_routines:
+            decln += f"{self._nindent}procedure :: {routine.name}\n"
         self._depth -= 1
         decln += f"{self._nindent}end interface {symbol.name}\n"
 
@@ -750,9 +736,7 @@ class FortranWriter(LanguageWriter):
                 f"'{symbol.name}' of type '{type(symbol.datatype).__name__}'")
 
         result = ""
-        if symbol.preceding_comment != "":
-            for line in symbol.preceding_comment.splitlines():
-                result += f"{self._nindent}{self._COMMENT_PREFIX}{line}\n"
+        result += self.gen_preceding_comments(symbol)
 
         result += f"{self._nindent}type"
 
@@ -1154,14 +1138,15 @@ class FortranWriter(LanguageWriter):
         if not node.name:
             raise VisitorError("Expected Container node name to have a value.")
 
-        # All children must be either Routines or CodeBlocks as modules within
+        # All children must not be Containers as modules within
         # modules are not supported.
-        if not all(isinstance(child, (Routine, CodeBlock)) for
-                   child in node.children):
+        if any(isinstance(child, (Container)) for child in node.children):
+            containers = [child.name for child in node.children if
+                          isinstance(child, Container)]
             raise VisitorError(
-                f"The Fortran back-end requires all children of a Container "
-                f"to be either CodeBlocks or sub-classes of Routine but found:"
-                f" {[type(child).__name__ for child in node.children]}.")
+                f"The Fortran backend does not support nested Containers but "
+                f"found: {containers}."""
+            )
 
         result = f"{self._nindent}module {node.name}\n"
 
@@ -1215,8 +1200,7 @@ class FortranWriter(LanguageWriter):
             container = node.ancestor(Container)
             rsym = None
             if container:
-                # TODO #2592: When this is implemented it will be node.symbol
-                rsym = container.symbol_table.lookup(node.name, otherwise=None)
+                rsym = node.symbol
             prefix = ""
             if rsym:
                 if rsym.is_elemental:
@@ -1227,6 +1211,9 @@ class FortranWriter(LanguageWriter):
                         prefix = "impure elemental "
                 elif rsym.is_pure:
                     prefix = "pure "
+
+            if node.is_recursive:
+                prefix = f"recursive {prefix}"
 
             args = [symbol.name for symbol in node.symbol_table.argument_list]
             suffix = ""
@@ -1501,7 +1488,9 @@ class FortranWriter(LanguageWriter):
 
                 # For the keyword substitution to work we have to handle
                 # any preceding comment separately
-                comment = node.else_body.children[0].preceding_comment
+                comment = self.gen_preceding_comments(
+                    node.else_body.children[0]
+                )
                 node.else_body.children[0].preceding_comment = ""
 
                 # Get the else body text
@@ -1512,12 +1501,7 @@ class FortranWriter(LanguageWriter):
                 # with the current if construct
                 else_block = "\n".join(else_block.split('\n')[:-2]) + "\n"
                 # Prepend back the comment at the elseif level
-                if comment:
-                    for line in reversed(comment.splitlines()):
-                        else_block = (
-                            f"{self._nindent}{self._COMMENT_PREFIX}{line}\n"
-                            f"{else_block}"
-                        )
+                else_block = f"{comment}{else_block}"
             else:
                 else_block = f"{self._nindent}else\n"
                 self._depth += 1

@@ -1,36 +1,8 @@
-# BSD 3-Clause License
-#
-# Copyright (c) 2025-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: S. Siso, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' PSyIR TreeSitter Fortran reader '''
@@ -113,7 +85,7 @@ class FortranTreeSitterReader():
         free_form: bool = True,
         conditional_openmp: bool = True,
     ):
-        # TODO #3038 Arguments are currently not used nor typechecked, but if
+        # TODO #3083: Arguments are currently not used nor typechecked, but if
         # we decide this is the common reader interface, this can be done in a
         # super class instead of duplicate it here.
         self._ignore_directives = ignore_directives
@@ -122,7 +94,7 @@ class FortranTreeSitterReader():
         self._ignore_comments = ignore_comments
         self._free_form = free_form
         self._conditional_openmp = conditional_openmp
-        # TODO #3038: Currently this reader uses a cursor pointer instead of
+        # TODO #3083:  Currently this reader uses a cursor pointer instead of
         # passing around a parent argument all the time (like fparser's), but
         # this can be re-evaluated if necessary.
         self._psyir_cursor = None
@@ -209,7 +181,7 @@ class FortranTreeSitterReader():
                 handler = self.get_handler(tsnode)
                 children.append(handler(tsnode))
             except NotImplementedError as err:
-                # TODO #3038: Add support for expression codeblocks and
+                # TODO #3083: Add support for expression codeblocks and
                 # aggregating contiguous codeblocks into a single one.
                 structure = CodeBlock.Structure.STATEMENT
                 code_block = TreeSitterCodeBlock(tsnode, structure)

@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
-# Modified by: A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
 '''SIR PSyIR backend. Generates SIR code from PSyIR nodes. Currently
 limited to PSyIR Kernel schedules as PSy-layer PSyIR already has a
@@ -51,7 +22,7 @@ from psyclone.psyir.symbols import ScalarType
 # so we don't include it here.
 # We do not yet deal with precision e.g. the SIR supports a DOUBLE
 # type which would probably be equivalent to PSyIR's
-# Precision.DOUBLE. This is the subject of issue #741.
+# Precision.DOUBLE.
 
 TYPE_MAP_TO_SIR = {ScalarType.Intrinsic.REAL: "BuiltinType.Float",
                    ScalarType.Intrinsic.INTEGER: "BuiltinType.Integer"}
@@ -126,10 +97,9 @@ class SIRWriter(PSyIRVisitor):
         self._field_names = set()
         # The _scalar_names variable stores the unique scalar names
         # found in the PSyIR. The current assumption is that scalars
-        # are temporaries. This is not necessarily correct and this
-        # problem is captured in issue #521. Scalar temporaries can be
-        # declared as field temporaries as the Dawn backend works out
-        # what is required.
+        # are temporaries. This is not necessarily correct, scalar
+        # temporaries can be declared as field temporaries as the
+        # Dawn backend works out what is required.
         self._scalar_names = set()
 
     def node_node(self, node):
@@ -202,7 +172,7 @@ class SIRWriter(PSyIRVisitor):
                 f"SIR:\n"
                 f"{loop3.debug_string()}")
 
-        # The interval values are hardcoded for the moment (see #470).
+        # The interval values are hardcoded for the moment
         result = f"{self._nindent}interval = "\
                  f"make_interval(Interval.Start, Interval.End, 0, 0)\n"
         result += f"{self._nindent}body_ast = make_ast([\n"
@@ -215,8 +185,7 @@ class SIRWriter(PSyIRVisitor):
         result = result.rstrip(",\n") + "\n"
         result += f"{self._nindent}])\n"
         # For the moment there is a hard coded assumption that the
-        # vertical looping is in the forward (1..n) direction (see
-        # #470).
+        # vertical looping is in the forward (1..n) direction
         result += f"{self._nindent}vertical_region_fns.append("\
                   f"make_vertical_region_decl_stmt(body_ast, interval, "\
                   f"VerticalRegion.Forward))\n"
@@ -255,9 +224,9 @@ class SIRWriter(PSyIRVisitor):
             functions.append(
                 f"make_field(\"{name}\", make_field_dimensions_cartesian())")
         # The current assumption is that scalars are temporaries. This
-        # is not necessarily correct and this problem is captured in
-        # issue #521. Scalar temporaries can be declared as field
-        # temporaries as the Dawn backend works out what is required.
+        # is not necessarily correct, scalar temporaries can be
+        # declared as field temporaries as the Dawn backend works out
+        # what is required.
         for name in self._scalar_names:
             functions.append(
                 f"make_field(\"{name}\", make_field_dimensions_cartesian(), "
@@ -357,10 +326,9 @@ class SIRWriter(PSyIRVisitor):
                 "node is not expected to have any children.")
         # _scalar_names is a set so duplicates will be ignored. It
         # captures all unique scalar names as scalars are currently
-        # treated as temporaries (#521 captures this). The simplest
-        # way to declare a scalar temporary in Dawn is to treat it as
-        # a field temporary (as the Dawn backend works out if a scalar
-        # is required).
+        # treated as temporaries. The simplest way to declare a scalar
+        # temporary in Dawn is to treat it as a field temporary (as
+        # the Dawn backend works out if a scalar is required).
         self._scalar_names.add(node.name)
 
         return f"{self._nindent}make_field_access_expr(\"{node.name}\")"
@@ -452,7 +420,7 @@ class SIRWriter(PSyIRVisitor):
 
         # The unary minus operator is being applied to something that
         # is not a literal. Default to REAL as we currently have no
-        # way of finding out the type, see issue #658. Replace -x with
+        # way of finding out the type, see issue #1799. Replace -x with
         # -1.0 * x.
         datatype = TYPE_MAP_TO_SIR[ScalarType.Intrinsic.REAL]
         self._depth += 1
