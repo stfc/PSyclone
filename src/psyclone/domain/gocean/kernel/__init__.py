@@ -17,7 +17,7 @@ from psyclone.domain.gocean.kernel.metadata import (
     GOceanKernelMetadata,
     GOceanKernelProcedure,
     GOceanScalarArgMetadata,
-    GOceanStencil,
+    GOceanStencilMetadata,
     find_metadata_symbol,
 )
 from psyclone.domain.gocean.kernel.psyir import GOceanContainer
@@ -30,6 +30,6 @@ __all__ = [
     "GOceanKernelMetadata",
     "GOceanKernelProcedure",
     "GOceanScalarArgMetadata",
-    "GOceanStencil",
+    "GOceanStencilMetadata",
     "find_metadata_symbol",
 ]

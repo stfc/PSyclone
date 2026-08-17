@@ -4,11 +4,50 @@
 # Copyright (c) 2026, Science and Technology Facilities Council.
 # All rights reserved.
 # -----------------------------------------------------------------------------
-"""Immutable GOcean kernel metadata extracted from language-level PSyIR."""
+"""
+The GOcean kernel metadata is stored with the following immutable nested
+dataclasses:
+
+GOceanKernelMetadata:
+    iterates_over: str
+    index_offset: str
+    meta_args: tuple[Union[
+        GOceanFieldArgMetadata:
+            access: str
+            grid_point_type: str
+            stencil: GOceanStencilMetadata
+                rows: Optional[tuple[str, str, str]]
+                pointwise_name: ClassVar[str]
+        GOceanScalarArgMetadata:
+            access: str
+            datatype: str
+            form: str = "go_pointwise"
+        GOceanGridPropertyArgMetadata:
+            access: str
+            name: str
+    ]]
+    procedure_name: str
+    name: str
+
+# TODO: For legacy reasons the following are not yet nested to the kernel
+# metadata. Currently these replicate sibling or parent metadata information.
+
+GOceanArgDescriptor:
+    access: AccessType
+    function_space: str
+    metadata_index: int
+    stencil: GOceanStencilMetadata
+    argument_type: str
+    grid_prop: str = ""
+
+GOceanKernelProcedure:
+    name: str
+    ast: Optional[Routine] = field(default=None, compare=False, repr=False)
+"""
 
 from dataclasses import dataclass, field
 import re
-from typing import ClassVar, Optional
+from typing import ClassVar, Iterable, Optional
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
@@ -22,20 +61,28 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import DataTypeSymbol, UnsupportedFortranType
 
 
-def _normalise(value, description):
-    """Return a validated, lower-case metadata name."""
+def _normalise(
+    value: str,
+    description: str,
+    valid_values: Optional[Iterable[str]] = None
+) -> str:
+    '''
+    :param value: the given value.
+    :param description: a textual description of the value.
+    :param valid_values: a list of valid values.
+
+    :returns: a validated, lower-case version of the given value.
+
+    :raises TypeError: if the value is not a 'str'.
+    :raises ValueError: if the value is not one of the valid values.
+    '''
     if not isinstance(value, str):
         raise TypeError(
             f"Expected {description} to be a string but found "
             f"'{type(value).__name__}'."
         )
-    return value.lower()
-
-
-def _check(value, valid_values, description):
-    """Return a normalised value after checking its vocabulary."""
-    value = _normalise(value, description)
-    if value not in valid_values:
+    value = value.lower()
+    if valid_values and value not in valid_values:
         raise ValueError(
             f"Expected {description} to be one of {valid_values} but found "
             f"'{value}'."
@@ -44,13 +91,18 @@ def _check(value, valid_values, description):
 
 
 @dataclass(frozen=True, slots=True)
-class GOceanStencil:
-    """Immutable stencil information consumed by the GOcean PSy layer."""
+class GOceanStencilMetadata:
+    """GOcean stencil metadata"""
 
     rows: Optional[tuple[str, str, str]] = None
     pointwise_name: ClassVar[str] = "go_pointwise"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Validate the stencil rows.
+
+        :raises TypeError: if any stencil row is not a string.
+        :raises ValueError: if the stencil has an invalid shape or value.
+        """
         if self.rows is None:
             return
         if not isinstance(self.rows, tuple) or len(self.rows) != 3:
@@ -75,17 +127,28 @@ class GOceanStencil:
             )
 
     @property
-    def has_stencil(self):
-        """Whether this represents a non-pointwise access."""
+    def has_stencil(self) -> bool:
+        """
+        :returns: whether this represents a non-pointwise access.
+        """
         return self.rows is not None
 
     @property
-    def name(self):
-        """Return the pointwise name, or ``None`` for an explicit stencil."""
+    def name(self) -> Optional[str]:
+        """
+        :returns: the pointwise name, or ``None`` for an explicit stencil.
+        """
         return None if self.has_stencil else self.pointwise_name
 
-    def depth(self, index0, index1):
-        """Return the access depth at the supplied relative indices."""
+    def depth(self, index0: int, index1: int) -> int:
+        """
+        :param index0: the first index.
+        :param index1: the second index.
+
+        :returns: the access depth at the supplied relative indices.
+
+        :raises GenerationError: if either index is out of range.
+        """
         if index0 not in (-1, 0, 1) or index1 not in (-1, 0, 1):
             raise GenerationError(
                 "The indices arguments to the depth method in the "
@@ -99,36 +162,47 @@ class GOceanStencil:
 
 @dataclass(frozen=True, slots=True)
 class GOceanFieldArgMetadata:
-    """Metadata for one GOcean field argument."""
+    """GOcean field argument."""
 
     access: str
     grid_point_type: str
-    stencil: GOceanStencil = field(default_factory=GOceanStencil)
+    stencil: GOceanStencilMetadata = field(
+        default_factory=GOceanStencilMetadata
+    )
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Validate and normalise the field-argument metadata.
+
+        :raises TypeError: if any value has the wrong type.
+        :raises ValueError: if any value is outside the valid vocabulary.
+        """
         const = GOceanConstants()
         object.__setattr__(
             self, "access",
-            _check(self.access, const.VALID_ACCESS_TYPES, "field access"))
+            _normalise(self.access,  "field access", const.VALID_ACCESS_TYPES))
         object.__setattr__(
             self, "grid_point_type",
-            _check(
-                self.grid_point_type, const.VALID_FIELD_GRID_TYPES,
-                "field grid-point type"))
-        if not isinstance(self.stencil, GOceanStencil):
-            raise TypeError("Field stencil must be a GOceanStencil.")
+            _normalise(
+                self.grid_point_type, "field grid-point type",
+                const.VALID_FIELD_GRID_TYPES))
+        if not isinstance(self.stencil, GOceanStencilMetadata):
+            raise TypeError("Field stencil must be a GOceanStencilMetadata.")
 
     @property
-    def form(self):
-        """Return the metadata form."""
+    def form(self) -> str:
+        """
+        :returns: the 'form' metadata field.
+        """
         return (
             GOceanConstants().VALID_STENCIL_NAME
             if self.stencil.has_stencil
             else "go_pointwise"
         )
 
-    def fortran_string(self):
-        """Return this argument as GOcean constructor syntax."""
+    def fortran_string(self) -> str:
+        """
+        :returns: this argument as a Fortran metadata string.
+        """
         if self.stencil.has_stencil:
             form = (
                 f"{GOceanConstants().VALID_STENCIL_NAME}"
@@ -149,22 +223,29 @@ class GOceanScalarArgMetadata:
     datatype: str
     form: str = "go_pointwise"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Validate and normalise the scalar-argument metadata.
+
+        :raises TypeError: if any value has the wrong type.
+        :raises ValueError: if any value is outside the valid vocabulary.
+        """
         const = GOceanConstants()
         object.__setattr__(
             self, "access",
-            _check(self.access, const.VALID_ACCESS_TYPES, "scalar access"))
+            _normalise(self.access, "scalar access", const.VALID_ACCESS_TYPES))
         object.__setattr__(
             self, "datatype",
-            _check(
-                self.datatype, const.VALID_SCALAR_TYPES, "scalar datatype"))
+            _normalise(
+                self.datatype, "scalar datatype", const.VALID_SCALAR_TYPES))
         object.__setattr__(
             self, "form",
-            _check(
-                self.form, const.VALID_STENCIL_NAMES, "scalar access form"))
+            _normalise(
+                self.form,  "scalar access form", const.VALID_STENCIL_NAMES))
 
-    def fortran_string(self):
-        """Return this argument as GOcean constructor syntax."""
+    def fortran_string(self) -> str:
+        """
+        :returns: this argument as a Fortran metadata string.
+        """
         return f"go_arg({self.access}, {self.datatype}, {self.form})"
 
 
@@ -175,13 +256,18 @@ class GOceanGridPropertyArgMetadata:
     access: str
     name: str
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Validate and normalise the grid-property metadata.
+
+        :raises TypeError: if any value has the wrong type.
+        :raises ValueError: if any value is outside the valid vocabulary.
+        """
         const = GOceanConstants()
         object.__setattr__(
             self, "access",
-            _check(
-                self.access, const.VALID_ACCESS_TYPES,
-                "grid-property access"))
+            _normalise(
+                self.access, "grid-property access",
+                const.VALID_ACCESS_TYPES))
         name = _normalise(self.name, "grid-property name")
         properties = Config.get().api_conf("gocean").grid_properties
         if name not in properties:
@@ -191,8 +277,10 @@ class GOceanGridPropertyArgMetadata:
             )
         object.__setattr__(self, "name", name)
 
-    def fortran_string(self):
-        """Return this argument as GOcean constructor syntax."""
+    def fortran_string(self) -> str:
+        """
+        :returns: this argument as a Fortran metadata string.
+        """
         return f"go_arg({self.access}, {self.name})"
 
 
@@ -213,16 +301,21 @@ class GOceanKernelProcedure:
 
 @dataclass(frozen=True, slots=True)
 class GOceanArgDescriptor:
-    """Immutable consumer-facing view of a GOcean metadata argument."""
+    """GOcean argument metadata"""
 
     access: AccessType
     function_space: str
     metadata_index: int
-    stencil: GOceanStencil
+    stencil: GOceanStencilMetadata
     argument_type: str
     grid_prop: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Validate the consumer-facing argument descriptor.
+
+        :raises TypeError: if the access is not an AccessType.
+        :raises InternalError: if the metadata index is invalid.
+        """
         if not isinstance(self.access, AccessType):
             raise TypeError("Descriptor access must be an AccessType.")
         if not isinstance(self.metadata_index, int) or self.metadata_index < 0:
@@ -231,7 +324,10 @@ class GOceanArgDescriptor:
                 f"equal to zero but got: {self.metadata_index}"
             )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """
+        :returns: a concise representation of this descriptor.
+        """
         return (
             f"Descriptor({self.access}, {self.function_space}, "
             f"{self.metadata_index})"
@@ -242,7 +338,7 @@ class GOceanArgDescriptor:
 
 @dataclass(frozen=True, slots=True)
 class GOceanKernelMetadata:
-    """Complete immutable GOcean kernel metadata."""
+    """GOcean kernel metadata."""
 
     iterates_over: str
     index_offset: str
@@ -261,18 +357,24 @@ class GOceanKernelMetadata:
     ScalarArg: ClassVar[type] = GOceanScalarArgMetadata
     GridArg: ClassVar[type] = GOceanGridPropertyArgMetadata
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Validate and normalise the complete kernel metadata.
+
+        :raises TypeError: if any value has the wrong type.
+        :raises ValueError: if a value or Fortran name is invalid.
+        :raises ParseError: if grid properties have no associated field.
+        """
         const = GOceanConstants()
         object.__setattr__(
             self, "iterates_over",
-            _check(
-                self.iterates_over, const.VALID_ITERATES_OVER,
-                "iterates_over"))
+            _normalise(
+                self.iterates_over, "iterates_over",
+                const.VALID_ITERATES_OVER))
         object.__setattr__(
             self, "index_offset",
-            _check(
-                self.index_offset, const.VALID_OFFSET_NAMES,
-                "index_offset"))
+            _normalise(
+                self.index_offset, "index_offset",
+                const.VALID_OFFSET_NAMES))
         object.__setattr__(self, "meta_args", tuple(self.meta_args))
         if any(
             not isinstance(argument, _META_ARG_TYPES)
@@ -302,8 +404,19 @@ class GOceanKernelMetadata:
             )
 
     @classmethod
-    def create_from_psyir(cls, symbol):
-        """Create metadata from a language-level PSyIR type symbol."""
+    def create_from_psyir(
+        cls, symbol: DataTypeSymbol
+    ) -> "GOceanKernelMetadata":
+        """Create metadata from a language-level PSyIR type symbol.
+
+        :param symbol: the symbol containing the metadata declaration.
+
+        :returns: the parsed GOcean kernel metadata.
+
+        :raises TypeError: if ``symbol`` is not a DataTypeSymbol.
+        :raises InternalError: if its datatype is not unsupported Fortran.
+        :raises ParseError: if the metadata declaration is invalid.
+        """
         if not isinstance(symbol, DataTypeSymbol):
             raise TypeError(
                 f"Expected a DataTypeSymbol but found "
@@ -324,8 +437,19 @@ class GOceanKernelMetadata:
             ) from err
 
     @classmethod
-    def create_from_kernel_psyir(cls, psyir, name=None):
-        """Extract the unique named GOcean metadata from complete PSyIR."""
+    def create_from_kernel_psyir(
+        cls, psyir: Node, name: Optional[str] = None
+    ) -> "GOceanKernelMetadata":
+        """Extract the unique named GOcean metadata from complete PSyIR.
+
+        :param psyir: the complete PSyIR containing the kernel.
+        :param name: optional name of the metadata type to extract.
+
+        :returns: the extracted GOcean kernel metadata.
+
+        :raises TypeError: if ``psyir`` is not a PSyIR tree.
+        :raises ParseError: if the metadata or implementation is not found.
+        """
         container, symbol, _ = find_metadata_symbol(psyir, name)
         metadata = cls.create_from_psyir(symbol)
         routines = [
@@ -347,8 +471,19 @@ class GOceanKernelMetadata:
         )
 
     @classmethod
-    def create_from_fortran_string(cls, source):
-        """Create metadata by first translating its declaration to PSyIR."""
+    def create_from_fortran_string(
+        cls, source: str
+    ) -> "GOceanKernelMetadata":
+        """Create metadata by first translating its declaration to PSyIR.
+
+        :param source: the Fortran metadata declaration.
+
+        :returns: the parsed GOcean kernel metadata.
+
+        :raises TypeError: if ``source`` is not a string.
+        :raises ValueError: if the source cannot be translated to PSyIR.
+        :raises ParseError: if it does not contain exactly one declaration.
+        """
         if not isinstance(source, str):
             raise TypeError("GOcean metadata source must be a string.")
         wrapped = f"module metadata_mod\n{source}\nend module metadata_mod\n"
@@ -376,13 +511,17 @@ class GOceanKernelMetadata:
         return cls.create_from_psyir(symbols[0])
 
     @property
-    def _ast(self):
-        """Return the complete language-level PSyIR retained by the parser."""
+    def _ast(self) -> Optional[Node]:
+        """
+        :returns: the language-level PSyIR retained by the parser, if any.
+        """
         return self.psyir
 
     @property
-    def procedure(self):
-        """Return the kernel procedure information."""
+    def procedure(self) -> GOceanKernelProcedure:
+        """
+        :returns: the kernel procedure information.
+        """
         implementation = None
         if self.psyir is not None:
             matches = [
@@ -394,8 +533,10 @@ class GOceanKernelMetadata:
         return GOceanKernelProcedure(self.procedure_name, implementation)
 
     @property
-    def arg_descriptors(self):
-        """Return immutable descriptors consumed by the GOcean PSy layer."""
+    def arg_descriptors(self) -> tuple[GOceanArgDescriptor, ...]:
+        """
+        :returns: a descriptor for each metadata argument.
+        """
         const = GOceanConstants()
         descriptors = []
         for index, argument in enumerate(self.meta_args):
@@ -415,7 +556,7 @@ class GOceanKernelMetadata:
                         const.ACCESS_MAPPING[argument.access],
                         argument.datatype,
                         index,
-                        GOceanStencil(),
+                        GOceanStencilMetadata(),
                         "scalar",
                     )
                 )
@@ -425,7 +566,7 @@ class GOceanKernelMetadata:
                         const.ACCESS_MAPPING[argument.access],
                         "",
                         index,
-                        GOceanStencil(),
+                        GOceanStencilMetadata(),
                         "grid_property",
                         argument.name,
                     )
@@ -433,15 +574,19 @@ class GOceanKernelMetadata:
         return tuple(descriptors)
 
     @property
-    def nargs(self):
-        """Return the number of arguments supplied by the algorithm layer."""
+    def nargs(self) -> int:
+        """
+        :returns: the number of arguments supplied by the algorithm layer.
+        """
         return sum(
             not isinstance(argument, GOceanGridPropertyArgMetadata)
             for argument in self.meta_args
         )
 
-    def fortran_string(self):
-        """Return this metadata as a Fortran derived-type declaration."""
+    def fortran_string(self) -> str:
+        """
+        :returns: this metadata as a Fortran derived-type declaration.
+        """
         arguments = ", &\n".join(
             f"    {argument.fortran_string()}"
             for argument in self.meta_args
@@ -457,20 +602,32 @@ class GOceanKernelMetadata:
             f"END TYPE {self.name}\n"
         )
 
-    def lower_to_psyir(self):
-        """Return the language-level PSyIR symbol for this metadata."""
+    def lower_to_psyir(self) -> DataTypeSymbol:
+        """
+        :returns: the language-level PSyIR symbol for this metadata.
+        """
         return DataTypeSymbol(
             self.name, UnsupportedFortranType(self.fortran_string()))
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """
+        :returns: a concise description of this kernel metadata.
+        """
         return (
             f"GOcean kernel {self.name}, index-offset = "
             f"{self.index_offset}, iterates-over = {self.iterates_over}"
         )
 
 
-def _expression(source):
-    """Parse one metadata initializer into PSyIR."""
+def _expression(source: str) -> Node:
+    """Parse one metadata initializer into PSyIR.
+
+    :param source: the metadata expression to parse.
+
+    :returns: the PSyIR representation of the expression.
+
+    :raises ParseError: if the expression cannot be parsed.
+    """
     try:
         return FortranReader().psyir_from_expression(source)
     except Exception as err:
@@ -479,8 +636,15 @@ def _expression(source):
         ) from err
 
 
-def _call_name(node):
-    """Return the lower-case routine name for one PSyIR call."""
+def _call_name(node: Node) -> str:
+    """Return the lower-case routine name for one PSyIR call.
+
+    :param node: the node expected to contain a call.
+
+    :returns: the lower-case name of the called routine.
+
+    :raises ParseError: if ``node`` is not a Call.
+    """
     if not isinstance(node, Call):
         raise ParseError(
             f"Expected a metadata constructor but found "
@@ -489,8 +653,15 @@ def _call_name(node):
     return node.routine.symbol.name.lower()
 
 
-def _name(node):
-    """Return a scalar metadata name or literal."""
+def _name(node: Node) -> str:
+    """Return a scalar metadata name or literal.
+
+    :param node: the node containing the metadata value.
+
+    :returns: the lower-case metadata value.
+
+    :raises ParseError: if the node is not a Reference or Literal.
+    """
     if isinstance(node, Reference):
         return node.symbol.name.lower()
     if isinstance(node, Literal):
@@ -501,8 +672,22 @@ def _name(node):
     )
 
 
-def _parse_meta_arg(node):
-    """Convert one go_arg PSyIR constructor to typed metadata."""
+def _parse_meta_arg(
+    node: Node,
+) -> (
+    GOceanFieldArgMetadata
+    | GOceanScalarArgMetadata
+    | GOceanGridPropertyArgMetadata
+):
+    """Convert one go_arg PSyIR constructor to typed metadata.
+
+    :param node: the ``go_arg`` constructor to convert.
+
+    :returns: the typed metadata for the argument.
+
+    :raises ParseError: if the constructor structure is invalid.
+    :raises ValueError: if a field access form is invalid.
+    """
     if _call_name(node) != "go_arg":
         raise ParseError(
             "Each meta_args entry must use the go_arg constructor."
@@ -526,7 +711,7 @@ def _parse_meta_arg(node):
                     "A field metadata call must use go_stencil."
                 )
             rows = tuple(_name(value) for value in form.arguments)
-            stencil = GOceanStencil(rows)
+            stencil = GOceanStencilMetadata(rows)
         else:
             value = _name(form)
             if value not in const.VALID_STENCIL_NAMES:
@@ -535,7 +720,7 @@ def _parse_meta_arg(node):
                     f"{const.VALID_STENCIL_NAMES} or "
                     f"{const.VALID_STENCIL_NAME} but found '{value}'."
                 )
-            stencil = GOceanStencil()
+            stencil = GOceanStencilMetadata()
         return GOceanFieldArgMetadata(access, second, stencil)
     if second in const.VALID_SCALAR_TYPES:
         return GOceanScalarArgMetadata(
@@ -546,8 +731,15 @@ def _parse_meta_arg(node):
     )
 
 
-def _component_initializers(declaration):
-    """Return component initializers from a normalised declaration."""
+def _component_initializers(
+    declaration: str,
+) -> dict[str, tuple[str, str]]:
+    """Return component initializers from a normalised declaration.
+
+    :param declaration: the Fortran metadata declaration.
+
+    :returns: component names mapped to their source lines and initializers.
+    """
     result = {}
     for line in declaration.splitlines():
         if "=" not in line or "::" not in line:
@@ -561,16 +753,31 @@ def _component_initializers(declaration):
     return result
 
 
-def _extent(line):
-    """Return a literal declared rank-one extent."""
+def _extent(line: str) -> Optional[int]:
+    """Return a literal declared rank-one extent.
+
+    :param line: the declaration line to inspect.
+
+    :returns: the declared extent, or ``None`` if none is found.
+    """
     match = re.search(r"(?i)\bdimension\s*\(\s*(\d+)\s*\)", line)
     if not match:
         match = re.search(r"(?i)\bmeta_args\s*\(\s*(\d+)\s*\)", line)
     return int(match.group(1)) if match else None
 
 
-def _metadata_from_declaration(name, declaration):
-    """Create GOcean metadata from an UnsupportedFortranType declaration."""
+def _metadata_from_declaration(
+    name: str, declaration: str
+) -> GOceanKernelMetadata:
+    """Create metadata from an UnsupportedFortranType declaration.
+
+    :param name: the name of the metadata type.
+    :param declaration: its Fortran declaration.
+
+    :returns: the parsed GOcean kernel metadata.
+
+    :raises ParseError: if the declaration is incomplete or invalid.
+    """
     compact_header = declaration.splitlines()[0].lower().replace(" ", "")
     if "extends(kernel_type)" not in compact_header:
         raise ParseError("GOcean kernel metadata must extend kernel_type.")
@@ -618,8 +825,15 @@ def _metadata_from_declaration(name, declaration):
     )
 
 
-def _module_containers(psyir):
-    """Return module containers from complete PSyIR."""
+def _module_containers(psyir: Node) -> list[Container]:
+    """Return module containers from complete PSyIR.
+
+    :param psyir: the PSyIR tree to search.
+
+    :returns: all module containers in the tree.
+
+    :raises TypeError: if ``psyir`` is not a PSyIR tree.
+    """
     if not hasattr(psyir, "walk"):
         raise TypeError(
             f"Expected PSyIR but found '{type(psyir).__name__}'."
@@ -631,8 +845,19 @@ def _module_containers(psyir):
     ]
 
 
-def find_metadata_symbol(psyir, name=None):
-    """Find one unique GOcean metadata type symbol in complete PSyIR."""
+def find_metadata_symbol(
+    psyir: Node, name: Optional[str] = None
+) -> tuple[Container, DataTypeSymbol, str]:
+    """Find one unique GOcean metadata type symbol in complete PSyIR.
+
+    :param psyir: the PSyIR tree to search.
+    :param name: optional metadata type name to match.
+
+    :returns: the containing module, metadata symbol and symbol name.
+
+    :raises TypeError: if ``psyir`` is not a PSyIR tree.
+    :raises ParseError: if matching metadata is absent or not unique.
+    """
     candidates = []
     for container in _module_containers(psyir):
         for symbol in container.symbol_table.symbols:

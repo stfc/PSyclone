@@ -29,7 +29,7 @@ from psyclone.core import Signature
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.gocean import GOceanConstants, GOSymbolTable
 from psyclone.domain.gocean.kernel import (
-    GOceanArgDescriptor, GOceanKernelMetadata, GOceanStencil)
+    GOceanArgDescriptor, GOceanKernelMetadata, GOceanStencilMetadata)
 from psyclone.errors import GenerationError, InternalError
 import psyclone.expression as expr
 from psyclone.parse.algorithm import Arg, KernelCall
@@ -1275,7 +1275,7 @@ class GOKernelArguments(Arguments):
             AccessType.READ,
             argument_type,
             len(self.args),
-            GOceanStencil(),
+            GOceanStencilMetadata(),
             "scalar",
         )
 

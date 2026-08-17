@@ -14,7 +14,8 @@ import pytest
 from psyclone.core import AccessType
 from psyclone.configuration import Config
 from psyclone.domain.gocean import GOSymbolTable
-from psyclone.domain.gocean.kernel import GOceanArgDescriptor, GOceanStencil
+from psyclone.domain.gocean.kernel import (
+    GOceanArgDescriptor, GOceanStencilMetadata)
 from psyclone.errors import InternalError, GenerationError
 from psyclone.gocean1p0 import GOKernelArgument, GOKernelArguments
 from psyclone.parse.algorithm import Arg
@@ -237,7 +238,7 @@ def test_gokernelargument_type():
 
     # Create a dummy GOKernelArgument
     descriptor = GOceanArgDescriptor(
-        AccessType.READ, "go_r_scalar", 0, GOceanStencil(), "scalar")
+        AccessType.READ, "go_r_scalar", 0, GOceanStencilMetadata(), "scalar")
     arg = Arg("variable", "arg", "arg")
     argument = GOKernelArgument(descriptor, arg, dummy_node)
 

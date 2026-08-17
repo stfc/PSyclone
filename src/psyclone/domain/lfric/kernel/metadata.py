@@ -8,7 +8,7 @@
 
 from dataclasses import dataclass, field
 import re
-from typing import ClassVar, Optional
+from typing import ClassVar, Iterable, Optional, TypeAlias
 
 from psyclone.core import AccessType
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
@@ -21,6 +21,7 @@ from psyclone.psyir.nodes import (
     Container,
     FileContainer,
     Literal,
+    Node,
     Reference,
     Routine,
 )
@@ -34,20 +35,29 @@ from psyclone.psyir.symbols import (
 # pylint: disable=too-many-instance-attributes,too-many-lines
 
 
-def _normalise(value, description):
-    """Validate and lower-case one metadata name."""
+def _normalise(
+    value: str,
+    description: str,
+    valid_values: Optional[Iterable[str]] = None,
+) -> str:
+    """Validate and lower-case one metadata name.
+
+    :param value: the value to normalise.
+    :param description: a textual description of the value.
+    :param valid_values: an optional collection of permitted values.
+
+    :returns: the validated, lower-case value.
+
+    :raises TypeError: if the value is not a string.
+    :raises ValueError: if the value is not one of the valid values.
+    """
     if not isinstance(value, str):
         raise TypeError(
             f"Expected {description} to be a string but found "
             f"'{type(value).__name__}'."
         )
-    return value.lower()
-
-
-def _check_value(value, valid_values, description):
-    """Validate one scalar metadata value."""
-    value = _normalise(value, description)
-    if value not in valid_values:
+    value = value.lower()
+    if valid_values and value not in valid_values:
         raise ValueError(
             f"Expected {description} to be one of {valid_values} but found "
             f"'{value}'."
@@ -64,24 +74,29 @@ class ScalarArgMetadata:
     form: ClassVar[str] = "gh_scalar"
     check_name: ClassVar[str] = "scalar"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Validate and normalise the scalar metadata.
+
+        :raises TypeError: if a value has the wrong type.
+        :raises ValueError: if a value is invalid.
+        """
         const = LFRicConstants()
         object.__setattr__(
             self,
             "datatype",
-            _check_value(
+            _normalise(
                 self.datatype,
-                const.VALID_SCALAR_DATA_TYPES,
                 "scalar datatype descriptor",
+                const.VALID_SCALAR_DATA_TYPES,
             ),
         )
         object.__setattr__(
             self,
             "access",
-            _check_value(
+            _normalise(
                 self.access,
-                const.VALID_SCALAR_ACCESS_TYPES,
                 "scalar access descriptor",
+                const.VALID_SCALAR_ACCESS_TYPES,
             ),
         )
         if self.access == "gh_reduction" and self.datatype != "gh_real":
@@ -89,8 +104,10 @@ class ScalarArgMetadata:
                 "Reduction access is only valid for a real scalar argument."
             )
 
-    def fortran_string(self):
-        """Return this descriptor as Fortran constructor syntax."""
+    def fortran_string(self) -> str:
+        """
+        :returns: this descriptor as Fortran constructor syntax.
+        """
         return f"arg_type({self.form}, {self.datatype}, {self.access})"
 
 
@@ -104,24 +121,29 @@ class ScalarArrayArgMetadata:
     form: ClassVar[str] = "gh_scalar_array"
     check_name: ClassVar[str] = "array"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Validate and normalise the scalar-array metadata.
+
+        :raises TypeError: if a value has the wrong type.
+        :raises ValueError: if a value is invalid.
+        """
         const = LFRicConstants()
         object.__setattr__(
             self,
             "datatype",
-            _check_value(
+            _normalise(
                 self.datatype,
-                const.VALID_ARRAY_DATA_TYPES,
                 "scalar-array datatype descriptor",
+                const.VALID_ARRAY_DATA_TYPES,
             ),
         )
         object.__setattr__(
             self,
             "access",
-            _check_value(
+            _normalise(
                 self.access,
-                const.VALID_ARRAY_ACCESS_TYPES,
                 "scalar-array access descriptor",
+                const.VALID_ARRAY_ACCESS_TYPES,
             ),
         )
         if not isinstance(self.array_ndims, int) or self.array_ndims < 1:
@@ -130,8 +152,10 @@ class ScalarArrayArgMetadata:
                 "greater than or equal to one."
             )
 
-    def fortran_string(self):
-        """Return this descriptor as Fortran constructor syntax."""
+    def fortran_string(self) -> str:
+        """
+        :returns: this descriptor as Fortran constructor syntax.
+        """
         return (
             f"arg_type({self.form}, {self.datatype}, {self.access}, "
             f"{self.array_ndims})"
@@ -151,43 +175,48 @@ class FieldArgMetadata:
     form: ClassVar[str] = "gh_field"
     check_name: ClassVar[str] = "field"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Validate and normalise the field metadata.
+
+        :raises TypeError: if a value has the wrong type.
+        :raises ValueError: if a value is invalid.
+        """
         const = LFRicConstants()
         object.__setattr__(
             self,
             "datatype",
-            _check_value(
+            _normalise(
                 self.datatype,
-                const.VALID_FIELD_DATA_TYPES,
                 "field datatype descriptor",
+                const.VALID_FIELD_DATA_TYPES,
             ),
         )
         object.__setattr__(
             self,
             "access",
-            _check_value(
+            _normalise(
                 self.access,
-                const.VALID_FIELD_ACCESS_TYPES,
                 "field access descriptor",
+                const.VALID_FIELD_ACCESS_TYPES,
             ),
         )
         object.__setattr__(
             self,
             "function_space",
-            _check_value(
+            _normalise(
                 self.function_space,
-                const.VALID_FUNCTION_SPACE_NAMES,
                 "field function space",
+                const.VALID_FUNCTION_SPACE_NAMES,
             ),
         )
         if self.stencil is not None:
             object.__setattr__(
                 self,
                 "stencil",
-                _check_value(
+                _normalise(
                     self.stencil,
-                    const.VALID_STENCIL_TYPES,
                     "stencil type",
+                    const.VALID_STENCIL_TYPES,
                 ),
             )
         if self.nlevels is not None:
@@ -201,8 +230,10 @@ class FieldArgMetadata:
                 self, "ndata", _normalise(str(self.ndata), "ndata")
             )
 
-    def fortran_string(self):
-        """Return this descriptor as Fortran constructor syntax."""
+    def fortran_string(self) -> str:
+        """
+        :returns: this descriptor as Fortran constructor syntax.
+        """
         result = (
             f"arg_type({self.form}, {self.datatype}, {self.access}, "
             f"{self.function_space}"
@@ -230,7 +261,12 @@ class FieldVectorArgMetadata:
     form: ClassVar[str] = "gh_field"
     check_name: ClassVar[str] = "field-vector"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Validate and normalise the field-vector metadata.
+
+        :raises TypeError: if a field value has the wrong type.
+        :raises ValueError: if a value or vector length is invalid.
+        """
         field_metadata = FieldArgMetadata(
             self.datatype,
             self.access,
@@ -259,8 +295,10 @@ class FieldVectorArgMetadata:
             raise ValueError("Vector length must be greater than one.")
         object.__setattr__(self, "vector_length", str(length))
 
-    def fortran_string(self):
-        """Return this descriptor as Fortran constructor syntax."""
+    def fortran_string(self) -> str:
+        """
+        :returns: this descriptor as Fortran constructor syntax.
+        """
         result = (
             f"arg_type({self.form}*{self.vector_length}, {self.datatype}, "
             f"{self.access}, {self.function_space}"
@@ -288,7 +326,12 @@ class InterGridArgMetadata:
     form: ClassVar[str] = "gh_field"
     check_name: ClassVar[str] = "inter-grid"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Validate and normalise the inter-grid field metadata.
+
+        :raises TypeError: if a value has the wrong type.
+        :raises ValueError: if a value is invalid.
+        """
         field_metadata = FieldArgMetadata(
             self.datatype,
             self.access,
@@ -310,13 +353,15 @@ class InterGridArgMetadata:
         object.__setattr__(
             self,
             "mesh_arg",
-            _check_value(
-                self.mesh_arg, const.VALID_MESH_TYPES, "mesh_arg"
+            _normalise(
+                self.mesh_arg, "mesh_arg", const.VALID_MESH_TYPES
             ),
         )
 
-    def fortran_string(self):
-        """Return this descriptor as Fortran constructor syntax."""
+    def fortran_string(self) -> str:
+        """
+        :returns: this descriptor as Fortran constructor syntax.
+        """
         result = FieldArgMetadata(
             self.datatype,
             self.access,
@@ -343,7 +388,12 @@ class InterGridVectorArgMetadata:
     form: ClassVar[str] = "gh_field"
     check_name: ClassVar[str] = "inter-grid-vector"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Validate and normalise the inter-grid vector metadata.
+
+        :raises TypeError: if a value has the wrong type.
+        :raises ValueError: if a value is invalid.
+        """
         vector_metadata = FieldVectorArgMetadata(
             self.datatype,
             self.access,
@@ -367,13 +417,15 @@ class InterGridVectorArgMetadata:
         object.__setattr__(
             self,
             "mesh_arg",
-            _check_value(
-                self.mesh_arg, const.VALID_MESH_TYPES, "mesh_arg"
+            _normalise(
+                self.mesh_arg, "mesh_arg", const.VALID_MESH_TYPES
             ),
         )
 
-    def fortran_string(self):
-        """Return this descriptor as Fortran constructor syntax."""
+    def fortran_string(self) -> str:
+        """
+        :returns: this descriptor as Fortran constructor syntax.
+        """
         result = FieldVectorArgMetadata(
             self.datatype,
             self.access,
@@ -397,39 +449,46 @@ class OperatorArgMetadata:
     form: ClassVar[str] = "gh_operator"
     check_name: ClassVar[str] = "operator"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Validate and normalise the operator metadata.
+
+        :raises TypeError: if a value has the wrong type.
+        :raises ValueError: if a value is invalid.
+        """
         const = LFRicConstants()
         object.__setattr__(
             self,
             "datatype",
-            _check_value(
+            _normalise(
                 self.datatype,
-                const.VALID_OPERATOR_DATA_TYPES,
                 "operator datatype descriptor",
+                const.VALID_OPERATOR_DATA_TYPES,
             ),
         )
         object.__setattr__(
             self,
             "access",
-            _check_value(
+            _normalise(
                 self.access,
-                const.VALID_OPERATOR_ACCESS_TYPES,
                 "operator access descriptor",
+                const.VALID_OPERATOR_ACCESS_TYPES,
             ),
         )
         for name in ("function_space_to", "function_space_from"):
             object.__setattr__(
                 self,
                 name,
-                _check_value(
+                _normalise(
                     getattr(self, name),
-                    const.VALID_FUNCTION_SPACE_NAMES,
                     name,
+                    const.VALID_FUNCTION_SPACE_NAMES,
                 ),
             )
 
-    def fortran_string(self):
-        """Return this descriptor as Fortran constructor syntax."""
+    def fortran_string(self) -> str:
+        """
+        :returns: this descriptor as Fortran constructor syntax.
+        """
         return (
             f"arg_type({self.form}, {self.datatype}, {self.access}, "
             f"{self.function_space_to}, {self.function_space_from})"
@@ -452,15 +511,20 @@ class MetaFuncsArgMetadata:
     basis_function: bool = False
     diff_basis_function: bool = False
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Validate and normalise the meta-functions metadata.
+
+        :raises TypeError: if a value has the wrong type.
+        :raises ValueError: if a value or flag combination is invalid.
+        """
         const = LFRicConstants()
         object.__setattr__(
             self,
             "function_space",
-            _check_value(
+            _normalise(
                 self.function_space,
-                const.VALID_FUNCTION_SPACE_NAMES,
                 "meta_funcs function space",
+                const.VALID_FUNCTION_SPACE_NAMES,
             ),
         )
         if not isinstance(self.basis_function, bool) or not isinstance(
@@ -472,8 +536,10 @@ class MetaFuncsArgMetadata:
                 "At least one basis-function flag must be true."
             )
 
-    def fortran_string(self):
-        """Return this descriptor as Fortran constructor syntax."""
+    def fortran_string(self) -> str:
+        """
+        :returns: this descriptor as Fortran constructor syntax.
+        """
         values = [self.function_space]
         if self.basis_function:
             values.append("gh_basis")
@@ -488,20 +554,27 @@ class MetaRefElementArgMetadata:
 
     reference_element: str
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Validate and normalise the reference-element metadata.
+
+        :raises TypeError: if the property is not a string.
+        :raises ValueError: if the property is invalid.
+        """
         const = LFRicConstants()
         object.__setattr__(
             self,
             "reference_element",
-            _check_value(
+            _normalise(
                 self.reference_element,
-                const.VALID_REF_ELEMENT_NAMES,
                 "reference-element property",
+                const.VALID_REF_ELEMENT_NAMES,
             ),
         )
 
-    def fortran_string(self):
-        """Return this descriptor as Fortran constructor syntax."""
+    def fortran_string(self) -> str:
+        """
+        :returns: this descriptor as Fortran constructor syntax.
+        """
         return (
             f"reference_element_data_type({self.reference_element})"
         )
@@ -513,20 +586,38 @@ class MetaMeshArgMetadata:
 
     mesh: str
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Validate and normalise the mesh-property metadata.
+
+        :raises TypeError: if the property is not a string.
+        :raises ValueError: if the property is invalid.
+        """
         const = LFRicConstants()
         object.__setattr__(
             self,
             "mesh",
-            _check_value(
-                self.mesh, const.VALID_MESH_NAMES, "mesh property"
+            _normalise(
+                self.mesh, "mesh property", const.VALID_MESH_NAMES
             ),
         )
 
-    def fortran_string(self):
-        """Return this descriptor as Fortran constructor syntax."""
+    def fortran_string(self) -> str:
+        """
+        :returns: this descriptor as Fortran constructor syntax.
+        """
         return f"mesh_data_type({self.mesh})"
 
+
+KernelArgumentMetadata: TypeAlias = (
+    ScalarArgMetadata
+    | ScalarArrayArgMetadata
+    | FieldArgMetadata
+    | FieldVectorArgMetadata
+    | InterGridArgMetadata
+    | InterGridVectorArgMetadata
+    | OperatorArgMetadata
+    | ColumnwiseOperatorArgMetadata
+)
 
 _ARG_TYPES = (
     ScalarArgMetadata,
@@ -547,14 +638,19 @@ class LFRicKernelMetadata:
     operates_on: Optional[str] = None
     shapes: tuple[str, ...] = ()
     evaluator_targets: tuple[str, ...] = ()
-    meta_args: tuple[object, ...] = ()
+    meta_args: tuple[KernelArgumentMetadata, ...] = ()
     meta_funcs: tuple[MetaFuncsArgMetadata, ...] = ()
     meta_ref_element: tuple[MetaRefElementArgMetadata, ...] = ()
     meta_mesh: tuple[MetaMeshArgMetadata, ...] = ()
     procedure_name: Optional[str] = None
     name: Optional[str] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Validate and normalise the complete kernel metadata.
+
+        :raises TypeError: if a collection or its entries have wrong types.
+        :raises ValueError: if a value or Fortran name is invalid.
+        """
         const = LFRicConstants()
         for name in (
             "shapes",
@@ -572,20 +668,20 @@ class LFRicKernelMetadata:
             object.__setattr__(
                 self,
                 "operates_on",
-                _check_value(
+                _normalise(
                     self.operates_on,
-                    const.VALID_ITERATION_SPACES,
                     "operates_on",
+                    const.VALID_ITERATION_SPACES,
                 ),
             )
         object.__setattr__(
             self,
             "shapes",
             tuple(
-                _check_value(
+                _normalise(
                     value,
-                    const.VALID_EVALUATOR_SHAPES,
                     "evaluator shape",
+                    const.VALID_EVALUATOR_SHAPES,
                 )
                 for value in self.shapes
             ),
@@ -594,10 +690,10 @@ class LFRicKernelMetadata:
             self,
             "evaluator_targets",
             tuple(
-                _check_value(
+                _normalise(
                     value,
-                    const.VALID_FUNCTION_SPACE_NAMES,
                     "evaluator target",
+                    const.VALID_FUNCTION_SPACE_NAMES,
                 )
                 for value in self.evaluator_targets
             ),
@@ -617,8 +713,18 @@ class LFRicKernelMetadata:
             FortranReader.validate_name(self.name)
 
     @classmethod
-    def create_from_psyir(cls, symbol):
-        """Create typed metadata from a PSyIR DataTypeSymbol."""
+    def create_from_psyir(
+        cls, symbol: DataTypeSymbol
+    ) -> "LFRicKernelMetadata":
+        """Create typed metadata from a PSyIR DataTypeSymbol.
+
+        :param symbol: the symbol containing the metadata declaration.
+
+        :returns: the parsed language-level kernel metadata.
+
+        :raises TypeError: if the symbol or its datatype is invalid.
+        :raises ParseError: if the metadata declaration is invalid.
+        """
         if not isinstance(symbol, DataTypeSymbol):
             raise TypeError(
                 f"Expected a DataTypeSymbol but found "
@@ -634,8 +740,13 @@ class LFRicKernelMetadata:
         )
 
     @property
-    def kernel_type(self):
-        """Validate and return the inferred LFRic kernel category."""
+    def kernel_type(self) -> str:
+        """Validate and return the inferred LFRic kernel category.
+
+        :returns: the kernel category.
+
+        :raises ParseError: if constraints for that category are violated.
+        """
         if any(
             isinstance(arg, (InterGridArgMetadata,
                              InterGridVectorArgMetadata))
@@ -654,8 +765,11 @@ class LFRicKernelMetadata:
             return "domain"
         return "general-purpose"
 
-    def _validate_generic(self):
-        """Validate constraints shared by ordinary kernels."""
+    def _validate_generic(self) -> None:
+        """Validate constraints shared by ordinary kernels.
+
+        :raises ParseError: if a generic constraint is violated.
+        """
         field_types = (
             FieldArgMetadata,
             FieldVectorArgMetadata,
@@ -682,8 +796,11 @@ class LFRicKernelMetadata:
                         "real-valued field arguments."
                     )
 
-    def _validate_domain(self):
-        """Validate domain-kernel constraints."""
+    def _validate_domain(self) -> None:
+        """Validate domain-kernel constraints.
+
+        :raises ParseError: if a domain-kernel constraint is violated.
+        """
         valid_types = (
             ScalarArgMetadata,
             FieldArgMetadata,
@@ -699,8 +816,11 @@ class LFRicKernelMetadata:
                 "properties."
             )
 
-    def _validate_intergrid(self):
-        """Validate inter-grid constraints."""
+    def _validate_intergrid(self) -> None:
+        """Validate inter-grid constraints.
+
+        :raises ParseError: if an inter-grid constraint is violated.
+        """
         if self.operates_on != "cell_column":
             raise ParseError(
                 "An inter-grid kernel must operate on cell_column."
@@ -734,8 +854,13 @@ class LFRicKernelMetadata:
                 "function spaces."
             )
 
-    def _validate_cma(self):
-        """Validate and identify a CMA operation."""
+    def _validate_cma(self) -> str:
+        """Validate and identify a CMA operation.
+
+        :returns: the type of CMA operation.
+
+        :raises ParseError: if a CMA constraint is violated.
+        """
         # Exact concrete types distinguish LMA operators and scalar fields
         # from their specialised records.
         # pylint: disable=unidiomatic-typecheck
@@ -805,15 +930,30 @@ class LFRicKernelMetadata:
             )
         return "cma-matrix-matrix"
 
-    def meta_args_get(self, types):
-        """Return meta_args entries whose concrete types match."""
+    def meta_args_get(
+        self, types: type | list[type]
+    ) -> list[KernelArgumentMetadata]:
+        """Return meta_args entries whose concrete types match.
+
+        :param types: the concrete type or types to match.
+
+        :returns: the matching metadata arguments.
+        """
         requested = tuple(types) if isinstance(types, list) else (types,)
         return [
             arg for arg in self.meta_args if type(arg) in requested
         ]
 
-    def field_meta_args_on_fs(self, types, function_space):
-        """Return field arguments of the requested types on a space."""
+    def field_meta_args_on_fs(
+        self, types: type | list[type], function_space: str
+    ) -> list[KernelArgumentMetadata]:
+        """Return field arguments of the requested types on a space.
+
+        :param types: the concrete field type or types to match.
+        :param function_space: the function space to match.
+
+        :returns: the matching field metadata arguments.
+        """
         requested = tuple(types) if isinstance(types, list) else (types,)
         return [
             argument
@@ -822,8 +962,16 @@ class LFRicKernelMetadata:
             and argument.function_space == function_space
         ]
 
-    def operator_meta_args_on_fs(self, types, function_space):
-        """Return operators connected to the supplied function space."""
+    def operator_meta_args_on_fs(
+        self, types: type | list[type], function_space: str
+    ) -> list[KernelArgumentMetadata]:
+        """Return operators connected to the supplied function space.
+
+        :param types: the concrete operator type or types to match.
+        :param function_space: the function space to match.
+
+        :returns: the matching operator metadata arguments.
+        """
         requested = tuple(types) if isinstance(types, list) else (types,)
         return [
             argument
@@ -835,18 +983,36 @@ class LFRicKernelMetadata:
             )
         ]
 
-    def validate(self):
-        """Validate all kernel-category constraints."""
+    def validate(self) -> None:
+        """Validate all kernel-category constraints.
+
+        :raises ParseError: if a kernel-category constraint is violated.
+        """
         _ = self.kernel_type
 
-    def fortran_string(self):
-        """Return this metadata as a Fortran derived-type declaration."""
+    def fortran_string(self) -> str:
+        """Return this metadata as a Fortran derived-type declaration.
+
+        :returns: this metadata as Fortran source.
+
+        :raises ValueError: if required metadata is missing.
+        """
         if not self.operates_on or not self.meta_args or not self.name:
             raise ValueError(
                 "operates_on, meta_args and name are required."
             )
 
-        def array_declaration(type_name, name, entries):
+        def array_declaration(
+            type_name: str, name: str, entries: tuple[object, ...]
+        ) -> str:
+            """Create one Fortran metadata-array declaration.
+
+            :param type_name: the Fortran type of each entry.
+            :param name: the metadata component name.
+            :param entries: the metadata entries to serialise.
+
+            :returns: the Fortran array declaration.
+            """
             values = ", ".join(entry.fortran_string() for entry in entries)
             return (
                 f"  TYPE({type_name}), DIMENSION({len(entries)}) :: "
@@ -894,15 +1060,24 @@ class LFRicKernelMetadata:
             )
         return result + f"END TYPE {self.name}\n"
 
-    def lower_to_psyir(self):
-        """Return the language-level PSyIR symbol for this metadata."""
+    def lower_to_psyir(self) -> DataTypeSymbol:
+        """
+        :returns: the language-level PSyIR symbol for this metadata.
+        """
         return DataTypeSymbol(
             self.name, UnsupportedFortranType(self.fortran_string())
         )
 
 
-def _expression(source):
-    """Parse one metadata initializer into PSyIR."""
+def _expression(source: str) -> Node:
+    """Parse one metadata initializer into PSyIR.
+
+    :param source: the metadata expression to parse.
+
+    :returns: the PSyIR representation of the expression.
+
+    :raises ParseError: if the expression cannot be parsed.
+    """
     try:
         return FortranReader().psyir_from_expression(source)
     except Exception as err:
@@ -911,8 +1086,15 @@ def _expression(source):
         ) from err
 
 
-def _call_name(node):
-    """Return the lower-case routine name of a PSyIR Call."""
+def _call_name(node: Node) -> str:
+    """Return the lower-case routine name of a PSyIR Call.
+
+    :param node: the node expected to contain a call.
+
+    :returns: the lower-case name of the called routine.
+
+    :raises ParseError: if ``node`` is not a Call.
+    """
     if not isinstance(node, Call):
         raise ParseError(
             f"Expected a metadata constructor but found "
@@ -921,8 +1103,15 @@ def _call_name(node):
     return node.routine.symbol.name.lower()
 
 
-def _name(node):
-    """Return a metadata scalar represented by a Reference or Literal."""
+def _name(node: Node) -> str:
+    """Return a metadata scalar represented by a Reference or Literal.
+
+    :param node: the node containing the metadata value.
+
+    :returns: the lower-case metadata value.
+
+    :raises ParseError: if the node is not a Reference or Literal.
+    """
     if isinstance(node, Reference):
         return node.symbol.name.lower()
     if isinstance(node, Literal):
@@ -933,15 +1122,31 @@ def _name(node):
     )
 
 
-def _array_values(node):
-    """Return the children of an array constructor or one scalar."""
+def _array_values(node: Node) -> tuple[Node, ...]:
+    """Return the children of an array constructor or one scalar.
+
+    :param node: an array constructor or scalar node.
+
+    :returns: the array elements or a tuple containing the scalar.
+    """
     if isinstance(node, ArrayConstructor):
         return tuple(node.children)
     return (node,)
 
 
-def _parse_arg(node):
-    """Convert one PSyIR arg_type constructor into typed metadata."""
+def _parse_arg(
+    node: Node,
+) -> KernelArgumentMetadata:
+    """Convert one PSyIR arg_type constructor into typed metadata.
+
+    :param node: the ``arg_type`` constructor to convert.
+
+    :returns: the typed metadata for the argument.
+
+    :raises ParseError: if the constructor structure is invalid.
+    :raises NotImplementedError: if it specifies a fixed stencil extent.
+    :raises ValueError: if a scalar-array dimension is not an integer.
+    """
     # This is deliberately a single dispatch point for the compact
     # arg_type constructor grammar.
     # pylint: disable=too-many-locals,too-many-return-statements
@@ -1077,8 +1282,15 @@ def _parse_arg(node):
     )
 
 
-def _parse_func(node):
-    """Convert one PSyIR func_type constructor."""
+def _parse_func(node: Node) -> MetaFuncsArgMetadata:
+    """Convert one PSyIR func_type constructor.
+
+    :param node: the ``func_type`` constructor to convert.
+
+    :returns: the typed meta-functions metadata.
+
+    :raises ParseError: if the constructor structure is invalid.
+    """
     if _call_name(node) != "func_type":
         raise ParseError(
             "Each meta_funcs entry must use the func_type constructor."
@@ -1106,8 +1318,15 @@ def _parse_func(node):
     )
 
 
-def _component_initializers(declaration):
-    """Return known component initializers from a normalised declaration."""
+def _component_initializers(
+    declaration: str,
+) -> dict[str, tuple[str, str]]:
+    """Return known component initializers from a declaration.
+
+    :param declaration: the Fortran metadata declaration.
+
+    :returns: component names mapped to their source lines and initializers.
+    """
     known = (
         "meta_args",
         "meta_funcs",
@@ -1130,8 +1349,14 @@ def _component_initializers(declaration):
     return result
 
 
-def _declared_extent(line, component):
-    """Return a literal rank-one component extent, if present."""
+def _declared_extent(line: str, component: str) -> Optional[int]:
+    """Return a literal rank-one component extent, if present.
+
+    :param line: the declaration line to inspect.
+    :param component: the component name.
+
+    :returns: the declared extent, or ``None`` if none is found.
+    """
     match = re.search(r"(?i)\bdimension\s*\(\s*(\d+)\s*\)", line)
     if not match:
         match = re.search(
@@ -1140,8 +1365,19 @@ def _declared_extent(line, component):
     return int(match.group(1)) if match else None
 
 
-def _checked_array(line, component, rhs):
-    """Parse an initializer and check its declared extent."""
+def _checked_array(
+    line: str, component: str, rhs: str
+) -> tuple[Node, ...]:
+    """Parse an initializer and check its declared extent.
+
+    :param line: the component declaration line.
+    :param component: the component name.
+    :param rhs: the component initializer.
+
+    :returns: the parsed initializer values.
+
+    :raises ParseError: if the extent is absent or does not match.
+    """
     values = _array_values(_expression(rhs))
     extent = _declared_extent(line, component)
     if extent is None:
@@ -1154,8 +1390,18 @@ def _checked_array(line, component, rhs):
     return values
 
 
-def _metadata_from_declaration(name, declaration):
-    """Build typed metadata from an UnsupportedFortranType declaration."""
+def _metadata_from_declaration(
+    name: str, declaration: str
+) -> LFRicKernelMetadata:
+    """Build typed metadata from an UnsupportedFortranType declaration.
+
+    :param name: the name of the metadata type.
+    :param declaration: its Fortran declaration.
+
+    :returns: the parsed language-level LFRic metadata.
+
+    :raises ParseError: if the declaration is incomplete or invalid.
+    """
     header = declaration.splitlines()[0]
     if "extends(kernel_type)" not in header.lower().replace(" ", ""):
         raise ParseError(
@@ -1177,7 +1423,13 @@ def _metadata_from_declaration(name, declaration):
             for node in _checked_array(line, "meta_funcs", rhs)
         )
 
-    def names(component):
+    def names(component: str) -> tuple[str, ...]:
+        """Parse all scalar names in one metadata component.
+
+        :param component: the component name.
+
+        :returns: the component's lower-case scalar values.
+        """
         if component not in components:
             return ()
         line, rhs = components[component]
@@ -1263,22 +1515,29 @@ class LFRicArgDescriptor:
     stencil_extent: Optional[str] = None
 
     @property
-    def stencil(self):
-        """Return the legacy stencil view expected by consumers."""
+    def stencil(self) -> Optional[dict[str, Optional[str]]]:
+        """
+        :returns: the legacy stencil view expected by consumers, if any.
+        """
         if self.stencil_type is None:
             return None
         return {"type": self.stencil_type, "extent": self.stencil_extent}
 
     @property
-    def function_spaces(self):
-        """Return all function spaces associated with this argument."""
+    def function_spaces(self) -> tuple[Optional[str], ...]:
+        """
+        :returns: all function spaces associated with this argument.
+        """
         if self.function_space_to is not None:
             return (self.function_space_to, self.function_space_from)
         if self.function_space is not None:
             return (self.function_space,)
         return ()
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """
+        :returns: a human-readable description of this descriptor.
+        """
         return (
             "LFRicArgDescriptor object\n"
             f"  argument_type='{self.argument_type}'\n"
@@ -1294,13 +1553,19 @@ class LFRicFuncDescriptor:
     function_space_name: str
     operator_names: tuple[str, ...]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """
+        :returns: a concise representation of this descriptor.
+        """
         values = ", ".join(
             (self.function_space_name,) + self.operator_names
         )
         return f"LFRicFuncDescriptor(func_type({values}))"
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """
+        :returns: a human-readable description of this descriptor.
+        """
         values = ", ".join(self.operator_names)
         return (
             "LFRicFuncDescriptor object\n"
@@ -1337,23 +1602,35 @@ class LFRicKernMetadata:
         default_factory=LFRicPropertyMetadata
     )
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Validate all consumer-facing kernel metadata.
+
+        :raises ParseError: if any kernel constraint is violated.
+        """
         self._validate_writes()
         need_evaluator = self._validate_evaluators()
         self._validate_cma()
         self._validate_domain_dof(need_evaluator)
 
     @property
-    def _ast(self):
-        """Return the PSyIR tree retained for existing consumers."""
+    def _ast(self) -> object:
+        """
+        :returns: the PSyIR tree retained for existing consumers.
+        """
         return self.psyir
 
     @property
-    def nargs(self):
-        """Return the number of metadata arguments."""
+    def nargs(self) -> int:
+        """
+        :returns: the number of metadata arguments.
+        """
         return len(self.arg_descriptors)
 
-    def _validate_writes(self):
+    def _validate_writes(self) -> None:
+        """Validate that the kernel has a permitted written argument.
+
+        :raises ParseError: if the write requirements are violated.
+        """
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
 
@@ -1387,7 +1664,13 @@ class LFRicKernMetadata:
                 f"'{self.name}'."
             )
 
-    def _validate_evaluators(self):
+    def _validate_evaluators(self) -> bool:
+        """Validate evaluator metadata.
+
+        :returns: whether the kernel needs an evaluator.
+
+        :raises ParseError: if the evaluator metadata is inconsistent.
+        """
         const = LFRicConstants()
         spaces = {
             space
@@ -1437,7 +1720,11 @@ class LFRicKernMetadata:
                 )
         return need
 
-    def _validate_cma(self):
+    def _validate_cma(self) -> None:
+        """Validate restrictions on consumer-facing CMA metadata.
+
+        :raises ParseError: if a CMA restriction is violated.
+        """
         if self.cma_operation is None:
             return
         for arg in self.arg_descriptors:
@@ -1450,7 +1737,13 @@ class LFRicKernMetadata:
                     "CMA kernels require default NDATA and NLEVELS."
                 )
 
-    def _validate_domain_dof(self, need):
+    def _validate_domain_dof(self, need: bool) -> None:
+        """Validate metadata for domain and degree-of-freedom kernels.
+
+        :param need: whether the kernel needs an evaluator.
+
+        :raises ParseError: if a domain or dof restriction is violated.
+        """
         if self.iterates_over not in ("domain", "dof"):
             return
         # pylint: disable=import-outside-toplevel
@@ -1485,8 +1778,19 @@ class LFRicKernMetadata:
                 )
 
     @classmethod
-    def create_from_psyir(cls, psyir, name=None):
-        """Create immutable consumer metadata from a complete PSyIR tree."""
+    def create_from_psyir(
+        cls, psyir: Node, name: Optional[str] = None
+    ) -> "LFRicKernMetadata":
+        """Create immutable consumer metadata from a complete PSyIR tree.
+
+        :param psyir: the complete PSyIR containing the kernel.
+        :param name: optional name of the metadata type to extract.
+
+        :returns: the extracted consumer-facing kernel metadata.
+
+        :raises TypeError: if ``psyir`` is not a PSyIR tree.
+        :raises ParseError: if the metadata or implementation is invalid.
+        """
         # pylint: disable=too-many-locals
         container, symbol, _ = find_metadata_symbol(psyir, name)
         try:
@@ -1565,14 +1869,19 @@ class LFRicKernMetadata:
         )
 
     @classmethod
-    def create_from_fortran_string(cls, source, name=None):
+    def create_from_fortran_string(
+        cls, source: str, name: Optional[str] = None
+    ) -> "LFRicKernMetadata":
         """Create metadata by first translating complete Fortran to PSyIR.
 
-        :param str source: complete Fortran source containing the kernel.
-        :param Optional[str] name: name of the metadata type to extract.
+        :param source: complete Fortran source containing the kernel.
+        :param name: name of the metadata type to extract.
 
         :returns: immutable metadata extracted from the generated PSyIR.
-        :rtype: :py:class:`LFRicKernMetadata`
+
+        :raises TypeError: if ``source`` is not a string.
+        :raises ValueError: if the source cannot be translated to PSyIR.
+        :raises ParseError: if the kernel metadata is invalid.
         """
         if not isinstance(source, str):
             raise TypeError(
@@ -1588,8 +1897,15 @@ class LFRicKernMetadata:
         return cls.create_from_psyir(psyir, name=name)
 
 
-def _module_containers(psyir):
-    """Return module containers from a complete PSyIR tree."""
+def _module_containers(psyir: Node) -> list[Container]:
+    """Return module containers from a complete PSyIR tree.
+
+    :param psyir: the PSyIR tree to search.
+
+    :returns: all module containers in the tree.
+
+    :raises TypeError: if ``psyir`` is not a PSyIR tree.
+    """
     if not hasattr(psyir, "walk"):
         raise TypeError(
             f"Expected PSyIR but found '{type(psyir).__name__}'."
@@ -1601,8 +1917,19 @@ def _module_containers(psyir):
     ]
 
 
-def find_metadata_symbol(psyir, name=None):
-    """Find a unique kernel metadata symbol in PSyIR."""
+def find_metadata_symbol(
+    psyir: Node, name: Optional[str] = None
+) -> tuple[Container, DataTypeSymbol, str]:
+    """Find a unique kernel metadata symbol in PSyIR.
+
+    :param psyir: the PSyIR tree to search.
+    :param name: optional metadata type name to match or infer.
+
+    :returns: the containing module, metadata symbol and metadata name.
+
+    :raises TypeError: if ``psyir`` is not a PSyIR tree.
+    :raises ParseError: if matching metadata is absent or not unique.
+    """
     containers = _module_containers(psyir)
     if not containers:
         raise ParseError(
@@ -1641,8 +1968,18 @@ def find_metadata_symbol(psyir, name=None):
     return matches[0][0], matches[0][1], name
 
 
-def _kernel_procedure(container, metadata):
-    """Resolve kernel procedure implementations from PSyIR."""
+def _kernel_procedure(
+    container: Container, metadata: LFRicKernelMetadata
+) -> KernelProcedure:
+    """Resolve kernel procedure implementations from PSyIR.
+
+    :param container: the module containing the kernel.
+    :param metadata: the language-level kernel metadata.
+
+    :returns: the resolved procedure and its implementation or variants.
+
+    :raises ParseError: if the procedure metadata cannot be resolved.
+    """
     routines = tuple(container.walk(Routine))
     if metadata.procedure_name:
         implementations = tuple(
@@ -1689,8 +2026,16 @@ def _kernel_procedure(container, metadata):
     )
 
 
-def _descriptor_from_metadata(entry, index):
-    """Create a consumer descriptor from one typed metadata record."""
+def _descriptor_from_metadata(
+    entry: KernelArgumentMetadata, index: int
+) -> LFRicArgDescriptor:
+    """Create a consumer descriptor from one typed metadata record.
+
+    :param entry: the language-level argument metadata.
+    :param index: its position in the metadata argument list.
+
+    :returns: the consumer-facing argument descriptor.
+    """
     const = LFRicConstants()
     access = const.ACCESS_MAPPING[entry.access]
     entry_type = type(entry)
