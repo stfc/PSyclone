@@ -129,14 +129,15 @@ class WhileLoop(Statement):
 
     def next_accesses(self) -> list[Node]:
         '''
-        Abstract method for finding the next_accesses of a statement.
-        Subclasses should override this according to their own structure to
-        return future accesses to any References contained in the statement.
-
-        :returns: an empty list.
+        :returns: the combined next_accesses for the children of this
+            WhileLoop
         '''
-        # FIXME Implement
-        return []
+        next_accesses = []
+        var_acceses = self.condition.next_accesses()
+        self._merge_accesses(next_accesses, var_accesses)
+        for child in self.loop_body:
+            self._merge_accesses(next_accesses, child.next_accesses())
+        return next_accesses
 
     def previous_accesses(self) -> list[Node]:
         '''
@@ -144,5 +145,9 @@ class WhileLoop(Statement):
         Subclasses should override this according to their own structure to
         return previous accesses to any References contained in the statement.
         '''
-        # FIXME Implement
-        return []
+        prev_accesses = []
+        var_acceses = self.condition.previous_accesses()
+        self._merge_accesses(prev_accesses, var_accesses)
+        for child in self.loop_body:
+            self._merge_accesses(prev_accesses, child.previous_accesses())
+        return prev_accesses

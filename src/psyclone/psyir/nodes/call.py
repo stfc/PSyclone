@@ -915,20 +915,34 @@ class Call(Statement, DataNode):
 
     def next_accesses(self) -> list[Node]:
         '''
-        Abstract method for finding the next_accesses of a statement.
-        Subclasses should override this according to their own structure to
-        return future accesses to any References contained in the statement.
-
-        :returns: an empty list.
+        :returns: the next_accesses of children of this Call.
         '''
-        # FIXME Implement
-        return []
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import DefinitionUseChain
+        next_accesses = []
+        # Find all the children references
+        refs = [ref for ref in self.walk(Reference) if not
+                isinstance(ref.symbol, RoutineSymbol)]
+        chain = DefinitionUseChain(refs)
+        access_dict = chain.find_forward_accesses()
+        for accesses in access_dict:
+            self._merge_accesses(next_accesses, accesses)
+        return next_accesses
 
     def previous_accesses(self) -> list[Node]:
         '''
-        Abstract method for finding the previous_accesses of a statement.
-        Subclasses should override this according to their own structure to
-        return previous accesses to any References contained in the statement.
+        :returns: the previous_accesses of children of this Call.
         '''
-        # FIXME Implement
-        return []
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import DefinitionUseChain
+        prev_accesses = []
+        # Find all the children references
+        refs = [ref for ref in self.walk(Reference) if not
+                isinstance(ref.symbol, RoutineSymbol)]
+        chain = DefinitionUseChain(refs)
+        access_dict = chain.find_backward_accesses()
+        for accesses in access_dict:
+            self._merge_accesses(prev_accesses, accesses)
+        return prev_accesses

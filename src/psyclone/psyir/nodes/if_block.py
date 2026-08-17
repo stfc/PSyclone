@@ -166,22 +166,36 @@ class IfBlock(Statement):
             var_accesses.update(self.else_body.reference_accesses())
         return var_accesses
 
+
     def next_accesses(self) -> list[Node]:
         '''
-        Abstract method for finding the next_accesses of a statement.
-        Subclasses should override this according to their own structure to
-        return future accesses to any References contained in the statement.
-
-        :returns: an empty list.
+        :returns: the combined next_accesses for the children of this IfBlock.
         '''
-        # FIXME Implement
-        return []
+        next_accesses = []
+        new_accesses = self.condition.next_accesses()
+        self._merge_accesses(next_accesses, new_accesses)
+        for child in self.if_body:
+            self._merge_accesses(next_accesses, child.next_accesses())
+        if self.else_body:
+            for child in self.else_body:
+                self._merge_accesses(next_accesses, child.next_accesses())
+
+        # FIXME Should we sort the output in some way?
+        return next_accesses
 
     def previous_accesses(self) -> list[Node]:
         '''
-        Abstract method for finding the previous_accesses of a statement.
-        Subclasses should override this according to their own structure to
-        return previous accesses to any References contained in the statement.
+        :returns: the combined previous_accesses for the children of this
+            IfBlock.
         '''
-        # FIXME Implement
-        return []
+        prev_accesses = []
+        new_accesses = self.condition.previous_accesses()
+        self._merge_accesses(prev_accesses, new_accesses)
+        for child in self.if_body:
+            self._merge_accesses(prev_accesses, child.previous_accesses())
+        if self.else_body:
+            for child in self.else_body:
+                self._merge_accesses(prev_accesses, child.previous_accesses())
+
+        # FIXME Should we sort the output in some way?
+        return previous_accesses
