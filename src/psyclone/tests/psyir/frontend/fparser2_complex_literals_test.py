@@ -265,3 +265,18 @@ end subroutine'''
     assert isinstance(sym.datatype, ScalarType)
     assert sym.datatype == ScalarType.complex_type()
     assert sym.datatype.precision == ScalarType.Precision.UNDEFINED
+
+
+def test_complex_literal_int_named_constant(fortran_reader):
+    '''Test a complex literal with integer named constants'''
+    code = '''
+subroutine foo()
+  integer, parameter :: i = 10
+  complex :: c = (10, i)
+end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    sub = psyir.walk(Routine)[0]
+    sym = sub.symbol_table.lookup("c")
+    assert sym.name == 'c'
+    assert isinstance(sym.datatype, ScalarType)
+    assert sym.datatype == ScalarType.complex_type()
