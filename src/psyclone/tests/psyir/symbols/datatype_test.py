@@ -1231,6 +1231,74 @@ def test_create_structuretype():
             in str(err.value))
 
 
+def test_create_structuretype_procedures_and_extends():
+    '''Test creation of a StructureType with procedure components and an
+    extended type.'''
+    target = Symbol("target")
+    parent_type = Symbol("parent_type")
+    stype = StructureType.create(
+        [],
+        [("ProC", UnresolvedType(), Symbol.Visibility.PRIVATE,
+          Reference(target), "Before", "After")],
+        extends=parent_type)
+
+    assert stype.extends is parent_type
+    assert list(stype.procedure_components) == ["proc"]
+    # Both lookup methods are case insensitive and the general lookup method
+    # also searches procedure components.
+    proc = stype.lookup("PROC")
+    assert proc is stype.lookup("pRoC")
+    assert proc.name == "ProC"
+    assert isinstance(proc.datatype, UnresolvedType)
+    assert proc.visibility == Symbol.Visibility.PRIVATE
+    assert proc.initial_value.symbol is target
+    assert proc.preceding_comment == "Before"
+    assert proc.inline_comment == "After"
+
+    with pytest.raises(TypeError) as err:
+        StructureType.create(
+            [], [("proc", UnresolvedType())])
+    assert ("Each procedure component must be specified using a 3 to 6-tuple "
+            "of (name, type, visibility, initial_value, preceding_comment, "
+            "inline_comment) but found a tuple with 2 members" in
+            str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        stype.extends = "invalid"
+    assert ("The type that a StructureType extends must be a Symbol but got "
+            "'str'." in str(err.value))
+
+
+@pytest.mark.parametrize(
+    "arguments, expected",
+    [
+        ((1, UnresolvedType(), Symbol.Visibility.PUBLIC),
+         "name of a procedure component of a StructureType must be a 'str' "
+         "but got 'int'"),
+        (("proc", "invalid", Symbol.Visibility.PUBLIC),
+         "type of a procedure component of a StructureType must be a "
+         "'DataType' but got 'str'"),
+        (("proc", UnresolvedType(), "invalid"),
+         "visibility of a procedure component of a StructureType must be an "
+         "instance of 'Symbol.Visibility' but got 'str'"),
+        (("proc", UnresolvedType(), Symbol.Visibility.PUBLIC, "invalid"),
+         "initial value of a procedure component of a StructureType must be "
+         "None or a Reference to a Symbol but got 'str'"),
+        (("proc", UnresolvedType(), Symbol.Visibility.PUBLIC, None, None),
+         "preceding_comment of a procedure component of a StructureType must "
+         "be a 'str' but got 'NoneType'"),
+        (("proc", UnresolvedType(), Symbol.Visibility.PUBLIC, None, "", None),
+         "inline_comment of a procedure component of a StructureType must be "
+         "a 'str' but got 'NoneType'")
+    ])
+def test_structuretype_add_procedure_errors(arguments, expected):
+    '''Test validation when adding a procedure component.'''
+    stype = StructureType()
+    with pytest.raises(TypeError) as err:
+        stype.add_procedure_component(*arguments)
+    assert expected in str(err.value)
+
+
 def test_structuretype_eq():
     '''Test the equality operator of StructureType.'''
     stype = StructureType.create([
@@ -1269,6 +1337,16 @@ def test_structuretype_eq():
          Literal("1.0", ScalarType.real_type())),
         ("roger", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None)])
 
+    procedure = [("proc", UnresolvedType(), Symbol.Visibility.PUBLIC)]
+    proc_stype = StructureType.create([], procedure)
+    assert proc_stype == StructureType.create([], procedure)
+    assert proc_stype != StructureType()
+
+    parent = Symbol("parent")
+    extended = StructureType.create([], extends=parent)
+    assert extended == StructureType.create([], extends=parent)
+    assert extended != StructureType.create([], extends=Symbol("parent"))
+
 
 @pytest.mark.parametrize("table", [None, SymbolTable()])
 def test_structuretype_replace_symbols(table):
@@ -1300,19 +1378,71 @@ def test_structuretype_replace_symbols(table):
     assert stype.components["barry"].datatype is newtsymbol
 
 
+@pytest.mark.parametrize("use_table", [False, True])
+def test_structuretype_replace_procedure_and_extends(use_table):
+    '''Test symbol replacement in procedure components and EXTENDS.'''
+    original = Symbol("dependency")
+    proc_type = ArrayType(ScalarType.real_type(), [Reference(original)])
+    stype = StructureType.create(
+        [], [("proc", proc_type, Symbol.Visibility.PUBLIC,
+              Reference(original), "Before", "After"),
+             ("no_target", UnresolvedType(), Symbol.Visibility.PRIVATE)],
+        extends=original)
+
+    # A non-matching Symbol or an empty table must leave all references to the
+    # original symbol unchanged.
+    if use_table:
+        empty_table = SymbolTable()
+        stype.replace_symbols_using(empty_table)
+    else:
+        stype.replace_symbols_using(Symbol("unrelated"))
+    proc = stype.procedure_components["proc"]
+    assert proc.datatype.shape[0].upper.symbol is original
+    assert proc.initial_value.symbol is original
+    assert stype.procedure_components["no_target"].initial_value is None
+    assert stype.extends is original
+
+    replacement = Symbol("dependency")
+    if use_table:
+        table = SymbolTable()
+        table.add(replacement)
+        stype.replace_symbols_using(table)
+    else:
+        stype.replace_symbols_using(replacement)
+
+    proc = stype.procedure_components["proc"]
+    assert proc.datatype.shape[0].upper.symbol is replacement
+    assert proc.initial_value.symbol is replacement
+    assert stype.procedure_components["no_target"].initial_value is None
+    assert proc.preceding_comment == "Before"
+    assert proc.inline_comment == "After"
+    assert stype.extends is replacement
+
+
 def test_structuretype_get_all_accessed_symbols():
     '''Tests for the get_all_accessed_symbols() method of StructureType.'''
     tsymbol = DataTypeSymbol("my_type", UnresolvedType())
     ndim = Symbol("ndim")
     atype = ArrayType(ScalarType.real_type(), [Reference(ndim)])
+    proc_ndim = Symbol("proc_ndim")
+    proc_target = Symbol("proc_target")
+    parent_type = Symbol("parent_type")
+    proc_type = ArrayType(ScalarType.real_type(), [Reference(proc_ndim)])
     stype = StructureType.create([
         ("fred", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
         ("george", atype, Symbol.Visibility.PRIVATE,
          Literal("1.0", ScalarType.real_type())),
-        ("barry", tsymbol, Symbol.Visibility.PUBLIC, None)])
+        ("barry", tsymbol, Symbol.Visibility.PUBLIC, None)],
+        [("proc", proc_type, Symbol.Visibility.PUBLIC,
+          Reference(proc_target)),
+         ("no_target", UnresolvedType(), Symbol.Visibility.PRIVATE)],
+        extends=parent_type)
     dependent_symbols = stype.get_all_accessed_symbols()
     assert tsymbol in dependent_symbols
     assert ndim in dependent_symbols
+    assert proc_ndim in dependent_symbols
+    assert proc_target in dependent_symbols
+    assert parent_type in dependent_symbols
 
 
 def test_structuretype_componenttype_eq():
@@ -1350,16 +1480,25 @@ def test_structuretype_componenttype_eq():
 
 def test_structuretype___copy__():
     '''Test the __copy__ method of StructureType.'''
+    target = Symbol("target")
+    parent_type = Symbol("parent_type")
     stype = StructureType.create([
         ("nancy", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
         ("peggy", ScalarType.real_type(), Symbol.Visibility.PRIVATE,
-         Literal("1.0", ScalarType.real_type()))])
+         Literal("1.0", ScalarType.real_type()))],
+        [("proc", UnresolvedType(), Symbol.Visibility.PUBLIC,
+          Reference(target), "Before", "After")], extends=parent_type)
     copied = stype.__copy__()
     assert copied == stype
     assert copied is not stype
     # The components should be the same objects
     assert copied.components["nancy"] == stype.components["nancy"]
     assert copied.components["peggy"] == stype.components["peggy"]
+    assert copied.procedure_components["proc"] == \
+        stype.procedure_components["proc"]
+    assert copied.procedure_components["proc"].preceding_comment == "Before"
+    assert copied.procedure_components["proc"].inline_comment == "After"
+    assert copied.extends is parent_type
 
 
 def test_copy_with_recursions(fortran_reader):
