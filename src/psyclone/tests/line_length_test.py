@@ -94,8 +94,6 @@ def test_unchanged():
         "    stuff\n")
     fll = FortLineLength(line_length=25)
     output_file = fll.process(input_file)
-    print("("+input_file+")")
-    print("("+output_file+")")
     assert input_file == output_file, "input should remain unchanged"
 
 
@@ -138,8 +136,6 @@ def test_wrapped():
     line length is wrapped appropriately by the FortLineLength class '''
     fll = FortLineLength(line_length=30)
     output_file = fll.process(INPUT_FILE)
-    print("("+EXPECTED_OUTPUT+")")
-    print("("+output_file+")")
     assert output_file == EXPECTED_OUTPUT, "output and expected output differ "
 
 
@@ -149,8 +145,6 @@ def test_wrapped_lower():
     FortLineLength class'''
     fll = FortLineLength(line_length=30)
     output_file = fll.process(INPUT_FILE.lower())
-    print("("+EXPECTED_OUTPUT.lower()+")")
-    print("("+output_file+")")
     assert output_file == EXPECTED_OUTPUT.lower(), \
         "output and expected output differ "
 
@@ -301,8 +295,6 @@ def test_edge_conditions_statements():
         "INTEGER &\n&INTEGER &\n&INTEGER\n")
     fll = FortLineLength(line_length=len("INTEGER INTEGER"))
     output_string = fll.process(input_string)
-    print(output_string)
-    print(expected_output)
     assert output_string == expected_output
 
 
