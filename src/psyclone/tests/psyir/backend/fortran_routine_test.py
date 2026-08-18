@@ -426,6 +426,28 @@ def test_fw_routine_prefixes_nomodule(fortran_reader, fortran_writer):
     assert "impure elemental subroutine sub" in output
 
 
+@pytest.mark.parametrize("routine_type", ["function", "subroutine"])
+def test_fw_routine_recursive_prefix(fortran_reader, fortran_writer,
+                                     routine_type):
+    '''Check that a routine recursion hint is written as a prefix.'''
+    code = f'''module test
+    contains
+    recursive {routine_type} sub()
+    real :: sub
+    sub = 1.0
+    end {routine_type} sub
+    end module test'''
+    container = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(container)
+    assert f"recursive {routine_type} sub" in output
+
+    routine = container.walk(Routine)[0]
+    for is_recursive in [False, None]:
+        routine.is_recursive = is_recursive
+        output = fortran_writer(container)
+        assert f"recursive {routine_type} sub" not in output
+
+
 def test_fw_standalone_routine(fortran_reader, fortran_writer):
     '''
     Test for a routine that is not part of a PSyIR tree.

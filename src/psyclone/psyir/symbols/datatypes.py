@@ -442,7 +442,7 @@ class ScalarType(DataType):
                     f"DataSymbol must be of either 'unresolved' or "
                     f"scalar, integer type but got: ScalarType with "
                     f"datatype {dtype}")
-        # TODO #3135 If the precision is an int, then we would like to make
+        # TODO #3538 If the precision is an int, then we would like to make
         # a Literal containing it instead, however this is not currently
         # possible due to circular imports.
         self._precision = precision
@@ -628,7 +628,7 @@ class ScalarType(DataType):
         :returns: a copy of self.
         '''
         if isinstance(self.precision, int):
-            # TODO #3135 - ideally precision will always be stored as a
+            # TODO #3538 - ideally precision will always be stored as a
             # DataNode and this branch of the `if` won't be necessary.
             precision = self.precision
         else:

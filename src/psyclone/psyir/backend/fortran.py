@@ -1200,8 +1200,7 @@ class FortranWriter(LanguageWriter):
             container = node.ancestor(Container)
             rsym = None
             if container:
-                # TODO #2592: When this is implemented it will be node.symbol
-                rsym = container.symbol_table.lookup(node.name, otherwise=None)
+                rsym = node.symbol
             prefix = ""
             if rsym:
                 if rsym.is_elemental:
@@ -1212,6 +1211,9 @@ class FortranWriter(LanguageWriter):
                         prefix = "impure elemental "
                 elif rsym.is_pure:
                     prefix = "pure "
+
+            if node.is_recursive:
+                prefix = f"recursive {prefix}"
 
             args = [symbol.name for symbol in node.symbol_table.argument_list]
             suffix = ""

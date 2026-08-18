@@ -76,13 +76,7 @@ for var in varinfo:
             # statement. Find if and where it was previously
             # written:
             node = all_accessed[read_var][0].node
-            # TODO: #3143 atm requires to provide a stop_point,
-            # otherwise the call itself is returned.
-            if not isinstance(node, Statement):
-                stop_position = node.ancestor(Statement).abs_position
-            else:
-                stop_position = node.abs_position
-            chain = DefinitionUseChain([node], stop_point=stop_position)
+            chain = DefinitionUseChain([node])
             sig = node.get_signature_and_indices()[0]
             all_prev = chain.find_backward_accesses()[sig]
 

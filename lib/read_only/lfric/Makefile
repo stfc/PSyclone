@@ -42,9 +42,6 @@
 # export F90FLAGS="-O3"
 # export AR=ar
 
-# TODO: #813 keeps track of adding enough files from LFRic to PSyclone to be
-#       able to compile this library without the need of external files.
-
 # ----------- Default "make" values, can be overwritten by the user -----------
 # Compiler and compiler flags
 F90 ?= gfortran
