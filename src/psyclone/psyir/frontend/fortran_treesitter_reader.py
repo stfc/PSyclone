@@ -7,7 +7,7 @@
 
 '''
 
-PSyIR fronted to ingest Fortran using the TreeSitter parse generator.
+PSyIR frontend for the TreeSitter Fortran parser generator.
 
 The structure of the expected fortran parse tree can be found in the
 'rules' section of:
@@ -72,7 +72,7 @@ def children_of_type(
     tsnode: Optional['TSNode'], types: Union[str, Container[str]]
 ) -> Generator['TSNode']:
     ''' Provides a generator to iterate over the provided tsnode
-    chidlren of the given type(s).
+    children of the given type(s).
 
     :param tsnode: tree-sitter node whose children are searched.
     :param node_type: tree-sitter type to find.
@@ -379,6 +379,9 @@ class FortranTreeSitterReader():
 
         :returns: PSyIR nodes produced from the supplied tree-sitter nodes.
         '''
+        if expect not in _NodeExpectation:
+            raise InternalError(
+                    f"Unsupported node expectation '{expect}'")
         list_of_nodes = tsnodes if isinstance(tsnodes, Iterable) else [tsnodes]
         children = []
         for tsnode in list_of_nodes:
@@ -430,9 +433,6 @@ class FortranTreeSitterReader():
                     f"{[type(c).__name__ for c in children]}"
                 )
             return None
-        if expect is not _NodeExpectation.LIST:
-            raise InternalError(
-                    f"Unsupported node expectation '{expect}'")
         return children
 
     @staticmethod
