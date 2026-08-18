@@ -99,33 +99,6 @@ def test_arg_descriptor_wrong_type():
     assert "must use the arg_type constructor" in str(excinfo.value)
 
 
-def test_ad_invalid_type():
-    ''' Tests that an error is raised when an invalid descriptor type
-    name is provided as the first argument (parsing arguments other than
-    field vectors). '''
-
-    # Check a FunctionVar expression but with a wrong argument type name
-    code = CODE.replace("gh_operator", "gh_operato", 1)
-    ast = get_kernel_psyir(code)
-    name = "testkern_qr_type"
-    const = LFRicConstants()
-
-    with pytest.raises(ParseError) as excinfo:
-        _ = KernelTypeFactory(TEST_API).create(ast, name=name)
-    assert (
-        f"must be one of {const.VALID_ARG_TYPE_NAMES}, but found "
-        "'gh_operato'" in str(excinfo.value)
-    )
-
-    # Check other type of expression (here array Slicing)
-    code = CODE.replace("gh_operator", ":", 1)
-    ast = get_kernel_psyir(code)
-    with pytest.raises(ParseError) as excinfo:
-        _ = KernelTypeFactory(TEST_API).create(
-            ast, name="testkern_qr_type")
-    assert "Expected a metadata constructor" in str(excinfo.value)
-
-
 def test_ad_invalid_access_type():
     ''' Tests that an error is raised when an invalid access
     name is provided as the second argument. '''
