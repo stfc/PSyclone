@@ -2281,14 +2281,32 @@ class Fparser2Reader():
         # Populate this StructureType by processing the components of
         # the derived type
         try:
-            # We don't support derived-types with additional
-            # attributes e.g. "extends" or "abstract". Note, we do
-            # support public/private attributes but these are stored
-            # as Access_Spec, not Type_Attr_Spec.
+            # EXTENDS is the only additional derived-type attribute that we
+            # currently support. Note that public/private attributes are
+            # represented by Access_Spec rather than Type_Attr_Spec.
             derived_type_stmt = decl.children[0]
-            if walk(derived_type_stmt, Fortran2003.Type_Attr_Spec):
-                raise NotImplementedError(
-                    "Derived-type definition contains unsupported attributes.")
+            for attr in walk(derived_type_stmt,
+                             Fortran2003.Type_Attr_Spec):
+                if attr.items[0].upper() != "EXTENDS":
+                    raise NotImplementedError(
+                        "Derived-type definition contains unsupported "
+                        "attributes.")
+
+                extends_name = attr.items[1].string
+                extends_symbol = parent.symbol_table.lookup(
+                    extends_name, otherwise=None)
+                if extends_symbol is None:
+                    extends_symbol = DataTypeSymbol(
+                        extends_name, StructureType(),
+                        interface=UnresolvedInterface())
+                    parent.symbol_table.add(extends_symbol)
+                elif type(extends_symbol) is Symbol:
+                    # The name may already have been introduced by a USE
+                    # statement for which no declaration information was
+                    # available.
+                    extends_symbol.specialise(DataTypeSymbol)
+                    extends_symbol.datatype = StructureType()
+                dtype.extends = extends_symbol
 
             # Re-use the existing code for processing symbols. This needs to
             # be able to find any symbols declared in an outer scope but
@@ -2309,6 +2327,10 @@ class Fparser2Reader():
                             parent, local_table, component,
                             preceding_comments=preceding_comments)
                         preceding_comments = []
+                elif isinstance(
+                        child, Fortran2003.Type_Bound_Procedure_Part):
+                    self._process_derived_type_contains_block(
+                        parent, child, dtype)
                 elif isinstance(child, (Fortran2003.Private_Components_Stmt,
                                         Fortran2003.End_Type_Stmt)):
                     continue
@@ -2343,6 +2365,54 @@ class Fparser2Reader():
             tsymbol.interface = UnknownInterface()
 
         return tsymbol
+
+    @staticmethod
+    def _process_derived_type_contains_block(
+        parent: ScopingNode,
+        contains: Fortran2003.Type_Bound_Procedure_Part,
+        dtype: StructureType
+    ):
+        '''Process type-bound procedures in a derived type's CONTAINS part.
+
+        Currently all bindings are UnsupportedFortranType, but its name and
+        visibility is parsed in order to add the correct component in the
+        parent's StructureType.
+
+        :param parent: PSyIR scope containing the derived-type declaration.
+        :param contains: fparser2 type-bound-procedure part.
+        :param dtype: StructureType being populated.
+        '''
+        private_stmts = walk(contains,
+                             Fortran2003.Binding_Private_Stmt)
+        default_visibility = (Symbol.Visibility.PRIVATE if private_stmts
+                              else Symbol.Visibility.PUBLIC)
+
+        for procedure in walk(contains, Fortran2003.Specific_Binding):
+            binding_name = procedure.items[3].string
+            visibility = default_visibility
+            if procedure.items[1] is not None:
+                access_specs = walk(procedure.items[1],
+                                    Fortran2003.Access_Spec)
+                if access_specs:
+                    visibility = _process_access_spec(access_specs[0])
+
+            target = None
+            if procedure.items[4] is not None:
+                target_name = procedure.items[4].string
+                target_symbol = parent.symbol_table.lookup(
+                    target_name, otherwise=None)
+                if target_symbol is None:
+                    target_symbol = RoutineSymbol(
+                        target_name, interface=UnresolvedInterface())
+                    parent.symbol_table.add(target_symbol)
+                elif type(target_symbol) is Symbol:
+                    target_symbol.specialise(RoutineSymbol)
+                    target_symbol.datatype = UnresolvedType()
+                target = Reference(target_symbol)
+
+            dtype.add_procedure_component(
+                binding_name, UnsupportedFortranType(str(procedure)),
+                visibility, target)
 
     def _get_partial_datatype(
         self,

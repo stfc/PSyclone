@@ -283,8 +283,8 @@ def test_parse_derived_type(use_stmt, type_name):
 
 @pytest.mark.usefixtures("f2008_parser")
 def test_derived_type_contains():
-    ''' Check that we get a DataTypeSymbol of UnsupportedFortranType if a
-    derived-type definition has a CONTAINS section. '''
+    '''Check that a derived-type CONTAINS section is captured in its
+    StructureType.'''
     fake_parent = KernelSchedule.create("dummy_schedule")
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
@@ -298,16 +298,86 @@ def test_derived_type_contains():
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     sym = symtab.lookup("my_type")
-    # It should still be a DataTypeSymbol but its type is unknown.
     assert isinstance(sym, DataTypeSymbol)
-    assert isinstance(sym.datatype, UnsupportedFortranType)
-    assert sym.datatype.declaration == '''\
-TYPE :: my_type
-  INTEGER :: flag
-  REAL, DIMENSION(3) :: posn
-  CONTAINS
-  PROCEDURE :: init => obesdv_setup
-END TYPE my_type'''
+    assert isinstance(sym.datatype, StructureType)
+    assert len(sym.datatype.components) == 2
+    assert list(sym.datatype.procedure_components) == ["init"]
+    procedure = sym.datatype.lookup("init")
+    assert procedure.name == "init"
+    assert isinstance(procedure.datatype, UnsupportedFortranType)
+    assert (procedure.datatype.declaration ==
+            "PROCEDURE :: init => obesdv_setup")
+    assert procedure.visibility == Symbol.Visibility.PUBLIC
+    assert isinstance(procedure.initial_value, Reference)
+    assert isinstance(procedure.initial_value.symbol, RoutineSymbol)
+    assert procedure.initial_value.symbol.name == "obesdv_setup"
+    assert procedure.initial_value.symbol is symtab.lookup("obesdv_setup")
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_derived_type_extends():
+    '''
+    Check that the extends attribute is handled correctly.
+    '''
+    fake_parent = KernelSchedule.create("dummy_schedule")
+    symtab = fake_parent.symbol_table
+    processor = Fparser2Reader()
+    reader = FortranStringReader("type, extends(other_type) :: my_type\n"
+                                 "  private\n"
+                                 "  integer :: flag\n"
+                                 "  real, public :: scale\n"
+                                 "end type my_type\n")
+    fparser2spec = Fortran2003.Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    sym = symtab.lookup("my_type")
+    assert isinstance(sym, DataTypeSymbol)
+    assert isinstance(sym.datatype, StructureType)
+    assert isinstance(sym.datatype.extends, DataTypeSymbol)
+    assert sym.datatype.extends.name == "other_type"
+    assert isinstance(sym.datatype.extends.datatype, StructureType)
+    assert sym.datatype.extends is symtab.lookup("other_type")
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_full_metadata_style_structures():
+    '''Check that an EXTENDS attribute and type-bound procedure are captured
+    for a metadata-style derived type.'''
+    fake_parent = KernelSchedule.create("dummy_schedule")
+    symtab = fake_parent.symbol_table
+    processor = Fparser2Reader()
+    reader = FortranStringReader("""
+        type, extends(kernel_type) :: compute_cu
+          type(go_arg), dimension(4) :: meta_args = (/ &
+            go_arg(go_write, go_cu, go_pointwise), &
+            go_arg(go_read, go_ct, go_stencil(000, 011, 000)), &
+            go_arg(go_read, go_grid_area_t), &
+            go_arg(go_read, go_r_scalar, go_pointwise) /)
+          integer :: iterates_over = go_all_pts
+          integer :: index_offset = go_offset_sw
+        contains
+          procedure, nopass :: code => compute_cu_code
+        end type compute_cu
+        """)
+    fparser2spec = Fortran2003.Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    sym = symtab.lookup("compute_cu")
+    assert isinstance(sym, DataTypeSymbol)
+    assert isinstance(sym.datatype, StructureType)
+    assert isinstance(sym.datatype.extends, DataTypeSymbol)
+    assert sym.datatype.extends.name == "kernel_type"
+    assert isinstance(sym.datatype.extends.datatype, StructureType)
+    assert sym.datatype.extends is symtab.lookup("kernel_type")
+    assert list(sym.datatype.procedure_components) == ["code"]
+    procedure = sym.datatype.lookup("code")
+    assert procedure.name == "code"
+    assert isinstance(procedure.datatype, UnsupportedFortranType)
+    assert (procedure.datatype.declaration ==
+            "PROCEDURE, NOPASS :: code => compute_cu_code")
+    assert procedure.visibility == Symbol.Visibility.PUBLIC
+    assert isinstance(procedure.initial_value, Reference)
+    assert isinstance(procedure.initial_value.symbol, RoutineSymbol)
+    assert procedure.initial_value.symbol.name == "compute_cu_code"
+    assert procedure.initial_value.symbol is symtab.lookup("compute_cu_code")
 
 
 @pytest.mark.usefixtures("f2008_parser")
