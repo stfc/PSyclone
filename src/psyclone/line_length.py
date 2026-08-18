@@ -38,23 +38,20 @@ def find_break_point(line: str, max_index: int, key_list: list[str]) -> int:
     # We should never break the line before the first element on the
     # line.
     first_non_whitespace = len(line) - len(line.lstrip())
-    # We create the appropriate substring and then index it backwards.
-    search_string = (line[first_non_whitespace+1:max_index])[::-1]
+
+    search_string = line[first_non_whitespace+1:max_index]
     for key in key_list:
+        # Find all of the matches to the key.
         if isinstance(key, re.Pattern):
-            match = re.search(key, search_string)
+            matches = re.findall(key, search_string)
         else:
-            # For string input keys, we reverse them in case they are of
-            # length >1 as we are searching backwards.
-            match = re.search(re.escape(key[::-1]), search_string)
-        if match:
-            # If max_index is larger than the line length, we need to compute
-            # the matched index from the the end of the line.
-            end = min(max_index, len(line))
-            # Since we're working backwards we can return the start of the
-            # match (which is the end of the matched section of the forward
-            # string).
-            return end-match.start()
+            # If the key is a string, we use re.escape to ensure no issues
+            # with unmatched special characters.
+            matches = re.findall(re.escape(key), search_string)
+        if matches:
+            # Find the position of the last match using rfind.
+            idx = line.rfind(matches[-1], first_non_whitespace+1, max_index)
+            return idx+len(matches[-1])
     raise InternalError(
         f"Error in find_break_point. No suitable break point found"
         f" for line '{line[:max_index]}' and keys '{str(key_list)}'")

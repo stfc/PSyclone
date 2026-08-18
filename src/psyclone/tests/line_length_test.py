@@ -67,6 +67,17 @@ def test_comment():
     assert output_file == expected_output
 
 
+def test_first_non_whitespace_too_late():
+    ''' Tests that when there is only whitespace before the
+    line_length specified we get an InternalError.'''
+
+    input_file = "                  string"
+    with pytest.raises(InternalError) as excinfo:
+        find_break_point(input_file, 8, "r")
+    assert ("Error in find_break_point. No suitable break point found for "
+            "line '        ' and keys 'r'" in str(excinfo.value))
+
+
 def test_unchanged():
     ''' Tests that a file whose lines are shorter than the specified
     line length is unchanged by the FortLineLength class '''
