@@ -9,6 +9,7 @@
 to allow the code to conform to the maximum line length limits (132
 for f90 free format is the default)'''
 
+from typing import Union
 import re
 
 from fparser.common.readfortran import Comment, FortranStringReader
@@ -17,7 +18,8 @@ from fparser.common.sourceinfo import FortranFormat
 from psyclone.errors import InternalError
 
 
-def find_break_point(line: str, max_index: int, key_list: list[str]) -> int:
+def find_break_point(line: str, max_index: int,
+                     key_list: list[Union[str, re.Pattern]]) -> int:
     ''' Finds the most appropriate line break point for the Fortran code in
     line.
 
@@ -100,9 +102,6 @@ class FortLineLength():
                           "openacc_directive": " &",
                           "comment": "",
                           "unknown": "&"}
-        # If using regexs to defined keys of length >1, the regex
-        # must be in reverse as the matching is done on the reversed
-        # string. Non-regex keys are reversed automatically if needed.
         self._key_lists = {"statement": [", ", ",", " "],
                            "openmp_directive": [" ", ",", ")", "="],
                            "openacc_directive": [" ", ",", ")", "="],
