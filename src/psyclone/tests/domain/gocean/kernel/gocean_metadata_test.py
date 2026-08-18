@@ -42,7 +42,7 @@ contains
 end type compute_cu
 """
 
-PROGRAM = f"""\
+MODULE = f"""\
 module dummy
   {METADATA}
 contains
@@ -54,7 +54,7 @@ end module dummy
 
 def test_metadata_from_psyir(fortran_reader):
     """Metadata is extracted from a complete language-level PSyIR tree."""
-    root = fortran_reader.psyir_from_source(PROGRAM)
+    root = fortran_reader.psyir_from_source(MODULE)
     metadata = GOceanKernelMetadata.create_from_kernel_psyir(
         root, "compute_cu")
 
@@ -78,7 +78,7 @@ def test_metadata_fortran_round_trip(fortran_reader):
         metadata.fortran_string())
     assert regenerated == metadata
 
-    root = fortran_reader.psyir_from_source(PROGRAM)
+    root = fortran_reader.psyir_from_source(MODULE)
     RaisePSyIR2GOceanKernTrans("compute_cu").apply(root)
     assert isinstance(root.children[0], GOceanContainer)
     root.children[0].lower_to_language_level()
@@ -89,7 +89,7 @@ def test_metadata_fortran_round_trip(fortran_reader):
 def test_kernel_type_factory_path():
     """Test the standard parser and factory path requested by clients."""
     Config.get().api = "gocean"
-    mdata_code = PROGRAM
+    mdata_code = MODULE
     kernel_metadata = get_kernel_psyir(mdata_code)
     ktype = KernelTypeFactory(api="gocean").create(
         kernel_metadata, name="compute_cu")
@@ -191,7 +191,7 @@ def test_kernel_metadata_validation():
 def test_kernel_metadata_compatibility_properties():
     """Test procedure, descriptors, counts, lowering and string output."""
     metadata = GOceanKernelMetadata.create_from_kernel_psyir(
-        FortranReader().psyir_from_source(PROGRAM), "compute_cu")
+        FortranReader().psyir_from_source(MODULE), "compute_cu")
     assert metadata._ast is metadata.psyir
     assert metadata.procedure.ast.name == "compute_cu_code"
     descriptors = metadata.arg_descriptors
@@ -229,7 +229,7 @@ def test_create_from_psyir_errors():
 
 def test_create_from_kernel_psyir_missing_routine():
     """Test that the implementation named by metadata must exist."""
-    source = PROGRAM.replace(
+    source = MODULE.replace(
         "subroutine compute_cu_code()", "subroutine different_code()").replace(
             "end subroutine compute_cu_code",
             "end subroutine different_code")
