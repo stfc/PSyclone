@@ -1534,7 +1534,6 @@ class StructureType(DataType):
         object.__setattr__(self._procedure_components[key_name],
                            "_inline_comment", inline_comment)
 
-
     def __eq__(self, other):
         '''
         :param Any other: the object to check equality to.
