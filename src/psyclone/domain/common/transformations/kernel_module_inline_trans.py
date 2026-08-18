@@ -440,6 +440,8 @@ class KernelModuleInlineTrans(Transformation):
             # If we haven't copied in a routine of 'caller_name' then it must
             # be because the target of the call is renamed on import.
             target_sym = name_map.get(external_callee_name)
+            if not target_sym:
+                raise TransformationError("Could not find target symbol")
 
         for call in all_calls:
             name = call.routine.symbol.name.lower()
