@@ -25,7 +25,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import (
-    DataTypeSymbol, ScalarType, UnsupportedFortranType)
+    DataTypeSymbol, ScalarType, StructureType)
 
 
 METADATA = """\
@@ -50,6 +50,11 @@ contains
   end subroutine compute_cu_code
 end module dummy
 """
+
+
+def _expression(source):
+    """Create a PSyIR expression for node-level metadata tests."""
+    return FortranReader().psyir_from_expression(source)
 
 
 def test_metadata_from_psyir(fortran_reader):
@@ -200,7 +205,9 @@ def test_kernel_metadata_compatibility_properties():
     assert descriptors[2].grid_prop == "go_grid_area_t"
     assert descriptors[3].function_space == "go_r_scalar"
     assert metadata.nargs == 3
-    assert metadata.lower_to_psyir().name == "compute_cu"
+    lowered = metadata.lower_to_psyir()
+    assert lowered.name == "compute_cu"
+    assert isinstance(lowered.datatype, StructureType)
     assert str(metadata) == (
         "GOcean kernel compute_cu, index-offset = go_offset_sw, "
         "iterates-over = go_all_pts")
@@ -211,7 +218,7 @@ def test_create_from_psyir_errors():
     with pytest.raises(TypeError, match="Expected a DataTypeSymbol"):
         GOceanKernelMetadata.create_from_psyir("not a symbol")
     symbol = DataTypeSymbol("bad", ScalarType.real_type())
-    with pytest.raises(InternalError, match="UnsupportedFortranType"):
+    with pytest.raises(InternalError, match="StructureType"):
         GOceanKernelMetadata.create_from_psyir(symbol)
 
     declaration = (
@@ -221,8 +228,10 @@ def test_create_from_psyir_errors():
         "integer :: iterates_over = go_all_pts\n"
         "integer :: index_offset = go_offset_sw\n"
         "contains\nprocedure, nopass :: code => bad_code\nend type bad")
-    bad_symbol = DataTypeSymbol(
-        "bad", UnsupportedFortranType(declaration))
+    root = FortranReader().psyir_from_source(
+        f"module bad_mod\n{declaration}\nend module bad_mod\n")
+    bad_symbol = root.walk(Container)[1].symbol_table.lookup("bad")
+    assert isinstance(bad_symbol.datatype, StructureType)
     with pytest.raises(ParseError, match="Invalid GOcean metadata"):
         GOceanKernelMetadata.create_from_psyir(bad_symbol)
 
@@ -258,21 +267,15 @@ def test_create_from_fortran_string_errors(monkeypatch):
 
 
 def test_parser_helpers():
-    """Test low-level expression and constructor helpers."""
-    assert metadata_mod._name(metadata_mod._expression("GO_CU")) == "go_cu"
-    assert metadata_mod._name(metadata_mod._expression("'ABC'")) == "abc"
+    """Test low-level node and constructor helpers."""
+    assert metadata_mod._name(_expression("GO_CU")) == "go_cu"
+    assert metadata_mod._name(_expression("'ABC'")) == "abc"
     assert metadata_mod._call_name(
-        metadata_mod._expression("go_arg(a, b)")) == "go_arg"
-    with pytest.raises(ParseError, match="Failed to parse"):
-        metadata_mod._expression("(/ broken")
+        _expression("go_arg(a, b)")) == "go_arg"
     with pytest.raises(ParseError, match="metadata constructor"):
-        metadata_mod._call_name(metadata_mod._expression("go_cu"))
+        metadata_mod._call_name(_expression("go_cu"))
     with pytest.raises(ParseError, match="metadata name or literal"):
-        metadata_mod._name(metadata_mod._expression("a + b"))
-    assert metadata_mod._extent(
-        "type(go_arg) :: meta_args(2)") == 2
-    assert metadata_mod._extent(
-        "type(go_arg), dimension(3) :: meta_args") == 3
+        metadata_mod._name(_expression("a + b"))
 
 
 @pytest.mark.parametrize("expression, error, message", [
@@ -291,7 +294,7 @@ def test_parser_helpers():
 def test_parse_meta_arg_errors(expression, error, message):
     """Test invalid go_arg constructor forms."""
     with pytest.raises(error, match=message):
-        metadata_mod._parse_meta_arg(metadata_mod._expression(expression))
+        metadata_mod._parse_meta_arg(_expression(expression))
 
 
 def test_parse_meta_arg_variants():
@@ -308,7 +311,7 @@ def test_parse_meta_arg_variants():
     ]
     for expression, expected in cases:
         assert isinstance(metadata_mod._parse_meta_arg(
-            metadata_mod._expression(expression)), expected)
+            _expression(expression)), expected)
 
 
 @pytest.mark.parametrize("declaration, message", [
@@ -319,12 +322,14 @@ def test_parse_meta_arg_variants():
       type(go_arg) :: meta_args = go_arg(go_read, go_cu, go_pointwise)
       integer :: iterates_over = go_all_pts
       integer :: index_offset = go_offset_sw
+      contains
       procedure, nopass :: code => bad_code
       end type bad""", "must be an array constructor"),
     ("""type, extends(kernel_type) :: bad
       type(go_arg) :: meta_args = (/go_arg(go_read, go_cu, go_pointwise)/)
       integer :: iterates_over = go_all_pts
       integer :: index_offset = go_offset_sw
+      contains
       procedure, nopass :: code => bad_code
       end type bad""", "literal extent"),
     ("type, extends(kernel_type) :: bad\n"
@@ -332,6 +337,7 @@ def test_parse_meta_arg_variants():
      "(/go_arg(go_read, go_cu, go_pointwise)/)\n"
      "integer :: iterates_over = go_all_pts\n"
      "integer :: index_offset = go_offset_sw\n"
+     "contains\n"
      "procedure, nopass :: code => bad_code\nend type bad", "extent 2"),
     ("type, extends(kernel_type) :: bad\n"
      "type(go_arg), dimension(1) :: meta_args = "
@@ -341,9 +347,12 @@ def test_parse_meta_arg_variants():
      "must bind a kernel procedure"),
 ])
 def test_declaration_errors(declaration, message):
-    """Test structural validation of GOcean metadata declarations."""
+    """Test structural validation of GOcean metadata StructureTypes."""
+    root = FortranReader().psyir_from_source(
+        f"module bad_mod\n{declaration}\nend module bad_mod\n")
+    symbol = root.walk(Container)[1].symbol_table.lookup("bad")
     with pytest.raises(ParseError, match=message):
-        metadata_mod._metadata_from_declaration("bad", declaration)
+        GOceanKernelMetadata.create_from_psyir(symbol)
 
 
 def test_find_metadata_symbol_errors():

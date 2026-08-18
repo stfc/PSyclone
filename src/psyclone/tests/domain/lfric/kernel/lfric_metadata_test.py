@@ -21,7 +21,12 @@ from psyclone.parse.kernel import get_kernel_psyir, KernelTypeFactory
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import (
-    DataTypeSymbol, ScalarType, UnsupportedFortranType)
+    DataTypeSymbol, ScalarType, StructureType)
+
+
+def _expression(source):
+    """Create a PSyIR expression for node-level metadata tests."""
+    return FortranReader().psyir_from_expression(source)
 
 
 def _descriptor(access=AccessType.WRITE, argument_type="gh_field",
@@ -296,7 +301,7 @@ def test_language_metadata_fortran_output():
     assert "code => test_code" in output
     symbol = metadata.lower_to_psyir()
     assert symbol.name == "test_type"
-    assert isinstance(symbol.datatype, UnsupportedFortranType)
+    assert isinstance(symbol.datatype, StructureType)
 
     single_shape = _kernel_metadata(
         [FieldArgMetadata("gh_real", "gh_write", "w0")],
@@ -308,32 +313,18 @@ def test_language_metadata_fortran_output():
 
 
 def test_parser_helpers():
-    """Test the small PSyIR parsing helpers and their error handling."""
-    assert metadata_mod._name(metadata_mod._expression("W0")) == "w0"
-    assert metadata_mod._name(metadata_mod._expression("'VALUE'")) == "value"
+    """Test the small PSyIR-node helpers and their error handling."""
+    assert metadata_mod._name(_expression("W0")) == "w0"
+    assert metadata_mod._name(_expression("'VALUE'")) == "value"
     assert len(metadata_mod._array_values(
-        metadata_mod._expression("(/w0, w1/)")
+        _expression("(/w0, w1/)")
     )) == 2
     assert len(metadata_mod._array_values(
-        metadata_mod._expression("w0"))) == 1
-    with pytest.raises(ParseError, match="Failed to parse"):
-        metadata_mod._expression("(/ broken")
+        _expression("w0"))) == 1
     with pytest.raises(ParseError, match="metadata constructor"):
-        metadata_mod._call_name(metadata_mod._expression("w0"))
+        metadata_mod._call_name(_expression("w0"))
     with pytest.raises(ParseError, match="metadata name or literal"):
-        metadata_mod._name(metadata_mod._expression("w0 + w1"))
-
-    assert metadata_mod._declared_extent(
-        "type(arg_type) :: meta_args(3)", "meta_args") == 3
-    assert metadata_mod._declared_extent(
-        "type(arg_type), dimension(2) :: meta_args", "meta_args") == 2
-    with pytest.raises(ParseError, match="must be an array"):
-        metadata_mod._checked_array(
-            "type(arg_type) :: meta_args", "meta_args", "arg_type(a,b,c)")
-    with pytest.raises(ParseError, match="extent 2"):
-        metadata_mod._checked_array(
-            "type(arg_type), dimension(2) :: meta_args", "meta_args",
-            "(/arg_type(a,b,c)/)")
+        metadata_mod._name(_expression("w0 + w1"))
 
 
 @pytest.mark.parametrize("expression, message", [
@@ -361,7 +352,7 @@ def test_parse_arg_errors(expression, message):
     """Test invalid forms of the arg_type constructor."""
     error = NotImplementedError if "fixed stencil" in message else ParseError
     with pytest.raises(error, match=message):
-        metadata_mod._parse_arg(metadata_mod._expression(expression))
+        metadata_mod._parse_arg(_expression(expression))
 
 
 def test_parse_arg_variants():
@@ -386,7 +377,7 @@ def test_parse_arg_variants():
     ]
     for expression, expected_type in cases:
         assert isinstance(
-            metadata_mod._parse_arg(metadata_mod._expression(expression)),
+            metadata_mod._parse_arg(_expression(expression)),
             expected_type)
 
 
@@ -401,7 +392,7 @@ def test_parse_arg_variants():
 def test_parse_func_errors(expression, message):
     """Test invalid func_type constructor forms."""
     with pytest.raises(ParseError, match=message):
-        metadata_mod._parse_func(metadata_mod._expression(expression))
+        metadata_mod._parse_func(_expression(expression))
 
 
 def test_consumer_descriptor_methods():
@@ -491,19 +482,27 @@ def test_create_language_metadata_from_psyir_errors():
     with pytest.raises(TypeError, match="Expected a DataTypeSymbol"):
         LFRicKernelMetadata.create_from_psyir("not a symbol")
     symbol = DataTypeSymbol("bad_type", ScalarType.real_type())
-    with pytest.raises(TypeError, match="UnsupportedFortranType"):
+    with pytest.raises(TypeError, match="StructureType"):
         LFRicKernelMetadata.create_from_psyir(symbol)
 
 
 def test_declaration_errors():
-    """Test errors found in complete language-level declarations."""
+    """Test errors found in complete language-level StructureTypes."""
+    reader = FortranReader()
+    root = reader.psyir_from_source(
+        "module bad_mod\ntype :: bad_type\nend type bad_type\n"
+        "end module bad_mod")
+    symbol = root.walk(Container)[1].symbol_table.lookup("bad_type")
     with pytest.raises(ParseError, match="must extend kernel_type"):
-        metadata_mod._metadata_from_declaration(
-            "bad_type", "type :: bad_type\nend type bad_type")
+        LFRicKernelMetadata.create_from_psyir(symbol)
+
+    root = reader.psyir_from_source(
+        "module bad_mod\ntype, extends(kernel_type) :: bad_type\n"
+        "integer :: operates_on = cell_column\nend type bad_type\n"
+        "end module bad_mod")
+    symbol = root.walk(Container)[1].symbol_table.lookup("bad_type")
     with pytest.raises(ParseError, match="No meta_args"):
-        metadata_mod._metadata_from_declaration(
-            "bad_type", "type, extends(kernel_type) :: bad_type\n"
-            "integer :: operates_on = cell_column\nend type bad_type")
+        LFRicKernelMetadata.create_from_psyir(symbol)
 
 
 def test_rich_metadata_parsing_and_evaluator_target():

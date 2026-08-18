@@ -58,7 +58,7 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     ArrayConstructor, Call, Container, FileContainer, Literal, Reference,
     Node, Routine)
-from psyclone.psyir.symbols import DataTypeSymbol, UnsupportedFortranType
+from psyclone.psyir.symbols import ArrayType, DataTypeSymbol, StructureType
 
 
 def _normalise(
@@ -414,7 +414,7 @@ class GOceanKernelMetadata:
         :returns: the parsed GOcean kernel metadata.
 
         :raises TypeError: if ``symbol`` is not a DataTypeSymbol.
-        :raises InternalError: if its datatype is not unsupported Fortran.
+        :raises InternalError: if its datatype is not a StructureType.
         :raises ParseError: if the metadata declaration is invalid.
         """
         if not isinstance(symbol, DataTypeSymbol):
@@ -422,15 +422,77 @@ class GOceanKernelMetadata:
                 f"Expected a DataTypeSymbol but found "
                 f"'{type(symbol).__name__}'."
             )
-        if not isinstance(symbol.datatype, UnsupportedFortranType):
+        if not isinstance(symbol.datatype, StructureType):
             raise InternalError(
                 "Expected kernel metadata to be stored in the PSyIR as an "
-                "UnsupportedFortranType, but found "
+                "instance of StructureType, but found "
                 f"'{type(symbol.datatype).__name__}'."
             )
+        datatype = symbol.datatype
+        if (not datatype.extends or
+                datatype.extends.name.lower() != "kernel_type"):
+            raise ParseError(
+                "GOcean kernel metadata must extend kernel_type."
+            )
+
+        components = datatype.components
+        missing = {
+            value
+            for value in ("meta_args", "iterates_over", "index_offset")
+            if value not in components
+        }
+        if missing:
+            raise ParseError(
+                f"Missing GOcean metadata component(s): {sorted(missing)}."
+            )
+
         try:
-            return _metadata_from_declaration(
-                symbol.name, symbol.datatype.declaration)
+            meta_args = components["meta_args"]
+            if not isinstance(meta_args.initial_value, ArrayConstructor):
+                raise ParseError("meta_args must be an array constructor.")
+            meta_args_type = meta_args.datatype
+            if (not isinstance(meta_args_type, ArrayType) or
+                    len(meta_args_type.shape) != 1 or
+                    not isinstance(meta_args_type.shape[0],
+                                   ArrayType.ArrayBounds) or
+                    not isinstance(meta_args_type.shape[0].lower, Literal) or
+                    not isinstance(meta_args_type.shape[0].upper, Literal)):
+                raise ParseError("meta_args must declare a literal extent.")
+            bounds = meta_args_type.shape[0]
+            try:
+                extent = int(bounds.upper.value) - int(bounds.lower.value) + 1
+            except ValueError as err:
+                raise ParseError(
+                    "meta_args must declare a literal extent."
+                ) from err
+            if extent != len(meta_args.initial_value.children):
+                raise ParseError(
+                    f"meta_args has extent {extent} but its constructor "
+                    f"contains {len(meta_args.initial_value.children)} "
+                    "entries."
+                )
+            arguments = tuple(
+                _parse_meta_arg(node)
+                for node in meta_args.initial_value.children
+            )
+
+            if not datatype.procedure_components:
+                raise ParseError(
+                    "GOcean metadata must bind a kernel procedure."
+                )
+            procedure = next(iter(datatype.procedure_components.values()))
+            procedure_name = (
+                _name(procedure.initial_value)
+                if procedure.initial_value else procedure.name
+            )
+
+            return cls(
+                _name(components["iterates_over"].initial_value),
+                _name(components["index_offset"].initial_value),
+                arguments,
+                procedure_name,
+                symbol.name,
+            )
         except (TypeError, ValueError) as err:
             raise ParseError(
                 f"Invalid GOcean metadata '{symbol.name}': {err}"
@@ -500,9 +562,9 @@ class GOceanKernelMetadata:
             if not isinstance(container, FileContainer)
             for symbol in container.symbol_table.symbols
             if isinstance(symbol, DataTypeSymbol)
-            and isinstance(symbol.datatype, UnsupportedFortranType)
-            and "extends(kernel_type)"
-            in symbol.datatype.declaration.lower().replace(" ", "")
+            and isinstance(symbol.datatype, StructureType)
+            and symbol.datatype.extends
+            and symbol.datatype.extends.name.lower() == "kernel_type"
         ]
         if len(symbols) != 1:
             raise ParseError(
@@ -606,8 +668,12 @@ class GOceanKernelMetadata:
         """
         :returns: the language-level PSyIR symbol for this metadata.
         """
-        return DataTypeSymbol(
-            self.name, UnsupportedFortranType(self.fortran_string()))
+        source = (f"module metadata_mod\n{self.fortran_string()}"
+                  "end module metadata_mod\n")
+        container = next(
+            node for node in FortranReader().psyir_from_source(source).walk(
+                Container) if not isinstance(node, FileContainer))
+        return container.symbol_table.lookup(self.name)
 
     def __str__(self) -> str:
         """
@@ -617,23 +683,6 @@ class GOceanKernelMetadata:
             f"GOcean kernel {self.name}, index-offset = "
             f"{self.index_offset}, iterates-over = {self.iterates_over}"
         )
-
-
-def _expression(source: str) -> Node:
-    """Parse one metadata initializer into PSyIR.
-
-    :param source: the metadata expression to parse.
-
-    :returns: the PSyIR representation of the expression.
-
-    :raises ParseError: if the expression cannot be parsed.
-    """
-    try:
-        return FortranReader().psyir_from_expression(source)
-    except Exception as err:
-        raise ParseError(
-            f"Failed to parse metadata initializer '{source}'."
-        ) from err
 
 
 def _call_name(node: Node) -> str:
@@ -731,100 +780,6 @@ def _parse_meta_arg(
     )
 
 
-def _component_initializers(
-    declaration: str,
-) -> dict[str, tuple[str, str]]:
-    """Return component initializers from a normalised declaration.
-
-    :param declaration: the Fortran metadata declaration.
-
-    :returns: component names mapped to their source lines and initializers.
-    """
-    result = {}
-    for line in declaration.splitlines():
-        if "=" not in line or "::" not in line:
-            continue
-        lhs, rhs = line.split("=", 1)
-        component = lhs.split("::", 1)[1].strip()
-        for name in ("meta_args", "iterates_over", "index_offset"):
-            if re.match(rf"(?i)^{name}\b", component):
-                result[name] = (line, rhs.strip())
-                break
-    return result
-
-
-def _extent(line: str) -> Optional[int]:
-    """Return a literal declared rank-one extent.
-
-    :param line: the declaration line to inspect.
-
-    :returns: the declared extent, or ``None`` if none is found.
-    """
-    match = re.search(r"(?i)\bdimension\s*\(\s*(\d+)\s*\)", line)
-    if not match:
-        match = re.search(r"(?i)\bmeta_args\s*\(\s*(\d+)\s*\)", line)
-    return int(match.group(1)) if match else None
-
-
-def _metadata_from_declaration(
-    name: str, declaration: str
-) -> GOceanKernelMetadata:
-    """Create metadata from an UnsupportedFortranType declaration.
-
-    :param name: the name of the metadata type.
-    :param declaration: its Fortran declaration.
-
-    :returns: the parsed GOcean kernel metadata.
-
-    :raises ParseError: if the declaration is incomplete or invalid.
-    """
-    compact_header = declaration.splitlines()[0].lower().replace(" ", "")
-    if "extends(kernel_type)" not in compact_header:
-        raise ParseError("GOcean kernel metadata must extend kernel_type.")
-    components = _component_initializers(declaration)
-    missing = {
-        value
-        for value in ("meta_args", "iterates_over", "index_offset")
-        if value not in components
-    }
-    if missing:
-        raise ParseError(
-            f"Missing GOcean metadata component(s): {sorted(missing)}."
-        )
-    line, rhs = components["meta_args"]
-    expression = _expression(rhs)
-    if not isinstance(expression, ArrayConstructor):
-        raise ParseError("meta_args must be an array constructor.")
-    extent = _extent(line)
-    if extent is None:
-        raise ParseError("meta_args must declare a literal extent.")
-    if extent != len(expression.children):
-        raise ParseError(
-            f"meta_args has extent {extent} but its constructor contains "
-            f"{len(expression.children)} entries."
-        )
-    arguments = tuple(
-        _parse_meta_arg(node) for node in expression.children)
-    iterates_over = _name(_expression(components["iterates_over"][1]))
-    index_offset = _name(_expression(components["index_offset"][1]))
-    match = re.search(
-        r"(?im)^\s*procedure\b[^:]*::\s*"
-        r"(?:code\s*=>\s*)?([a-z][a-z0-9_]*)\s*$",
-        declaration,
-    )
-    if not match:
-        raise ParseError(
-            "GOcean metadata must bind a kernel procedure."
-        )
-    return GOceanKernelMetadata(
-        iterates_over,
-        index_offset,
-        arguments,
-        match.group(1),
-        name,
-    )
-
-
 def _module_containers(psyir: Node) -> list[Container]:
     """Return module containers from complete PSyIR.
 
@@ -863,9 +818,9 @@ def find_metadata_symbol(
         for symbol in container.symbol_table.symbols:
             if (
                 isinstance(symbol, DataTypeSymbol)
-                and isinstance(symbol.datatype, UnsupportedFortranType)
-                and "extends(kernel_type)"
-                in symbol.datatype.declaration.lower().replace(" ", "")
+                and isinstance(symbol.datatype, StructureType)
+                and symbol.datatype.extends
+                and symbol.datatype.extends.name.lower() == "kernel_type"
                 and (name is None or symbol.name.lower() == name.lower())
             ):
                 candidates.append((container, symbol))

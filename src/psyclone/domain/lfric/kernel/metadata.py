@@ -7,7 +7,6 @@
 """Immutable LFRic kernel metadata built from language-level PSyIR."""
 
 from dataclasses import dataclass, field
-import re
 from typing import ClassVar, Iterable, Optional, TypeAlias
 
 from psyclone.core import AccessType
@@ -26,9 +25,10 @@ from psyclone.psyir.nodes import (
     Routine,
 )
 from psyclone.psyir.symbols import (
+    ArrayType,
     DataTypeSymbol,
     GenericInterfaceSymbol,
-    UnsupportedFortranType,
+    StructureType,
 )
 
 # Metadata records naturally contain more state than behavioural classes.
@@ -730,13 +730,112 @@ class LFRicKernelMetadata:
                 f"Expected a DataTypeSymbol but found "
                 f"'{type(symbol).__name__}'."
             )
-        if not isinstance(symbol.datatype, UnsupportedFortranType):
+        if not isinstance(symbol.datatype, StructureType):
             raise TypeError(
-                "Expected metadata to use UnsupportedFortranType but found "
+                "Expected metadata to use StructureType but found "
                 f"'{type(symbol.datatype).__name__}'."
             )
-        return _metadata_from_declaration(
-            symbol.name, symbol.datatype.declaration
+        datatype = symbol.datatype
+        if (not datatype.extends or
+                datatype.extends.name.lower() != "kernel_type"):
+            raise ParseError(
+                "LFRic kernel metadata must extend kernel_type."
+            )
+
+        components = datatype.components
+        if "meta_args" not in components:
+            raise ParseError(
+                f"No meta_args found in kernel metadata '{symbol.name}'."
+            )
+
+        def array_values(component_name: str) -> tuple[Node, ...]:
+            """Return and validate values of an array component."""
+            component = components[component_name]
+            component_type = component.datatype
+            if (not isinstance(component_type, ArrayType) or
+                    len(component_type.shape) != 1 or
+                    not isinstance(component_type.shape[0],
+                                   ArrayType.ArrayBounds) or
+                    not isinstance(component_type.shape[0].lower, Literal) or
+                    not isinstance(component_type.shape[0].upper, Literal)):
+                raise ParseError(
+                    f"Metadata component '{component_name}' must be an "
+                    "array."
+                )
+            bounds = component_type.shape[0]
+            try:
+                extent = int(bounds.upper.value) - int(bounds.lower.value) + 1
+            except ValueError as err:
+                raise ParseError(
+                    f"Metadata component '{component_name}' must have a "
+                    "literal extent."
+                ) from err
+            values = _array_values(component.initial_value)
+            if extent != len(values):
+                raise ParseError(
+                    f"Metadata component '{component_name}' has extent "
+                    f"{extent} but its constructor contains {len(values)} "
+                    "values."
+                )
+            return values
+
+        meta_args = tuple(
+            _parse_arg(node) for node in array_values("meta_args")
+        )
+
+        meta_funcs = ()
+        if "meta_funcs" in components:
+            meta_funcs = tuple(
+                _parse_func(node) for node in array_values("meta_funcs")
+            )
+
+        def names(component_name: str) -> tuple[str, ...]:
+            """Return scalar names from an optional component."""
+            if component_name not in components:
+                return ()
+            initial_value = components[component_name].initial_value
+            values = (
+                array_values(component_name)
+                if isinstance(initial_value, ArrayConstructor)
+                else (initial_value,)
+            )
+            return tuple(_name(value) for value in values)
+
+        ref_element = ()
+        if "meta_reference_element" in components:
+            ref_element = tuple(
+                MetaRefElementArgMetadata(_name(node.arguments[0]))
+                for node in array_values("meta_reference_element")
+                if _call_name(node) == "reference_element_data_type"
+            )
+
+        mesh = ()
+        if "meta_mesh" in components:
+            mesh = tuple(
+                MetaMeshArgMetadata(_name(node.arguments[0]))
+                for node in array_values("meta_mesh")
+                if _call_name(node) == "mesh_data_type"
+            )
+
+        procedure_name = None
+        if datatype.procedure_components:
+            procedure = next(iter(datatype.procedure_components.values()))
+            procedure_name = (
+                _name(procedure.initial_value)
+                if procedure.initial_value else procedure.name
+            )
+
+        return cls(
+            operates_on=(names("operates_on")[0]
+                         if "operates_on" in components else None),
+            shapes=names("gh_shape"),
+            evaluator_targets=names("gh_evaluator_targets"),
+            meta_args=meta_args,
+            meta_funcs=meta_funcs,
+            meta_ref_element=ref_element,
+            meta_mesh=mesh,
+            procedure_name=procedure_name,
+            name=symbol.name,
         )
 
     @property
@@ -1064,26 +1163,12 @@ class LFRicKernelMetadata:
         """
         :returns: the language-level PSyIR symbol for this metadata.
         """
-        return DataTypeSymbol(
-            self.name, UnsupportedFortranType(self.fortran_string())
-        )
-
-
-def _expression(source: str) -> Node:
-    """Parse one metadata initializer into PSyIR.
-
-    :param source: the metadata expression to parse.
-
-    :returns: the PSyIR representation of the expression.
-
-    :raises ParseError: if the expression cannot be parsed.
-    """
-    try:
-        return FortranReader().psyir_from_expression(source)
-    except Exception as err:
-        raise ParseError(
-            f"Failed to parse metadata initializer '{source}'."
-        ) from err
+        source = (f"module metadata_mod\n{self.fortran_string()}"
+                  "end module metadata_mod\n")
+        container = next(
+            node for node in FortranReader().psyir_from_source(source).walk(
+                Container) if not isinstance(node, FileContainer))
+        return container.symbol_table.lookup(self.name)
 
 
 def _call_name(node: Node) -> str:
@@ -1315,172 +1400,6 @@ def _parse_func(node: Node) -> MetaFuncsArgMetadata:
         values[0],
         basis_function="gh_basis" in operators,
         diff_basis_function="gh_diff_basis" in operators,
-    )
-
-
-def _component_initializers(
-    declaration: str,
-) -> dict[str, tuple[str, str]]:
-    """Return known component initializers from a declaration.
-
-    :param declaration: the Fortran metadata declaration.
-
-    :returns: component names mapped to their source lines and initializers.
-    """
-    known = (
-        "meta_args",
-        "meta_funcs",
-        "meta_reference_element",
-        "meta_mesh",
-        "gh_shape",
-        "gh_evaluator_targets",
-        "operates_on",
-    )
-    result = {}
-    for line in declaration.splitlines():
-        if "=" not in line or "::" not in line:
-            continue
-        lhs, rhs = line.split("=", 1)
-        component = lhs.split("::", 1)[1].strip()
-        for name in known:
-            if re.match(rf"(?i)^{name}\b", component):
-                result[name] = (line, rhs.strip())
-                break
-    return result
-
-
-def _declared_extent(line: str, component: str) -> Optional[int]:
-    """Return a literal rank-one component extent, if present.
-
-    :param line: the declaration line to inspect.
-    :param component: the component name.
-
-    :returns: the declared extent, or ``None`` if none is found.
-    """
-    match = re.search(r"(?i)\bdimension\s*\(\s*(\d+)\s*\)", line)
-    if not match:
-        match = re.search(
-            rf"(?i)\b{component}\s*\(\s*(\d+)\s*\)", line
-        )
-    return int(match.group(1)) if match else None
-
-
-def _checked_array(
-    line: str, component: str, rhs: str
-) -> tuple[Node, ...]:
-    """Parse an initializer and check its declared extent.
-
-    :param line: the component declaration line.
-    :param component: the component name.
-    :param rhs: the component initializer.
-
-    :returns: the parsed initializer values.
-
-    :raises ParseError: if the extent is absent or does not match.
-    """
-    values = _array_values(_expression(rhs))
-    extent = _declared_extent(line, component)
-    if extent is None:
-        raise ParseError(f"Metadata component '{component}' must be an array.")
-    if extent != len(values):
-        raise ParseError(
-            f"Metadata component '{component}' has extent {extent} but its "
-            f"constructor contains {len(values)} values."
-        )
-    return values
-
-
-def _metadata_from_declaration(
-    name: str, declaration: str
-) -> LFRicKernelMetadata:
-    """Build typed metadata from an UnsupportedFortranType declaration.
-
-    :param name: the name of the metadata type.
-    :param declaration: its Fortran declaration.
-
-    :returns: the parsed language-level LFRic metadata.
-
-    :raises ParseError: if the declaration is incomplete or invalid.
-    """
-    header = declaration.splitlines()[0]
-    if "extends(kernel_type)" not in header.lower().replace(" ", ""):
-        raise ParseError(
-            "LFRic kernel metadata must extend kernel_type."
-        )
-    components = _component_initializers(declaration)
-    if "meta_args" not in components:
-        raise ParseError(f"No meta_args found in kernel metadata '{name}'.")
-    line, rhs = components["meta_args"]
-    meta_args = tuple(
-        _parse_arg(node)
-        for node in _checked_array(line, "meta_args", rhs)
-    )
-    meta_funcs = ()
-    if "meta_funcs" in components:
-        line, rhs = components["meta_funcs"]
-        meta_funcs = tuple(
-            _parse_func(node)
-            for node in _checked_array(line, "meta_funcs", rhs)
-        )
-
-    def names(component: str) -> tuple[str, ...]:
-        """Parse all scalar names in one metadata component.
-
-        :param component: the component name.
-
-        :returns: the component's lower-case scalar values.
-        """
-        if component not in components:
-            return ()
-        line, rhs = components[component]
-        node = _expression(rhs)
-        if isinstance(node, ArrayConstructor):
-            values = _checked_array(line, component, rhs)
-        else:
-            values = (node,)
-        return tuple(_name(value) for value in values)
-
-    ref_element = ()
-    if "meta_reference_element" in components:
-        line, rhs = components["meta_reference_element"]
-        ref_element = tuple(
-            MetaRefElementArgMetadata(_name(node.arguments[0]))
-            for node in _checked_array(
-                line, "meta_reference_element", rhs
-            )
-            if _call_name(node) == "reference_element_data_type"
-        )
-    mesh = ()
-    if "meta_mesh" in components:
-        line, rhs = components["meta_mesh"]
-        mesh = tuple(
-            MetaMeshArgMetadata(_name(node.arguments[0]))
-            for node in _checked_array(line, "meta_mesh", rhs)
-            if _call_name(node) == "mesh_data_type"
-        )
-
-    procedure_name = None
-    for line in declaration.splitlines():
-        match = re.search(
-            r"(?i)^\s*procedure\b.*::\s*(?:code\s*=>\s*)?(\w+)",
-            line,
-        )
-        if match:
-            procedure_name = match.group(1)
-            break
-    operates_on = (
-        names("operates_on")[0] if "operates_on" in components else None
-    )
-    return LFRicKernelMetadata(
-        operates_on=operates_on,
-        shapes=names("gh_shape"),
-        evaluator_targets=names("gh_evaluator_targets"),
-        meta_args=meta_args,
-        meta_funcs=meta_funcs,
-        meta_ref_element=ref_element,
-        meta_mesh=mesh,
-        procedure_name=procedure_name,
-        name=name,
     )
 
 
@@ -1958,7 +1877,7 @@ def find_metadata_symbol(
             (container, symbol)
             for symbol in container.symbol_table.symbols
             if isinstance(symbol, DataTypeSymbol)
-            and isinstance(symbol.datatype, UnsupportedFortranType)
+            and isinstance(symbol.datatype, StructureType)
             and symbol.name.lower() == name.lower()
         )
     if not matches:
