@@ -123,8 +123,8 @@ version = { attr = "psyclone.version.__VERSION__" }
 # Ensure that any XPASS ("unexpectedly passing") results are reported
 # as failures in the test suite.
 xfail_strict = true
-# Tutorial exercises include intentionally incomplete Python templates, so the
-# canonical automated test suite lives under src/psyclone/tests.
+# Tutorial exercises include intentionally incomplete Python templates, so
+# don't attempt to call pytest on them
 testpaths = ["src/psyclone/tests"]
 addopts = "--ignore=external -p no:pep8"
 filterwarnings = ["ignore::DeprecationWarning"]

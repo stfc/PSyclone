@@ -228,8 +228,6 @@ class LFRicKern(CodedKern):
         for descriptor in kmetadata.func_descriptors:
             if len(descriptor.operator_names) > 0:
                 self._basis_required = True
-                # Metadata is immutable but the kernel-layer view is
-                # intentionally mutable so transformations can specialise it.
                 self._eval_shapes = list(kmetadata.eval_shapes)
                 break
 
