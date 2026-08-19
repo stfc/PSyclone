@@ -45,6 +45,38 @@ def test_comment():
     output_file = fll.process(input_file)
     assert output_file == expected_output
 
+    # Test a comment with only elements from [+-\\/\"'`]
+    input_file = " !++++++++++++++++"
+    expected_output = " !+++++++++++\n!& +++++"
+    fll = FortLineLength(line_length=len(input_file)-5)
+    output_file = fll.process(input_file)
+    assert output_file == expected_output
+
+    # Test a comment with only alphanumeric characters.
+    input_file = " !asdjbhsdfajkglhsdfgkljsh"
+    expected_output = " !asdjbhsdfajkglhsdfg\n!& kljsh"
+    fll = FortLineLength(line_length=len(input_file)-5)
+    output_file = fll.process(input_file)
+    assert output_file == expected_output
+
+    # Test a comment with only other characters.
+    input_file = " !@@@@@@@@@@@@@@@@@@@@@@"
+    expected_output = " !@@@@@@@@@@@@@@@@@\n!& @@@@@"
+    fll = FortLineLength(line_length=len(input_file)-5)
+    output_file = fll.process(input_file)
+    assert output_file == expected_output
+
+
+def test_first_non_whitespace_too_late():
+    ''' Tests that when there is only whitespace before the
+    line_length specified we get an InternalError.'''
+
+    input_file = "                  string"
+    with pytest.raises(InternalError) as excinfo:
+        find_break_point(input_file, 8, "r")
+    assert ("Error in find_break_point. No suitable break point found for "
+            "line '        ' and keys 'r'" in str(excinfo.value))
+
 
 def test_unchanged():
     ''' Tests that a file whose lines are shorter than the specified
@@ -62,8 +94,6 @@ def test_unchanged():
         "    stuff\n")
     fll = FortLineLength(line_length=25)
     output_file = fll.process(input_file)
-    print("("+input_file+")")
-    print("("+output_file+")")
     assert input_file == output_file, "input should remain unchanged"
 
 
@@ -106,8 +136,6 @@ def test_wrapped():
     line length is wrapped appropriately by the FortLineLength class '''
     fll = FortLineLength(line_length=30)
     output_file = fll.process(INPUT_FILE)
-    print("("+EXPECTED_OUTPUT+")")
-    print("("+output_file+")")
     assert output_file == EXPECTED_OUTPUT, "output and expected output differ "
 
 
@@ -117,8 +145,6 @@ def test_wrapped_lower():
     FortLineLength class'''
     fll = FortLineLength(line_length=30)
     output_file = fll.process(INPUT_FILE.lower())
-    print("("+EXPECTED_OUTPUT.lower()+")")
-    print("("+output_file+")")
     assert output_file == EXPECTED_OUTPUT.lower(), \
         "output and expected output differ "
 
@@ -127,7 +153,7 @@ def test_fail_to_wrap():
     ''' Tests that we raise an error if we can't find anywhere to wrap
     the line'''
     input_file = "!$OMPPARALLELDO"
-    with pytest.raises(Exception) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         fll = FortLineLength(line_length=len(input_file)-1)
         _ = fll.process(input_file)
     assert 'No suitable break point found' in str(excinfo.value)
@@ -269,8 +295,6 @@ def test_edge_conditions_statements():
         "INTEGER &\n&INTEGER &\n&INTEGER\n")
     fll = FortLineLength(line_length=len("INTEGER INTEGER"))
     output_string = fll.process(input_string)
-    print(output_string)
-    print(expected_output)
     assert output_string == expected_output
 
 
