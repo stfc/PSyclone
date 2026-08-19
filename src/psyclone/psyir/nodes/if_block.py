@@ -11,6 +11,7 @@ from psyclone.core import VariablesAccessMap
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.statement import Statement
 
@@ -171,8 +172,10 @@ class IfBlock(Statement):
         :returns: the combined next_accesses for the children of this IfBlock.
         '''
         next_accesses = []
-        new_accesses = self.condition.next_accesses()
-        self._merge_accesses(next_accesses, new_accesses)
+        # Find all the next_accesses for the References in the condition.
+        for ref in self.condition.walk(Reference):
+            new_accesses = ref.next_accesses()
+            self._merge_accesses(next_accesses, new_accesses)
         for child in self.if_body:
             self._merge_accesses(next_accesses, child.next_accesses())
         if self.else_body:
@@ -188,8 +191,10 @@ class IfBlock(Statement):
             IfBlock.
         '''
         prev_accesses = []
-        new_accesses = self.condition.previous_accesses()
-        self._merge_accesses(prev_accesses, new_accesses)
+        # Find all the next_accesses for the References in the condition.
+        for ref in self.condition.walk(Reference):
+            new_accesses = ref.previous_accesses()
+            self._merge_accesses(prev_accesses, new_accesses)
         for child in self.if_body:
             self._merge_accesses(prev_accesses, child.previous_accesses())
         if self.else_body:
