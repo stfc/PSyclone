@@ -8,8 +8,9 @@
 ''' Performs py.test tests on the IfBlock PSyIR node. '''
 
 import pytest
-from psyclone.psyir.nodes import IfBlock, Literal, Reference, Schedule, \
-    Return, Assignment
+from psyclone.psyir.nodes import (
+        IfBlock, Literal, Reference, Schedule, Return, Assignment
+)
 from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -256,3 +257,29 @@ def test_ifblock_children_validation():
         ifblock.addchild(else_body)
     assert ("Item 'Schedule' can't be child 3 of 'If'. The valid format is: "
             "'DataNode, Schedule [, Schedule]'." in str(excinfo.value))
+
+
+def test_ifblock_next_accesses_condition(fortran_reader):
+    '''Test the next_accesses finds the next_accesses for references
+    in the ifblock's condition correctly.'''
+
+    code = """subroutine test
+    integer :: i, j, k, l
+
+    if(i > 3) then
+        j = 1
+    else
+        k = 1
+    end if
+    l = i
+    i = 1
+    end subroutine test"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    ifblock = psyir.walk(IfBlock)[0]
+    accesses = ifblock.next_accesses()
+    # The next_accesses are the two accesses to i after the ifblock.
+    assert len(accesses) == 2
+    assigns = psyir.walk(Assignment)
+    assert accesses[0] is assignment[2].rhs
+    assert accesses[1] is assignment[3].lhs
