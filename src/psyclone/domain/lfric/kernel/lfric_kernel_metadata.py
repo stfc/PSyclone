@@ -672,9 +672,8 @@ class LFRicKernelMetadata(CommonMetadata):
         datatype = symbol.datatype
 
         if isinstance(datatype, StructureType):
-            # StructureType now supports the EXTENDS and CONTAINS syntax used
-            # by kernel metadata. Convert it back to Fortran while this legacy
-            # metadata reader still parses declarations with fparser.
+            # TODO #239: LFricKernelMetadata.create_from_psyir will
+            # replace this
             declaration = FortranWriter().gen_typedecl(
                 symbol, include_visibility=False)
             return LFRicKernelMetadata.create_from_fortran_string(declaration)
