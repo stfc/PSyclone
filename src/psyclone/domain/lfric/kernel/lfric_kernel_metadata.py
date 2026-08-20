@@ -678,16 +678,10 @@ class LFRicKernelMetadata(CommonMetadata):
                 symbol, include_visibility=False)
             return LFRicKernelMetadata.create_from_fortran_string(declaration)
 
-        if not isinstance(datatype, UnsupportedFortranType):
-            raise InternalError(
-                f"Expected kernel metadata to be stored in the PSyIR as "
-                f"an UnsupportedFortranType, but found "
-                f"{type(datatype).__name__}.")
-
-        # In an UnsupportedFortranType, the declaration is stored as a
-        # string, so use create_from_fortran_string()
-        return LFRicKernelMetadata.create_from_fortran_string(
-            datatype.declaration)
+        raise InternalError(
+            f"Expected kernel metadata to be stored in the PSyIR as "
+            f"an StructureType, but found "
+            f"{type(datatype).__name__}.")
 
     @staticmethod
     def create_from_fparser2(fparser2_tree):

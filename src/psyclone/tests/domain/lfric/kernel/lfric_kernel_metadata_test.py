@@ -980,7 +980,7 @@ def test_create_from_psyir_error():
         _ = LFRicKernelMetadata.create_from_psyir(
             DataTypeSymbol("x", ScalarType.real_type()))
     assert ("Expected kernel metadata to be stored in the PSyIR as an "
-            "UnsupportedFortranType, but found ScalarType." in str(info.value))
+            "StructureType, but found ScalarType." in str(info.value))
 
 
 @pytest.mark.parametrize("procedure_format", ["", "code =>"])

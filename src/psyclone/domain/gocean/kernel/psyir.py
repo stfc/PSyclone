@@ -206,16 +206,11 @@ class GOceanKernelMetadata():
             return GOceanKernelMetadata.create_from_fortran_string(
                 declaration)
 
-        if not isinstance(datatype, UnsupportedFortranType):
-            raise InternalError(
-                f"Expected kernel metadata to be stored in the PSyIR as "
-                f"an UnsupportedFortranType, but found "
-                f"{type(datatype).__name__}.")
+        raise InternalError(
+            f"Expected kernel metadata to be stored in the PSyIR as "
+            f"an StructureType, but found "
+            f"{type(datatype).__name__}.")
 
-        # In an UnsupportedFortranType, the declaration is stored as a
-        # string, so use create_from_fortran_string()
-        return GOceanKernelMetadata.create_from_fortran_string(
-            datatype.declaration)
 
     @staticmethod
     def create_from_fortran_string(fortran_string):

@@ -1290,31 +1290,26 @@ class StructureType(DataType):
         return new
 
     @staticmethod
-    def create(components, procedure_components=None, extends=None):
+    def create(
+        components: list[tuple[
+            str, Union[DataType, DataTypeSymbol], Symbol.Visibility,
+            Optional[DataNode], Optional[str], Optional[str]]],
+        procedure_components: Optional[list[tuple[
+            str, Union[DataType, DataTypeSymbol], Symbol.Visibility,
+            Optional[DataNode], Optional[str], Optional[str]]]] = None,
+        extends: Optional[DataTypeSymbol] = None
+    ) -> 'StructureType':
         '''
         Creates a StructureType from the supplied list of properties.
 
         :param components: the name, type, visibility (whether public or
             private), initial value (if any), preceding comment (if any)
             and inline comment (if any) of each component.
-        :type components: List[tuple[
-            str,
-            :py:class:`psyclone.psyir.symbols.DataType` |
-            :py:class:`psyclone.psyir.symbols.DataTypeSymbol`,
-            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`,
-            Optional[:py:class:`psyclone.psyir.symbols.DataNode`],
-            Optional[str],
-            Optional[str]
-            ]]
         :param procedure_components: the procedure bindings of this type,
             specified in the same way as data components.
-        :type procedure_components: Optional[List[tuple]]
         :param extends: the type extended by this type, if any.
-        :type extends: Optional[
-            :py:class:`psyclone.psyir.symbols.DataTypeSymbol`]
 
         :returns: the new type object.
-        :rtype: :py:class:`psyclone.psyir.symbols.StructureType`
 
         '''
         stype = StructureType()
@@ -1455,11 +1450,10 @@ class StructureType(DataType):
                            "_inline_comment",
                            inline_comment)
 
-    def lookup(self, name):
+    def lookup(self, name) -> 'StructureType.ComponentType':
         '''
         :returns: the ComponentType tuple describing the named member of this
                   StructureType.
-        :rtype: :py:class:`psyclone.psyir.symbols.StructureType.ComponentType`
         '''
         lower_name = name.lower()
         if lower_name in self._components:
@@ -1534,12 +1528,11 @@ class StructureType(DataType):
         object.__setattr__(self._procedure_components[key_name],
                            "_inline_comment", inline_comment)
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         '''
-        :param Any other: the object to check equality to.
+        :param other: the object to check equality to.
 
         :returns: whether this StructureType is equal to the 'other' type.
-        :rtype: bool
         '''
         if not super().__eq__(other):
             return False
