@@ -64,7 +64,7 @@ class AlgorithmInvokeCall(Call):
         self._index = index
         # Keep the root names as these will also be needed by the
         # PSy-layer to use as tags to pull out the actual names from
-        # the algorithm symbol table, once issue #753 is complete.
+        # the algorithm symbol table, once issue #1618 is complete.
         # They are public properties because they are needed in
         # AlgInvoke2PSyCallTrans.
         self.psylayer_routine_root_name = None

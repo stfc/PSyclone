@@ -11,7 +11,7 @@ program multiple_stencils
   ! one case and a different value in another.
   ! Note: it is currently not possible to specify kind for an integer
   ! literal stencil depth in a kernel call. This will be enabled when
-  ! addressing issue #753.
+  ! addressing issue #1618.
   use field_mod,            only: field_type
   use testkern_stencil_mod, only: testkern_stencil_type
 
