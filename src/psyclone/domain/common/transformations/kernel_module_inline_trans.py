@@ -411,7 +411,7 @@ class KernelModuleInlineTrans(Transformation):
             # collisions.
             new_sym.visibility = Symbol.Visibility.PRIVATE
             # Add the new symbol to the map.
-            name_map[code_to_inline.name.lower()] = new_sym
+            name_map[code_to_inline.name] = new_sym
             # Add the routine code into this Container
             code_to_inline = code_to_inline.detach()
             code_to_inline.symbol = new_sym
@@ -425,7 +425,7 @@ class KernelModuleInlineTrans(Transformation):
                 symbol_type=GenericInterfaceSymbol,
                 routines=[(sym, True) for sym in name_map.values()],
                 visibility=Symbol.Visibility.PRIVATE)
-            name_map[interface_sym.name.lower()] = new_sym
+            name_map[interface_sym.name] = new_sym
 
         if update_all:
             # We will update all Calls/Kernels associated with the
@@ -435,11 +435,11 @@ class KernelModuleInlineTrans(Transformation):
             # Only update the supplied Call/Kernel.
             all_calls = [node]
 
-        target_sym = name_map.get(caller_name.lower(), None)
+        target_sym = name_map.get(caller_name, None)
         if not target_sym:
             # If we haven't copied in a routine of 'caller_name' then it must
             # be because the target of the call is renamed on import.
-            target_sym = name_map.get(external_callee_name.lower())
+            target_sym = name_map.get(external_callee_name)
 
         for call in all_calls:
             name = call.routine.symbol.name.lower()
