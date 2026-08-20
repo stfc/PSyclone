@@ -312,21 +312,6 @@ def test_language_metadata_fortran_output():
         LFRicKernelMetadata().fortran_string()
 
 
-def test_parser_helpers():
-    """Test the small PSyIR-node helpers and their error handling."""
-    assert metadata_mod._name(_expression("W0")) == "w0"
-    assert metadata_mod._name(_expression("'VALUE'")) == "value"
-    assert len(metadata_mod._array_values(
-        _expression("(/w0, w1/)")
-    )) == 2
-    assert len(metadata_mod._array_values(
-        _expression("w0"))) == 1
-    with pytest.raises(ParseError, match="metadata constructor"):
-        metadata_mod._call_name(_expression("w0"))
-    with pytest.raises(ParseError, match="metadata name or literal"):
-        metadata_mod._name(_expression("w0 + w1"))
-
-
 @pytest.mark.parametrize("expression, message", [
     ("func_type(w0, gh_basis)", "arg_type constructor"),
     ("arg_type(gh_scalar, gh_real)", "at least three"),

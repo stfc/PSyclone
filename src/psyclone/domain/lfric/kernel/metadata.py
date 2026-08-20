@@ -770,7 +770,11 @@ class LFRicKernelMetadata:
                     f"Metadata component '{component_name}' must have a "
                     "literal extent."
                 ) from err
-            values = _array_values(component.initial_value)
+            values = (
+                tuple(component.initial_value.children)
+                if isinstance(component.initial_value, ArrayConstructor)
+                else (component.initial_value,)
+            )
             if extent != len(values):
                 raise ParseError(
                     f"Metadata component '{component_name}' has extent "
@@ -799,31 +803,83 @@ class LFRicKernelMetadata:
                 if isinstance(initial_value, ArrayConstructor)
                 else (initial_value,)
             )
-            return tuple(_name(value) for value in values)
+            result = []
+            for value in values:
+                if isinstance(value, Reference):
+                    result.append(value.symbol.name.lower())
+                elif isinstance(value, Literal):
+                    result.append(value.value.lower())
+                else:
+                    raise ParseError(
+                        "Expected a metadata name or literal but found "
+                        f"'{type(value).__name__}'."
+                    )
+            return tuple(result)
 
         ref_element = ()
         if "meta_reference_element" in components:
-            ref_element = tuple(
-                MetaRefElementArgMetadata(_name(node.arguments[0]))
-                for node in array_values("meta_reference_element")
-                if _call_name(node) == "reference_element_data_type"
-            )
+            ref_element_values = []
+            for node in array_values("meta_reference_element"):
+                if not isinstance(node, Call):
+                    raise ParseError(
+                        "Expected a metadata constructor but found "
+                        f"'{type(node).__name__}'."
+                    )
+                if node.routine.symbol.name.lower() == \
+                        "reference_element_data_type":
+                    value = node.arguments[0]
+                    if isinstance(value, Reference):
+                        value_name = value.symbol.name.lower()
+                    elif isinstance(value, Literal):
+                        value_name = value.value.lower()
+                    else:
+                        raise ParseError(
+                            "Expected a metadata name or literal but found "
+                            f"'{type(value).__name__}'."
+                        )
+                    ref_element_values.append(
+                        MetaRefElementArgMetadata(value_name))
+            ref_element = tuple(ref_element_values)
 
         mesh = ()
         if "meta_mesh" in components:
-            mesh = tuple(
-                MetaMeshArgMetadata(_name(node.arguments[0]))
-                for node in array_values("meta_mesh")
-                if _call_name(node) == "mesh_data_type"
-            )
+            mesh_values = []
+            for node in array_values("meta_mesh"):
+                if not isinstance(node, Call):
+                    raise ParseError(
+                        "Expected a metadata constructor but found "
+                        f"'{type(node).__name__}'."
+                    )
+                if node.routine.symbol.name.lower() == "mesh_data_type":
+                    value = node.arguments[0]
+                    if isinstance(value, Reference):
+                        value_name = value.symbol.name.lower()
+                    elif isinstance(value, Literal):
+                        value_name = value.value.lower()
+                    else:
+                        raise ParseError(
+                            "Expected a metadata name or literal but found "
+                            f"'{type(value).__name__}'."
+                        )
+                    mesh_values.append(MetaMeshArgMetadata(value_name))
+            mesh = tuple(mesh_values)
 
         procedure_name = None
         if datatype.procedure_components:
             procedure = next(iter(datatype.procedure_components.values()))
-            procedure_name = (
-                _name(procedure.initial_value)
-                if procedure.initial_value else procedure.name
-            )
+            if procedure.initial_value:
+                value = procedure.initial_value
+                if isinstance(value, Reference):
+                    procedure_name = value.symbol.name.lower()
+                elif isinstance(value, Literal):
+                    procedure_name = value.value.lower()
+                else:
+                    raise ParseError(
+                        "Expected a metadata name or literal but found "
+                        f"'{type(value).__name__}'."
+                    )
+            else:
+                procedure_name = procedure.name
 
         return cls(
             operates_on=(names("operates_on")[0]
@@ -1171,54 +1227,6 @@ class LFRicKernelMetadata:
         return container.symbol_table.lookup(self.name)
 
 
-def _call_name(node: Node) -> str:
-    """Return the lower-case routine name of a PSyIR Call.
-
-    :param node: the node expected to contain a call.
-
-    :returns: the lower-case name of the called routine.
-
-    :raises ParseError: if ``node`` is not a Call.
-    """
-    if not isinstance(node, Call):
-        raise ParseError(
-            f"Expected a metadata constructor but found "
-            f"'{type(node).__name__}'."
-        )
-    return node.routine.symbol.name.lower()
-
-
-def _name(node: Node) -> str:
-    """Return a metadata scalar represented by a Reference or Literal.
-
-    :param node: the node containing the metadata value.
-
-    :returns: the lower-case metadata value.
-
-    :raises ParseError: if the node is not a Reference or Literal.
-    """
-    if isinstance(node, Reference):
-        return node.symbol.name.lower()
-    if isinstance(node, Literal):
-        return node.value.lower()
-    raise ParseError(
-        f"Expected a metadata name or literal but found "
-        f"'{type(node).__name__}'."
-    )
-
-
-def _array_values(node: Node) -> tuple[Node, ...]:
-    """Return the children of an array constructor or one scalar.
-
-    :param node: an array constructor or scalar node.
-
-    :returns: the array elements or a tuple containing the scalar.
-    """
-    if isinstance(node, ArrayConstructor):
-        return tuple(node.children)
-    return (node,)
-
-
 def _parse_arg(
     node: Node,
 ) -> KernelArgumentMetadata:
@@ -1236,11 +1244,26 @@ def _parse_arg(
     # arg_type constructor grammar.
     # pylint: disable=too-many-locals,too-many-return-statements
     # pylint: disable=too-many-branches,too-many-statements
-    if _call_name(node) != "arg_type":
+    if not isinstance(node, Call):
+        raise ParseError(
+            "Expected a metadata constructor but found "
+            f"'{type(node).__name__}'."
+        )
+    if node.routine.symbol.name.lower() != "arg_type":
         raise ParseError(
             "Each meta_args entry must use the arg_type constructor."
         )
     arguments = tuple(node.arguments)
+    def value_name(value: Node) -> str:
+        """Return and validate a scalar metadata value."""
+        if isinstance(value, Reference):
+            return value.symbol.name.lower()
+        if isinstance(value, Literal):
+            return value.value.lower()
+        raise ParseError(
+            "Expected a metadata name or literal but found "
+            f"'{type(value).__name__}'."
+        )
     names = tuple(node.argument_names)
     if len(arguments) < 3:
         raise ParseError(
@@ -1255,12 +1278,12 @@ def _parse_arg(
     if isinstance(form_node, BinaryOperation):
         if form_node.operator != BinaryOperation.Operator.MUL:
             raise ParseError("Field vectors must use multiplication syntax.")
-        form = _name(form_node.children[0])
-        vector_length = _name(form_node.children[1])
+        form = value_name(form_node.children[0])
+        vector_length = value_name(form_node.children[1])
     else:
-        form = _name(form_node)
-    datatype = _name(arguments[1])
-    access = _name(arguments[2])
+        form = value_name(form_node)
+    datatype = value_name(arguments[1])
+    access = value_name(arguments[2])
     named = {
         name.lower(): argument
         for name, argument in zip(names, arguments)
@@ -1273,22 +1296,22 @@ def _parse_arg(
     ]
     stencil = None
     if len(positional) > 4 and isinstance(positional[4], Call):
-        if _call_name(positional[4]) != "stencil":
+        if positional[4].routine.symbol.name.lower() != "stencil":
             raise ParseError("Expected stencil(type) metadata.")
         if len(positional[4].arguments) != 1:
             raise NotImplementedError(
                 "Kernels with fixed stencil extents are not currently "
                 "supported."
             )
-        stencil = _name(positional[4].arguments[0])
+        stencil = value_name(positional[4].arguments[0])
         if access != "gh_read":
             raise ParseError(
                 "In the LFRic API a field with a stencil access must be "
                 "read-only ('gh_read'), but found "
                 f"'{access}'."
             )
-    nlevels = _name(named["nlevels"]) if "nlevels" in named else None
-    ndata = _name(named["ndata"]) if "ndata" in named else "1"
+    nlevels = value_name(named["nlevels"]) if "nlevels" in named else None
+    ndata = value_name(named["ndata"]) if "ndata" in named else "1"
 
     if form == "gh_scalar":
         if len(arguments) != 3:
@@ -1300,7 +1323,7 @@ def _parse_arg(
                 "Scalar-array metadata must have four arguments."
             )
         return ScalarArrayArgMetadata(
-            datatype, access, int(_name(arguments[3]))
+            datatype, access, int(value_name(arguments[3]))
         )
     if form in ("gh_operator", "gh_columnwise_operator"):
         if len(arguments) != 5:
@@ -1313,8 +1336,8 @@ def _parse_arg(
         return metadata_type(
             datatype,
             access,
-            _name(arguments[3]),
-            _name(arguments[4]),
+            value_name(arguments[3]),
+            value_name(arguments[4]),
         )
     if form != "gh_field":
         const = LFRicConstants()
@@ -1324,8 +1347,8 @@ def _parse_arg(
         )
     if len(positional) < 4:
         raise ParseError("Field metadata must have a function space.")
-    function_space = _name(positional[3])
-    mesh = _name(named["mesh_arg"]) if "mesh_arg" in named else None
+    function_space = value_name(positional[3])
+    mesh = value_name(named["mesh_arg"]) if "mesh_arg" in named else None
     if mesh and vector_length:
         return InterGridVectorArgMetadata(
             datatype,
@@ -1376,11 +1399,27 @@ def _parse_func(node: Node) -> MetaFuncsArgMetadata:
 
     :raises ParseError: if the constructor structure is invalid.
     """
-    if _call_name(node) != "func_type":
+    if not isinstance(node, Call):
+        raise ParseError(
+            "Expected a metadata constructor but found "
+            f"'{type(node).__name__}'."
+        )
+    if node.routine.symbol.name.lower() != "func_type":
         raise ParseError(
             "Each meta_funcs entry must use the func_type constructor."
         )
-    values = tuple(_name(argument) for argument in node.arguments)
+    values = []
+    for argument in node.arguments:
+        if isinstance(argument, Reference):
+            values.append(argument.symbol.name.lower())
+        elif isinstance(argument, Literal):
+            values.append(argument.value.lower())
+        else:
+            raise ParseError(
+                "Expected a metadata name or literal but found "
+                f"'{type(argument).__name__}'."
+            )
+    values = tuple(values)
     if len(values) < 2 or len(values) > 3:
         raise ParseError(
             "func_type requires a function space and one or two operators."

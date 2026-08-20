@@ -266,18 +266,6 @@ def test_create_from_fortran_string_errors(monkeypatch):
         GOceanKernelMetadata.create_from_fortran_string("not Fortran")
 
 
-def test_parser_helpers():
-    """Test low-level node and constructor helpers."""
-    assert metadata_mod._name(_expression("GO_CU")) == "go_cu"
-    assert metadata_mod._name(_expression("'ABC'")) == "abc"
-    assert metadata_mod._call_name(
-        _expression("go_arg(a, b)")) == "go_arg"
-    with pytest.raises(ParseError, match="metadata constructor"):
-        metadata_mod._call_name(_expression("go_cu"))
-    with pytest.raises(ParseError, match="metadata name or literal"):
-        metadata_mod._name(_expression("a + b"))
-
-
 @pytest.mark.parametrize("expression, error, message", [
     ("other(go_read, go_cu, go_pointwise)", ParseError,
      "go_arg constructor"),

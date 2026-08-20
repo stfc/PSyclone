@@ -481,14 +481,36 @@ class GOceanKernelMetadata:
                     "GOcean metadata must bind a kernel procedure."
                 )
             procedure = next(iter(datatype.procedure_components.values()))
-            procedure_name = (
-                _name(procedure.initial_value)
-                if procedure.initial_value else procedure.name
-            )
+            if procedure.initial_value:
+                value = procedure.initial_value
+                if isinstance(value, Reference):
+                    procedure_name = value.symbol.name.lower()
+                elif isinstance(value, Literal):
+                    procedure_name = value.value.lower()
+                else:
+                    raise ParseError(
+                        "Expected a metadata name or literal but found "
+                        f"'{type(value).__name__}'."
+                    )
+            else:
+                procedure_name = procedure.name
+
+            scalar_values = []
+            for component_name in ("iterates_over", "index_offset"):
+                value = components[component_name].initial_value
+                if isinstance(value, Reference):
+                    scalar_values.append(value.symbol.name.lower())
+                elif isinstance(value, Literal):
+                    scalar_values.append(value.value.lower())
+                else:
+                    raise ParseError(
+                        "Expected a metadata name or literal but found "
+                        f"'{type(value).__name__}'."
+                    )
 
             return cls(
-                _name(components["iterates_over"].initial_value),
-                _name(components["index_offset"].initial_value),
+                scalar_values[0],
+                scalar_values[1],
                 arguments,
                 procedure_name,
                 symbol.name,
@@ -710,42 +732,6 @@ class GOceanKernelMetadata:
         )
 
 
-def _call_name(node: Node) -> str:
-    """Return the lower-case routine name for one PSyIR call.
-
-    :param node: the node expected to contain a call.
-
-    :returns: the lower-case name of the called routine.
-
-    :raises ParseError: if ``node`` is not a Call.
-    """
-    if not isinstance(node, Call):
-        raise ParseError(
-            f"Expected a metadata constructor but found "
-            f"'{type(node).__name__}'."
-        )
-    return node.routine.symbol.name.lower()
-
-
-def _name(node: Node) -> str:
-    """Return a scalar metadata name or literal.
-
-    :param node: the node containing the metadata value.
-
-    :returns: the lower-case metadata value.
-
-    :raises ParseError: if the node is not a Reference or Literal.
-    """
-    if isinstance(node, Reference):
-        return node.symbol.name.lower()
-    if isinstance(node, Literal):
-        return node.value.lower()
-    raise ParseError(
-        f"Expected a metadata name or literal but found "
-        f"'{type(node).__name__}'."
-    )
-
-
 def _parse_meta_arg(
     node: Node,
 ) -> (
@@ -762,32 +748,48 @@ def _parse_meta_arg(
     :raises ParseError: if the constructor structure is invalid.
     :raises ValueError: if a field access form is invalid.
     """
-    if _call_name(node) != "go_arg":
+    if not isinstance(node, Call):
+        raise ParseError(
+            "Expected a metadata constructor but found "
+            f"'{type(node).__name__}'."
+        )
+    if node.routine.symbol.name.lower() != "go_arg":
         raise ParseError(
             "Each meta_args entry must use the go_arg constructor."
         )
     arguments = tuple(node.arguments)
+    def value_name(value: Node) -> str:
+        """Return and validate a scalar metadata value."""
+        if isinstance(value, Reference):
+            return value.symbol.name.lower()
+        if isinstance(value, Literal):
+            return value.value.lower()
+        raise ParseError(
+            "Expected a metadata name or literal but found "
+            f"'{type(value).__name__}'."
+        )
+
     if len(arguments) not in (2, 3):
         raise ParseError(
             "Each go_arg constructor must contain two or three arguments "
             f"but found {len(arguments)}."
         )
-    access = _name(arguments[0])
-    second = _name(arguments[1])
+    access = value_name(arguments[0])
+    second = value_name(arguments[1])
     if len(arguments) == 2:
         return GOceanGridPropertyArgMetadata(access, second)
     const = GOceanConstants()
     if second in const.VALID_FIELD_GRID_TYPES:
         form = arguments[2]
         if isinstance(form, Call):
-            if _call_name(form) != const.VALID_STENCIL_NAME:
+            if form.routine.symbol.name.lower() != const.VALID_STENCIL_NAME:
                 raise ParseError(
                     "A field metadata call must use go_stencil."
                 )
-            rows = tuple(_name(value) for value in form.arguments)
+            rows = tuple(value_name(value) for value in form.arguments)
             stencil = GOceanStencilMetadata(rows)
         else:
-            value = _name(form)
+            value = value_name(form)
             if value not in const.VALID_STENCIL_NAMES:
                 raise ValueError(
                     f"Expected field access form to be one of "
@@ -798,7 +800,7 @@ def _parse_meta_arg(
         return GOceanFieldArgMetadata(access, second, stencil)
     if second in const.VALID_SCALAR_TYPES:
         return GOceanScalarArgMetadata(
-            access, second, _name(arguments[2]))
+            access, second, value_name(arguments[2]))
     raise ParseError(
         "Expected the second go_arg entry to identify a field or scalar, "
         f"but found '{second}'."
