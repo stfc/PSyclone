@@ -15,6 +15,7 @@ from psyclone.domain.lfric import (
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
+from psyclone.domain.lfric.kernel import LFRicKernelMetadata
 from psyclone.domain.lfric.transformations import RaisePSyIR2LFRicKernTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad.domain.common.adjoint_utils import (
@@ -538,18 +539,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     tl_subroutine_table = tl_subroutine.symbol_table
     tl_argument_list = tl_subroutine_table.argument_list
 
-    # Parse the kernel metadata. This still uses fparser1 as that's what
-    # the meta-data handling is currently based upon. We therefore have to
-    # convert back from PSyIR to Fortran for the moment.
-    # TODO #2151 - replace this with the new PSyIR-based metadata handling.
-    # pylint: disable=import-outside-toplevel
-    from psyclone.psyir.backend.fortran import FortranWriter
-    writer = FortranWriter()
-    tl_source = writer(tl_container)
-    parse_tree = fpapi.parse(tl_source)
-
-    # Get the name of the module that contains the kernel and create a
-    # ContainerSymbol for it.
+    # Validate the module name before attempting to serialise its metadata.
     kernel_mod_name = tl_container.name.lower()
     if not kernel_mod_name.endswith("_mod"):
         raise ValueError(
@@ -557,12 +547,29 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
             f"'{kernel_mod_name}'. This does not end in '_mod' and as such "
             f"does not comply with the LFRic naming convention.")
 
-    kernel_mod = table.new_symbol(kernel_mod_name, symbol_type=ContainerSymbol)
-    # Assume the LFRic naming convention is followed in order to infer the name
-    # of the TL kernel. (If this convention isn't followed in the supplied code
-    # then the call to `kernel_from_metadata` below will raise an appropriate
-    # exception.)
+    # Assume the LFRic naming convention is followed in order to infer the
+    # name of the TL kernel.
     kernel_name = kernel_mod_name.replace("_mod", "_type")
+
+    # Parse the kernel metadata. This still uses fparser1 as that's what
+    # the metadata handling is currently based upon. Serialise only the
+    # metadata and a placeholder implementation because unresolved metadata
+    # names are now visible in the language-level PSyIR.
+    # TODO #2151 - replace this with the new PSyIR-based metadata handling.
+    metadata_symbol = tl_container.symbol_table.lookup(kernel_name)
+    metadata = LFRicKernelMetadata.create_from_psyir(metadata_symbol)
+    procedure_name = metadata.procedure_name
+    tl_source = (
+        f"module {kernel_mod_name}\n"
+        f"{metadata.fortran_string()}\n"
+        "contains\n"
+        f"subroutine {procedure_name}()\n"
+        f"end subroutine {procedure_name}\n"
+        f"end module {kernel_mod_name}\n")
+    parse_tree = fpapi.parse(tl_source)
+
+    # Create a ContainerSymbol for the module containing the kernel.
+    kernel_mod = table.new_symbol(kernel_mod_name, symbol_type=ContainerSymbol)
 
     adj_mod = table.new_symbol(create_adjoint_name(kernel_mod_name),
                                symbol_type=ContainerSymbol)

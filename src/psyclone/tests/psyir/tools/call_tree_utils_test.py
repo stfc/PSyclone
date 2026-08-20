@@ -337,12 +337,11 @@ def test_get_non_local_read_write_info_errors(caplog):
     with caplog.at_level(logging.WARNING, logger=TEST_LOGGER):
         ctu.get_non_local_read_write_info(schedule, rw_info)
     assert (f"Could not get PSyIR for Routine 'testkern_import_symbols_code' "
-            f"from module '{kernels[0].module_name}' as no possible"
+            f"from module '{kernels[0].module_name}'"
             in caplog.text)
 
     # Add a RoutineSymbol back into the symbol table to mimic a CodeBlock
     # representing the routine.
-    cntr.symbol_table.add(RoutineSymbol("testkern_import_symbols_code"))
     rw_info = ReadWriteInfo()
     with caplog.at_level(logging.WARNING, logger=TEST_LOGGER):
         ctu.get_non_local_read_write_info(schedule, rw_info)

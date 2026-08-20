@@ -10,7 +10,6 @@
 '''
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 
 from psyclone.domain.lfric import LFRicConstants
@@ -1109,28 +1108,22 @@ def test_lower_to_psyir():
     assert symbol.datatype.declaration == metadata.fortran_string()
 
 
-def test_get_procedure_name_error(fortran_reader):
+def test_get_procedure_name_error():
     '''Test that all the exceptions are raised as expected in the
     _get_procedure_name method.
 
     '''
-    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM.replace(
-        "procedure, nopass :: code => testkern_code", ""))
-    datatype = kernel_psyir.children[0].symbol_table.lookup(
-        "testkern_type").datatype
     metadata = LFRicKernelMetadata()
-    reader = FortranStringReader(datatype.declaration)
-    spec_part = Fortran2003.Derived_Type_Def(reader)
+    spec_part = LFRicKernelMetadata.create_fparser2(
+        METADATA.replace("procedure, nopass :: code => testkern_code", ""),
+        Fortran2003.Derived_Type_Def)
     with pytest.raises(ParseError) as info:
         metadata._get_procedure_name(spec_part)
     assert "Expecting a type-bound procedure, but found" in str(info.value)
 
-    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
-    datatype = kernel_psyir.children[0].symbol_table.lookup(
-        "testkern_type").datatype
     metadata = LFRicKernelMetadata()
-    reader = FortranStringReader(datatype.declaration)
-    spec_part = Fortran2003.Derived_Type_Def(reader)
+    spec_part = LFRicKernelMetadata.create_fparser2(
+        METADATA, Fortran2003.Derived_Type_Def)
     binding = spec_part.children[2]
     binding.children[1] = binding.children[0]
     with pytest.raises(ParseError) as info:
@@ -1138,13 +1131,10 @@ def test_get_procedure_name_error(fortran_reader):
     assert ("Expecting a specific binding for the type-bound procedure, "
             "but found" in str(info.value))
 
-    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM.replace(
-        "code", "node"))
-    datatype = kernel_psyir.children[0].symbol_table.lookup(
-        "testkern_type").datatype
     metadata = LFRicKernelMetadata()
-    reader = FortranStringReader(datatype.declaration)
-    spec_part = Fortran2003.Derived_Type_Def(reader)
+    spec_part = LFRicKernelMetadata.create_fparser2(
+        METADATA.replace("code", "node"),
+        Fortran2003.Derived_Type_Def)
     with pytest.raises(ParseError) as info:
         metadata._get_procedure_name(spec_part)
     assert ("Expecting the type-bound procedure binding-name to be 'code' "
@@ -1152,18 +1142,15 @@ def test_get_procedure_name_error(fortran_reader):
             in str(info.value))
 
 
-def test_get_procedure_name(fortran_reader):
+def test_get_procedure_name():
     '''Test utility function that takes metadata in an fparser2 tree and
     returns the procedure metadata name, or None is there is no
     procedure name.
 
     '''
-    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
-    datatype = kernel_psyir.children[0].symbol_table.lookup(
-        "testkern_type").datatype
     metadata = LFRicKernelMetadata()
-    reader = FortranStringReader(datatype.declaration)
-    spec_part = Fortran2003.Derived_Type_Def(reader)
+    spec_part = LFRicKernelMetadata.create_fparser2(
+        METADATA, Fortran2003.Derived_Type_Def)
     assert metadata._get_procedure_name(spec_part) == \
         "testkern_code"
 

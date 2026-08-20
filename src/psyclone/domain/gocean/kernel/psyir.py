@@ -20,9 +20,11 @@ from psyclone.configuration import Config
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container
-from psyclone.psyir.symbols import DataTypeSymbol, UnsupportedFortranType
+from psyclone.psyir.symbols import (
+    DataTypeSymbol, StructureType, UnsupportedFortranType)
 
 
 class GOceanContainer(Container):
@@ -192,6 +194,19 @@ class GOceanKernelMetadata():
                 f"{type(symbol).__name__}.")
 
         datatype = symbol.datatype
+
+        if isinstance(datatype, StructureType):
+            # StructureType now supports the EXTENDS and CONTAINS syntax used
+            # by kernel metadata. Convert it back to Fortran while this legacy
+            # metadata reader still parses declarations with fparser.
+            declaration = FortranWriter().gen_typedecl(
+                symbol, include_visibility=False)
+            # Preserve the spelling historically produced by this legacy
+            # metadata class.
+            declaration = declaration.replace(
+                "go_stencil(", "GO_STENCIL(")
+            return GOceanKernelMetadata.create_from_fortran_string(
+                declaration)
 
         if not isinstance(datatype, UnsupportedFortranType):
             raise InternalError(

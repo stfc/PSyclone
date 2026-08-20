@@ -45,8 +45,10 @@ from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
 from psyclone.domain.lfric.kernel.shapes_metadata import ShapesMetadata
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.symbols import DataTypeSymbol, UnsupportedFortranType
+from psyclone.psyir.symbols import (
+    DataTypeSymbol, StructureType, UnsupportedFortranType)
 
 # pylint: disable=too-many-lines
 # pylint: disable=too-many-instance-attributes
@@ -668,6 +670,14 @@ class LFRicKernelMetadata(CommonMetadata):
                 f"{type(symbol).__name__}.")
 
         datatype = symbol.datatype
+
+        if isinstance(datatype, StructureType):
+            # StructureType now supports the EXTENDS and CONTAINS syntax used
+            # by kernel metadata. Convert it back to Fortran while this legacy
+            # metadata reader still parses declarations with fparser.
+            declaration = FortranWriter().gen_typedecl(
+                symbol, include_visibility=False)
+            return LFRicKernelMetadata.create_from_fortran_string(declaration)
 
         if not isinstance(datatype, UnsupportedFortranType):
             raise InternalError(

@@ -23,6 +23,7 @@ from psyclone.domain.gocean.kernel import GOceanKernelMetadata, \
 from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import SymbolTable, ScalarType
 
@@ -176,7 +177,7 @@ def test_goceankernelmetadata_create1(fortran_reader):
         _ = GOceanKernelMetadata.create_from_psyir("symbol")
     assert "Expected a DataTypeSymbol but found a str." in str(info.value)
     metadata = GOceanKernelMetadata.create_from_psyir(symbol)
-    assert METADATA in metadata.fortran_string()
+    assert METADATA.upper() in metadata.fortran_string().upper()
     symbol._datatype = ScalarType.real_type()
     with pytest.raises(InternalError) as info:
         _ = GOceanKernelMetadata.create_from_psyir(symbol)
@@ -369,10 +370,10 @@ def test_getproperty(fortran_reader):
 
     '''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
-    datatype = kernel_psyir.children[0].symbol_table.lookup(
-        "compute_cu").datatype
+    symbol = kernel_psyir.children[0].symbol_table.lookup("compute_cu")
     metadata = GOceanKernelMetadata()
-    reader = FortranStringReader(datatype.declaration)
+    reader = FortranStringReader(
+        FortranWriter().gen_typedecl(symbol, include_visibility=False))
     spec_part = Fortran2003.Derived_Type_Def(reader)
     assert metadata._get_property(spec_part, "code").string == \
         "compute_cu_code"

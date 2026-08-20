@@ -2843,7 +2843,7 @@ def test_structures(fortran_reader, fortran_writer):
         "    integer, public :: j\n"
         "  end type my_type\n" in result)
 
-    # type that extends another type (UnsupportedFortranType)
+    # type that extends another type (StructureType)
     test_code = (
         "module test_mod\n"
         "    use kernel_mod, only : kernel_type\n"
@@ -2855,14 +2855,18 @@ def test_structures(fortran_reader, fortran_writer):
     sym_table = psyir.children[0].symbol_table
     symbol = sym_table.lookup("my_type")
     assert isinstance(symbol, DataTypeSymbol)
-    assert isinstance(symbol.datatype, UnsupportedFortranType)
+    assert isinstance(symbol.datatype, StructureType)
+    assert symbol.datatype.extends is sym_table.lookup("kernel_type")
+    assert symbol.datatype.extends.name == "kernel_type"
+    assert list(symbol.datatype.components) == ["i"]
+    assert not symbol.datatype.procedure_components
     result = fortran_writer(psyir)
     assert (
         "  type, extends(kernel_type), public :: my_type\n"
-        "  INTEGER :: i = 1\n"
-        "END TYPE my_type\n" in result)
+        "    integer, public :: i = 1\n"
+        "  end type my_type\n" in result)
 
-    # type that contains a procedure (UnsupportedFortranType)
+    # type that contains a procedure (StructureType)
     test_code = (
         "module test_mod\n"
         "    type :: test_type\n"
@@ -2878,14 +2882,21 @@ def test_structures(fortran_reader, fortran_writer):
     sym_table = psyir.children[0].symbol_table
     symbol = sym_table.lookup("test_type")
     assert isinstance(symbol, DataTypeSymbol)
-    assert isinstance(symbol.datatype, UnsupportedFortranType)
+    assert isinstance(symbol.datatype, StructureType)
+    assert symbol.datatype.extends is None
+    assert list(symbol.datatype.components) == ["i"]
+    assert list(symbol.datatype.procedure_components) == ["test_code"]
+    procedure = symbol.datatype.lookup("test_code")
+    assert procedure.initial_value is None
+    assert (procedure.datatype.declaration ==
+            "PROCEDURE, NOPASS :: test_code")
     result = fortran_writer(psyir)
     assert (
         "  type, public :: test_type\n"
-        "  INTEGER :: i = 1\n"
-        "  CONTAINS\n"
-        "  PROCEDURE, NOPASS :: test_code\n"
-        "END TYPE test_type\n" in result)
+        "    integer, public :: i = 1\n"
+        "    contains\n"
+        "      PROCEDURE, NOPASS :: test_code\n"
+        "  end type test_type\n" in result)
 
     # type that creates an abstract type and contains a procedure
     # (UnsupportedFortranType)
