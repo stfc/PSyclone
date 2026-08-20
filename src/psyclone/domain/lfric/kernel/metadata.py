@@ -1711,7 +1711,50 @@ class LFRicKernMetadata:
         :raises ParseError: if the metadata or implementation is invalid.
         """
         # pylint: disable=too-many-locals
-        container, symbol, _ = find_metadata_symbol(psyir, name)
+        if not isinstance(psyir, Node):
+            raise TypeError(
+                f"Expected PSyIR Node but found '{type(psyir).__name__}'."
+            )
+        containers = [
+            node
+            for node in psyir.walk(Container)
+            if not isinstance(node, FileContainer)
+        ]
+        if not containers:
+            raise ParseError(
+                "The file does not contain a module. Is it a Kernel file?"
+            )
+        if name is None:
+            if len(containers) != 1:
+                raise ParseError(
+                    "A metadata name is required for multiple modules."
+                )
+            module_name = containers[0].name
+            if len(module_name) < 5:
+                raise ParseError(
+                    f"Module name '{module_name}' is too short to have "
+                    "'_mod' as an extension."
+                )
+            if not module_name.lower().endswith("_mod"):
+                raise ParseError(
+                    f"Module name '{module_name}' does not have '_mod' as "
+                    "an extension."
+                )
+            name = module_name[:-4] + "_type"
+        matches = []
+        for candidate in containers:
+            matches.extend(
+                (candidate, candidate_symbol)
+                for candidate_symbol in candidate.symbol_table.symbols
+                if isinstance(candidate_symbol, DataTypeSymbol)
+                and isinstance(candidate_symbol.datatype, StructureType)
+                and candidate_symbol.name.lower() == name.lower()
+            )
+        if not matches:
+            raise ParseError(f"Kernel type {name} does not exist.")
+        if len(matches) > 1:
+            raise ParseError(f"Kernel type {name} is not unique.")
+        container, symbol = matches[0]
         try:
             metadata = LFRicKernelMetadata.create_from_psyir(symbol)
             kernel_type = metadata.kernel_type
@@ -1814,77 +1857,6 @@ class LFRicKernMetadata:
                 "PSyIR."
             ) from err
         return cls.create_from_psyir(psyir, name=name)
-
-
-def _module_containers(psyir: Node) -> list[Container]:
-    """Return module containers from a complete PSyIR tree.
-
-    :param psyir: the PSyIR tree to search.
-
-    :returns: all module containers in the tree.
-
-    :raises TypeError: if ``psyir`` is not a PSyIR tree.
-    """
-    if not hasattr(psyir, "walk"):
-        raise TypeError(
-            f"Expected PSyIR but found '{type(psyir).__name__}'."
-        )
-    return [
-        node
-        for node in psyir.walk(Container)
-        if not isinstance(node, FileContainer)
-    ]
-
-
-def find_metadata_symbol(
-    psyir: Node, name: Optional[str] = None
-) -> tuple[Container, DataTypeSymbol, str]:
-    """Find a unique kernel metadata symbol in PSyIR.
-
-    :param psyir: the PSyIR tree to search.
-    :param name: optional metadata type name to match or infer.
-
-    :returns: the containing module, metadata symbol and metadata name.
-
-    :raises TypeError: if ``psyir`` is not a PSyIR tree.
-    :raises ParseError: if matching metadata is absent or not unique.
-    """
-    containers = _module_containers(psyir)
-    if not containers:
-        raise ParseError(
-            "The file does not contain a module. Is it a Kernel file?"
-        )
-    if name is None:
-        if len(containers) != 1:
-            raise ParseError(
-                "A metadata name is required for multiple modules."
-            )
-        module_name = containers[0].name
-        if len(module_name) < 5:
-            raise ParseError(
-                f"Module name '{module_name}' is too short to have '_mod' "
-                "as an extension."
-            )
-        if not module_name.lower().endswith("_mod"):
-            raise ParseError(
-                f"Module name '{module_name}' does not have '_mod' as an "
-                "extension."
-            )
-        name = module_name[:-4] + "_type"
-    matches = []
-    for container in containers:
-        matches.extend(
-            (container, symbol)
-            for symbol in container.symbol_table.symbols
-            if isinstance(symbol, DataTypeSymbol)
-            and isinstance(symbol.datatype, StructureType)
-            and symbol.name.lower() == name.lower()
-        )
-    if not matches:
-        raise ParseError(f"Kernel type {name} does not exist.")
-    if len(matches) > 1:
-        raise ParseError(f"Kernel type {name} is not unique.")
-    return matches[0][0], matches[0][1], name
 
 
 def _kernel_procedure(

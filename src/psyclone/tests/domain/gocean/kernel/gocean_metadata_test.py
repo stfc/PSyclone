@@ -16,7 +16,7 @@ from psyclone.core import AccessType
 from psyclone.domain.gocean.kernel import (
     GOceanArgDescriptor, GOceanContainer, GOceanFieldArgMetadata,
     GOceanGridPropertyArgMetadata, GOceanKernelMetadata,
-    GOceanScalarArgMetadata, GOceanStencilMetadata, find_metadata_symbol)
+    GOceanScalarArgMetadata, GOceanStencilMetadata)
 from psyclone.domain.gocean.kernel import metadata as metadata_mod
 from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
 from psyclone.errors import GenerationError, InternalError
@@ -355,18 +355,18 @@ def test_declaration_errors(declaration, message):
         GOceanKernelMetadata.create_from_psyir(symbol)
 
 
-def test_find_metadata_symbol_errors():
+def test_create_from_kernel_psyir_discovery_errors():
     """Test type, absence and ambiguity errors in metadata discovery."""
     with pytest.raises(TypeError, match="Expected PSyIR"):
-        find_metadata_symbol("not psyir")
+        GOceanKernelMetadata.create_from_kernel_psyir("not psyir")
     reader = FortranReader()
     root = reader.psyir_from_source("module empty\nend module empty")
     with pytest.raises(ParseError, match="does not exist"):
-        find_metadata_symbol(root)
+        GOceanKernelMetadata.create_from_kernel_psyir(root)
     root = reader.psyir_from_source(
         "module both\n" + METADATA + METADATA.replace(
             "compute_cu", "compute_cv") + "\nend module both")
     with pytest.raises(ParseError, match="not unique"):
-        find_metadata_symbol(root)
+        GOceanKernelMetadata.create_from_kernel_psyir(root)
     with pytest.raises(ParseError, match="'absent'.*does not exist"):
-        find_metadata_symbol(root, "absent")
+        GOceanKernelMetadata.create_from_kernel_psyir(root, "absent")

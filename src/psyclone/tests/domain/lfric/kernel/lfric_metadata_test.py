@@ -14,7 +14,7 @@ from psyclone.domain.lfric.kernel import (
     LFRicFuncDescriptor, LFRicKernMetadata, LFRicKernelMetadata,
     LFRicPropertyMetadata, MetaFuncsArgMetadata, MetaMeshArgMetadata,
     MetaRefElementArgMetadata, OperatorArgMetadata, ScalarArgMetadata,
-    ScalarArrayArgMetadata, find_metadata_symbol)
+    ScalarArrayArgMetadata)
 from psyclone.domain.lfric.kernel import metadata as metadata_mod
 from psyclone.parse.utils import ParseError
 from psyclone.parse.kernel import get_kernel_psyir, KernelTypeFactory
@@ -554,24 +554,24 @@ def test_create_from_fortran_string_errors(monkeypatch):
         LFRicKernMetadata.create_from_fortran_string("not Fortran")
 
 
-def test_find_metadata_symbol_errors():
+def test_create_from_psyir_discovery_errors():
     """Test metadata discovery errors and module-name inference."""
     reader = FortranReader()
     with pytest.raises(TypeError, match="Expected PSyIR"):
-        find_metadata_symbol("not psyir")
+        LFRicKernMetadata.create_from_psyir("not psyir")
     root = reader.psyir_from_source("subroutine code()\nend subroutine code")
     with pytest.raises(ParseError, match="does not contain a module"):
-        find_metadata_symbol(root)
+        LFRicKernMetadata.create_from_psyir(root)
 
     root = reader.psyir_from_source("module abc\nend module abc")
     with pytest.raises(ParseError, match="too short"):
-        find_metadata_symbol(root)
+        LFRicKernMetadata.create_from_psyir(root)
     root = reader.psyir_from_source("module kernel\nend module kernel")
     with pytest.raises(ParseError, match="does not have '_mod'"):
-        find_metadata_symbol(root)
+        LFRicKernMetadata.create_from_psyir(root)
     root = reader.psyir_from_source("module kernel_mod\nend module kernel_mod")
     with pytest.raises(ParseError, match="kernel_type does not exist"):
-        find_metadata_symbol(root)
+        LFRicKernMetadata.create_from_psyir(root)
 
     two_modules = '''
 module one_mod
@@ -585,9 +585,9 @@ end module two_mod
 '''
     root = reader.psyir_from_source(two_modules)
     with pytest.raises(ParseError, match="required for multiple modules"):
-        find_metadata_symbol(root)
+        LFRicKernMetadata.create_from_psyir(root)
     with pytest.raises(ParseError, match="not unique"):
-        find_metadata_symbol(root, "common_type")
+        LFRicKernMetadata.create_from_psyir(root, "common_type")
 
 
 def test_missing_bound_procedure():

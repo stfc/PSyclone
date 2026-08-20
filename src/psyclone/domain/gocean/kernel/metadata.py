@@ -512,7 +512,32 @@ class GOceanKernelMetadata:
         :raises TypeError: if ``psyir`` is not a PSyIR tree.
         :raises ParseError: if the metadata or implementation is not found.
         """
-        container, symbol, _ = find_metadata_symbol(psyir, name)
+        if not isinstance(psyir, Node):
+            raise TypeError(
+                f"Expected PSyIR Node but found '{type(psyir).__name__}'."
+            )
+        candidates = []
+        for container in psyir.walk(Container):
+            if isinstance(container, FileContainer):
+                continue
+            for symbol in container.symbol_table.symbols:
+                if (
+                    isinstance(symbol, DataTypeSymbol)
+                    and isinstance(symbol.datatype, StructureType)
+                    and symbol.datatype.extends
+                    and symbol.datatype.extends.name.lower() == "kernel_type"
+                    and (name is None or symbol.name.lower() == name.lower())
+                ):
+                    candidates.append((container, symbol))
+        if not candidates:
+            description = f" '{name}'" if name else ""
+            raise ParseError(
+                f"GOcean kernel metadata{description} does not exist in "
+                "PSyIR."
+            )
+        if len(candidates) != 1:
+            raise ParseError("GOcean kernel metadata is not unique in PSyIR.")
+        container, symbol = candidates[0]
         metadata = cls.create_from_psyir(symbol)
         routines = [
             routine
@@ -778,57 +803,3 @@ def _parse_meta_arg(
         "Expected the second go_arg entry to identify a field or scalar, "
         f"but found '{second}'."
     )
-
-
-def _module_containers(psyir: Node) -> list[Container]:
-    """Return module containers from complete PSyIR.
-
-    :param psyir: the PSyIR tree to search.
-
-    :returns: all module containers in the tree.
-
-    :raises TypeError: if ``psyir`` is not a PSyIR tree.
-    """
-    if not hasattr(psyir, "walk"):
-        raise TypeError(
-            f"Expected PSyIR but found '{type(psyir).__name__}'."
-        )
-    return [
-        node
-        for node in psyir.walk(Container)
-        if not isinstance(node, FileContainer)
-    ]
-
-
-def find_metadata_symbol(
-    psyir: Node, name: Optional[str] = None
-) -> tuple[Container, DataTypeSymbol, str]:
-    """Find one unique GOcean metadata type symbol in complete PSyIR.
-
-    :param psyir: the PSyIR tree to search.
-    :param name: optional metadata type name to match.
-
-    :returns: the containing module, metadata symbol and symbol name.
-
-    :raises TypeError: if ``psyir`` is not a PSyIR tree.
-    :raises ParseError: if matching metadata is absent or not unique.
-    """
-    candidates = []
-    for container in _module_containers(psyir):
-        for symbol in container.symbol_table.symbols:
-            if (
-                isinstance(symbol, DataTypeSymbol)
-                and isinstance(symbol.datatype, StructureType)
-                and symbol.datatype.extends
-                and symbol.datatype.extends.name.lower() == "kernel_type"
-                and (name is None or symbol.name.lower() == name.lower())
-            ):
-                candidates.append((container, symbol))
-    if not candidates:
-        description = f" '{name}'" if name else ""
-        raise ParseError(
-            f"GOcean kernel metadata{description} does not exist in PSyIR."
-        )
-    if len(candidates) != 1:
-        raise ParseError("GOcean kernel metadata is not unique in PSyIR.")
-    return candidates[0][0], candidates[0][1], candidates[0][1].name

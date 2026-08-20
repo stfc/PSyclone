@@ -23,7 +23,6 @@ from psyclone.domain.lfric.kernel.metadata import (
     OperatorArgMetadata,
     ScalarArgMetadata,
     ScalarArrayArgMetadata,
-    find_metadata_symbol,
 )
 from psyclone.domain.lfric.kernel.psyir import LFRicKernelContainer
 
@@ -46,5 +45,4 @@ __all__ = [
     "OperatorArgMetadata",
     "ScalarArgMetadata",
     "ScalarArrayArgMetadata",
-    "find_metadata_symbol",
 ]
