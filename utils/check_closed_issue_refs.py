@@ -36,7 +36,6 @@ import json
 import fnmatch
 
 DEFAULT_REPOSITORY = "stfc/PSyclone"
-FPARSER_REPOSITORY = "stfc/fparser"
 
 # File types searched
 DEFAULT_INCLUDES = ["*.py", "*.md", "*.rst", "Makefile"]
@@ -51,14 +50,7 @@ DEFAULT_EXCLUDE_DIRS = [
 ]
 
 # Regular expression to find references to GitHub issues in the codebase
-REFERENCE_PATTERN = re.compile(
-    r"(?:"
-    r"(?P<fparser>fparser)/? *(?:issue *)?#"
-    r"|"
-    r"(?<![A-Za-z0-9/])#"
-    r")"
-    r"(?P<number>[0-9]+)\b(?![a-zA-Z])"
-)
+REFERENCE_PATTERN = re.compile(r"(?<![A-Za-z0-9/])#([0-9]+)\b(?![a-zA-Z])")
 
 
 def run_git(root: str, *arguments: str) -> str | None:
@@ -82,20 +74,14 @@ def run_git(root: str, *arguments: str) -> str | None:
 
 
 def find_references(
-    root: str,
-    includes: list[str],
-    exclude_dirs: list[str],
-    repository: str,
-    fparser_repository: str,
-) -> dict[tuple[str, int], list[tuple[str, int, str]]]:
+    root: str, includes: list[str], exclude_dirs: list[str]
+) -> dict[int, list[tuple[str, int, str]]]:
     '''Walk the directory tree starting at root and find all references to
     GitHub issues.
 
     :param root: the starting directory.
     :param includes: name patterns of filenames to include.
     :param exclude_dirs: name patterns of directories to exclude.
-    :param repository: the default GitHub repository.
-    :param fparser_repository: the fparser GitHub repository.
 
     :returns: a dictionary mapping issue numbers to their (path, line no,
         line text) occurrences.
@@ -127,12 +113,9 @@ def find_references(
 
             for number, line in enumerate(lines, start=1):
                 for found in REFERENCE_PATTERN.finditer(line):
-                    if found.group("fparser"):
-                        repo = fparser_repository
-                    else:
-                        repo = repository
-                    key = (repo, int(found.group("number")))
-                    references[key].append((path, number, line.strip()))
+                    references[int(found.group(1))].append(
+                        (path, number, line.strip())
+                    )
     return dict(references)
 
 
@@ -177,12 +160,13 @@ def fetch_issue(
 
 
 def classify(
-    references: list[tuple[str, int]], token: str | None, workers: int
-) -> tuple[dict[tuple[str, int], tuple[str, str]], list[tuple[str, int]]]:
+    repository: str, numbers: list[int], token: str | None, workers: int
+) -> tuple[dict[int, tuple[str, str]], list[int]]:
     '''Sort the given issue numbers into ones that are closed and those which
     don't exist.
 
-    :param references: list of (repository, number) tuples to lookup.
+    :param repository: the GitHub repository in the form "owner/name".
+    :param numbers: the issue or PR numbers to lookup.
     :param token: the GitHub API token, or None.
     :param workers: the number of concurrent workers to use for API requests
 
@@ -192,20 +176,19 @@ def classify(
 
     closed = {}
     missing = []
+    done = 0
 
-    def lookup(
-        reference: tuple[str, int]
-    ) -> tuple[tuple[str, int], dict | None]:
-        repository, number = reference
-        return reference, fetch_issue(repository, number, token)
+    def lookup(number: int) -> tuple[int, dict | None]:
+        return number, fetch_issue(repository, number, token)
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
-        for reference, issue in pool.map(lookup, references):
+        for number, issue in pool.map(lookup, numbers):
+            done += 1
             if issue is None:
-                missing.append(reference)
+                missing.append(number)
             elif issue.get("state") == "closed":
                 kind = "PR" if "pull_request" in issue else "issue"
-                closed[reference] = (kind, issue.get("title", ""))
+                closed[number] = (kind, issue.get("title", ""))
     return closed, missing
 
 
@@ -277,8 +260,7 @@ def main(argv: list[str] | None = None) -> int:
     exclude_dirs = arguments.exclude or DEFAULT_EXCLUDE_DIRS
     repository = arguments.repository
 
-    references = find_references(arguments.root, includes, exclude_dirs,
-                                 repository, FPARSER_REPOSITORY)
+    references = find_references(arguments.root, includes, exclude_dirs)
     if not references:
         print("No references to GitHub issues found in the codebase.")
         return 0
@@ -329,6 +311,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         closed, missing = classify(
+            repository,
             sorted(references),
             token,
             arguments.workers,
@@ -340,8 +323,10 @@ def main(argv: list[str] | None = None) -> int:
     print()
     if missing:
         print(
-            "Not real closed issues: "
-            + ", ".join(repo + "#" + str(n) for repo, n in sorted(missing))
+            "Not found in "
+            + repository
+            + ": "
+            + ", ".join("#" + str(n) for n in missing)
         )
         print()
 
@@ -350,12 +335,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     print("References to closed issues: ")
-    for repo, number in sorted(closed):
-        kind, title = closed[(repo, number)]
-        print(
-            repo + "#" + str(number) + " (" + kind + ", closed): " + title
-        )
-        for path, line, text in references[(repo, number)]:
+    for number in sorted(closed):
+        kind, title = closed[number]
+        print("#" + str(number) + " (" + kind + ", closed): " + title)
+        for path, line, text in references[number]:
             print("  " + link(path, line) + ": " + text)
     print()
     print(
@@ -373,17 +356,15 @@ def main(argv: list[str] | None = None) -> int:
 def test_reference_pattern_matches_genuine_references():
     """Genuine "#<number>" references are matched."""
     assert REFERENCE_PATTERN.findall("# TODO #9999999: fix this") == [
-        ("", "9999999")
+        "9999999"
     ]
     assert REFERENCE_PATTERN.findall("see (#9999999) for details") == [
-        ("", "9999999")
+        "9999999"
     ]
-    assert REFERENCE_PATTERN.findall("#9999999 at line start") == \
-        [("", "9999999")]
-    assert REFERENCE_PATTERN.findall("closes #9999999 and #8888888") \
-        == [
-        ("", "9999999"),
-        ("", "8888888"),
+    assert REFERENCE_PATTERN.findall("#9999999 at line start") == ["9999999"]
+    assert REFERENCE_PATTERN.findall("closes #9999999 and #8888888") == [
+        "9999999",
+        "8888888",
     ]
 
 
@@ -391,27 +372,13 @@ def test_reference_pattern_rejects_false_positives():
     """Things that look like references but are not."""
     assert REFERENCE_PATTERN.findall('colour = "#123abc"') == []
     assert REFERENCE_PATTERN.findall("proc#1 (1 procs)") == []
-
-
-def test_reference_pattern_captures_fparser():
-    """References prefixed with fparser are captured."""
-    assert REFERENCE_PATTERN.findall("when fparser#211 is fixed") == [
-        ("fparser", "211")
-    ]
-    assert REFERENCE_PATTERN.findall("once fparser/#211 is fixed") == [
-        ("fparser", "211")
-    ]
-    assert REFERENCE_PATTERN.findall("see fparser #295 for this") == [
-        ("fparser", "295")
-    ]
-    assert REFERENCE_PATTERN.findall("fparser issue #295 covers it") == [
-        ("fparser", "295")
-    ]
+    assert REFERENCE_PATTERN.findall("when fparser#211 is fixed") == []
+    assert REFERENCE_PATTERN.findall("once fparser/#211 is fixed") == []
 
 
 def test_reference_pattern_full_number():
     """ "#9999999" must not be matched inside "#99999999"."""
-    assert REFERENCE_PATTERN.findall("see #9999999 here") == [("", "9999999")]
+    assert REFERENCE_PATTERN.findall("see #9999999 here") == ["9999999"]
 
 
 def test_find_references_collects_numbers_and_locations(tmp_path):
@@ -419,25 +386,16 @@ def test_find_references_collects_numbers_and_locations(tmp_path):
     (tmp_path / "a.py").write_text("x = 1  # TODO #9999999: do the thing\n")
     docs = tmp_path / "docs"
     docs.mkdir()
-    (docs / "b.rst").write_text(
-        "See issue #9999999 and fparser #8888888.\n"
-    )
+    (docs / "b.rst").write_text("See issue #9999999 and issue #8888888.\n")
 
     refs = find_references(
-        str(tmp_path),
-        DEFAULT_INCLUDES,
-        set(DEFAULT_EXCLUDE_DIRS),
-        "stfc/PSyclone",
-        "stfc/fparser",
+        str(tmp_path), DEFAULT_INCLUDES, set(DEFAULT_EXCLUDE_DIRS)
     )
 
-    assert set(refs) == {
-        ("stfc/PSyclone", 9999999),
-        ("stfc/fparser", 8888888),
-    }
-    assert len(refs[("stfc/PSyclone", 9999999)]) == 2
-    assert len(refs[("stfc/fparser", 8888888)]) == 1
-    _, lineno, text = refs[("stfc/PSyclone", 9999999)][0]
+    assert set(refs) == {9999999, 8888888}
+    assert len(refs[9999999]) == 2
+    assert len(refs[8888888]) == 1
+    _, lineno, text = refs[9999999][0]
     assert lineno == 1
     assert "#9999999" in text
 
@@ -450,14 +408,10 @@ def test_find_references_skips_excluded_dirs(tmp_path):
     (git / "config.py").write_text("# TODO #8888888 ignore\n")
 
     refs = find_references(
-        str(tmp_path),
-        DEFAULT_INCLUDES,
-        set(DEFAULT_EXCLUDE_DIRS),
-        "stfc/PSyclone",
-        "stfc/fparser",
+        str(tmp_path), DEFAULT_INCLUDES, set(DEFAULT_EXCLUDE_DIRS)
     )
 
-    assert set(refs) == {("stfc/PSyclone", 9999999)}
+    assert set(refs) == {9999999}
 
 
 def test_find_references_ignores_unlisted_extensions(tmp_path):
@@ -466,22 +420,18 @@ def test_find_references_ignores_unlisted_extensions(tmp_path):
     (tmp_path / "ignored.log").write_text("# TODO #8888888 \n")
 
     refs = find_references(
-        str(tmp_path),
-        DEFAULT_INCLUDES,
-        set(DEFAULT_EXCLUDE_DIRS),
-        "stfc/PSyclone",
-        "stfc/fparser",
+        str(tmp_path), DEFAULT_INCLUDES, set(DEFAULT_EXCLUDE_DIRS)
     )
 
-    assert set(refs) == {("stfc/PSyclone", 9999999)}
+    assert set(refs) == {9999999}
 
 
 def _fake_api(states):
-    """Build a stand-in for fetch_issue from a {(repository, number):
-    response} mapping. A response of None represents a 404."""
+    """Build a stand-in for fetch_issue from a {number: response} mapping.
+    A response of None represents a 404."""
 
     def fetch(repository, number, token):
-        return states.get((repository, number))
+        return states.get(number)
 
     return fetch
 
@@ -492,49 +442,40 @@ def test_classify_separates_closed_from_missing(monkeypatch):
 
     module = _sys.modules[__name__]
     states = {
-        ("stfc/PSyclone", 9999999):
-            {"state": "closed", "title": "Closed issue"},
-        ("stfc/PSyclone", 8888888): {"state": "open", "title": "Still open"},
-        ("stfc/PSyclone", 7777777): None,
-        ("stfc/fparser", 6666666): {
+        9999999: {"state": "closed", "title": "Closed issue"},
+        8888888: {"state": "open", "title": "Still open"},
+        7777777: None,
+        6666666: {
             "state": "closed",
-            "title": "Closed fparser PR",
+            "title": "Closed PR",
             "pull_request": {},
         },
     }
     monkeypatch.setattr(module, "fetch_issue", _fake_api(states))
 
     closed, missing = classify(
-        [
-            ("stfc/PSyclone", 9999999),
-            ("stfc/PSyclone", 8888888),
-            ("stfc/PSyclone", 7777777),
-            ("stfc/fparser", 6666666),
-        ],
+        "owner/repo",
+        [9999999, 8888888, 7777777, 6666666],
         token=None,
         workers=2,
     )
 
-    assert set(closed) == {
-        ("stfc/PSyclone", 9999999),
-        ("stfc/fparser", 6666666),
-    }
-    assert closed[("stfc/PSyclone", 9999999)] == ("issue", "Closed issue")
-    assert closed[("stfc/fparser", 6666666)] == ("PR", "Closed fparser PR")
-    assert missing == [("stfc/PSyclone", 7777777)]
+    assert set(closed) == {9999999, 6666666}
+    assert closed[9999999] == ("issue", "Closed issue")
+    assert closed[6666666] == ("PR", "Closed PR")
+    assert missing == [7777777]
 
 
 def test_main_returns_1_when_closed_reference_found(monkeypatch, tmp_path):
     """A reference to a closed issue gives exit code 1."""
     import sys as _sys
+
     module = _sys.modules[__name__]
     (tmp_path / "a.py").write_text("# TODO #9999999 remove me\n")
     monkeypatch.setattr(
         module,
         "fetch_issue",
-        _fake_api(
-            {("stfc/PSyclone", 9999999): {"state": "closed", "title": "x"}}
-        ),
+        _fake_api({9999999: {"state": "closed", "title": "x"}}),
     )
     monkeypatch.setattr(module, "run_git", lambda root, *a: "deadbeef")
 
@@ -550,9 +491,7 @@ def test_main_returns_0_when_all_open(monkeypatch, tmp_path):
     monkeypatch.setattr(
         module,
         "fetch_issue",
-        _fake_api(
-            {("stfc/PSyclone", 9999999): {"state": "open", "title": "x"}}
-        ),
+        _fake_api({9999999: {"state": "open", "title": "x"}}),
     )
     monkeypatch.setattr(module, "run_git", lambda root, *a: "deadbeef")
 
