@@ -159,8 +159,9 @@ class AlgorithmInvokeCall(Call):
             if routine_root_name[0] == '"' and routine_root_name[-1] == '"' \
                or \
                routine_root_name[0] == "'" and routine_root_name[-1] == "'":
-                # fparser2 (issue #295) currently includes quotes as
-                # part of a string, so strip them out.
+                # fparser2 issue https://github.com/stfc/fparser/issues/295
+                # currently includes quotes as part of a string, so strip
+                # them out.
                 routine_root_name = routine_root_name[1:-1].strip()
             routine_root_name = routine_root_name.replace(" ", "_")
             # Check that the name is a valid routine name
