@@ -211,7 +211,6 @@ class GOceanKernelMetadata():
             f"an StructureType, but found "
             f"{type(datatype).__name__}.")
 
-
     @staticmethod
     def create_from_fortran_string(fortran_string):
         '''Create a new instance of GOceanKernelMetadata populated with
