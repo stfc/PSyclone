@@ -1336,28 +1336,24 @@ class StructureType(DataType):
         return stype
 
     @property
-    def components(self):
+    def components(self) -> dict[str, 'StructureType.ComponentType']:
         '''
         :returns: Ordered dictionary of the components of this type.
-        :rtype: :py:class:`collections.OrderedDict`
         '''
         return self._components
 
     @property
-    def procedure_components(self):
+    def procedure_components(self) -> dict[str, 'StructureType.ComponentType']:
         '''
         :returns: ordered dictionary of the type-bound procedures of this
             type.
-        :rtype: :py:class:`collections.OrderedDict`
         '''
         return self._procedure_components
 
     @property
-    def extends(self):
+    def extends(self) -> Optional[Symbol]:
         '''
         :returns: the type extended by this type, or None.
-        :rtype: Optional[
-            :py:class:`psyclone.psyir.symbols.DataTypeSymbol`]
         '''
         return self._extends
 
@@ -1375,21 +1371,23 @@ class StructureType(DataType):
                 f"Symbol but got '{type(value).__name__}'.")
         self._extends = value
 
-    def add(self, name: str, datatype, visibility, initial_value=None,
-            preceding_comment: str = "", inline_comment: str = ""):
+    def add(
+        self,
+        name: str,
+        datatype: Union[DataType, DataTypeSymbol],
+        visibility: Symbol.Visibility,
+        initial_value: Optional[DataNode] = None,
+        preceding_comment: str = "",
+        inline_comment: str = ""
+    ):
         '''
         Create a component with the supplied attributes and add it to
         this StructureType.
 
         :param name: the name of the new component.
         :param datatype: the type of the new component.
-        :type datatype: :py:class:`psyclone.psyir.symbols.DataType` |
-            :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
         :param visibility: whether this component is public or private.
-        :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
         :param initial_value: the initial value of the new component.
-        :type initial_value: Optional[
-            :py:class:`psyclone.psyir.nodes.DataNode`]
         :param preceding_comment: a comment that precedes this component.
         :param inline_comment: a comment that follows this component on the
                                same line.
@@ -1397,8 +1395,7 @@ class StructureType(DataType):
         :raises TypeError: if any of the supplied values are of the wrong type.
 
         '''
-        # This import must be placed here to avoid circular
-        # dependencies.
+        # This import must be placed here to avoid circular dependencies.
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import DataNode
         if not isinstance(name, str):
