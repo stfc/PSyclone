@@ -149,7 +149,8 @@ def test_generate_mesh_ncell2d(monkeypatch):
 
     '''
     meta_args = [
-        ColumnwiseOperatorArgMetadata("GH_REAL", "GH_READWRITE", "W0", "W1")]
+        ColumnwiseOperatorArgMetadata("GH_REAL", "GH_READWRITE", "W0", "W1"),
+        ColumnwiseOperatorArgMetadata("GH_REAL", "GH_READ", "W0", "W1")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
     metadata.validate()
@@ -248,7 +249,8 @@ def test_generate_cma_operator(monkeypatch):
 
     '''
     meta_args = [
-        ColumnwiseOperatorArgMetadata("GH_REAL", "GH_READWRITE", "W0", "W1")]
+        ColumnwiseOperatorArgMetadata("GH_REAL", "GH_READWRITE", "W0", "W1"),
+        ColumnwiseOperatorArgMetadata("GH_REAL", "GH_READ", "W0", "W1")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
     metadata.validate()

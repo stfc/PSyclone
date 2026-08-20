@@ -188,7 +188,7 @@ def test_language_metadata_validation_and_queries():
 def test_language_metadata_kernel_categories():
     """Test identification and invalid combinations of kernel categories."""
     scalar = ScalarArgMetadata("gh_real", "gh_read")
-    field = FieldArgMetadata("gh_real", "gh_write", "w0")
+    field = FieldArgMetadata("gh_real", "gh_write", "w3")
     with pytest.raises(ParseError, match="at least one field or operator"):
         _kernel_metadata([scalar]).validate()
     with pytest.raises(ParseError, match="real-valued field"):
@@ -205,7 +205,7 @@ def test_language_metadata_kernel_categories():
     with pytest.raises(ParseError, match="basis functions or mesh"):
         _kernel_metadata(
             [field], operates_on="domain",
-            meta_funcs=[MetaFuncsArgMetadata("w0", True)]).validate()
+            meta_funcs=[MetaFuncsArgMetadata("w3", True)]).validate()
     with pytest.raises(ParseError, match="basis functions or mesh"):
         _kernel_metadata(
             [field], operates_on="domain",

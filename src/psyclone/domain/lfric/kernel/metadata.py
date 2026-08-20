@@ -15,6 +15,7 @@ from psyclone.domain.common.kernel.metadata import (
     KernelMetadata, metadata_structure,
     metadata_value, normalise as _normalise)
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
@@ -754,6 +755,20 @@ class LFRicKernelMetadata(KernelMetadata):
         datatype = metadata_structure(symbol, "LFRic")
 
         components = datatype.components
+        valid_components = {
+            "meta_args",
+            "meta_funcs",
+            "meta_reference_element",
+            "meta_mesh",
+            "operates_on",
+            "gh_shape",
+            "gh_evaluator_targets",
+        }
+        unexpected = set(components) - valid_components
+        if unexpected:
+            raise ParseError(
+                "Unexpected LFRic metadata component(s): "
+                f"{sorted(unexpected)}.")
         if "meta_args" not in components:
             raise ParseError(
                 f"No meta_args found in kernel metadata '{symbol.name}'."
@@ -795,11 +810,18 @@ class LFRicKernelMetadata(KernelMetadata):
                         "Expected a metadata constructor but found "
                         f"'{type(node).__name__}'."
                     )
-                if node.routine.symbol.name.lower() == \
-                        "reference_element_data_type":
-                    ref_element_values.append(MetaRefElementArgMetadata(
-                        metadata_value(node.arguments[0])))
+                if (node.routine.symbol.name.lower() !=
+                        "reference_element_data_type"):
+                    raise ParseError(
+                        "meta_reference_element entries must use the "
+                        "reference_element_data_type constructor.")
+                ref_element_values.append(MetaRefElementArgMetadata(
+                    metadata_value(node.arguments[0])))
             ref_element = tuple(ref_element_values)
+            if len({item.reference_element for item in ref_element}) != len(
+                    ref_element):
+                raise ParseError(
+                    "meta_reference_element must not contain duplicates.")
 
         mesh = ()
         if "meta_mesh" in components:
@@ -810,10 +832,15 @@ class LFRicKernelMetadata(KernelMetadata):
                         "Expected a metadata constructor but found "
                         f"'{type(node).__name__}'."
                     )
-                if node.routine.symbol.name.lower() == "mesh_data_type":
-                    mesh_values.append(MetaMeshArgMetadata(
-                        metadata_value(node.arguments[0])))
+                if node.routine.symbol.name.lower() != "mesh_data_type":
+                    raise ParseError(
+                        "meta_mesh entries must use the mesh_data_type "
+                        "constructor.")
+                mesh_values.append(MetaMeshArgMetadata(
+                    metadata_value(node.arguments[0])))
             mesh = tuple(mesh_values)
+            if len({item.mesh for item in mesh}) != len(mesh):
+                raise ParseError("meta_mesh must not contain duplicates.")
 
         procedure_name = None
         if datatype.procedure_components:
@@ -912,6 +939,21 @@ class LFRicKernelMetadata(KernelMetadata):
                 "Domain kernels may not request basis functions or mesh "
                 "properties."
             )
+        const = LFRicConstants()
+        for argument in self.meta_args:
+            if not isinstance(argument, (FieldArgMetadata,
+                                         FieldVectorArgMetadata)):
+                continue
+            if argument.function_space not in const.VALID_DISCONTINUOUS_NAMES:
+                raise ParseError(
+                    "Domain kernels only accept fields on discontinuous "
+                    f"function spaces but found '{argument.function_space}'."
+                )
+            if argument.stencil:
+                raise ParseError(
+                    "Domain kernels may not have arguments with a stencil "
+                    f"access but found '{argument.fortran_string()}'."
+                )
 
     def _validate_intergrid(self) -> None:
         """Validate inter-grid constraints.
@@ -931,6 +973,11 @@ class LFRicKernelMetadata(KernelMetadata):
                 "Inter-grid kernels may only contain inter-grid fields."
             )
         const = LFRicConstants()
+        if len(const.VALID_MESH_TYPES) != 2:
+            raise InternalError(
+                "Inter-grid support requires exactly two mesh types but "
+                f"found {len(const.VALID_MESH_TYPES)}: "
+                f"{const.VALID_MESH_TYPES}.")
         meshes = {arg.mesh_arg for arg in self.meta_args}
         if meshes != set(const.VALID_MESH_TYPES):
             raise ParseError(
@@ -978,11 +1025,31 @@ class LFRicKernelMetadata(KernelMetadata):
         ]
         if self.operates_on != "cell_column":
             raise ParseError("CMA kernels must operate on cell_column.")
+        for argument in self.meta_args:
+            if (int(getattr(argument, "vector_length", 1)) > 1 or
+                    getattr(argument, "stencil", None)):
+                raise ParseError(
+                    "CMA kernels may not use vector or stencil arguments."
+                )
+            if (getattr(argument, "ndata", "1") != "1" or
+                    getattr(argument, "nlevels", None)):
+                raise ParseError(
+                    "CMA kernels require default NDATA and NLEVELS."
+                )
+        if any(argument.datatype != "gh_real"
+               for argument in field_args):
+            raise ParseError(
+                "CMA kernels may only contain real-valued fields."
+            )
         writers = [arg for arg in cma_args if arg.access != "gh_read"]
         if lma_args:
             if len(cma_args) != 1 or len(writers) != 1:
                 raise ParseError(
                     "A CMA assembly kernel must write one CMA operator."
+                )
+            if any(argument.access != "gh_read" for argument in lma_args):
+                raise ParseError(
+                    "A CMA assembly kernel may only read LMA operators."
                 )
             return "cma-assembly"
         if field_args:
@@ -1015,7 +1082,8 @@ class LFRicKernelMetadata(KernelMetadata):
                     "CMA apply field spaces must match the operator spaces."
                 )
             return "cma-apply"
-        if len(writers) != 1 or any(
+        readers = [arg for arg in cma_args if arg.access == "gh_read"]
+        if len(writers) != 1 or not readers or any(
             not isinstance(
                 arg, (ColumnwiseOperatorArgMetadata, ScalarArgMetadata)
             )
@@ -1086,10 +1154,32 @@ class LFRicKernelMetadata(KernelMetadata):
         :raises ParseError: if a kernel-category constraint is violated.
         """
         _ = self.kernel_type
+        self._validate_field_accesses()
         self._validate_writes()
         needs_evaluator = self._validate_evaluators()
         self._validate_consumer_cma()
         self._validate_domain_dof(needs_evaluator)
+
+    def _validate_field_accesses(self) -> None:
+        """Validate field access modes for the iteration space."""
+        const = LFRicConstants()
+        for argument in self.meta_args:
+            if not isinstance(argument, (FieldArgMetadata,
+                                         FieldVectorArgMetadata)):
+                continue
+            if (self.operates_on == "dof" or
+                    argument.function_space in
+                    const.VALID_DISCONTINUOUS_NAMES):
+                valid_accesses = ("gh_read", "gh_write", "gh_readwrite")
+            else:
+                valid_accesses = ("gh_read", "gh_write", "gh_inc",
+                                  "gh_readinc")
+            if argument.access not in valid_accesses:
+                raise ParseError(
+                    f"Field '{argument.function_space}' in a kernel "
+                    f"operating on '{self.operates_on}' must have one of "
+                    f"{list(valid_accesses)} accesses but found "
+                    f"'{argument.access}'.")
 
     @staticmethod
     def _argument_spaces(argument) -> tuple[str, ...]:
@@ -1184,19 +1274,10 @@ class LFRicKernelMetadata(KernelMetadata):
 
     def _validate_consumer_cma(self) -> None:
         """Validate restrictions needed by CMA code generation."""
-        if self.cma_operation is None:
-            return
-        for argument in self.meta_args:
-            if (int(getattr(argument, "vector_length", 1)) > 1 or
-                    getattr(argument, "stencil", None)):
-                raise ParseError(
-                    "CMA kernels may not use vector or stencil arguments."
-                )
-            if (getattr(argument, "ndata", "1") != "1" or
-                    getattr(argument, "nlevels", None)):
-                raise ParseError(
-                    "CMA kernels require default NDATA and NLEVELS."
-                )
+        # Accessing this property performs all of the language-level CMA
+        # validation. This method remains as the consumer-facing hook used by
+        # validate().
+        _ = self.cma_operation
 
     def _validate_domain_dof(self, need: bool) -> None:
         """Validate domain and degree-of-freedom kernel restrictions."""
@@ -1397,6 +1478,10 @@ def _parse_arg(
         vector_length = value_name(form_node.children[1])
     else:
         form = value_name(form_node)
+    if vector_length is not None and form != "gh_field":
+        raise ParseError(
+            "Vector notation is only supported for gh_field metadata but "
+            f"found '{form}'.")
     datatype = value_name(arguments[1])
     access = value_name(arguments[2])
     named = {
@@ -1404,6 +1489,11 @@ def _parse_arg(
         for name, argument in zip(names, arguments)
         if name is not None
     }
+    unexpected_names = set(named) - {"mesh_arg", "ndata", "nlevels"}
+    if unexpected_names:
+        raise ParseError(
+            "Unexpected named arg_type metadata argument(s): "
+            f"{sorted(unexpected_names)}.")
     positional = [
         argument
         for name, argument in zip(names, arguments)

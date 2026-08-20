@@ -610,6 +610,23 @@ def get_examples_path(relative_path: str):
         relative_path)
 
 
+def create_lfric_metadata(psyir, name=None):
+    """Create and validate LFRic metadata from PSyIR.
+
+    :param psyir: PSyIR containing an LFRic metadata declaration.
+    :param name: optional name of the metadata type to select.
+
+    :returns: validated LFRic kernel metadata.
+    :rtype: :py:class:`psyclone.domain.lfric.LFRicKernelMetadata`
+    """
+    # Keep this test helper dependency local so that importing the general
+    # test utilities does not initialise an API-specific domain package.
+    from psyclone.domain.lfric import LFRicKernelMetadata
+
+    return LFRicKernelMetadata.create_from_kernel_psyir(
+        psyir, name=name).metadata
+
+
 def check_links(parent: Node, children: list[Node]) -> None:
     '''Utility routine to check that the parent node has children as its
     children in the order specified and that the children have parent
