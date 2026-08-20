@@ -8,7 +8,6 @@
 '''Tests for PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
 
-from dataclasses import replace
 import os
 import re
 
@@ -1341,10 +1340,10 @@ def test08_kernel_invalid_grid_property():
     # GOKernelGridArgument contains also a test for the validity of
     # a grid property. It's easier to create a dummy class to test this:
     class DummyDescriptor():
-            '''Dummy class to test error handling.'''
-            def __init__(self):
-                self.access_type = AccessType.READ
-                self.name = "does not exist"
+        '''Dummy class to test error handling.'''
+        def __init__(self):
+            self.access_type = AccessType.READ
+            self.name = "does not exist"
     descriptor = DummyDescriptor()
     with pytest.raises(GenerationError) as err:
         GOKernelGridArgument(descriptor, None)

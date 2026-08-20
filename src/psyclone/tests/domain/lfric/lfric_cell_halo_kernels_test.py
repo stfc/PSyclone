@@ -11,7 +11,6 @@
 '''
 
 import pytest
-from fparser import api as fpapi
 from psyclone.domain.lfric import LFRicKern, LFRicKernelMetadata
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Loop
@@ -23,13 +22,13 @@ TEST_API = "lfric"
 
 @pytest.mark.parametrize("operates_on", ["halo_cell_column",
                                          "owned_and_halo_cell_column"])
-def test_halo_cell_kernel(operates_on):
+def test_halo_cell_kernel(operates_on, fortran_reader):
     ''' Check that we can successfully parse metadata that specifies a
     kernel with operates_on = HALO_CELL_COLUMN. '''
-    ast = fpapi.parse(f'''
+    source = f'''
 module testkern_halo_mod
   type, extends(kernel_type) :: testkern_halo_type
-     type(arg_type), meta_args(4) =                             &
+     type(arg_type), dimension(4) :: meta_args =                &
           (/ arg_type(gh_scalar, gh_real,    gh_read),          &
              arg_type(gh_field,  gh_real,    gh_readwrite, w3), &
              arg_type(gh_field,  gh_real,    gh_read,      w2), &
@@ -46,20 +45,21 @@ contains
     integer, intent(in) :: d
   end subroutine testkern_halo_code
 end module testkern_halo_mod
-''', ignore_comments=False)
-    dkm = LFRicKernelMetadata.create_from_fortran_string(
-            str(ast), name="testkern_halo_type")
+'''
+    psyir = fortran_reader.psyir_from_source(source)
+    dkm = LFRicKernelMetadata.create_from_psyir(
+        psyir, name="testkern_halo_type")
     assert dkm.iterates_over == operates_on
 
 
 @pytest.mark.parametrize("operates_on", ["halo_cell_column",
                                          "owned_and_halo_cell_column"])
-def test_stencil_halo_kernel(operates_on):
+def test_stencil_halo_kernel(operates_on, fortran_reader):
     ''' Check that we accept a halo kernel if it has an argument with a
     stencil access. '''
-    ast = fpapi.parse(f'''module testkern_domain_mod
+    source = f'''module testkern_domain_mod
   type, extends(kernel_type) :: testkern_domain_type
-     type(arg_type), meta_args(3) =                                         &
+     type(arg_type), dimension(3) :: meta_args =                            &
           (/ arg_type(gh_scalar, gh_real, gh_read),                         &
              arg_type(gh_field,  gh_real, gh_readwrite, w3),                &
              arg_type(gh_field,  gh_real, gh_read,      w3, stencil(cross)) &
@@ -74,9 +74,10 @@ contains
     integer, intent(in) :: d
   end subroutine testkern_domain_code
 end module testkern_domain_mod
-''', ignore_comments=False)
-    mdata = LFRicKernelMetadata.create_from_fortran_string(
-                str(ast), name="testkern_domain_type")
+'''
+    psyir = fortran_reader.psyir_from_source(source)
+    mdata = LFRicKernelMetadata.create_from_psyir(
+        psyir, name="testkern_domain_type")
     assert mdata.iterates_over == operates_on
 
 

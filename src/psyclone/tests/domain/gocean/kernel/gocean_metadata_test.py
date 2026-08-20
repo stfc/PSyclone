@@ -77,9 +77,15 @@ def test_metadata_from_psyir(fortran_reader):
 
 def test_metadata_fortran_round_trip(fortran_reader):
     """Generated metadata remains valid Fortran and preserves its values."""
-    metadata = GOceanKernelMetadata.create_from_fortran_string(METADATA)
-    regenerated = GOceanKernelMetadata.create_from_fortran_string(
-        metadata.fortran_string())
+    source = f"module metadata_mod\n{METADATA}\nend module metadata_mod\n"
+    metadata = GOceanKernelMetadata.create_from_psyir(
+        fortran_reader.psyir_from_source(source))
+    regenerated_source = (
+        "module metadata_mod\n"
+        f"{metadata.fortran_string()}"
+        "end module metadata_mod\n")
+    regenerated = GOceanKernelMetadata.create_from_psyir(
+        fortran_reader.psyir_from_source(regenerated_source))
     assert regenerated == metadata
 
     root = fortran_reader.psyir_from_source(MODULE)
@@ -232,23 +238,18 @@ def test_create_from_kernel_psyir_missing_routine():
         GOceanKernelMetadata.create_from_kernel_psyir(root, "compute_cu")
 
 
-def test_create_from_fortran_string_errors(monkeypatch):
-    """Test invalid inputs to the declaration-string constructor."""
-    with pytest.raises(TypeError, match="source must be a string"):
-        GOceanKernelMetadata.create_from_fortran_string(1)
+def test_create_from_psyir_discovery_errors(fortran_reader):
+    """Test invalid metadata discovery from complete PSyIR."""
+    no_metadata = fortran_reader.psyir_from_source(
+        "module metadata_mod\ninteger :: value\nend module metadata_mod")
     with pytest.raises(ParseError, match="exactly one"):
-        GOceanKernelMetadata.create_from_fortran_string("integer :: value")
+        GOceanKernelMetadata.create_from_psyir(no_metadata)
+
+    two_metadata = fortran_reader.psyir_from_source(
+        "module metadata_mod\n" + METADATA + METADATA.replace(
+            "compute_cu", "compute_cv") + "\nend module metadata_mod")
     with pytest.raises(ParseError, match="exactly one"):
-        GOceanKernelMetadata.create_from_fortran_string(
-            METADATA + METADATA.replace("compute_cu", "compute_cv"))
-
-    def broken_reader(_self, _source):
-        """Stand in for a frontend failure."""
-        raise RuntimeError("broken frontend")
-
-    monkeypatch.setattr(FortranReader, "psyir_from_source", broken_reader)
-    with pytest.raises(ValueError, match="Expected kernel metadata"):
-        GOceanKernelMetadata.create_from_fortran_string("not Fortran")
+        GOceanKernelMetadata.create_from_psyir(two_metadata)
 
 
 @pytest.mark.parametrize("expression, error, message", [

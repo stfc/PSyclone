@@ -18,8 +18,6 @@ from typing import Optional, Tuple, Union
 
 import pytest
 
-from fparser import api as fpapi
-from fparser.one.block_statements import BeginSource
 from psyclone.configuration import Config
 from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleInfo, FileInfo, ModuleManager
@@ -610,23 +608,6 @@ def get_examples_path(relative_path: str):
         os.path.dirname(os.path.abspath(__file__)),
         "../../../examples",
         relative_path)
-
-
-def get_ast(api: str, filename: str) -> BeginSource:
-    '''Returns the fparser1 parse tree for a filename that is stored in the
-    test files for the specified API.
-
-    :param api: the API to use, which determines the directory \
-        where files are stored.
-    :param filename: the file name to parse.
-
-    :returns: the parse tree for the specified Fortran source file.
-
-    '''
-    Config.get().api = api
-    ast = fpapi.parse(os.path.join(get_base_path(api), filename),
-                      ignore_comments=False)
-    return ast
 
 
 def check_links(parent: Node, children: list[Node]) -> None:

@@ -10,11 +10,9 @@ Module containing pytest tests for kernel stub code generation for the
 LFRic scalar arguments.
 '''
 
-from dataclasses import replace
 import os
 import pytest
 
-from fparser import api as fpapi
 from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
                                    LFRicKernelMetadata, LFRicScalarArgs,
                                    LFRicScalarArrayArgs)
@@ -30,16 +28,15 @@ BASE_PATH = os.path.join(
 TEST_API = "lfric"
 
 
-def test_lfricscalars_stub_err():
+def test_lfricscalars_stub_err(fortran_reader):
     ''' Check that LFRicScalarArgs.stub_declarations() raises the
     expected internal error if it encounters an unrecognised data
     type of a scalar argument when generating a kernel stub.
 
     '''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar_mod.f90"),
-                      ignore_comments=False)
-    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
+    psyir = fortran_reader.psyir_from_file(
+        os.path.join(BASE_PATH, "testkern_one_int_scalar_mod.f90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Sabotage the scalar argument to make it have an invalid data type
@@ -53,16 +50,15 @@ def test_lfricscalars_stub_err():
             f"{const.VALID_SCALAR_DATA_TYPES}." in str(err.value))
 
 
-def test_lfricscalararray_stub_err():
+def test_lfricscalararray_stub_err(fortran_reader):
     ''' Check that LFRicScalarArrayArgs.stub_declarations() raises the
     expected internal error if it encounters an unrecognised data
     type of a scalar argument when generating a kernel stub.
 
     '''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_scalar_array_mod.f90"),
-                      ignore_comments=False)
-    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
+    psyir = fortran_reader.psyir_from_file(
+        os.path.join(BASE_PATH, "testkern_scalar_array_mod.f90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Sabotage the scalar argument to make it have an invalid data type

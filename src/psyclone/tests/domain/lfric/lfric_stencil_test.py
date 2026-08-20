@@ -7,12 +7,9 @@
 
 ''' Module containing tests of LFRic stencils through the LFRic API '''
 
-from dataclasses import replace
 import os
 
 import pytest
-import fparser
-from fparser import api as fpapi
 
 from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
                                    LFRicKernelMetadata, LFRicStencils)
@@ -33,7 +30,7 @@ TEST_API = "lfric"
 STENCIL_CODE = '''
 module stencil_mod
   type, extends(kernel_type) :: stencil_type
-     type(arg_type), meta_args(2) =                                   &
+     type(arg_type), dimension(2) :: meta_args =                      &
           (/ arg_type(gh_field, gh_real, gh_inc,  w1),                &
              arg_type(gh_field, gh_real, gh_read, w2, stencil(cross)) &
            /)
@@ -48,10 +45,10 @@ end module stencil_mod
 '''
 
 
-def test_stencil_metadata():
+def test_stencil_metadata(fortran_reader):
     ''' Check that we can parse Kernels with stencil metadata. '''
-    ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
-    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
+    psyir = fortran_reader.psyir_from_source(STENCIL_CODE)
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
 
     stencil_descriptor_0 = metadata.meta_args[0]
     assert stencil_descriptor_0.stencil is None
@@ -65,7 +62,7 @@ def test_stencil_metadata():
     assert str(stencil_descriptor_1.access_type) == "READ"
 
 
-def test_stencil_field_metadata_too_many_arguments():
+def test_stencil_field_metadata_too_many_arguments(fortran_reader):
     ''' Check that we raise an exception if more than 7 arguments
     are provided in the metadata for a 'gh_field' argument type
     with stencil access.
@@ -74,63 +71,61 @@ def test_stencil_field_metadata_too_many_arguments():
     result = STENCIL_CODE.replace(
         "(gh_field, gh_real, gh_read, w2, stencil(cross))",
         "(gh_field, gh_real, gh_read, w2, stencil(cross), w1, w1, w2)", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(result)
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernelMetadata.create_from_fortran_string(str(ast))
+        _ = LFRicKernelMetadata.create_from_psyir(psyir)
     assert ("each 'meta_arg' entry must have at most 7 arguments" in
             str(excinfo.value))
 
 
-def test_unsupported_second_argument():
+def test_unsupported_second_argument(fortran_reader):
     '''Check that we raise an exception if stencil extent is specified, as
     we do not currently support it'''
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,1)", 1)
-    ast = fpapi.parse(result, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(result)
     with pytest.raises(NotImplementedError) as excinfo:
-        _ = LFRicKernelMetadata.create_from_fortran_string(str(ast))
+        _ = LFRicKernelMetadata.create_from_psyir(psyir)
     assert "Kernels with fixed stencil extents are not currently supported" \
         in str(excinfo.value)
 
 
-def test_valid_stencil_types():
+def test_valid_stencil_types(fortran_reader):
     ''' Check that we successfully parse all valid stencil types. '''
     const = LFRicConstants()
     for stencil_type in const.VALID_STENCIL_TYPES:
         result = STENCIL_CODE.replace("stencil(cross)",
                                       "stencil(" + stencil_type + ")", 1)
-        ast = fpapi.parse(result, ignore_comments=False)
-        _ = LFRicKernelMetadata.create_from_fortran_string(str(ast))
+        psyir = fortran_reader.psyir_from_source(result)
+        _ = LFRicKernelMetadata.create_from_psyir(psyir)
 
 
-def test_stencil_read_only():
+def test_stencil_read_only(fortran_reader):
     ''' Test that an error is raised if a field with a stencil is not
     accessed as 'gh_read'. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     code = STENCIL_CODE.replace("gh_read, w2, stencil(cross)",
                                 "gh_inc, w2, stencil(cross)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernelMetadata.create_from_fortran_string(
-                str(ast), name="stencil_type")
+        _ = LFRicKernelMetadata.create_from_psyir(
+            psyir, name="stencil_type")
     assert ("In the LFRic API a field with a stencil access must be "
             "read-only ('gh_read'), but found 'gh_inc'" in
             str(excinfo.value))
 
 
-def test_stencil_field_arg_lfricconst_properties(monkeypatch):
+def test_stencil_field_arg_lfricconst_properties(
+        monkeypatch, fortran_reader):
     ''' Tests that properties of all supported types of field arguments
     with stencil access ('real'-valued 'field_type' and 'integer'-valued
     'integer_field_type') defined in LFRicConstants are correctly set up
     in the LFRicKernelArgument class.
 
     '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     name = "stencil_type"
 
     # Test 'real'-valued field of 'field_type' with stencil access
-    ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
-    metadata = LFRicKernelMetadata.create_from_fortran_string(
-                    str(ast), name=name)
+    psyir = fortran_reader.psyir_from_source(STENCIL_CODE)
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir, name=name)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     stencil_arg = kernel.arguments.args[1]
@@ -144,9 +139,8 @@ def test_stencil_field_arg_lfricconst_properties(monkeypatch):
     # stencil access
     code = STENCIL_CODE.replace("gh_field, gh_real",
                                 "gh_field, gh_integer")
-    ast = fpapi.parse(code, ignore_comments=False)
-    metadata = LFRicKernelMetadata.create_from_fortran_string(
-                    str(ast), name=name)
+    psyir = fortran_reader.psyir_from_source(code)
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir, name=name)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     stencil_arg = kernel.arguments.args[1]

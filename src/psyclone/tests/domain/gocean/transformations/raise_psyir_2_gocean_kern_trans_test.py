@@ -265,8 +265,7 @@ def test_apply_ok(fortran_reader):
     # The container should now be a GOceanContainer
     assert isinstance(container, GOceanContainer)
     # and should contain the metadata
-    assert (
-        GOceanKernelMetadata.create_from_fortran_string(
-            container.metadata.fortran_string())
-        == GOceanKernelMetadata.create_from_fortran_string(METADATA)
-    )
+    source = f"module metadata_mod\n{METADATA}\nend module metadata_mod\n"
+    expected = GOceanKernelMetadata.create_from_psyir(
+        fortran_reader.psyir_from_source(source))
+    assert container.metadata == expected

@@ -425,20 +425,6 @@ end module rich_mod
     assert len(ktype.meta_mesh) == 1
 
 
-def test_create_from_fortran_string_errors(monkeypatch):
-    """Test the public complete-source constructor's error paths."""
-    with pytest.raises(TypeError, match="source must be a string"):
-        LFRicKernelMetadata.create_from_fortran_string(1)
-
-    def broken_reader(_self, _source):
-        """Stand in for a frontend failure."""
-        raise RuntimeError("broken frontend")
-
-    monkeypatch.setattr(FortranReader, "psyir_from_source", broken_reader)
-    with pytest.raises(ValueError, match="Expected kernel metadata"):
-        LFRicKernelMetadata.create_from_fortran_string("not Fortran")
-
-
 def test_create_from_psyir_discovery_errors():
     """Test metadata discovery errors and module-name inference."""
     reader = FortranReader()
@@ -475,7 +461,7 @@ end module two_mod
         LFRicKernelMetadata.create_from_kernel_psyir(root, "common_type")
 
 
-def test_missing_bound_procedure():
+def test_missing_bound_procedure(fortran_reader):
     """Test that a named type-bound procedure must be implemented."""
     code = '''
 module missing_mod
@@ -486,20 +472,22 @@ module missing_mod
   contains
     procedure, nopass :: code => absent_code
   end type missing_type
-end module missing_mod
+    end module missing_mod
 '''
+    psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(ParseError, match="absent_code.*not found"):
-        LFRicKernelMetadata.create_from_fortran_string(code)
+        LFRicKernelMetadata.create_from_kernel_psyir(psyir)
 
     invalid = code.replace("gh_real", "invalid_datatype").replace(
         "absent_code", "present_code").replace(
             "end type missing_type", "end type missing_type\ncontains\n"
             "  subroutine present_code()\n  end subroutine present_code")
+    invalid_psyir = fortran_reader.psyir_from_source(invalid)
     with pytest.raises(ParseError, match="Invalid LFRic metadata"):
-        LFRicKernelMetadata.create_from_fortran_string(invalid)
+        LFRicKernelMetadata.create_from_kernel_psyir(invalid_psyir)
 
 
-def test_generic_interface_procedure():
+def test_generic_interface_procedure(fortran_reader):
     """Test resolution of multiple implementations through an interface."""
     code = '''
 module generic_mod
@@ -518,7 +506,8 @@ contains
   end subroutine code_two
 end module generic_mod
 '''
-    kernel = KernelInfo.create_from_source(LFRicKernelMetadata, code)
+    psyir = fortran_reader.psyir_from_source(code)
+    kernel = KernelInfo.create_from_psyir(LFRicKernelMetadata, psyir)
     assert kernel.procedure_name == "generic_code"
     assert len(kernel.procedures) == 2
 
@@ -526,12 +515,14 @@ end module generic_mod
         "  interface generic_code\n"
         "    module procedure code_one, code_two\n"
         "  end interface generic_code\n", "")
+    no_interface_psyir = fortran_reader.psyir_from_source(no_interface)
     with pytest.raises(ParseError, match="exactly one generic interface"):
-        LFRicKernelMetadata.create_from_fortran_string(no_interface)
+        LFRicKernelMetadata.create_from_kernel_psyir(no_interface_psyir)
 
     missing_implementation = code.replace(
         "module procedure code_one, code_two",
         "module procedure code_one, absent_code").replace(
             "  subroutine code_two()\n  end subroutine code_two\n", "")
+    missing_psyir = fortran_reader.psyir_from_source(missing_implementation)
     with pytest.raises(ParseError, match="Not all procedures"):
-        LFRicKernelMetadata.create_from_fortran_string(missing_implementation)
+        LFRicKernelMetadata.create_from_kernel_psyir(missing_psyir)

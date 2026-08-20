@@ -37,13 +37,13 @@ from psyclone.psyir.symbols import (ArrayType, ScalarType, DataTypeSymbol,
                                     UnsupportedFortranType)
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import get_invoke
 
 
 def create_kernel_metadata(psyir, name=None):
     """Create typed LFRic metadata from complete kernel PSyIR."""
     return LFRicKernelMetadata.create_from_kernel_psyir(
         psyir, name=name).metadata
-from psyclone.tests.utilities import get_invoke
 
 
 # constants

@@ -104,6 +104,23 @@ def kernel_metadata_symbols(psyir, name=None):
     return result
 
 
+def kernel_metadata_symbol(psyir, api_name, name=None):
+    """Return the unique metadata symbol in a PSyIR tree or the supplied
+    symbol itself.
+    """
+    if isinstance(psyir, Node):
+        candidates = kernel_metadata_symbols(psyir, name=name)
+        if len(candidates) != 1:
+            raise ParseError(
+                f"Expected exactly one {api_name} kernel metadata "
+                f"declaration but found {len(candidates)}."
+            )
+        symbol = candidates[0][1]
+    else:
+        symbol = psyir
+    return symbol
+
+
 def metadata_structure(symbol, api_name):
     """Validate a kernel metadata symbol and return its structure type."""
     if not isinstance(symbol, DataTypeSymbol):
@@ -119,7 +136,8 @@ def metadata_structure(symbol, api_name):
     datatype = symbol.datatype
     if (not datatype.extends or
             datatype.extends.name.lower() != "kernel_type"):
-        raise ParseError(f"{api_name} kernel metadata must extend kernel_type.")
+        raise ParseError(
+            f"{api_name} kernel metadata must extend kernel_type.")
     return datatype
 
 
@@ -142,7 +160,8 @@ class KernelInfo:
         if not isinstance(self.procedures, tuple) or not all(
                 isinstance(procedure, Routine)
                 for procedure in self.procedures):
-            raise TypeError("KernelInfo procedures must be a tuple of Routines.")
+            raise TypeError(
+                "KernelInfo procedures must be a tuple of Routines.")
 
     @property
     def procedure_name(self):
@@ -174,8 +193,8 @@ class KernelMetadata(ABC):
 
     @classmethod
     @abstractmethod
-    def create_from_psyir(cls, symbol):
-        """Create metadata from one language-level PSyIR type symbol."""
+    def create_from_psyir(cls, psyir, name=None):
+        """Create metadata from language-level PSyIR."""
 
     @classmethod
     @abstractmethod
@@ -191,26 +210,6 @@ class KernelMetadata(ABC):
     def fortran_string(self):
         """:returns: the metadata as a Fortran derived-type declaration."""
 
-    @classmethod
-    def create_from_fortran_string(cls, source):
-        """Create metadata from a standalone derived-type declaration."""
-        if not isinstance(source, str):
-            raise TypeError("Kernel metadata source must be a string.")
-        wrapped = f"module metadata_mod\n{source}\nend module metadata_mod\n"
-        try:
-            psyir = FortranReader().psyir_from_source(wrapped)
-        except Exception as err:
-            raise ValueError(
-                "Expected kernel metadata to be a Fortran derived type, but "
-                f"found '{source}'."
-            ) from err
-        symbols = kernel_metadata_symbols(psyir)
-        if len(symbols) != 1:
-            raise ParseError(
-                "Expected exactly one kernel metadata declaration."
-            )
-        return cls.create_from_psyir(symbols[0][1])
-
     def lower_to_psyir(self):
         """:returns: a language-level PSyIR symbol for this metadata."""
         source = (f"module metadata_mod\n{self.fortran_string()}"
@@ -223,6 +222,7 @@ class KernelMetadata(ABC):
 
 __all__ = [
     "array_component_values",
+    "kernel_metadata_symbol",
     "kernel_metadata_symbols",
     "metadata_structure",
     "KernelInfo",

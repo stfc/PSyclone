@@ -149,7 +149,8 @@ class LFRicKern(CodedKern):
         metadata describing the kernel code.
 
         :param ktype: the kernel metadata object produced by the parser
-        :type ktype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+        :type ktype: \
+            :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
 
         :raises InternalError: for an invalid data type of a scalar argument.
         :raises GenerationError: if an invalid argument type is found \
@@ -226,7 +227,8 @@ class LFRicKern(CodedKern):
         needed before general setup so is computed in a separate method.
 
         :param kmetadata: The kernel metadata object produced by the parser.
-        :type kmetadata: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+        :type kmetadata: \
+            :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
         '''
         for descriptor in kmetadata.meta_funcs:
             if descriptor.basis_function or descriptor.diff_basis_function:

@@ -39,7 +39,8 @@ from typing import ClassVar, Optional
 
 from psyclone.configuration import Config
 from psyclone.domain.common.kernel.metadata import (
-    array_component_values, kernel_metadata_symbols, KernelInfo,
+    array_component_values, kernel_metadata_symbol, kernel_metadata_symbols,
+    KernelInfo,
     KernelMetadata, metadata_structure, metadata_value, normalise)
 from psyclone.domain.gocean.gocean_constants import GOceanConstants
 from psyclone.errors import GenerationError
@@ -334,18 +335,20 @@ class GOceanKernelMetadata(KernelMetadata):
 
     @classmethod
     def create_from_psyir(
-        cls, symbol: DataTypeSymbol
+        cls, psyir: DataTypeSymbol | Node, name: Optional[str] = None
     ) -> "GOceanKernelMetadata":
-        """Create metadata from a language-level PSyIR type symbol.
+        """Create metadata from a PSyIR tree or type symbol.
 
-        :param symbol: the symbol containing the metadata declaration.
+        :param psyir: PSyIR containing the metadata declaration.
+        :param name: optional metadata type name when ``psyir`` is a tree.
 
         :returns: the parsed GOcean kernel metadata.
 
-        :raises TypeError: if ``symbol`` is not a DataTypeSymbol.
+        :raises TypeError: if ``psyir`` has an unsupported type.
         :raises TypeError: if its datatype is not a StructureType.
         :raises ParseError: if the metadata declaration is invalid.
         """
+        symbol = kernel_metadata_symbol(psyir, "GOcean", name=name)
         datatype = metadata_structure(symbol, "GOcean")
 
         components = datatype.components

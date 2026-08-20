@@ -30,7 +30,7 @@ from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.gocean import GOceanConstants, GOSymbolTable
 from psyclone.domain.gocean.kernel import (
     GOceanFieldArgMetadata, GOceanGridPropertyArgMetadata,
-    GOceanKernelMetadata, GOceanScalarArgMetadata, GOceanStencilMetadata)
+    GOceanScalarArgMetadata)
 from psyclone.errors import GenerationError, InternalError
 import psyclone.expression as expr
 from psyclone.parse.algorithm import Arg, KernelCall
@@ -1457,7 +1457,8 @@ class GOKernelGridArgument(Argument):
     the Algorithm layer.
 
     :param arg: the meta-data entry describing the required grid property.
-    :type arg: :py:class:`psyclone.domain.gocean.kernel.GOceanGridPropertyArgMetadata`
+    :type arg: \
+        :py:class:`psyclone.domain.gocean.kernel.GOceanGridPropertyArgMetadata`
     :param kernel_call: the kernel call node that this Argument belongs to.
     :type kernel_call: :py:class:`psyclone.gocean1p0.GOKern`
 

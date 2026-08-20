@@ -10,8 +10,6 @@
 
 import os
 
-from fparser import api as fpapi
-
 from psyclone.domain.lfric import LFRicKern, LFRicKernelMetadata
 
 # Constants
@@ -20,14 +18,14 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 TEST_API = "lfric"
 
 
-def test_stub_stencil_extent(fortran_writer):
+def test_stub_stencil_extent(fortran_writer, fortran_reader):
     '''
     Check that correct stub code is produced when there is a stencil
     access
     '''
-    ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_stencil_mod.f90"),
-                      ignore_comments=False)
-    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
+    psyir = fortran_reader.psyir_from_file(
+        os.path.join(BASE_PATH, "testkern_stencil_mod.f90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -45,16 +43,14 @@ def test_stub_stencil_extent(fortran_writer):
         in generated_code)
 
 
-def test_stub_cross2d_stencil(fortran_writer):
+def test_stub_cross2d_stencil(fortran_writer, fortran_reader):
     '''
     Check that the correct stub code is generated when using a CROSS2D
     stencil
     '''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_stencil_cross2d_mod.f90"),
-                      ignore_comments=False)
-
-    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
+    psyir = fortran_reader.psyir_from_file(
+        os.path.join(BASE_PATH, "testkern_stencil_cross2d_mod.f90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -74,15 +70,14 @@ def test_stub_cross2d_stencil(fortran_writer):
             in generated_code)
 
 
-def test_stub_stencil_direction(fortran_writer):
+def test_stub_stencil_direction(fortran_writer, fortran_reader):
     '''
     Check that correct stub code is produced when there is a stencil
     access which requires a direction argument
     '''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_stencil_xory1d_mod.f90"),
-                      ignore_comments=False)
-    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
+    psyir = fortran_reader.psyir_from_file(
+        os.path.join(BASE_PATH, "testkern_stencil_xory1d_mod.f90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     code = fortran_writer(kernel.gen_stub)
@@ -97,15 +92,14 @@ def test_stub_stencil_direction(fortran_writer):
             "intent(in) :: field_2_stencil_dofmap" in code)
 
 
-def test_stub_stencil_vector(fortran_writer):
+def test_stub_stencil_vector(fortran_writer, fortran_reader):
     '''
     Check that correct stub code is produced when there is a stencil
     access which is a vector
     '''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_stencil_vector_mod.f90"),
-                      ignore_comments=False)
-    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
+    psyir = fortran_reader.psyir_from_file(
+        os.path.join(BASE_PATH, "testkern_stencil_vector_mod.f90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     code = fortran_writer(kernel.gen_stub)
@@ -120,15 +114,14 @@ def test_stub_stencil_vector(fortran_writer):
             "intent(in) :: field_2_stencil_dofmap" in code)
 
 
-def test_stub_stencil_multi(fortran_writer):
+def test_stub_stencil_multi(fortran_writer, fortran_reader):
     '''
     Check that correct stub code is produced when there are multiple
     stencils
     '''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_stencil_multi_mod.f90"),
-                      ignore_comments=False)
-    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
+    psyir = fortran_reader.psyir_from_file(
+        os.path.join(BASE_PATH, "testkern_stencil_multi_mod.f90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     code = fortran_writer(kernel.gen_stub)

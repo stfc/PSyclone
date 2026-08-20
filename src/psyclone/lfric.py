@@ -12,7 +12,6 @@
     Argument). '''
 
 from __future__ import annotations
-import os
 from enum import Enum
 from collections import OrderedDict, namedtuple
 from dataclasses import dataclass
@@ -28,7 +27,6 @@ from psyclone.domain.lfric import (
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.parse.algorithm import Arg, KernelCall
-from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (Arguments, DataAccess, InvokeSchedule, Kern,
                              KernelArgument, HaloExchange)
 from psyclone.psyir.frontend.fortran import FortranReader

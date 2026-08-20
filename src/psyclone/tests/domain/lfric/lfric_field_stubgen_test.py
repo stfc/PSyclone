@@ -10,11 +10,8 @@ Module containing pytest tests for kernel stub code generation and the related
 functionality for the LFRic fields.
 '''
 
-from dataclasses import replace
 import os
 import pytest
-import fparser
-from fparser import api as fpapi
 from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
                                    LFRicFields, LFRicKernelMetadata)
 from psyclone.errors import InternalError
@@ -32,7 +29,7 @@ TEST_API = "lfric"
 FIELD_CODE = '''
 module testkern_field_mod
   type, extends(kernel_type) :: testkern_field_type
-     type(arg_type), meta_args(6) =                             &
+     type(arg_type), dimension(6) :: meta_args =                &
           (/ arg_type(gh_scalar, gh_real,    gh_read),          &
              arg_type(gh_field,  gh_real,    gh_inc,   w1),     &
              arg_type(gh_field,  gh_real,    gh_read,  w2),     &
@@ -56,15 +53,14 @@ end module testkern_field_mod
 '''
 
 
-def test_lfricfields_stub_err():
+def test_lfricfields_stub_err(fortran_reader):
     ''' Check that the LFRicFields constructor raises the expected internal
     error if it encounters an unrecognised intrinsic type of a field
     argument when generating a kernel stub.
 
     '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    ast = fpapi.parse(FIELD_CODE, ignore_comments=False)
-    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
+    psyir = fortran_reader.psyir_from_source(FIELD_CODE)
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
 
@@ -86,7 +82,7 @@ def test_lfricfields_stub_err():
 INTEGER_FIELD_CODE = '''
 module testkern_int_field_mod
   type, extends(kernel_type) :: testkern_int_field_type
-     type(arg_type), meta_args(3) =                             &
+     type(arg_type), dimension(3) :: meta_args =                &
          (/ arg_type(gh_field,   gh_integer, gh_write, wtheta), &
             arg_type(gh_field*3, gh_integer, gh_read,  w3),     &
             arg_type(gh_field,   gh_integer, gh_read,  w2trace, &
@@ -108,14 +104,14 @@ end module testkern_int_field_mod
 '''
 
 
-def test_int_field_gen_stub(fortran_writer):
+def test_int_field_gen_stub(fortran_writer, fortran_reader):
     ''' Test that we generate correct code for kernel stubs that
     contain integer-valued fields with stencils and basis/differential
     basis functions.
 
     '''
-    ast = fpapi.parse(INTEGER_FIELD_CODE, ignore_comments=False)
-    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
+    psyir = fortran_reader.psyir_from_source(INTEGER_FIELD_CODE)
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -171,13 +167,12 @@ end module testkern_int_field_mod
     assert output == generated_code
 
 
-def test_int_field_all_stencils_gen_stub(fortran_writer):
+def test_int_field_all_stencils_gen_stub(fortran_writer, fortran_reader):
     ''' Test that we generate correct code for kernel stubs that
     contain integer-valued fields with all supported stencil accesses. '''
-    ast = fpapi.parse(
-        os.path.join(BASE_PATH, "testkern_stencil_multi_int_field_mod.f90"),
-        ignore_comments=False)
-    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
+    psyir = fortran_reader.psyir_from_file(
+        os.path.join(BASE_PATH, "testkern_stencil_multi_int_field_mod.f90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -234,7 +229,7 @@ end module testkern_stencil_multi_int_field_mod
 # Tests for kernel stubs containing real- and integer-valued fields
 
 
-def test_real_int_field_gen_stub(fortran_writer):
+def test_real_int_field_gen_stub(fortran_writer, fortran_reader):
     ''' Test that we generate correct code for kernel stubs that
     contain real- and integer-valued fields with basis and differential
     basis functions on one real- and one integer-valued field.
@@ -243,8 +238,8 @@ def test_real_int_field_gen_stub(fortran_writer):
     code = FIELD_CODE.replace(
         "func_type(w1, gh_basis),",
         "func_type(w1, gh_basis, gh_diff_basis),", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
+    psyir = fortran_reader.psyir_from_source(code)
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)

@@ -35,6 +35,8 @@ from psyclone.utils import a_or_an
 # Each built-in class supplies its metadata using its ``metadata()`` method.
 # The built-in operations F90 capitalised names are dictionary keys and need
 # to be converted to lower case for invoke-generation purpose.
+
+
 def get_lowercase_builtin_map(builtin_map_capitalised_dict):
     '''
     Convert the names of the supported built-in operations to lowercase

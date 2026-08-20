@@ -10,7 +10,8 @@ from dataclasses import dataclass
 from typing import ClassVar, Optional, TypeAlias
 
 from psyclone.domain.common.kernel.metadata import (
-    array_component_values, kernel_metadata_symbols, KernelInfo,
+    array_component_values, kernel_metadata_symbol, kernel_metadata_symbols,
+    KernelInfo,
     KernelMetadata, metadata_structure,
     metadata_value, normalise as _normalise)
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
@@ -736,18 +737,20 @@ class LFRicKernelMetadata(KernelMetadata):
 
     @classmethod
     def create_from_psyir(
-        cls, symbol: DataTypeSymbol
+        cls, psyir: DataTypeSymbol | Node, name: Optional[str] = None
     ) -> "LFRicKernelMetadata":
-        """Create typed metadata from a PSyIR DataTypeSymbol.
+        """Create typed metadata from a PSyIR tree or type symbol.
 
-        :param symbol: the symbol containing the metadata declaration.
+        :param psyir: PSyIR containing the metadata declaration.
+        :param name: optional metadata type name when ``psyir`` is a tree.
 
         :returns: the parsed language-level kernel metadata.
 
-        :raises TypeError: if the symbol or its datatype is invalid.
+        :raises TypeError: if the PSyIR or its datatype is invalid.
         :raises ParseError: if the metadata declaration is invalid.
         """
-        # pylint: disable=too-many-branches
+        # pylint: disable=too-many-branches,too-many-locals
+        symbol = kernel_metadata_symbol(psyir, "LFRic", name=name)
         datatype = metadata_structure(symbol, "LFRic")
 
         components = datatype.components
@@ -1346,31 +1349,6 @@ class LFRicKernelMetadata(KernelMetadata):
             container, metadata)
         return KernelInfo(
             metadata, psyir, implementations, procedure_name)
-
-    @classmethod
-    def create_from_fortran_string(
-        cls, source: str, name: Optional[str] = None
-    ) -> "LFRicKernelMetadata":
-        """Create metadata from a declaration or complete kernel source.
-
-        Complete kernel source is accepted because LFRic metadata may use a
-        generic interface whose procedure name can only be resolved in its
-        containing module.
-        """
-        if not isinstance(source, str):
-            raise TypeError("Kernel metadata source must be a string.")
-        try:
-            psyir = FortranReader().psyir_from_source(source)
-        except Exception:  # pylint: disable=broad-exception-caught
-            return super().create_from_fortran_string(source)
-        containers = [
-            node for node in psyir.walk(Container)
-            if not isinstance(node, FileContainer)
-        ]
-        if containers:
-            return cls.create_from_kernel_psyir(
-                psyir, name=name).metadata
-        return super().create_from_fortran_string(source)
 
 
 def _parse_arg(
