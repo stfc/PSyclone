@@ -12,7 +12,7 @@ import os
 
 from fparser import api as fpapi
 
-from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
+from psyclone.domain.lfric import LFRicKern, LFRicKernelMetadata
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -27,7 +27,7 @@ def test_stub_stencil_extent(fortran_writer):
     '''
     ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_stencil_mod.f90"),
                       ignore_comments=False)
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -54,7 +54,7 @@ def test_stub_cross2d_stencil(fortran_writer):
                                    "testkern_stencil_cross2d_mod.f90"),
                       ignore_comments=False)
 
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -82,7 +82,7 @@ def test_stub_stencil_direction(fortran_writer):
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_stencil_xory1d_mod.f90"),
                       ignore_comments=False)
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     code = fortran_writer(kernel.gen_stub)
@@ -105,7 +105,7 @@ def test_stub_stencil_vector(fortran_writer):
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_stencil_vector_mod.f90"),
                       ignore_comments=False)
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     code = fortran_writer(kernel.gen_stub)
@@ -128,7 +128,7 @@ def test_stub_stencil_multi(fortran_writer):
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_stencil_multi_mod.f90"),
                       ignore_comments=False)
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     code = fortran_writer(kernel.gen_stub)

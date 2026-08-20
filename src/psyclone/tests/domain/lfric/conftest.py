@@ -9,8 +9,9 @@
 
 import pytest
 from psyclone.configuration import Config
+from psyclone.domain.common.kernel import parse_fortran_source
+from psyclone.domain.lfric.kernel import LFRicKernelMetadata
 from psyclone.domain.lfric.lfric_kern import LFRicKern
-from psyclone.parse.kernel import get_kernel_psyir, KernelTypeFactory
 
 
 @pytest.fixture(autouse=True)
@@ -52,9 +53,9 @@ contains
   end subroutine testkern_field_code
 end module testkern_field_mod
 '''
-    kernel_metadata = get_kernel_psyir(mdata_code)
-    ktype = KernelTypeFactory(api="lfric").create(
-        kernel_metadata, name="testkern_field_type")
+    kernel_metadata = parse_fortran_source(mdata_code)
+    ktype = LFRicKernelMetadata.create_from_kernel_psyir(
+        kernel_metadata, name="testkern_field_type").metadata
     kern = LFRicKern()
     kern.load_meta(ktype)
     return kern
@@ -89,9 +90,9 @@ contains
   end subroutine testkern_field_code
 end module testkern_field_mod
 '''
-    kernel_metadata = get_kernel_psyir(mdata_code)
-    ktype = KernelTypeFactory(api="lfric").create(
-        kernel_metadata, name="testkern_field_type")
+    kernel_metadata = parse_fortran_source(mdata_code)
+    ktype = LFRicKernelMetadata.create_from_kernel_psyir(
+        kernel_metadata, name="testkern_field_type").metadata
     kern = LFRicKern()
     kern.load_meta(ktype)
     return kern
@@ -128,9 +129,9 @@ contains
   end subroutine testkern_field_code
 end module testkern_field_mod
 '''
-    kernel_metadata = get_kernel_psyir(mdata_code)
-    ktype = KernelTypeFactory(api="lfric").create(
-        kernel_metadata, name="testkern_field_type")
+    kernel_metadata = parse_fortran_source(mdata_code)
+    ktype = LFRicKernelMetadata.create_from_kernel_psyir(
+        kernel_metadata, name="testkern_field_type").metadata
     kern = LFRicKern()
     kern.load_meta(ktype)
     return kern

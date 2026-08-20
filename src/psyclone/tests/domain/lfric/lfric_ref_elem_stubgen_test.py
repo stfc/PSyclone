@@ -12,7 +12,7 @@ functionality of the LFRic API.
 
 import os
 from fparser import api as fpapi
-from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
+from psyclone.domain.lfric import LFRicKern, LFRicKernelMetadata
 
 
 # Constants
@@ -51,7 +51,7 @@ def test_refelem_stub_gen(fortran_writer):
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_ref_elem_mod.F90"),
                       ignore_comments=False)
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     gen = fortran_writer(kernel.gen_stub)
@@ -101,7 +101,7 @@ def test_refelem_quad_stub_gen(fortran_writer):
     contain reference element and quadrature properties (quadrature
     properties should be placed at the end of subroutine argument list). '''
     ast = fpapi.parse(REF_ELEM_QUAD_MDATA, ignore_comments=False)
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     gen = fortran_writer(kernel.gen_stub)

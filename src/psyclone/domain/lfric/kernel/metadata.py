@@ -6,10 +6,13 @@
 # -----------------------------------------------------------------------------
 """Immutable LFRic kernel metadata built from language-level PSyIR."""
 
-from dataclasses import dataclass, field
-from typing import ClassVar, Iterable, Optional, TypeAlias
+from dataclasses import dataclass
+from typing import ClassVar, Optional, TypeAlias
 
-from psyclone.core import AccessType
+from psyclone.domain.common.kernel.metadata import (
+    array_component_values, kernel_metadata_symbols, KernelInfo,
+    KernelMetadata, metadata_structure,
+    metadata_value, normalise as _normalise)
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -25,48 +28,25 @@ from psyclone.psyir.nodes import (
     Routine,
 )
 from psyclone.psyir.symbols import (
-    ArrayType,
     DataTypeSymbol,
     GenericInterfaceSymbol,
-    StructureType,
 )
 
 # Metadata records naturally contain more state than behavioural classes.
 # pylint: disable=too-many-instance-attributes,too-many-lines
 
 
-def _normalise(
-    value: str,
-    description: str,
-    valid_values: Optional[Iterable[str]] = None,
-) -> str:
-    """Validate and lower-case one metadata name.
+class LFRicArgMetadata:  # pylint: disable=too-few-public-methods
+    """Common behaviour of all typed LFRic argument records."""
 
-    :param value: the value to normalise.
-    :param description: a textual description of the value.
-    :param valid_values: an optional collection of permitted values.
-
-    :returns: the validated, lower-case value.
-
-    :raises TypeError: if the value is not a string.
-    :raises ValueError: if the value is not one of the valid values.
-    """
-    if not isinstance(value, str):
-        raise TypeError(
-            f"Expected {description} to be a string but found "
-            f"'{type(value).__name__}'."
-        )
-    value = value.lower()
-    if valid_values and value not in valid_values:
-        raise ValueError(
-            f"Expected {description} to be one of {valid_values} but found "
-            f"'{value}'."
-        )
-    return value
+    @property
+    def access_type(self):
+        """:returns: the generic access type for this argument."""
+        return LFRicConstants().ACCESS_MAPPING[getattr(self, "access")]
 
 
 @dataclass(frozen=True, slots=True)
-class ScalarArgMetadata:
+class ScalarArgMetadata(LFRicArgMetadata):
     """Metadata for a scalar kernel argument."""
 
     datatype: str
@@ -112,7 +92,7 @@ class ScalarArgMetadata:
 
 
 @dataclass(frozen=True, slots=True)
-class ScalarArrayArgMetadata:
+class ScalarArrayArgMetadata(LFRicArgMetadata):
     """Metadata for a scalar-array kernel argument."""
 
     datatype: str
@@ -163,7 +143,7 @@ class ScalarArrayArgMetadata:
 
 
 @dataclass(frozen=True, slots=True)
-class FieldArgMetadata:
+class FieldArgMetadata(LFRicArgMetadata):
     """Metadata for a field kernel argument."""
 
     datatype: str
@@ -248,7 +228,7 @@ class FieldArgMetadata:
 
 
 @dataclass(frozen=True, slots=True)
-class FieldVectorArgMetadata:
+class FieldVectorArgMetadata(LFRicArgMetadata):
     """Metadata for a field-vector kernel argument."""
 
     datatype: str
@@ -313,7 +293,7 @@ class FieldVectorArgMetadata:
 
 
 @dataclass(frozen=True, slots=True)
-class InterGridArgMetadata:
+class InterGridArgMetadata(LFRicArgMetadata):
     """Metadata for an inter-grid field argument."""
 
     datatype: str
@@ -374,7 +354,7 @@ class InterGridArgMetadata:
 
 
 @dataclass(frozen=True, slots=True)
-class InterGridVectorArgMetadata:
+class InterGridVectorArgMetadata(LFRicArgMetadata):
     """Metadata for an inter-grid field-vector argument."""
 
     datatype: str
@@ -439,7 +419,7 @@ class InterGridVectorArgMetadata:
 
 
 @dataclass(frozen=True, slots=True)
-class OperatorArgMetadata:
+class OperatorArgMetadata(LFRicArgMetadata):
     """Metadata for an LMA operator argument."""
 
     datatype: str
@@ -632,7 +612,7 @@ _ARG_TYPES = (
 
 
 @dataclass(frozen=True, slots=True)
-class LFRicKernelMetadata:
+class LFRicKernelMetadata(KernelMetadata):
     """Typed, immutable language-level LFRic metadata."""
 
     operates_on: Optional[str] = None
@@ -644,6 +624,45 @@ class LFRicKernelMetadata:
     meta_mesh: tuple[MetaMeshArgMetadata, ...] = ()
     procedure_name: Optional[str] = None
     name: Optional[str] = None
+
+    @property
+    def nargs(self) -> int:
+        """:returns: the number of algorithm-layer metadata arguments."""
+        return len(self.meta_args)
+
+    @property
+    def iterates_over(self) -> Optional[str]:
+        """:returns: the iteration space consumed by the PSy layer."""
+        return self.operates_on
+
+    @property
+    def eval_shapes(self) -> tuple[str, ...]:
+        """:returns: evaluator shapes requested by this kernel."""
+        return self.shapes
+
+    @property
+    def eval_targets(self) -> tuple[str, ...]:
+        """:returns: explicit or inferred evaluator targets."""
+        targets = list(self.evaluator_targets)
+        if not targets and "gh_evaluator" in self.shapes:
+            for argument in self.meta_args:
+                spaces = self._argument_spaces(argument)
+                if (argument.access != "gh_read" and spaces and
+                        spaces[0] not in targets):
+                    targets.append(spaces[0])
+        return tuple(targets)
+
+    @property
+    def cma_operation(self) -> Optional[str]:
+        """:returns: the CMA operation, if this is a CMA kernel."""
+        category = self.kernel_type
+        return (category.removeprefix("cma-")
+                if category.startswith("cma-") else None)
+
+    @property
+    def is_intergrid(self) -> bool:
+        """:returns: whether this is an inter-grid kernel."""
+        return self.kernel_type == "inter-grid"
 
     def __post_init__(self) -> None:
         """Validate and normalise the complete kernel metadata.
@@ -709,8 +728,11 @@ class LFRicKernelMetadata:
             )
         if self.procedure_name is not None:
             FortranReader.validate_name(self.procedure_name)
+            object.__setattr__(
+                self, "procedure_name", self.procedure_name.lower())
         if self.name is not None:
             FortranReader.validate_name(self.name)
+            object.__setattr__(self, "name", self.name.lower())
 
     @classmethod
     def create_from_psyir(
@@ -725,22 +747,8 @@ class LFRicKernelMetadata:
         :raises TypeError: if the symbol or its datatype is invalid.
         :raises ParseError: if the metadata declaration is invalid.
         """
-        if not isinstance(symbol, DataTypeSymbol):
-            raise TypeError(
-                f"Expected a DataTypeSymbol but found "
-                f"'{type(symbol).__name__}'."
-            )
-        if not isinstance(symbol.datatype, StructureType):
-            raise TypeError(
-                "Expected metadata to use StructureType but found "
-                f"'{type(symbol.datatype).__name__}'."
-            )
-        datatype = symbol.datatype
-        if (not datatype.extends or
-                datatype.extends.name.lower() != "kernel_type"):
-            raise ParseError(
-                "LFRic kernel metadata must extend kernel_type."
-            )
+        # pylint: disable=too-many-branches
+        datatype = metadata_structure(symbol, "LFRic")
 
         components = datatype.components
         if "meta_args" not in components:
@@ -750,38 +758,8 @@ class LFRicKernelMetadata:
 
         def array_values(component_name: str) -> tuple[Node, ...]:
             """Return and validate values of an array component."""
-            component = components[component_name]
-            component_type = component.datatype
-            if (not isinstance(component_type, ArrayType) or
-                    len(component_type.shape) != 1 or
-                    not isinstance(component_type.shape[0],
-                                   ArrayType.ArrayBounds) or
-                    not isinstance(component_type.shape[0].lower, Literal) or
-                    not isinstance(component_type.shape[0].upper, Literal)):
-                raise ParseError(
-                    f"Metadata component '{component_name}' must be an "
-                    "array."
-                )
-            bounds = component_type.shape[0]
-            try:
-                extent = int(bounds.upper.value) - int(bounds.lower.value) + 1
-            except ValueError as err:
-                raise ParseError(
-                    f"Metadata component '{component_name}' must have a "
-                    "literal extent."
-                ) from err
-            values = (
-                tuple(component.initial_value.children)
-                if isinstance(component.initial_value, ArrayConstructor)
-                else (component.initial_value,)
-            )
-            if extent != len(values):
-                raise ParseError(
-                    f"Metadata component '{component_name}' has extent "
-                    f"{extent} but its constructor contains {len(values)} "
-                    "values."
-                )
-            return values
+            return array_component_values(
+                components[component_name], component_name)
 
         meta_args = tuple(
             _parse_arg(node) for node in array_values("meta_args")
@@ -803,18 +781,7 @@ class LFRicKernelMetadata:
                 if isinstance(initial_value, ArrayConstructor)
                 else (initial_value,)
             )
-            result = []
-            for value in values:
-                if isinstance(value, Reference):
-                    result.append(value.symbol.name.lower())
-                elif isinstance(value, Literal):
-                    result.append(value.value.lower())
-                else:
-                    raise ParseError(
-                        "Expected a metadata name or literal but found "
-                        f"'{type(value).__name__}'."
-                    )
-            return tuple(result)
+            return tuple(metadata_value(value) for value in values)
 
         ref_element = ()
         if "meta_reference_element" in components:
@@ -827,18 +794,8 @@ class LFRicKernelMetadata:
                     )
                 if node.routine.symbol.name.lower() == \
                         "reference_element_data_type":
-                    value = node.arguments[0]
-                    if isinstance(value, Reference):
-                        value_name = value.symbol.name.lower()
-                    elif isinstance(value, Literal):
-                        value_name = value.value.lower()
-                    else:
-                        raise ParseError(
-                            "Expected a metadata name or literal but found "
-                            f"'{type(value).__name__}'."
-                        )
-                    ref_element_values.append(
-                        MetaRefElementArgMetadata(value_name))
+                    ref_element_values.append(MetaRefElementArgMetadata(
+                        metadata_value(node.arguments[0])))
             ref_element = tuple(ref_element_values)
 
         mesh = ()
@@ -851,35 +808,17 @@ class LFRicKernelMetadata:
                         f"'{type(node).__name__}'."
                     )
                 if node.routine.symbol.name.lower() == "mesh_data_type":
-                    value = node.arguments[0]
-                    if isinstance(value, Reference):
-                        value_name = value.symbol.name.lower()
-                    elif isinstance(value, Literal):
-                        value_name = value.value.lower()
-                    else:
-                        raise ParseError(
-                            "Expected a metadata name or literal but found "
-                            f"'{type(value).__name__}'."
-                        )
-                    mesh_values.append(MetaMeshArgMetadata(value_name))
+                    mesh_values.append(MetaMeshArgMetadata(
+                        metadata_value(node.arguments[0])))
             mesh = tuple(mesh_values)
 
         procedure_name = None
         if datatype.procedure_components:
             procedure = next(iter(datatype.procedure_components.values()))
-            if procedure.initial_value:
-                value = procedure.initial_value
-                if isinstance(value, Reference):
-                    procedure_name = value.symbol.name.lower()
-                elif isinstance(value, Literal):
-                    procedure_name = value.value.lower()
-                else:
-                    raise ParseError(
-                        "Expected a metadata name or literal but found "
-                        f"'{type(value).__name__}'."
-                    )
-            else:
-                procedure_name = procedure.name
+            procedure_name = (
+                metadata_value(procedure.initial_value)
+                if procedure.initial_value else procedure.name
+            )
 
         return cls(
             operates_on=(names("operates_on")[0]
@@ -1144,6 +1083,147 @@ class LFRicKernelMetadata:
         :raises ParseError: if a kernel-category constraint is violated.
         """
         _ = self.kernel_type
+        self._validate_writes()
+        needs_evaluator = self._validate_evaluators()
+        self._validate_consumer_cma()
+        self._validate_domain_dof(needs_evaluator)
+
+    @staticmethod
+    def _argument_spaces(argument) -> tuple[str, ...]:
+        """Return the function spaces used by one typed argument."""
+        if isinstance(argument, (OperatorArgMetadata,
+                                 ColumnwiseOperatorArgMetadata)):
+            return (argument.function_space_to,
+                    argument.function_space_from)
+        function_space = getattr(argument, "function_space", None)
+        return (function_space,) if function_space else ()
+
+    def _validate_writes(self) -> None:
+        """Validate that the kernel has a permitted written argument."""
+        # Avoid a circular import with the built-in metadata definitions.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
+
+        const = LFRicConstants()
+        writes = 0
+        for argument in self.meta_args:
+            if argument.access == "gh_read":
+                continue
+            writes += 1
+            if (isinstance(argument, (FieldArgMetadata,
+                                      FieldVectorArgMetadata)) and
+                    argument.function_space in
+                    const.READ_ONLY_FUNCTION_SPACES):
+                raise ParseError(
+                    f"Found kernel metadata in '{self.name}' that specifies "
+                    "writing to the read-only function space "
+                    f"'{argument.function_space}'."
+                )
+            if (self.name not in BUILTIN_MAP and
+                    isinstance(argument,
+                               (ScalarArgMetadata,
+                                ScalarArrayArgMetadata))):
+                raise ParseError(
+                    "A user-supplied LFRic kernel must not write/update a "
+                    f"scalar argument but kernel '{self.name}' does."
+                )
+        if not writes:
+            raise ParseError(
+                "An LFRic kernel must have at least one argument that is "
+                f"updated (written to) but found none for kernel "
+                f"'{self.name}'."
+            )
+
+    def _validate_evaluators(self) -> bool:
+        """Validate evaluator metadata and return whether it is needed."""
+        spaces = {
+            space for argument in self.meta_args
+            for space in self._argument_spaces(argument)
+        }
+        used = set()
+        need = False
+        for metadata in self.meta_funcs:
+            if metadata.function_space not in spaces:
+                raise ParseError(
+                    f"Function space '{metadata.function_space}' in "
+                    "meta_funcs does not exist in meta_args."
+                )
+            if metadata.function_space in used:
+                raise ParseError(
+                    f"Function space '{metadata.function_space}' is "
+                    "repeated in meta_funcs."
+                )
+            used.add(metadata.function_space)
+            need |= metadata.basis_function or metadata.diff_basis_function
+        if need and not self.shapes:
+            raise ParseError(
+                "A kernel requiring quadrature or an evaluator must also "
+                f"supply gh_shape, but this is missing for kernel "
+                f"'{self.name}'."
+            )
+        if not need and self.shapes:
+            raise ParseError(
+                f"Kernel '{self.name}' specifies gh_shape but does not need "
+                "an evaluator."
+            )
+        if self.evaluator_targets:
+            if not need or "gh_evaluator" not in self.shapes:
+                raise ParseError(
+                    "gh_evaluator_targets requires gh_shape=gh_evaluator."
+                )
+            missing = set(self.evaluator_targets) - spaces
+            if missing:
+                raise ParseError(
+                    "Evaluator targets are not present in meta_args: "
+                    f"{sorted(missing)}."
+                )
+        return need
+
+    def _validate_consumer_cma(self) -> None:
+        """Validate restrictions needed by CMA code generation."""
+        if self.cma_operation is None:
+            return
+        for argument in self.meta_args:
+            if (int(getattr(argument, "vector_length", 1)) > 1 or
+                    getattr(argument, "stencil", None)):
+                raise ParseError(
+                    "CMA kernels may not use vector or stencil arguments."
+                )
+            if (getattr(argument, "ndata", "1") != "1" or
+                    getattr(argument, "nlevels", None)):
+                raise ParseError(
+                    "CMA kernels require default NDATA and NLEVELS."
+                )
+
+    def _validate_domain_dof(self, need: bool) -> None:
+        """Validate domain and degree-of-freedom kernel restrictions."""
+        if self.operates_on not in ("domain", "dof"):
+            return
+        # Avoid a circular import with the built-in metadata definitions.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
+        if self.operates_on == "dof" and self.name in BUILTIN_MAP:
+            return
+        valid = (ScalarArgMetadata, ScalarArrayArgMetadata,
+                 FieldArgMetadata, FieldVectorArgMetadata)
+        if any(not isinstance(argument, valid)
+               for argument in self.meta_args):
+            raise ParseError(
+                f"Kernels operating on '{self.operates_on}' may only "
+                "contain scalar and field arguments."
+            )
+        if need or self.meta_ref_element or self.meta_mesh:
+            raise ParseError(
+                f"Kernels operating on '{self.operates_on}' may not "
+                "request evaluator, reference-element or mesh data."
+            )
+        if self.operates_on == "dof":
+            spaces = {
+                space for argument in self.meta_args
+                for space in self._argument_spaces(argument)
+            }
+            if len(spaces) > 1:
+                raise ParseError("A dof kernel must use one function space.")
 
     def fortran_string(self) -> str:
         """Return this metadata as a Fortran derived-type declaration.
@@ -1215,16 +1295,82 @@ class LFRicKernelMetadata:
             )
         return result + f"END TYPE {self.name}\n"
 
-    def lower_to_psyir(self) -> DataTypeSymbol:
+    @classmethod
+    def create_from_kernel_psyir(
+        cls, psyir: Node, name: Optional[str] = None
+    ) -> KernelInfo:
+        """Extract this API's metadata and procedures from kernel PSyIR."""
+        if not isinstance(psyir, Node):
+            raise TypeError(
+                f"Expected PSyIR Node but found '{type(psyir).__name__}'."
+            )
+        containers = [
+            node for node in psyir.walk(Container)
+            if not isinstance(node, FileContainer)
+        ]
+        if not containers:
+            raise ParseError(
+                "The file does not contain a module. Is it a Kernel file?"
+            )
+        if name is None:
+            if len(containers) != 1:
+                raise ParseError(
+                    "A metadata name is required for multiple modules."
+                )
+            module_name = containers[0].name
+            if len(module_name) < 5:
+                raise ParseError(
+                    f"Module name '{module_name}' is too short to have "
+                    "'_mod' as an extension."
+                )
+            if not module_name.lower().endswith("_mod"):
+                raise ParseError(
+                    f"Module name '{module_name}' does not have '_mod' as "
+                    "an extension."
+                )
+            name = module_name[:-4] + "_type"
+        matches = kernel_metadata_symbols(psyir, name=name)
+        if not matches:
+            raise ParseError(f"Kernel type {name} does not exist.")
+        if len(matches) > 1:
+            raise ParseError(f"Kernel type {name} is not unique.")
+        container, symbol = matches[0]
+        try:
+            metadata = cls.create_from_psyir(symbol)
+            metadata.validate()
+        except (TypeError, ValueError) as err:
+            raise ParseError(
+                f"Invalid LFRic metadata in '{symbol.name}': {err}"
+            ) from err
+        procedure_name, implementations = _kernel_procedure(
+            container, metadata)
+        return KernelInfo(
+            metadata, psyir, implementations, procedure_name)
+
+    @classmethod
+    def create_from_fortran_string(
+        cls, source: str, name: Optional[str] = None
+    ) -> "LFRicKernelMetadata":
+        """Create metadata from a declaration or complete kernel source.
+
+        Complete kernel source is accepted because LFRic metadata may use a
+        generic interface whose procedure name can only be resolved in its
+        containing module.
         """
-        :returns: the language-level PSyIR symbol for this metadata.
-        """
-        source = (f"module metadata_mod\n{self.fortran_string()}"
-                  "end module metadata_mod\n")
-        container = next(
-            node for node in FortranReader().psyir_from_source(source).walk(
-                Container) if not isinstance(node, FileContainer))
-        return container.symbol_table.lookup(self.name)
+        if not isinstance(source, str):
+            raise TypeError("Kernel metadata source must be a string.")
+        try:
+            psyir = FortranReader().psyir_from_source(source)
+        except Exception:  # pylint: disable=broad-exception-caught
+            return super().create_from_fortran_string(source)
+        containers = [
+            node for node in psyir.walk(Container)
+            if not isinstance(node, FileContainer)
+        ]
+        if containers:
+            return cls.create_from_kernel_psyir(
+                psyir, name=name).metadata
+        return super().create_from_fortran_string(source)
 
 
 def _parse_arg(
@@ -1254,16 +1400,7 @@ def _parse_arg(
             "Each meta_args entry must use the arg_type constructor."
         )
     arguments = tuple(node.arguments)
-    def value_name(value: Node) -> str:
-        """Return and validate a scalar metadata value."""
-        if isinstance(value, Reference):
-            return value.symbol.name.lower()
-        if isinstance(value, Literal):
-            return value.value.lower()
-        raise ParseError(
-            "Expected a metadata name or literal but found "
-            f"'{type(value).__name__}'."
-        )
+    value_name = metadata_value
     names = tuple(node.argument_names)
     if len(arguments) < 3:
         raise ParseError(
@@ -1442,465 +1579,9 @@ def _parse_func(node: Node) -> MetaFuncsArgMetadata:
     )
 
 
-@dataclass(frozen=True, slots=True)
-class KernelProcedure:
-    """The name and PSyIR implementation(s) of a kernel procedure."""
-
-    name: str
-    ast: Optional[Routine] = field(default=None, compare=False, repr=False)
-    implementations: tuple[Routine, ...] = field(
-        default=(), compare=False, repr=False
-    )
-
-
-@dataclass(frozen=True, slots=True)
-class LFRicArgDescriptor:
-    """An immutable consumer-facing view of one meta_args entry."""
-
-    access: AccessType
-    function_space: Optional[str]
-    metadata_index: int
-    mesh: Optional[str]
-    argument_type: str
-    data_type: str
-    function_space_to: Optional[str] = None
-    function_space_from: Optional[str] = None
-    vector_size: int = 1
-    array_ndims: int = 1
-    nlevels: Optional[str] = None
-    ndata: str = "1"
-    stencil_type: Optional[str] = None
-    stencil_extent: Optional[str] = None
-
-    @property
-    def stencil(self) -> Optional[dict[str, Optional[str]]]:
-        """
-        :returns: the legacy stencil view expected by consumers, if any.
-        """
-        if self.stencil_type is None:
-            return None
-        return {"type": self.stencil_type, "extent": self.stencil_extent}
-
-    @property
-    def function_spaces(self) -> tuple[Optional[str], ...]:
-        """
-        :returns: all function spaces associated with this argument.
-        """
-        if self.function_space_to is not None:
-            return (self.function_space_to, self.function_space_from)
-        if self.function_space is not None:
-            return (self.function_space,)
-        return ()
-
-    def __str__(self) -> str:
-        """
-        :returns: a human-readable description of this descriptor.
-        """
-        return (
-            "LFRicArgDescriptor object\n"
-            f"  argument_type='{self.argument_type}'\n"
-            f"  data_type='{self.data_type}'\n"
-            f"  access_descriptor='{self.access.api_specific_name()}'\n"
-        )
-
-
-@dataclass(frozen=True, slots=True)
-class LFRicFuncDescriptor:
-    """An immutable consumer-facing meta_funcs descriptor."""
-
-    function_space_name: str
-    operator_names: tuple[str, ...]
-
-    def __repr__(self) -> str:
-        """
-        :returns: a concise representation of this descriptor.
-        """
-        values = ", ".join(
-            (self.function_space_name,) + self.operator_names
-        )
-        return f"LFRicFuncDescriptor(func_type({values}))"
-
-    def __str__(self) -> str:
-        """
-        :returns: a human-readable description of this descriptor.
-        """
-        values = ", ".join(self.operator_names)
-        return (
-            "LFRicFuncDescriptor object\n"
-            f"  function_space_name='{self.function_space_name}'\n"
-            f"  operator_names=({values})"
-        )
-
-
-@dataclass(frozen=True, slots=True)
-class LFRicPropertyMetadata:
-    """An immutable collection of requested LFRic properties."""
-
-    properties: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True, slots=True)
-class LFRicKernMetadata:
-    """Immutable consumer-facing kernel metadata."""
-
-    name: str
-    iterates_over: str
-    procedure: KernelProcedure
-    arg_descriptors: tuple[LFRicArgDescriptor, ...]
-    psyir: object = field(compare=False, repr=False)
-    func_descriptors: tuple[LFRicFuncDescriptor, ...] = ()
-    eval_shapes: tuple[str, ...] = ()
-    eval_targets: tuple[str, ...] = ()
-    cma_operation: Optional[str] = None
-    is_intergrid: bool = False
-    reference_element: LFRicPropertyMetadata = field(
-        default_factory=LFRicPropertyMetadata
-    )
-    mesh: LFRicPropertyMetadata = field(
-        default_factory=LFRicPropertyMetadata
-    )
-
-    def __post_init__(self) -> None:
-        """Validate all consumer-facing kernel metadata.
-
-        :raises ParseError: if any kernel constraint is violated.
-        """
-        self._validate_writes()
-        need_evaluator = self._validate_evaluators()
-        self._validate_cma()
-        self._validate_domain_dof(need_evaluator)
-
-    @property
-    def _ast(self) -> object:
-        """
-        :returns: the PSyIR tree retained for existing consumers.
-        """
-        return self.psyir
-
-    @property
-    def nargs(self) -> int:
-        """
-        :returns: the number of metadata arguments.
-        """
-        return len(self.arg_descriptors)
-
-    def _validate_writes(self) -> None:
-        """Validate that the kernel has a permitted written argument.
-
-        :raises ParseError: if the write requirements are violated.
-        """
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
-
-        const = LFRicConstants()
-        writes = 0
-        for arg in self.arg_descriptors:
-            if arg.access == AccessType.READ:
-                continue
-            writes += 1
-            if (
-                arg.argument_type in const.VALID_FIELD_NAMES
-                and arg.function_space in const.READ_ONLY_FUNCTION_SPACES
-            ):
-                raise ParseError(
-                    f"Found kernel metadata in '{self.name}' that specifies "
-                    f"writing to the read-only function space "
-                    f"'{arg.function_space}'."
-                )
-            if (
-                self.name not in BUILTIN_MAP
-                and arg.argument_type in const.VALID_SCALAR_NAMES
-            ):
-                raise ParseError(
-                    f"A user-supplied LFRic kernel must not write/update a "
-                    f"scalar argument but kernel '{self.name}' does."
-                )
-        if not writes:
-            raise ParseError(
-                "An LFRic kernel must have at least one argument that is "
-                f"updated (written to) but found none for kernel "
-                f"'{self.name}'."
-            )
-
-    def _validate_evaluators(self) -> bool:
-        """Validate evaluator metadata.
-
-        :returns: whether the kernel needs an evaluator.
-
-        :raises ParseError: if the evaluator metadata is inconsistent.
-        """
-        const = LFRicConstants()
-        spaces = {
-            space
-            for arg in self.arg_descriptors
-            for space in arg.function_spaces
-            if space
-        }
-        used = set()
-        need = False
-        for descriptor in self.func_descriptors:
-            space = descriptor.function_space_name
-            if space not in spaces:
-                raise ParseError(
-                    f"Function space '{space}' in meta_funcs does not exist "
-                    "in meta_args."
-                )
-            if space in used:
-                raise ParseError(
-                    f"Function space '{space}' is repeated in meta_funcs."
-                )
-            used.add(space)
-            need |= bool(
-                set(descriptor.operator_names)
-                & set(const.VALID_EVALUATOR_NAMES)
-            )
-        if need and not self.eval_shapes:
-            raise ParseError(
-                "A kernel requiring quadrature or an evaluator must also "
-                "supply gh_shape, but this is missing for kernel "
-                f"'{self.name}'."
-            )
-        if not need and self.eval_shapes:
-            raise ParseError(
-                f"Kernel '{self.name}' specifies gh_shape but does not need "
-                "an evaluator."
-            )
-        if self.eval_targets:
-            if not need or "gh_evaluator" not in self.eval_shapes:
-                raise ParseError(
-                    "gh_evaluator_targets requires gh_shape=gh_evaluator."
-                )
-            missing = set(self.eval_targets) - spaces
-            if missing:
-                raise ParseError(
-                    f"Evaluator targets are not present in meta_args: "
-                    f"{sorted(missing)}."
-                )
-        return need
-
-    def _validate_cma(self) -> None:
-        """Validate restrictions on consumer-facing CMA metadata.
-
-        :raises ParseError: if a CMA restriction is violated.
-        """
-        if self.cma_operation is None:
-            return
-        for arg in self.arg_descriptors:
-            if arg.vector_size > 1 or arg.stencil:
-                raise ParseError(
-                    "CMA kernels may not use vector or stencil arguments."
-                )
-            if arg.ndata != "1" or arg.nlevels:
-                raise ParseError(
-                    "CMA kernels require default NDATA and NLEVELS."
-                )
-
-    def _validate_domain_dof(self, need: bool) -> None:
-        """Validate metadata for domain and degree-of-freedom kernels.
-
-        :param need: whether the kernel needs an evaluator.
-
-        :raises ParseError: if a domain or dof restriction is violated.
-        """
-        if self.iterates_over not in ("domain", "dof"):
-            return
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
-
-        if self.iterates_over == "dof" and self.name in BUILTIN_MAP:
-            return
-        const = LFRicConstants()
-        valid = const.VALID_SCALAR_NAMES + const.VALID_FIELD_NAMES
-        if any(
-            arg.argument_type not in valid
-            for arg in self.arg_descriptors
-        ):
-            raise ParseError(
-                f"Kernels operating on '{self.iterates_over}' may only "
-                "contain scalar and field arguments."
-            )
-        if need or self.reference_element.properties or self.mesh.properties:
-            raise ParseError(
-                f"Kernels operating on '{self.iterates_over}' may not "
-                "request evaluator, reference-element or mesh data."
-            )
-        if self.iterates_over == "dof":
-            spaces = {
-                space
-                for arg in self.arg_descriptors
-                for space in arg.function_spaces
-            }
-            if len(spaces) > 1:
-                raise ParseError(
-                    "A dof kernel must use one function space."
-                )
-
-    @classmethod
-    def create_from_psyir(
-        cls, psyir: Node, name: Optional[str] = None
-    ) -> "LFRicKernMetadata":
-        """Create immutable consumer metadata from a complete PSyIR tree.
-
-        :param psyir: the complete PSyIR containing the kernel.
-        :param name: optional name of the metadata type to extract.
-
-        :returns: the extracted consumer-facing kernel metadata.
-
-        :raises TypeError: if ``psyir`` is not a PSyIR tree.
-        :raises ParseError: if the metadata or implementation is invalid.
-        """
-        # pylint: disable=too-many-locals
-        if not isinstance(psyir, Node):
-            raise TypeError(
-                f"Expected PSyIR Node but found '{type(psyir).__name__}'."
-            )
-        containers = [
-            node
-            for node in psyir.walk(Container)
-            if not isinstance(node, FileContainer)
-        ]
-        if not containers:
-            raise ParseError(
-                "The file does not contain a module. Is it a Kernel file?"
-            )
-        if name is None:
-            if len(containers) != 1:
-                raise ParseError(
-                    "A metadata name is required for multiple modules."
-                )
-            module_name = containers[0].name
-            if len(module_name) < 5:
-                raise ParseError(
-                    f"Module name '{module_name}' is too short to have "
-                    "'_mod' as an extension."
-                )
-            if not module_name.lower().endswith("_mod"):
-                raise ParseError(
-                    f"Module name '{module_name}' does not have '_mod' as "
-                    "an extension."
-                )
-            name = module_name[:-4] + "_type"
-        matches = []
-        for candidate in containers:
-            matches.extend(
-                (candidate, candidate_symbol)
-                for candidate_symbol in candidate.symbol_table.symbols
-                if isinstance(candidate_symbol, DataTypeSymbol)
-                and isinstance(candidate_symbol.datatype, StructureType)
-                and candidate_symbol.name.lower() == name.lower()
-            )
-        if not matches:
-            raise ParseError(f"Kernel type {name} does not exist.")
-        if len(matches) > 1:
-            raise ParseError(f"Kernel type {name} is not unique.")
-        container, symbol = matches[0]
-        try:
-            metadata = LFRicKernelMetadata.create_from_psyir(symbol)
-            kernel_type = metadata.kernel_type
-        except (TypeError, ValueError) as err:
-            raise ParseError(
-                f"Invalid LFRic metadata in '{symbol.name}': {err}"
-            ) from err
-        procedure = _kernel_procedure(container, metadata)
-        arguments = tuple(
-            _descriptor_from_metadata(entry, index)
-            for index, entry in enumerate(metadata.meta_args)
-        )
-        functions = tuple(
-            LFRicFuncDescriptor(
-                entry.function_space,
-                tuple(
-                    value
-                    for value, required in (
-                        ("gh_basis", entry.basis_function),
-                        ("gh_diff_basis", entry.diff_basis_function),
-                    )
-                    if required
-                ),
-            )
-            for entry in metadata.meta_funcs
-        )
-        targets = list(metadata.evaluator_targets)
-        if not targets and "gh_evaluator" in metadata.shapes:
-            for argument in arguments:
-                if (
-                    argument.access != AccessType.READ
-                    and argument.function_spaces
-                    and argument.function_spaces[0] not in targets
-                ):
-                    targets.append(argument.function_spaces[0])
-        # These enumerations are still the public vocabulary consumed by the
-        # LFRic code-generation classes. Importing them here is safe because
-        # extraction happens after module initialisation is complete.
-        # pylint: disable=import-outside-toplevel
-        from psyclone.lfric import MeshProperty, RefElementMetaData
-
-        reference = LFRicPropertyMetadata(
-            tuple(
-                RefElementMetaData.Property[
-                    entry.reference_element.upper()
-                ]
-                for entry in metadata.meta_ref_element
-            )
-        )
-        mesh = LFRicPropertyMetadata(
-            tuple(
-                MeshProperty[entry.mesh.upper()]
-                for entry in metadata.meta_mesh
-            )
-        )
-        operation = (
-            kernel_type.removeprefix("cma-")
-            if kernel_type.startswith("cma-")
-            else None
-        )
-        return cls(
-            metadata.name,
-            metadata.operates_on,
-            procedure,
-            arguments,
-            psyir,
-            functions,
-            metadata.shapes,
-            tuple(targets),
-            operation,
-            kernel_type == "inter-grid",
-            reference,
-            mesh,
-        )
-
-    @classmethod
-    def create_from_fortran_string(
-        cls, source: str, name: Optional[str] = None
-    ) -> "LFRicKernMetadata":
-        """Create metadata by first translating complete Fortran to PSyIR.
-
-        :param source: complete Fortran source containing the kernel.
-        :param name: name of the metadata type to extract.
-
-        :returns: immutable metadata extracted from the generated PSyIR.
-
-        :raises TypeError: if ``source`` is not a string.
-        :raises ValueError: if the source cannot be translated to PSyIR.
-        :raises ParseError: if the kernel metadata is invalid.
-        """
-        if not isinstance(source, str):
-            raise TypeError(
-                "LFRic kernel source must be supplied as a string."
-            )
-        try:
-            psyir = FortranReader().psyir_from_source(source)
-        except Exception as err:
-            raise ValueError(
-                "Failed to translate the supplied LFRic kernel source to "
-                "PSyIR."
-            ) from err
-        return cls.create_from_psyir(psyir, name=name)
-
-
 def _kernel_procedure(
     container: Container, metadata: LFRicKernelMetadata
-) -> KernelProcedure:
+) -> tuple[str, tuple[Routine, ...]]:
     """Resolve kernel procedure implementations from PSyIR.
 
     :param container: the module containing the kernel.
@@ -1921,11 +1602,7 @@ def _kernel_procedure(
             raise ParseError(
                 f"Kernel subroutine '{metadata.procedure_name}' not found."
             )
-        return KernelProcedure(
-            metadata.procedure_name.lower(),
-            implementations[0] if len(implementations) == 1 else None,
-            implementations,
-        )
+        return metadata.procedure_name.lower(), implementations
     interfaces = [
         symbol
         for symbol in container.symbol_table.symbols
@@ -1949,50 +1626,4 @@ def _kernel_procedure(
         raise ParseError(
             f"Not all procedures for interface '{interface.name}' exist."
         )
-    return KernelProcedure(
-        interface.name.lower(),
-        implementations[0] if len(implementations) == 1 else None,
-        implementations,
-    )
-
-
-def _descriptor_from_metadata(
-    entry: KernelArgumentMetadata, index: int
-) -> LFRicArgDescriptor:
-    """Create a consumer descriptor from one typed metadata record.
-
-    :param entry: the language-level argument metadata.
-    :param index: its position in the metadata argument list.
-
-    :returns: the consumer-facing argument descriptor.
-    """
-    const = LFRicConstants()
-    access = const.ACCESS_MAPPING[entry.access]
-    entry_type = type(entry)
-    function_space = getattr(entry, "function_space", None)
-    function_space_to = getattr(entry, "function_space_to", None)
-    function_space_from = getattr(entry, "function_space_from", None)
-    if function_space_from is not None:
-        function_space = function_space_from
-    vector_size = int(getattr(entry, "vector_length", 1))
-    array_ndims = getattr(entry, "array_ndims", 1)
-    if entry_type in (ScalarArgMetadata, ScalarArrayArgMetadata):
-        vector_size = 0
-    if entry_type is ScalarArgMetadata:
-        array_ndims = 0
-    mesh = getattr(entry, "mesh_arg", None)
-    return LFRicArgDescriptor(
-        access,
-        function_space,
-        index,
-        mesh,
-        entry.form,
-        entry.datatype,
-        function_space_to,
-        function_space_from,
-        vector_size,
-        array_ndims,
-        getattr(entry, "nlevels", None),
-        str(getattr(entry, "ndata", None) or "1"),
-        getattr(entry, "stencil", None),
-    )
+    return interface.name.lower(), implementations

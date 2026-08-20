@@ -15,7 +15,7 @@ import fparser
 from fparser import api as fpapi
 
 from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
-                                   LFRicKernMetadata, LFRicStencils)
+                                   LFRicKernelMetadata, LFRicStencils)
 from psyclone.lfric import LFRicKernelArguments
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
@@ -51,24 +51,18 @@ end module stencil_mod
 def test_stencil_metadata():
     ''' Check that we can parse Kernels with stencil metadata. '''
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
 
-    stencil_descriptor_0 = metadata.arg_descriptors[0]
+    stencil_descriptor_0 = metadata.meta_args[0]
     assert stencil_descriptor_0.stencil is None
-    stencil_descriptor_1 = metadata.arg_descriptors[1]
-    assert stencil_descriptor_1.stencil['type'] == 'cross'
-    # stencil extent is not provided in the above metadata
-    assert stencil_descriptor_1.stencil['extent'] is None
+    stencil_descriptor_1 = metadata.meta_args[1]
+    assert stencil_descriptor_1.stencil == 'cross'
 
-    # Check other LFRicArgDescriptor argument properties for a
-    # field stencil argument
-    assert stencil_descriptor_1.argument_type == "gh_field"
-    assert stencil_descriptor_1.data_type == "gh_real"
+    # Check other typed metadata properties for a field stencil argument.
+    assert stencil_descriptor_1.form == "gh_field"
+    assert stencil_descriptor_1.datatype == "gh_real"
     assert stencil_descriptor_1.function_space == "w2"
-    assert stencil_descriptor_1.function_spaces == ("w2",)
-    assert str(stencil_descriptor_1.access) == "READ"
-    assert stencil_descriptor_1.mesh is None
-    assert stencil_descriptor_1.vector_size == 1
+    assert str(stencil_descriptor_1.access_type) == "READ"
 
 
 def test_stencil_field_metadata_too_many_arguments():
@@ -82,7 +76,7 @@ def test_stencil_field_metadata_too_many_arguments():
         "(gh_field, gh_real, gh_read, w2, stencil(cross), w1, w1, w2)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata.create_from_fortran_string(str(ast))
+        _ = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     assert ("each 'meta_arg' entry must have at most 7 arguments" in
             str(excinfo.value))
 
@@ -93,7 +87,7 @@ def test_unsupported_second_argument():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,1)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(NotImplementedError) as excinfo:
-        _ = LFRicKernMetadata.create_from_fortran_string(str(ast))
+        _ = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     assert "Kernels with fixed stencil extents are not currently supported" \
         in str(excinfo.value)
 
@@ -105,7 +99,7 @@ def test_valid_stencil_types():
         result = STENCIL_CODE.replace("stencil(cross)",
                                       "stencil(" + stencil_type + ")", 1)
         ast = fpapi.parse(result, ignore_comments=False)
-        _ = LFRicKernMetadata.create_from_fortran_string(str(ast))
+        _ = LFRicKernelMetadata.create_from_fortran_string(str(ast))
 
 
 def test_stencil_read_only():
@@ -116,7 +110,7 @@ def test_stencil_read_only():
                                 "gh_inc, w2, stencil(cross)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata.create_from_fortran_string(
+        _ = LFRicKernelMetadata.create_from_fortran_string(
                 str(ast), name="stencil_type")
     assert ("In the LFRic API a field with a stencil access must be "
             "read-only ('gh_read'), but found 'gh_inc'" in
@@ -135,7 +129,7 @@ def test_stencil_field_arg_lfricconst_properties(monkeypatch):
 
     # Test 'real'-valued field of 'field_type' with stencil access
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
-    metadata = LFRicKernMetadata.create_from_fortran_string(
+    metadata = LFRicKernelMetadata.create_from_fortran_string(
                     str(ast), name=name)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
@@ -151,7 +145,7 @@ def test_stencil_field_arg_lfricconst_properties(monkeypatch):
     code = STENCIL_CODE.replace("gh_field, gh_real",
                                 "gh_field, gh_integer")
     ast = fpapi.parse(code, ignore_comments=False)
-    metadata = LFRicKernMetadata.create_from_fortran_string(
+    metadata = LFRicKernelMetadata.create_from_fortran_string(
                     str(ast), name=name)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
@@ -1483,8 +1477,7 @@ def test_stencil_extent_specified():
     kernel = schedule.children[4].loop_body[0]
     stencil_arg = kernel.arguments.args[1]
     # artificially add an extent to the stencil metadata info
-    stencil_arg._arg = replace(
-        stencil_arg.descriptor, stencil_extent="1")
+    stencil_arg._metadata_stencil["extent"] = "1"
     stencils = LFRicStencils(psy.invokes.invoke_list[0])
     with pytest.raises(GenerationError) as err:
         stencils.stencil_unique_str(stencil_arg, "")
@@ -1649,7 +1642,7 @@ def test_multi_kernel_any_space_stencil_1(dist_mem):
     assert output3 in result
 
 
-def test_lfrickernargs_unexpected_stencil_extent():
+def test_lfrickernargs_unexpected_stencil_extent(monkeypatch):
     '''This test checks that we raise an error in LFRicKernelArguments if
     metadata is provided with an extent value. This is a little tricky
     to raise as the parser does not allow this to happen. We therefore
@@ -1663,17 +1656,9 @@ def test_lfrickernargs_unexpected_stencil_extent():
     # find the parsed code's call class
     call = invoke_info.calls[0].kcalls[0]
     # add an extent to the stencil metadata
-    kernel_metadata = call.ktype
-    descriptor = replace(
-        kernel_metadata.arg_descriptors[1], stencil_extent="2")
-    call._ktype = replace(
-        kernel_metadata,
-        arg_descriptors=(
-            kernel_metadata.arg_descriptors[:1]
-            + (descriptor,)
-            + kernel_metadata.arg_descriptors[2:]
-        ),
-    )
+    descriptor_type = type(call.kernel.metadata.meta_args[1])
+    monkeypatch.setattr(
+        descriptor_type, "stencil_extent", "2", raising=False)
     # remove the extra argument (as the extent value no longer needs
     # to be passed so an associated error will be raised)
     del call.args[2]
@@ -1710,8 +1695,7 @@ def test_lfricstencils_err():
     stencils = LFRicStencils(invoke)
     # Break internal state
     argument = stencils._kern_args[0]
-    argument._arg = replace(
-        argument.descriptor, stencil_type="not-a-type")
+    argument._metadata_stencil["type"] = "not-a-type"
     with pytest.raises(GenerationError) as err:
         stencils._declare_maps_invoke()
     assert "Unsupported stencil type 'not-a-type' supplied. Supported " \

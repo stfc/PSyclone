@@ -11,7 +11,7 @@
 import os
 
 from psyclone.core import AccessType, Signature, VariablesAccessMap
-from psyclone.domain.lfric import KernStubArgList, LFRicKern, LFRicKernMetadata
+from psyclone.domain.lfric import KernStubArgList, LFRicKern, LFRicKernelMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Assignment, IfBlock, Loop
@@ -394,7 +394,7 @@ def test_lfric_stub_args():
 
     '''
     ast = get_ast("lfric", "testkern_stencil_multi_mod.f90")
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -430,7 +430,7 @@ def test_lfric_stub_args2():
 
     '''
     ast = get_ast("lfric", "testkern_mesh_prop_face_qr_mod.F90")
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -450,7 +450,7 @@ def test_lfric_stub_args3():
     '''
     ast = get_ast("lfric",
                   "testkern_any_discontinuous_space_op_1_mod.f90")
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -469,7 +469,7 @@ def test_lfric_stub_boundary_dofs():
 
     '''
     ast = get_ast("lfric", "enforce_bc_kernel_mod.f90")
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -483,7 +483,7 @@ def test_lfric_stub_field_vector():
 
     '''
     ast = get_ast("lfric", "testkern_stencil_vector_mod.f90")
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -504,7 +504,7 @@ def test_lfric_stub_basis():
 
     '''
     ast = get_ast("lfric", "testkern_qr_eval_mod.F90")
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -525,7 +525,7 @@ def test_lfric_stub_cma_operators():
 
     '''
     ast = get_ast("lfric", "columnwise_op_mul_2scalars_kernel_mod.F90")
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -549,7 +549,7 @@ def test_lfric_stub_banded_dofmap():
 
     '''
     ast = get_ast("lfric", "columnwise_op_asm_kernel_mod.F90")
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -564,7 +564,7 @@ def test_lfric_stub_indirection_dofmap():
     '''Check variable usage detection in indirection dofmap.
     '''
     ast = get_ast("lfric", "columnwise_op_app_kernel_mod.F90")
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -581,7 +581,7 @@ def test_lfric_stub_boundary_dofmap():
 
     '''
     ast = get_ast("lfric", "enforce_operator_bc_kernel_mod.F90")
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()

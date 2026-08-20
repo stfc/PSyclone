@@ -12,7 +12,6 @@ function. '''
 import os
 import pytest
 from psyclone.parse.algorithm import parse, ParseError
-from psyclone.parse.kernel import KernelTypeFactory, BuiltInKernelTypeFactory
 
 TEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
                          "test_files", "lfric")
@@ -34,62 +33,13 @@ def test_continuators_algorithm():
                  api="lfric", line_length=True)
 
 
-def test_get_builtin_defs_wrong_api():
+def test_get_builtin_map_wrong_api():
     ''' Check that we raise an appropriate error if we call
     get_builtin_defs() with an invalid API '''
     import psyclone.parse.algorithm as pparse
     with pytest.raises(ParseError) as excinfo:
-        _, _ = pparse.get_builtin_defs('invalid_api')
+        _ = pparse.get_builtin_map('invalid_api')
     assert "check_api: Unsupported API 'invalid_api'" in str(excinfo.value)
-
-
-def test_kerneltypefactory_wrong_api():
-    ''' Check that we raise an appropriate error if we try to create
-    a KernelTypeFactory with an invalid API '''
-    with pytest.raises(ParseError) as excinfo:
-        _ = KernelTypeFactory(api="invalid_api")
-    assert "check_api: Unsupported API 'invalid_api'" in str(excinfo.value)
-
-
-def test_kerntypefactory_create_broken_type():
-    ''' Check that we raise an error if the KernelTypeFactory.create()
-    method encounters an unrecognised API. '''
-    factory = KernelTypeFactory(api="lfric")
-    # Deliberately break the 'type' (API) of this factory
-    factory._type = "invalid_api"
-    test_builtin_name = "aX_plus_Y"
-    with pytest.raises(ParseError) as excinfo:
-        _ = factory.create(None, name=test_builtin_name.lower())
-    assert ("KernelTypeFactory:create: Unsupported PSyIR-first kernel type"
-            in str(excinfo.value))
-
-
-def test_broken_builtin_metadata():
-    ''' Check that we raise an appropriate error if there is a problem
-    with the meta-data describing the built-ins for a given API '''
-    from psyclone.domain.lfric import lfric_builtins
-    # The file containing broken meta-data for the built-ins
-    test_builtin_name = "aX_plus_Y"
-    defs_file = os.path.join(TEST_PATH, "broken_builtins_mod.f90")
-    factory = BuiltInKernelTypeFactory(api="lfric")
-    with pytest.raises(ParseError) as excinfo:
-        _ = factory.create(lfric_builtins.BUILTIN_MAP,
-                           defs_file, name=test_builtin_name.lower())
-    assert ("Failed to parse the meta-data for PSyclone built-ins in" in
-            str(excinfo.value))
-
-
-def test_unrecognised_builtin():
-    ''' Check that we raise an error if we call the BuiltInKernelTypeFactory
-    with an unrecognised built-in name '''
-    from psyclone.domain.lfric import lfric_builtins
-    factory = BuiltInKernelTypeFactory("lfric")
-    with pytest.raises(ParseError) as excinfo:
-        _ = factory.create(lfric_builtins.BUILTIN_MAP,
-                           None,
-                           name="not_a_builtin")
-    assert ("unrecognised built-in name. Got 'not_a_builtin' but"
-            in str(excinfo.value))
 
 
 def test_builtin_with_use():

@@ -5,19 +5,17 @@ from dataclasses import FrozenInstanceError
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType
 from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.kernel import (
     ColumnwiseOperatorArgMetadata, FieldArgMetadata,
     FieldVectorArgMetadata, InterGridArgMetadata,
-    InterGridVectorArgMetadata, KernelProcedure, LFRicArgDescriptor,
-    LFRicFuncDescriptor, LFRicKernMetadata, LFRicKernelMetadata,
-    LFRicPropertyMetadata, MetaFuncsArgMetadata, MetaMeshArgMetadata,
+    InterGridVectorArgMetadata, LFRicKernelMetadata,
+    MetaFuncsArgMetadata, MetaMeshArgMetadata,
     MetaRefElementArgMetadata, OperatorArgMetadata, ScalarArgMetadata,
     ScalarArrayArgMetadata)
 from psyclone.domain.lfric.kernel import metadata as metadata_mod
+from psyclone.domain.common.kernel import KernelInfo
 from psyclone.parse.utils import ParseError
-from psyclone.parse.kernel import get_kernel_psyir, KernelTypeFactory
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import (
@@ -29,29 +27,12 @@ def _expression(source):
     return FortranReader().psyir_from_expression(source)
 
 
-def _descriptor(access=AccessType.WRITE, argument_type="gh_field",
-                function_space="w0", **kwargs):
-    """Create a consumer-facing argument descriptor with useful defaults."""
-    return LFRicArgDescriptor(
-        access, function_space, 0, None, argument_type, "gh_real", **kwargs)
-
-
 def _kernel_metadata(arguments, **kwargs):
     """Create language-level metadata with useful defaults."""
     values = {"operates_on": "cell_column", "meta_args": arguments,
               "procedure_name": "test_code", "name": "test_type"}
     values.update(kwargs)
     return LFRicKernelMetadata(**values)
-
-
-def _consumer_metadata(arg_descriptors, **kwargs):
-    """Create consumer-facing metadata with useful defaults."""
-    values = {"name": "test_type", "iterates_over": "cell_column",
-              "procedure": KernelProcedure("test_code"),
-              "arg_descriptors": tuple(arg_descriptors),
-              "psyir": Container("test")}
-    values.update(kwargs)
-    return LFRicKernMetadata(**values)
 
 
 def test_parse_metadata():
@@ -84,11 +65,11 @@ contains
   end subroutine testkern_field_code
 end module testkern_field_mod
 '''
-    kernel_metadata = get_kernel_psyir(mdata_code)
-    ktype = KernelTypeFactory(api="lfric").create(
-        kernel_metadata, name="testkern_field_type")
+    kernel_metadata = FortranReader().psyir_from_source(mdata_code)
+    ktype = LFRicKernelMetadata.create_from_kernel_psyir(
+        kernel_metadata, name="testkern_field_type").metadata
 
-    assert isinstance(ktype, LFRicKernMetadata)
+    assert isinstance(ktype, LFRicKernelMetadata)
     assert ktype.name == "testkern_field_type"
     assert ktype.iterates_over == "cell_column"
     assert ktype.nargs == 8
@@ -179,9 +160,10 @@ def test_language_metadata_validation_and_queries():
     field = FieldArgMetadata("gh_real", "gh_write", "w0")
     operator = OperatorArgMetadata("gh_real", "gh_read", "w0", "w1")
     metadata = _kernel_metadata(
-        [field, operator], shapes=["GH_QUADRATURE_XYOZ"],
-        evaluator_targets=["W0"])
-    assert metadata.shapes == ("gh_quadrature_xyoz",)
+        [field, operator], shapes=["GH_EVALUATOR"],
+        evaluator_targets=["W0"],
+        meta_funcs=[MetaFuncsArgMetadata("w0", True, False)])
+    assert metadata.shapes == ("gh_evaluator",)
     assert metadata.kernel_type == "general-purpose"
     assert metadata.meta_args_get(FieldArgMetadata) == [field]
     assert metadata.meta_args_get([FieldArgMetadata, OperatorArgMetadata]) == [
@@ -380,88 +362,6 @@ def test_parse_func_errors(expression, message):
         metadata_mod._parse_func(_expression(expression))
 
 
-def test_consumer_descriptor_methods():
-    """Test compatibility properties and representations of descriptors."""
-    scalar = LFRicArgDescriptor(
-        AccessType.READ, None, 0, None, "gh_scalar", "gh_real")
-    assert scalar.stencil is None
-    assert not scalar.function_spaces
-    assert "argument_type='gh_scalar'" in str(scalar)
-    field = _descriptor(stencil_type="x1d", stencil_extent=None)
-    assert field.stencil == {"type": "x1d", "extent": None}
-    assert field.function_spaces == ("w0",)
-    operator = _descriptor(
-        argument_type="gh_operator", function_space=None,
-        function_space_to="w1", function_space_from="w2")
-    assert operator.function_spaces == ("w1", "w2")
-    func = LFRicFuncDescriptor("w0", ("gh_basis", "gh_diff_basis"))
-    assert repr(func) == (
-        "LFRicFuncDescriptor(func_type(w0, gh_basis, gh_diff_basis))")
-    assert "operator_names=(gh_basis, gh_diff_basis)" in str(func)
-
-
-def test_consumer_metadata_validation():
-    """Test validation performed by the consumer-facing metadata record."""
-    valid = _consumer_metadata([_descriptor()])
-    assert valid.nargs == 1
-    assert valid._ast is valid.psyir
-
-    with pytest.raises(ParseError, match="read-only function space"):
-        _consumer_metadata([_descriptor(function_space="wchi")])
-    with pytest.raises(ParseError, match="must not write.*scalar"):
-        _consumer_metadata([_descriptor(
-            argument_type="gh_scalar", function_space=None)])
-    with pytest.raises(ParseError, match="at least one argument"):
-        _consumer_metadata([_descriptor(access=AccessType.READ)])
-
-    basis = LFRicFuncDescriptor("w0", ("gh_basis",))
-    with pytest.raises(ParseError, match="does not exist"):
-        _consumer_metadata([_descriptor()], func_descriptors=(
-            LFRicFuncDescriptor("w1", ("gh_basis",)),),
-                           eval_shapes=("gh_quadrature_xyoz",))
-    with pytest.raises(ParseError, match="repeated in meta_funcs"):
-        _consumer_metadata(
-            [_descriptor()], func_descriptors=(basis, basis),
-            eval_shapes=("gh_quadrature_xyoz",))
-    with pytest.raises(ParseError, match="must also supply gh_shape"):
-        _consumer_metadata([_descriptor()], func_descriptors=(basis,))
-    with pytest.raises(ParseError, match="does not need an evaluator"):
-        _consumer_metadata([_descriptor()], eval_shapes=("gh_evaluator",))
-    with pytest.raises(ParseError, match="requires gh_shape=gh_evaluator"):
-        _consumer_metadata(
-            [_descriptor()], func_descriptors=(basis,),
-            eval_shapes=("gh_quadrature_xyoz",), eval_targets=("w0",))
-    with pytest.raises(ParseError, match="not present in meta_args"):
-        _consumer_metadata(
-            [_descriptor()], func_descriptors=(basis,),
-            eval_shapes=("gh_evaluator",), eval_targets=("w1",))
-
-
-def test_consumer_cma_and_domain_validation():
-    """Test consumer restrictions for CMA, domain and dof kernels."""
-    with pytest.raises(ParseError, match="vector or stencil"):
-        _consumer_metadata(
-            [_descriptor(vector_size=2)], cma_operation="apply")
-    with pytest.raises(ParseError, match="default NDATA and NLEVELS"):
-        _consumer_metadata(
-            [_descriptor(ndata="2")], cma_operation="apply")
-
-    operator = _descriptor(argument_type="gh_operator")
-    with pytest.raises(ParseError, match="only contain scalar and field"):
-        _consumer_metadata([operator], iterates_over="domain")
-    with pytest.raises(ParseError, match="may not request evaluator"):
-        _consumer_metadata(
-            [_descriptor()], iterates_over="domain",
-            reference_element=LFRicPropertyMetadata(("property",)))
-    with pytest.raises(ParseError, match="one function space"):
-        _consumer_metadata(
-            [_descriptor(), _descriptor(function_space="w1")],
-            iterates_over="dof")
-    builtin = _consumer_metadata(
-        [_descriptor()], iterates_over="dof", name="x_plus_y")
-    assert builtin.iterates_over == "dof"
-
-
 def test_create_language_metadata_from_psyir_errors():
     """Test type checking when creating language metadata from a symbol."""
     with pytest.raises(TypeError, match="Expected a DataTypeSymbol"):
@@ -516,47 +416,47 @@ contains
   end subroutine rich_code
 end module rich_mod
 '''
-    kernel_metadata = get_kernel_psyir(mdata_code)
-    ktype = KernelTypeFactory(api="lfric").create(
-        kernel_metadata, name="rich_type")
+    kernel_metadata = FortranReader().psyir_from_source(mdata_code)
+    ktype = LFRicKernelMetadata.create_from_kernel_psyir(
+        kernel_metadata, name="rich_type").metadata
 
     assert ktype.eval_targets == ("w0",)
-    assert len(ktype.reference_element.properties) == 1
-    assert len(ktype.mesh.properties) == 1
+    assert len(ktype.meta_ref_element) == 1
+    assert len(ktype.meta_mesh) == 1
 
 
 def test_create_from_fortran_string_errors(monkeypatch):
     """Test the public complete-source constructor's error paths."""
-    with pytest.raises(TypeError, match="source must be supplied as a string"):
-        LFRicKernMetadata.create_from_fortran_string(1)
+    with pytest.raises(TypeError, match="source must be a string"):
+        LFRicKernelMetadata.create_from_fortran_string(1)
 
     def broken_reader(_self, _source):
         """Stand in for a frontend failure."""
         raise RuntimeError("broken frontend")
 
     monkeypatch.setattr(FortranReader, "psyir_from_source", broken_reader)
-    with pytest.raises(ValueError, match="Failed to translate"):
-        LFRicKernMetadata.create_from_fortran_string("not Fortran")
+    with pytest.raises(ValueError, match="Expected kernel metadata"):
+        LFRicKernelMetadata.create_from_fortran_string("not Fortran")
 
 
 def test_create_from_psyir_discovery_errors():
     """Test metadata discovery errors and module-name inference."""
     reader = FortranReader()
     with pytest.raises(TypeError, match="Expected PSyIR"):
-        LFRicKernMetadata.create_from_psyir("not psyir")
+        LFRicKernelMetadata.create_from_kernel_psyir("not psyir")
     root = reader.psyir_from_source("subroutine code()\nend subroutine code")
     with pytest.raises(ParseError, match="does not contain a module"):
-        LFRicKernMetadata.create_from_psyir(root)
+        LFRicKernelMetadata.create_from_kernel_psyir(root)
 
     root = reader.psyir_from_source("module abc\nend module abc")
     with pytest.raises(ParseError, match="too short"):
-        LFRicKernMetadata.create_from_psyir(root)
+        LFRicKernelMetadata.create_from_kernel_psyir(root)
     root = reader.psyir_from_source("module kernel\nend module kernel")
     with pytest.raises(ParseError, match="does not have '_mod'"):
-        LFRicKernMetadata.create_from_psyir(root)
+        LFRicKernelMetadata.create_from_kernel_psyir(root)
     root = reader.psyir_from_source("module kernel_mod\nend module kernel_mod")
     with pytest.raises(ParseError, match="kernel_type does not exist"):
-        LFRicKernMetadata.create_from_psyir(root)
+        LFRicKernelMetadata.create_from_kernel_psyir(root)
 
     two_modules = '''
 module one_mod
@@ -570,9 +470,9 @@ end module two_mod
 '''
     root = reader.psyir_from_source(two_modules)
     with pytest.raises(ParseError, match="required for multiple modules"):
-        LFRicKernMetadata.create_from_psyir(root)
+        LFRicKernelMetadata.create_from_kernel_psyir(root)
     with pytest.raises(ParseError, match="not unique"):
-        LFRicKernMetadata.create_from_psyir(root, "common_type")
+        LFRicKernelMetadata.create_from_kernel_psyir(root, "common_type")
 
 
 def test_missing_bound_procedure():
@@ -589,14 +489,14 @@ module missing_mod
 end module missing_mod
 '''
     with pytest.raises(ParseError, match="absent_code.*not found"):
-        LFRicKernMetadata.create_from_fortran_string(code)
+        LFRicKernelMetadata.create_from_fortran_string(code)
 
     invalid = code.replace("gh_real", "invalid_datatype").replace(
         "absent_code", "present_code").replace(
             "end type missing_type", "end type missing_type\ncontains\n"
             "  subroutine present_code()\n  end subroutine present_code")
     with pytest.raises(ParseError, match="Invalid LFRic metadata"):
-        LFRicKernMetadata.create_from_fortran_string(invalid)
+        LFRicKernelMetadata.create_from_fortran_string(invalid)
 
 
 def test_generic_interface_procedure():
@@ -618,31 +518,20 @@ contains
   end subroutine code_two
 end module generic_mod
 '''
-    metadata = LFRicKernMetadata.create_from_fortran_string(code)
-    assert metadata.procedure.name == "generic_code"
-    assert metadata.procedure.ast is None
-    assert len(metadata.procedure.implementations) == 2
+    kernel = KernelInfo.create_from_source(LFRicKernelMetadata, code)
+    assert kernel.procedure_name == "generic_code"
+    assert len(kernel.procedures) == 2
 
     no_interface = code.replace(
         "  interface generic_code\n"
         "    module procedure code_one, code_two\n"
         "  end interface generic_code\n", "")
     with pytest.raises(ParseError, match="exactly one generic interface"):
-        LFRicKernMetadata.create_from_fortran_string(no_interface)
+        LFRicKernelMetadata.create_from_fortran_string(no_interface)
 
     missing_implementation = code.replace(
         "module procedure code_one, code_two",
         "module procedure code_one, absent_code").replace(
             "  subroutine code_two()\n  end subroutine code_two\n", "")
     with pytest.raises(ParseError, match="Not all procedures"):
-        LFRicKernMetadata.create_from_fortran_string(missing_implementation)
-
-
-def test_descriptor_from_operator_metadata():
-    """Test conversion of an operator's from/to function spaces."""
-    entry = OperatorArgMetadata("gh_real", "gh_read", "w0", "w1")
-    descriptor = metadata_mod._descriptor_from_metadata(entry, 3)
-    assert descriptor.function_space == "w1"
-    assert descriptor.function_space_to == "w0"
-    assert descriptor.function_space_from == "w1"
-    assert descriptor.metadata_index == 3
+        LFRicKernelMetadata.create_from_fortran_string(missing_implementation)

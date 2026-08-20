@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from psyclone.configuration import Config
+from psyclone.domain.common.kernel import KernelInfo
 from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
@@ -138,8 +139,8 @@ class LFRicKern(CodedKern):
                        we are constructing. This will be a loop.
         :type parent: :py:class:`psyclone.domain.lfric.LFRicLoop`
         '''
-        self._setup_basis(call.ktype)
-        self._setup(call.ktype, call.module_name, call.args, parent)
+        self._setup_basis(call.kernel.metadata)
+        self._setup(call.kernel, call.module_name, call.args, parent)
 
     def load_meta(self, ktype):
         '''
@@ -148,7 +149,7 @@ class LFRicKern(CodedKern):
         metadata describing the kernel code.
 
         :param ktype: the kernel metadata object produced by the parser
-        :type ktype: :py:class:`psyclone.domain.lfric.LFRicKernMetadata`
+        :type ktype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
 
         :raises InternalError: for an invalid data type of a scalar argument.
         :raises GenerationError: if an invalid argument type is found \
@@ -159,44 +160,45 @@ class LFRicKern(CodedKern):
         # Create a name for each argument
         args = []
         const = LFRicConstants()
-        for idx, descriptor in enumerate(ktype.arg_descriptors):
+        for idx, descriptor in enumerate(ktype.meta_args):
             pre = None
-            if descriptor.argument_type.lower() == "gh_operator":
+            if descriptor.form == "gh_operator":
                 pre = "op_"
-            elif descriptor.argument_type.lower() == "gh_columnwise_operator":
+            elif descriptor.form == "gh_columnwise_operator":
                 pre = "cma_op_"
-            elif descriptor.argument_type.lower() == "gh_field":
+            elif descriptor.form == "gh_field":
                 pre = "field_"
-            elif (descriptor.argument_type.lower() in
+            elif (descriptor.form in
                   (const.VALID_SCALAR_NAMES +
                    const.VALID_ARRAY_NAMES)):
-                if descriptor.data_type.lower() == "gh_real":
+                if descriptor.datatype == "gh_real":
                     pre = "rscalar_"
-                elif descriptor.data_type.lower() == "gh_integer":
+                elif descriptor.datatype == "gh_integer":
                     pre = "iscalar_"
-                elif descriptor.data_type.lower() == "gh_logical":
+                elif descriptor.datatype == "gh_logical":
                     pre = "lscalar_"
                 else:
                     raise InternalError(
                         f"Expected one of {const.VALID_SCALAR_DATA_TYPES} "
                         f"data types for a scalar argument but found "
-                        f"'{descriptor.data_type}'.")
-                if (descriptor.argument_type.lower() in
+                        f"'{descriptor.datatype}'.")
+                if (descriptor.form in
                         const.VALID_ARRAY_NAMES):
                     pre += "array_"
             else:
                 raise GenerationError(
                     f"LFRicKern.load_meta() expected one of "
                     f"{const.VALID_ARG_TYPE_NAMES} but found "
-                    f"'{descriptor.argument_type}'")
+                    f"'{descriptor.form}'")
             args.append(Arg("variable", pre+str(idx+1)))
 
-            if descriptor.stencil:
-                if not descriptor.stencil["extent"]:
+            stencil = getattr(descriptor, "stencil", None)
+            if stencil:
+                if not getattr(descriptor, "stencil_extent", None):
                     # Stencil size (in cells) is passed in
                     args.append(Arg("variable",
                                     pre+str(idx+1)+"_stencil_size"))
-                if descriptor.stencil["type"] == "xory1d":
+                if stencil == "xory1d":
                     # Direction is passed in
                     args.append(Arg("variable", pre+str(idx+1)+"_direction"))
 
@@ -215,7 +217,8 @@ class LFRicKern(CodedKern):
         if "halo" in ktype.iterates_over:
             args.append(Arg("variable", "halo_depth"))
 
-        self._setup(ktype, "dummy_name", args, None, check=False)
+        self._setup(
+            KernelInfo(ktype), "dummy_name", args, None, check=False)
 
     def _setup_basis(self, kmetadata):
         '''
@@ -223,16 +226,16 @@ class LFRicKern(CodedKern):
         needed before general setup so is computed in a separate method.
 
         :param kmetadata: The kernel metadata object produced by the parser.
-        :type kmetadata: :py:class:`psyclone.domain.lfric.LFRicKernMetadata`
+        :type kmetadata: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
         '''
-        for descriptor in kmetadata.func_descriptors:
-            if len(descriptor.operator_names) > 0:
+        for descriptor in kmetadata.meta_funcs:
+            if descriptor.basis_function or descriptor.diff_basis_function:
                 self._basis_required = True
                 self._eval_shapes = list(kmetadata.eval_shapes)
                 break
 
     def _setup(self,
-               ktype,
+               kernel,
                module_name: str,
                args: List[Arg],
                parent,
@@ -241,8 +244,8 @@ class LFRicKern(CodedKern):
         # pylint: disable=too-many-branches, too-many-locals
         '''Internal setup of kernel information.
 
-        :param ktype: information on the parsed metadata for this kernel.
-        :type ktype: :py:class:`psyclone.domain.lfric.LFRicKernMetadata`
+        :param kernel: parsed metadata and implementation information.
+        :type kernel: :py:class:`psyclone.domain.common.kernel.KernelInfo`
         :param module_name: name of the Fortran module containing this Kernel.
         :param args: the Arg objects produced by the parser for the
                      arguments of this kernel call.
@@ -261,9 +264,11 @@ class LFRicKern(CodedKern):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.lfric import LFRicKernelArguments, FSDescriptors
+        ktype = kernel.metadata
         super().__init__(LFRicKernelArguments,
-                         KernelCall(module_name, ktype, args),
+                         KernelCall(module_name, kernel, args),
                          parent, check)
+        self.arg_metadata = ktype.meta_args
 
         # Remove "_code" from the name if it exists to determine the
         # base name which (if LFRic naming conventions are
@@ -274,11 +279,11 @@ class LFRicKern(CodedKern):
         else:
             # TODO: #11 add a warning here when logging is added
             self._base_name = self.name
-        self._func_descriptors = ktype.func_descriptors
+        self._func_descriptors = ktype.meta_funcs
         # Keep a record of the type of CMA kernel identified when
         # parsing the kernel metadata
         self._cma_operation = ktype.cma_operation
-        self._fs_descriptors = FSDescriptors(ktype.func_descriptors)
+        self._fs_descriptors = FSDescriptors(ktype.meta_funcs)
 
         # If the kernel metadata specifies that this is an inter-grid kernel
         # create the associated LFRicInterGrid
@@ -415,10 +420,14 @@ class LFRicKern(CodedKern):
                     self._eval_targets[fspace.mangled_name] = (fspace, arg)
 
         # Properties of the reference element required by this kernel
-        self._reference_element = ktype.reference_element
+        from psyclone.lfric import MeshProperty, RefElementMetaData
+        self._reference_element = tuple(
+            RefElementMetaData.Property[entry.reference_element.upper()]
+            for entry in ktype.meta_ref_element)
 
         # Properties of the mesh required by this kernel
-        self._mesh_properties = ktype.mesh
+        self._mesh_properties = tuple(
+            MeshProperty[entry.mesh.upper()] for entry in ktype.meta_mesh)
 
     @property
     def halo_depth(self):

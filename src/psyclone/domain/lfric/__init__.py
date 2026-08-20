@@ -10,12 +10,10 @@
 
 # The order here is not alphabetical, but important because
 # there are various dependencies between the modules (e.g.
-# KernCallAccArgList imports KernCallArgList, ArgOrdering
-# imports LFRicArgDescriptor, ...).
+# KernCallAccArgList imports KernCallArgList and ArgOrdering.
 from psyclone.domain.lfric.function_space import FunctionSpace
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
-from psyclone.domain.lfric.kernel import (
-    LFRicArgDescriptor, LFRicKernMetadata)
+from psyclone.domain.lfric.kernel import LFRicKernelMetadata
 from psyclone.domain.lfric.lfric_halo_depths import LFRicHaloDepths
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList

@@ -370,7 +370,7 @@ def _validate_geom_arg(kern, arg_idx, name, valid_spaces, vec_len):
     :raises ValueError: if any of the properties of the specified kernel \
                         argument are inconsistent with the supplied values.
     '''
-    num_metadata_args = len(kern.arg_descriptors)
+    num_metadata_args = len(kern.arg_metadata)
     if arg_idx < 1 or arg_idx > num_metadata_args:
         raise ValueError(
             f"The supplied LFRic TL kernel '{kern.name}' has "
@@ -379,30 +379,31 @@ def _validate_geom_arg(kern, arg_idx, name, valid_spaces, vec_len):
             f"'{name}' field must be between 1 and {num_metadata_args} "
             f"(inclusive) but got {arg_idx}.")
     # Check that the specified argument is of the correct type.
-    descriptor = kern.arg_descriptors[arg_idx-1]
-    if descriptor.argument_type != 'gh_field':
+    descriptor = kern.arg_metadata[arg_idx-1]
+    if descriptor.form != 'gh_field':
         raise ValueError(
             f"The '{name}' argument is expected to be a field but argument "
             f"{arg_idx} to kernel '{kern.name}' is a "
-            f"'{descriptor.argument_type}'")
+            f"'{descriptor.form}'")
     if descriptor.function_space not in valid_spaces:
         raise ValueError(
             f"The '{name}' field argument to kernel '{kern.name}' is expected "
             f"to be on one of the {valid_spaces} spaces but the argument at "
             f"the specified position ({arg_idx}) is on the "
             f"'{descriptor.function_space}' space.")
-    if descriptor.vector_size != vec_len:
+    vector_length = int(getattr(descriptor, "vector_length", 1))
+    if vector_length != vec_len:
         if vec_len > 1:
             raise ValueError(
                 f"The '{name}' field argument to kernel '{kern.name}' is "
                 f"expected to be a field vector of length {vec_len} but the "
                 f"argument at the specified position ({arg_idx}) has a length "
-                f"of {descriptor.vector_size}.")
+                f"of {vector_length}.")
         raise ValueError(
             f"The '{name}' field argument to kernel '{kern.name}' is expected "
             f"to be a field but the argument at the specified position "
             f"({arg_idx}) is a field vector of length "
-            f"{descriptor.vector_size}.")
+            f"{vector_length}.")
 
 
 def _lfric_create_real_comparison(sym_table, kernel, var1, var2):

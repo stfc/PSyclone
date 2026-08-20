@@ -15,9 +15,9 @@ from psyclone.domain.lfric import (KernCallInvokeArgList, LFRicConstants,
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
 from psyclone.domain.lfric import LFRicKern
+from psyclone.domain.common.kernel import parse_fortran_file
+from psyclone.domain.lfric.kernel import LFRicKernelMetadata
 from psyclone.errors import InternalError
-from psyclone.parse.kernel import (
-    get_kernel_psyir_from_file, KernelTypeFactory)
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
@@ -58,7 +58,7 @@ class LFRicAlg:
         sub = cont.walk(Routine)[0]
         table = sub.symbol_table
 
-        kernel_psyir = get_kernel_psyir_from_file(kernel_path)
+        kernel_psyir = parse_fortran_file(kernel_path)
 
         # Get the name of the module that contains the kernel and create a
         # ContainerSymbol for it.
@@ -391,8 +391,8 @@ class LFRicAlg:
                             be found in the supplied parse tree.
         '''
         try:
-            ktype = KernelTypeFactory(api="lfric").create(psyir,
-                                                          name=kernel_name)
+            ktype = LFRicKernelMetadata.create_from_kernel_psyir(
+                psyir, name=kernel_name).metadata
         except (ParseError, TypeError) as err:
             raise ValueError(
                 f"Failed to find kernel '{kernel_name}' in supplied "

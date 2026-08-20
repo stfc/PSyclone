@@ -14,9 +14,12 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
+from psyclone.domain.common.kernel import (
+    parse_fortran_file as get_kernel_psyir_from_file,
+    parse_fortran_source as get_kernel_psyir)
 from psyclone.domain.lfric import (FunctionSpace,
                                    LFRicConstants, LFRicKern,
-                                   LFRicLoop)
+                                   LFRicKernelMetadata, LFRicLoop)
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.lfric import (
     LFRicACCEnterDataDirective, LFRicBoundaryConditions,
@@ -26,8 +29,6 @@ from psyclone.lfric import (
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import Arg, parse
-from psyclone.parse.kernel import (
-    get_kernel_psyir, get_kernel_psyir_from_file, KernelTypeFactory)
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange, BuiltIn
 from psyclone.psyir.nodes import (colored, BinaryOperation, UnaryOperation,
@@ -36,6 +37,12 @@ from psyclone.psyir.symbols import (ArrayType, ScalarType, DataTypeSymbol,
                                     UnsupportedFortranType)
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.tests.lfric_build import LFRicBuild
+
+
+def create_kernel_metadata(psyir, name=None):
+    """Create typed LFRic metadata from complete kernel PSyIR."""
+    return LFRicKernelMetadata.create_from_kernel_psyir(
+        psyir, name=name).metadata
 from psyclone.tests.utilities import get_invoke
 
 
@@ -95,7 +102,7 @@ def test_arg_descriptor_wrong_type():
     ast = get_kernel_psyir(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = KernelTypeFactory(TEST_API).create(ast, name=name)
+        _ = create_kernel_metadata(ast, name=name)
     assert "must use the arg_type constructor" in str(excinfo.value)
 
 
@@ -107,15 +114,15 @@ def test_ad_invalid_access_type():
     ast = get_kernel_psyir(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = KernelTypeFactory(TEST_API).create(ast, name=name)
+        _ = create_kernel_metadata(ast, name=name)
     assert "scalar access descriptor to be one of" in str(excinfo.value)
 
 
 def test_ad_invalid_iteration_space():
     '''Extracted argument descriptors are immutable.'''
     ast = get_kernel_psyir(CODE)
-    metadata = KernelTypeFactory(TEST_API).create(ast, name="testkern_qr_type")
-    field_descriptor = metadata.arg_descriptors[1]
+    metadata = create_kernel_metadata(ast, name="testkern_qr_type")
+    field_descriptor = metadata.meta_args[1]
     with pytest.raises(FrozenInstanceError):
         field_descriptor.function_space = "colours"
 
@@ -134,7 +141,7 @@ def test_missing_shape_both():
     ast = get_kernel_psyir(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = KernelTypeFactory(TEST_API).create(ast, name=name)
+        _ = create_kernel_metadata(ast, name=name)
     assert "must also supply gh_shape" in str(excinfo.value)
 
 
@@ -156,7 +163,7 @@ def test_missing_shape_basis_only():
     ast = get_kernel_psyir(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = KernelTypeFactory(TEST_API).create(ast, name=name)
+        _ = create_kernel_metadata(ast, name=name)
     assert "must also supply gh_shape" in str(excinfo.value)
 
 
@@ -178,7 +185,7 @@ def test_missing_eval_shape_diff_basis_only():
     ast = get_kernel_psyir(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = KernelTypeFactory(TEST_API).create(ast, name=name)
+        _ = create_kernel_metadata(ast, name=name)
     assert "must also supply gh_shape" in str(excinfo.value)
 
 
@@ -192,7 +199,7 @@ def test_invalid_shape():
     ast = get_kernel_psyir(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = KernelTypeFactory(TEST_API).create(ast, name=name)
+        _ = create_kernel_metadata(ast, name=name)
     assert "evaluator shape to be one of" in str(excinfo.value)
 
 
@@ -210,7 +217,7 @@ def test_unnecessary_shape():
     ast = get_kernel_psyir(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = KernelTypeFactory(TEST_API).create(ast, name=name)
+        _ = create_kernel_metadata(ast, name=name)
     assert "specifies gh_shape but does not need an evaluator" in str(
         excinfo.value
     )
@@ -222,7 +229,7 @@ def test_kernel_call_invalid_iteration_space():
     '''
     ast = get_kernel_psyir_from_file(
         os.path.join(BASE_PATH, "testkern_dofs_mod.f90"))
-    metadata = KernelTypeFactory(TEST_API).create(ast)
+    metadata = create_kernel_metadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # set iterates_over to something unsupported
@@ -1036,10 +1043,10 @@ def test_kernel_datatype_not_found():
 def test_arg_descriptor_funcs_method_error():
     '''An argument descriptor cannot be corrupted after extraction.'''
     ast = get_kernel_psyir(CODE)
-    metadata = KernelTypeFactory(TEST_API).create(ast, name="testkern_qr_type")
-    field_descriptor = metadata.arg_descriptors[0]
+    metadata = create_kernel_metadata(ast, name="testkern_qr_type")
+    field_descriptor = metadata.meta_args[0]
     with pytest.raises(FrozenInstanceError):
-        field_descriptor.argument_type = "gh_fire_starter"
+        field_descriptor.form = "gh_fire_starter"
 
 
 def test_lfrickernmetadata_read_fs_error():
@@ -1068,7 +1075,7 @@ def test_lfrickernmetadata_read_fs_error():
         "end module testkern_chi_write_mod\n")
     ast = get_kernel_psyir(code)
     with pytest.raises(ParseError) as info:
-        _ = KernelTypeFactory(TEST_API).create(ast)
+        _ = create_kernel_metadata(ast)
     assert ("Found kernel metadata in 'testkern_chi_write_type' that "
             "specifies writing to the read-only function space 'wchi'."
             in str(info.value))
@@ -1383,11 +1390,8 @@ def test_arg_ref_name_method_error2():
             "type 'gh_funky_instigator'" in str(excinfo.value))
 
 
-def test_arg_ref_name_method_error3(monkeypatch):
-    '''Test error handling for an operator argument when the supplied
-    function-space matches the argument but not either descriptor endpoint.
-
-    '''
+def test_arg_ref_name_method_operator():
+    '''An operator's typed metadata and function-space view cannot diverge.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -1395,16 +1399,8 @@ def test_arg_ref_name_method_error3(monkeypatch):
     first_kernel = first_invoke.schedule.coded_kernels()[0]
     first_argument = first_kernel.arguments.args[0]
 
-    descriptor_type = type(first_argument.descriptor)
-    monkeypatch.setattr(descriptor_type, "function_space_from",
-                        property(lambda self: "w_broken_from"))
-    monkeypatch.setattr(descriptor_type, "function_space_to",
-                        property(lambda self: "w_broken_to"))
-
-    with pytest.raises(GenerationError) as excinfo:
-        _ = first_argument.ref_name(first_argument.function_spaces[0])
-    assert ("is one of the 'gh_operator' function spaces" in
-            str(excinfo.value))
+    assert first_argument.ref_name(first_argument.function_spaces[0]) == \
+        "fs_from"
 
 
 def test_arg_proxy_name_indexed_vector():
@@ -1490,23 +1486,14 @@ def test_arg_intent_error():
 
 
 def test_arg_intrinsic_type_error():
-    ''' Tests that an internal error is raised in creating argument
-    'intrinsic_type' property when an invalid 'data_type' property is
-    passed from the LFRicArgDescriptor class.
-
-    '''
+    '''Invalid typed argument datatypes are rejected at construction.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     call = invoke_info.calls[0].kcalls[0]
-    kernel_metadata = call.ktype
-    invalid = replace(
-        kernel_metadata.arg_descriptors[0], data_type="gh_unreal")
-    call._ktype = replace(
-        kernel_metadata,
-        arg_descriptors=(invalid,) + kernel_metadata.arg_descriptors[1:])
-    with pytest.raises(InternalError) as excinfo:
-        _ = LFRicKernelArguments(call, None)
-    assert "Found unsupported data type 'gh_unreal'" in str(excinfo.value)
+    kernel_metadata = call.kernel.metadata
+    with pytest.raises(ValueError) as excinfo:
+        replace(kernel_metadata.meta_args[0], datatype="gh_unreal")
+    assert "scalar datatype descriptor" in str(excinfo.value)
 
 # Test LFRicKernelArgument _init_data_type_properties()
 
@@ -2047,28 +2034,28 @@ def test_no_arg_on_space(monkeypatch):
 def test_arg_descriptor_func_method_error():
     '''An argument descriptor cannot be corrupted after extraction.'''
     ast = get_kernel_psyir(CODE)
-    metadata = KernelTypeFactory(TEST_API).create(ast, name="testkern_qr_type")
-    scalar_descriptor = metadata.arg_descriptors[0]
+    metadata = create_kernel_metadata(ast, name="testkern_qr_type")
+    scalar_descriptor = metadata.meta_args[0]
     with pytest.raises(FrozenInstanceError):
-        scalar_descriptor.argument_type = "gh_fire_starter"
+        scalar_descriptor.form = "gh_fire_starter"
 
 
 @pytest.mark.usefixtures("lfric_config")
 def test_arg_descriptor_str_error():
     '''String conversion has no mutable internal state to corrupt.'''
     ast = get_kernel_psyir(CODE)
-    metadata = KernelTypeFactory(TEST_API).create(ast, name="testkern_qr_type")
-    scalar_descriptor = metadata.arg_descriptors[0]
-    assert "argument_type='gh_scalar'" in str(scalar_descriptor)
+    metadata = create_kernel_metadata(ast, name="testkern_qr_type")
+    scalar_descriptor = metadata.meta_args[0]
+    assert "ScalarArgMetadata" in str(scalar_descriptor)
 
 
 def test_arg_desc_func_space_tofrom_err():
     '''Non-operator arguments do not expose to/from function spaces.'''
     ast = get_kernel_psyir(CODE)
-    metadata = KernelTypeFactory(TEST_API).create(ast, name="testkern_qr_type")
-    scalar_descriptor = metadata.arg_descriptors[0]
-    assert scalar_descriptor.function_space_to is None
-    assert scalar_descriptor.function_space_from is None
+    metadata = create_kernel_metadata(ast, name="testkern_qr_type")
+    scalar_descriptor = metadata.meta_args[0]
+    assert not hasattr(scalar_descriptor, "function_space_to")
+    assert not hasattr(scalar_descriptor, "function_space_from")
 
 
 def test_unrecognised_fspace_error():
@@ -2191,32 +2178,27 @@ def test_fsdescriptors_get_descriptor():
 def test_arg_descriptor_init_error():
     '''An extracted descriptor cannot be mutated into an invalid state.'''
     ast = get_kernel_psyir(CODE)
-    metadata = KernelTypeFactory(TEST_API).create(ast, name="testkern_qr_type")
-    field_descriptor = metadata.arg_descriptors[1]
+    metadata = create_kernel_metadata(ast, name="testkern_qr_type")
+    field_descriptor = metadata.meta_args[1]
     with pytest.raises(FrozenInstanceError):
-        field_descriptor.argument_type = "gh_invalid"
+        field_descriptor.form = "gh_invalid"
 
 
 def test_func_descriptor_repr():
     ''' Tests the __repr__ output of a func_descriptor '''
     ast = get_kernel_psyir(CODE)
-    metadata = KernelTypeFactory(TEST_API).create(ast, name="testkern_qr_type")
-    func_descriptor = metadata.func_descriptors[0]
+    metadata = create_kernel_metadata(ast, name="testkern_qr_type")
+    func_descriptor = metadata.meta_funcs[0]
     func_str = repr(func_descriptor)
-    assert "LFRicFuncDescriptor(func_type(w1, gh_basis))" in func_str
+    assert "MetaFuncsArgMetadata" in func_str
 
 
 def test_func_descriptor_str():
     ''' Tests the __str__ output of a func_descriptor '''
     ast = get_kernel_psyir(CODE)
-    metadata = KernelTypeFactory(TEST_API).create(ast, name="testkern_qr_type")
-    func_descriptor = metadata.func_descriptors[0]
-    func_str = str(func_descriptor)
-    output = (
-        "LFRicFuncDescriptor object\n"
-        "  function_space_name='w1'\n"
-        "  operator_names=(gh_basis)")
-    assert output in func_str
+    metadata = create_kernel_metadata(ast, name="testkern_qr_type")
+    func_descriptor = metadata.meta_funcs[0]
+    assert func_descriptor.fortran_string() == "func_type(w1, gh_basis)"
 
 
 def test_dist_memory_true():
@@ -2621,7 +2603,7 @@ def test_operator_gh_sum_invalid():
     ast = get_kernel_psyir(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = KernelTypeFactory(TEST_API).create(ast, name=name)
+        _ = create_kernel_metadata(ast, name=name)
     assert "operator access descriptor to be one of" in str(excinfo.value)
 
 
@@ -2736,9 +2718,8 @@ def test_haloexchange_unknown_halo_depth():
     schedule = psy.invokes.invoke_list[0].schedule
     kernel = schedule.children[4].loop_body[0]
     stencil_arg = kernel.arguments.args[1]
-    # Create a new descriptor with a fixed extent. Metadata is immutable.
-    stencil_arg._arg = replace(
-        stencil_arg.descriptor, stencil_extent=10)
+    # Supply a fixed extent through the kernel argument's metadata view.
+    stencil_arg._metadata_stencil = {"type": "cross", "extent": 10}
     halo_exchange = schedule.children[1]
     assert halo_exchange._compute_halo_depth().value == '11'
 
@@ -2763,7 +2744,7 @@ def test_no_updated_args():
     ast = get_kernel_psyir(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = KernelTypeFactory(TEST_API).create(ast, name=name)
+        _ = create_kernel_metadata(ast, name=name)
     assert ("An LFRic kernel must have at least one argument that is "
             "updated (written to) but found none for kernel "
             "'testkern_qr_type'." in str(excinfo.value))
@@ -2791,7 +2772,7 @@ end module testkern
     ast = get_kernel_psyir(code)
     name = "testkern_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = KernelTypeFactory(TEST_API).create(ast, name=name)
+        _ = create_kernel_metadata(ast, name=name)
     assert "must contain at least one field or operator" in str(
         excinfo.value
     )
@@ -2805,11 +2786,11 @@ def test_multiple_updated_op_args():
         "arg_type(gh_operator, gh_real,    gh_write, w1, w1)", 1)
     ast = get_kernel_psyir(code)
     name = "testkern_qr_type"
-    metadata = KernelTypeFactory(TEST_API).create(ast, name=name)
+    metadata = create_kernel_metadata(ast, name=name)
     count = 0
-    for descriptor in metadata.arg_descriptors:
-        if (descriptor.argument_type in ["gh_field", "gh_operator"] and
-                descriptor.access != AccessType.READ):
+    for descriptor in metadata.meta_args:
+        if (descriptor.form in ["gh_field", "gh_operator"] and
+                descriptor.access_type != AccessType.READ):
             count += 1
     assert count == 2
 

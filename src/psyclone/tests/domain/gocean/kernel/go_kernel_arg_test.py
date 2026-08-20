@@ -11,11 +11,9 @@
 from dataclasses import FrozenInstanceError, replace
 
 import pytest
-from psyclone.core import AccessType
 from psyclone.configuration import Config
 from psyclone.domain.gocean import GOSymbolTable
-from psyclone.domain.gocean.kernel import (
-    GOceanArgDescriptor, GOceanStencilMetadata)
+from psyclone.domain.gocean.kernel import GOceanScalarArgMetadata
 from psyclone.errors import InternalError, GenerationError
 from psyclone.gocean1p0 import GOKernelArgument, GOKernelArguments
 from psyclone.parse.algorithm import Arg
@@ -71,7 +69,7 @@ def test_gokernelarguments_append():
            " var1, var2)" in generated_code
 
 
-def test_gokernelargument_infer_datatype():
+def test_gokernelargument_infer_datatype(monkeypatch):
     ''' Check the GOcean specialisation of the infer_datatype works for each
     possible type of KernelArgument. '''
 
@@ -103,16 +101,17 @@ def test_gokernelargument_infer_datatype():
     assert argument_list.args[1].infer_datatype().name == "r2d_field"
 
     # Test an incompatible Kernel Argument
-    argument_list.args[0]._arg = replace(
-        argument_list.args[0]._arg, function_space="incompatible")
+    object.__setattr__(argument_list.args[0]._arg,
+                       "datatype", "incompatible")
     with pytest.raises(InternalError) as excinfo:
         _ = argument_list.args[0].infer_datatype()
     assert ("GOcean expects scalar arguments to be of 'go_r_scalar' or "
             "'go_i_scalar' type but found 'incompatible'."
             in str(excinfo.value))
 
-    argument_list.args[0]._arg = replace(
-        argument_list.args[0]._arg, argument_type="incompatible")
+    monkeypatch.setattr(
+        GOKernelArgument, "argument_type",
+        property(lambda _argument: "incompatible"))
     with pytest.raises(InternalError) as excinfo:
         _ = argument_list.args[0].infer_datatype()
     assert ("GOcean expects the Argument.argument_type() to be 'field' or "
@@ -135,7 +134,7 @@ def test_gokernelargument_intrinsic_type():
     # Change the first argument metadata type to integer, and check the
     # intrinsic_type value also changes
     argument_list[0]._arg = replace(
-        argument_list[0]._arg, function_space="go_i_scalar")
+        argument_list[0]._arg, datatype="go_i_scalar")
     assert argument_list[0].intrinsic_type == "integer"
 
 
@@ -169,7 +168,7 @@ def test_gokernelarguments_psyir_expressions():
         assert isinstance(argument, StructureReference)
 
 
-def test_gokernelargument_psyir_expression():
+def test_gokernelargument_psyir_expression(monkeypatch):
     ''' Check the GOcean specialisation of psyir_expression returns the
     expected expression for any GOKernelArgument and GOKernelGridArguments'''
 
@@ -202,8 +201,9 @@ def test_gokernelargument_psyir_expression():
     assert isinstance(expr3, Reference)
 
     # Test an incompatible Kernel Argument
-    argument_list.args[0]._arg = replace(
-        argument_list.args[0]._arg, argument_type="incompatible")
+    monkeypatch.setattr(
+        GOKernelArgument, "argument_type",
+        property(lambda _argument: "incompatible"))
     with pytest.raises(InternalError) as excinfo:
         _ = argument_list.args[0].psyir_expression()
     assert ("GOcean expects the Argument.argument_type() to be 'field' or "
@@ -237,8 +237,7 @@ def test_gokernelargument_type():
     dummy_node.symbol_table = SymbolTable()
 
     # Create a dummy GOKernelArgument
-    descriptor = GOceanArgDescriptor(
-        AccessType.READ, "go_r_scalar", 0, GOceanStencilMetadata(), "scalar")
+    descriptor = GOceanScalarArgMetadata("go_read", "go_r_scalar")
     arg = Arg("variable", "arg", "arg")
     argument = GOKernelArgument(descriptor, arg, dummy_node)
 

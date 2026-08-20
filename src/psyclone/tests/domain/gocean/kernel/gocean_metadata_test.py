@@ -12,15 +12,13 @@ from dataclasses import FrozenInstanceError
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.core import AccessType
 from psyclone.domain.gocean.kernel import (
-    GOceanArgDescriptor, GOceanContainer, GOceanFieldArgMetadata,
+    GOceanContainer, GOceanFieldArgMetadata,
     GOceanGridPropertyArgMetadata, GOceanKernelMetadata,
     GOceanScalarArgMetadata, GOceanStencilMetadata)
 from psyclone.domain.gocean.kernel import metadata as metadata_mod
 from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
-from psyclone.errors import GenerationError, InternalError
-from psyclone.parse.kernel import get_kernel_psyir, KernelTypeFactory
+from psyclone.errors import GenerationError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container
@@ -60,8 +58,9 @@ def _expression(source):
 def test_metadata_from_psyir(fortran_reader):
     """Metadata is extracted from a complete language-level PSyIR tree."""
     root = fortran_reader.psyir_from_source(MODULE)
-    metadata = GOceanKernelMetadata.create_from_kernel_psyir(
+    kernel = GOceanKernelMetadata.create_from_kernel_psyir(
         root, "compute_cu")
+    metadata = kernel.metadata
 
     assert metadata.name == "compute_cu"
     assert metadata.procedure_name == "compute_cu_code"
@@ -71,7 +70,7 @@ def test_metadata_from_psyir(fortran_reader):
     assert metadata.meta_args[1].stencil.rows == ("000", "011", "000")
     assert isinstance(metadata.meta_args[2], GOceanGridPropertyArgMetadata)
     assert isinstance(metadata.meta_args[3], GOceanScalarArgMetadata)
-    assert metadata.procedure.ast.name == "compute_cu_code"
+    assert kernel.procedures[0].name == "compute_cu_code"
     with pytest.raises(FrozenInstanceError):
         metadata.name = "changed"
 
@@ -91,13 +90,13 @@ def test_metadata_fortran_round_trip(fortran_reader):
     assert root.children[0].symbol_table.lookup("compute_cu")
 
 
-def test_kernel_type_factory_path():
-    """Test the standard parser and factory path requested by clients."""
+def test_kernel_info_path():
+    """Test the common kernel-information loading path."""
     Config.get().api = "gocean"
     mdata_code = MODULE
-    kernel_metadata = get_kernel_psyir(mdata_code)
-    ktype = KernelTypeFactory(api="gocean").create(
-        kernel_metadata, name="compute_cu")
+    kernel_metadata = FortranReader().psyir_from_source(mdata_code)
+    ktype = GOceanKernelMetadata.create_from_kernel_psyir(
+        kernel_metadata, name="compute_cu").metadata
 
     assert isinstance(ktype, GOceanKernelMetadata)
     assert ktype.name == "compute_cu"
@@ -157,20 +156,10 @@ def test_argument_metadata_validation():
         GOceanGridPropertyArgMetadata("go_read", "invalid")
 
 
-def test_argument_descriptor():
-    """Test validation and representation of legacy argument descriptors."""
-    descriptor = GOceanArgDescriptor(
-        AccessType.READ, "go_cu", 2, GOceanStencilMetadata(), "field")
-    assert repr(descriptor) == "Descriptor(READ, go_cu, 2)"
-    assert str(descriptor) == repr(descriptor)
-    with pytest.raises(TypeError, match="access must be an AccessType"):
-        GOceanArgDescriptor(
-            "go_read", "go_cu", 0, GOceanStencilMetadata(), "field")
-    for index in (-1, "0"):
-        with pytest.raises(InternalError, match="metadata index"):
-            GOceanArgDescriptor(
-                AccessType.READ, "go_cu", index,
-                GOceanStencilMetadata(), "field")
+def test_argument_access_type():
+    """Typed arguments expose their generic access without a descriptor."""
+    argument = GOceanFieldArgMetadata("go_read", "go_cu")
+    assert str(argument.access_type) == "READ"
 
 
 def test_kernel_metadata_validation():
@@ -180,9 +169,7 @@ def test_kernel_metadata_validation():
         "GO_ALL_PTS", "GO_OFFSET_SW", [field], "CODE", "KERNEL")
     assert metadata.iterates_over == "go_all_pts"
     assert metadata.meta_args == (field,)
-    assert metadata.procedure.name == "code"
-    assert metadata.procedure.ast is None
-    assert metadata._ast is None
+    assert metadata.procedure_name == "code"
     with pytest.raises(TypeError, match="meta_args entries"):
         GOceanKernelMetadata(
             "go_all_pts", "go_offset_sw", [object()], "code", "kernel")
@@ -193,17 +180,15 @@ def test_kernel_metadata_validation():
             "code", "kernel")
 
 
-def test_kernel_metadata_compatibility_properties():
-    """Test procedure, descriptors, counts, lowering and string output."""
-    metadata = GOceanKernelMetadata.create_from_kernel_psyir(
+def test_kernel_metadata_common_properties():
+    """Test kernel information, counts, lowering and string output."""
+    kernel = GOceanKernelMetadata.create_from_kernel_psyir(
         FortranReader().psyir_from_source(MODULE), "compute_cu")
-    assert metadata._ast is metadata.psyir
-    assert metadata.procedure.ast.name == "compute_cu_code"
-    descriptors = metadata.arg_descriptors
-    assert [arg.argument_type for arg in descriptors] == [
-        "field", "field", "grid_property", "scalar"]
-    assert descriptors[2].grid_prop == "go_grid_area_t"
-    assert descriptors[3].function_space == "go_r_scalar"
+    metadata = kernel.metadata
+    assert kernel.procedures[0].name == "compute_cu_code"
+    assert isinstance(metadata.meta_args[2], GOceanGridPropertyArgMetadata)
+    assert metadata.meta_args[2].name == "go_grid_area_t"
+    assert metadata.meta_args[3].datatype == "go_r_scalar"
     assert metadata.nargs == 3
     lowered = metadata.lower_to_psyir()
     assert lowered.name == "compute_cu"
@@ -218,7 +203,7 @@ def test_create_from_psyir_errors():
     with pytest.raises(TypeError, match="Expected a DataTypeSymbol"):
         GOceanKernelMetadata.create_from_psyir("not a symbol")
     symbol = DataTypeSymbol("bad", ScalarType.real_type())
-    with pytest.raises(InternalError, match="StructureType"):
+    with pytest.raises(TypeError, match="StructureType"):
         GOceanKernelMetadata.create_from_psyir(symbol)
 
     declaration = (
@@ -319,7 +304,7 @@ def test_parse_meta_arg_variants():
       integer :: index_offset = go_offset_sw
       contains
       procedure, nopass :: code => bad_code
-      end type bad""", "literal extent"),
+      end type bad""", "must be an array"),
     ("type, extends(kernel_type) :: bad\n"
      "type(go_arg), dimension(2) :: meta_args = "
      "(/go_arg(go_read, go_cu, go_pointwise)/)\n"

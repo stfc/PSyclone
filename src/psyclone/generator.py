@@ -31,6 +31,7 @@ from psyclone.configuration import (
     Config, ConfigurationError, LFRIC_API_NAMES, GOCEAN_API_NAMES)
 from psyclone.domain.common.algorithm.psyir import (
     AlgorithmInvokeCall, KernelFunctor)
+from psyclone.domain.common.kernel import find_kernel_file
 from psyclone.domain.common.transformations import AlgTrans
 from psyclone.domain.gocean.transformations import (
     RaisePSyIR2GOceanKernTrans, GOceanAlgInvoke2PSyCallTrans)
@@ -42,7 +43,6 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
 from psyclone.parse.algorithm import parse
-from psyclone.parse.kernel import get_kernel_filepath
 from psyclone.parse.utils import ParseError, parse_fp2
 from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory, Transformation
@@ -352,7 +352,7 @@ def generate(filename: str,
                 container_symbol = kern.symbol.interface.container_symbol
 
                 # Find the kernel file containing the container
-                filepath = get_kernel_filepath(
+                filepath = find_kernel_file(
                     container_symbol.name, kernel_paths, filename)
 
                 try:

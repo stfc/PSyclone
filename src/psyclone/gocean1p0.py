@@ -29,7 +29,8 @@ from psyclone.core import Signature
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.gocean import GOceanConstants, GOSymbolTable
 from psyclone.domain.gocean.kernel import (
-    GOceanArgDescriptor, GOceanKernelMetadata, GOceanStencilMetadata)
+    GOceanFieldArgMetadata, GOceanGridPropertyArgMetadata,
+    GOceanKernelMetadata, GOceanScalarArgMetadata, GOceanStencilMetadata)
 from psyclone.errors import GenerationError, InternalError
 import psyclone.expression as expr
 from psyclone.parse.algorithm import Arg, KernelCall
@@ -943,11 +944,11 @@ class GOKern(CodedKern):
         super().__init__(GOKernelArguments, call, parent, check=False)
         # Store the name of this kernel type (i.e. the name of the
         # Fortran derived type containing its metadata).
-        self._metadata_name = call.ktype.name
+        self._metadata_name = call.kernel.metadata.name
         # Pull out the grid index-offset that this kernel expects and
         # store it here. This is used to check that all of the kernels
         # invoked by an application are using compatible index offsets.
-        self._index_offset = call.ktype.index_offset
+        self._index_offset = call.kernel.metadata.index_offset
         # Add a representation of the kernel computation as children of
         # this node.
         self.children.extend(
@@ -1141,18 +1142,21 @@ class GOKernelArguments(Arguments):
 
         self._args = []
         # Loop over the kernel arguments obtained from the meta data
-        for (idx, arg) in enumerate(call.ktype.arg_descriptors):
-            # arg is a GO1p0Descriptor object
-            if arg.argument_type == "grid_property":
+        alg_index = 0
+        for metadata_index, arg in enumerate(call.kernel.metadata.meta_args):
+            if isinstance(arg, GOceanGridPropertyArgMetadata):
                 # This is an argument supplied by the psy layer
                 self._args.append(GOKernelGridArgument(arg, parent_call))
-            elif arg.argument_type in ["scalar", "field"]:
+            elif isinstance(
+                    arg, (GOceanScalarArgMetadata,
+                          GOceanFieldArgMetadata)):
                 # This is a kernel argument supplied by the Algorithm layer
-                self._args.append(GOKernelArgument(arg, call.args[idx],
-                                                   parent_call))
+                self._args.append(GOKernelArgument(
+                    arg, call.args[alg_index], parent_call, metadata_index))
+                alg_index += 1
             else:
                 raise ParseError(f"Invalid kernel argument type. Found "
-                                 f"'{arg.argument_type}' but must be one of "
+                                 f"'{type(arg).__name__}' but must be one of "
                                  f"['grid_property', 'scalar', 'field'].")
 
     def psyir_expressions(self):
@@ -1271,13 +1275,8 @@ class GOKernelArguments(Arguments):
         # position in the argument list of the argument to which this
         # descriptor corresponds. (This argument is appended in the code
         # below.)
-        descriptor = GOceanArgDescriptor(
-            AccessType.READ,
-            argument_type,
-            len(self.args),
-            GOceanStencilMetadata(),
-            "scalar",
-        )
+        descriptor = GOceanScalarArgMetadata(
+            "go_read", argument_type, "go_pointwise")
 
         # Create the argument and append it to the argument list
         arg = Arg("variable", name)
@@ -1289,10 +1288,11 @@ class GOKernelArgument(KernelArgument):
     ''' Provides information about individual GOcean kernel call arguments
         as specified by the kernel argument metadata. '''
 
-    def __init__(self, arg, arg_info, call):
+    def __init__(self, arg, arg_info, call, metadata_index=None):
 
         self._arg = arg
-        KernelArgument.__init__(self, arg, arg_info, call)
+        KernelArgument.__init__(
+            self, arg, arg_info, call, metadata_index=metadata_index)
         # Complete the argument initialisation as in some APIs it
         # needs to be separated.
         self._complete_init(arg_info)
@@ -1433,15 +1433,15 @@ class GOKernelArgument(KernelArgument):
         :rtype: str
 
         '''
-        if self._arg.argument_type:
-            return self._arg.argument_type
+        if isinstance(self._arg, GOceanFieldArgMetadata):
+            return "field"
         return "scalar"
 
     @property
     def function_space(self):
         ''' Returns the expected finite difference space for this
             argument as specified by the kernel argument metadata.'''
-        return self._arg.function_space
+        return self.space
 
     @property
     def is_scalar(self):
@@ -1457,7 +1457,7 @@ class GOKernelGridArgument(Argument):
     the Algorithm layer.
 
     :param arg: the meta-data entry describing the required grid property.
-    :type arg: :py:class:`psyclone.gocean1p0.GO1p0Descriptor`
+    :type arg: :py:class:`psyclone.domain.gocean.kernel.GOceanGridPropertyArgMetadata`
     :param kernel_call: the kernel call node that this Argument belongs to.
     :type kernel_call: :py:class:`psyclone.gocean1p0.GOKern`
 
@@ -1466,25 +1466,25 @@ class GOKernelGridArgument(Argument):
     '''
 
     def __init__(self, arg, kernel_call):
-        super().__init__(None, None, arg.access)
+        super().__init__(None, None, arg.access_type)
         # Complete the argument initialisation as in some APIs it
         # needs to be separated.
         self._complete_init(None)
 
         api_config = Config.get().api_conf("gocean")
         try:
-            deref_name = api_config.grid_properties[arg.grid_prop].fortran
+            deref_name = api_config.grid_properties[arg.name].fortran
         except KeyError as err:
             all_keys = str(api_config.grid_properties.keys())
             raise GenerationError(f"Unrecognised grid property specified. "
                                   f"Expected one of {all_keys} but found "
-                                  f"'{arg.grid_prop}'") from err
+                                  f"'{arg.name}'") from err
 
         # Each entry is a pair (name, type). Name can be subdomain%internal...
         # so only take the last part after the last % as name.
         self._name = deref_name.split("%")[-1]
         # Store the original property name for easy lookup in is_scalar
-        self._property_name = arg.grid_prop
+        self._property_name = arg.name
 
         # This object always represents an argument that is a grid_property
         self._argument_type = "grid_property"
@@ -1828,10 +1828,6 @@ class GOStencil():
         return self._stencil[index0+1][index1+1]
 
 
-GO1p0Descriptor = GOceanArgDescriptor
-GOKernelType1p0 = GOceanKernelMetadata
-
-
 class GOACCEnterDataDirective(ACCEnterDataDirective):
     '''
     Sub-classes ACCEnterDataDirective to provide the dl_esm_inf infrastructure-
@@ -1994,6 +1990,5 @@ class GOHaloExchange(HaloExchange):
 __all__ = ['GOPSy', 'GOInvokes', 'GOInvoke', 'GOInvokeSchedule', 'GOLoop',
            'GOBuiltInCallFactory', 'GOKernCallFactory', 'GOKern',
            'GOKernelArguments', 'GOKernelArgument',
-           'GOKernelGridArgument', 'GOStencil', 'GO1p0Descriptor',
-           'GOKernelType1p0', 'GOACCEnterDataDirective',
+           'GOKernelGridArgument', 'GOStencil', 'GOACCEnterDataDirective',
            'GOKernelSchedule', 'GOHaloExchange']

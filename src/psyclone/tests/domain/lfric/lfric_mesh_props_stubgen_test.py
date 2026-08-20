@@ -12,7 +12,7 @@ generation functionality with the LFRic API.
 
 import os
 from fparser import api as fpapi
-from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
+from psyclone.domain.lfric import LFRicKern, LFRicKernelMetadata
 
 
 # Constants
@@ -55,7 +55,7 @@ def test_mesh_prop_stub_gen(fortran_writer):
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_mesh_prop_mod.F90"),
                       ignore_comments=False)
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     gen = fortran_writer(kernel.gen_stub)
@@ -90,7 +90,7 @@ def test_mesh_props_quad_stub_gen(fortran_writer):
     specifies both mesh and quadrature properties (quadrature
     properties should be placed at the end of subroutine argument list). '''
     ast = fpapi.parse(MESH_PROP_MDATA, ignore_comments=False)
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     gen = fortran_writer(kernel.gen_stub)

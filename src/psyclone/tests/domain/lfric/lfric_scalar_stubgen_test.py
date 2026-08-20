@@ -16,7 +16,7 @@ import pytest
 
 from fparser import api as fpapi
 from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
-                                   LFRicKernMetadata, LFRicScalarArgs,
+                                   LFRicKernelMetadata, LFRicScalarArgs,
                                    LFRicScalarArrayArgs)
 from psyclone.errors import InternalError
 from psyclone.gen_kernel_stub import generate
@@ -39,12 +39,12 @@ def test_lfricscalars_stub_err():
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_one_int_scalar_mod.f90"),
                       ignore_comments=False)
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Sabotage the scalar argument to make it have an invalid data type
     arg = kernel.arguments.args[1]
-    arg._arg = replace(arg.descriptor, data_type="gh_invalid_scalar")
+    arg._metadata_datatype = "gh_invalid_scalar"
     with pytest.raises(InternalError) as err:
         LFRicScalarArgs(kernel).stub_declarations()
     const = LFRicConstants()
@@ -62,12 +62,12 @@ def test_lfricscalararray_stub_err():
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_scalar_array_mod.f90"),
                       ignore_comments=False)
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Sabotage the scalar argument to make it have an invalid data type
     arg = kernel.arguments.args[1]
-    arg._arg = replace(arg.descriptor, data_type="gh_invalid_scalar")
+    arg._metadata_datatype = "gh_invalid_scalar"
     with pytest.raises(InternalError) as err:
         LFRicScalarArrayArgs(kernel).stub_declarations()
     const = LFRicConstants()

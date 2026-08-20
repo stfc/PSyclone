@@ -358,7 +358,7 @@ def test_generate_basis(monkeypatch):
         MetaFuncsArgMetadata("W0", basis_function=True)]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args,
-        meta_funcs=meta_funcs)
+        meta_funcs=meta_funcs, shapes=["gh_quadrature_xyoz"])
     metadata.validate()
 
     def _basis(_):
@@ -378,7 +378,7 @@ def test_generate_diff_basis(monkeypatch):
         MetaFuncsArgMetadata("W0", diff_basis_function=True)]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args,
-        meta_funcs=meta_funcs)
+        meta_funcs=meta_funcs, shapes=["gh_quadrature_xyoz"])
     metadata.validate()
 
     def _diff_basis(_):

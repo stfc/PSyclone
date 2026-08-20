@@ -453,7 +453,7 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
-        if self._kern.mesh.properties:
+        if self._kern.mesh:
             # Avoid circular import
             # pylint: disable=import-outside-toplevel
             from psyclone.lfric import LFRicMeshProperties

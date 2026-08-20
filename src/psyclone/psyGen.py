@@ -71,7 +71,7 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None):
     then return all arguments.
 
     :param arg_list: list of kernel arguments to filter.
-    :type arg_list: list of :py:class:`psyclone.parse.kernel.Descriptor`
+    :type arg_list: list of API-specific kernel argument metadata objects
     :param arg_types: list of argument types (e.g. "GH_FIELD").
     :type arg_types: list of str
     :param arg_accesses: list of access types that arguments must have.
@@ -81,7 +81,7 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None):
     :type arg_meshes: list of str
 
     :returns: list of kernel arguments matching the requirements.
-    :rtype: list of :py:class:`psyclone.parse.kernel.Descriptor`
+    :rtype: list of API-specific kernel argument metadata objects
 
     '''
     arguments = []
@@ -346,7 +346,7 @@ class Invoke():
             # Appended position is needed in case we have two separate invokes
             # in the same algorithm code containing the same (single) kernel
             self._name = "invoke_" + str(idx) + "_" + \
-                alg_invocation.kcalls[0].ktype.name
+                alg_invocation.kcalls[0].kernel.metadata.name
         else:
             # use the position of the invoke
             self._name = "invoke_" + str(idx)
@@ -753,7 +753,7 @@ class Kern(Statement):
     :param str name: the name of the routine being called.
     :param ArgumentsClass: class to create the object that holds all \
         information on the kernel arguments, as extracted from kernel \
-        meta-data (and accessible here via call.ktype).
+        metadata (and accessible here via ``call.kernel.metadata``).
     :type ArgumentsClass: type of :py:class:`psyclone.psyGen.Arguments`
     :param bool check: whether to check for consistency between the \
         kernel metadata and the algorithm layer. Defaults to True.
@@ -769,7 +769,7 @@ class Kern(Statement):
         # pylint: disable=too-many-arguments
         super().__init__(parent=parent)
         self._name = name
-        self._iterates_over = call.ktype.iterates_over
+        self._iterates_over = call.kernel.metadata.iterates_over
         self._arguments = ArgumentsClass(call, self, check=check)
 
         # check algorithm arguments are unique for a kernel or
@@ -785,7 +785,7 @@ class Kern(Statement):
                         f"algorithm layer. This is not allowed.")
                 arg_names.append(text)
 
-        self._arg_descriptors = None
+        self._arg_metadata = None
 
         # Initialise any reduction information
         const = Config.get().api_conf().get_constants()
@@ -1047,12 +1047,13 @@ class Kern(Statement):
         return Reference(local_var)
 
     @property
-    def arg_descriptors(self):
-        return self._arg_descriptors
+    def arg_metadata(self):
+        """:returns: the typed metadata for this kernel's arguments."""
+        return self._arg_metadata
 
-    @arg_descriptors.setter
-    def arg_descriptors(self, obj):
-        self._arg_descriptors = obj
+    @arg_metadata.setter
+    def arg_metadata(self, obj):
+        self._arg_metadata = obj
 
     @property
     def arguments(self):
@@ -1159,17 +1160,18 @@ class CodedKern(Kern):
         # from where it happened.
         self._module_name = call.module_name
         super().__init__(parent, call,
-                         call.ktype.procedure.name,
+                         call.kernel.procedure_name,
                          KernelArguments, check)
-        self._module_code = call.ktype._ast
-        self._kernel_code = call.ktype.procedure
+        self._module_code = call.kernel.psyir
+        self._kernel_code = (
+            call.kernel.procedures[0] if call.kernel.procedures else None)
         self._fp2_ast = None  #: The fparser2 AST for the kernel
         #: PSyIR schedule(s) for the kernel
         self._schedules = None
         #: Whether or not this kernel has been transformed
         self._modified = False
         self._opencl_options = {'local_size': 64, 'queue_number': 1}
-        self.arg_descriptors = call.ktype.arg_descriptors
+        self.arg_metadata = call.kernel.metadata.meta_args
 
         # TODO #2054 - this 'routine' property can be replaced once this
         # class sub-classes Call.
@@ -1421,7 +1423,7 @@ class BuiltIn(Kern):
         # We cannot call Kern.__init__ as don't have necessary information
         # here. Instead we provide a load() method that can be called once
         # that information is available.
-        self._arg_descriptors = None
+        self._arg_metadata = None
         self._func_descriptors = None
         self._fs_descriptors = None
         self._reduction = None
@@ -1437,7 +1439,7 @@ class BuiltIn(Kern):
 
     def load(self, call, arguments, parent=None):
         ''' Set-up the state of this BuiltIn call '''
-        name = call.ktype.name
+        name = call.kernel.metadata.name
         super(BuiltIn, self).__init__(parent, call, name, arguments)
 
 
@@ -2163,7 +2165,7 @@ class KernelArgument(Argument):
 
     :param arg: information obtained from the metadata for this kernel \
                 argument.
-    :type arg: :py:class:`psyclone.parse.kernel.Descriptor`
+    :type arg: API-specific kernel argument metadata
     :param arg_info: information on how this argument is specified in \
                      the Algorithm layer.
     :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
@@ -2171,17 +2173,23 @@ class KernelArgument(Argument):
     :type call: :py:class:`psyclone.psyGen.Kern`
 
     '''
-    def __init__(self, arg, arg_info, call):
+    def __init__(self, arg, arg_info, call, metadata_index=None):
         self._arg = arg
-        super().__init__(call, arg_info, arg.access)
+        self._metadata_index = metadata_index
+        access = getattr(arg, "access_type", arg.access)
+        super().__init__(call, arg_info, access)
 
     @property
     def space(self):
-        return self._arg.function_space
+        if hasattr(self._arg, "function_space"):
+            return self._arg.function_space
+        if hasattr(self._arg, "grid_point_type"):
+            return self._arg.grid_point_type
+        return self._arg.datatype
 
     @property
     def stencil(self):
-        return self._arg.stencil
+        return getattr(self._arg, "stencil", None)
 
     @property
     @abc.abstractmethod
@@ -2196,6 +2204,8 @@ class KernelArgument(Argument):
                   the kernel metadata.
         :rtype: int
         '''
+        if self._metadata_index is not None:
+            return self._metadata_index
         return self._arg.metadata_index
 
 

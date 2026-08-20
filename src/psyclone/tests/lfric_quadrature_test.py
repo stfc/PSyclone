@@ -15,7 +15,8 @@ import pytest
 from fparser import api as fpapi
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants, LFRicKern, LFRicKernMetadata
+from psyclone.domain.common.kernel import KernelInfo
+from psyclone.domain.lfric import LFRicConstants, LFRicKern, LFRicKernelMetadata
 from psyclone.lfric import LFRicBasisFunctions, qr_basis_alloc_args
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import KernelCall, parse
@@ -719,15 +720,15 @@ def test_lfrickern_setup(monkeypatch):
                         lambda me, mname, ktype, args: None)
     # Break the shape of the quadrature for this kernel
     monkeypatch.setattr(kern, "_eval_shapes", value=["gh_wrong_shape"])
-    # Rather than try and mock-up an LFRicKernMetadata object, it's easier
+    # Rather than try and mock-up an LFRicKernelMetadata object, it's easier
     # to make one properly by parsing the kernel code.
     ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_qr_mod.F90"),
                       ignore_comments=False)
     name = "testkern_qr_type"
-    dkm = LFRicKernMetadata.create_from_fortran_string(str(ast), name=name)
+    dkm = LFRicKernelMetadata.create_from_fortran_string(str(ast), name=name)
     # Finally, call the _setup() method
     with pytest.raises(InternalError) as excinfo:
-        kern._setup(dkm, "my module", None, None)
+        kern._setup(KernelInfo(dkm), "my module", None, None)
     assert ("Evaluator shape(s) ['gh_wrong_shape'] is/are not "
             "recognised" in str(excinfo.value))
 
@@ -784,7 +785,7 @@ def test_qr_basis_stub(fortran_writer):
 
     '''
     ast = fpapi.parse(BASIS, ignore_comments=False)
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -899,7 +900,7 @@ def test_stub_basis_wrong_shape(monkeypatch):
     for quadrature raises the correct errors if the kernel metadata is
     broken '''
     ast = fpapi.parse(BASIS, ignore_comments=False)
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     monkeypatch.setattr(kernel, "_eval_shapes",
@@ -929,7 +930,7 @@ def test_stub_dbasis_wrong_shape(monkeypatch):
     diff_basis = BASIS.replace("gh_basis", "gh_diff_basis")
 
     ast = fpapi.parse(diff_basis, ignore_comments=False)
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     monkeypatch.setattr(kernel, "_eval_shapes",

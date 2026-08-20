@@ -20,7 +20,7 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import (LFRicConstants, LFRicTypes, LFRicKern,
-                                   LFRicKernMetadata, LFRicLoop)
+                                   LFRicKernelMetadata, LFRicLoop)
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -74,21 +74,15 @@ def test_scalar_kernel_load_meta_err():
     '''
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
-    metadata = LFRicKernMetadata.create_from_fortran_string(
+    metadata = LFRicKernelMetadata.create_from_fortran_string(
                     str(ast), name=name)
     kernel = LFRicKern()
     # Get a scalar argument descriptor and set an invalid data type
-    scalar_arg = replace(
-        metadata.arg_descriptors[5], data_type="gh_triple")
-    metadata = replace(
-        metadata,
-        arg_descriptors=metadata.arg_descriptors[:5] + (scalar_arg,),
-    )
-    with pytest.raises(InternalError) as err:
-        kernel.load_meta(metadata)
+    with pytest.raises(ValueError) as err:
+        replace(metadata.meta_args[5], datatype="gh_triple")
     const = LFRicConstants()
-    assert (f"Expected one of {const.VALID_SCALAR_DATA_TYPES} data types for "
-            f"a scalar argument but found 'gh_triple'." in str(err.value))
+    assert (f"Expected scalar datatype descriptor to be one of "
+            f"{const.VALID_SCALAR_DATA_TYPES}" in str(err.value))
 
 
 def test_kern_getter_errors():

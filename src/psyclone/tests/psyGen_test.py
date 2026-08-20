@@ -24,7 +24,9 @@ from psyclone.core.access_type import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (lfric_builtins,
                                    LFRicInvokeSchedule,
-                                   LFRicKern, LFRicKernMetadata)
+                                   LFRicKern, LFRicKernelMetadata)
+from psyclone.domain.lfric.kernel import (
+    FieldArgMetadata, ScalarArgMetadata)
 from psyclone.domain.lfric.transformations import (
     LFRicLoopFuseTrans, LFRicRedundantComputationTrans)
 from psyclone.lfric import LFRicKernelArguments
@@ -727,7 +729,7 @@ def test_codedkern_node_str():
 
     '''
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     my_kern = LFRicKern()
     my_kern.load_meta(metadata)
     out = my_kern.node_str()
@@ -822,7 +824,7 @@ def test_kern_children_validation():
     '''
     # We use a subclass (CodedKern->LFRicKern) to test this functionality.
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kern = LFRicKern()
     kern.load_meta(metadata)
 
@@ -840,7 +842,7 @@ def test_codedkern_get_callees(monkeypatch):
 
     '''
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     kern = LFRicKern()
     kern.load_meta(metadata)
     monkeypatch.setattr(kern, "__class__", CodedKern)
@@ -901,13 +903,13 @@ def test_incremented_arg():
     # Therefore, we change the object produced by parsing the metadata
     # instead
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = LFRicKernMetadata.create_from_fortran_string(str(ast))
+    metadata = LFRicKernelMetadata.create_from_fortran_string(str(ast))
     metadata = replace(
         metadata,
-        arg_descriptors=tuple(
-            replace(descriptor, access=AccessType.READ)
-            if descriptor.access == AccessType.INC else descriptor
-            for descriptor in metadata.arg_descriptors
+        meta_args=tuple(
+            replace(descriptor, access="gh_read")
+            if descriptor.access == "gh_inc" else descriptor
+            for descriptor in metadata.meta_args
         ),
     )
     my_kern = LFRicKern()
@@ -1092,9 +1094,16 @@ def test_call_multi_reduction_error(monkeypatch, dist_mem):
     attempts to perform two reductions.
 
     '''
-    monkeypatch.setattr(lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
-                        value=os.path.join(BASE_PATH,
-                                           "multi_reduction_builtins_mod.f90"))
+    metadata = LFRicKernelMetadata(
+        operates_on="dof",
+        meta_args=(FieldArgMetadata("gh_real", "gh_read", "w0"),
+                   ScalarArgMetadata("gh_real", "gh_reduction"),
+                   ScalarArgMetadata("gh_real", "gh_reduction")),
+        name="x_innerproduct_y",
+        procedure_name="x_innerproduct_y_code")
+    monkeypatch.setattr(
+        lfric_builtins.LFRicXInnerproductYKern,
+        "metadata", staticmethod(lambda: metadata))
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "16.4.1_multiple_scalar_sums2.f90"),
         api="lfric")

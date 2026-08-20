@@ -12,7 +12,6 @@ of the LFRic API.
 
 import pytest
 from psyclone.configuration import Config
-from psyclone.domain.lfric.kernel import LFRicPropertyMetadata
 from psyclone.errors import InternalError
 from psyclone.psyGen import Kern
 from psyclone.psyir.symbols import DataSymbol
@@ -62,8 +61,7 @@ def test_refelem_arglist_err():
     kernels = sched.walk(Kern)
     kernel = kernels[0]
     # Break the list of ref-element properties required by the Kernel
-    kernel._reference_element = LFRicPropertyMetadata(
-        kernel.reference_element.properties + ("Not a property",))
+    kernel._reference_element = kernel.reference_element + ("Not a property",)
     with pytest.raises(InternalError) as err:
         kernel.arguments.psyir_expressions()
     assert ("Unsupported reference-element property ('Not a property') found "

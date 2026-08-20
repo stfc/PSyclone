@@ -15,12 +15,12 @@ import os
 import pytest
 
 from psyclone.core import Signature
-from psyclone.domain.lfric import lfric_builtins, LFRicConstants
+from psyclone.domain.common.kernel import KernelInfo
+from psyclone.domain.lfric import lfric_builtins
 from psyclone.domain.lfric.kernel import (
     LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata)
 from psyclone.domain.lfric.lfric_builtins import (
     LFRicBuiltInCallFactory, LFRicBuiltIn)
-from psyclone.lfric import LFRicKernelArgument
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import BuiltInCall, parse
 from psyclone.parse.utils import ParseError
@@ -46,14 +46,6 @@ BASE_PATH = os.path.join(
 API = "lfric"
 
 
-@pytest.fixture(autouse=True)
-def restore_builtin_definitions():
-    """Do not let deliberately-invalid definitions leak between tests."""
-    filename = lfric_builtins.BUILTIN_DEFINITIONS_FILE
-    yield
-    lfric_builtins.BUILTIN_DEFINITIONS_FILE = filename
-
-
 def builtin_from_file(filename: str):
     '''
     :param filename: the name of the file to check for the builtin.
@@ -63,18 +55,6 @@ def builtin_from_file(filename: str):
     psy = PSyFactory(API).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     return first_invoke.schedule.children[0].loop_body[0]
-
-
-def dummy_func(self, _1, _2=True):
-    '''Dummy routine that replaces '_init_data_type_properties' when used
-    with monkeypatch and sets the minimum needed values to return
-    without error for the associated tests.
-
-    '''
-    self._data_type = "dummy1"
-    self._precision = "dummy2"
-    self._proxy_data_type = "dummy3"
-    self._module_name = "dummy4"
 
 
 class Dummy1(LFRicBuiltIn):
@@ -133,7 +113,7 @@ def test_lfric_builtin_init():
     assert instance.mesh is None
     assert instance._idx_name is None
     # Check 'super' is called from '__init__'
-    assert instance._arg_descriptors is None
+    assert instance.arg_metadata is None
     # Check static values
     assert instance._case_name is None
     assert instance._datatype == "dummy"
@@ -177,21 +157,6 @@ def test_lfric_builtin_fs_descriptors():
     assert not instance.fs_descriptors
 
 
-def test_lfricbuiltin_missing_defs(monkeypatch):
-    '''Check that we raise an appropriate error if we cannot find the file
-    specifying meta-data for built-in kernels.
-
-    '''
-    monkeypatch.setattr(lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
-                        "broken")
-    with pytest.raises(ParseError) as excinfo:
-        _, _ = parse(os.path.join(BASE_PATH,
-                                  "15.12.3_single_pointwise_builtin.f90"),
-                     api=API)
-    assert ("broken' containing the meta-data describing the "
-            "Built-in operations" in str(excinfo.value))
-
-
 def test_lfricbuiltin_validate_not_over_dofs(monkeypatch):
     '''Check that we raise an appropriate error if we encounter a built-in
     that does not iterate over DoFs.
@@ -210,262 +175,6 @@ def test_lfricbuiltin_validate_not_over_dofs(monkeypatch):
     assert ("built-in calls must operate on one of ['dof', 'owned_dof'] but "
             "found 'broken' for Built-in: setval_c (set a real-valued field "
             in str(err.value))
-
-
-def test_builtin_multiple_writes():
-    '''Check that we raise an appropriate error if we encounter a built-in
-    that writes to more than one argument.
-
-    '''
-    # The file containing broken meta-data for the built-ins
-    old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    # Define the built-in name and test file
-    test_builtin_name = "aX_plus_Y"
-    test_builtin_file = "15.13.1_" + test_builtin_name + \
-                        "_builtin_set_by_value.f90"
-    lfric_builtins.BUILTIN_DEFINITIONS_FILE = \
-        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        test_builtin_file),
-                           api=API)
-    lfric_builtins.BUILTIN_DEFINITIONS_FILE = old_name
-    with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory(API,
-                       distributed_memory=False).create(invoke_info)
-    assert (f"A built-in kernel in the LFRic API must have one and only "
-            f"one argument that is written to but found 2 for kernel "
-            f"'{test_builtin_name.lower()}'" in str(excinfo.value))
-
-
-def test_builtin_write_and_readwrite():
-    '''Check that we raise an appropriate error if we encounter a built-in
-    that updates more than one argument where one is 'gh_write' and
-    one is 'gh_readwrite'.
-
-    '''
-    # The file containing broken meta-data for the built-ins
-    old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    # Define the built-in name and test file
-    test_builtin_name = "inc_aX_plus_bY"
-    test_builtin_file = "15.1.7_" + test_builtin_name + "_builtin.f90"
-    lfric_builtins.BUILTIN_DEFINITIONS_FILE = \
-        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        test_builtin_file),
-                           api=API)
-    lfric_builtins.BUILTIN_DEFINITIONS_FILE = old_name
-    with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory(API,
-                       distributed_memory=False).create(invoke_info)
-    assert (f"A built-in kernel in the LFRic API must have one and only "
-            f"one argument that is written to but found 2 for kernel "
-            f"'{test_builtin_name.lower()}'" in str(excinfo.value))
-
-
-def test_builtin_sum_and_readwrite():
-    '''Check that we raise an appropriate error if we encounter a built-in
-    that updates more than one argument where one is 'gh_reduction' and one
-    is 'gh_readwrite'.
-
-    '''
-    # The file containing broken meta-data for the built-ins
-    old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    # Define the built-in name and test file
-    test_builtin_name = "inc_aX_plus_Y"
-    test_builtin_file = "15.1.4_" + test_builtin_name + "_builtin.f90"
-    lfric_builtins.BUILTIN_DEFINITIONS_FILE = \
-        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        test_builtin_file),
-                           api=API)
-    lfric_builtins.BUILTIN_DEFINITIONS_FILE = old_name
-    with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory(API,
-                       distributed_memory=False).create(invoke_info)
-    assert (f"A built-in kernel in the LFRic API must have one and only "
-            f"one argument that is written to but found 2 for kernel "
-            f"'{test_builtin_name.lower()}'" in str(excinfo.value))
-
-
-def test_builtin_zero_writes(monkeypatch):
-    '''Check that we raise an appropriate error if we encounter a built-in
-    that does not write to any field.
-
-    '''
-    # Use pytest's monkeypatch support to change our configuration to
-    # point to a file containing broken meta-data for the
-    # built-ins. The definition for aX_plus_bY that it contains erroneously
-    # has no argument that is written to.
-    # Define the built-in name and test file
-    test_builtin_name = "aX_plus_bY"
-    test_builtin_file = "15.1.6_" + test_builtin_name + "_builtin.f90"
-    monkeypatch.setattr(lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
-                        value=os.path.join(BASE_PATH,
-                                           "invalid_builtins_mod.f90"))
-    with pytest.raises(ParseError) as excinfo:
-        _, _ = parse(os.path.join(BASE_PATH,
-                                  test_builtin_file),
-                     api=API)
-    assert (f"An LFRic kernel must have at least one argument that is "
-            f"updated (written to) but found none for kernel "
-            f"'{test_builtin_name.lower()}'." in str(excinfo.value))
-
-
-def test_builtin_no_field_args(monkeypatch):
-    '''Check that we raise appropriate error if we encounter a built-in
-    that does not have any field arguments.
-
-    '''
-    # It is not possible to raise the required exception in normal
-    # circumstances as PSyclone will complain that the datatype and
-    # the metadata do not match. Therefore monkeypatch.
-    monkeypatch.setattr(
-        LFRicKernelArgument, "_init_data_type_properties",
-        dummy_func)
-    # Define the built-in name and test file
-    test_builtin_name = "setval_X"
-    test_builtin_file = "15.7.2_" + test_builtin_name + "_builtin.f90"
-    monkeypatch.setattr(
-        lfric_builtins,
-        "BUILTIN_DEFINITIONS_FILE",
-        os.path.join(BASE_PATH, "invalid_builtins_mod.f90"),
-    )
-    with pytest.raises(ParseError) as excinfo:
-        parse(os.path.join(BASE_PATH, test_builtin_file), api=API)
-    assert (
-        "Kernel metadata not operating on the domain must contain at least "
-        "one field or operator argument."
-        in str(excinfo.value)
-    )
-
-
-def test_builtin_invalid_argument_type(monkeypatch):
-    '''Check that we raise appropriate error if we encounter a built-in
-    that takes something other than a field or scalar argument.
-
-    '''
-    # Define the built-in name and test file
-    test_builtin_name = "a_times_X"
-    test_builtin_file = "15.4.1_" + test_builtin_name + "_builtin.f90"
-    # Change the built-in-definitions file to point to one that has
-    # various invalid definitions
-    monkeypatch.setattr(
-        lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
-        os.path.join(BASE_PATH, "invalid_builtins_mod.f90"))
-    _, invoke_info = parse(os.path.join(BASE_PATH, test_builtin_file), api=API)
-    # Restore the actual built-in-definitions file name
-    monkeypatch.undo()
-    # It is not possible to raise the required exception in normal
-    # circumstances as PSyclone will complain that the datatype and
-    # the metadata do not match. Therefore monkeypatch.
-    monkeypatch.setattr(
-        LFRicKernelArgument, "_init_data_type_properties",
-        dummy_func)
-    with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    const = LFRicConstants()
-    assert (f"In the LFRic API an argument to a built-in kernel must be one "
-            f"of {const.VALID_BUILTIN_ARG_TYPES} but kernel "
-            f"'{test_builtin_name.lower()}' has an argument of type "
-            f"'gh_operator'." in str(excinfo.value))
-
-
-def test_builtin_invalid_data_type(monkeypatch):
-    '''Check that we raise appropriate error if we encounter a built-in
-    that takes something other than an argument of a 'real' or an
-    'integer' data type.
-
-    '''
-    # Define the built-in name and test file
-    test_builtin_name = "inc_a_divideby_X"
-    test_builtin_file = "15.5.4_" + test_builtin_name + "_builtin.f90"
-    # Change the built-in-definitions file to point to one that has
-    # various invalid definitions
-    monkeypatch.setattr(
-        lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
-        os.path.join(BASE_PATH, "invalid_builtins_mod.f90"))
-    _, invoke_info = parse(os.path.join(BASE_PATH, test_builtin_file), api=API)
-    # Restore the actual built-in-definitions file name
-    monkeypatch.undo()
-    # It is not possible to raise the required exception in normal
-    # circumstances as PSyclone will complain that the datatype and
-    # the metadata do not match. Therefore monkeypatch.
-    monkeypatch.setattr(
-        LFRicKernelArgument, "_init_data_type_properties",
-        dummy_func)
-    with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    const = LFRicConstants()
-    assert (f"In the LFRic API an argument to a built-in kernel must have "
-            f"one of {const.VALID_BUILTIN_DATA_TYPES} as a data type but "
-            f"kernel '{test_builtin_name.lower()}' has an argument of "
-            f"data type 'gh_logical'." in str(excinfo.value))
-
-
-def test_builtin_args_not_same_space():
-    '''Check that we raise the correct error if we encounter a built-in
-    that has arguments on different function spaces.
-
-    '''
-    # Save the name of the actual built-in-definitions file
-    old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    # Define the built-in name and test file
-    test_builtin_name = "inc_X_divideby_Y"
-    test_builtin_file = "15.5.2_" + test_builtin_name + "_builtin.f90"
-    # Change the built-in-definitions file to point to one that has
-    # various invalid definitions
-    lfric_builtins.BUILTIN_DEFINITIONS_FILE = \
-        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     test_builtin_file),
-        api=API)
-    lfric_builtins.BUILTIN_DEFINITIONS_FILE = old_name
-    with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory(API,
-                       distributed_memory=False).create(invoke_info)
-    assert (f"All field arguments to a built-in in the LFRic API must "
-            f"be on the same space. However, found spaces ['any_space_1', "
-            f"'any_space_2'] for arguments to '{test_builtin_name.lower()}'"
-            in str(excinfo.value))
-
-
-def test_builtin_fld_args_different_data_type(monkeypatch):
-    '''Check that we raise the correct error if we encounter a built-in
-    that has has different data type of its field arguments and is not
-    one of the data type conversion built-ins ('real_to_int_X',
-    'real_to_real_X', and 'int_to_real_X').
-
-    '''
-    # Define the built-in name and test file
-    test_builtin_name = "X_minus_Y"
-    test_builtin_file = "15.2.1_" + test_builtin_name + "_builtin.f90"
-    # Change the built-in-definitions file to point to one that has
-    # various invalid definitions
-    monkeypatch.setattr(
-        lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
-        os.path.join(BASE_PATH, "invalid_builtins_mod.f90"))
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     test_builtin_file),
-        api=API)
-    # Restore the actual built-in-definitions file name
-    monkeypatch.undo()
-    # It is not possible to raise the required exception in normal
-    # circumstances as PSyclone will complain that the datatype and
-    # the metadata do not match. Therefore monkeypatch.
-    monkeypatch.setattr(
-        LFRicKernelArgument, "_init_data_type_properties",
-        dummy_func)
-    with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory(API,
-                       distributed_memory=False).create(invoke_info)
-    assert (f"In the LFRic API only the data type conversion built-ins "
-            f"['real_to_int_X', 'real_to_real_X', 'int_to_real_X'] are "
-            f"allowed to have field arguments of different data types. "
-            f"However, found different data types ['gh_integer', 'gh_real'] "
-            f"for field arguments to '{test_builtin_name.lower()}'."
-            in str(excinfo.value))
 
 
 def test_lfricbuiltincallfactory_str():
@@ -500,20 +209,14 @@ def test_lfricbuiltin_not_dofs():
 
     '''
 
-    class KtypeDummy():
-        '''A fake KernelType class which provides the required variables
-        (including an invalid value of iterates_over) to
-        allow the BuiltInCall class to be instantiated and passed to the
-        LFRicBuiltInCallFactory.
-
-        '''
-        def __init__(self):
-            self.nargs = 2
-            self.name = "x_plus_y"
-            self.iterates_over = "wrong"
-
     factory = LFRicBuiltInCallFactory()
-    bincall = BuiltInCall(KtypeDummy(), ["a", "b"])
+    metadata = LFRicKernelMetadata(
+        operates_on="dof",
+        meta_args=(FieldArgMetadata("gh_real", "gh_write", "w0"),
+                   FieldArgMetadata("gh_real", "gh_read", "w0")),
+        name="x_plus_y", procedure_name="x_plus_y_code")
+    object.__setattr__(metadata, "operates_on", "wrong")
+    bincall = BuiltInCall(KernelInfo(metadata), ["a", "b"])
     with pytest.raises(InternalError) as err:
         factory.create(bincall)
     assert ("An LFRic built-in must iterate over one of ['dof', 'owned_dof'] "
@@ -649,8 +352,8 @@ def test_X_plus_Y_and_its_int_version(fortran_writer):
     # Test the metadata values in this test. Future tests will just
     # check that an LFRicKernelMetadata instance is returned.
     assert metadata.operates_on == "dof"
-    assert metadata.name == "X_plus_Y"
-    assert metadata.procedure_name == "X_plus_Y_code"
+    assert metadata.name == "x_plus_y"
+    assert metadata.procedure_name == "x_plus_y_code"
     assert len(metadata.meta_args) == 3
     assert type(metadata.meta_args[0]) is FieldArgMetadata
     assert metadata.meta_args[0].datatype == "gh_real"
@@ -2147,26 +1850,6 @@ def test_real_to_real_x_lowering(monkeypatch, tmpdir, kind_name):
 
 
 # ------------- Invalid built-in with an integer scalar reduction ----------- #
-
-def test_scalar_int_builtin_error(monkeypatch):
-    '''
-    Test that specifying incorrect meta-data for a built-in such that it
-    claims to perform a reduction into an integer variable raises the
-    expected error.
-
-    '''
-    monkeypatch.setattr(lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
-                        value=os.path.join(BASE_PATH,
-                                           "int_reduction_builtins_mod.f90"))
-    with pytest.raises(ParseError) as excinfo:
-        _, _ = parse(os.path.join(BASE_PATH,
-                                  "16.2_integer_scalar_sum.f90"),
-                     api=API)
-    assert (
-        "Reduction access is only valid for a real scalar argument."
-        in str(excinfo.value)
-    )
-
 
 def test_field_access_info_for_arrays_in_builtins():
     '''Tests that array of fields in LFRic built-ins properly report access

@@ -22,6 +22,9 @@ from psyclone.parse.algorithm import Parser, get_invoke_label, \
     parse, AlgFileInfo
 from psyclone.parse.utils import ParseError, parse_fp2
 from psyclone.errors import InternalError
+from psyclone.domain.common.kernel import KernelInfo
+from psyclone.domain.lfric.kernel import (
+    FieldArgMetadata, LFRicKernelMetadata)
 
 
 LFRIC_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -375,7 +378,7 @@ def test_parser_createinvokecall_error():
 
 def test_parser_codedkernelcall_kernel_paths():
     '''Check that the Parser class passes the kernel_paths information
-    through to the get_kernel_psyir_for_module() function from the
+    through to the common kernel-source finder from the
     coded_kernel_call() method.
 
     '''
@@ -438,17 +441,17 @@ def test_parser_caseinsensitive2(monkeypatch):
     use = Use_Stmt("use testkern_mod, only : TESTKERN_TYPE")
     parser.update_arg_to_module_map(use)
 
-    def dummy_func(arg1, arg2, arg3, arg4):
+    def dummy_func(*_args):
         '''A dummy function used by monkeypatch to override
-        get_kernel_psyir_for_module(). We don't care about the arguments as
+            find_kernel_file(). We don't care about the arguments as
         we just want to raise an exception.
 
         '''
         raise NotImplementedError("test_parser_caseinsensitive2")
     monkeypatch.setattr(
-        "psyclone.parse.algorithm.get_kernel_psyir_for_module", dummy_func)
+        "psyclone.parse.algorithm.find_kernel_file", dummy_func)
     with pytest.raises(NotImplementedError) as excinfo:
-        # We have monkeypatched 'get_kernel_psyir_for_module' to
+        # We have monkeypatched 'find_kernel_file' to
         # return 'NotImplementedError' with a string associated with
         # this test so we know that we have got to this function if
         # this exception is raised. The case insensitive test we
@@ -831,17 +834,12 @@ def test_kernelcall_repr():
 
     '''
 
-    class KtypeDummy():
-        '''A fake KernelType class which provides the required variables to
-        allow the BuiltInCall class to be instantiated and __repr__
-        called.
-
-        '''
-        def __init__(self):
-            self.nargs = 2
-            self.name = "dummy"
-
-    tmp = KernelCall("module_name", KtypeDummy(), ["a", "b"])
+    metadata = LFRicKernelMetadata(
+        operates_on="dof",
+        meta_args=(FieldArgMetadata("gh_real", "gh_write", "w0"),
+                   FieldArgMetadata("gh_real", "gh_read", "w0")),
+        name="dummy", procedure_name="dummy_code")
+    tmp = KernelCall("module_name", KernelInfo(metadata), ["a", "b"])
     assert repr(tmp) == "KernelCall('dummy', ['a', 'b'])"
 
 
@@ -854,17 +852,12 @@ def test_builtincall_repr():
 
     '''
 
-    class KtypeDummy():
-        '''A fake KernelType class which provides the required variables to
-        allow the BuiltInCall class to be instantiated and __repr__
-        called.
-
-        '''
-        def __init__(self):
-            self.nargs = 2
-            self.name = "dummy"
-
-    tmp = BuiltInCall(KtypeDummy(), ["a", "b"])
+    metadata = LFRicKernelMetadata(
+        operates_on="dof",
+        meta_args=(FieldArgMetadata("gh_real", "gh_write", "w0"),
+                   FieldArgMetadata("gh_real", "gh_read", "w0")),
+        name="dummy", procedure_name="dummy_code")
+    tmp = BuiltInCall(KernelInfo(metadata), ["a", "b"])
     assert repr(tmp) == "BuiltInCall('dummy', ['a', 'b'])"
 
 # Class Arg() tests

@@ -12,7 +12,7 @@
 
 import pytest
 from fparser import api as fpapi
-from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
+from psyclone.domain.lfric import LFRicKern, LFRicKernelMetadata
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Loop
 from psyclone.tests.lfric_build import LFRicBuild
@@ -47,7 +47,7 @@ contains
   end subroutine testkern_halo_code
 end module testkern_halo_mod
 ''', ignore_comments=False)
-    dkm = LFRicKernMetadata.create_from_fortran_string(
+    dkm = LFRicKernelMetadata.create_from_fortran_string(
             str(ast), name="testkern_halo_type")
     assert dkm.iterates_over == operates_on
 
@@ -75,7 +75,7 @@ contains
   end subroutine testkern_domain_code
 end module testkern_domain_mod
 ''', ignore_comments=False)
-    mdata = LFRicKernMetadata.create_from_fortran_string(
+    mdata = LFRicKernelMetadata.create_from_fortran_string(
                 str(ast), name="testkern_domain_type")
     assert mdata.iterates_over == operates_on
 

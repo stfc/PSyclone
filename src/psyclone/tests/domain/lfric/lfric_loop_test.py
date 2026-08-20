@@ -16,7 +16,7 @@ from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric import (
-    LFRicConstants, LFRicKern, LFRicKernMetadata, LFRicLoop,
+    LFRicConstants, LFRicKern, LFRicKernelMetadata, LFRicLoop,
     LFRicInvokeSchedule)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
@@ -753,7 +753,7 @@ contains
   end subroutine testkern_code
 end module testkern_mod
 ''', ignore_comments=False)
-    dkm = LFRicKernMetadata.create_from_fortran_string(
+    dkm = LFRicKernelMetadata.create_from_fortran_string(
                 str(ast), name="testkern_type")
     kern = LFRicKern()
     kern.load_meta(dkm)

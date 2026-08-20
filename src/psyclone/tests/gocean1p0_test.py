@@ -1080,9 +1080,8 @@ def test_find_grid_access():
     assert isinstance(arg, GOKernelArgument)
     # The first read-only argument for this kernel is the pressure field
     assert arg.name == "p_fld"
-    # Replace each immutable descriptor so none of them represents a field.
-    for karg in kern.arguments._args:
-        karg._arg = replace(karg._arg, argument_type="broken")
+    # An empty argument collection has no field from which to access the grid.
+    kern.arguments._args = []
     # find_grid_access should now return None
     arg = kern.arguments.find_grid_access()
     assert arg is None
@@ -1342,10 +1341,10 @@ def test08_kernel_invalid_grid_property():
     # GOKernelGridArgument contains also a test for the validity of
     # a grid property. It's easier to create a dummy class to test this:
     class DummyDescriptor():
-        '''Dummy class to test error handling.'''
-        def __init__(self):
-            self.access = "read"
-            self.grid_prop = "does not exist"
+            '''Dummy class to test error handling.'''
+            def __init__(self):
+                self.access_type = AccessType.READ
+                self.name = "does not exist"
     descriptor = DummyDescriptor()
     with pytest.raises(GenerationError) as err:
         GOKernelGridArgument(descriptor, None)
@@ -1406,9 +1405,8 @@ def test14_no_builtins():
     assert "Built-ins are not supported for the GOcean" in str(excinfo.value)
 
 
-def test_go_descriptor_str():
-    '''Tests  the __str__ function of a GO1p0Descriptor.
-    '''
+def test_go_argument_metadata_string():
+    '''Test serialisation of typed GOcean argument metadata.'''
     # Parse an existing kernel to create the required kernel_call
     # type.
     _, invoke_info = parse(os.path.join(get_base_path(API),
@@ -1416,13 +1414,14 @@ def test_go_descriptor_str():
                            api=API)
 
     kernel_call = invoke_info.calls[0].kcalls[0]
-    arg_descriptors = kernel_call.ktype.arg_descriptors
+    arguments = kernel_call.kernel.metadata.meta_args
 
-    assert "Descriptor(READ, go_r_scalar, 0)" == str(arg_descriptors[0])
+    assert "go_arg(go_read, go_r_scalar, go_pointwise)" == \
+        arguments[0].fortran_string()
 
 
 def test_go_kerneltype_str():
-    '''Tests  the __str__ function of a GOKernelType1p0.
+    '''Tests the __str__ function of GOceanKernelMetadata.
     '''
     # Parse an existing kernel to create the required kernel_call
     # type.
@@ -1433,4 +1432,4 @@ def test_go_kerneltype_str():
     kernel_call = invoke_info.calls[0].kcalls[0]
 
     assert ("GOcean kernel bc_ssh, index-offset = go_offset_ne, "
-            "iterates-over = go_all_pts" == str(kernel_call.ktype))
+            "iterates-over = go_all_pts" == str(kernel_call.kernel.metadata))
