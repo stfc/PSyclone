@@ -32,7 +32,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors: A. R. Porter and R. W. Ford, STFC Daresbury Laboratory
-!          I. Kavcic, Met Office
+!          I. Kavcic and A. Pirrie, Met Office
 
 program single_invoke
 
@@ -44,10 +44,11 @@ program single_invoke
 
   implicit none
 
-  type(field_type) :: f1, f2, m1, m2
-  real(r_def)      :: a
+  type(field_type)               :: f1, f2, m1, m2
+  real(r_def)                    :: a
+  real(r_def), dimension(50,100) :: ascalar_array
 
   call invoke( setval_c(f1, 0.0_r_def), &
-               testkern_type(a, f1, f2, m1, m2) )
+               testkern_type(a, ascalar_array, f1, f2, m1, m2) )
 
 end program single_invoke
