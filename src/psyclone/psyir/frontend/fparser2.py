@@ -5559,9 +5559,10 @@ class Fparser2Reader():
         '''
         character_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
                                     get_literal_precision(node, parent))
-        # fparser issue #295 - the value of the character string currently
-        # contains the quotation symbols themselves. Once that's fixed this
-        # check will need to be changed.
+        # fparser issue https://github.com/stfc/fparser/issues/295 - the
+        # value of the character string currently contains the quotation
+        # symbols themselves. Once that's fixed this check will need to
+        # be changed.
         char_value = str(node.items[0])
         if not ((char_value.startswith("'") and char_value.endswith("'")) or
                 (char_value.startswith('"') and char_value.endswith('"'))):
