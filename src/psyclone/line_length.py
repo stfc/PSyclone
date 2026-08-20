@@ -74,7 +74,8 @@ class FortLineLength():
         One known situation that could cause an instance of the
         :class:`line_length.FortLineLength` class to fail is when an *inline*
         comment at the end of a line containing a *directive* takes it over
-        the 132-character limit. (TODO fparser/#468)
+        the 132-character limit.
+        (TODO https://github.com/stfc/fparser/issues/468)
 
     '''
     # pylint: disable=too-many-instance-attributes
@@ -164,7 +165,8 @@ class FortLineLength():
                     fline = freader.next()
                     # This won't work for a directive with an in-line comment
                     # as FortranStringReader returns a single Comment object
-                    # for the whole thing (TODO fparser/#468).
+                    # for the whole thing:
+                    # (TODO https://github.com/stfc/fparser/issues/468).
                     if ((break_point - indent_size) > len(fline.line) and
                             isinstance(freader.next(), Comment)):
                         # Breakpoint is inside a comment so change the chars
