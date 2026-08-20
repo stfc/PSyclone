@@ -475,6 +475,28 @@ def test_derived_type_accessibility():
     assert scale.visibility == Symbol.Visibility.PUBLIC
 
 
+@pytest.mark.usefixtures("f2008_parser")
+def test_unsupported_derived_type_child():
+    '''Check that an unsupported child of a derived-type definition causes
+    the whole definition to be captured as an UnsupportedFortranType.
+    '''
+    fake_parent = KernelSchedule.create("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader("type :: my_type\n"
+                                 "  sequence\n"
+                                 "  integer :: flag\n"
+                                 "end type my_type\n")
+    fparser2spec = Fortran2003.Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+
+    datatype = fake_parent.symbol_table.lookup("my_type").datatype
+    assert isinstance(datatype, UnsupportedFortranType)
+    assert datatype.declaration == ("TYPE :: my_type\n"
+                                    "  SEQUENCE\n"
+                                    "  INTEGER :: flag\n"
+                                    "END TYPE my_type")
+
+
 def test_derived_type_ref(f2008_parser, fortran_writer):
     ''' Check that the frontend handles references to a member of
     a derived type. '''
