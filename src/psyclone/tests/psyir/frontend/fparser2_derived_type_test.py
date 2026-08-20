@@ -339,6 +339,52 @@ def test_derived_type_extends():
 
 
 @pytest.mark.usefixtures("f2008_parser")
+def test_derived_type_extends_and_binding_existing_symbols():
+    '''Check that an existing type used by EXTENDS is reused and that an
+    imported generic symbol used as a binding target is specialised.
+    '''
+    fake_parent = KernelSchedule.create("dummy_schedule")
+    symtab = fake_parent.symbol_table
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "use some_mod, only : initialise_impl\n"
+        "type :: base_type\n"
+        "end type base_type\n"
+        "type, extends(base_type) :: child_type\n"
+        "  ! Component comment\n"
+        "  integer :: flag\n"
+        "contains\n"
+        "  private\n"
+        "  procedure, public :: initialise => initialise_impl\n"
+        "  procedure :: reset\n"
+        "end type child_type\n",
+        ignore_comments=False)
+    fparser2spec = Fortran2003.Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+
+    dtype = symtab.lookup("child_type").datatype
+    parent_type = dtype.extends
+    assert isinstance(parent_type, DataTypeSymbol)
+    assert isinstance(parent_type.datatype, StructureType)
+    assert parent_type is symtab.lookup("base_type")
+
+    flag = dtype.lookup("flag")
+    assert flag.preceding_comment == "Component comment"
+
+    initialise = dtype.lookup("initialise")
+    assert initialise.visibility == Symbol.Visibility.PUBLIC
+    target = initialise.initial_value.symbol
+    assert isinstance(target, RoutineSymbol)
+    assert isinstance(target.datatype, UnresolvedType)
+    assert isinstance(target.interface, ImportInterface)
+    assert target is symtab.lookup("initialise_impl")
+
+    reset = dtype.lookup("reset")
+    assert reset.visibility == Symbol.Visibility.PRIVATE
+    assert reset.initial_value is None
+
+
+@pytest.mark.usefixtures("f2008_parser")
 def test_full_metadata_style_structures():
     '''Check that an EXTENDS attribute and type-bound procedure are captured
     for a metadata-style derived type.'''
