@@ -3190,8 +3190,8 @@ class Fparser2Reader():
         # them.
         if not self._ignore_directives and len(preceding_comments) != 0:
             for comment in preceding_comments[:]:
-                # TODO: fparser #469. This only captures some free-form
-                # directives.
+                # TODO: https://github.com/stfc/fparser/issues/469
+                # This only captures some free-form directives.
                 if comment.tostr().startswith("!$"):
                     self.nodes_to_code_block(parent, [comment])
                     preceding_comments.remove(comment)
