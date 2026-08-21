@@ -32,4 +32,4 @@ class Return(Statement):
         '''
         :returns: the previous_accesses of the return statement's child.
         '''
-        return self.children[0].previous_accesses()
+        return []

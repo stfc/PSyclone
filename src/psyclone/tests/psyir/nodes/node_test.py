@@ -2104,3 +2104,10 @@ def test_get_last_descendant_node(fortran_reader):
     ifblock = psyir.children[0].children[0]
     assigns = psyir.walk(Assignment)
     assert ifblock.get_last_descendant_node() is assigns[2].rhs.children[1]
+
+
+def test_statement_accesses():
+    '''Test the Statement class accesses methods.'''
+    node = DummyStatement()
+    assert node.next_accesses() == []
+    assert node.previous_accesses() == []

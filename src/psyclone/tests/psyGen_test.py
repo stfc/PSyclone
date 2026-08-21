@@ -975,6 +975,14 @@ def test_haloexchange_unknown_halo_depth():
     assert halo_exchange._halo_depth is None
 
 
+def test_haloexchange_accesses():
+    '''Test that the next/previous_accesses on HaloExchange class returns
+    an empty list.'''
+    halo_exchange = HaloExchange(None)
+    assert halo_exchange.next_accesses() == []
+    assert halo_exchange.previous_acccesses() == []
+
+
 def test_args_filter():
     '''the args_filter() method is in both Loop() and Arguments() classes
     with the former method calling the latter. This example tests the

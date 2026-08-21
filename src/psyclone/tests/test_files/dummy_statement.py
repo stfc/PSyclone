@@ -41,11 +41,13 @@ from psyclone.psyir.nodes import Statement
 
 class DummyStatement(Statement):
 
-    def next_accesses(self) -> None:
+    def next_accesses(self) -> list:
         '''Empty implementation of the required next_accesses
         abstractmethod.'''
+        return super().next_accesses()
 
-    def previous_accesses(self) -> None:
+    def previous_accesses(self) -> list:
         '''Empty implementation of the required previous_accesses
         abstractmethod.
         '''
+        return super().previous_accesses()

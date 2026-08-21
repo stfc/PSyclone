@@ -559,3 +559,11 @@ def test_psy_data_node_gocean_inside_of_loop(fortran_writer):
                   r"call psy_data_1 % PostEnd.*")
 
     assert re.search(correct_re, code, re.I) is not None
+
+
+def test_psy_data_node_accesses():
+    '''Test that the next/previous_accesses methods of PSyDataNode
+    return empty lists.'''
+    psy_node = PSyDataNode()
+    assert psy_node.next_accesses() == []
+    assert psy_node.previous_accesses() == []
