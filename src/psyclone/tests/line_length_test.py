@@ -226,8 +226,9 @@ def test_inline_comment():
     output = fll.process(input_code)
     if "long  \n!$ long long" not in output:
         pytest.xfail(
-            reason="TODO fparser/#468 - fparser.common.FortranReader "
-            "represents directives as Comments.")
+            reason="TODO https://github.com/stfc/fparser/issues/468- "
+            "fparser.common.FortranReader represents directives as "
+            "Comments.")
 
 
 def test_exception_line_too_long():
