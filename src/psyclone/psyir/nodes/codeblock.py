@@ -319,7 +319,8 @@ class Fparser2CodeBlock(CodeBlock):
                 # Need to make sure we include any Symbol in the conditional
                 # part but not a label (which would be the second child in the
                 # parse tree). We cannot simply do
-                # `node.parent.children.index(node)` because of fparser #174.
+                # `node.parent.children.index(node)` because of fparser issue
+                # https://github.com/stfc/fparser/issues/174
                 if (len(node.parent.children) == 1 or
                         node is node.parent.children[0]):
                     result.append(node.string)
