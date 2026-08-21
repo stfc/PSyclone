@@ -980,7 +980,7 @@ def test_haloexchange_accesses():
     an empty list.'''
     halo_exchange = HaloExchange(None)
     assert halo_exchange.next_accesses() == []
-    assert halo_exchange.previous_acccesses() == []
+    assert halo_exchange.previous_accesses() == []
 
 
 def test_args_filter():
