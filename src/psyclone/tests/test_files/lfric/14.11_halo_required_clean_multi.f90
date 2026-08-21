@@ -17,7 +17,7 @@ program halo_different_stencils
   ! information at the moment in any case.
   ! Note: it is currently not possible to specify kind for an integer
   ! literal stencil depth in a kernel call. This will be enabled when
-  ! addressing issue #753.
+  ! addressing issue #1618.
   use constants_mod,                  only: i_def, r_def
   use field_mod,                      only: field_type
   use flux_direction_mod,             only: y_direction
