@@ -702,6 +702,19 @@ class PSyDataNode(Statement):
         self.detach()
         return self.parent
 
+    def next_accesses(self) -> list[Node]:
+        '''
+        :returns: an empty list as next_accesses isn't needed for PSyDataNode.
+        '''
+        return []
+
+    def previous_accesses(self) -> list[Node]:
+        '''
+        :returns: an empty list as previous_accesses isn't needed for
+            PSyDataNode.
+        '''
+        return []
+
 
 # For AutoAPI documentation generation
 __all__ = ['PSyDataNode']

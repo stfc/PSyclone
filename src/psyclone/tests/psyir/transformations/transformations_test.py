@@ -14,7 +14,7 @@ import os
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.nodes import (
-    CodeBlock, Literal, Loop, Node, Reference, Schedule, Statement,
+    CodeBlock, Literal, Loop, Node, Reference, Schedule,
     ACCLoopDirective, OMPMasterDirective, Fparser2CodeBlock,
     OMPDoDirective, OMPLoopDirective, Routine)
 from psyclone.psyir.symbols import (
@@ -28,6 +28,7 @@ from psyclone.transformations import (
     OMPSingleTrans, OMPMasterTrans)
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
+from psyclone.tests.test_files.dummy_statement import DummyStatement
 
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
@@ -63,7 +64,7 @@ def test_accloop():
     assert trans.name == "ACCLoopTrans"
     assert str(trans) == "Adds an 'OpenACC loop' directive to a loop"
 
-    cnode = Statement()
+    cnode = DummyStatement()
     tdir = trans._directive([cnode])
     assert isinstance(tdir, ACCLoopDirective)
 
@@ -233,7 +234,7 @@ def test_ompdeclaretargettrans_detached_scope_fallback(sample_psyir,
         all_signatures = [DummySig()]
 
         def __getitem__(self, _):
-            return [DummyAccess(Statement())]
+            return [DummyAccess(DummyStatement())]
 
     monkeypatch.setattr(routine, "reference_accesses", lambda: DummyVAM())
     with pytest.raises(TransformationError) as err:
@@ -836,7 +837,7 @@ def test_profile_trans_invalid_name(value):
     # We need to have a schedule as parent, otherwise the node
     # (with no parent) will not be allowed.
     sched = Schedule()
-    node = Statement(parent=sched)
+    node = DummyStatement(parent=sched)
     sched.addchild(node)
     with pytest.raises(TransformationError) as excinfo:
         profile_trans.apply(node, options={"region_name": value})

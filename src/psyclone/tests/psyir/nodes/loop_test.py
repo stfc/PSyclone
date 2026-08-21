@@ -551,3 +551,195 @@ def test_loops_enters_scope():
     # Always returns false, regardless of the scope, as the loop variable
     # by definition gets the first value assigned here from the loop bounds.
     assert not loop.enters_scope(None)
+
+
+def test_loop_variable_next_accesses(fortran_reader):
+    """Test that the next_accesses function works correctly for the loop
+    variable."""
+    code = """subroutine test
+    integer :: i, j, k
+    do i = 1, 100
+       j = 2
+    end do
+    i = k
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    assigns = psyir.walk(Assignment)
+    accesses = loop.next_accesses()
+    assert len(accesses) == 1
+    assert accesses[0] is assigns[1].lhs
+
+
+def test_loop_variable_previous_accesses(fortran_reader):
+    """Test that the previous_accesses function works correctly for the loop
+    variable."""
+    code = """subroutine test
+    integer :: i, j, k
+    i = k
+    do i = 1, 100
+       j = 2
+    end do
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    accesses = loop.previous_accesses()
+    assert len(accesses) == 0
+    pytest.xfail(reason="#3486 Definition Use Chains don't yet account"
+                        "for loop variables.")
+    # Correct implementation should result in:
+    # assigns = psyir.walk(Assignment)
+    # assert len(accesses) == 1
+    # assert accesses[0] is assigns[0].lhs
+
+
+def test_loop_start_value_next_accesses(fortran_reader):
+    """Test that the next_accesses function works correctly for the start
+    condition."""
+    code = """subroutine test
+    integer :: i, j, k
+    do i = j, 100
+        k = 1
+    end do
+    j = 2
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    assigns = psyir.walk(Assignment)
+    accesses = loop.next_accesses()
+    assert len(accesses) == 1
+    assert accesses[0] is assigns[1].lhs
+
+
+def test_loop_start_value_previous_accesses(fortran_reader):
+    """Test that the previous_accesses function works correctly for the start
+    condition."""
+    code = """subroutine test
+    integer :: i, j, k
+    j = 2
+    do i = j, 100
+        k = 1
+    end do
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    assigns = psyir.walk(Assignment)
+    accesses = loop.previous_accesses()
+    assert len(accesses) == 1
+    assert accesses[0] is assigns[0].lhs
+
+
+def test_loop_stop_value_next_accesses(fortran_reader):
+    """Test that the next_accesses function works correctly for the stop
+    condition."""
+    code = """subroutine test
+    integer :: i, j, k
+    do i = 1, j
+        k = 1
+    end do
+    j = 2
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    assigns = psyir.walk(Assignment)
+    accesses = loop.next_accesses()
+    assert len(accesses) == 1
+    assert accesses[0] is assigns[1].lhs
+
+
+def test_loop_stop_value_previous_accesses(fortran_reader):
+    """Test that the previous_accesses function works correctly for the stop
+    condition."""
+    code = """subroutine test
+    integer :: i, j, k
+    j = 2
+    do i = 1, j
+        k = 1
+    end do
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    assigns = psyir.walk(Assignment)
+    accesses = loop.previous_accesses()
+    assert len(accesses) == 1
+    assert accesses[0] is assigns[0].lhs
+
+
+def test_loop_step_value_next_accesses(fortran_reader):
+    """Test that the next_accesses function works correctly for the step
+    condition."""
+    code = """subroutine test
+    integer :: i, j, k
+    do i = 1, 100, j
+        k = 1
+    end do
+    j = 2
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    assigns = psyir.walk(Assignment)
+    accesses = loop.next_accesses()
+    assert len(accesses) == 1
+    assert accesses[0] is assigns[1].lhs
+
+
+def test_loop_step_value_previous_accesses(fortran_reader):
+    """Test that the previous_accesses function works correctly for the step
+    condition."""
+    code = """subroutine test
+    integer :: i, j, k
+    j = 2
+    do i = 1, 100, j
+        k = 1
+    end do
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    assigns = psyir.walk(Assignment)
+    accesses = loop.previous_accesses()
+    assert len(accesses) == 1
+    assert accesses[0] is assigns[0].lhs
+
+
+def test_loop_body_next_accesses(fortran_reader):
+    """Test that the next_accesses function works correctly for the
+    loop_body."""
+    code = """subroutine test
+    integer :: i, j, k
+    do i = 1, 100
+        j = 4 * i
+        k = 3 + i
+    end do
+    j = j * 2
+    k = k + 3
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    assigns = psyir.walk(Assignment)
+    accesses = loop.next_accesses()
+    assert len(accesses) == 4
+    assert accesses[0] is assigns[2].rhs.children[0]
+    assert accesses[1] is assigns[2].lhs
+    assert accesses[2] is assigns[3].rhs.children[0]
+    assert accesses[3] is assigns[3].lhs
+
+
+def test_loop_body_previous_accesses(fortran_reader):
+    """Test that the previous_accesses function works correctly for the
+    loop_body."""
+    code = """subroutine test
+    integer :: i, j, k
+    k = k + 3
+    j = j * 2
+    do i = 1, 100
+        j = 4 * i
+        k = 3 + i
+    end do
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    assigns = psyir.walk(Assignment)
+    accesses = loop.previous_accesses()
+    assert len(accesses) == 2
+    assert accesses[0] is assigns[1].lhs
+    assert accesses[1] is assigns[0].lhs

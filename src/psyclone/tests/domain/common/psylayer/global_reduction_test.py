@@ -129,3 +129,14 @@ def test_globalreduction_reference_accesses():
                      "GlobalReduction is held in a bespoke '_scalar' "
                      "property.")
     assert list(vam) == ["FIXME"]
+
+
+def test_globalreduction_accesses():
+    '''Test the next/previous_accesses methods return an empty list
+    for a GlobalReduction.'''
+    _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90",
+                           api="lfric", dist_mem=True, idx=0)
+    schedule = invoke.schedule
+    global_sum = schedule.children[2]
+    assert global_sum.next_accesses() == []
+    assert global_sum.previous_accesses() == []

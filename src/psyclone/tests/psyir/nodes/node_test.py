@@ -20,14 +20,19 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, Kern
 from psyclone.psyir.backend.debug_writer import DebugWriter
-from psyclone.psyir.nodes import Schedule, Reference, Container, Routine, \
-    Assignment, Return, Loop, Literal, Statement, node, KernelSchedule, \
+from psyclone.psyir.nodes import (
+    Schedule, Reference, Container, Routine, node,
+    Assignment, Return, Loop, Literal, KernelSchedule, Statement,
     BinaryOperation, ArrayReference, Call, Range
+)
 from psyclone.psyir.nodes.node import ChildrenList, Node
-from psyclone.psyir.symbols import DataSymbol, SymbolError, \
-    ScalarType, SymbolTable, ArrayType, RoutineSymbol, NoType
+from psyclone.psyir.symbols import (
+    DataSymbol, SymbolError, ScalarType, SymbolTable, ArrayType,
+    RoutineSymbol, NoType
+)
 from psyclone.tests.utilities import get_invoke
 from psyclone.psyir.nodes.node import colored
+from psyclone.tests.test_files.dummy_statement import DummyStatement
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "lfric")
@@ -303,7 +308,7 @@ def test_compute_cached_abs_positions_error():
     just happens with inconsistent parent-child connections). '''
 
     parent = Schedule()
-    node1 = Statement()
+    node1 = DummyStatement()
     # Manually connect the _parent attribute which won't make a consistent
     # two-way relationship
     node1._parent = parent
@@ -366,7 +371,7 @@ def test_node_abs_position_error():
     happens with inconsistent parent-child connections). '''
 
     parent = Schedule()
-    node1 = Statement()
+    node1 = DummyStatement()
     # Manually connect the _parent attribute which won't make a consistent
     # two-way relationship
     node1._parent = parent
@@ -1122,8 +1127,8 @@ def test_children_setter():
     assert isinstance(testnode.children, ChildrenList)
 
     # When is set up with a list, this becomes a ChildrenList
-    statement1 = Statement()
-    statement2 = Statement()
+    statement1 = DummyStatement()
+    statement2 = DummyStatement()
     testnode.children = [statement1, statement2]
     assert isinstance(testnode.children, ChildrenList)
     assert statement1.parent is testnode
@@ -1145,8 +1150,8 @@ def test_children_setter():
 def test_children_clear():
     '''Test that the clear() method works correctly for a ChildrenList.'''
     testnode = Schedule()
-    stmt1 = Statement()
-    stmt2 = Statement()
+    stmt1 = DummyStatement()
+    stmt2 = DummyStatement()
     testnode.addchild(stmt1)
     testnode.addchild(stmt2)
     assert len(testnode.children) == 2
@@ -1242,11 +1247,11 @@ def test_lower_to_language_level(monkeypatch):
     # Monkeypatch the lower_to_language_level to just mark a flag
     def visited(self):
         self._visited_flag = True
-    monkeypatch.setattr(Statement, "lower_to_language_level", visited)
+    monkeypatch.setattr(DummyStatement, "lower_to_language_level", visited)
 
     testnode = Schedule()
-    node1 = Statement()
-    node2 = Statement()
+    node1 = DummyStatement()
+    node2 = DummyStatement()
     testnode.children = [node1, node2]
 
     # Execute method
@@ -1265,9 +1270,9 @@ def test_replace_with():
     '''Check that the replace_with method behaves as expected.'''
 
     parent_node = Schedule()
-    node1 = Statement()
-    node2 = Statement()
-    node3 = Statement()
+    node1 = DummyStatement()
+    node2 = DummyStatement()
+    node3 = DummyStatement()
     parent_node.children = [node1, node2, node3]
     new_node = Assignment()
 
@@ -1343,8 +1348,8 @@ def test_replace_with_error2():
 
     '''
     parent = Schedule()
-    node1 = Statement()
-    node2 = Statement()
+    node1 = DummyStatement()
+    node2 = DummyStatement()
 
     with pytest.raises(TypeError) as info:
         node1.replace_with("hello")
@@ -1387,9 +1392,9 @@ def test_pop_all_children():
 
     # Create a PSyIR tree
     parent = Schedule()
-    node1 = Statement()
+    node1 = DummyStatement()
     parent.addchild(node1)
-    node2 = Statement()
+    node2 = DummyStatement()
     parent.addchild(node2)
 
     # Execute pop_all_children method
@@ -1440,19 +1445,19 @@ def test_parent_references_coherency():
     parent = Schedule()
 
     # Children addition methods
-    node1 = Statement()
+    node1 = DummyStatement()
     parent.addchild(node1)
     assert node1.parent is parent
 
-    node2 = Statement()
+    node2 = DummyStatement()
     parent.children.append(node2)
     assert node2.parent is parent
 
-    node3 = Statement()
+    node3 = DummyStatement()
     parent.children.extend([node3])
     assert node3.parent is parent
 
-    node4 = Statement()
+    node4 = DummyStatement()
     parent.children.insert(0, node4)
     assert node4.parent is parent
 
@@ -1487,7 +1492,7 @@ def test_node_constructor_with_parent():
     wrong_parent = Schedule()
 
     # By default no parent reference is given
-    node = Statement()
+    node = DummyStatement()
     assert node.parent is None
     assert node.has_constructor_parent is False
 
@@ -1599,8 +1604,8 @@ def test_equality():
     parent1._symbol_table = symboltable
     parent2 = Schedule()
     parent2._symbol_table = symboltable
-    zero = Statement()
-    one = Statement()
+    zero = DummyStatement()
+    one = DummyStatement()
 
     assert parent1 != zero
     assert parent1 == parent2
@@ -1613,7 +1618,7 @@ def test_equality():
     assert parent1 == parent2
 
     # Add a second child to parent1
-    two = Statement()
+    two = DummyStatement()
     parent1.addchild(two)
     assert parent1 != parent2
 
@@ -2099,3 +2104,10 @@ def test_get_last_descendant_node(fortran_reader):
     ifblock = psyir.children[0].children[0]
     assigns = psyir.walk(Assignment)
     assert ifblock.get_last_descendant_node() is assigns[2].rhs.children[1]
+
+
+def test_statement_accesses():
+    '''Test the Statement class accesses methods.'''
+    node = DummyStatement()
+    assert node.next_accesses() == []
+    assert node.previous_accesses() == []
