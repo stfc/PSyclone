@@ -369,7 +369,6 @@ def test_next_accesses(fortran_reader):
     assigns = psyir.walk(Assignment)
 
     reaches = assigns[0].next_accesses()
-    sig = assigns[0].lhs.get_signature_and_indices()[0]
     assert len(reaches) == 2
     assert reaches[0] is assigns[1].rhs.children[0]
     assert reaches[1] is assigns[1].lhs
@@ -387,8 +386,6 @@ def test_next_accesses(fortran_reader):
     )
     assigns = psyir.walk(Assignment)
     reaches = assigns[0].next_accesses()
-    a_sig = assigns[0].lhs.get_signature_and_indices()[0]
-    b_sig = assigns[0].rhs.get_signature_and_indices()[0]
     assert len(reaches) == 3
     assert reaches[0] is assigns[1].rhs.children[0]
     assert reaches[1] is assigns[1].lhs
@@ -406,8 +403,6 @@ def test_next_accesses(fortran_reader):
     )
     assigns = psyir.walk(Assignment)
     reaches = assigns[0].next_accesses()
-    a_sig = assigns[0].lhs.get_signature_and_indices()[0]
-    b_sig = assigns[0].rhs.children[0].get_signature_and_indices()[0]
     assert len(reaches) == 0
 
 
@@ -425,7 +420,6 @@ def test_previous_accesses(fortran_reader):
     assigns = psyir.walk(Assignment)
 
     reaches = assigns[1].previous_accesses()
-    sig = assigns[0].lhs.get_signature_and_indices()[0]
     assert len(reaches) == 1
     assert reaches[0] is assigns[0].lhs
 
@@ -442,8 +436,6 @@ def test_previous_accesses(fortran_reader):
     )
     assigns = psyir.walk(Assignment)
     reaches = assigns[2].previous_accesses()
-    a_sig = assigns[2].lhs.get_signature_and_indices()[0]
-    b_sig = assigns[2].rhs.get_signature_and_indices()[0]
     assert len(reaches) == 2
     assert reaches[0] is assigns[1].lhs
     assert reaches[1] is assigns[0].lhs
@@ -460,6 +452,4 @@ def test_previous_accesses(fortran_reader):
     )
     assigns = psyir.walk(Assignment)
     reaches = assigns[1].previous_accesses()
-    a_sig = assigns[1].lhs.get_signature_and_indices()[0]
-    b_sig = assigns[1].rhs.children[0].get_signature_and_indices()[0]
     assert len(reaches) == 0

@@ -146,7 +146,7 @@ def test_whileloop_condition_next_accesses(fortran_reader):
     in the WhileLoop condition.'''
     code = """subroutine test
         integer :: i, j, k
-        
+
         do while(i < 2)
             j = 2
         end do
@@ -166,7 +166,7 @@ def test_whileloop_condition_previous_accesses(fortran_reader):
     in the WhileLoop condition.'''
     code = """subroutine test
         integer :: i, j, k
-        
+
         i = k + 1
         do while(i < 2)
             j = 2
@@ -186,7 +186,7 @@ def test_whileloop_body_next_accesses(fortran_reader):
     WhileLoop body.'''
     code = """subroutine test
         integer :: i, j, k
-        
+
         do while(i < 2)
             j = 2
         end do
@@ -206,7 +206,7 @@ def test_whileloop_body_previous_accesses(fortran_reader):
     WhileLoop body.'''
     code = """subroutine test
         integer :: i, j, k
-        
+
         j = k + 1
         do while(i < 2)
             j = 2

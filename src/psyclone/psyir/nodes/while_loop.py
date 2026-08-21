@@ -11,6 +11,7 @@ from psyclone.core import VariablesAccessMap
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.statement import Statement
 
@@ -133,8 +134,9 @@ class WhileLoop(Statement):
             WhileLoop
         '''
         next_accesses = []
-        var_accesses = self.condition.next_accesses()
-        self._merge_accesses(next_accesses, var_accesses)
+        for ref in self.condition.walk(Reference):
+            var_accesses = ref.next_accesses()
+            self._merge_accesses(next_accesses, var_accesses)
         for child in self.loop_body:
             self._merge_accesses(next_accesses, child.next_accesses())
         return next_accesses
@@ -146,8 +148,9 @@ class WhileLoop(Statement):
         return previous accesses to any References contained in the statement.
         '''
         prev_accesses = []
-        var_accesses = self.condition.previous_accesses()
-        self._merge_accesses(prev_accesses, var_accesses)
+        for ref in self.condition.walk(Reference):
+            var_accesses = ref.previous_accesses()
+            self._merge_accesses(prev_accesses, var_accesses)
         for child in self.loop_body:
             self._merge_accesses(prev_accesses, child.previous_accesses())
         return prev_accesses

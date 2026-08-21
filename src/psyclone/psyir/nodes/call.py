@@ -926,8 +926,8 @@ class Call(Statement, DataNode):
                 isinstance(ref.symbol, RoutineSymbol)]
         chain = DefinitionUseChain(refs)
         access_dict = chain.find_forward_accesses()
-        for accesses in access_dict:
-            self._merge_accesses(next_accesses, accesses)
+        for access in access_dict:
+            self._merge_accesses(next_accesses, access_dict[access])
         return next_accesses
 
     def previous_accesses(self) -> list[Node]:
@@ -943,6 +943,6 @@ class Call(Statement, DataNode):
                 isinstance(ref.symbol, RoutineSymbol)]
         chain = DefinitionUseChain(refs)
         access_dict = chain.find_backward_accesses()
-        for accesses in access_dict:
-            self._merge_accesses(prev_accesses, accesses)
+        for access in access_dict:
+            self._merge_accesses(prev_accesses, access_dict[access])
         return prev_accesses

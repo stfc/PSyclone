@@ -583,12 +583,12 @@ def test_loop_variable_previous_accesses(fortran_reader):
     end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
     loop = psyir.walk(Loop)[0]
-    assigns = psyir.walk(Assignment)
     accesses = loop.previous_accesses()
     assert len(accesses) == 0
     pytest.xfail(reason="#3486 Definition Use Chains don't yet account"
-                        "for loop variables.") 
+                        "for loop variables.")
     # Correct implementation should result in:
+    # assigns = psyir.walk(Assignment)
     # assert len(accesses) == 1
     # assert accesses[0] is assigns[0].lhs
 
@@ -663,6 +663,7 @@ def test_loop_stop_value_previous_accesses(fortran_reader):
     accesses = loop.previous_accesses()
     assert len(accesses) == 1
     assert accesses[0] is assigns[0].lhs
+
 
 def test_loop_step_value_next_accesses(fortran_reader):
     """Test that the next_accesses function works correctly for the step

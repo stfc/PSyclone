@@ -371,7 +371,8 @@ def test_codeblock_next_accesses(fortran_reader):
 
 
 def test_codeblock_previous_accesses(fortran_reader):
-    """Test that the previous_accesses method works correctly for CodeBlocks."""
+    """Test that the previous_accesses method works correctly for
+    CodeBlocks."""
     code = """subroutine test()
     integer :: i, j, k
     i = 1

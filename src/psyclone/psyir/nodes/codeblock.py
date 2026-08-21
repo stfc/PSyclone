@@ -239,7 +239,7 @@ class CodeBlock(Statement, DataNode):
         chain = DefinitionUseChain(self.children)
         accesses = chain.find_forward_accesses()
         for access in accesses:
-            self._merge_accesses(next_accesses, accesses)
+            self._merge_accesses(next_accesses, accesses[access])
         return next_accesses
 
     def previous_accesses(self) -> list[Node]:
@@ -254,7 +254,7 @@ class CodeBlock(Statement, DataNode):
         chain = DefinitionUseChain(self.children)
         accesses = chain.find_backward_accesses()
         for access in accesses:
-            self._merge_accesses(prev_accesses, accesses)
+            self._merge_accesses(prev_accesses, accesses[access])
         return prev_accesses
 
 
