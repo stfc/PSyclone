@@ -3189,8 +3189,8 @@ class Fparser2Reader():
         # them.
         if not self._ignore_directives and len(preceding_comments) != 0:
             for comment in preceding_comments[:]:
-                # TODO: fparser #469. This only captures some free-form
-                # directives.
+                # TODO: https://github.com/stfc/fparser/issues/469
+                # This only captures some free-form directives.
                 if comment.tostr().startswith("!$"):
                     self.nodes_to_code_block(parent, [comment])
                     preceding_comments.remove(comment)
@@ -5558,9 +5558,10 @@ class Fparser2Reader():
         '''
         character_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
                                     get_literal_precision(node, parent))
-        # fparser issue #295 - the value of the character string currently
-        # contains the quotation symbols themselves. Once that's fixed this
-        # check will need to be changed.
+        # fparser issue https://github.com/stfc/fparser/issues/295 - the
+        # value of the character string currently contains the quotation
+        # symbols themselves. Once that's fixed this check will need to
+        # be changed.
         char_value = str(node.items[0])
         if not ((char_value.startswith("'") and char_value.endswith("'")) or
                 (char_value.startswith('"') and char_value.endswith('"'))):
