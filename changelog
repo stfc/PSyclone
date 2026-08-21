@@ -1,3 +1,5 @@
+   35) PR #3565 for #3564. Bumps the requires setuptools version to 75.0.
+
    34) PR #3561 for #3506. Remove or replace remaining TODOs of closed issues.
 
    33) PR #3555 for #3553. Fix issues with line_length breaking comments.
