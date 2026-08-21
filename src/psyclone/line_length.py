@@ -9,6 +9,7 @@
 to allow the code to conform to the maximum line length limits (132
 for f90 free format is the default)'''
 
+from typing import Union
 import re
 
 from fparser.common.readfortran import Comment, FortranStringReader
@@ -17,7 +18,8 @@ from fparser.common.sourceinfo import FortranFormat
 from psyclone.errors import InternalError
 
 
-def find_break_point(line: str, max_index: int, key_list: list[str]) -> int:
+def find_break_point(line: str, max_index: int,
+                     key_list: list[Union[str, re.Pattern]]) -> int:
     ''' Finds the most appropriate line break point for the Fortran code in
     line.
 
@@ -38,10 +40,20 @@ def find_break_point(line: str, max_index: int, key_list: list[str]) -> int:
     # We should never break the line before the first element on the
     # line.
     first_non_whitespace = len(line) - len(line.lstrip())
+
+    search_string = line[first_non_whitespace+1:max_index]
     for key in key_list:
-        idx = line.rfind(key, first_non_whitespace+1, max_index)
-        if idx > 0:
-            return idx+len(key)
+        # Find all of the matches to the key.
+        if isinstance(key, re.Pattern):
+            matches = re.findall(key, search_string)
+        else:
+            # If the key is a string, we use re.escape to ensure no issues
+            # with unmatched special characters.
+            matches = re.findall(re.escape(key), search_string)
+        if matches:
+            # Find the position of the last match using rfind.
+            idx = line.rfind(matches[-1], first_non_whitespace+1, max_index)
+            return idx+len(matches[-1])
     raise InternalError(
         f"Error in find_break_point. No suitable break point found"
         f" for line '{line[:max_index]}' and keys '{str(key_list)}'")
@@ -94,7 +106,15 @@ class FortLineLength():
         self._key_lists = {"statement": [", ", ",", " "],
                            "openmp_directive": [" ", ",", ")", "="],
                            "openacc_directive": [" ", ",", ")", "="],
-                           "comment": [" ", ".", ","],
+                           "comment": [" ", ".", ",",
+                                       # Comments should never fail, so
+                                       # we have backups of increasing
+                                       # desperation.
+                                       re.compile(r"[+-\\/\"'`]"),
+                                       re.compile(r"[a-zA-Z0-9]"),
+                                       # Finally anything is ok.
+                                       re.compile(r"(.)")
+                                       ],
                            "unknown": [" ", ",", "=", "+", ")"]}
         self._stat = re.compile(r'^\s*(INTEGER|REAL|TYPE|CALL|SUBROUTINE|USE)',
                                 flags=re.I)
