@@ -10,8 +10,8 @@
 import pytest
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import Assignment, BinaryOperation, Literal, \
-                                 Reference, Return, Schedule, WhileLoop
+from psyclone.psyir.nodes import (Assignment, BinaryOperation, Literal,
+                                  Reference, Return, Schedule, WhileLoop)
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.tests.utilities import check_links
@@ -139,3 +139,83 @@ def test_whileloop_can_be_printed():
     assert "WhileLoop[]\n" in str(loop)
     assert "condition1" in str(loop)  # Test condition is printed
     assert "Return[]" in str(loop)  # Test loop body is printed
+
+
+def test_whileloop_condition_next_accesses(fortran_reader):
+    '''Test that the next_accesses method works correctly on References
+    in the WhileLoop condition.'''
+    code = """subroutine test
+        integer :: i, j, k
+        
+        do while(i < 2)
+            j = 2
+        end do
+        i = k + 1
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+
+    loop = psyir.walk(WhileLoop)[0]
+    assigns = psyir.walk(Assignment)
+    accesses = loop.next_accesses()
+    assert len(accesses) == 1
+    assert accesses[0] is assigns[1].lhs
+
+
+def test_whileloop_condition_previous_accesses(fortran_reader):
+    '''Test that the previous_accesses method works correctly on References
+    in the WhileLoop condition.'''
+    code = """subroutine test
+        integer :: i, j, k
+        
+        i = k + 1
+        do while(i < 2)
+            j = 2
+        end do
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+
+    loop = psyir.walk(WhileLoop)[0]
+    assigns = psyir.walk(Assignment)
+    accesses = loop.previous_accesses()
+    assert len(accesses) == 1
+    assert accesses[0] is assigns[0].lhs
+
+
+def test_whileloop_body_next_accesses(fortran_reader):
+    '''Test that the next_accesses method works correctly on the
+    WhileLoop body.'''
+    code = """subroutine test
+        integer :: i, j, k
+        
+        do while(i < 2)
+            j = 2
+        end do
+        j = k + 1
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+
+    loop = psyir.walk(WhileLoop)[0]
+    assigns = psyir.walk(Assignment)
+    accesses = loop.next_accesses()
+    assert len(accesses) == 1
+    assert accesses[0] is assigns[1].lhs
+
+
+def test_whileloop_body_previous_accesses(fortran_reader):
+    '''Test that the previous_accesses method works correctly on the
+    WhileLoop body.'''
+    code = """subroutine test
+        integer :: i, j, k
+        
+        j = k + 1
+        do while(i < 2)
+            j = 2
+        end do
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+
+    loop = psyir.walk(WhileLoop)[0]
+    assigns = psyir.walk(Assignment)
+    accesses = loop.previous_accesses()
+    assert len(accesses) == 1
+    assert accesses[0] is assigns[0].lhs

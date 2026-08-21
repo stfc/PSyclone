@@ -281,5 +281,117 @@ def test_ifblock_next_accesses_condition(fortran_reader):
     # The next_accesses are the two accesses to i after the ifblock.
     assert len(accesses) == 2
     assigns = psyir.walk(Assignment)
-    assert accesses[0] is assignment[2].rhs
-    assert accesses[1] is assignment[3].lhs
+    assert accesses[0] is assigns[2].rhs
+    assert accesses[1] is assigns[3].lhs
+
+    # Check that accesses within the ifblock aren't found.
+    code = """subroutine test
+    integer :: i, j, k
+    if (i > 3) then
+        i = 2
+    else
+        i = 4
+    end if
+    k = 1
+    end subroutine test"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    ifblock = psyir.walk(IfBlock)[0]
+    accesses = ifblock.next_accesses()
+    assert len(accesses) == 0
+
+
+def test_ifblock_next_accesses_bodies(fortran_reader):
+    '''Test the next_accesses method finds the next_accesses for
+    references in the ifblock's bodies.'''
+    code = """subroutine test
+    integer :: i, j, k, l
+    if(i > 3) then
+        j = 1
+    else
+        k = 1
+    end if
+    l = j
+    l = l + k
+    j = 3
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    ifblock = psyir.walk(IfBlock)[0]
+    accesses = ifblock.next_accesses()
+    assigns = psyir.walk(Assignment)
+    assert len(accesses) == 3
+    # First access after the ifblock to j.
+    assert accesses[0] is assigns[2].rhs
+    # First access after the ifblock to k.
+    assert accesses[2] is assigns[3].rhs.children[1]
+    # Write access after the ifblock to j.
+    assert accesses[1] is assigns[4].lhs
+
+
+def test_ifblock_previous_accesses_condition(fortran_reader):
+    '''Test the previous_accesses finds the previous_accesses for references
+    in the ifblock's condition correctly.'''
+
+    code = """subroutine test
+    integer :: i, j, k, l
+
+    i = 1
+    l = i
+    if(i > 3) then
+        j = 1
+    else
+        k = 1
+    end if
+    end subroutine test"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    ifblock = psyir.walk(IfBlock)[0]
+    accesses = ifblock.previous_accesses()
+    # The previous_accesses are the two accesses to i after the ifblock.
+    assert len(accesses) == 2
+    assigns = psyir.walk(Assignment)
+    assert accesses[0] is assigns[1].rhs
+    assert accesses[1] is assigns[0].lhs
+
+    # Check that accesses within the ifblock aren't found.
+    code = """subroutine test
+    integer :: i, j, k
+    k = 1
+    if (i > 3) then
+        i = 2
+    else
+        i = 4
+    end if
+    end subroutine test"""
+
+    psyir = fortran_reader.psyir_from_source(code)
+    ifblock = psyir.walk(IfBlock)[0]
+    accesses = ifblock.previous_accesses()
+    assert len(accesses) == 0
+
+
+def test_ifblock_previous_accesses_bodies(fortran_reader):
+    '''Test the previous_accesses method finds the previous_accesses for
+    references in the ifblock's bodies.'''
+    code = """subroutine test
+    integer :: i, j, k, l
+    j = 3
+    l = l + k
+    l = j
+    if(i > 3) then
+        j = 1
+    else
+        k = 1
+    end if
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    ifblock = psyir.walk(IfBlock)[0]
+    accesses = ifblock.previous_accesses()
+    assigns = psyir.walk(Assignment)
+    assert len(accesses) == 3
+    # First access after the ifblock to j.
+    assert accesses[0] is assigns[2].rhs
+    # First access after the ifblock to k.
+    assert accesses[2] is assigns[1].rhs.children[1]
+    # Write access after the ifblock to j.
+    assert accesses[1] is assigns[0].lhs
