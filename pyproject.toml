@@ -91,11 +91,11 @@ test = [
     "pytest-cov",
     "pytest-xdist",
     "tree-sitter",
-    "tree-sitter-fortran"
+    "tree-sitter-fortran==0.6.0"
 ]
 treesitter = [
     "tree-sitter",
-    "tree-sitter-fortran"
+    "tree-sitter-fortran==0.6.0"
 ]
 
 [project.urls]
