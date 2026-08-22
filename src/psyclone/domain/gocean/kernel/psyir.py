@@ -20,9 +20,11 @@ from psyclone.configuration import Config
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container
-from psyclone.psyir.symbols import DataTypeSymbol, UnsupportedFortranType
+from psyclone.psyir.symbols import (
+    DataTypeSymbol, StructureType, UnsupportedFortranType)
 
 
 class GOceanContainer(Container):
@@ -193,16 +195,21 @@ class GOceanKernelMetadata():
 
         datatype = symbol.datatype
 
-        if not isinstance(datatype, UnsupportedFortranType):
-            raise InternalError(
-                f"Expected kernel metadata to be stored in the PSyIR as "
-                f"an UnsupportedFortranType, but found "
-                f"{type(datatype).__name__}.")
+        if isinstance(datatype, StructureType):
+            # TODO #239: GOceanKernelMetadata.create_from_psyir will
+            # replace this
+            declaration = FortranWriter().gen_typedecl(
+                symbol, include_visibility=False)
+            # Preserve the spelling
+            declaration = declaration.replace(
+                "go_stencil(", "GO_STENCIL(")
+            return GOceanKernelMetadata.create_from_fortran_string(
+                declaration)
 
-        # In an UnsupportedFortranType, the declaration is stored as a
-        # string, so use create_from_fortran_string()
-        return GOceanKernelMetadata.create_from_fortran_string(
-            datatype.declaration)
+        raise InternalError(
+            f"Expected kernel metadata to be stored in the PSyIR as "
+            f"an StructureType, but found "
+            f"{type(datatype).__name__}.")
 
     @staticmethod
     def create_from_fortran_string(fortran_string):

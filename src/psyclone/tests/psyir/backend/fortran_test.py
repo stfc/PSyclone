@@ -385,8 +385,8 @@ def test_gen_typedecl_validation(fortran_writer, monkeypatch):
     tsymbol = DataTypeSymbol("my_type", UnresolvedType())
     with pytest.raises(VisitorError) as err:
         fortran_writer.gen_typedecl(tsymbol)
-    assert ("Local Symbol 'my_type' is of UnresolvedType and therefore no "
-            "declaration can be created for it." in str(err.value))
+    assert ("Fortran backend cannot generate code for symbol 'my_type' "
+            "of type 'UnresolvedType'" in str(err.value))
 
 
 def test_gen_typedecl_unsupported_fortran_type(fortran_writer):
@@ -468,6 +468,52 @@ def test_gen_typedecl(fortran_writer):
                                      Symbol.Visibility.PRIVATE)
     code = fortran_writer.gen_typedecl(private_tsymbol)
     assert code.startswith("type, private :: my_type\n")
+
+
+def test_gen_typedecl_extends_contains(fortran_writer):
+    '''Check that gen_typedecl() generates EXTENDS and type-bound procedure
+    declarations.'''
+    parent_type = DataTypeSymbol("base_type", UnresolvedType())
+    initialise = Symbol("initialise_impl")
+    code = Symbol("code_impl")
+    dtype = StructureType.create(
+        [("flag", ScalarType.integer_type(), Symbol.Visibility.PUBLIC)],
+        [("initialise", UnresolvedType(), Symbol.Visibility.PRIVATE,
+          Reference(initialise), "Initialise the object", "binding"),
+         ("reset", UnresolvedType(), Symbol.Visibility.PUBLIC),
+         ("code", UnsupportedFortranType(
+             "PROCEDURE, NOPASS :: code => code_impl"),
+          Symbol.Visibility.PUBLIC, Reference(code))],
+        extends=parent_type)
+    tsymbol = DataTypeSymbol(
+        "child_type", dtype, visibility=Symbol.Visibility.PRIVATE)
+    tsymbol.inline_comment = "derived type"
+
+    assert fortran_writer.gen_typedecl(tsymbol) == (
+        "type, extends(base_type), private :: child_type\n"
+        "  integer, public :: flag\n"
+        "  contains\n"
+        "    ! Initialise the object\n"
+        "    procedure, private :: initialise => initialise_impl ! binding\n"
+        "    procedure, public :: reset\n"
+        "    PROCEDURE, NOPASS :: code => code_impl\n"
+        "end type child_type ! derived type\n")
+
+
+def test_gen_proceduredecl_validation(fortran_writer):
+    '''Check validation performed by gen_proceduredecl().'''
+    with pytest.raises(VisitorError) as err:
+        fortran_writer.gen_proceduredecl("invalid")
+    assert ("gen_proceduredecl() expects a "
+            "'StructureType.ComponentType' as its first argument but got "
+            "'str'" in str(err.value))
+
+    procedure = StructureType.ComponentType(
+        "proc", UnresolvedType(), "invalid", None)
+    with pytest.raises(InternalError) as err:
+        fortran_writer.gen_proceduredecl(procedure)
+    assert ("type-bound procedure must be either public or private but "
+            "procedure 'proc' has visibility 'invalid'" in str(err.value))
 
 
 def test_reverse_map():
