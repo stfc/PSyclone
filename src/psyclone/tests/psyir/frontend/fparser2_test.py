@@ -1782,6 +1782,43 @@ def test_process_use_stmts_resolving_external_imports(
     assert isinstance(stmt_rhs.children[1], Call)
 
 
+def test_process_resolving_modules_from_multiple_use_stmts(
+        parser, tmp_path, monkeypatch):
+    ''' Test that when an import from a single module is split
+    between multiple use statements, all of them are resolved. '''
+
+    # Write a module into a tmp file
+    other1 = tmp_path / "other.f90"
+    with open(other1, "w", encoding='utf-8') as my_file:
+        my_file.write('''
+    module other
+        integer :: variable1
+        integer :: variable2
+        integer :: variable3
+        integer :: variable4
+    end module
+    ''')
+    # Use the previous module
+    reader = FortranStringReader('''
+    module test
+        use other, only: variable1
+        use other, only: variable2
+        use other, only: variable3
+    end module
+    ''')
+    parse_tree = parser(reader)
+    module = parse_tree.children[0]
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
+    processor = Fparser2Reader(resolve_modules=True)
+    psyir = processor._module_handler(module, None)
+    # We must know that variable[1/2/3] are integers, and 4 is not imported
+    int_type = ScalarType.integer_type()
+    assert psyir.symbol_table.lookup("variable1").datatype == int_type
+    assert psyir.symbol_table.lookup("variable1").datatype == int_type
+    assert psyir.symbol_table.lookup("variable1").datatype == int_type
+    assert "variable4" not in psyir.symbol_table
+
+
 def test_process_resolving_modules_give_correct_types(
         parser, tmp_path, monkeypatch):
     ''' Test that if the Fparser2Reader is provided with a list of
