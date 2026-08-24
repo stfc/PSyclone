@@ -1,3 +1,6 @@
+   36) PR #3562 for #3559. Ensure all imports are resolved when there are
+   multiple USE statements targeting the same module.
+ 
    35) PR #3565 for #3564. Bumps the requires setuptools version to 75.0.
 
    34) PR #3561 for #3506. Remove or replace remaining TODOs of closed issues.
