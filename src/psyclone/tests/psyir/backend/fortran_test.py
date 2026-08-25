@@ -1889,8 +1889,8 @@ end subroutine'''
     assert fortran_writer(ass.rhs) == "(1.0_8, 2)"
 
 
-def test_fw_complex_datatype(fortran_reader, fortran_writer):
-    ''' Test that a datatype containging a complex type is correctly
+def test_fw_complex_type(fortran_reader, fortran_writer):
+    ''' Test that a complex type with integer precision is correctly
     rendered. '''
     code = '''
 subroutine foo()
