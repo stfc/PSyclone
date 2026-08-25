@@ -1883,10 +1883,21 @@ def test_fw_complexliteral_node(fortran_reader, fortran_writer):
 subroutine foo()
   complex(4) :: c
   c = (1.0_8, 2)
+  c = (1_8, 2)
 end subroutine'''
     psyir = fortran_reader.psyir_from_source(code)
     ass = psyir.walk(Assignment)[0]
     assert fortran_writer(ass.rhs) == "(1.0_8, 2)"
+    assert isinstance(ass.rhs, ComplexLiteral)
+    assert isinstance(ass.rhs.re_part.datatype, ScalarType)
+    assert ass.rhs.re_part.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert ass.rhs.re_part.datatype.precision == 8
+    ass = psyir.walk(Assignment)[1]
+    assert fortran_writer(ass.rhs) == "(1_8, 2)"
+    assert isinstance(ass.rhs, ComplexLiteral)
+    assert isinstance(ass.rhs.re_part.datatype, ScalarType)
+    assert ass.rhs.re_part.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert ass.rhs.re_part.datatype.precision == 8
 
 
 def test_fw_complex_type(fortran_reader, fortran_writer):

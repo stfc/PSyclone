@@ -5530,7 +5530,8 @@ class Fparser2Reader():
         :raises NotImplementedError: if the fparser2 node is not recognised.
 
         '''
-        if isinstance(node, Fortran2003.Int_Literal_Constant):
+        if isinstance(node, (Fortran2003.Int_Literal_Constant,
+                             Fortran2003.Signed_Int_Literal_Constant)):
             integer_type = ScalarType(ScalarType.Intrinsic.INTEGER,
                                       get_literal_precision(node, parent))
             return Literal(str(node.items[0]), integer_type)
