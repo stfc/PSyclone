@@ -242,7 +242,7 @@ jobs:
         make clean
         F90=$MPIF90 make
                 
-        # First do a debug-build: set the FCM environemnt variables to use flags and intrinsics
+        # First do a debug-build: set the FCM environment variables to use flags and intrinsics
         # with numerically reproducible results and enable PROFILING hooks
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack_profile.fcm arch/arch-linux_spack_profile.fcm
@@ -386,7 +386,7 @@ jobs:
         make clean
         F90=$MPIF90 make
                 
-        # First do a debug-build: set the environemnt variables to use flags and intrinsics
+        # First do a debug-build: set the environment variables to use flags and intrinsics
         # with numerically reproducible results and enable PROFILING hooks
         cd $NEMO_DIR
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack_profile.fcm arch/arch-linux_spack_profile.fcm
