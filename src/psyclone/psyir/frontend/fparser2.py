@@ -587,14 +587,14 @@ def get_literal_precision(
     the SymbolTable if the precision is given by an undefined symbol.
 
     :param fparser2_node: the fparser2 literal node.
-    :param psyir_literal_parent: the PSyIR node that will be the \
-        parent of the PSyIR literal node that will be created from the \
+    :param psyir_literal_parent: the PSyIR node that will be the
+        parent of the PSyIR literal node that will be created from the
         fparser2 node information.
 
     :returns: the PSyIR Precision of this literal value.
 
     :raises InternalError: if the arguments are of the wrong type.
-    :raises InternalError: if there's no symbol table associated with \
+    :raises InternalError: if there's no symbol table associated with
                            `psyir_literal_parent` or one of its ancestors.
 
     '''
