@@ -12,7 +12,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Assignment, Loop, Routine
+from psyclone.psyir.nodes import Assignment, Loop
 from psyclone.psyir.tools import DependencyTools, DTCode
 from psyclone.tests.utilities import get_invoke
 
@@ -87,8 +87,29 @@ def test_dep_tool_constructor_errors():
             "values for API 'lfric' are [" in str(err.value))
 
 
-# -----------------------------------------------------------------------------
-def test_loop_parallelise_errors(fortran_reader):
+def test_loop_parallelise_lfric_kern():
+    '''
+    Test that the can_loop_be_parallelised method can be called successfully
+    when a loop contains an LFRicKern since this currently does not have an
+    associated Symbol.
+
+    TODO #3219 - although the method can be called, it will always return
+    False currently because it has to assume the worst for any arguments
+    passed to an LFRicKern. This test will need updating once LFRicKern has
+    'virtual' children containing accesses to its arguments.
+
+    '''
+    _, invoke = get_invoke("15.1.1_builtin_and_normal_kernel_invoke_2.f90",
+                           api="lfric", idx=0, dist_mem=False)
+    dep_tools = DependencyTools()
+    for loop in invoke.schedule.walk(Loop):
+        # Since we are currently forced to assume the worst case for
+        # arguments passed to LFRicKern nodes, the DependencyTools cannot
+        # ascertain that the loops can be parallelised.
+        assert not dep_tools.can_loop_be_parallelised(loop)
+
+
+def test_loop_parallelise_errors():
     '''Tests errors that should be raised from the can_loop_be_parallelised
     function.'''
 
@@ -98,23 +119,6 @@ def test_loop_parallelise_errors(fortran_reader):
         loop = 1
         dep_tools.can_loop_be_parallelised(loop)
     assert "node must be an instance of class Loop but got" in str(err.value)
-
-    code = '''
-    program my_prog
-      integer :: i
-      integer, dimension(10) :: a
-      do i = 1, 10
-        write (*,*) a(i)
-      end do
-    end program
-    '''
-    psyir = fortran_reader.psyir_from_source(code)
-    prog = psyir.walk(Routine)[0]
-    # Force the situation where a symbol referenced from a CodeBlock
-    # cannot be found.
-    prog.symbol_table._symbols.pop("a")
-    loop = psyir.walk(Loop)[0]
-    assert not dep_tools.can_loop_be_parallelised(loop)
 
 
 # -----------------------------------------------------------------------------

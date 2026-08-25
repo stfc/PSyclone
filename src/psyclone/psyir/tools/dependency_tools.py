@@ -9,8 +9,8 @@
     dependency analysis.'''
 
 from enum import IntEnum
-import sympy
 from typing import Optional
+import sympy
 
 from psyclone.configuration import Config
 from psyclone.core import (AccessType, Signature, SymbolicMaths,
@@ -860,11 +860,11 @@ class DependencyTools():
             try:
                 symbol = var_info[0].node.symbol
             except AttributeError:
-                # If it's a node without a symbol, look it up
+                # If it's a node without a symbol, look it up.
+                # TODO #3219 - once LFRicKern has 'virtual' children this
+                # branch can be removed.
                 var_name = signature.var_name
-                symbol = symbol_table.lookup(var_name, otherwise=None)
-                if symbol is None:
-                    return False
+                symbol = symbol_table.lookup(var_name)
 
             # TODO #3098 - the is_array_access function might be moved
             is_array = symbol.is_array_access(access_info=var_info)
