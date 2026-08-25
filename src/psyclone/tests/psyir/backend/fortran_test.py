@@ -1866,7 +1866,7 @@ def test_fw_literal_node(fortran_writer):
     assert result == "1_'hello'"
 
 
-def test_fw_complexliteral_node(fortran_writer):
+def test_fw_complexliteral_node(fortran_reader, fortran_writer):
     ''' Test the PSyIR complex literals are converted to the proper Fortran
     format when necessary. '''
     lit1 = Literal("1.0", ScalarType(ScalarType.Intrinsic.REAL,
@@ -1876,6 +1876,17 @@ def test_fw_complexliteral_node(fortran_writer):
     lit = ComplexLiteral.create(lit1, lit2)
     result = fortran_writer(lit)
     assert result == "(1.0, 2.0)"
+
+    # Test that complex literals containing integer literals get
+    # rendered correctly
+    code = '''
+subroutine foo()
+  complex(4) :: c
+  c = (1.0_8, 2)
+end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    ass = psyir.walk(Assignment)[0]
+    assert fortran_writer(ass.rhs) == "(1.0_8, 2)"
 
 
 def test_fw_call_node(fortran_writer):
