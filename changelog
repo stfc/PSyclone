@@ -1,4 +1,13 @@
-   32) PR #3535 towards #3506. Remove or replaces TODOS of closed issues.
+   36) PR #3562 for #3559. Ensure all imports are resolved when there are
+   multiple USE statements targeting the same module.
+ 
+   35) PR #3565 for #3564. Bumps the requires setuptools version to 75.0.
+
+   34) PR #3561 for #3506. Remove or replace remaining TODOs of closed issues.
+
+   33) PR #3555 for #3553. Fix issues with line_length breaking comments.
+
+   32) PR #3535 towards #3506. Remove or replace TODOs of closed issues.
 
    31) PR #3556 for #3547. Add a utility to report TODOs to closed issues
    still in the code.
