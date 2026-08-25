@@ -59,9 +59,6 @@ which is the version included in PSyclone.
 The location of the dl_timer library. It defaults to
 ``../../../../../dl_timer``, i.e. it is assumed that dl_timer
 is installed next to PSyclone.
-Note that until Issue #730 is complete, executing this example
-will fail as the labels produced by PSyclone are longer than
-permitted by the dl_timer library.
 
 ### DRHOOK_DIR:
 The location of DrHook. It defaults to

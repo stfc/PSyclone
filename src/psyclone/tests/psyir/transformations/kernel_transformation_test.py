@@ -64,8 +64,8 @@ def test_transform_kern_with_interface(tmp_path, fortran_writer):
     contents = fortran_writer(sched.ancestor(Container))
     # Check that the interface name has been updated.
     assert "interface mixed_code_inlined_" in contents
-    assert ("module procedure :: mixed_code_32_inlined_, "
-            "mixed_code_64_inlined_" in contents)
+    assert "module procedure :: mixed_code_32_inlined_" in contents
+    assert "module procedure :: mixed_code_64_inlined_" in contents
     # Check that the subroutines themselves havet been renamed.
     assert "subroutine mixed_code_32_inlined_" in contents
     assert "subroutine mixed_code_64_inlined_" in contents

@@ -37,7 +37,7 @@ def valid_kernel(node):
         return False
     # Check that there are no derived-type references in the sub-tree (because
     # PGI deep-copy doesn't like them).
-    # TODO #365 - this check should be part of our identification of valid
+    # TODO #3341 - this check should be part of our identification of valid
     # NEMO kernels.
     if walk(node.ast, Fortran2003.Data_Ref):
         return False

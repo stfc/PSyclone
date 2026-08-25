@@ -2055,9 +2055,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         for ref in in_list:
             if isinstance(ref.symbol, DataSymbol) and ref.symbol.is_constant:
                 continue
-            if (ref.symbol.is_import and
-                    ref.symbol.get_external_symbol().is_constant):
-                continue
             in_clause.addchild(ref)
         out_clause = OMPDependClause(
             depend_type=OMPDependClause.DependClauseTypes.OUT
