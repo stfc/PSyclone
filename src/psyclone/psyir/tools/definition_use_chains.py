@@ -542,6 +542,8 @@ class DefinitionUseChain:
         # CodeBlocks only find symbols, so we can only do as good
         # as checking the symbol - this means we can get false
         # positives for structure accesses inside CodeBlocks.
+        # TODO #3568: Codeblocks should have an implemented method
+        # to check for the presence of Goto statements.
         if any([isinstance(node, Goto_Stmt) for node in
                 reference.parse_tree_nodes]):
             raise NotImplementedError(
@@ -550,6 +552,8 @@ class DefinitionUseChain:
             )
         # If we find an Exit or Cycle statement, we can't
         # reach further in this code region so we can return.
+        # TODO #3568: Codeblocks should have implemented methods
+        # to check for the presence of these statements.
         if any([isinstance(
             ref, (Exit_Stmt, Cycle_Stmt)) for ref in
             reference.parse_tree_nodes]
@@ -1038,12 +1042,12 @@ class DefinitionUseChain:
                 # but is necessary to avoid incorrect results. An improved
                 # implementation or comments explaining why will be added
                 # later.
-                # reference is on the rhs of an assignment such as a = a + 1.
+                # Reference is on the rhs of an assignment such as a = a + 1.
                 # Since we're looping through the tree walk in reverse, we
                 # find the a on the RHS of the statement separately from the
                 # LHS when inside a loop and one of the self._references
                 # appears in this RHS. In this case we avoid adding anything
-                # from this RHS to the chain for these cases.
+                # from this RHS to the chain.
                 return
             else:
                 # Read only, so if we've not yet set written to this variable
@@ -1094,6 +1098,12 @@ class DefinitionUseChain:
             else:
                 # If the LHS of an Assignment is an UnsupportedType then we
                 # can skip the RHS of this Assignment for UnsupportedTypes.
+                # This handles cases such as a = a + 1, where searching
+                # backwards from the a on the rhs needs to skip the lhs, as
+                # semantically the access to the lhs happens after the access
+                # to the rhs. This also applies for any pair of
+                # UnsupportedType accesses, as the DUCs consider them to all
+                # potentially access the same data.
                 # TODO #3552: This block is not well explained or understood
                 # but is necessary to avoid incorrect results. An improved
                 # implementation or comments explaining why will be added
@@ -1189,6 +1199,8 @@ class DefinitionUseChain:
                 if isinstance(reference, Return):
                     stop_position = min(reference.abs_position, stop_position)
                 if isinstance(reference, CodeBlock):
+                    # TODO #3568: Codeblocks should have implemented methods
+                    # to check for the presence of these statements.
                     if any([isinstance(
                         ref, (Exit_Stmt, Cycle_Stmt)) for ref in
                         reference.parse_tree_nodes]
@@ -1217,6 +1229,8 @@ class DefinitionUseChain:
                     # CodeBlocks only find symbols, so we can only do as good
                     # as checking the symbol - this means we can get false
                     # positives for structure accesses inside CodeBlocks.
+                    # TODO #3568: Codeblocks should have an implemented method
+                    # to check for the presence of just Goto statements.
                     if any([isinstance(node, Goto_Stmt) for node in
                             reference.parse_tree_nodes]):
                         raise NotImplementedError(

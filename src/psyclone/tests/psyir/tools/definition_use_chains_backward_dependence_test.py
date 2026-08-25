@@ -1056,7 +1056,8 @@ def test_backward_accesses_unsupported_type_lhs_ends_chain(fortran_reader):
 
 def test_backward_accesses_unsupported_type_puresub_arguments(fortran_reader):
     """Test that unsupported type arguments to pure subroutines are always
-    counted as an access."""
+    counted as an access. The DUCs consider all UnsupportedType accesses
+    as the same variable for computing accesses."""
     code = """
     pure subroutine test(a)
         integer :: a
