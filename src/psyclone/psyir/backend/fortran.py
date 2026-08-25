@@ -311,14 +311,15 @@ class FortranWriter(LanguageWriter):
             scalar_type = datatype
 
         if isinstance(precision, int):
-            if fortrantype not in ['real', 'integer', 'logical']:
+            if fortrantype not in ['real', 'integer', 'logical', 'complex']:
                 raise VisitorError(f"Explicit precision not supported for "
                                    f"datatype '{fortrantype}' in symbol "
                                    f"'{name}' in Fortran backend.")
-            if fortrantype == 'real' and precision not in [4, 8, 16]:
+            if (fortrantype in ['real', 'complex'] and
+                    precision not in [4, 8, 16]):
                 raise VisitorError(
-                    f"Datatype 'real' in symbol '{name}' supports fixed "
-                    f"precision of [4, 8, 16] but found '{precision}'.")
+                    f"Datatype '{fortrantype}' in symbol '{name}' supports "
+                    f"fixed precision of [4, 8, 16] but found '{precision}'.")
             if fortrantype in ['integer', 'logical'] and precision not in \
                [1, 2, 4, 8, 16]:
                 raise VisitorError(

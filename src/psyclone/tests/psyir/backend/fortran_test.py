@@ -1889,6 +1889,17 @@ end subroutine'''
     assert fortran_writer(ass.rhs) == "(1.0_8, 2)"
 
 
+def test_fw_complex_datatype(fortran_reader, fortran_writer):
+    ''' Test that a datatype containging a complex type is correctly
+    rendered. '''
+    code = '''
+subroutine foo()
+  complex*4 :: c
+end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert "complex*4 :: c" in fortran_writer(psyir)
+
+
 def test_fw_call_node(fortran_writer):
     '''Test the PSyIR call node is translated to the required Fortran code. '''
     # No call arguments nor node parent
