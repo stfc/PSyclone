@@ -1,3 +1,6 @@
+   37) PR #3567. Fixes some typos in the NEMO examples README and the nemo
+   v5 workflow.
+
    36) PR #3562 for #3559. Ensure all imports are resolved when there are
    multiple USE statements targeting the same module.
  
