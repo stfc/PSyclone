@@ -1900,7 +1900,7 @@ end subroutine'''
     assert ass.rhs.re_part.datatype.precision == 8
 
 
-def test_fw_complex_type(fortran_reader, fortran_writer):
+def test_fw_complex_int_kind(fortran_reader, fortran_writer):
     ''' Test that a complex type with integer precision is correctly
     rendered. '''
     code = '''
