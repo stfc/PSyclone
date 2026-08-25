@@ -5051,7 +5051,7 @@ class HaloReadAccess(HaloDepth):
                 # Stencil_depth is provided by the algorithm layer.
                 # It is currently not possible to specify kind for an
                 # integer literal stencil depth in a kernel call. This
-                # will be enabled when addressing issue #753.
+                # will be enabled when addressing issue #1618.
                 if field.stencil.extent_arg.is_literal():
                     # a literal is specified
                     value_str = field.stencil.extent_arg.text
@@ -5656,7 +5656,7 @@ class LFRicKernelArgument(KernelArgument):
                 f"type '{arg_meta_data.data_type}' in the kernel argument "
                 f"descriptor '{arg_meta_data}'.") from err
 
-        # Addressing issue #753 will allow us to perform static checks
+        # Addressing issue #1618 will allow us to perform static checks
         # for consistency between the algorithm and the kernel
         # metadata. This will include checking that a field on a read
         # only function space is not passed to a kernel that modifies
@@ -5901,12 +5901,6 @@ class LFRicKernelArgument(KernelArgument):
                 f"'{self.name}' in '{self._call.name}' does not.")
 
         if self.access == AccessType.REDUCTION:
-            # Treat reductions separately to other scalars as it
-            # is expected that they should match the precision of
-            # the field they are reducing. At the moment there is
-            # an assumption that the precision will always be a
-            # particular value (the default), see issue #1570.
-
             # Only real reductions are supported.
             if not self.intrinsic_type == "real":
                 raise NotImplementedError(

@@ -1765,6 +1765,14 @@ class SymbolTable():
             if imported_sym.visibility == Symbol.Visibility.PRIVATE:
                 continue  # We must ignore this symbol
 
+            # An unresolved interface means that the PSyIR does not know
+            # where this symbol originates. Such a symbol cannot safely be
+            # re-exported by this container, so treat it as private. This
+            # prevents a symbol created while processing an unsupported
+            # CodeBlock from leaking across a module boundary.
+            if isinstance(imported_sym.interface, UnresolvedInterface):
+                continue
+
             if isinstance(imported_sym, ContainerSymbol):
                 # TODO #1540: We also skip other ContainerSymbols but in
                 # reality if this is a wildcard import we would have to

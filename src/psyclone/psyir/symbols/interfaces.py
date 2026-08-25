@@ -8,6 +8,7 @@
 ''' This module contains the SymbolInterface class and its subclasses. '''
 
 from enum import Enum
+from typing import Any
 
 # pylint: disable=too-few-public-methods
 
@@ -67,10 +68,43 @@ class UnknownInterface(SymbolInterface):
 
 class CommonBlockInterface(SymbolInterface):
     ''' A symbol declared in the local scope but acts as a global that
-    can be accessed by any scope referencing the same CommonBlock name.'''
+    can be accessed by any scope referencing the same CommonBlock name.
+
+    :param common_block_name: the name of the common block.
+
+    :raises TypeError: if the common_block_name is not a str
+    '''
+
+    def __init__(self, common_block_name: str):
+        super().__init__()
+        if not isinstance(common_block_name, str):
+            raise TypeError(
+                f"The common block name should be a valid string, but"
+                f" found '{type(common_block_name).__name__}'")
+        self._name = common_block_name
 
     def __str__(self):
-        return "CommonBlock"
+        return f"CommonBlock '{self._name}'"
+
+    def __eq__(self, other: Any) -> bool:
+        return (
+            super().__eq__(other) and
+            self._name.lower() == other.name.lower()
+        )
+
+    @property
+    def name(self) -> str:
+        '''
+        :returns: the name of the common block.
+
+        '''
+        return self._name
+
+    def copy(self) -> 'CommonBlockInterface':
+        '''
+        :returns: a copy of this object.
+        '''
+        return self.__class__(self._name)
 
 
 class UnresolvedInterface(SymbolInterface):

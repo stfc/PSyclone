@@ -133,8 +133,10 @@ def test_generate_lfric_adjoint_multi_routine(fortran_reader, fortran_writer):
     assert "subroutine adj_test_code_r8()" in result
     # Check that the names of the routines in the two interfaces have
     # been updated.
-    assert "module procedure :: adj_test_code_r4, adj_test_code_r8" in result
-    assert "module procedure :: adj_test_code_r8, adj_test_code_r4" in result
+    assert "module procedure :: adj_test_code_r4" in result
+    assert "module procedure :: adj_test_code_r8" in result
+    assert "module procedure :: adj_test_code_r8" in result
+    assert "module procedure :: adj_test_code_r4" in result
     # Check that the name of the interface associated with the kernel
     # implementation has been updated.
     assert "end type adj_test_type" in result
@@ -210,8 +212,8 @@ def test_generate_lfric_adjoint_multi_precision(
         fortran_reader, fortran_writer):
     '''Check that generate_lfric_adjoint makes no changes to the metadata
     apart from the name of the type if this is a multi-precision
-    kernel (due to issue #2236). We can't yet parse multi-precision
-    metadata (again due to issue #2236) so modify the PSyIR directly
+    kernel (due to issue #3546). We can't yet parse multi-precision
+    metadata (again due to issue #3546) so modify the PSyIR directly
     (removing the procedure part of the metadata).
 
     '''

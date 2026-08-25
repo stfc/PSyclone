@@ -1,3 +1,30 @@
+   37) PR #3567. Fixes some typos in the NEMO examples README and the nemo
+   v5 workflow.
+
+   36) PR #3562 for #3559. Ensure all imports are resolved when there are
+   multiple USE statements targeting the same module.
+ 
+   35) PR #3565 for #3564. Bumps the requires setuptools version to 75.0.
+
+   34) PR #3561 for #3506. Remove or replace remaining TODOs of closed issues.
+
+   33) PR #3555 for #3553. Fix issues with line_length breaking comments.
+
+   32) PR #3535 towards #3506. Remove or replace TODOs of closed issues.
+
+   31) PR #3556 for #3547. Add a utility to report TODOs to closed issues
+   still in the code.
+
+   30) PR #3550 for #3544. Fixes issues with UnresolvedInterface propogation,
+   and adds support for the recursive keyword.
+   
+   29) PR #3551 for #3549. Fix issues with comments before labelled statements.
+
+   28) PR #3543 for #3392. Stores commonblock names inside their interfaces
+   and adds them into the output.
+
+   27) PR #3542 towards #3516. Improve handling of declaration comments.
+   
    26) PR #3545 for #3537. Fix issues with WHERE constructs with comments.
 
    25) PR #3481 towards #3463. Adds support for adding standalone Assignment
