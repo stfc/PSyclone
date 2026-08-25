@@ -126,9 +126,9 @@ class ComplexLiteral(DataNode):
                     Signature(symbol.name), AccessType.CONSTANT, dt.precision)
         return access_info
 
-    def replace_symbols_using(self,
-                              table_or_symbol: Union[SymbolTable, Symbol]) \
-            -> None:
+    def replace_symbols_using(
+            self,
+            table_or_symbol: Union[SymbolTable, Symbol]) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable (or just the supplied Symbol instance) if they
