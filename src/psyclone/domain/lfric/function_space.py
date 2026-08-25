@@ -21,11 +21,17 @@ class FunctionSpace():
     '''
     Manages the name of a function space. If it is an any_space or
     any_discontinuous_space then its name is mangled such that it is unique
-    within the scope of an Invoke.
+    within the scope of an Invoke. If the function space is associated with
+    a non-default number of layers and/or data values per dof then the
+    labels specifying those are also incorporated in the name.
 
     :param name: original name of function space.
     :param kernel_args: object encapsulating all arguments to the kernel,
                         one or more of which are on this function space.
+    :param nlayers: the label specifying the number of layers associated
+                    with this function space.
+    :param ndata: the label (or integer literal) specifying the number of
+                  data values per dof.
 
     :raises InternalError: if an unrecognised function space is encountered.
 

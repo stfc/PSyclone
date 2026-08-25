@@ -233,6 +233,7 @@ class KernCallArgList(ArgOrdering):
                     # Make sure we don't duplicate arguments.
                     continue
                 nlayers_names.add(sym.name)
+                self.append(sym.name, var_accesses)
                 self.psyir_append(Reference(sym))
                 self._nlayers_positions.append(self.num_args)
 
@@ -256,6 +257,7 @@ class KernCallArgList(ArgOrdering):
                     # Make sure we don't duplicate arguments.
                     continue
                 ndata_names.add(sym.name)
+                self.append(sym.name, var_accesses)
                 self.psyir_append(Reference(sym))
                 # TODO #3498 keep track of positions of ndata
                 # arguments c.f. nlayers

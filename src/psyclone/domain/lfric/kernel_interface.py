@@ -161,15 +161,14 @@ class KernelInterface(ArgOrdering):
         required by field arguments to the argument list. Also add these
         accesses to `var_accesses` if supplied.
 
-        :param var_accesses: optional VariablesAccessMap instance to store
-            the information about variable accesses.
+        :param var_accesses: an unused optional argument for interface
+                             consistency.
         '''
         for arg in self._kern.arguments.args:
             if arg.ndata and not arg.ndata.isnumeric():
                 sym = self._symtab.find_or_create_tag(
                     f"ndata_{arg.ndata}",
-                    # TODO - shouldn't be MeshHeightDataSymbol
-                    symbol_type=LFRicTypes("MeshHeightDataSymbol"))
+                    symbol_type=LFRicTypes("LFRicIntegerScalarDataType"))
                 if sym not in self._arglist:
                     self._arglist.append(sym)
 
