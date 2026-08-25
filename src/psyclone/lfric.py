@@ -1,41 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie, L. Turner, O. Brunt
-# and A. Pirrie, Met Office
-# Modified J. Henrichs, Bureau of Meteorology
-# Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
 ''' This module implements the PSyclone LFRic API by 1) specialising the
     required base classes in parser.py (KernelType) and
@@ -5074,7 +5042,7 @@ class HaloReadAccess(HaloDepth):
                 # Stencil_depth is provided by the algorithm layer.
                 # It is currently not possible to specify kind for an
                 # integer literal stencil depth in a kernel call. This
-                # will be enabled when addressing issue #753.
+                # will be enabled when addressing issue #1618.
                 if field.stencil.extent_arg.is_literal():
                     # a literal is specified
                     value_str = field.stencil.extent_arg.text
@@ -5685,7 +5653,7 @@ class LFRicKernelArgument(KernelArgument):
                 f"type '{arg_meta_data.data_type}' in the kernel argument "
                 f"descriptor '{arg_meta_data}'.") from err
 
-        # Addressing issue #753 will allow us to perform static checks
+        # Addressing issue #1618 will allow us to perform static checks
         # for consistency between the algorithm and the kernel
         # metadata. This will include checking that a field on a read
         # only function space is not passed to a kernel that modifies
@@ -5930,12 +5898,6 @@ class LFRicKernelArgument(KernelArgument):
                 f"'{self.name}' in '{self._call.name}' does not.")
 
         if self.access == AccessType.REDUCTION:
-            # Treat reductions separately to other scalars as it
-            # is expected that they should match the precision of
-            # the field they are reducing. At the moment there is
-            # an assumption that the precision will always be a
-            # particular value (the default), see issue #1570.
-
             # Only real reductions are supported.
             if not self.intrinsic_type == "real":
                 raise NotImplementedError(

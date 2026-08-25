@@ -1,37 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors: A. B. G. Chalk, R. Ford and A. R. Porter, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module tests the line_limit module using pytest. '''
@@ -74,6 +45,38 @@ def test_comment():
     output_file = fll.process(input_file)
     assert output_file == expected_output
 
+    # Test a comment with only elements from [+-\\/\"'`]
+    input_file = " !++++++++++++++++"
+    expected_output = " !+++++++++++\n!& +++++"
+    fll = FortLineLength(line_length=len(input_file)-5)
+    output_file = fll.process(input_file)
+    assert output_file == expected_output
+
+    # Test a comment with only alphanumeric characters.
+    input_file = " !asdjbhsdfajkglhsdfgkljsh"
+    expected_output = " !asdjbhsdfajkglhsdfg\n!& kljsh"
+    fll = FortLineLength(line_length=len(input_file)-5)
+    output_file = fll.process(input_file)
+    assert output_file == expected_output
+
+    # Test a comment with only other characters.
+    input_file = " !@@@@@@@@@@@@@@@@@@@@@@"
+    expected_output = " !@@@@@@@@@@@@@@@@@\n!& @@@@@"
+    fll = FortLineLength(line_length=len(input_file)-5)
+    output_file = fll.process(input_file)
+    assert output_file == expected_output
+
+
+def test_first_non_whitespace_too_late():
+    ''' Tests that when there is only whitespace before the
+    line_length specified we get an InternalError.'''
+
+    input_file = "                  string"
+    with pytest.raises(InternalError) as excinfo:
+        find_break_point(input_file, 8, "r")
+    assert ("Error in find_break_point. No suitable break point found for "
+            "line '        ' and keys 'r'" in str(excinfo.value))
+
 
 def test_unchanged():
     ''' Tests that a file whose lines are shorter than the specified
@@ -91,8 +94,6 @@ def test_unchanged():
         "    stuff\n")
     fll = FortLineLength(line_length=25)
     output_file = fll.process(input_file)
-    print("("+input_file+")")
-    print("("+output_file+")")
     assert input_file == output_file, "input should remain unchanged"
 
 
@@ -135,8 +136,6 @@ def test_wrapped():
     line length is wrapped appropriately by the FortLineLength class '''
     fll = FortLineLength(line_length=30)
     output_file = fll.process(INPUT_FILE)
-    print("("+EXPECTED_OUTPUT+")")
-    print("("+output_file+")")
     assert output_file == EXPECTED_OUTPUT, "output and expected output differ "
 
 
@@ -146,8 +145,6 @@ def test_wrapped_lower():
     FortLineLength class'''
     fll = FortLineLength(line_length=30)
     output_file = fll.process(INPUT_FILE.lower())
-    print("("+EXPECTED_OUTPUT.lower()+")")
-    print("("+output_file+")")
     assert output_file == EXPECTED_OUTPUT.lower(), \
         "output and expected output differ "
 
@@ -156,7 +153,7 @@ def test_fail_to_wrap():
     ''' Tests that we raise an error if we can't find anywhere to wrap
     the line'''
     input_file = "!$OMPPARALLELDO"
-    with pytest.raises(Exception) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         fll = FortLineLength(line_length=len(input_file)-1)
         _ = fll.process(input_file)
     assert 'No suitable break point found' in str(excinfo.value)
@@ -229,8 +226,9 @@ def test_inline_comment():
     output = fll.process(input_code)
     if "long  \n!$ long long" not in output:
         pytest.xfail(
-            reason="TODO fparser/#468 - fparser.common.FortranReader "
-            "represents directives as Comments.")
+            reason="TODO https://github.com/stfc/fparser/issues/468- "
+            "fparser.common.FortranReader represents directives as "
+            "Comments.")
 
 
 def test_exception_line_too_long():
@@ -298,8 +296,6 @@ def test_edge_conditions_statements():
         "INTEGER &\n&INTEGER &\n&INTEGER\n")
     fll = FortLineLength(line_length=len("INTEGER INTEGER"))
     output_string = fll.process(input_string)
-    print(output_string)
-    print(expected_output)
     assert output_string == expected_output
 
 

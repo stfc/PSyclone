@@ -4,7 +4,6 @@
 # (https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE),
 # contains details of the terms under which the code may be used.
 ##############################################################################
-# Author: J. Henrichs, Bureau of Meteorology
 
 '''
 PSyclone transformation script for the LFRic API to apply
