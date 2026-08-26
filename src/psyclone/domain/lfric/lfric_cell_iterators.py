@@ -76,10 +76,10 @@ class LFRicCellIterators(LFRicCollection):
             Update the supplied symbol to be a dummy argument if `for_stub`
             is True.
             '''
-            if not for_stub:
-                return
-            symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
-            self.symtab.append_argument(symbol)
+            if for_stub:
+                symbol.interface = ArgumentInterface(
+                    ArgumentInterface.Access.READ)
+                self.symtab.append_argument(symbol)
 
         if kern.cma_operation not in ["apply", "matrix-matrix"]:
             first_arg: LFRicKernelArgument = (
@@ -104,8 +104,7 @@ class LFRicCellIterators(LFRicCollection):
             if arg.ndata and not arg.ndata.isnumeric():
                 sym = self.symtab.find_or_create_tag(
                     f"ndata_{arg.ndata}",
-                    # TODO - shouldn't be MeshHeightDataSymbol
-                    symbol_type=LFRicTypes("MeshHeightDataSymbol"))
+                    symbol_type=LFRicTypes("NumberOfValuesPerDofDataSymbol"))
                 if sym.name not in self._ndata_names:
                     self._ndata_names[sym.name] = arg
                     _update_arg_properties(sym)

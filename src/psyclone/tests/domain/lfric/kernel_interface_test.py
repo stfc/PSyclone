@@ -158,10 +158,9 @@ def test_mesh_height():
 
 
 def test_mesh_height_named_values():
-    """Test mesh_height handles named nlayers and ndata values by
-    creating the corresponding nlayers_<name> and ndata_<name> symbols and
-    adding them to the argument list only once even if repeated in the
-    metadata."""
+    """Test mesh_height handles named nlayers values by creating the
+    corresponding nlayers_<name> symbols and adding them to the argument list
+    only once even if repeated in the metadata."""
     _, invoke = get_invoke("1.5.6_single_invoke_nlayers_ndata.f90",
                            api="lfric", idx=0)
     kern = invoke.schedule.walk(LFRicKern)[0]
