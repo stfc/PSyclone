@@ -193,8 +193,8 @@ def test_ndata_named_values():
 
     # Named ndata value 'precip' should create ndata_precip
     ndata_precip = kernel_interface._symtab.lookup("ndata_precip")
-    assert isinstance(ndata_precip, LFRicTypes("MeshHeightDataSymbol"))
-    assert ndata_precip in kernel_interface._arglist
+    assert isinstance(ndata_precip,
+                      LFRicTypes("NumberOfValuesPerDofDataSymbol"))
     # Ensure it appears only once even if used multiple times
     assert kernel_interface._arglist.count(ndata_precip) == 1
 
