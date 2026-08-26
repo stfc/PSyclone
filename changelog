@@ -1,3 +1,6 @@
+   39) PR #3492. Improves the Dependence-Use-Chain handling of references
+   to unsupported types (since we can't guarantee the absence of aliasing).
+ 
    38) PR #3554 for #1590. Adds PSyIR support for complex types and complex
    literals.
 
