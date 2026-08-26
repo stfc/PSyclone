@@ -1,39 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-#         I. Kavcic, Met Office
-#         J. Henrichs, Bureau of Meteorology
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module contains the DataSymbol and its interfaces.'''
@@ -218,9 +187,10 @@ class DataSymbol(TypedSymbol):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import (
             Assignment, Node, Literal, Operation, Reference,
-            CodeBlock, IntrinsicCall, ArrayConstructor)
-        from psyclone.psyir.symbols.datatypes import (ScalarType, ArrayType,
-                                                      UnsupportedType)
+            CodeBlock, Call, ArrayConstructor, ComplexLiteral)
+        from psyclone.psyir.symbols.datatypes import (
+            ScalarType, ArrayType, UnsupportedType, DataTypeSymbol
+        )
 
         if new_value is not None:
             if self.is_argument:
@@ -229,24 +199,26 @@ class DataSymbol(TypedSymbol):
                     f"A DataSymbol with an ArgumentInterface can not have an "
                     f"initial value.")
             if not isinstance(self.datatype,
-                              (ScalarType, ArrayType, UnsupportedType)):
+                              (ScalarType, ArrayType,
+                               UnsupportedType, DataTypeSymbol)):
                 raise ValueError(
                     f"Error setting initial value for symbol '{self.name}'. "
-                    f"A DataSymbol with an initial value must be a scalar or "
-                    f"an array or of UnsupportedType but found "
-                    f"'{type(self.datatype).__name__}'.")
+                    f"A DataSymbol with an initial value must be a scalar, "
+                    f"an array, a DataTypeSymbol, or an UnsupportedType but "
+                    f"found '{type(self.datatype).__name__}'.")
 
             if isinstance(new_value, Node):
                 for node in new_value.walk(Node):
                     if not isinstance(node, (Literal, Operation, Reference,
-                                             CodeBlock, IntrinsicCall,
-                                             ArrayConstructor)):
+                                             CodeBlock, Call,
+                                             ArrayConstructor,
+                                             ComplexLiteral)):
                         raise ValueError(
                             f"Error setting initial value for symbol "
                             f"'{self.name}'. PSyIR static expressions can only"
                             f" contain PSyIR Literal, Operation, Reference,"
-                            f" IntrinsicCall or CodeBlock nodes but found: "
-                            f"{node}")
+                            f" Call, CodeBlock, ArrayConstructor, or"
+                            f" ComplexLiteral nodes but found: {node}")
                 new_initial_value = new_value
             else:
                 # No need to check that self.datatype has an intrinsic
@@ -317,10 +289,13 @@ class DataSymbol(TypedSymbol):
             new_init_value = self.initial_value.copy()
         else:
             new_init_value = None
-        if self.is_array:
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
+        if self.is_array or isinstance(self.datatype, UnsupportedFortranType):
             # Ensure any References in the shape definition of an ArrayType
-            # are also copied. They will still point to the
-            # same Symbols as the original.
+            # or in the partial datatype of an UnsupportedFortranType are also
+            # copied. They will still point to the same Symbols as the
+            # original.
             new_datatype = self.datatype.copy()
         else:
             new_datatype = self.datatype

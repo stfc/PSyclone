@@ -1,43 +1,14 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: S. Siso STFC Daresbury Lab
-# Modified by: J. Henrichs, Bureau of Meteorology
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module contains the SymbolInterface class and its subclasses. '''
 
 from enum import Enum
+from typing import Any
 
 # pylint: disable=too-few-public-methods
 
@@ -97,10 +68,43 @@ class UnknownInterface(SymbolInterface):
 
 class CommonBlockInterface(SymbolInterface):
     ''' A symbol declared in the local scope but acts as a global that
-    can be accessed by any scope referencing the same CommonBlock name.'''
+    can be accessed by any scope referencing the same CommonBlock name.
+
+    :param common_block_name: the name of the common block.
+
+    :raises TypeError: if the common_block_name is not a str
+    '''
+
+    def __init__(self, common_block_name: str):
+        super().__init__()
+        if not isinstance(common_block_name, str):
+            raise TypeError(
+                f"The common block name should be a valid string, but"
+                f" found '{type(common_block_name).__name__}'")
+        self._name = common_block_name
 
     def __str__(self):
-        return "CommonBlock"
+        return f"CommonBlock '{self._name}'"
+
+    def __eq__(self, other: Any) -> bool:
+        return (
+            super().__eq__(other) and
+            self._name.lower() == other.name.lower()
+        )
+
+    @property
+    def name(self) -> str:
+        '''
+        :returns: the name of the common block.
+
+        '''
+        return self._name
+
+    def copy(self) -> 'CommonBlockInterface':
+        '''
+        :returns: a copy of this object.
+        '''
+        return self.__class__(self._name)
 
 
 class UnresolvedInterface(SymbolInterface):

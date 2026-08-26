@@ -1,37 +1,9 @@
 .. -----------------------------------------------------------------------------
-   BSD 3-Clause License
-
-   Copyright (c) 2017-2026, Science and Technology Facilities Council.
-   All rights reserved.
-
-   Redistribution and use in source and binary forms, with or without
-   modification, are permitted provided that the following conditions are met:
-
-   * Redistributions of source code must retain the above copyright notice,
-     this list of conditions and the following disclaimer.
-
-   * Redistributions in binary form must reproduce the above copyright notice,
-     this list of conditions and the following disclaimer in the documentation
-     and/or other materials provided with the distribution.
-
-   * Neither the name of the copyright holder nor the names of its
-     contributors may be used to endorse or promote products derived from
-     this software without specific prior written permission.
-
-   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-   FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-   COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-   INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-   BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-   CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-   LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-   POSSIBILITY OF SUCH DAMAGE.
-   -----------------------------------------------------------------------------
-   Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+.. SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+..                         Facilities Council
+.. SPDX-License-Identifier: BSD-3-Clause
+.. See the full LICENSE file in the project root for details.
+.. -----------------------------------------------------------------------------
 
 
 PSyIR Frontend and Backends
@@ -346,7 +318,7 @@ The SIR back-end is limited in a number of ways:
   loops is supported. Imperfectly nested loops, doubly nested loops,
   etc will cause a ``VisitorError`` exception.
 - anything other than real arrays (integer, logical etc.) will cause
-  incorrect SIR code to be produced (see issue #468).
+  incorrect SIR code to be produced.
 - calls are not supported (and will cause a VisitorError exception).
 - loop bounds are not analysed so it is not possible to add in offset
   and loop ordering for the vertical. This also means that the ordering
@@ -392,9 +364,12 @@ it to its required dimensionality (so PSyIR local scalar variables are
 output as scalars by the Dawn back end even though they are specified
 as fields). A limitation of the current translation from PSyIR to SIR
 is that all PSyIR scalars are assumed to be local and all PSyIR arrays
-are assumed to be global, which may not be the case. This limitation
-is captured in issue #521.
+are assumed to be global, which may not be the case.
 
+.. warning::
+
+   SIR is no longer actively developed. PSyclone will keep the backend as
+   is for now, but the current limitations will not be addressed.
 
 .. _uplifting-lowering:
 
