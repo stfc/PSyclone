@@ -1,3 +1,6 @@
+   38) PR #3554 for #1590. Adds PSyIR support for complex types and complex
+   literals.
+
    37) PR #3567. Fixes some typos in the NEMO examples README and the nemo
    v5 workflow.
 
