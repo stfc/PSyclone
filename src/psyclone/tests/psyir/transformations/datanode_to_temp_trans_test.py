@@ -61,7 +61,7 @@ def test_datanodetotemptrans_validate(fortran_reader):
             assign.preceding_comment)
 
     code = """subroutine test
-        complex :: a, b
+        byte :: a, b
 
         b = a
     end subroutine test"""
