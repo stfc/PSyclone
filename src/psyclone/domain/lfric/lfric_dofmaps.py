@@ -198,6 +198,8 @@ class LFRicDofmaps(LFRicCollection):
 
         # Function space dofmaps
         for dmap in sorted(self._unique_fs_maps):
+            # TODO #2577 - once pointer assignments are supported then
+            # we can remove the use of UnsupportedFortranType here.
             dtype = UnsupportedFortranType(
                 f"{intrinsic_type.intrinsic.name.lower()}("
                 f"kind={intrinsic_type.precision.name}), pointer "
@@ -211,6 +213,8 @@ class LFRicDofmaps(LFRicCollection):
         # Column-banded dofmaps
         for dmap in sorted(self._unique_cbanded_maps):
             if dmap not in self.symtab:
+                # TODO #2577 - once pointer assignments are supported then
+                # we can remove the use of UnsupportedFortranType here.
                 dmap_sym = DataSymbol(
                     dmap, UnsupportedFortranType(
                         f"integer(kind=i_def), pointer :: {dmap}(:,:) "
@@ -223,6 +227,8 @@ class LFRicDofmaps(LFRicCollection):
         # CMA operator indirection dofmaps
         for dmap in sorted(self._unique_indirection_maps):
             if dmap not in self.symtab:
+                # TODO #2577 - once pointer assignments are supported then
+                # we can remove the use of UnsupportedFortranType here.
                 dmap_sym = DataSymbol(
                     dmap, UnsupportedFortranType(
                         f"integer(kind=i_def), pointer :: {dmap}(:) "
