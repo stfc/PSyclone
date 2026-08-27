@@ -5255,7 +5255,7 @@ class LFRicKernelArguments(Arguments):
     def __init__(self,
                  call: KernelCall,
                  parent_call: LFRicKern,
-                 check: Optional[bool] = True):
+                 check: bool = True):
         # pylint: disable=too-many-branches
         super().__init__(parent_call)
 
@@ -5601,7 +5601,7 @@ class LFRicKernelArgument(KernelArgument):
                  arg_meta_data: LFRicArgDescriptor,
                  arg_info: Arg,
                  call: LFRicKern,
-                 check: Optional[bool] = True):
+                 check: bool = True):
         # Keep a reference to LFRicKernelArguments object that contains
         # this argument. This permits us to manage name-mangling for
         # any-space function spaces.
