@@ -37,13 +37,13 @@ This file is intended to help future Copilot sessions (and other automated assis
 
 ## High-level architecture (big picture)
 
-- Purpose: PSyclone is a Python-based source-to-source Fortran tool that works with native Fortran code and implements a compiler-like architecture (frontend -> IR -> backend). It generates and optimises PSy-layer code from kernel-level Fortran sources. Transformations are applied to the intermediate representation (PSyIR). It implements the PSyKAl pattern (separation of Algorithm, PSy, Kernel).
+- Purpose: PSyclone is a Python-based source-to-source Fortran tool that works with native Fortran code and implements a compiler-like architecture (frontend -> IR -> backend). It can also operate as a Domain-specific language compiler where it generates and optimises PSy-layer code from kernel-level Fortran sources. Transformations are applied to the intermediate representation (PSyIR). In DSL compiler mode it implements the PSyKAl pattern (separation of Algorithm, PSy, Kernel).
 
 - Top-level layout (relevant):
   - src/psyclone/: main Python package
   - src/psyclone/psyir/: internal intermediate representation (PSyIR) used for analyses and transformations
   - src/psyclone/core, generator, psyGen, alg_gen, transformations: the core transformation and code-generation logic
-  - src/psyclone/domain/: domain-specific front-ends (lfric, gocean, nemo) and their domain rules
+  - src/psyclone/domain/: domain-specific front-ends (lfric, gocean) and their domain rules
   - bin/: CLI entrypoints (psyclone, psyclone-kern, psyad, psyclonefc)
   - examples/, tutorial/: transformation examples and notebooks used in CI (some require additional system deps)
 
@@ -60,7 +60,8 @@ This file is intended to help future Copilot sessions (and other automated assis
 - Source layout: packages live under src/ and are installed with `pip install .` or `pip install -e .`.
 
 - Tests: kept under `src/psyclone/tests/` and include both unit tests and doctests; CI runs `--doctest-modules`.
-  - CI uses pytest-xdist (`-n auto`) to run tests in parallel; locally you can omit `-n auto` if issues arise.
+  - CI uses pytest-xdist (`-n auto`) to run tests in parallel; locally you can omit `-n auto` if issues arise although this can be slow.
+  - Coverage is required to be 100%.
 
 - Linting: flake8 is configured in setup.cfg. Some files and directories are explicitly excluded there (e.g., external, build and a few tutorials/examples).
 
@@ -74,12 +75,14 @@ This file is intended to help future Copilot sessions (and other automated assis
 
 - CI environment notes: GitHub Actions test matrix covers several Python versions (3.9 and 3.14 in CI) and installs extras `[test,treesitter]` and sometimes `doc` extras for documentation jobs.
 
-- Examples & notebooks: example generation is driven by `make` targets in examples/ and tutorial/; CI runs these (sometimes silently) before running tests.
+- Examples & notebooks: example generation is driven by `make` targets in examples/ and tutorial/; CI runs these (sometimes silently) before running tests. For comprehensive testing, the 'compile' target to `make` should be used.
 
 ---
 
 ## When suggesting changes or helpers
 
+- All development should be performed on a feature branch with a descriptive name that begins
+  with the associated GitHub Issue number.
 - Keep changes small and surgical; many modules have doctests and tight lint rules.
 - If proposing test changes, include an example `pytest` command to run the new test locally (use the single-test examples above).
 - For changes touching parsing, mention whether `fparser` or `tree-sitter` is required and ensure tests are run with the appropriate extras installed.
