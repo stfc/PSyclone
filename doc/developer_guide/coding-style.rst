@@ -243,35 +243,25 @@ Some important details:
                                a capital letter, and end with a full stop.
          parameter description Start the parameter description with a lowercase 
                                letter and end with a full stop. The parameter type
-                               declaration must follow `PEP 483
-			       <https://peps.python.org/pep-0483/>`_ with no
-			       punctuation at the end. References to other
-                               classes within PSyclone should be written as
-                               ``:py:class:`psyclone.filename.Class```.
+                               hints must follow `PEP 484
+			       <https://peps.python.org/pep-0484/>`_ .
          return value          The description of the return value should start with
                                a lowercase letter, and end with a full stop. The type
-                               must follow `PEP 483
-			       <https://peps.python.org/pep-0483/>`_.
+                               must follow `PEP 484
+			       <https://peps.python.org/pep-0484/>`_.
          exceptions            These must start with a lower case letter, and end
                                with a full stop.
          ===================== ======================================================
 
 
-  #) If a parameter description, type, return value or exception is continued
-     to the next line, there must be a '\\\\' continuation symbol at the end of
-     each line. Align each continued line with the column at which the
-     description begins on the previous line. If this would create lines that
-     are too short then the first continued line may be indented less, e.g.::
+  #) If a parameter description, return value or exception is continued
+     to the next line, the next line should be indented, e.g.::
 
          '''
-         :param some_very_long_variable_name: this is some argument that has \
-		a very long name and therefore it does not make sense to indent \
-		continued lines to align with the start of the description.
+         :param some_very_long_variable_name: this is some argument that has
+		     a very long name and description that requires multiple lines of
+		     description.
 	 '''
-  #) If an argument type is a Python built-in (e.g. str, int or bool) then the
-     type can be specified in-line with the argument description. However, if it
-     is of a derived type then, for clarity, it should be specified in a
-     separate :type my_arg: line.
   #) The closing \\'\\'\\' of the interface description can be at the end of a
      text line if the overall description is short. Otherwise it should be on a
      separate line. An optional empty line between interface description and
