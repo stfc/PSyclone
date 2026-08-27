@@ -244,7 +244,7 @@ Some important details:
          parameter description Start the parameter description with a lowercase 
                                letter and end with a full stop. The parameter type
                                hints must follow `PEP 484
-			       <https://peps.python.org/pep-0484/>`_ .
+			       <https://peps.python.org/pep-0484/>`_. 
          return value          The description of the return value should start with
                                a lowercase letter, and end with a full stop. The type
                                must follow `PEP 484
@@ -257,21 +257,39 @@ Some important details:
   #) If a parameter description, return value or exception is continued
      to the next line, the next line should be indented, e.g.::
 
-         '''
-         :param some_very_long_variable_name: this is some argument that has
-		     a very long name and description that requires multiple lines of
-		     description.
-	 '''
-  #) The closing \\'\\'\\' of the interface description can be at the end of a
+        '''
+        :param some_very_long_variable_name: this is some argument that has
+            a very long name and description that requires multiple lines of
+            description.
+	'''
+
+  #) The closing \'\'\' of the interface description can be at the end of a
      text line if the overall description is short. Otherwise it should be on a
      separate line. An optional empty line between interface description and
      code should be included in the comment section.
 
-  #) Standard Python functions like `__str__` etc. need only be documented with a
+  #) Standard Python functions like ``__str__`` etc. need only be documented with a
      simple informal comment.
 
   #) Only document exceptions that are raised directly by a method, not exceptions
      that might be raised in base classes.
+
+  #) If a type hint refers to a class that is defined only after its use
+     in a given module, use ``from __future__ import annotations`` to ensure the
+     type hint is compatible with Python 3.9 (or other earlier version of Python
+     that PSyclone still supports).
+
+  #) If importing a class required for a type hint is not possible due to circular
+     imports then its import should be protected by a ``if TYPE_CHECKING:`` block,
+     and its actualy use should be put in double quotes, e.g.::
+
+        if TYPE_CHECKING:
+            from psyclone.somepath.class import SomeClass
+
+        def my_func(my_arg: "SomeClass") -> None:
+        ...
+
+
 
 File Names and Directory Layout
 ################################
