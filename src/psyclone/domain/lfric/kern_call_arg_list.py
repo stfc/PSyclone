@@ -425,7 +425,7 @@ class KernCallArgList(ArgOrdering):
             the information about variable accesses.
 
         '''
-        # The extent is not specified in the metadata so pass the value in
+        # The extent is not specified in the metadata so pass the value in.
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils

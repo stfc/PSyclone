@@ -5,23 +5,20 @@
 ! See the full LICENSE file in the project root for details.
 ! -----------------------------------------------------------------------------
 
-!> An LFRic algorithm which invokes several, different 'domain' kernels, each
-!! of which requires a different stencil type.
+!> An LFRic algorithm which invokes a 'domain' kernel with arguments
+!! with different stencil accesses.
 program invoke_test
   use testkern_domain_stencil_mod, only: testkern_domain_stencil_type
-  use testkern_domain_stencil_unknown_extent_mod, only: &
-       testkern_domain_stencil_unknown_extent_type
-  use testkern_domain_stencil_unknown_extent2d_mod, only: &
-       testkern_domain_stencil_unknown_extent2d_type
   use constants_mod, only: i_def, r_def
   use field_mod, only: field_type
   implicit none
   ! Declare minimal variables used in the invoke call
   type(field_type) :: a, b, c, d
-  integer(kind=i_def) :: b_extent
+  integer(kind=i_def) :: b_extent, c_extent, d_extent
 
-  call invoke( testkern_domain_stencil_type(a, b, b_extent, c), &
-       testkern_domain_stencil_unknown_extent_type(), &
-       testkern_domain_stencil_unknown_extent2d_type() )
+  call invoke( &
+       testkern_domain_stencil_type(a, b, b_extent,           &
+                                    c, c_direction, c_extent, &
+                                    d, d_extent) )
 
 end program invoke_test
