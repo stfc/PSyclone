@@ -54,10 +54,10 @@ export PSYCLONE_OPTS="-l output -s ${PSYCLONE_NEMO_EXAMPLES_DIR}/insert_loop_par
 ```
 
 This transformation script looks at the environment variable `PARALLEL_DIRECTIVES`
-to decide which directives to inject. Additionally the `REPRODUCIBLE` environemnt varaible
+to decide which directives to inject. Additionally the `REPRODUCIBLE` environment variable
 specifies if the parallelisation has to produce bit-reproducible results to the serial version.
 Both options have to be consistent with the flags used by the NEMO arch file, in our case these
-are set by the `FCFLAGS` environemnt variable.
+are set by the `FCFLAGS` environment variable.
 
 For example, using the `nvfortran` compiler, you can choose between:
 - Serial transformations with no parallel directives
@@ -72,7 +72,7 @@ export PARALLEL_DIRECTIVES="omp_threading"
 export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp"
 ```
 
-- Inserting OpenMP GPU offloading with bit-reporducible build flags
+- Inserting OpenMP GPU offloading with bit-reproducible build flags
 ```bash
 export PARALLEL_DIRECTIVES="omp_offloading"
 export FCFLAGS="-i4 -Mr8 -O2 -Mnofma -Mnovect -g -mp=gpu -gpu=mem:managed,math_uniform"
@@ -164,7 +164,7 @@ won't add directives yet. Check if the results still match.
 5) Build NEMO with `REPRODUCIBLE=1 PARALLEL_DIRECTIVES="omp_offloading" PSYCLONE_OPTS="-s insert_loop_parallelism.py"`
 
 <!---
-TODO #3445: Introduce/exlain file_by_file.sh scripts
+TODO #3445: Introduce/explain file_by_file.sh scripts
 Alongside finding which step is causing the divergence we may want to find
 which file/s are causing it. This folder also contains a `do_file_by_file.sh`
 script that build NEMO many times, each with only one file being transformed,
@@ -187,7 +187,7 @@ using the built-in `-e` flag to point to a directory with updated source files:
 
 2) If you want to modify the transformation itself (or skip it altogether in some
 files), you can edit the `insert_loop_parallelism.py` transformation script (and
-add files to `FILES_TO_SKIP` to bypass those file).
+add files to `FILES_TO_SKIP` to bypass those files).
 
 You can also do both. For example if you want to provide a modified file that
 already includes directives, you need to reference it with the `-e <path>`
