@@ -395,33 +395,45 @@ class ArgOrdering:
                     self.field(arg, var_accesses=var_accesses)
                 if arg.descriptor.stencil:
                     if not arg.descriptor.stencil['extent']:
-                        if arg.descriptor.stencil['type'] == "cross2d":
-                            # stencil extent is not provided in the
-                            # metadata so must be passed from the Algorithm
-                            # layer.
-                            self.stencil_2d_unknown_extent(
-                                arg, var_accesses=var_accesses)
-                            # Due to the nature of the stencil extent array
-                            # the max size of a stencil branch must be passed
-                            # from the Algorithm layer.
-                            self.stencil_2d_max_extent(
-                                arg, var_accesses=var_accesses)
+                        if self._kern.iterates_over == "domain":
+                            # Domain kernel: pass full arrays
+                            if arg.descriptor.stencil['type'] == "cross2d":
+                                self.stencil_2d_unknown_extent_domain(
+                                    arg, var_accesses=var_accesses)
+                                self.stencil_2d_max_extent_domain(
+                                    arg, var_accesses=var_accesses)
+                            else:
+                                self.stencil_unknown_extent_domain(
+                                    arg, var_accesses=var_accesses)
                         else:
-                            # stencil extent is not provided in the
-                            # metadata so must be passed from the Algorithm
-                            # layer.
-                            self.stencil_unknown_extent(
-                                arg, var_accesses=var_accesses)
+                            # Column kernel: pass indexed values
+                            if arg.descriptor.stencil['type'] == "cross2d":
+                                self.stencil_2d_unknown_extent(
+                                    arg, var_accesses=var_accesses)
+                                self.stencil_2d_max_extent(
+                                    arg, var_accesses=var_accesses)
+                            else:
+                                self.stencil_unknown_extent(
+                                    arg, var_accesses=var_accesses)
                     if arg.descriptor.stencil['type'] == "xory1d":
                         # if "xory1d is specified then the actual
                         # direction must be passed from the Algorithm layer.
                         self.stencil_unknown_direction(arg, var_accesses)
                     # stencil information that is always passed from the
                     # Algorithm layer.
-                    if arg.descriptor.stencil['type'] == "cross2d":
-                        self.stencil_2d(arg, var_accesses=var_accesses)
+                    if self._kern.iterates_over == "domain":
+                        # Domain kernel: pass full stencil DOF map arrays
+                        if arg.descriptor.stencil['type'] == "cross2d":
+                            self.stencil_2d_domain(
+                                arg, var_accesses=var_accesses)
+                        else:
+                            self.stencil_domain(arg, var_accesses=var_accesses)
                     else:
-                        self.stencil(arg, var_accesses=var_accesses)
+                        # Column kernel: pass indexed stencil DOF maps
+                        if arg.descriptor.stencil['type'] == "cross2d":
+                            self.stencil_2d(arg, var_accesses=var_accesses)
+                        else:
+                            self.stencil(arg, var_accesses=var_accesses)
             elif arg.argument_type == "gh_operator":
                 self.operator(arg, var_accesses=var_accesses)
             elif arg.argument_type == "gh_columnwise_operator":
