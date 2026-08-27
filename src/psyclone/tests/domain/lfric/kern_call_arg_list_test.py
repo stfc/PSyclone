@@ -338,7 +338,6 @@ def test_kerncallarglist_cross2d_stencil(fortran_writer):
 
     psy, _ = get_invoke("19.26_single_stencil_cross2d.f90", TEST_API,
                         dist_mem=False, idx=0)
-
     schedule = psy.invokes.invoke_list[0].schedule
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
@@ -350,6 +349,74 @@ def test_kerncallarglist_cross2d_stencil(fortran_writer):
         'ndf_w1', 'undf_w1', 'map_w1(:,cell)', 'ndf_w2', 'undf_w2',
         'map_w2(:,cell)', 'ndf_w3', 'undf_w3', 'map_w3(:,cell)'
     ]
+    check_psyir_results(create_arg_list, fortran_writer)
+
+
+def test_kerncallarglist_stencil_domain(fortran_writer):
+    """Check handling of stencils for a kernel that operates on the
+    entire domain. This should pass full stencil arrays rather than
+    column-indexed slices.
+    """
+    from fparser import api as fpapi
+    from psyclone.domain.lfric import LFRicKernMetadata
+    from psyclone.domain.lfric import LFRicKern
+
+    STENCIL_DOMAIN = '''
+module stencil_domain_mod
+  type, extends(kernel_type) :: stencil_domain_type
+     type(arg_type), meta_args(4) =                                 &
+          (/ arg_type(gh_field, gh_real, gh_readwrite, w3),         &
+             arg_type(gh_field, gh_real, gh_read, w3, stencil(cross2d)), &
+             arg_type(gh_field, gh_real, gh_read, w3),               &
+             arg_type(gh_field, gh_real, gh_read, w3)                &
+           /)
+     integer :: operates_on = domain
+   contains
+     procedure, nopass :: code => stencil_domain_code
+  end type stencil_domain_type
+contains
+  subroutine stencil_domain_code(a, b, b_st_size, b_max, b_st_dofmap, c, d)
+  end subroutine stencil_domain_code
+end module stencil_domain_mod
+'''
+    ast = fpapi.parse(STENCIL_DOMAIN, ignore_comments=False)
+    mdata = LFRicKernMetadata(ast, name="stencil_domain_type")
+    kernel = LFRicKern()
+    kernel.load_meta(mdata)
+
+    # Create the minimal set of tags in the kernel stub symbol table that
+    # KernCallArgList expects. Normally these are created by LFRicProxies
+    # when creating a full Invoke; for this metadata-only test add them
+    # manually.
+    from psyclone.domain.lfric.lfric_constants import LFRicConstants
+    from psyclone.psyir.symbols import DataSymbol, UnresolvedType
+    const = LFRicConstants()
+    for arg in kernel.arguments.args:
+        suffix = const.ARG_TYPE_SUFFIX_MAPPING.get(arg.argument_type, None)
+        if suffix:
+            tag = f"{arg.name}:{suffix}"
+            # Create a generic symbol for this tag if it doesn't exist.
+            try:
+                kernel._stub_symbol_table.lookup_with_tag(tag)
+            except KeyError:
+                kernel._stub_symbol_table.find_or_create_tag(
+                    tag, root_name=f"{arg.name}_{suffix}",
+                    symbol_type=DataSymbol,
+                    datatype=UnresolvedType())
+
+    create_arg_list = KernCallArgList(kernel)
+    # Use the kernel's stub symbol table so that tags created by
+    # LFRicKern.load_meta() are visible to the argument list builder.
+    create_arg_list._forced_symtab = kernel._stub_symbol_table
+    create_arg_list.generate()
+
+    # Expect full arrays: stencil size is 2D and dofmap is 4D/5D depending on
+    # implementation. We check substrings to avoid exact dimensionality
+    # differences.
+    arglist = create_arg_list._arglist
+    assert any('b_stencil_size' in item and ':' in item for item in arglist)
+    assert any('b_stencil_dofmap' in item and ':' in item for item in arglist)
+
     check_psyir_results(create_arg_list, fortran_writer)
 
 
