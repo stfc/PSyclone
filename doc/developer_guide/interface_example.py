@@ -8,6 +8,7 @@
 from typing import Union
 from psyclone.psyir.nodes import Node
 
+
 def some_function(filename: str, kernel_path: str,
                   node: Union[Node, None] = None) -> Node:
     '''The description starts with a capital letter and must have
