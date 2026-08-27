@@ -365,10 +365,11 @@ class ArgOrdering:
         if "halo" in self._kern.iterates_over:
             self.halo_depth(var_accesses=var_accesses)
 
+        domain_kern: bool = self._kern.iterates_over == "domain"
         # Pass the number of columns in the mesh if this kernel operates on
         # the 'domain' or has a CMA operator argument. For the former we
         # exclude halo columns.
-        if self._kern.iterates_over == "domain":
+        if domain_kern:
             self._mesh_ncell2d_no_halos(var_accesses=var_accesses)
 
         if self._kern.arguments.has_operator(op_type="gh_columnwise_operator"):
@@ -395,45 +396,27 @@ class ArgOrdering:
                     self.field(arg, var_accesses=var_accesses)
                 if arg.descriptor.stencil:
                     if not arg.descriptor.stencil['extent']:
-                        if self._kern.iterates_over == "domain":
-                            # Domain kernel: pass full arrays
-                            if arg.descriptor.stencil['type'] == "cross2d":
-                                self.stencil_2d_unknown_extent_domain(
-                                    arg, var_accesses=var_accesses)
-                                self.stencil_2d_max_extent_domain(
-                                    arg, var_accesses=var_accesses)
-                            else:
-                                self.stencil_unknown_extent_domain(
-                                    arg, var_accesses=var_accesses)
+                        # stencil extent is not provided in the metadata so
+                        # must be passed from the Algorithm layer.
+                        if arg.descriptor.stencil['type'] == "cross2d":
+                            self.stencil_2d_unknown_extent(
+                                arg, var_accesses=var_accesses)
+                            self.stencil_2d_max_extent(
+                                arg, var_accesses=var_accesses)
                         else:
-                            # Column kernel: pass indexed values
-                            if arg.descriptor.stencil['type'] == "cross2d":
-                                self.stencil_2d_unknown_extent(
-                                    arg, var_accesses=var_accesses)
-                                self.stencil_2d_max_extent(
-                                    arg, var_accesses=var_accesses)
-                            else:
-                                self.stencil_unknown_extent(
-                                    arg, var_accesses=var_accesses)
+                            # Not a cross2d stencil.
+                            self.stencil_unknown_extent(
+                                arg, var_accesses=var_accesses)
                     if arg.descriptor.stencil['type'] == "xory1d":
                         # if "xory1d is specified then the actual
                         # direction must be passed from the Algorithm layer.
                         self.stencil_unknown_direction(arg, var_accesses)
                     # stencil information that is always passed from the
                     # Algorithm layer.
-                    if self._kern.iterates_over == "domain":
-                        # Domain kernel: pass full stencil DOF map arrays
-                        if arg.descriptor.stencil['type'] == "cross2d":
-                            self.stencil_2d_domain(
-                                arg, var_accesses=var_accesses)
-                        else:
-                            self.stencil_domain(arg, var_accesses=var_accesses)
+                    if arg.descriptor.stencil['type'] == "cross2d":
+                        self.stencil_2d(arg, var_accesses=var_accesses)
                     else:
-                        # Column kernel: pass indexed stencil DOF maps
-                        if arg.descriptor.stencil['type'] == "cross2d":
-                            self.stencil_2d(arg, var_accesses=var_accesses)
-                        else:
-                            self.stencil(arg, var_accesses=var_accesses)
+                        self.stencil(arg, var_accesses=var_accesses)
             elif arg.argument_type == "gh_operator":
                 self.operator(arg, var_accesses=var_accesses)
             elif arg.argument_type == "gh_columnwise_operator":

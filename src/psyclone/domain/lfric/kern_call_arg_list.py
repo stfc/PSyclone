@@ -413,13 +413,14 @@ class KernCallArgList(ArgOrdering):
             self.psyir_append(Reference(sym))
 
     def stencil_unknown_extent(
-            self, arg, var_accesses: Optional[VariablesAccessMap] = None):
+            self,
+            arg: LFRicKernelArgument,
+            var_accesses: Optional[VariablesAccessMap] = None) -> None:
         '''Add stencil information to the argument list associated with the
         argument 'arg' if the extent is unknown. If supplied it also stores
         this access in var_accesses.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
         :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
 
@@ -429,11 +430,18 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         var_sym = LFRicStencils.dofmap_size_symbol(self._symtab, arg)
-        cell_name, cell_ref = self.cell_ref_name(var_accesses)
-        self.append_array_reference(var_sym.name, [cell_ref],
-                                    symbol=var_sym)
-        self.append(f"{var_sym.name}({cell_name})", var_accesses,
-                    var_access_name=var_sym.name)
+        if self._kern.iterates_over == "domain":
+            # Pass entire array, not indexed by cell (unlike column kernels)
+            self.append_array_reference(var_sym.name, [":"],
+                                        symbol=var_sym)
+            self.append(f"{var_sym.name}(:)", var_accesses,
+                        var_access_name=var_sym.name)
+        else:
+            cell_name, cell_ref = self.cell_ref_name(var_accesses)
+            self.append_array_reference(var_sym.name, [cell_ref],
+                                        symbol=var_sym)
+            self.append(f"{var_sym.name}({cell_name})", var_accesses,
+                        var_access_name=var_sym.name)
 
     def stencil_2d_unknown_extent(
             self, arg, var_accesses: Optional[VariablesAccessMap] = None):
@@ -452,10 +460,15 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         var_sym = LFRicStencils.dofmap_size_symbol(self._symtab, arg)
-        cell_name, cell_ref = self.cell_ref_name(var_accesses)
-        self.append_array_reference(var_sym.name, [":", cell_ref],
-                                    symbol=var_sym)
-        name = f"{var_sym.name}(:,{cell_name})"
+        if self._kern.iterates_over == "domain":
+            self.append_array_reference(var_sym.name, [":", ":"],
+                                        symbol=var_sym)
+            name = f"{var_sym.name}(:,:)"
+        else:
+            cell_name, cell_ref = self.cell_ref_name(var_accesses)
+            self.append_array_reference(var_sym.name, [":", cell_ref],
+                                        symbol=var_sym)
+            name = f"{var_sym.name}(:,{cell_name})"
         self.append(name, var_accesses, var_access_name=var_sym.name)
 
     def stencil_2d_max_extent(
@@ -519,11 +532,17 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         var_sym = LFRicStencils.dofmap_symbol(self._symtab, arg)
-        cell_name, cell_ref = self.cell_ref_name(var_accesses)
-        self.append_array_reference(var_sym.name, [":", ":", cell_ref],
-                                    symbol=var_sym)
-        self.append(f"{var_sym.name}(:,:,{cell_name})", var_accesses,
-                    var_access_name=var_sym.name)
+        if self._kern.iterates_over == "domain":
+            # Pass whole array for a domain kernel
+            self.append_array_reference(var_sym.name, [":", ":", ":"],
+                                        symbol=var_sym)
+            text = f"{var_sym.name}(:,:,:)"
+        else:
+            cell_name, cell_ref = self.cell_ref_name(var_accesses)
+            self.append_array_reference(var_sym.name, [":", ":", cell_ref],
+                                        symbol=var_sym)
+            text = f"{var_sym.name}(:,:,{cell_name})"
+        self.append(text, var_accesses, var_access_name=var_sym.name)
 
     def stencil_2d(
             self, arg, var_accesses: Optional[VariablesAccessMap] = None):
@@ -549,136 +568,18 @@ class KernCallArgList(ArgOrdering):
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         var_sym = LFRicStencils.dofmap_symbol(self._symtab, arg)
-        cell_name, cell_ref = self.cell_ref_name(var_accesses)
-        self.append_array_reference(var_sym.name,
-                                    [":", ":", ":", cell_ref],
-                                    symbol=var_sym)
-        name = f"{var_sym.name}(:,:,:,{cell_name})"
-        self.append(name, var_accesses, var_access_name=var_sym.name)
-
-    def stencil_unknown_extent_domain(
-            self, arg, var_accesses: Optional[VariablesAccessMap] = None):
-        '''Add stencil extent array to the argument list for a domain kernel.
-        For domain kernels, pass the full stencil extent array (not indexed
-        by cell). If supplied it also stores this access in var_accesses.
-
-        :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance to store
-            the information about variable accesses.
-
-        '''
-        # The extent is not specified in the metadata so pass the full array
-        # Import here to avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-        var_sym = LFRicStencils.dofmap_size_symbol(self._symtab, arg)
-        # Pass entire array, not indexed by cell (unlike column kernels)
-        self.append_array_reference(var_sym.name, [":", ":"],
-                                    symbol=var_sym)
-        self.append(f"{var_sym.name}(:,:)", var_accesses,
-                    var_access_name=var_sym.name)
-
-    def stencil_2d_unknown_extent_domain(
-            self, arg, var_accesses: Optional[VariablesAccessMap] = None):
-        '''Add 2D stencil extent array to the argument list for a domain
-        kernel. For domain kernels, pass the full stencil extent array
-        (not sliced by cell). If supplied it also stores this access in
-        var_accesses.
-
-        :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance to store
-            the information about variable accesses.
-
-        '''
-        # The extent is not specified in the metadata so pass the full array
-        # Import here to avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-        var_sym = LFRicStencils.dofmap_size_symbol(self._symtab, arg)
-        # Pass entire 3D array (:, :, :), not sliced by cell
-        self.append_array_reference(var_sym.name, [":", ":", ":"],
-                                    symbol=var_sym)
-        name = f"{var_sym.name}(:,:,:)"
-        self.append(name, var_accesses, var_access_name=var_sym.name)
-
-    def stencil_2d_max_extent_domain(
-            self, arg, var_accesses: Optional[VariablesAccessMap] = None):
-        '''Add maximum branch extent array for 2D stencil for domain kernel.
-        For domain kernels, pass the full max length array (not indexed by
-        cell). If supplied it also stores this access in var_accesses.
-
-        :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance to store
-            the information about variable accesses.
-
-        '''
-        # The maximum branch extent is not specified in the metadata so pass
-        # the full array in.
-        # Import here to avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-        # TODO #1915, this duplicates code in
-        # LFRicStencils.max_branch_length_name
-        unique_tag = LFRicStencils.stencil_unique_str(arg, "length")
-        root_name = arg.name + "_max_branch_length"
-
-        sym = self.append_integer_reference(root_name, tag=unique_tag)
-        self.append(sym.name, var_accesses)
-
-    def stencil_domain(self, arg,
-                       var_accesses: Optional[VariablesAccessMap] = None):
-        '''Add general stencil information for a domain kernel to the
-        argument list. For domain kernels, pass the full stencil DOF map
-        array (not indexed by cell). If supplied it also stores this access
-        in var_accesses.
-
-        :param arg: the meta-data description of the kernel argument with
-            which the stencil is associated.
-        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance to store
-            the information about variable accesses.
-
-        '''
-        # Add in stencil dofmap for domain kernel
-        # Import here to avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-        var_sym = LFRicStencils.dofmap_symbol(self._symtab, arg)
-        # Pass entire array, not indexed by cell
-        self.append_array_reference(var_sym.name, [":", ":", ":", ":"],
-                                    symbol=var_sym)
-        self.append(f"{var_sym.name}(:,:,:,:)", var_accesses,
-                    var_access_name=var_sym.name)
-
-    def stencil_2d_domain(self, arg,
-                          var_accesses: Optional[VariablesAccessMap] = None):
-        '''Add general 2D stencil information for a domain kernel to the
-        argument list. For domain kernels, pass the full stencil DOF map
-        array (not indexed by cell). If supplied it also stores this access
-        in var_accesses.
-
-        :param arg: the meta-data description of the kernel argument with
-            which the stencil is associated.
-        :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance to store
-            the information about variable accesses.
-
-        '''
-        # The stencil_2D differs from the stencil in that the direction
-        # of the branch is baked into the stencil_dofmap array.
-        # For domain kernels, pass the entire array (all cells in domain).
-        # Import here to avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
-        var_sym = LFRicStencils.dofmap_symbol(self._symtab, arg)
-        # Pass entire 5D array (:, :, :, :, :), not indexed by cell
-        self.append_array_reference(var_sym.name,
-                                    [":", ":", ":", ":", ":"],
-                                    symbol=var_sym)
-        name = f"{var_sym.name}(:,:,:,:,:)"
+        if self._kern.iterates_over == "domain":
+            # For a domain kernel we pass the whole array.
+            self.append_array_reference(var_sym.name,
+                                        [":", ":", ":", ":"],
+                                        symbol=var_sym)
+            name = f"{var_sym.name}(:,:,:,:)"
+        else:
+            cell_name, cell_ref = self.cell_ref_name(var_accesses)
+            self.append_array_reference(var_sym.name,
+                                        [":", ":", ":", cell_ref],
+                                        symbol=var_sym)
+            name = f"{var_sym.name}(:,:,:,{cell_name})"
         self.append(name, var_accesses, var_access_name=var_sym.name)
 
     def operator(self, arg, var_accesses: Optional[VariablesAccessMap] = None):
