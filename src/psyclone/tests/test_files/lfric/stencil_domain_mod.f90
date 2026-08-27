@@ -20,7 +20,8 @@ module stencil_domain_mod
 
 contains
 
-  subroutine stencil_domain_code(a, b, b_st_size, b_max, b_st_dofmap, c, d)
+  subroutine stencil_domain_code(nlayers, ncell_2d, &
+                                 a, b, b_st_size, b_max, b_st_dofmap, c, d)
     implicit none
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ncell_2d

@@ -10,6 +10,7 @@ kernel calls.
 '''
 
 import abc
+from typing import Optional, Union
 
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature, VariablesAccessMap
@@ -19,8 +20,9 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.metadata_to_arguments_rules import (
     MetadataToArgumentsRules)
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import ArrayReference, Reference
-from psyclone.psyir.symbols import DataSymbol, ArrayType, SymbolTable
+from psyclone.psyir.nodes import ArrayReference, Node, Reference
+from psyclone.psyir.symbols import (
+    ArrayType, DataSymbol, ScalarType, Symbol, SymbolTable)
 
 
 class ArgOrdering:
@@ -237,8 +239,12 @@ class ArgOrdering:
             ref = ArrayReference.create(symbol, indices)
         return ref
 
-    def append_array_reference(self, array_name, indices, intrinsic_type=None,
-                               tag=None, symbol=None):
+    def append_array_reference(self,
+                               array_name: str,
+                               indices: list[Union[str, Node]],
+                               intrinsic_type: Optional[ScalarType] = None,
+                               tag: Optional[str] = None,
+                               symbol: Optional[Symbol] = None) -> Symbol:
         # pylint: disable=too-many-arguments
         '''This function adds an array reference. If there is no symbol with
         the given tag, a new array symbol will be defined using the given
@@ -246,23 +252,16 @@ class ArgOrdering:
         be replaced. The created reference is added to the list of PSyIR
         expressions, and the symbol is returned to the user.
 
-        :param str array_name: the name and tag of the array.
-        :param indices: the indices to be used in the PSyIR reference. It \
+        :param array_name: the name and tag of the array.
+        :param indices: the indices to be used in the PSyIR reference. It
             must either be ":", or a PSyIR node.
-        :type indices: List[Union[str, py:class:`psyclone.psyir.nodes.Node`]]
         :param intrinsic_type: the intrinsic type of the array.
-        :type intrinsic_type: \
-            Optional[:py:class:`psyclone.psyir.symbols.datatypes.ScalarType`]
         :param tag: optional tag for the symbol.
-        :type tag: Optional[str]
         :param symbol: optional the symbol to use.
-        :type symbol: Optional[:py:class:`psyclone.psyir.symbols.Symbol`]
 
         :returns: the symbol used in the added reference.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-
         ref = self.get_array_reference(array_name, indices, intrinsic_type,
                                        tag=tag, symbol=symbol)
         self.psyir_append(ref)
@@ -365,11 +364,10 @@ class ArgOrdering:
         if "halo" in self._kern.iterates_over:
             self.halo_depth(var_accesses=var_accesses)
 
-        domain_kern: bool = self._kern.iterates_over == "domain"
         # Pass the number of columns in the mesh if this kernel operates on
         # the 'domain' or has a CMA operator argument. For the former we
         # exclude halo columns.
-        if domain_kern:
+        if self._kern.iterates_over == "domain":
             self._mesh_ncell2d_no_halos(var_accesses=var_accesses)
 
         if self._kern.arguments.has_operator(op_type="gh_columnwise_operator"):
@@ -396,15 +394,21 @@ class ArgOrdering:
                     self.field(arg, var_accesses=var_accesses)
                 if arg.descriptor.stencil:
                     if not arg.descriptor.stencil['extent']:
-                        # stencil extent is not provided in the metadata so
-                        # must be passed from the Algorithm layer.
                         if arg.descriptor.stencil['type'] == "cross2d":
+                            # stencil extent is not provided in the
+                            # metadata so must be passed from the Algorithm
+                            # layer.
                             self.stencil_2d_unknown_extent(
                                 arg, var_accesses=var_accesses)
+                            # Due to the nature of the stencil extent array
+                            # the max size of a stencil branch must be passed
+                            # from the Algorithm layer.
                             self.stencil_2d_max_extent(
                                 arg, var_accesses=var_accesses)
                         else:
-                            # Not a cross2d stencil.
+                            # stencil extent is not provided in the
+                            # metadata so must be passed from the Algorithm
+                            # layer.
                             self.stencil_unknown_extent(
                                 arg, var_accesses=var_accesses)
                     if arg.descriptor.stencil['type'] == "xory1d":
