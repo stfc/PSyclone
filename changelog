@@ -1,3 +1,6 @@
+   40) PR #3499 towards #2905. Moves lfric symbol creation into the
+   LFRicInvoke constructor.
+
    39) PR #3492. Improves the Dependence-Use-Chain handling of references
    to unsupported types (since we can't guarantee the absence of aliasing).
  
