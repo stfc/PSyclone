@@ -1,3 +1,6 @@
+   41) PR #3573. Improves Developer Guide description of coding style
+   and fixes a few incorrect type-hints.
+ 
    40) PR #3499 towards #2905. Moves lfric symbol creation into the
    LFRicInvoke constructor.
 
