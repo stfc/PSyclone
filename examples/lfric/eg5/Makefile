@@ -36,6 +36,9 @@
 
 include ../../common.mk
 
+OBJ = conservative_flux_kernel_mod.o subgrid_coeffs_kernel_mod.o jules_kernel_mod.o \
+alg_psy.o alg.o
+
 transform:
 	${PSYCLONE} -api lfric alg.f90
 
@@ -44,3 +47,6 @@ compile: transform
 
 run: compile
 	@echo "No run targets for lfric/eg5"
+
+${ALG_NAME}_psy.f90 ${ALG_NAME}.f90: ${ALG_NAME}.x90
+	${PSYCLONE} -api lfric -d ../code -opsy ${ALG_NAME}_psy.f90 -oalg ${ALG_NAME}.f90 $<

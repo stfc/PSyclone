@@ -39,7 +39,7 @@ module oned_conservative_flux_alg_mod
 
     use subgrid_coeffs_kernel_mod, only : subgrid_coeffs_kernel_type
     use conservative_flux_kernel_mod, only : conservative_flux_kernel_type
-
+    use jules_kernel_mod, only: jules_kernel_type
     implicit none
 
     integer(i_def),      intent(in)     :: direction
@@ -48,7 +48,9 @@ module oned_conservative_flux_alg_mod
     type(field_type),    intent(in)     :: rho_in
     type(field_type),    intent(in)     :: mass_flux
     integer(i_def),      intent(in)     :: mesh_id
-
+    integer(i_def) :: a1_stencil_length, a1_max_branch_length
+    integer(i_def) :: a2_stencil_length, a2_direction
+    integer(i_def) :: a3_stencil_length
     type( field_type ) :: a0, a1, a2
 
     type(function_space_type), pointer :: rho_fs   => null()
@@ -69,7 +71,10 @@ module oned_conservative_flux_alg_mod
                                       rho_in,transport_stencil_length,direction, &
                                       a0,transport_stencil_length,direction,     &
                                       a1,transport_stencil_length,direction,     &
-                                      a2,transport_stencil_length,direction)     &
+                                      a2,transport_stencil_length,direction),    &
+        jules_kernel_type(a0, a1, a1_stencil_length, a1_max_branch_length,       &
+                          a2, a2_stencil_length, a2_direction,                   &
+                          a3, a3_stencil_length)                                 &
                )
 
   end subroutine oned_conservative_flux_alg
