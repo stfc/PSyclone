@@ -48,10 +48,10 @@ module oned_conservative_flux_alg_mod
     type(field_type),    intent(in)     :: rho_in
     type(field_type),    intent(in)     :: mass_flux
     integer(i_def),      intent(in)     :: mesh_id
-    integer(i_def) :: a1_stencil_length, a1_max_branch_length
+    integer(i_def) :: a1_stencil_length
     integer(i_def) :: a2_stencil_length, a2_direction
     integer(i_def) :: a3_stencil_length
-    type( field_type ) :: a0, a1, a2
+    type( field_type ) :: a0, a1, a2, a3
 
     type(function_space_type), pointer :: rho_fs   => null()
 
@@ -62,6 +62,7 @@ module oned_conservative_flux_alg_mod
     a0 = field_type( vector_space = rho_fs )
     a1 = field_type( vector_space = rho_fs )
     a2 = field_type( vector_space = rho_fs )
+    a3 = field_type( vector_space = rho_fs )
 
     call invoke(                                                                 &
                                                                                  &
@@ -72,7 +73,7 @@ module oned_conservative_flux_alg_mod
                                       a0,transport_stencil_length,direction,     &
                                       a1,transport_stencil_length,direction,     &
                                       a2,transport_stencil_length,direction),    &
-        jules_kernel_type(a0, a1, a1_stencil_length, a1_max_branch_length,       &
+        jules_kernel_type(a0, a1, a1_stencil_length,                             &
                           a2, a2_stencil_length, a2_direction,                   &
                           a3, a3_stencil_length)                                 &
                )

@@ -34,19 +34,21 @@
 # Author: A. R. Porter, STFC Daresbury Laboratory
 # Modified J. Henrichs, Bureau of Meteorology
 
-include ../../common.mk
+include ../lfric_common.mk
 
 OBJ = conservative_flux_kernel_mod.o subgrid_coeffs_kernel_mod.o jules_kernel_mod.o \
 alg_psy.o alg.o
 
-transform:
-	${PSYCLONE} -api lfric alg.f90
+transform: alg_psy.f90
 
-compile: transform
-	@echo "No compilation supported for lfric/eg5"
+compile: transform ${LFRIC_LIB} ${OBJ}
+	${F90} ${F90FLAGS} -o will_not_run.exe ${OBJ} ${LDFLAGS}
 
 run: compile
 	@echo "No run targets for lfric/eg5"
 
-${ALG_NAME}_psy.f90 ${ALG_NAME}.f90: ${ALG_NAME}.x90
-	${PSYCLONE} -api lfric -d ../code -opsy ${ALG_NAME}_psy.f90 -oalg ${ALG_NAME}.f90 $<
+alg_psy.f90 alg.f90: alg.x90
+	${PSYCLONE} -api lfric -opsy alg_psy.f90 -oalg alg.f90 $<
+
+allclean: clean
+	make -C ${LFRIC_PATH} allclean
