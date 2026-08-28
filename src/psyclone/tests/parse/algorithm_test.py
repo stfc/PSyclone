@@ -768,12 +768,18 @@ def test_getkernel_noexpr(content):
 
 
 def test_getkernel_argerror(monkeypatch):
-    '''Test that the get_kernel function raises an exception if it does
-    not recognise the fparser2 parse tree for an argument.
+    '''Test that the get_kernel function raises an exception if there are no
+    arguments or if it does not recognise the fparser2 parse tree for an
+    argument.
 
     '''
     tree = Part_Ref("sub(dummy)")
     monkeypatch.setattr(tree, "items", ["sub", None])
+    with pytest.raises(ParseError) as excinfo:
+        _, _ = get_kernel(tree, "dummy.f90", None)
+    assert ("Kernel 'sub' is invoked without arguments in Algorithm file "
+            "'dummy.f90'" in str(excinfo.value))
+    monkeypatch.setattr(tree, "items", ["sub", "hello"])
     with pytest.raises(InternalError) as excinfo:
         _, _ = get_kernel(tree, "dummy.f90", None)
     assert "Unsupported argument structure " in str(excinfo.value)
