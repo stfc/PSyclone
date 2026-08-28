@@ -346,3 +346,119 @@ def test_codeblock_has_potential_control_flow_jump(fortran_reader):
     assert codeblocks[2].has_potential_control_flow_jump()
     # labelled statement
     assert codeblocks[3].has_potential_control_flow_jump()
+
+
+def test_fparser_codeblock_contains_goto_stmt(fortran_reader):
+    '''Test the contains_goto_stmt function works correctly for Fparser
+    codeblocks.'''
+    code = """subroutine test()
+    integer :: i
+    GOTO 1234
+    i = 1
+    write(*,*) "Hello"
+    1234 i = 3
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    codeblocks = psyir.walk(Fparser2CodeBlock)
+    assert codeblocks[0].contains_goto_stmt()
+    assert not codeblocks[1].contains_goto_stmt()
+
+
+def test_fparser_codeblock_contains_cycle_stmt(fortran_reader):
+    '''Test the contains_cycle_stmt function works correctly for Fparser
+    codeblocks.'''
+    code = """subroutine test()
+    integer :: i
+    do i = 1, 100
+        CYCLE
+    end do
+    i = 1
+    write(*,*) "Hello"
+    1234 i = 3
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    codeblocks = psyir.walk(Fparser2CodeBlock)
+    assert codeblocks[0].contains_cycle_stmt()
+    assert not codeblocks[1].contains_cycle_stmt()
+
+
+def test_fparser_codeblock_contains_exit_stmt(fortran_reader):
+    '''Test the contains_exit_stmt function works correctly for Fparser
+    codeblocks.'''
+    code = """subroutine test()
+    integer :: i
+    do i = 1, 100
+        EXIT
+    end do
+    i = 1
+    write(*,*) "Hello"
+    1234 i = 3
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    codeblocks = psyir.walk(Fparser2CodeBlock)
+    assert codeblocks[0].contains_exit_stmt()
+    assert not codeblocks[1].contains_exit_stmt()
+
+
+def test_treesitter_codeblock_contains_goto_stmt():
+    '''Test the contains_goto_stmt function works correctly for treesitter
+    codeblocks.'''
+    code = """subroutine test()
+    integer :: i
+    GOTO 1234
+    i = 1
+    write(*,*) "Hello"
+    1234 i = 3
+    end subroutine test"""
+    processor = FortranTreeSitterReader()
+    ptree = processor.generate_parse_tree_from_source(code)
+    psyir = processor.generate_psyir(ptree)
+    codeblocks = psyir.walk(TreeSitterCodeBlock)
+    with pytest.raises(NotImplementedError) as excinfo:
+        assert codeblocks[0].contains_goto_stmt()
+        assert not codeblocks[1].contains_goto_stmt()
+    assert "Treesitter support is incomplete." in str(excinfo.value)
+
+
+def test_treesitter_codeblock_contains_cycle_stmt():
+    '''Test the contains_cycle_stmt function works correctly for treesitter
+    codeblocks.'''
+    code = """subroutine test()
+    integer :: i
+    do i = 1, 100
+        CYCLE
+    end do
+    i = 1
+    write(*,*) "Hello"
+    1234 i = 3
+    end subroutine test"""
+    processor = FortranTreeSitterReader()
+    ptree = processor.generate_parse_tree_from_source(code)
+    psyir = processor.generate_psyir(ptree)
+    codeblocks = psyir.walk(TreeSitterCodeBlock)
+    with pytest.raises(NotImplementedError) as excinfo:
+        assert codeblocks[0].contains_cycle_stmt()
+        assert not codeblocks[1].contains_cycle_stmt()
+    assert "Treesitter support is incomplete." in str(excinfo.value)
+
+
+def test_treesitter_codeblock_contains_exit_stmt():
+    '''Test the contains_exit_stmt function works correctly for treesitter
+    codeblocks.'''
+    code = """subroutine test()
+    integer :: i
+    do i = 1, 100
+        CYCLE
+    end do
+    i = 1
+    write(*,*) "Hello"
+    1234 i = 3
+    end subroutine test"""
+    processor = FortranTreeSitterReader()
+    ptree = processor.generate_parse_tree_from_source(code)
+    psyir = processor.generate_psyir(ptree)
+    codeblocks = psyir.walk(TreeSitterCodeBlock)
+    with pytest.raises(NotImplementedError) as excinfo:
+        assert codeblocks[0].contains_exit_stmt()
+        assert not codeblocks[1].contains_exit_stmt()
+    assert "Treesitter support is incomplete." in str(excinfo.value)

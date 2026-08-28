@@ -8,6 +8,7 @@
 ''' This module contains the CodeBlock node implementation.'''
 
 from __future__ import annotations
+import abc
 import re
 from enum import Enum
 from typing import Optional, Any, Union
@@ -227,6 +228,24 @@ class CodeBlock(Statement, DataNode):
             return []
         raise NotImplementedError("Use appropriate CodeBlock subclass")
 
+    @abc.abstractmethod
+    def contains_goto_stmt(self) -> bool:
+        '''
+        :returns: whether the Codeblock contains a GOTO statement.
+        '''
+
+    @abc.abstractmethod
+    def contains_exit_stmt(self) -> bool:
+        '''
+        :returns: whether the Codeblock contains an EXIT statement.
+        '''
+
+    @abc.abstractmethod
+    def contains_cycle_stmt(self) -> bool:
+        '''
+        :returns: whether the Codeblock contains a CYCLE statement.
+        '''
+
 
 class Fparser2CodeBlock(CodeBlock):
     ''' The fparser2 implementation of CodeBlock. '''
@@ -387,6 +406,45 @@ class Fparser2CodeBlock(CodeBlock):
             output.extend(node.tofortran().split("\n"))
         return output
 
+    def contains_goto_stmt(self) -> bool:
+        '''
+        :returns: whether the Codeblock contains a GOTO statement.
+        '''
+        # Purposely inlined to lazily load this modules only when needed
+        # pylint: disable=import-outside-toplevel
+        from fparser.two import Fortran2003
+        from fparser.two.utils import walk
+        for node in self._parse_tree_nodes:
+            if walk(node, Fortran2003.Goto_Stmt):
+                return True
+        return False
+
+    def contains_exit_stmt(self) -> bool:
+        '''
+        :returns: whether the Codeblock contains an EXIT statement.
+        '''
+        # Purposely inlined to lazily load this modules only when needed
+        # pylint: disable=import-outside-toplevel
+        from fparser.two import Fortran2003
+        from fparser.two.utils import walk
+        for node in self._parse_tree_nodes:
+            if walk(node, Fortran2003.Exit_Stmt):
+                return True
+        return False
+
+    def contains_cycle_stmt(self) -> bool:
+        '''
+        :returns: whether the Codeblock contains a CYCLE statement.
+        '''
+        # Purposely inlined to lazily load this modules only when needed
+        # pylint: disable=import-outside-toplevel
+        from fparser.two import Fortran2003
+        from fparser.two.utils import walk
+        for node in self._parse_tree_nodes:
+            if walk(node, Fortran2003.Cycle_Stmt):
+                return True
+        return False
+
 
 class TreeSitterCodeBlock(CodeBlock):
     ''' The treesitter implementation of CodeBlock. '''
@@ -433,3 +491,30 @@ class TreeSitterCodeBlock(CodeBlock):
         '''
         # TODO #3083: Treesitter support is incomplete
         return []
+
+    def contains_goto_stmt(self) -> bool:
+        '''
+        :returns: whether the Codeblock contains a GOTO statement.
+
+        :raises NotImplementedError: when called.
+        '''
+        # TODO #3083: Treesitter support is incomplete
+        raise NotImplementedError("Treesitter support is incomplete.")
+
+    def contains_exit_stmt(self) -> bool:
+        '''
+        :returns: whether the Codeblock contains an EXIT statement.
+
+        :raises NotImplementedError: when called.
+        '''
+        # TODO #3083: Treesitter support is incomplete
+        raise NotImplementedError("Treesitter support is incomplete.")
+
+    def contains_cycle_stmt(self) -> bool:
+        '''
+        :returns: whether the Codeblock contains a CYCLE statement.
+
+        :raises NotImplementedError: when called.
+        '''
+        # TODO #3083: Treesitter support is incomplete
+        raise NotImplementedError("Treesitter support is incomplete.")
