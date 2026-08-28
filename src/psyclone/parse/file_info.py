@@ -72,7 +72,7 @@ class FileInfo:
     """
     def __init__(self,
                  filepath: str,
-                 cache_active: Optional[bool] = False,
+                 cache_active: bool = False,
                  cache_path: Optional[str] = None,
                  resolve_imports: Union[bool, Iterable[str]] = False
                  ):

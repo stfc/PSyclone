@@ -882,8 +882,8 @@ def code_transformation_mode(input_file: str,
                              keep_directives: bool,
                              keep_conditional_openmp_statements: bool,
                              kwargs_str: Optional[str] = None,
-                             free_form: Optional[bool] = True,
-                             line_length: Optional[str] = "off"):
+                             free_form: bool = True,
+                             line_length: str = "off"):
     '''
     Process the input_file with the transformations script specified in
     `script_name` and store it in the output_file.
