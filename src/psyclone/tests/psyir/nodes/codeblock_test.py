@@ -5,7 +5,7 @@
 # See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
-''' Performs py.test tests on the CodeBlock PSyIR node. '''
+""" Performs py.test tests on the CodeBlock PSyIR node. """
 
 import pytest
 
@@ -28,7 +28,7 @@ from psyclone.tests.utilities import min_version_3_10
 # treesitter.
 @min_version_3_10
 def test_codeblock_create():
-    ''' Check the create method of the Code Block class.'''
+    """ Check the create method of the Code Block class."""
 
     # The generic create works like a factory that creates the appropriate
     # CodeBlock subclass looking at the selected parser by default is fparser2
@@ -62,7 +62,7 @@ def test_codeblock_create():
 
 
 def test_codeblock_node_str():
-    ''' Check the node_str method of the Code Block class.'''
+    """ Check the node_str method of the Code Block class."""
     cblock = CodeBlock([], CodeBlock.Structure.EXPRESSION)
     coloredtext = colored("CodeBlock", CodeBlock._colour)
     output = cblock.node_str()
@@ -71,21 +71,21 @@ def test_codeblock_node_str():
 
 
 def test_codeblock_can_be_printed():
-    '''Test that a CodeBlock instance can always be printed (i.e. is
-    initialised fully)'''
+    """Test that a CodeBlock instance can always be printed (i.e. is
+    initialised fully)"""
     cblock = CodeBlock([], "dummy")
     assert "CodeBlock[" in str(cblock)
     assert "]" in str(cblock)
 
 
 def test_codeblock_constructor_and_getastnodes():
-    '''Test that the parse_tree_nodes method of a CodeBlock instance returns
+    """Test that the parse_tree_nodes method of a CodeBlock instance returns
     a copy of the list of nodes from the original AST that are associated with
     this code block.
 
     For simplicity we use a list of strings rather than an AST.
 
-    '''
+    """
     original = ["hello", "there"]
     cblock = Fparser2CodeBlock(original, CodeBlock.Structure.EXPRESSION)
     result = cblock.parse_tree_nodes
@@ -102,19 +102,19 @@ def test_codeblock_constructor_and_getastnodes():
 @pytest.mark.parametrize("structure", [CodeBlock.Structure.STATEMENT,
                                        CodeBlock.Structure.EXPRESSION])
 def test_codeblock_structure(structure):
-    '''Check that the structure property in the CodeBlock class is set to
+    """Check that the structure property in the CodeBlock class is set to
     the provided value.
 
-    '''
+    """
     cblock = CodeBlock([], structure)
     assert cblock.structure == structure
 
 
 def test_codeblock_children_validation():
-    '''Test that children added to CodeBlock are validated. CodeBlock does
+    """Test that children added to CodeBlock are validated. CodeBlock does
     not accept any children.
 
-    '''
+    """
     cblock = CodeBlock([], "dummy")
     with pytest.raises(GenerationError) as excinfo:
         cblock.addchild(CodeBlock([], "dummy2"))
@@ -123,9 +123,9 @@ def test_codeblock_children_validation():
 
 
 def test_abstract_methods():
-    ''' Test that the abstract methods of CodeBlock raise a NotImplementedError
+    """ Test that the abstract methods of CodeBlock raise a NotImplementedError
     (to simplify other tests they still work when there is no associated parse
-    tree) '''
+    tree) """
     # If there is no associated parse_tree, the methods return a falsy value
     cblock = CodeBlock([], "dummy")
     assert not cblock.get_symbol_names()
@@ -150,12 +150,12 @@ def test_abstract_methods():
 # treesitter.
 @min_version_3_10
 def test_codeblock_get_fortran_lines():
-    '''
+    """
     Test the get_fortran_lines method for fparser and treesiteer codeblocks.
 
     (These should be the same to guarantee identical outcomes with both
     frontends)
-    '''
+    """
     code = "\nsubroutine mytest\nend subroutine"
     tree = Fparser2Reader(free_form=True).generate_parse_tree_from_source(code)
     block = Fparser2CodeBlock(tree.children, CodeBlock.Structure.STATEMENT)
@@ -171,11 +171,11 @@ def test_codeblock_get_fortran_lines():
 
 
 def test_codeblock_get_symbol_names_and_representative_references(parser):
-    '''Test that the get_symbol_names methods returns the names of the symbols
+    """Test that the get_symbol_names methods returns the names of the symbols
     used inside the CodeBlock. This is slightly subtle as we have to avoid
     any labels and structure accessors names. Also check that this information
-    is used to create the appropriate symbols and representative references.'''
-    reader = FortranStringReader('''
+    is used to create the appropriate symbols and representative references."""
+    reader = FortranStringReader("""
     subroutine mytest
       myloop: DO i = 1, 10
         a = b + sqrt(c)
@@ -187,7 +187,7 @@ def test_codeblock_get_symbol_names_and_representative_references(parser):
           write(*,*) "hello"
         END IF myifblock
       END DO myloop
-    end subroutine mytest''')
+    end subroutine mytest""")
     prog = parser(reader)
     scope = Schedule()
     block = Fparser2CodeBlock(prog.children, CodeBlock.Structure.STATEMENT,
@@ -220,9 +220,9 @@ def test_codeblock_get_symbol_names_and_representative_references(parser):
 
 
 def test_codeblock_get_symbol_names_comments_and_directives():
-    '''
+    """
     Test that Codeblock.get_symbol_names returns any symbols in directives.
-    '''
+    """
     code = """
     subroutine mytest
     integer :: i, j, is
@@ -255,14 +255,14 @@ def test_codeblock_get_symbol_names_comments_and_directives():
 
 
 def test_codeblock_ref_accesses(parser):
-    '''Test that the reference_accesses() method works as expected.
+    """Test that the reference_accesses() method works as expected.
 
     TODO #2863 - accesses within a CodeBlock should really be marked as
     AccessType.UNKNOWN but are currently always READWRITE. Also, calls to
     Fortran intrinsics are not captured.
 
-    '''
-    reader = FortranStringReader('''
+    """
+    reader = FortranStringReader("""
     subroutine mytest
       that_is_true = .TRUE._bool_kind
       hello_str = char_kind_"hello"
@@ -278,7 +278,7 @@ def test_codeblock_ref_accesses(parser):
           write(*,*) "hello"
         END IF myifblock
       END DO myloop
-    end subroutine mytest''')
+    end subroutine mytest""")
     prog = parser(reader)
     block = Fparser2CodeBlock(
         prog.children, CodeBlock.Structure.STATEMENT)
@@ -301,24 +301,54 @@ def test_codeblock_ref_accesses(parser):
 
 
 def test_codeblock_equality(parser):
-    '''Test the __eq__ method of the Codeblock class.'''
-    reader = FortranStringReader('''
+    """Test the __eq__ method of the Codeblock class."""
+    reader = FortranStringReader("""
     subroutine mytest
         a = b + sqrt(c)
-    end subroutine mytest''')
+    end subroutine mytest""")
     prog = parser(reader)
     block = Fparser2CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
     block2 = Fparser2CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
     block3 = Fparser2CodeBlock(prog.children, CodeBlock.Structure.EXPRESSION)
     assert block == block2
     assert block != block3
-    reader = FortranStringReader('''
+    reader = FortranStringReader("""
     subroutine mytest
         a = b + c
-    end subroutine mytest''')
+    end subroutine mytest""")
     prog = parser(reader)
     block4 = Fparser2CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
     assert block != block4
+
+
+# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
+# treesitter.
+@min_version_3_10
+def test_is_singleton(fortran_reader):
+    """Tests the is_singleton method of the CodeBlock class"""
+
+    code = """subroutine test()
+    integer :: i
+    GOTO 1234
+    i = 3
+    write(*,*) "Hello"
+    STOP
+    end subroutine test"""
+
+    # Test for Fparser.
+    psyir = fortran_reader.psyir_from_source(code)
+    codeblocks = psyir.walk(Fparser2CodeBlock)
+    assert codeblocks[0].is_singleton()
+    assert not codeblocks[1].is_singleton()
+
+    # Test for TreeSitter
+    # TODO #3083: Treesitter support is incomplete so there is always
+    # only one CodeBlock at the moment
+    processor = FortranTreeSitterReader()
+    ptree = processor.generate_parse_tree_from_source(code)
+    psyir = processor.generate_psyir(ptree)
+    codeblocks = psyir.walk(TreeSitterCodeBlock)
+    assert codeblocks[0].is_singleton()
 
 
 def test_codeblock_has_potential_control_flow_jump(fortran_reader):
@@ -349,8 +379,8 @@ def test_codeblock_has_potential_control_flow_jump(fortran_reader):
 
 
 def test_fparser_codeblock_contains_goto_stmt(fortran_reader):
-    '''Test the contains_goto_stmt function works correctly for Fparser
-    codeblocks.'''
+    """Test the contains_goto_stmt function works correctly for Fparser
+    codeblocks."""
     code = """subroutine test()
     integer :: i
     GOTO 1234
@@ -365,8 +395,8 @@ def test_fparser_codeblock_contains_goto_stmt(fortran_reader):
 
 
 def test_fparser_codeblock_contains_cycle_stmt(fortran_reader):
-    '''Test the contains_cycle_stmt function works correctly for Fparser
-    codeblocks.'''
+    """Test the contains_cycle_stmt function works correctly for Fparser
+    codeblocks."""
     code = """subroutine test()
     integer :: i
     do i = 1, 100
@@ -383,8 +413,8 @@ def test_fparser_codeblock_contains_cycle_stmt(fortran_reader):
 
 
 def test_fparser_codeblock_contains_exit_stmt(fortran_reader):
-    '''Test the contains_exit_stmt function works correctly for Fparser
-    codeblocks.'''
+    """Test the contains_exit_stmt function works correctly for Fparser
+    codeblocks."""
     code = """subroutine test()
     integer :: i
     do i = 1, 100
@@ -400,12 +430,34 @@ def test_fparser_codeblock_contains_exit_stmt(fortran_reader):
     assert not codeblocks[1].contains_exit_stmt()
 
 
+def test_fparser_codeblock_contains_stop_stmt(fortran_reader):
+    """Test the contains_stop_stmt function works correctly for Fparser
+    codeblocks."""
+    code = """subroutine test()
+    integer :: i
+    if (i == 10) then
+        STOP 3
+    endif
+    if (i == 4) then
+        STOP
+    end if
+    i = 1
+    write(*,*) "Hello"
+    1234 i = 3
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    codeblocks = psyir.walk(Fparser2CodeBlock)
+    assert codeblocks[0].contains_stop_stmt()
+    assert codeblocks[1].contains_stop_stmt()
+    assert not codeblocks[2].contains_stop_stmt()
+
+
 # TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
 # treesitter.
 @min_version_3_10
 def test_treesitter_codeblock_contains_goto_stmt():
-    '''Test the contains_goto_stmt function works correctly for treesitter
-    codeblocks.'''
+    """Test the contains_goto_stmt function works correctly for treesitter
+    codeblocks."""
     code = """subroutine test()
     integer :: i
     GOTO 1234
@@ -427,8 +479,8 @@ def test_treesitter_codeblock_contains_goto_stmt():
 # treesitter.
 @min_version_3_10
 def test_treesitter_codeblock_contains_cycle_stmt():
-    '''Test the contains_cycle_stmt function works correctly for treesitter
-    codeblocks.'''
+    """Test the contains_cycle_stmt function works correctly for treesitter
+    codeblocks."""
     code = """subroutine test()
     integer :: i
     do i = 1, 100
@@ -452,8 +504,8 @@ def test_treesitter_codeblock_contains_cycle_stmt():
 # treesitter.
 @min_version_3_10
 def test_treesitter_codeblock_contains_exit_stmt():
-    '''Test the contains_exit_stmt function works correctly for treesitter
-    codeblocks.'''
+    """Test the contains_exit_stmt function works correctly for treesitter
+    codeblocks."""
     code = """subroutine test()
     integer :: i
     do i = 1, 100
@@ -470,4 +522,33 @@ def test_treesitter_codeblock_contains_exit_stmt():
     with pytest.raises(NotImplementedError) as excinfo:
         assert codeblocks[0].contains_exit_stmt()
         assert not codeblocks[1].contains_exit_stmt()
+    assert "Treesitter support is incomplete." in str(excinfo.value)
+
+
+# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
+# treesitter.
+@min_version_3_10
+def test_treesitter_codeblock_contains_stop_stmt(fortran_reader):
+    """Test the contains_stop_stmt function works correctly for treesitter
+    codeblocks."""
+    code = """subroutine test()
+    integer :: i
+    if (i == 10) then
+        STOP 3
+    endif
+    if (i == 4) then
+        STOP
+    end if
+    i = 1
+    write(*,*) "Hello"
+    1234 i = 3
+    end subroutine test"""
+    processor = FortranTreeSitterReader()
+    ptree = processor.generate_parse_tree_from_source(code)
+    psyir = processor.generate_psyir(ptree)
+    codeblocks = psyir.walk(TreeSitterCodeBlock)
+    with pytest.raises(NotImplementedError) as excinfo:
+        assert codeblocks[0].contains_stop_stmt()
+        assert codeblocks[1].contains_stop_stmt()
+        assert not codeblocks[2].contains_stop_stmt()
     assert "Treesitter support is incomplete." in str(excinfo.value)

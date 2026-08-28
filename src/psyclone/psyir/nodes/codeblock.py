@@ -246,6 +246,19 @@ class CodeBlock(Statement, DataNode):
         :returns: whether the Codeblock contains a CYCLE statement.
         '''
 
+    @abc.abstractmethod
+    def contains_stop_stmt(self) -> bool:
+        '''
+        :returns: whether the Codeblock contains a STOP statement.
+        '''
+
+    def is_singleton(self) -> bool:
+        '''
+        :returns: whether the Codeblock contains only a single node
+            in its parse tree list.
+        '''
+        return len(self._parse_tree_nodes) == 1
+
 
 class Fparser2CodeBlock(CodeBlock):
     ''' The fparser2 implementation of CodeBlock. '''
@@ -445,6 +458,20 @@ class Fparser2CodeBlock(CodeBlock):
                 return True
         return False
 
+    def contains_stop_stmt(self) -> bool:
+        '''
+        :returns: whether the Codeblock contains a STOP statement.
+        '''
+        # Purposely inlined to lazily load this modules only when needed
+        # pylint: disable=import-outside-toplevel
+        from fparser.two import Fortran2003, Fortran2008
+        from fparser.two.utils import walk
+        for node in self._parse_tree_nodes:
+            if walk(node, (Fortran2003.Stop_Stmt,
+                           Fortran2008.Error_Stop_Stmt)):
+                return True
+        return False
+
 
 class TreeSitterCodeBlock(CodeBlock):
     ''' The treesitter implementation of CodeBlock. '''
@@ -513,6 +540,15 @@ class TreeSitterCodeBlock(CodeBlock):
     def contains_cycle_stmt(self) -> bool:
         '''
         :returns: whether the Codeblock contains a CYCLE statement.
+
+        :raises NotImplementedError: when called.
+        '''
+        # TODO #3083: Treesitter support is incomplete
+        raise NotImplementedError("Treesitter support is incomplete.")
+
+    def contains_stop_stmt(self) -> bool:
+        '''
+        :returns: whether the Codeblock contains a STOP statement.
 
         :raises NotImplementedError: when called.
         '''
