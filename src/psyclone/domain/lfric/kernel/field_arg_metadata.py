@@ -51,7 +51,7 @@ class FieldArgMetadata(ScalarArgMetadata):
     def __init__(self, datatype: str, access: str, function_space: str,
                  stencil: Optional[str] = None,
                  nlevels: Optional[str] = None,
-                 ndata: Optional[str] = "1"):
+                 ndata: str = "1"):
         super().__init__(datatype, access)
         self.function_space = function_space
         self.stencil = stencil
