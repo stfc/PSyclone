@@ -400,6 +400,9 @@ def test_fparser_codeblock_contains_exit_stmt(fortran_reader):
     assert not codeblocks[1].contains_exit_stmt()
 
 
+# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
+# treesitter.
+@min_version_3_10
 def test_treesitter_codeblock_contains_goto_stmt():
     '''Test the contains_goto_stmt function works correctly for treesitter
     codeblocks.'''
@@ -420,6 +423,9 @@ def test_treesitter_codeblock_contains_goto_stmt():
     assert "Treesitter support is incomplete." in str(excinfo.value)
 
 
+# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
+# treesitter.
+@min_version_3_10
 def test_treesitter_codeblock_contains_cycle_stmt():
     '''Test the contains_cycle_stmt function works correctly for treesitter
     codeblocks.'''
@@ -442,6 +448,9 @@ def test_treesitter_codeblock_contains_cycle_stmt():
     assert "Treesitter support is incomplete." in str(excinfo.value)
 
 
+# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
+# treesitter.
+@min_version_3_10
 def test_treesitter_codeblock_contains_exit_stmt():
     '''Test the contains_exit_stmt function works correctly for treesitter
     codeblocks.'''
