@@ -307,7 +307,8 @@ that a Kernel performs a stencil operation on a field. Any such
 metadata must provide a stencil type. See the
 :ref:`lfric-api-meta-args` section for more details. The supported
 stencil types are ``X1D``, ``Y1D``, ``XORY1D``, ``CROSS``, ``CROSS2D`` or
-``REGION``.
+``REGION``. ``CROSS2D`` differs from ``CROSS`` in that its arms can be
+of varying lengths.
 
 If a stencil operation is specified by the Kernel metadata, the
 Algorithm layer must provide the ``extent`` of the stencil (the
@@ -1003,8 +1004,6 @@ on a ``CELL_COLUMN`` without CMA Operators. Specifically:
    :ref:`field vector <lfric-field-vector>` arguments are permitted.
 
 2) All fields must be on discontinuous function spaces.
-
-3) Stencil accesses are not permitted.
 
 .. _lfric-dof-kernel-rules:
 
@@ -2116,18 +2115,20 @@ conventions, are:
          extent 4 and kind ``i_def``) stencil-size argument with intent ``in``.
          This will supply the number of cells in the stencil or, in the case
          of the ``CROSS2D`` stencil, the number of cells in each branch of
-         the stencil.
+         the stencil. For a domain kernel, this argument will have a final
+	 dimension of ``ncells_2d``.
       2) If the stencil is of type ``CROSS2D`` then an ``integer`` of kind
          ``i_def`` and intent ``in`` for the max branch length is needed.
          This is used in defining the dimensions of the stencil dofmap array
          and is required due to the varying length of the branches of the
          stencil when used on planar meshes.
       3) Also needed is a stencil dofmap array of type ``integer``, kind
-         ``i_def`` and intent ``in`` in either 2 or 3 dimensions. For a
+         ``i_def`` and intent ``in`` in either 2, 3 or 4 dimensions. For a
          ``CROSS2D`` stencil the array needs dimensions of
-         (number-of-dofs-in-cell, max-branch-length, 4).
+         (number-of-dofs-in-cell, max-branch-length, 4 [, ``ncells_2d``]).
          All other stencils need dimensions of (number-of-dofs-in-cell,
-         stencil-size).
+         stencil-size [, ``ncells_2d``]). Stencils supplied to DOMAIN
+	 kernels will have the additional ``ncells_2d`` dimension.
       4) If the field entry stencil access is of type ``XORY1D`` then
          add an additional ``integer`` direction argument of kind
          ``i_def`` and with intent ``in``.
