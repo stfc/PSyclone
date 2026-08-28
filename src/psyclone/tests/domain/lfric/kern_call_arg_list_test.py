@@ -358,8 +358,6 @@ def test_kerncallarglist_stencil_domain(fortran_writer):
     """
     # Create a full Invoke so that LFRicProxies and LFRicStencils
     # create the symbols/tags that the argument-list builder expects.
-    from psyclone.tests.utilities import get_invoke
-
     src = "1948_stencil_domain_invoke.f90"
     psy, invoke = get_invoke(src, TEST_API, idx=0)
     schedule = invoke.schedule
@@ -371,7 +369,15 @@ def test_kerncallarglist_stencil_domain(fortran_writer):
     # Expect full arrays passed without using colons.
     arglist = create_arg_list._arglist
     assert 'b_stencil_size' in arglist
+    assert 'b_max_branch_length' in arglist
     assert 'b_stencil_dofmap' in arglist
+
+    assert 'c_stencil_size' in arglist
+    assert 'c_extent' in arglist
+    assert 'c_stencil_dofmap' in arglist
+
+    assert 'd_stencil_size' in arglist
+    assert 'd_stencil_dofmap' in arglist
 
     check_psyir_results(create_arg_list, fortran_writer)
 
