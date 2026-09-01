@@ -2115,20 +2115,18 @@ conventions, are:
          extent 4 and kind ``i_def``) stencil-size argument with intent ``in``.
          This will supply the number of cells in the stencil or, in the case
          of the ``CROSS2D`` stencil, the number of cells in each branch of
-         the stencil. For a domain kernel, this argument will have a final
-	 dimension of ``ncells_2d``.
+         the stencil.
       2) If the stencil is of type ``CROSS2D`` then an ``integer`` of kind
          ``i_def`` and intent ``in`` for the max branch length is needed.
          This is used in defining the dimensions of the stencil dofmap array
          and is required due to the varying length of the branches of the
          stencil when used on planar meshes.
       3) Also needed is a stencil dofmap array of type ``integer``, kind
-         ``i_def`` and intent ``in`` in either 2, 3 or 4 dimensions. For a
+         ``i_def`` and intent ``in`` in either 2 or 3 dimensions. For a
          ``CROSS2D`` stencil the array needs dimensions of
-         (number-of-dofs-in-cell, max-branch-length, 4 [, ``ncells_2d``]).
+         (number-of-dofs-in-cell, max-branch-length, 4).
          All other stencils need dimensions of (number-of-dofs-in-cell,
-         stencil-size [, ``ncells_2d``]). Stencils supplied to DOMAIN
-	 kernels will have the additional ``ncells_2d`` dimension.
+         stencil-size).
       4) If the field entry stencil access is of type ``XORY1D`` then
          add an additional ``integer`` direction argument of kind
          ``i_def`` and with intent ``in``.
@@ -2643,16 +2641,44 @@ arguments to inter-grid kernels are as follows:
 Rules for Domain Kernels
 ########################
 
-The rules for kernels that have ``operates_on = DOMAIN`` are almost
-identical to those for general-purpose kernels (described :ref:`above
+The rules for kernels that have ``operates_on = DOMAIN`` are very
+similar to those for general-purpose kernels (described :ref:`above
 <lfric-stub-generation-rules>`), allowing for the fact that they are
-not permitted any type of operator argument. The only difference is
-that, since the kernel operates on the whole domain, the number of
-columns in the mesh excluding those in the halo
-(``ncell_2d_no_halos``), must be passed in. This is provided as the
-second argument to the kernel (after ``nlayers``).
-``ncell_2d_no_halos`` is an ``integer`` of kind ``i_def`` with intent
-``in``.
+not permitted any type of operator argument. Since the kernel operates
+on the whole domain, the number of columns in the mesh excluding those
+in the halo (``ncell_2d_no_halos``), must be passed in. This is
+provided as the second argument to the kernel (after
+``nlayers``). ``ncell_2d_no_halos`` is an ``integer`` of kind
+``i_def`` with intent ``in``.
+
+The rules for providing stencil information are also slightly
+different due to the need to provide information for the whole mesh:
+
+  1) If a field entry has a stencil access then add a stencil-size
+     ``integer`` array argument with intent ``in`` and kind ``i_def``.
+     If the stencil is of type ``CROSS2D`` then this ``integer`` array is
+     of rank 2 with dimensions (4, ``ncells_2d_no_halos``). Otherwise it
+     is of rank 1 with dimension ``ncells_2d_no_halos``.
+     This will supply the number of cells in the stencil at each cell in
+     the domain, or, in the case of the ``CROSS2D`` stencil, the number of
+     cells in each branch of the stencil at each cell in the domain.
+  2) If the stencil is of type ``CROSS2D`` then an ``integer`` of kind
+     ``i_def`` and intent ``in`` for the maximum branch length is needed.
+     This is used in defining the dimensions of the stencil dofmap array
+     and is required due to the varying length of the branches of the
+     stencil when used on planar meshes.
+  3) Also needed is a stencil dofmap array of type ``integer``, kind
+     ``i_def`` and intent ``in`` in either 3 or 4 dimensions. For a
+     ``CROSS2D`` stencil the array needs dimensions of
+     (number-of-dofs-in-cell, max-branch-length, 4, ``ncells_2d_no_halos``).
+     All other stencils need dimensions of (number-of-dofs-in-cell,
+     stencil-size, ``ncells_2d_no_halos``).
+  4) If the field entry stencil access is of type ``XORY1D`` then
+     add an additional ``integer`` direction argument of kind
+     ``i_def`` and with intent ``in``.
+
+LFRic example ``eg5`` in the ``examples/lfric`` directory includes an invocation
+of a Domain kernel which has arguments with stencil accesses.
 
 Rules for DoF Kernels
 #####################
