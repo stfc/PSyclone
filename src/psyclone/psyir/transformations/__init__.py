@@ -116,8 +116,8 @@ from psyclone.psyir.transformations.move_trans import (
 # Metatransformations
 from psyclone.psyir.transformations.metatransformations.omp_cpu_routine_trans\
     import OMPCPURoutineTrans
-from psyclone.psyir.transformations.metatransformations.intrinsic2code_trans\
-    import Intrinsic2CodeTrans
+from psyclone.psyir.transformations.metatransformations.\
+    intrinsic2code_metatrans import Intrinsic2CodeMetaTrans
 
 # For AutoAPI documentation generation
 __all__ = [
@@ -175,5 +175,5 @@ __all__ = [
     "OMPCriticalTrans",
     "MaximalOMPParallelRegionTrans",
     "OMPParallelTrans",
-    "Intrinsic2CodeTrans",
+    "Intrinsic2CodeMetaTrans",
 ]

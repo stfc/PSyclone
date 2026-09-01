@@ -21,7 +21,7 @@ from psyclone.utils import transformation_documentation_wrapper
 
 
 @transformation_documentation_wrapper
-class Intrinsic2CodeTrans(Transformation):
+class Intrinsic2CodeMetaTrans(Transformation):
     '''This metatransformation applies any of the Intrinsic2Code
     transformations to the provided input. The available transformations are
     Maxval2LoopTrans, Sum2LoopTrans, Minval2LoopTrans, or Product2LoopTrans.
@@ -72,6 +72,6 @@ class Intrinsic2CodeTrans(Transformation):
 
         # If the intrinsic is one of the supported intrinsics then
         # apply the relevant transformation.
-        if node.intrinsic.name in Intrinsic2CodeTrans.intrinsic_to_trans:
-            Intrinsic2CodeTrans.intrinsic_to_trans[node.intrinsic.name]().\
+        if node.intrinsic.name in Intrinsic2CodeMetaTrans.intrinsic_to_trans:
+            Intrinsic2CodeMetaTrans.intrinsic_to_trans[node.intrinsic.name]().\
                 apply(node, **kwargs_dict[node.intrinsic.name])

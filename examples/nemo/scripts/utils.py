@@ -21,7 +21,7 @@ from psyclone.psyir.transformations import (
     HoistTrans, InlineTrans, ProfileTrans, OMPMinimiseSyncTrans,
     Reference2ArrayRangeTrans, ScalarisationTrans, IncreaseRankLoopArraysTrans,
     MaximalRegionTrans, TransformationError, DataNodeToTempTrans,
-    Intrinsic2CodeTrans)
+    Intrinsic2CodeMetaTrans)
 
 # USE statements to chase to gather additional symbol information.
 NEMO_MODULES_TO_IMPORT = [
@@ -186,7 +186,7 @@ def normalise_loops(
     if loopify_array_intrinsics:
         for intr in schedule.walk(IntrinsicCall):
             try:
-                Intrinsic2CodeTrans().apply(intr, verbose=True)
+                Intrinsic2CodeMetaTrans().apply(intr, verbose=True)
             except TransformationError as err:
                 print(err.value)
 
