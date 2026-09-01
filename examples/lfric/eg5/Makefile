@@ -39,7 +39,7 @@ include ../lfric_common.mk
 OBJ = conservative_flux_kernel_mod.o subgrid_coeffs_kernel_mod.o jules_kernel_mod.o \
 alg_psy.o alg.o
 
-GENERATED_FILES = ${OBJ} alg_psy.f90 alg.f90 *.mod
+GENERATED_FILES = ${OBJ} alg_psy.f90 alg.f90 *.mod will_not_run.exe
 
 transform: alg_psy.f90
 
