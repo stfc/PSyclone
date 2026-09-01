@@ -950,7 +950,7 @@ def test_config_flag():
         file references in the environment variable.
     '''
     filename = str(LFRIC_BASE_PATH / "1_single_invoke.f90")
-    config_path = Path(get_base_path("lfric")) / ".." / "dummy_config.cfg"
+    config_path = LFRIC_BASE_PATH.parent / "dummy_config.cfg"
     # Test with no option
     Config._HAS_CONFIG_BEEN_INITIALISED = False
     main([filename, "-api", "lfric"])
