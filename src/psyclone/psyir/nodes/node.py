@@ -1844,7 +1844,5 @@ class Node():
 
 
 # For automatic documentation generation
-# TODO #913 the 'colored' routine shouldn't be in this module.
-__all__ = ["colored",
-           "ChildrenList",
+__all__ = ["ChildrenList",
            "Node"]
