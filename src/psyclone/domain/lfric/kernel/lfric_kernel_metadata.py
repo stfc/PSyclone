@@ -9,6 +9,7 @@
 kernel-layer-specific class that captures the LFRic kernel metadata.
 
 '''
+from __future__ import annotations
 import inspect
 
 from fparser.two import Fortran2003
