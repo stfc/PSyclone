@@ -31,11 +31,11 @@ module testkern_domain_stencil_mod
 
 contains
 
-  subroutine testkern_domain_stencil_code(     &
-       nlayers, ncell_2d, a,                   &
-       b, b_st_size, b_max, b_st_dofmap,       &
-       c, c_st_size, c_direction, c_st_dofmap, &
-       d, d_st_size, d_st_dofmap,              &
+  subroutine testkern_domain_stencil_code(          &
+       nlayers, ncell_2d, a,                        &
+       b, b_st_size, b_max_branch_len, b_st_dofmap, &
+       c, c_st_size, c_direction, c_st_dofmap,      &
+       d, d_st_size, d_st_dofmap,                   &
        ndf_w3, undf_w3, map_w3)
     implicit none
     integer(kind=i_def), intent(in) :: nlayers
@@ -47,10 +47,15 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_w3, ncell_2d) :: map_w3
     real(kind=r_def), intent(inout) :: a(:)
     real(kind=r_def), intent(in) :: b(:)
-    integer(kind=i_def), intent(in) :: b_st_size(:,:,:)
-    integer(kind=i_def), intent(in) :: b_max
-    integer(kind=i_def), intent(in) :: b_st_dofmap(:,:,:,:,:)
-    real(kind=r_def), intent(in) :: c(:)
+    integer(kind=i_def), intent(in) :: b_st_size(4, ncell_2d)
+    integer(kind=i_def), intent(in) :: b_max_branch_len
+    integer(kind=i_def), intent(in) :: b_st_dofmap(ndf_w3,b_max_branch_len,4,ncell_2d)
+    real(kind=r_def),    intent(in) :: c(:)
+    integer(kind=i_def), intent(in) :: c_st_size(ncell_2d)
+    integer(kind=i_def), intent(in) :: c_st_dofmap(ndf_w3,4,ncell_2d)
+    real(kind=r_def),    intent(in) :: d(:)
+    integer(kind=i_def), intent(in) :: d_st_size(ncell_2d)
+    integer(kind=i_def), intent(in) :: d_st_dofmap(ndf_w3,4,ncell_2d)
   end subroutine testkern_domain_stencil_code
 
 end module testkern_domain_stencil_mod

@@ -7,7 +7,7 @@
 
 module testkern_domain_mod
 
-  use argument_mod,      only: arg_type, GH_FIELD, GH_REAL, &
+  use argument_mod,      only: arg_type, GH_FIELD, GH_SCALAR, GH_REAL, &
                                GH_READ, GH_READWRITE, DOMAIN
   use fs_continuity_mod, only: W3
   use kernel_mod,        only: kernel_type
