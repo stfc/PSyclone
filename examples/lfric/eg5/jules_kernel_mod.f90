@@ -43,18 +43,18 @@ contains
     integer(kind=i_def), intent(in) :: ndf_w3
     integer(kind=i_def), intent(in) :: undf_w3
     integer(kind=i_def), intent(in) :: c_direction
-    integer(kind=i_def), intent(in), dimension(ndf_w3, ncell_2d) :: map_w3
-    real(kind=r_def), intent(inout) :: a(:)
-    real(kind=r_def), intent(in) :: b(:)
+    integer(kind=i_def), intent(in) :: map_w3(ndf_w3, ncell_2d)
+    real(kind=r_def),    intent(inout) :: a(:)
+    real(kind=r_def),    intent(in) :: b(:)
     integer(kind=i_def), intent(in) :: b_st_size(4, ncell_2d)
     integer(kind=i_def), intent(in) :: b_max_branch_len
-    integer(kind=i_def), intent(in) :: b_st_dofmap(:,:,:,:)
-    real(kind=r_def), intent(in) :: c(:)
+    integer(kind=i_def), intent(in) :: b_st_dofmap(ndf_w3,b_max_branch_len,4,ncell_2d)
+    real(kind=r_def),    intent(in) :: c(:)
     integer(kind=i_def), intent(in) :: c_st_size(ncell_2d)
-    integer(kind=i_def), intent(in) :: c_st_dofmap(:,:,:)
-    real(kind=r_def), intent(in) :: d(:)
+    integer(kind=i_def), intent(in) :: c_st_dofmap(ndf_w3,4,ncell_2d)
+    real(kind=r_def),    intent(in) :: d(:)
     integer(kind=i_def), intent(in) :: d_st_size(ncell_2d)
-    integer(kind=i_def), intent(in) :: d_st_dofmap(:,:,:)
+    integer(kind=i_def), intent(in) :: d_st_dofmap(ndf_w3,4,ncell_2d)
   end subroutine jules_kernel_code
 
 end module jules_kernel_mod
