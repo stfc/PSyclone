@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors A. B. G. Chalk, STFC Daresbury Lab
-# Modified B. Went, Met Office
 
 '''This module contains the tests for the MaximalRegionTrans.'''
 
@@ -91,7 +62,7 @@ def test_can_be_in_region(fortran_reader, statement, expected):
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     trans = MaxParTrans()
-    assert trans._can_be_in_region(routine.children[0]) == expected
+    assert trans._can_be_in_region(routine.children[0], []) == expected
 
 
 def test_validate(fortran_reader):
@@ -451,3 +422,45 @@ def test_full_region_doesnt_meet_minimum_rules_compute_transformable_section(
     rval = mtrans._compute_transformable_sections(routine.children[:],
                                                   TestTrans(), {})
     assert len(rval) == 0
+
+
+def test_satisfies_minimum_region_rules_failure(fortran_reader,
+                                                fortran_writer):
+    '''Tests that the _satisfies_minimum_region_rules returns False when
+    none of the _required_nodes are in the region, but True if there are any
+    present.'''
+
+    # Create a MaximalRegionTrans that allows any nodes, but requires at
+    # least one Assignment.
+    class MinRuleTrans(MaximalRegionTrans):
+        ''' Dummy class to test MaxParallelRegionTrans' functionality. '''
+        # The apply function will do OMPParallelTrans around allowed regions.
+        _transformation = OMPParallelTrans
+        _SUB_TRANSFORMATIONS = [OMPParallelTrans]
+        # Any node is allowed.
+        _allowed_contiguous_statements = (Node, )
+        # Should parallelise any found region that contains an assignment.
+        _required_nodes = (Assignment, )
+
+    code = """subroutine test
+    integer :: i, j, k
+
+    if (i == 1) then
+        print *, i
+    else
+        print *, j
+    end if
+    do i = 1, 100
+       print *, j
+    end do
+    k = 3
+    end subroutine test
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    trans = MinRuleTrans()
+
+    # The IfBlock + Loop don't meet the _required_nodes check.
+    assert not trans._satisfies_minimum_region_rules(routine.children[0:2])
+    # All children together do meet the _required_nodes check.
+    assert trans._satisfies_minimum_region_rules(routine.children[:])

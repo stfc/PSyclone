@@ -1,42 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified: I. Kavcic, A. Coughtrie, O. Brunt and L. Turner, Met Office
-#          C.M. Maynard, Met Office / University of Reading
-# Modified: J. Henrichs, Bureau of Meteorology
-# Modified: A. B. G. Chalk, STFC Daresbury Lab
-#           J. Dendy, Met Office
 
 ''' Tests of transformations with the LFRic API '''
 
@@ -6574,7 +6541,7 @@ mesh%get_last_halo_cell_all_colours_all_tiles()""" in code
             "ndf_w2, undf_w2, map_w2(:,tmap(colour,tile,cell)), ndf_w3, "
             "undf_w3, map_w3(:,tmap(colour,tile,cell)))" in code)
 
-    # TODO #2623: To compile it needs an up-to-date lfric infrastructure with
+    # TODO #3540: To compile it needs an up-to-date lfric infrastructure with
     # the new tile-colouring methods
     # assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6667,7 +6634,7 @@ def test_colour_trans_tiled_intergrid(dist_mem):
         "ndf_w1, undf_w1, map_w1, undf_w2, "
         "map_w2(:,tmap_fld_m(colour,tile,cell)))\n" in gen)
 
-    # TODO #2623: To compile it needs an up-to-date lfric infrastructure with
+    # TODO #3540: To compile it needs an up-to-date lfric infrastructure with
     # the new tile-colouring methods
     # assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6710,7 +6677,7 @@ def test_colour_trans_tiled_continuous_writer_intergrid(dist_mem):
             "(colour,tile), 1" in result)
     assert ("call restrict_w2_code(nlayers_field1, cell_map_field1(:,:,"
             "tmap_field1(colour,tile,cell))" in result)
-    # TODO #2623: To compile it needs an up-to-date lfric infrastructure with
+    # TODO #3540: To compile it needs an up-to-date lfric infrastructure with
     # the new tile-colouring methods
     # assert LFRicBuild(tmpdir).code_compiles(psy)
 

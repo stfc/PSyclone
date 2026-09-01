@@ -1,40 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
-# Modified by A. R. Porter and S. Siso, STFC Daresbury Lab,
-# Modified by A. B. G. Chalk, STFC Daresbury Lab
-# Modified by J. Remy, Université Grenoble Alpes, Inria
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclone.psyir.backend.fortran module'''
@@ -55,7 +23,7 @@ from psyclone.psyir.nodes import (
     Schedule, Routine, Return, FileContainer, IfBlock, OMPTaskloopDirective,
     OMPMasterDirective, OMPParallelDirective, Loop, OMPNumTasksClause,
     OMPDependClause, IntrinsicCall, OMPReductionClause, UnknownDirective,
-    ArrayConstructor)
+    ArrayConstructor, ComplexLiteral)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ContainerSymbol, DataSymbol, GenericInterfaceSymbol,
     ImportInterface, RoutineSymbol, StaticInterface, Symbol, SymbolTable,
@@ -168,6 +136,10 @@ def test_gen_datatype_default_precision(fortran_writer, type_name, result):
     [(ScalarType.Intrinsic.REAL, ScalarType.Precision.SINGLE, "real"),
      (ScalarType.Intrinsic.REAL, ScalarType.Precision.DOUBLE,
       "double precision"),
+     (ScalarType.Intrinsic.COMPLEX, ScalarType.Precision.SINGLE,
+      "complex"),
+     (ScalarType.Intrinsic.COMPLEX, ScalarType.Precision.DOUBLE,
+      "double complex"),
      (ScalarType.Intrinsic.INTEGER, ScalarType.Precision.SINGLE, "integer"),
      (ScalarType.Intrinsic.CHARACTER, ScalarType.Precision.SINGLE,
       "character(len=1)"),
@@ -1892,6 +1864,51 @@ def test_fw_literal_node(fortran_writer):
     lit1 = Literal("hello", my_type)
     result = fortran_writer(lit1)
     assert result == "1_'hello'"
+
+
+def test_fw_complexliteral_node(fortran_reader, fortran_writer):
+    ''' Test the PSyIR complex literals are converted to the proper Fortran
+    format when necessary. '''
+    lit1 = Literal("1.0", ScalarType(ScalarType.Intrinsic.REAL,
+                                     ScalarType.Precision.UNDEFINED))
+    lit2 = Literal("2.0", ScalarType(ScalarType.Intrinsic.REAL,
+                                     ScalarType.Precision.UNDEFINED))
+    lit = ComplexLiteral.create(lit1, lit2)
+    result = fortran_writer(lit)
+    assert result == "(1.0, 2.0)"
+
+    # Test that complex literals containing integer literals get
+    # rendered correctly
+    code = '''
+subroutine foo()
+  complex(4) :: c
+  c = (1.0_8, 2)
+  c = (1_8, 2)
+end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    ass = psyir.walk(Assignment)[0]
+    assert fortran_writer(ass.rhs) == "(1.0_8, 2)"
+    assert isinstance(ass.rhs, ComplexLiteral)
+    assert isinstance(ass.rhs.re_part.datatype, ScalarType)
+    assert ass.rhs.re_part.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert ass.rhs.re_part.datatype.precision == 8
+    ass = psyir.walk(Assignment)[1]
+    assert fortran_writer(ass.rhs) == "(1_8, 2)"
+    assert isinstance(ass.rhs, ComplexLiteral)
+    assert isinstance(ass.rhs.re_part.datatype, ScalarType)
+    assert ass.rhs.re_part.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert ass.rhs.re_part.datatype.precision == 8
+
+
+def test_fw_complex_int_kind(fortran_reader, fortran_writer):
+    ''' Test that a complex type with integer precision is correctly
+    rendered. '''
+    code = '''
+subroutine foo()
+  complex*4 :: c
+end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert "complex*4 :: c" in fortran_writer(psyir)
 
 
 def test_fw_call_node(fortran_writer):

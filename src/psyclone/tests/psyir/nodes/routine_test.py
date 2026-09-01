@@ -1,40 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified: S. Siso, STFC Daresbury Lab
-# Modified: J. Henrichs, Bureau of Meteorology
-# Modified: A. B. G. Chalk, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module contains the pytest tests for the Routine class. '''
@@ -62,6 +30,10 @@ def test_routine_constructor():
     with pytest.raises(TypeError) as err:
         Routine(symbol, is_program=1)
     assert "'is_program' must be a bool" in str(err.value)
+    with pytest.raises(TypeError) as err:
+        Routine(symbol, is_recursive="maybe")
+    assert ("is_recursive for a Routine must be a bool or None but got "
+            "'str'" in str(err.value))
     node = Routine(symbol)
     assert node.name == "hello"
     assert isinstance(node._symbol, RoutineSymbol)
@@ -74,6 +46,7 @@ def test_routine_properties():
     assert node1.dag_name == "routine_hello_0"
     assert node1.return_symbol is None
     assert node1.is_program is False
+    assert node1.is_recursive is None
     assert node1.name == "hello"
     # Give the Routine a child to get full coverage of __str__ method
     node1.addchild(Assignment())
@@ -84,6 +57,17 @@ def test_routine_properties():
 
     node3 = Routine.create("gutentag", is_program=True)
     assert node3.is_program
+
+    node3.is_recursive = True
+    assert node3.is_recursive is True
+    node3.is_recursive = False
+    assert node3.is_recursive is False
+    node3.is_recursive = None
+    assert node3.is_recursive is None
+    with pytest.raises(TypeError) as err:
+        node3.is_recursive = "true"
+    assert ("is_recursive for a Routine must be a bool or None but got "
+            "'str'" in str(err.value))
 
     with pytest.raises(TypeError) as excinfo:
         node3.symbol = "123"
@@ -207,12 +191,13 @@ def test_routine_create():
     cntr = Container("my_mod")
     kschedule = Routine.create("mod_name", symbol_table, [assignment],
                                is_program=True, return_symbol_name=symbol.name,
-                               parent=cntr)
+                               parent=cntr, is_recursive=True)
     assert isinstance(kschedule, Routine)
     check_links(kschedule, [assignment])
     assert kschedule.symbol_table is symbol_table
     assert symbol_table.node is kschedule
     assert kschedule.is_program
+    assert kschedule.is_recursive is True
     assert kschedule.return_symbol is symbol
     assert kschedule.parent is cntr
 
@@ -240,6 +225,10 @@ def test_routine_equality(monkeypatch):
     ksched2._symbol_table = symbol_table
     ksched2.return_symbol = symbol
     assert ksched1 == ksched2
+
+    # Test non-equality if the recursive-hint status differs.
+    ksched2.is_recursive = True
+    assert ksched1 != ksched2
 
     # Test non-equality if different names.
     assignment2.detach()
@@ -278,6 +267,8 @@ def test_routine_copy():
     symbol = DataSymbol("my_result", ScalarType.real_type())
     routine.symbol_table.add(symbol)
     routine.return_symbol = symbol
+    routine._is_program = True
+    routine.is_recursive = True
 
     # After a copy the symbol tables are separate and the return symbol
     # references a internal copy of the symbol
@@ -286,6 +277,8 @@ def test_routine_copy():
     assert routine2.symbol_table.node is routine2
     assert routine2.return_symbol in routine2.symbol_table.symbols
     assert routine2.return_symbol not in routine.symbol_table.symbols
+    assert routine2.is_recursive
+    assert routine2.is_program
 
 
 def test_routine_copy_in_container(fortran_reader):
@@ -387,7 +380,7 @@ def test_routine_update_parent_symbol_table_illegal_parent(fortran_reader):
     # Need a CodeBlock routine
     code = '''module my_mod
     contains
-        recursive subroutine routine()
+        module subroutine routine()
         end subroutine routine
     end module my_mod'''
     psyir = fortran_reader.psyir_from_source(code)

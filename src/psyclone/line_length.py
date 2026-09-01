@@ -1,43 +1,15 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors: A. B. G. Chalk, R. Ford, A. R. Porter, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Provides support for breaking long fortran lines into smaller ones
 to allow the code to conform to the maximum line length limits (132
 for f90 free format is the default)'''
 
+from typing import Union
 import re
 
 from fparser.common.readfortran import Comment, FortranStringReader
@@ -46,7 +18,8 @@ from fparser.common.sourceinfo import FortranFormat
 from psyclone.errors import InternalError
 
 
-def find_break_point(line: str, max_index: int, key_list: list[str]) -> int:
+def find_break_point(line: str, max_index: int,
+                     key_list: list[Union[str, re.Pattern]]) -> int:
     ''' Finds the most appropriate line break point for the Fortran code in
     line.
 
@@ -67,10 +40,20 @@ def find_break_point(line: str, max_index: int, key_list: list[str]) -> int:
     # We should never break the line before the first element on the
     # line.
     first_non_whitespace = len(line) - len(line.lstrip())
+
+    search_string = line[first_non_whitespace+1:max_index]
     for key in key_list:
-        idx = line.rfind(key, first_non_whitespace+1, max_index)
-        if idx > 0:
-            return idx+len(key)
+        # Find all of the matches to the key.
+        if isinstance(key, re.Pattern):
+            matches = re.findall(key, search_string)
+        else:
+            # If the key is a string, we use re.escape to ensure no issues
+            # with unmatched special characters.
+            matches = re.findall(re.escape(key), search_string)
+        if matches:
+            # Find the position of the last match using rfind.
+            idx = line.rfind(matches[-1], first_non_whitespace+1, max_index)
+            return idx+len(matches[-1])
     raise InternalError(
         f"Error in find_break_point. No suitable break point found"
         f" for line '{line[:max_index]}' and keys '{str(key_list)}'")
@@ -103,7 +86,8 @@ class FortLineLength():
         One known situation that could cause an instance of the
         :class:`line_length.FortLineLength` class to fail is when an *inline*
         comment at the end of a line containing a *directive* takes it over
-        the 132-character limit. (TODO fparser/#468)
+        the 132-character limit.
+        (TODO https://github.com/stfc/fparser/issues/468)
 
     '''
     # pylint: disable=too-many-instance-attributes
@@ -122,7 +106,15 @@ class FortLineLength():
         self._key_lists = {"statement": [", ", ",", " "],
                            "openmp_directive": [" ", ",", ")", "="],
                            "openacc_directive": [" ", ",", ")", "="],
-                           "comment": [" ", ".", ","],
+                           "comment": [" ", ".", ",",
+                                       # Comments should never fail, so
+                                       # we have backups of increasing
+                                       # desperation.
+                                       re.compile(r"[+-\\/\"'`]"),
+                                       re.compile(r"[a-zA-Z0-9]"),
+                                       # Finally anything is ok.
+                                       re.compile(r"(.)")
+                                       ],
                            "unknown": [" ", ",", "=", "+", ")"]}
         self._stat = re.compile(r'^\s*(INTEGER|REAL|TYPE|CALL|SUBROUTINE|USE)',
                                 flags=re.I)
@@ -193,7 +185,8 @@ class FortLineLength():
                     fline = freader.next()
                     # This won't work for a directive with an in-line comment
                     # as FortranStringReader returns a single Comment object
-                    # for the whole thing (TODO fparser/#468).
+                    # for the whole thing:
+                    # (TODO https://github.com/stfc/fparser/issues/468).
                     if ((break_point - indent_size) > len(fline.line) and
                             isinstance(freader.next(), Comment)):
                         # Breakpoint is inside a comment so change the chars

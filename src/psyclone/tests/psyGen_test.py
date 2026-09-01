@@ -1,39 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified: I. Kavcic, L. Turner, O. Brunt and J. G. Wallwork, Met Office
-# Modified: A. B. G. Chalk, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the psyGen module '''
@@ -57,7 +26,6 @@ from psyclone.domain.lfric import (lfric_builtins,
                                    LFRicKern, LFRicKernMetadata)
 from psyclone.domain.lfric.transformations import (
     LFRicLoopFuseTrans, LFRicRedundantComputationTrans)
-from psyclone.lfric import LFRicKernelArguments
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.generator import generate
 from psyclone.gocean1p0 import GOKern
@@ -68,9 +36,9 @@ from psyclone.psyGen import (TransInfo, PSyFactory,
                              InvokeSchedule)
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
                                   Literal, Loop, Node, KernelSchedule, Call,
-                                  colored, Schedule)
+                                  colored, Reference, Schedule)
 from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, ScalarType,
-                                    ImportInterface, ContainerSymbol, Symbol,
+                                    ImportInterface, ContainerSymbol,
                                     UnresolvedType, SymbolTable)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.test_files import dummy_transformations
@@ -776,28 +744,6 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.children[0].loop_body[0]
 
-    # TODO 1010: LFRic still needs psy.gen to create symbols. But these must
-    # eventually be created automatically before the gen() call, for now we
-    # manually create the symbols that appear in the PSyIR tree.
-    schedule.symbol_table.add(Symbol("f1_proxy"))
-    schedule.symbol_table.add(Symbol("f2_proxy"))
-    schedule.symbol_table.add(Symbol("m1_proxy"))
-    schedule.symbol_table.add(Symbol("m2_proxy"))
-    schedule.symbol_table.add(Symbol("ndf_w1"))
-    schedule.symbol_table.add(Symbol("undf_w1"))
-    schedule.symbol_table.add(Symbol("map_w1"))
-    schedule.symbol_table.add(Symbol("ndf_w2"))
-    schedule.symbol_table.add(Symbol("undf_w2"))
-    schedule.symbol_table.add(Symbol("map_w2"))
-    schedule.symbol_table.add(Symbol("ndf_w3"))
-    schedule.symbol_table.add(Symbol("undf_w3"))
-    schedule.symbol_table.add(Symbol("map_w3"))
-
-    # TODO #1085 LFRic Arguments do not have a translation to PSyIR
-    # yet, we monkeypatch a dummy expression for now:
-    monkeypatch.setattr(LFRicKernelArguments, "psyir_expressions",
-                        lambda x: [Literal("1", ScalarType.integer_type())])
-
     # In DSL-level it is a CodedKern with no children
     assert isinstance(kern, CodedKern)
     assert len(kern.children) == 0
@@ -812,7 +758,7 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     assert isinstance(call, Call)
     assert call.routine.name == 'testkern_code'
     assert len(call.arguments) == number_of_arguments
-    assert isinstance(call.arguments[0], Literal)
+    assert isinstance(call.arguments[0], Reference)
 
     # A RoutineSymbol and the ContainerSymbol from where it is imported are
     # in the symbol table

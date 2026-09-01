@@ -46,7 +46,7 @@ F90FLAGS += -ffree-line-length-none
 # (res_dot_product) did not exist in the original code and is a by-product
 # of psyad replacing a dot_product intrinsic with equivalent code. This and
 # all other local variables will not need to be specified on the command line
-# once issue #1556 has been addressed.
+# once issue #1595 has been addressed.
 ACTIVE_VAR_LIST ?= r_u exner theta moist_dyn_gas moist_dyn_tot moist_dyn_fac grad_term theta_v_e theta_v_at_quad grad_theta_v_at_quad exner_e exner_at_quad res_dot_product
 # PSyAD arguments that specify which (if any) of the arguments described in
 # the kernel metadata contain geometric information that must not be modified
@@ -81,18 +81,8 @@ psy.f90 ${HARNESS_F90_FILE}: ${HARNESS_X90_FILE} ${ADJ_KERNEL_F90_FILE}
 ${ADJ_KERNEL_X90_FILE} ${HARNESS_X90_FILE}: ${TL_KERNEL_FILE}
 	$(PSYAD) -api lfric $< -otest ${HARNESS_X90_FILE} -oad ${ADJ_KERNEL_X90_FILE} ${GEOMETRY_VAR_LIST} -a ${ACTIVE_VAR_LIST}
 
-# Currently PSyAD does not update the kernel metadata (issue #1453)
-# so we do that manually here. We have to allow for the case where
-# the kernel contains multiple implementations (for mixed precision).
-#
-# WARNING: the metadata may still be incorrect as we do not change
-# the ACCESS properties of the arguments.
-# TODO #1772.
 ${ADJ_KERNEL_F90_FILE}: ${ADJ_KERNEL_X90_FILE}
-	sed -e 's/PROCEDURE, NOPASS :: ${TL_PROC_NAME}/PROCEDURE, NOPASS :: ${ADJ_PROC_NAME}/' -e 's/:: ${TL_KERNEL_TYPE}/:: ${ADJ_KERNEL_TYPE}/' \
--e 's/interface ${TL_PROC_NAME}/interface ${ADJ_PROC_NAME}/' \
--e 's/module procedure ${TL_PROC_NAME}.*\w/&_adj/' \
--e 's/public :: ${TL_PROC_NAME}$$/public :: ${ADJ_PROC_NAME}/' $< > $@
+	cp $< $@
 
 compile:
 	@echo No compilation supported: the generated Algorithm must be called from within an LFRic mini-app.
