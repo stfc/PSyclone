@@ -36,7 +36,8 @@ from psyclone.psyGen import (TransInfo, PSyFactory,
                              InvokeSchedule)
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
                                   Literal, Loop, Node, KernelSchedule, Call,
-                                  colored, Reference, Schedule)
+                                  Reference, Schedule)
+from psyclone.utils import colored
 from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, ScalarType,
                                     ImportInterface, ContainerSymbol,
                                     UnresolvedType, SymbolTable)

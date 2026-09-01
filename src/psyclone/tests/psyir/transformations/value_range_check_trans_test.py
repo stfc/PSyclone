@@ -12,9 +12,10 @@ import pytest
 
 
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import colored, Node, ValueRangeCheckNode, Schedule
+from psyclone.psyir.nodes import Node, ValueRangeCheckNode, Schedule
 from psyclone.psyir.transformations import (ValueRangeCheckTrans,
                                             TransformationError)
+from psyclone.utils import colored
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import OMPParallelLoopTrans
 

@@ -11,7 +11,8 @@
 import pytest
 
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import colored, Node, ReadOnlyVerifyNode, Schedule
+from psyclone.psyir.nodes import Node, ReadOnlyVerifyNode, Schedule
+from psyclone.utils import colored
 from psyclone.psyir.transformations import (ReadOnlyVerifyTrans,
                                             TransformationError)
 from psyclone.tests.utilities import get_invoke

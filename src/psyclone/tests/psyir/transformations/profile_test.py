@@ -16,8 +16,9 @@ from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.profiler import Profiler
 from psyclone.psyir.nodes import (
-    colored, ProfileNode, Loop, Literal, Assignment, Return, Reference,
+    ProfileNode, Loop, Literal, Assignment, Return, Reference,
     OMPDoDirective, KernelSchedule, Routine, Schedule)
+from psyclone.utils import colored
 from psyclone.psyir.symbols import (
     SymbolTable, DataSymbol, ScalarType)
 from psyclone.psyir.transformations import (
