@@ -7,6 +7,7 @@
 
 ''' Provides LFRic-specific PSyclone adjoint test-harness functionality. '''
 
+from typing import Optional
 from fparser import api as fpapi
 
 from psyclone.core import AccessType
@@ -23,7 +24,7 @@ from psyclone.psyad.domain.common.adjoint_utils import (
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     IntrinsicCall, Reference, ArrayReference, Assignment,
-    Literal, BinaryOperation, Routine, IfBlock)
+    Literal, BinaryOperation, Routine, IfBlock, Container)
 from psyclone.psyir.symbols import (
     ImportInterface, ContainerSymbol, ScalarType, ArrayType, RoutineSymbol,
     DataTypeSymbol, DataSymbol, UnresolvedType)
@@ -492,32 +493,33 @@ def _lfric_log_write(sym_table, kernel, var1, var2):
     return statements
 
 
-def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
-                                   panel_id_arg_idx=None,
-                                   test_name="adjoint_test"):
+def generate_lfric_adjoint_harness(
+    tl_psyir: Container,
+    coord_arg_idx: Optional[int] = None,
+    panel_id_arg_idx: Optional[int] = None,
+    test_name: str = "adjoint_test"
+) -> Container:
     '''
     Constructs and returns the PSyIR for a Container and Routine that
     implements a test harness for the adjoint of the supplied tangent-linear
     kernel. The base name to use for the Container and Routine is given by
     the test_name argument.
 
-    :param tl_psyir: the PSyIR of an LFRic module defining a \
+    :param tl_psyir: the PSyIR of an LFRic module defining a
                      tangent-linear kernel.
-    :type tl_psyir: :py:class:`psyclone.psyir.nodes.Container`
-    :param Optional[int] coord_arg_idx: 1-indexed position of the coordinate \
+    :param coord_arg_idx: 1-indexed position of the coordinate
         field in the list of arguments in the kernel metadata (if present).
-    :param Optional[int] panel_id_arg_idx: 1-indexed position of the panel-id \
+    :param panel_id_arg_idx: 1-indexed position of the panel-id
         field in the list of arguments in the kernel metadata (if present).
-    :param Optional[str] test_name: Name of the adjoint test algorithm \
+    :param test_name: Name of the adjoint test algorithm
         (if present).
 
-    :returns: PSyIR of an Algorithm that tests the adjoint of the supplied \
+    :returns: PSyIR of an Algorithm that tests the adjoint of the supplied
               LFRic TL kernel.
-    :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
-    :raises ValueError: if the supplied PSyIR does not have a Container (that \
+    :raises ValueError: if the supplied PSyIR does not have a Container (that
         is *not* a FileContainer).
-    :raises ValueError: if the name of the Container (module) in the supplied \
+    :raises ValueError: if the name of the Container (module) in the supplied
         PSyIR does not follow the LFRic naming convention of ending in '_mod'.
 
     '''

@@ -23,25 +23,26 @@ from psyclone.domain.lfric.utils import (
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad import AdjointVisitor
 from psyclone.psyad.domain.common import create_adjoint_name
-from psyclone.psyir.nodes import Routine
+from psyclone.psyir.nodes import Routine, Node
 from psyclone.psyir.symbols import ContainerSymbol, StructureType
 from psyclone.psyir.symbols.symbol import (
     ArgumentInterface, ImportInterface, UnresolvedInterface)
 
 
 # pylint: disable=too-many-locals
-def generate_lfric_adjoint(tl_psyir, active_variables):
+def generate_lfric_adjoint(
+    tl_psyir: Node,
+    active_variables: list[str]
+) -> Node:
     '''Takes an LFRic tangent-linear kernel represented in language-level PSyIR
     and returns its adjoint represented in language-level PSyIR.
 
     :param tl_psyir: language-level PSyIR containing the LFRic
         tangent-linear kernel.
-    :type tl_psyir: :py:class:`psyclone.psyir.Node`
-    :param list[str] active_variables: names of the active variables.
+    :param active_variables: names of the active variables.
 
     :returns: language-level PSyIR containing the adjoint of the
         supplied tangent-linear kernel.
-    :rtype: :py:class:`psyclone.psyir.Node`
 
     :raises InternalError: if the PSyIR does not contain any kernel metadata.
     :raises InternalError: if the PSyIR does not contain any Routines.

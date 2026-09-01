@@ -170,21 +170,18 @@ class GOceanKernelMetadata():
             str(self.name), UnsupportedFortranType(self.fortran_string()))
 
     @staticmethod
-    def create_from_psyir(symbol):
+    def create_from_psyir(symbol: DataTypeSymbol) -> 'GOceanKernelMetadata':
         '''Create a new instance of GOceanKernelMetadata populated with
         metadata from a kernel in language-level PSyIR.
 
-        :param symbol: the symbol in which the metadata is stored \
+        :param symbol: the symbol in which the metadata is stored
             in language-level PSyIR.
-        :type symbol: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
 
         :returns: an instance of GOceanKernelMetadata.
-        :rtype: :py:class:`psyclone.domain.gocean.kernel.psyir.\
-            GOceanKernelMetadata`
 
-        :raises TypeError: if the symbol argument is not the expected \
+        :raises TypeError: if the symbol argument is not the expected
             type.
-        :raises InternalError: if the datatype of the provided symbol \
+        :raises InternalError: if the datatype of the provided symbol
             is not the expected type.
 
         '''
@@ -200,7 +197,7 @@ class GOceanKernelMetadata():
             # replace this
             declaration = FortranWriter().gen_typedecl(
                 symbol, include_visibility=False)
-            # Preserve the spelling
+            # Preserve the casing
             declaration = declaration.replace(
                 "go_stencil(", "GO_STENCIL(")
             return GOceanKernelMetadata.create_from_fortran_string(

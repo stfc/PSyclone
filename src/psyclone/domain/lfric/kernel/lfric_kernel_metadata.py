@@ -646,21 +646,18 @@ class LFRicKernelMetadata(CommonMetadata):
                 f"'{coarse_function_space}'"))
 
     @staticmethod
-    def create_from_psyir(symbol):
+    def create_from_psyir(symbol: DataTypeSymbol) -> LFRicKernelMetadata:
         '''Create a new instance of LFRicKernelMetadata populated with
         metadata from a kernel in language-level PSyIR.
 
-        :param symbol: the symbol in which the metadata is stored \
+        :param symbol: the symbol in which the metadata is stored
             in language-level PSyIR.
-        :type symbol: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
 
         :returns: an instance of LFRicKernelMetadata.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.psyir.\
-            LFRicKernelMetadata`
 
-        :raises TypeError: if the symbol argument is not the expected \
+        :raises TypeError: if the symbol argument is not the expected
             type.
-        :raises InternalError: if the datatype of the provided symbol \
+        :raises InternalError: if the datatype of the provided symbol
             is not the expected type.
 
         '''

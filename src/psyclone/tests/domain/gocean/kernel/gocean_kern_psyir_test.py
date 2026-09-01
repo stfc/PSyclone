@@ -177,7 +177,7 @@ def test_goceankernelmetadata_create1(fortran_reader):
         _ = GOceanKernelMetadata.create_from_psyir("symbol")
     assert "Expected a DataTypeSymbol but found a str." in str(info.value)
     metadata = GOceanKernelMetadata.create_from_psyir(symbol)
-    assert METADATA.upper() in metadata.fortran_string().upper()
+    assert METADATA in metadata.fortran_string()
     symbol._datatype = ScalarType.real_type()
     with pytest.raises(InternalError) as info:
         _ = GOceanKernelMetadata.create_from_psyir(symbol)

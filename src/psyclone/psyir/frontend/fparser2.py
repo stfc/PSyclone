@@ -2199,27 +2199,27 @@ class Fparser2Reader():
 
         return sym
 
-    def _process_derived_type_decln(self, parent, decl, visibility_map):
+    def _process_derived_type_decln(
+        self,
+        parent: Node,
+        decl: Fortran2003.Type_Declaration_Stmt,
+        visibility_map: dict[str, Symbol.Visibility]
+    ) -> DataTypeSymbol:
         '''
         Process the supplied fparser2 parse tree for a derived-type
         declaration. A DataTypeSymbol representing the derived-type is added
         to the symbol table associated with the parent node.
 
         :param parent: PSyIR node in which to insert the symbols found.
-        :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
         :param decl: fparser2 parse tree of declaration to process.
-        :type decl: :py:class:`fparser.two.Fortran2003.Type_Declaration_Stmt`
         :param visibility_map: mapping of symbol name to visibility (for
             those symbols listed in an accessibility statement).
-        :type visibility_map: dict[str,
-            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
 
         :raises SymbolError: if a Symbol already exists with the same name
             as the derived type being defined and it is not a DataTypeSymbol
             or is not of UnresolvedType.
 
         :return: the DataTypeSymbol representing the derived type.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
 
         '''
         name = str(walk(decl.children[0], Fortran2003.Type_Name)[0]).lower()
@@ -2371,7 +2371,7 @@ class Fparser2Reader():
         parent: ScopingNode,
         contains: Fortran2003.Type_Bound_Procedure_Part,
         dtype: StructureType
-    ):
+    ) -> None:
         '''Process type-bound procedures in a derived type's CONTAINS part.
 
         Currently all bindings are UnsupportedFortranType, but its name and
@@ -2382,23 +2382,37 @@ class Fparser2Reader():
         :param contains: fparser2 type-bound-procedure part.
         :param dtype: StructureType being populated.
         '''
+        # Each Type_Bound_Procedure_Part has an optional Private Statement
+        # and one of multiple Specific Binding statements
         private_stmts = walk(contains,
                              Fortran2003.Binding_Private_Stmt)
         default_visibility = (Symbol.Visibility.PRIVATE if private_stmts
                               else Symbol.Visibility.PUBLIC)
 
         for procedure in walk(contains, Fortran2003.Specific_Binding):
+            # Each Specific Binding has the items:
+            # 0: Interface_Name
+            # 1: Binding_Attr_List
+            # 2: '::' string
+            # 3: Binding_Name
+            # 4: Procedure_Name
+            # If a item doesn't exist it has None in that position
             binding_name = procedure.items[3].string
             visibility = default_visibility
             if procedure.items[1] is not None:
                 access_specs = walk(procedure.items[1],
                                     Fortran2003.Access_Spec)
+                # If a binding statement has a visibility attribute, this
+                # has precedence over the default_visiblity statement
                 if access_specs:
                     visibility = _process_access_spec(access_specs[0])
 
             target = None
             if procedure.items[4] is not None:
                 target_name = procedure.items[4].string
+                # This is not the delcaration of the Procedure_Name, but
+                # we can already tell thi sybol will be a RoutineSymbol (the
+                # interface and datatype can not be infered here yet)
                 target_symbol = parent.symbol_table.lookup(
                     target_name, otherwise=None)
                 if target_symbol is None:

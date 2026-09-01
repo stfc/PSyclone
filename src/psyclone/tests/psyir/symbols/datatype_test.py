@@ -1402,6 +1402,7 @@ def test_structuretype_replace_procedure_and_extends(use_table):
     assert stype.procedure_components["no_target"].initial_value is None
     assert stype.extends is original
 
+    # A new symbol with the same name should replace the original
     replacement = Symbol("dependency")
     if use_table:
         table = SymbolTable()

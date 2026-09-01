@@ -1267,10 +1267,10 @@ class StructureType(DataType):
         self._procedure_components = OrderedDict()
         self._extends = None
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "StructureType<>"
 
-    def __copy__(self):
+    def __copy__(self) -> 'StructureType':
         '''
         :returns: a copy of this StructureType.
         :rtype: :py:class:`psyclone.psyir.symbols.StructureType`
@@ -1291,12 +1291,22 @@ class StructureType(DataType):
 
     @staticmethod
     def create(
-        components: list[tuple[
-            str, Union[DataType, DataTypeSymbol], Symbol.Visibility,
-            Optional[DataNode], Optional[str], Optional[str]]],
-        procedure_components: Optional[list[tuple[
-            str, Union[DataType, DataTypeSymbol], Symbol.Visibility,
-            Optional[DataNode], Optional[str], Optional[str]]]] = None,
+        components: list[Union[
+            tuple[str, Union[DataType, DataTypeSymbol], Symbol.Visibility],
+            tuple[str, Union[DataType, DataTypeSymbol], Symbol.Visibility,
+                  DataNode],
+            tuple[str, Union[DataType, DataTypeSymbol], Symbol.Visibility,
+                  DataNode, str],
+            tuple[str, Union[DataType, DataTypeSymbol], Symbol.Visibility,
+                  DataNode, str, str]]],
+        procedure_components: Optional[list[Union[
+            tuple[str, Union[DataType, DataTypeSymbol], Symbol.Visibility],
+            tuple[str, Union[DataType, DataTypeSymbol], Symbol.Visibility,
+                  DataNode],
+            tuple[str, Union[DataType, DataTypeSymbol], Symbol.Visibility,
+                  DataNode, str],
+            tuple[str, Union[DataType, DataTypeSymbol], Symbol.Visibility,
+                  DataNode, str, str]]]] = None,
         extends: Optional[DataTypeSymbol] = None
     ) -> 'StructureType':
         '''
@@ -1358,7 +1368,7 @@ class StructureType(DataType):
         return self._extends
 
     @extends.setter
-    def extends(self, value: Symbol):
+    def extends(self, value: Symbol) -> None:
         '''Set the type extended by this type.
 
         :param value: the type being extended.
@@ -1379,7 +1389,7 @@ class StructureType(DataType):
         initial_value: Optional[DataNode] = None,
         preceding_comment: str = "",
         inline_comment: str = ""
-    ):
+    ) -> None:
         '''
         Create a component with the supplied attributes and add it to
         this StructureType.
@@ -1447,8 +1457,10 @@ class StructureType(DataType):
                            "_inline_comment",
                            inline_comment)
 
-    def lookup(self, name) -> 'StructureType.ComponentType':
+    def lookup(self, name: str) -> 'StructureType.ComponentType':
         '''
+        :param name: the name of a component.
+
         :returns: the ComponentType tuple describing the named member of this
                   StructureType.
         '''
@@ -1465,7 +1477,7 @@ class StructureType(DataType):
         initial_value: Optional[DataNode] = None,
         preceding_comment: str = "",
         inline_comment: str = ""
-    ):
+    ) -> None:
         '''Add a type-bound procedure to this StructureType.
 
         The procedure is represented by the same immutable record as a data
@@ -1548,7 +1560,10 @@ class StructureType(DataType):
 
         return True
 
-    def replace_symbols_using(self, table_or_symbol):
+    def replace_symbols_using(
+        self,
+        table_or_symbol: Union[SymbolTable, Symbol]
+    ) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable (or just the supplied Symbol instance) if they
@@ -1559,8 +1574,6 @@ class StructureType(DataType):
 
         :param table_or_symbol: the symbol table from which to get replacement
             symbols or a single, replacement Symbol.
-        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         # Since ComponentType is a frozen dataclass it is immutable, therefore
@@ -1595,6 +1608,8 @@ class StructureType(DataType):
                      preceding_comment=component.preceding_comment,
                      inline_comment=component.inline_comment)
 
+        # Similarly, since procedure_components is also a frozen dataclass
+        # we need to replace the instance with a new one with updated values
         for component in list(self.procedure_components.values()):
             new_type = component.datatype.copy()
             new_type.replace_symbols_using(table_or_symbol)
@@ -1609,6 +1624,7 @@ class StructureType(DataType):
                 initial_value, component.preceding_comment,
                 component.inline_comment)
 
+        # Update reference in the extends attribute
         if self.extends:
             if isinstance(table_or_symbol, Symbol):
                 if table_or_symbol.name.lower() == self.extends.name.lower():

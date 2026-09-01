@@ -551,7 +551,7 @@ class FortranWriter(LanguageWriter):
 
             result += f" :: {symbol.name}"
             if symbol.initial_value:
-                result += " => " + self._visit(symbol.initial_value)
+                result += f" => {self._visit(symbol.initial_value)}"
 
         if symbol.inline_comment:
             result += f" {self._COMMENT_PREFIX}{symbol.inline_comment}"
