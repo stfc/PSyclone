@@ -20,8 +20,8 @@ from psyclone.psyir.frontend.fparser2 import (
 from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.nodes import (
     ArrayConstructor, BinaryOperation, Call, Container, CodeBlock,
-    DataNode, IntrinsicCall, Literal, Member, Node, OMPDependClause,
-    OMPReductionClause, Operation, Range, Routine, Schedule,
+    ComplexLiteral, DataNode, IntrinsicCall, Literal, Member, Node,
+    OMPDependClause, OMPReductionClause, Operation, Range, Routine, Schedule,
     UnaryOperation, UnknownDirective, IfBlock)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataType,
@@ -36,7 +36,7 @@ from psyclone.psyir.symbols import (
 # precision", which is captured as a REAL intrinsic in the PSyIR.
 TYPE_MAP_TO_FORTRAN = {}
 for key, item in TYPE_MAP_FROM_FORTRAN.items():
-    if key != "double precision":
+    if key not in ["double precision", "double complex"]:
         TYPE_MAP_TO_FORTRAN[item] = key
 
 
@@ -311,14 +311,15 @@ class FortranWriter(LanguageWriter):
             scalar_type = datatype
 
         if isinstance(precision, int):
-            if fortrantype not in ['real', 'integer', 'logical']:
+            if fortrantype not in ['real', 'integer', 'logical', 'complex']:
                 raise VisitorError(f"Explicit precision not supported for "
                                    f"datatype '{fortrantype}' in symbol "
                                    f"'{name}' in Fortran backend.")
-            if fortrantype == 'real' and precision not in [4, 8, 16]:
+            if (fortrantype in ['real', 'complex'] and
+                    precision not in [4, 8, 16]):
                 raise VisitorError(
-                    f"Datatype 'real' in symbol '{name}' supports fixed "
-                    f"precision of [4, 8, 16] but found '{precision}'.")
+                    f"Datatype '{fortrantype}' in symbol '{name}' supports "
+                    f"fixed precision of [4, 8, 16] but found '{precision}'.")
             if fortrantype in ['integer', 'logical'] and precision not in \
                [1, 2, 4, 8, 16]:
                 raise VisitorError(
@@ -347,8 +348,11 @@ class FortranWriter(LanguageWriter):
             # only distinguishes relative precision for single and double
             # precision reals.
             if precision == ScalarType.Precision.DOUBLE:
-                if fortrantype.lower() == "real":
+                ty = fortrantype.lower()
+                if ty == "real":
                     return "double precision"
+                elif ty == "complex":
+                    return "double complex"
                 raise VisitorError(
                     f"ScalarType.Precision.DOUBLE is not supported for "
                     f"datatypes other than floating point numbers in "
@@ -1428,6 +1432,16 @@ class FortranWriter(LanguageWriter):
             step = self._visit(node.step)
             result += f":{step}"
         return result
+
+    def complexliteral_node(self, node: ComplexLiteral) -> str:
+        '''This method is called when a ComplexLiteral instance is found
+        in the PSyIR tree.
+
+        :param node: a ComplexLiteral PSyIR node.
+        :returns: the Fortran code for the literal.
+        '''
+        return ("(" + self._visit(node.children[0]) + ", " +
+                self._visit(node.children[1]) + ")")
 
     def literal_node(self, node):
         '''This method is called when a Literal instance is found in the PSyIR
