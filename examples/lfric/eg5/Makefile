@@ -39,6 +39,8 @@ include ../lfric_common.mk
 OBJ = conservative_flux_kernel_mod.o subgrid_coeffs_kernel_mod.o jules_kernel_mod.o \
 alg_psy.o alg.o
 
+GENERATED_FILES = ${OBJ} alg_psy.f90 alg.f90 *.mod
+
 transform: alg_psy.f90
 
 compile: transform ${LFRIC_LIB} ${OBJ}
