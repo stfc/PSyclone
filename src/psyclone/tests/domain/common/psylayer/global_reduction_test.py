@@ -13,7 +13,7 @@ from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError
 from psyclone.domain.common.psylayer import GlobalReduction
 from psyclone.psyir.nodes import Literal
-from psyclone.psyir.nodes.node import colored
+from psyclone.utils import colored
 from psyclone.psyir.symbols import ScalarType
 from psyclone.tests.utilities import get_invoke
 

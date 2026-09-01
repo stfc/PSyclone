@@ -12,7 +12,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, BinaryOperation, Literal, \
                                  Reference, Return, Schedule, WhileLoop
-from psyclone.psyir.nodes.node import colored
+from psyclone.utils import colored
 from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.tests.utilities import check_links
 

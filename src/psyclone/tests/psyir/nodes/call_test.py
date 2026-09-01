@@ -15,7 +15,7 @@ from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import (
     ArrayReference, BinaryOperation, Call, Literal,
     Node, Reference, Routine, Schedule, CallMatchingArgumentsNotFound)
-from psyclone.psyir.nodes.node import colored
+from psyclone.utils import colored
 from psyclone.psyir.symbols import (
     ArrayType, ScalarType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     NoType, RoutineSymbol, SymbolError, UnresolvedInterface, UnresolvedType)

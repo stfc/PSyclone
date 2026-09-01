@@ -19,7 +19,7 @@ from psyclone.domain.common.transformations import AlgTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Reference, Node, Container
-from psyclone.psyir.nodes.node import colored
+from psyclone.utils import colored
 from psyclone.psyir.symbols import RoutineSymbol, DataTypeSymbol, \
     StructureType, Symbol, ScalarType
 

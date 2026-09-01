@@ -19,7 +19,7 @@ from psyclone.psyir.frontend.fortran_treesitter_reader import \
 from psyclone.psyir.nodes.codeblock import (
     CodeBlock, Fparser2CodeBlock, TreeSitterCodeBlock
 )
-from psyclone.psyir.nodes.node import colored
+from psyclone.utils import colored
 from psyclone.errors import GenerationError, InternalError
 from psyclone.tests.utilities import min_version_3_10
 

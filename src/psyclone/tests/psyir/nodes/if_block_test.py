@@ -14,7 +14,7 @@ from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
-from psyclone.psyir.nodes.node import colored
+from psyclone.utils import colored
 
 
 def test_ifblock_invalid_annotation():

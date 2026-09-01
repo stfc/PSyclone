@@ -27,7 +27,7 @@ from psyclone.psyir.nodes.node import ChildrenList, Node
 from psyclone.psyir.symbols import DataSymbol, SymbolError, \
     ScalarType, SymbolTable, ArrayType, RoutineSymbol, NoType
 from psyclone.tests.utilities import get_invoke
-from psyclone.psyir.nodes.node import colored
+from psyclone.utils import colored
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "lfric")

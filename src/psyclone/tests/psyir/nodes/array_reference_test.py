@@ -10,7 +10,7 @@
 import pytest
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes.node import colored
+from psyclone.utils import colored
 from psyclone.psyir.nodes import (
     Reference, ArrayReference, Assignment,
     Literal, BinaryOperation, Range, KernelSchedule, IntrinsicCall)

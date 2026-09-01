@@ -10,7 +10,7 @@
 import os
 import pytest
 from psyclone.psyir.nodes import Schedule, Assignment, Range, Statement
-from psyclone.psyir.nodes.node import colored
+from psyclone.utils import colored
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.algorithm import parse

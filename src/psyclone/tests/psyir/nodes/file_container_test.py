@@ -12,7 +12,7 @@ from psyclone.alg_gen import NoInvokesError
 from psyclone.psyir.nodes import Routine, FileContainer, Container
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ScalarType
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes.node import colored
+from psyclone.utils import colored
 from psyclone.tests.utilities import get_invoke
 
 

@@ -14,7 +14,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
     Assignment, Reference, Literal, ArrayReference, Range, StructureReference,
     ArrayOfStructuresReference, IntrinsicCall)
-from psyclone.psyir.nodes.node import colored
+from psyclone.utils import colored
 from psyclone.psyir.symbols import (
     DataSymbol, ScalarType, Symbol, ArrayType, StructureType, DataTypeSymbol)
 from psyclone.tests.utilities import check_links

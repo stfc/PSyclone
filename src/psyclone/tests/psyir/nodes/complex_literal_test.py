@@ -10,7 +10,7 @@
 
 import pytest
 from psyclone.errors import GenerationError
-from psyclone.psyir.nodes.node import colored
+from psyclone.utils import colored
 from psyclone.psyir.nodes import (
     Literal, ComplexLiteral, Assignment, BinaryOperation, Reference)
 from psyclone.psyir.symbols import ScalarType, DataSymbol, SymbolTable
