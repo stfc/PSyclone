@@ -723,14 +723,10 @@ def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.2_enforce_bc_kernel.f90"),
                            api=TEST_API)
-    if dist_mem and not annexed:
-        idx = 1
-    else:
-        idx = 0
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[idx]
+    loop = schedule.walk(LFRicLoop)[0]
     call = loop.loop_body[0]
     arg = call.arguments.args[0]
     # Monkeypatch the argument object so that it thinks it is an

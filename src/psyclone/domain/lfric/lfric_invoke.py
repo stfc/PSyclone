@@ -204,6 +204,16 @@ class LFRicInvoke(Invoke):
                          self.run_time_checks]:
             entities.invoke_declarations()
 
+        cursor = 0
+        for entities in [self.proxies, self.run_time_checks,
+                         self.cell_iterators, self.meshes,
+                         self.stencil, self.dofmaps,
+                         self.cma_ops, self.boundary_conditions,
+                         self.function_spaces, self.evaluators,
+                         self.reference_element_properties,
+                         self.mesh_properties, self.loop_bounds]:
+            cursor = entities.initialise(cursor)
+
     def arg_for_funcspace(self, fspace):
         '''
         Returns an argument object which is on the requested
@@ -278,15 +288,15 @@ class LFRicInvoke(Invoke):
         constructor).
 
         '''
-        cursor = 0
-        for entities in [self.proxies, self.run_time_checks,
-                         self.cell_iterators, self.meshes,
-                         self.stencil, self.dofmaps,
-                         self.cma_ops, self.boundary_conditions,
-                         self.function_spaces, self.evaluators,
-                         self.reference_element_properties,
-                         self.mesh_properties, self.loop_bounds]:
-            cursor = entities.initialise(cursor)
+        cursor = len(self.schedule.children)
+        #for entities in [self.proxies, self.run_time_checks,
+        #                 self.cell_iterators, self.meshes,
+        #                 self.stencil, self.dofmaps,
+        #                 self.cma_ops, self.boundary_conditions,
+        #                 self.function_spaces, self.evaluators,
+        #                 self.reference_element_properties,
+        #                 self.mesh_properties, self.loop_bounds]:
+        #    cursor = entities.initialise(cursor)
 
         if self.schedule.reductions(reprod=True):
             # We have at least one reproducible reduction so we need
@@ -313,12 +323,12 @@ class LFRicInvoke(Invoke):
 
         # Now that all initialisation is done, add the comment before
         # the start of the kernels
-        if Config.get().distributed_memory:
-            self.schedule[cursor].preceding_comment = (
-                "Call kernels and communication routines")
-        else:
-            self.schedule[cursor].preceding_comment = (
-                "Call kernels")
+        #if Config.get().distributed_memory:
+        #    self.schedule[cursor].preceding_comment = (
+        #        "Call kernels and communication routines")
+        #else:
+        #    self.schedule[cursor].preceding_comment = (
+        #        "Call kernels")
 
         # Deallocate any basis arrays
         self.evaluators.deallocate()
