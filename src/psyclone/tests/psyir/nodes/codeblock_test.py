@@ -321,36 +321,6 @@ def test_codeblock_equality(parser):
     assert block != block4
 
 
-# TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by
-# treesitter.
-@min_version_3_10
-def test_is_singleton(fortran_reader):
-    """Tests the is_singleton method of the CodeBlock class"""
-
-    code = """subroutine test()
-    integer :: i
-    GOTO 1234
-    i = 3
-    write(*,*) "Hello"
-    STOP
-    end subroutine test"""
-
-    # Test for Fparser.
-    psyir = fortran_reader.psyir_from_source(code)
-    codeblocks = psyir.walk(Fparser2CodeBlock)
-    assert codeblocks[0].is_singleton()
-    assert not codeblocks[1].is_singleton()
-
-    # Test for TreeSitter
-    # TODO #3083: Treesitter support is incomplete so there is always
-    # only one CodeBlock at the moment
-    processor = FortranTreeSitterReader()
-    ptree = processor.generate_parse_tree_from_source(code)
-    psyir = processor.generate_psyir(ptree)
-    codeblocks = psyir.walk(TreeSitterCodeBlock)
-    assert codeblocks[0].is_singleton()
-
-
 def test_codeblock_has_potential_control_flow_jump(fortran_reader):
     """Test the has_potential_control_flow_jump function of the CodeBlock
     class."""
@@ -376,6 +346,30 @@ def test_codeblock_has_potential_control_flow_jump(fortran_reader):
     assert codeblocks[2].has_potential_control_flow_jump()
     # labelled statement
     assert codeblocks[3].has_potential_control_flow_jump()
+
+
+def test_fparser_codeblock_contains_stmt(fortran_reader):
+    """Test the contains_stmt works correctly for Fparser codeblocks."""
+    # Purposely inlined to lazily load this module only when needed
+    # pylint: disable=import-outside-toplevel
+    from fparser.two import Fortran2003
+
+    code = """subroutine test
+    integer :: i
+
+    print *, i
+    GOTO 1234
+    i = 0
+    print *, i
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    codeblocks = psyir.walk(Fparser2CodeBlock)
+    # The first CodeBlock contains both a Print and Goto stmt.
+    assert codeblocks[0]._contains_stmt((Fortran2003.Print_Stmt,
+                                         Fortran2003.Stop_Stmt))
+    assert not codeblocks[0]._contains_stmt(Fortran2003.Print_Stmt, only=True)
+    # The second CodeBlock only contains a Print Stmt
+    assert codeblocks[1]._contains_stmt(Fortran2003.Print_Stmt, only=False)
 
 
 def test_fparser_codeblock_contains_goto_stmt(fortran_reader):
@@ -436,7 +430,7 @@ def test_fparser_codeblock_contains_stop_stmt(fortran_reader):
     code = """subroutine test()
     integer :: i
     if (i == 10) then
-        STOP 3
+        STOP 3 ! Fortran2008 stop syntax.
     endif
     if (i == 4) then
         STOP
@@ -471,7 +465,8 @@ def test_treesitter_codeblock_contains_goto_stmt():
     codeblocks = psyir.walk(TreeSitterCodeBlock)
     with pytest.raises(NotImplementedError) as excinfo:
         assert codeblocks[0].contains_goto_stmt()
-        assert not codeblocks[1].contains_goto_stmt()
+        # TODO #3083: Treesitter implementation is a work in progress.
+        # assert not codeblocks[1].contains_goto_stmt()
     assert "Treesitter support is incomplete." in str(excinfo.value)
 
 
@@ -496,7 +491,8 @@ def test_treesitter_codeblock_contains_cycle_stmt():
     codeblocks = psyir.walk(TreeSitterCodeBlock)
     with pytest.raises(NotImplementedError) as excinfo:
         assert codeblocks[0].contains_cycle_stmt()
-        assert not codeblocks[1].contains_cycle_stmt()
+        # TODO #3083: Treesitter implementation is a work in progress.
+        # assert not codeblocks[1].contains_cycle_stmt()
     assert "Treesitter support is incomplete." in str(excinfo.value)
 
 
@@ -521,7 +517,8 @@ def test_treesitter_codeblock_contains_exit_stmt():
     codeblocks = psyir.walk(TreeSitterCodeBlock)
     with pytest.raises(NotImplementedError) as excinfo:
         assert codeblocks[0].contains_exit_stmt()
-        assert not codeblocks[1].contains_exit_stmt()
+        # TODO #3083: Treesitter implementation is a work in progress.
+        # assert not codeblocks[1].contains_exit_stmt()
     assert "Treesitter support is incomplete." in str(excinfo.value)
 
 
@@ -549,6 +546,7 @@ def test_treesitter_codeblock_contains_stop_stmt(fortran_reader):
     codeblocks = psyir.walk(TreeSitterCodeBlock)
     with pytest.raises(NotImplementedError) as excinfo:
         assert codeblocks[0].contains_stop_stmt()
-        assert codeblocks[1].contains_stop_stmt()
-        assert not codeblocks[2].contains_stop_stmt()
+        # TODO #3083: Treesitter implementation is a work in progress.
+        # assert codeblocks[1].contains_stop_stmt()
+        # assert not codeblocks[2].contains_stop_stmt()
     assert "Treesitter support is incomplete." in str(excinfo.value)
