@@ -1,37 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors: A. R. Porter and S. Siso, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the ScopingNode PSyIR node. '''
@@ -43,7 +14,7 @@ from psyclone.psyir.nodes import (
     Routine, ArrayReference)
 from psyclone.psyir.symbols import (
     ArrayType, ArgumentInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    ImportInterface, INTEGER_TYPE, REAL_TYPE, ScalarType, StructureType,
+    ImportInterface, ScalarType, StructureType,
     Symbol, SymbolTable, UnsupportedFortranType)
 from psyclone.tests.utilities import Compile
 
@@ -80,7 +51,7 @@ def test_scoping_node_copy():
     csym = schedule.symbol_table.new_symbol(
         "kinds", symbol_type=ContainerSymbol)
     precn_sym = schedule.symbol_table.new_symbol(
-        "wp", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+        "wp", symbol_type=DataSymbol, datatype=ScalarType.integer_type(),
         interface=ImportInterface(csym))
     schedule.symbol_table.new_symbol(
         "c", symbol_type=DataSymbol,
@@ -125,14 +96,16 @@ def test_scoping_node_replace_symbols():
     cont.addchild(sched)
     sched.replace_symbols_using(cont.symbol_table)
     # A ScopingNode that is not within a scoping region.
-    isym = DataSymbol("idx", INTEGER_TYPE)
+    isym = DataSymbol("idx", ScalarType.integer_type())
     loop = Loop.create(isym,
-                       Literal("1", INTEGER_TYPE),
-                       Literal("10", INTEGER_TYPE), Literal("1", INTEGER_TYPE),
+                       Literal("1", ScalarType.integer_type()),
+                       Literal("10", ScalarType.integer_type()),
+                       Literal("1", ScalarType.integer_type()),
                        [])
     # Ensure a Symbol accessed below the ScopingNode is updated.
-    loop.loop_body.addchild(Assignment.create(Reference(isym),
-                                              Literal("1", INTEGER_TYPE)))
+    loop.loop_body.addchild(
+        Assignment.create(Reference(isym),
+                          Literal("1", ScalarType.integer_type())))
     table.add(isym.copy())
     loop.loop_body.replace_symbols_using(table)
     assert loop.loop_body[0].lhs.symbol is table.lookup(isym.name)
@@ -152,11 +125,11 @@ def test_scoping_node_copy_hierarchy(fortran_writer):
     csym = parent_node.symbol_table.new_symbol(
         "kinds", symbol_type=ContainerSymbol)
     wp = parent_node.symbol_table.new_symbol(
-        "wp", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+        "wp", symbol_type=DataSymbol, datatype=ScalarType.integer_type(),
         interface=ImportInterface(csym))
     symbol_b = parent_node.symbol_table.new_symbol(
         "b", symbol_type=DataSymbol,
-        datatype=ArrayType(INTEGER_TYPE, [5]))
+        datatype=ArrayType(ScalarType.integer_type(), [5]))
     schedule = Routine.create("routine")
     parent_node.addchild(schedule)
     symbol_a = schedule.symbol_table.new_symbol(
@@ -165,7 +138,7 @@ def test_scoping_node_copy_hierarchy(fortran_writer):
         interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
     schedule.symbol_table.specify_argument_list([symbol_a])
     symbol_i = schedule.symbol_table.new_symbol(
-        "i", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        "i", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
 
     schedule.addchild(
         Assignment.create(Reference(symbol_a),
@@ -262,15 +235,17 @@ def test_scoping_node_copy_loop(fortran_writer, tmpdir):
     symbol_table = schedule.scope.symbol_table
     loop_var = symbol_table.new_symbol(root_name="idx",
                                        symbol_type=DataSymbol,
-                                       datatype=INTEGER_TYPE)
+                                       datatype=ScalarType.integer_type())
     array = symbol_table.new_symbol(root_name="a", symbol_type=DataSymbol,
-                                    datatype=ArrayType(REAL_TYPE, [10]))
+                                    datatype=ArrayType(ScalarType.real_type(),
+                                                       [10]))
 
     tmparray = ArrayReference.create(array, [Reference(loop_var)])
     assign1 = Assignment.create(tmparray, Reference(loop_var))
 
-    loop = Loop.create(loop_var, Literal("1", INTEGER_TYPE),
-                       Literal("10", INTEGER_TYPE), Literal("1", INTEGER_TYPE),
+    loop = Loop.create(loop_var, Literal("1", ScalarType.integer_type()),
+                       Literal("10", ScalarType.integer_type()),
+                       Literal("1", ScalarType.integer_type()),
                        [assign1])
     schedule.addchild(loop)
     # Now take a copy of the schedule and check the consistency of the
@@ -285,12 +260,6 @@ def test_scoping_node_copy_loop(fortran_writer, tmpdir):
     # Check that the copied tree results in compilable Fortran
     output = fortran_writer(new_schedule)
     assert Compile(tmpdir).string_compiles(output)
-    # Check that the copy operation succeeds, even if there is no variable
-    # associated with the Loop (as can be the case in the LFRic domain).
-    loop._variable = None
-    new_schedule2 = schedule.copy()
-    new_loop_var = new_schedule2.symbol_table.lookup("idx")
-    assert new_loop_var is not loop_var
 
 
 def test_scoping_node_equality():
@@ -319,7 +288,7 @@ def test_scoping_node_reference_accesses():
     assert not vam.all_signatures
     # Just adding a Symbol to the table does not affect anything.
     prsym = table.new_symbol("r_def", symbol_type=DataSymbol,
-                             datatype=INTEGER_TYPE)
+                             datatype=ScalarType.integer_type())
     vam = sched.reference_accesses()
     assert not vam.all_signatures
     # Add another Symbol that references the first one in its precision.
@@ -330,10 +299,10 @@ def test_scoping_node_reference_accesses():
     assert not vam[Signature("r_def")].has_data_access()
     # Add a Symbol with initialisation.
     idef = table.new_symbol("i_def", symbol_type=DataSymbol,
-                            datatype=INTEGER_TYPE)
+                            datatype=ScalarType.integer_type())
     int_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(idef))
     _ = table.new_symbol("var2", symbol_type=DataSymbol,
-                         datatype=INTEGER_TYPE,
+                         datatype=ScalarType.integer_type(),
                          is_constant=True,
                          initial_value=Literal("100", int_type))
     vam = sched.reference_accesses()
@@ -350,9 +319,9 @@ def test_reference_accesses_struct():
     sched = Schedule()
     table = sched.symbol_table
     idef = table.new_symbol("i_def", symbol_type=DataSymbol,
-                            datatype=INTEGER_TYPE)
+                            datatype=ScalarType.integer_type())
     rdef = table.new_symbol("r_def", symbol_type=DataSymbol,
-                            datatype=INTEGER_TYPE)
+                            datatype=ScalarType.integer_type())
     int_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(idef))
     real_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(rdef))
     stype = StructureType.create([
@@ -375,13 +344,14 @@ def test_reference_accesses_array():
     sched = Schedule()
     table = sched.symbol_table
     idef = table.new_symbol("i_def", symbol_type=DataSymbol,
-                            datatype=INTEGER_TYPE)
+                            datatype=ScalarType.integer_type())
     rdef = table.new_symbol("r_def", symbol_type=DataSymbol,
-                            datatype=INTEGER_TYPE)
+                            datatype=ScalarType.integer_type())
     int_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(idef))
     real_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(rdef))
     var2 = table.new_symbol("var2", symbol_type=DataSymbol,
-                            datatype=INTEGER_TYPE, is_constant=True,
+                            datatype=ScalarType.integer_type(),
+                            is_constant=True,
                             initial_value=Literal("100", int_type))
     atype = ArrayType(real_type, [Reference(var2)])
     _ = table.new_symbol("var3", symbol_type=DataSymbol, datatype=atype)
@@ -401,9 +371,9 @@ def test_reference_accesses_unknown_type():
     # Create partial type information - an array of specified precision
     # with an extent specified by another symbol.
     rdef = table.new_symbol("r_def", symbol_type=DataSymbol,
-                            datatype=INTEGER_TYPE)
+                            datatype=ScalarType.integer_type())
     big_sym = table.new_symbol("big", symbol_type=DataSymbol,
-                               datatype=INTEGER_TYPE)
+                               datatype=ScalarType.integer_type())
     real_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(rdef))
     ptype = ArrayType(real_type, [Reference(big_sym)])
     utype = UnsupportedFortranType(

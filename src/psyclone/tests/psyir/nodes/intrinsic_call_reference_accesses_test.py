@@ -1,37 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: A. B. G. Chalk - STFC Darebury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 """
@@ -58,7 +29,7 @@ from psyclone.psyir.nodes.intrinsic_call import (
 from psyclone.psyir.symbols import (
     ArrayType,
     DataSymbol,
-    INTEGER_TYPE,
+    ScalarType,
     RoutineSymbol
 )
 
@@ -66,7 +37,7 @@ from psyclone.psyir.symbols import (
 def test_add_argument_of_access_type_read(fortran_reader):
     """ Test the _add_argument_of_access_type helper function with a READ."""
     # Test we get expected behaviour for a Reference input.
-    symbol = DataSymbol("a", INTEGER_TYPE)
+    symbol = DataSymbol("a", ScalarType.integer_type())
     vam = VariablesAccessMap()
     ref = Reference(symbol)
     _add_argument_of_access_type(ref, vam, AccessType.READ)
@@ -78,12 +49,12 @@ def test_add_argument_of_access_type_read(fortran_reader):
 
     # Test we get expected behaviour for a Literal input.
     vam = VariablesAccessMap()
-    lit = Literal("1", INTEGER_TYPE)
+    lit = Literal("1", ScalarType.integer_type())
     _add_argument_of_access_type(lit, vam, AccessType.READ)
     assert len(vam) == 0
 
     # Test we get expected behaviour for a Binop with 2 References.
-    symbol2 = DataSymbol("b", INTEGER_TYPE)
+    symbol2 = DataSymbol("b", ScalarType.integer_type())
     ref1 = Reference(symbol)
     ref2 = Reference(symbol2)
     binop = BinaryOperation.create(
@@ -102,7 +73,7 @@ def test_add_argument_of_access_type_read(fortran_reader):
 
     # Test we get expected behaviour for an ArrayReference with Reference
     # index
-    symbol = DataSymbol("c", ArrayType(INTEGER_TYPE, [2]))
+    symbol = DataSymbol("c", ArrayType(ScalarType.integer_type(), [2]))
     ref3 = Reference(symbol2)
     ref = ArrayReference.create(symbol, [ref3])
     vam = VariablesAccessMap()
@@ -148,7 +119,7 @@ def test_add_argument_of_access_type_read(fortran_reader):
 def test_add_argument_of_access_type_write(fortran_reader):
     """ Test the _add_argument_of_access_type helper function with a WRITE."""
     # Test we get expected behaviour for a Reference input.
-    symbol = DataSymbol("a", INTEGER_TYPE)
+    symbol = DataSymbol("a", ScalarType.integer_type())
     vam = VariablesAccessMap()
     ref = Reference(symbol)
     _add_argument_of_access_type(ref, vam, AccessType.WRITE)
@@ -158,7 +129,7 @@ def test_add_argument_of_access_type_write(fortran_reader):
     assert len(vam[sig]) == 1
     assert vam[sig][0].access_type == AccessType.WRITE
 
-    symbol = DataSymbol("c", ArrayType(INTEGER_TYPE, [2]))
+    symbol = DataSymbol("c", ArrayType(ScalarType.integer_type(), [2]))
     aref = ArrayReference.create(symbol, [ref])
     vam = VariablesAccessMap()
     _add_argument_of_access_type(aref, vam, AccessType.WRITE)
@@ -209,7 +180,7 @@ def test_add_argument_of_access_type_readwrite():
     """ Test the _add_argument_of_access_type helper function with a
     READWRITE."""
     # Test we get expected behaviour for a Reference input.
-    symbol = DataSymbol("a", INTEGER_TYPE)
+    symbol = DataSymbol("a", ScalarType.integer_type())
     vam = VariablesAccessMap()
     ref = Reference(symbol)
     _add_argument_of_access_type(ref, vam, AccessType.READWRITE)
@@ -219,7 +190,7 @@ def test_add_argument_of_access_type_readwrite():
     assert len(vam[sig]) == 1
     assert vam[sig][0].access_type == AccessType.READWRITE
 
-    symbol = DataSymbol("c", ArrayType(INTEGER_TYPE, [2]))
+    symbol = DataSymbol("c", ArrayType(ScalarType.integer_type(), [2]))
     aref = ArrayReference.create(symbol, [ref])
     vam = VariablesAccessMap()
     _add_argument_of_access_type(aref, vam, AccessType.READWRITE)
@@ -235,7 +206,7 @@ def test_add_argument_of_access_type_constant():
     """ Test the _add_argument_of_access_type helper function with a
     CONSTANT."""
     # Test we get expected behaviour for a Reference input.
-    symbol = DataSymbol("a", INTEGER_TYPE)
+    symbol = DataSymbol("a", ScalarType.integer_type())
     vam = VariablesAccessMap()
     ref = Reference(symbol)
     _add_argument_of_access_type(ref, vam, AccessType.CONSTANT)
@@ -247,7 +218,7 @@ def test_add_argument_of_access_type_constant():
 
     # Test we skip for a Literal
     vam = VariablesAccessMap()
-    lit = Literal("1", INTEGER_TYPE)
+    lit = Literal("1", ScalarType.integer_type())
     _add_argument_of_access_type(lit, vam, AccessType.CONSTANT)
     assert len(vam) == 0
 
@@ -255,7 +226,7 @@ def test_add_argument_of_access_type_constant():
 def test_add_argument_of_access_type_inquiry():
     """ Test the _add_argument_of_access_type helper function with an
     INQUIRY."""
-    symbol = DataSymbol("a", INTEGER_TYPE)
+    symbol = DataSymbol("a", ScalarType.integer_type())
     vam = VariablesAccessMap()
     ref = Reference(symbol)
     _add_argument_of_access_type(ref, vam, AccessType.INQUIRY)
@@ -267,11 +238,11 @@ def test_add_argument_of_access_type_inquiry():
 
     # Test we skip for a Literal
     vam = VariablesAccessMap()
-    lit = Literal("1", INTEGER_TYPE)
+    lit = Literal("1", ScalarType.integer_type())
     _add_argument_of_access_type(lit, vam, AccessType.INQUIRY)
     assert len(vam) == 0
 
-    symbol = DataSymbol("c", ArrayType(INTEGER_TYPE, [2]))
+    symbol = DataSymbol("c", ArrayType(ScalarType.integer_type(), [2]))
     aref = ArrayReference.create(symbol, [ref])
     vam = VariablesAccessMap()
     _add_argument_of_access_type(aref, vam, AccessType.INQUIRY)
@@ -286,16 +257,16 @@ def test_add_argument_of_access_type_inquiry():
 def test_compute_reference_accesses():
     """ Test the _compute_reference_accesses helper function."""
     # Create some References to use to test functionality.
-    a_sym = DataSymbol("a", INTEGER_TYPE)
-    b_sym = DataSymbol("b", INTEGER_TYPE)
-    c_sym = DataSymbol("c", INTEGER_TYPE)
-    d_sym = DataSymbol("d", INTEGER_TYPE)
-    e_sym = DataSymbol("e", INTEGER_TYPE)
-    f_sym = DataSymbol("f", INTEGER_TYPE)
-    g_sym = DataSymbol("g", INTEGER_TYPE)
-    h_sym = DataSymbol("h", INTEGER_TYPE)
-    i_sym = DataSymbol("i", INTEGER_TYPE)
-    j_sym = DataSymbol("j", INTEGER_TYPE)
+    a_sym = DataSymbol("a", ScalarType.integer_type())
+    b_sym = DataSymbol("b", ScalarType.integer_type())
+    c_sym = DataSymbol("c", ScalarType.integer_type())
+    d_sym = DataSymbol("d", ScalarType.integer_type())
+    e_sym = DataSymbol("e", ScalarType.integer_type())
+    f_sym = DataSymbol("f", ScalarType.integer_type())
+    g_sym = DataSymbol("g", ScalarType.integer_type())
+    h_sym = DataSymbol("h", ScalarType.integer_type())
+    i_sym = DataSymbol("i", ScalarType.integer_type())
+    j_sym = DataSymbol("j", ScalarType.integer_type())
     a_ref = Reference(a_sym)
     b_ref = Reference(b_sym)
     c_ref = Reference(c_sym)

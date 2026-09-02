@@ -1,41 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified by: R. W. Ford, STFC Daresbury Lab
-# Modified by: S. Siso, STFC Daresbury Lab
-# Modified by: J. Henrichs, Bureau of Meteorology
-# Modified by: A. B. G. Chalk, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module contains the Routine node implementation.'''
@@ -65,10 +32,10 @@ class Routine(Schedule, CommentableMixin):
 
     :param symbol: the Symbol used to represent this Routine in its Container.
     :type symbol: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
-    :param Optional[bool] is_program: whether this Routine represents the
-                                      entry point into a program (e.g.
-                                      Fortran Program or C main()). Default is
-                                      False.
+    :param is_program: whether this Routine represents the entry point into a
+        program (e.g. Fortran Program or C main()). Default is False.
+    :param is_recursive: whether this Routine is recursive. A value of None
+        indicates that this is unknown. Default is None.
     :param kwargs: additional keyword arguments provided to the super class.
     :type kwargs: unwrapped dict.
 
@@ -79,7 +46,10 @@ class Routine(Schedule, CommentableMixin):
     _children_valid_format = "[Statement]*"
     _text_name = "Routine"
 
-    def __init__(self, symbol, is_program=False, **kwargs):
+    def __init__(self, symbol: RoutineSymbol,
+                 is_program: Optional[bool] = False,
+                 is_recursive: Optional[bool] = None,
+                 **kwargs):
         if not isinstance(symbol, RoutineSymbol):
             raise TypeError(f"Routine argument 'symbol' must be present and "
                             f"must be a RoutineSymbol but got "
@@ -95,6 +65,8 @@ class Routine(Schedule, CommentableMixin):
             raise TypeError(f"Routine argument 'is_program' must be a bool "
                             f"but got '{type(is_program).__name__}'")
         self._is_program = is_program
+        self._is_recursive = None
+        self.is_recursive = is_recursive
 
         # Add the symbol into the routine itself, unless the symbol table
         # already contains a symbol with that name (e.g. a Function's return
@@ -116,6 +88,7 @@ class Routine(Schedule, CommentableMixin):
         is_eq = super().__eq__(other)
         is_eq = is_eq and self.name == other.name
         is_eq = is_eq and self.is_program == other.is_program
+        is_eq = is_eq and self.is_recursive == other.is_recursive
         is_eq = is_eq and self.return_symbol == other.return_symbol
 
         return is_eq
@@ -127,7 +100,8 @@ class Routine(Schedule, CommentableMixin):
                children: Optional[list[Node]] = None,
                is_program: bool = False,
                return_symbol_name: Optional[str] = None,
-               parent: Optional[Node] = None) -> Routine:
+               parent: Optional[Node] = None,
+               is_recursive: Optional[bool] = None) -> Routine:
         # pylint: disable=too-many-arguments
         '''Create an instance of the supplied class given a name, a symbol
         table and a list of child nodes. This is implemented as a classmethod
@@ -143,6 +117,8 @@ class Routine(Schedule, CommentableMixin):
             value of this routine (if any). Must be present in the
             supplied symbol table.
         :param parent: the parent Node of the Node being created.
+        :param is_recursive: whether this Routine is recursive. A value of
+            None indicates that this is unknown. Default is None.
 
         :returns: an instance of `cls`.
 
@@ -177,8 +153,8 @@ class Routine(Schedule, CommentableMixin):
                 f"be a PSyIR Node but found '{type(parent).__name__}'")
 
         symbol = RoutineSymbol(name)
-        routine = cls(symbol, is_program=is_program, symbol_table=symbol_table,
-                      parent=parent)
+        routine = cls(symbol, is_program=is_program, is_recursive=is_recursive,
+                      symbol_table=symbol_table, parent=parent)
         routine.children = children
         if return_symbol_name:
             routine.return_symbol = routine.symbol_table.lookup(
@@ -354,7 +330,12 @@ class Routine(Schedule, CommentableMixin):
                                     (Fortran2003.Subroutine_Subprogram,
                                      Fortran2003.Function_Subprogram))
                     for routine in routines:
-                        name = str(routine.children[0].children[1])
+                        # Have to walk to find the subroutine_stmt as
+                        # comments can appear before the subroutine stmt.
+                        subroutine_stmt = walk(routine,
+                                               (Fortran2003.Subroutine_Stmt,
+                                                Fortran2003.Function_Stmt))
+                        name = str(subroutine_stmt[0].children[1])
                         if name == self.name:
                             raise GenerationError(
                                     f"Can't add routine '{self.name}' into"
@@ -477,6 +458,28 @@ class Routine(Schedule, CommentableMixin):
         return self._is_program
 
     @property
+    def is_recursive(self) -> Optional[bool]:
+        '''
+        :returns: whether this Routine is recursive, or None if this is
+            unknown.
+        '''
+        return self._is_recursive
+
+    @is_recursive.setter
+    def is_recursive(self, value: Optional[bool]):
+        '''
+        :param value: whether this Routine is recursive, or None if this is
+            unknown.
+
+        :raises TypeError: if the supplied value is not a bool or None.
+        '''
+        if value is not None and not isinstance(value, bool):
+            raise TypeError(f"is_recursive for a {type(self).__name__} must "
+                            f"be a bool or None but got "
+                            f"'{type(value).__name__}'")
+        self._is_recursive = value
+
+    @property
     def return_symbol(self):
         '''
         :returns: the symbol which will hold the return value of this Routine \
@@ -516,6 +519,8 @@ class Routine(Schedule, CommentableMixin):
 
         '''
         self._symbol = other._symbol.copy()
+        self._is_program = other._is_program
+        self._is_recursive = other._is_recursive
         super()._refine_copy(other)
         if other.return_symbol is not None:
             self.return_symbol = self.symbol_table.lookup(

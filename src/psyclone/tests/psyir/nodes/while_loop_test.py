@@ -1,37 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2023-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors: N. Nobre, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2023-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the WhileLoop PSyIR node. '''
@@ -42,7 +13,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, BinaryOperation, Literal, \
                                  Reference, Return, Schedule, WhileLoop
 from psyclone.psyir.nodes.node import colored
-from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, BOOLEAN_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.tests.utilities import check_links
 
 
@@ -75,11 +46,13 @@ def test_whileloop_create_and_reference_accesses():
     a WhileLoop instance and that the reference_access method correctly
     captures variable accesses.'''
 
-    ref1 = Reference(DataSymbol("tmp", REAL_SINGLE_TYPE))
-    ref2 = Reference(DataSymbol("pmt", REAL_SINGLE_TYPE))
-    loop_condition = BinaryOperation.create(BinaryOperation.Operator.GT, ref1,
-                                            Literal("0.0", REAL_SINGLE_TYPE))
-    loop_body = [Assignment.create(ref2, Literal("1.0", REAL_SINGLE_TYPE))]
+    ref1 = Reference(DataSymbol("tmp", ScalarType.real_single_type()))
+    ref2 = Reference(DataSymbol("pmt", ScalarType.real_single_type()))
+    loop_condition = BinaryOperation.create(
+        BinaryOperation.Operator.GT, ref1,
+        Literal("0.0", ScalarType.real_single_type()))
+    loop_body = [Assignment.create(
+        ref2, Literal("1.0", ScalarType.real_single_type()))]
     loop = WhileLoop.create(loop_condition, loop_body)
     loop_schedule = loop.children[1]
     assert isinstance(loop_schedule, Schedule)
@@ -97,10 +70,10 @@ def test_whileloop_create_invalid():
     '''Test that the create method in the WhileLoop class raises the expected
     exception if the provided input is invalid.'''
 
-    loop_condition = Literal('true', BOOLEAN_TYPE)
+    loop_condition = Literal('true', ScalarType.boolean_type())
     loop_body = [Assignment.create(
-        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
-        Literal("0.0", REAL_SINGLE_TYPE))]
+        Reference(DataSymbol("tmp", ScalarType.real_single_type())),
+        Literal("0.0", ScalarType.real_single_type()))]
 
     # Loop condition not a Node.
     with pytest.raises(GenerationError) as excinfo:
@@ -110,8 +83,8 @@ def test_whileloop_create_invalid():
 
     # Loop body not a Node.
     loop_body_err = [Assignment.create(
-                                Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
-                                Literal("0.0", REAL_SINGLE_TYPE)), "invalid"]
+        Reference(DataSymbol("tmp", ScalarType.real_single_type())),
+        Literal("0.0", ScalarType.real_single_type())), "invalid"]
     with pytest.raises(GenerationError) as excinfo:
         _ = WhileLoop.create(loop_condition, loop_body_err)
     assert ("Item 'str' can't be child 1 of 'Schedule'. The valid format is: "
@@ -135,7 +108,7 @@ def test_whileloop_properties():
     assert ("WhileLoop malformed or incomplete. It should have "
             "2 children, but found 0." in str(err.value))
 
-    ref1 = Reference(DataSymbol('condition1', BOOLEAN_TYPE),
+    ref1 = Reference(DataSymbol('condition1', ScalarType.boolean_type()),
                      parent=loop)
     loop.addchild(ref1)
 
@@ -158,7 +131,8 @@ def test_whileloop_properties():
 def test_whileloop_can_be_printed():
     '''Test that a WhileLoop instance can be printed.'''
 
-    loop_condition = Reference(DataSymbol('condition1', BOOLEAN_TYPE))
+    loop_condition = Reference(
+        DataSymbol('condition1', ScalarType.boolean_type()))
     loop_body = [Return()]
     loop = WhileLoop.create(loop_condition, loop_body)
 

@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' Test utilities including support for testing that code compiles. '''
 
@@ -75,7 +46,6 @@ class CompileError(PSycloneError):
         PSycloneError.value = "Compile error: " + str(value)
 
 
-# =============================================================================
 def line_number(root, string_name):
     '''Helper routine which returns the first index of the supplied
     name in the root object, when it is converted into a string, or
@@ -98,7 +68,6 @@ def line_number(root, string_name):
     return -1
 
 
-# =============================================================================
 def count_lines(root, string_name):
     '''Helper routine which returns the number of lines that contain the
     supplied string.
@@ -120,7 +89,6 @@ def count_lines(root, string_name):
     return count
 
 
-# =============================================================================
 def print_diffs(expected, actual):
     '''
     Pretty-print the diff between the two, possibly multi-line, strings
@@ -135,7 +103,6 @@ def print_diffs(expected, actual):
     pprint(diff_list)
 
 
-# =============================================================================
 @contextmanager
 def change_dir(new_dir):
     '''This is a small context manager that changes the current working
@@ -154,7 +121,6 @@ def change_dir(new_dir):
         os.chdir(prev_dir)
 
 
-# =============================================================================
 class Compile():
     '''This class provides compile functionality to the testing framework.
     It stores the name of the compiler, compiler flags, and a temporary
@@ -507,13 +473,13 @@ class Compile():
         return success
 
 
-# =============================================================================
-def get_base_path(api: str) -> str:
+def get_base_path(api: str = "") -> str:
     '''Get the absolute base path for the specified API relative to the
     'tests/test_files' directory, i.e. the directory in which all
     Fortran test files are stored.
 
-    :param api: name of the API.
+    :param api: name of the API. Also accepts 'gocean-examples' to mean
+        a gocean api file under the examples directory.
 
     :returns: the base path for the API.
 
@@ -521,16 +487,17 @@ def get_base_path(api: str) -> str:
 
     '''
     # Define the mapping of supported APIs to Fortran directories
-    # Note that the nemo files are outside of the default tests/test_files
-    # directory, they are in tests/nemo/test_files
-    api_2_path = {"lfric": "lfric",
-                  "nemo": "../nemo/test_files",
-                  "gocean": "gocean1p0"}
+    api_2_path = {
+        "lfric": "lfric",
+        "": "../nemo/test_files",
+        "gocean": "gocean1p0",
+        "gocean-examples": "../../../../examples/gocean"
+    }
     try:
         dir_name = api_2_path[api]
     except KeyError as err:
-        raise RuntimeError(f"The API '{api}' is not supported. "
-                           f"Supported types are {api_2_path.keys()}.") \
+        raise ValueError(f"The API '{api}' is not supported. "
+                         f"Supported types are {api_2_path.keys()}.") \
                            from err
     return os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "test_files", dir_name)
@@ -555,7 +522,6 @@ def get_infrastructure_path(api: str) -> str:
                        f"Supported values are 'lfric' and 'gocean'.")
 
 
-# =============================================================================
 def get_invoke(algfile: str,
                api: str,
                idx: Optional[int] = None,
@@ -586,12 +552,19 @@ def get_invoke(algfile: str,
         raise RuntimeError("Either the index or the name of the "
                            "requested invoke must be specified")
 
+    filepath = os.path.join(get_base_path(api), algfile)
+
+    if api == "gocean-examples":
+        # gocean-examples in this utility is a shorthand for using the gocean
+        # API but from its examples directory as a basepath
+        api = "gocean"
     config = Config.get()
     config.api = api
+
     # Ensure infrastructure module files can be discovered.
     config.include_paths.append(get_infrastructure_path(api))
 
-    _, info = parse(os.path.join(get_base_path(api), algfile), api=api)
+    _, info = parse(filepath, api=api)
     psy = PSyFactory(api, distributed_memory=dist_mem).create(info)
     if name:
         invoke = psy.invokes.get(name)
@@ -600,7 +573,45 @@ def get_invoke(algfile: str,
     return psy, invoke
 
 
-# =============================================================================
+def get_psylayer_schedule(
+    algfile: str,
+    api: str,
+    invoke_name: str = "",
+    dist_mem: bool = False
+) -> Node:
+    '''
+    Utility method to get the psylayer schedule associated with the given
+    algorithm file.
+
+    :param algfile: name of the Algorithm source file (Fortran).
+    :param api: which PSyclone API this Algorithm uses. Also accepts
+        'gocean-examples' to mean a gocean api file under the examples
+        directory.
+    :param invoke_name: return the schedule of a given invoke.
+    :param dist_mem: if the psy instance should be created with or
+                     without distributed memory support.
+
+    :returns: the associated psylayer schedule.
+
+    '''
+    idx = 0 if invoke_name == "" else None
+    _, invoke = get_invoke(algfile, api, idx, invoke_name, dist_mem)
+    return invoke.schedule
+
+
+def get_examples_path(relative_path: str):
+    '''
+    :param relative_path: given a relative examples file path.
+
+    :returns: its absolute file path.
+
+    '''
+    return os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "../../../examples",
+        relative_path)
+
+
 def get_ast(api: str, filename: str) -> BeginSource:
     '''Returns the fparser1 parse tree for a filename that is stored in the
     test files for the specified API.
@@ -618,7 +629,6 @@ def get_ast(api: str, filename: str) -> BeginSource:
     return ast
 
 
-# =============================================================================
 def check_links(parent: Node, children: list[Node]) -> None:
     '''Utility routine to check that the parent node has children as its
     children in the order specified and that the children have parent
@@ -665,7 +675,6 @@ def make_external_module(monkeypatch,
     monkeypatch.setitem(mman._modules, mod_name, minfo)
 
 
-# ============================================================================
 min_version_3_10 = pytest.mark.skipif(
     sys.version_info < (3, 10), reason="tests require python 3.10 or higher"
 )

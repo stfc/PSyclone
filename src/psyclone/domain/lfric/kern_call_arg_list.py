@@ -1,44 +1,14 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie, L. Turner, and A. Pirrie, Met Office
-# Modified J. Henrichs, Bureau of Meteorology
 
 '''This module implements a class that manages the argument for a kernel
 call. It especially adds all implicitly required parameters.
 It creates the argument in two formats: first as a list of strings, but also
-as a list of PSyIR nodes. TODO #1930: the support for the string format
+as a list of PSyIR nodes. TODO #1883: the support for the string format
 should be removed as we migrate to use PSyIR in LFRic.
 '''
 
@@ -49,15 +19,15 @@ from typing import Optional, Tuple, TYPE_CHECKING
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
+from psyclone.domain.lfric.function_space import FunctionSpace
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import (
     ArrayReference, Reference, StructureReference)
 from psyclone.psyir.symbols import (
-    DataSymbol, DataTypeSymbol, UnresolvedType, ContainerSymbol,
-    ImportInterface, ScalarType, ArrayType, Symbol, UnsupportedFortranType,
-    ArgumentInterface)
+    ArgumentInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,
+    ImportInterface, ScalarType, Symbol, UnresolvedType)
 if TYPE_CHECKING:
     from psyclone.lfric import LFRicKernelArgument
 
@@ -387,7 +357,7 @@ class KernCallArgList(ArgOrdering):
                 dof_sym = self._symtab.find_or_create(
                     "df", tag="dof_loop_idx", symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-                # TODO #1010 removes the need to declare type and
+                # TODO #2905 removes the need to declare type and
                 # allows this to be fixed
                 self.append_array_reference(cmpt_sym.name,
                                             [Reference(dof_sym)],
@@ -428,7 +398,7 @@ class KernCallArgList(ArgOrdering):
             dof_sym = self._symtab.find_or_create(
                 "df", tag="dof_loop_idx", symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-            # TODO #1010 removes the need to declare type and
+            # TODO #2905 removes the need to declare type and
             # allows this to be fixed
             self.append_array_reference(sym.name, [Reference(dof_sym)],
                                         ScalarType.Intrinsic.INTEGER,
@@ -641,14 +611,16 @@ class KernCallArgList(ArgOrdering):
                                     function_space=function_space.orig_name))
 
     def fs_compulsory_field(
-            self, function_space,
-            var_accesses: Optional[VariablesAccessMap] = None):
-        '''Add compulsory arguments associated with this function space to
-        the list. If supplied it also stores this access in var_accesses.
+            self,
+            function_space: FunctionSpace,
+            var_accesses: Optional[VariablesAccessMap] = None
+    ) -> None:
+        '''
+        Add compulsory arguments associated with this function space to this
+        argument list. If supplied it also stores this access in var_accesses.
 
         :param function_space: the function space for which the compulsory
             arguments are added.
-        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
 
@@ -661,16 +633,7 @@ class KernCallArgList(ArgOrdering):
         self.append(sym.name, var_accesses)
 
         map_name = function_space.map_name
-        intrinsic_type = LFRicTypes("LFRicIntegerScalarDataType")()
-        dtype = UnsupportedFortranType(
-            f"{intrinsic_type.intrinsic.name}("
-            f"kind={intrinsic_type.precision.name}), pointer, "
-            f"dimension(:,:) :: {map_name} => null()",
-            partial_datatype=ArrayType(
-                intrinsic_type,
-                [ArrayType.Extent.DEFERRED, ArrayType.Extent.DEFERRED]))
-        sym = self._symtab.find_or_create_tag(
-            map_name, symbol_type=DataSymbol, datatype=dtype)
+        sym = self._symtab.lookup_with_tag(map_name)
 
         if self._kern.iterates_over == 'domain':
             # This kernel takes responsibility for iterating over cells so

@@ -1,74 +1,39 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors I. Kavcic, Met Office
-# Modified by J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''This module contains the GOcean-specific extract transformation.
 '''
 
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.nodes import ExtractNode
-from psyclone.psyir.symbols import REAL8_TYPE, INTEGER_TYPE
+from psyclone.psyir.symbols import ScalarType
 from psyclone.domain.gocean import GOceanDriverCreator
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
 
 class GOceanExtractTrans(ExtractTrans):
-    ''' GOcean1.0 API application of ExtractTrans transformation \
+    ''' GOcean API application of ExtractTrans transformation
     to extract code into a stand-alone program. For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>>
-    >>> API = "gocean"
-    >>> FILENAME = "shallow_alg.f90"
-    >>> ast, invokeInfo = parse(FILENAME, api=API)
-    >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "eg1/shallow_alg.f90"
+    >>> schedule = get_psylayer_schedule(filename, "gocean-examples")
     >>>
     >>> from psyclone.domain.gocean.transformations import GOceanExtractTrans
     >>> etrans = GOceanExtractTrans()
     >>>
     >>> # Apply GOceanExtractTrans transformation to selected Nodes
     >>> etrans.apply(schedule.children[0])
-    >>> print(schedule.view())
+
     '''
 
     # ------------------------------------------------------------------------
     def validate(self, node_list, options=None):
-        ''' Perform GOcean1.0 API specific validation checks before applying
+        ''' Perform GOcean API specific validation checks before applying
         the transformation.
 
         :param node_list: the list of Node(s) we are checking.
@@ -156,6 +121,7 @@ class GOceanExtractTrans(ExtractTrans):
         new_node = nodes[0].ancestor(ExtractNode)
         if my_options.get("create_driver", False):
             region_name = my_options.get("region_name", None)
-            new_node._driver_creator = GOceanDriverCreator(INTEGER_TYPE,
-                                                           REAL8_TYPE,
-                                                           region_name)
+            new_node._driver_creator = GOceanDriverCreator(
+                ScalarType.integer_type(),
+                ScalarType.real8_type(),
+                region_name)

@@ -1,39 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
-# Modified: S. Siso, STFC Daresbury Lab
-# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR DOT_PRODUCT operator
 to PSyIR code. This could be useful if the DOT_PRODUCT operator is not
@@ -46,8 +16,7 @@ better than the intrinsic.
 
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
     Loop, Literal, ArrayReference, Range, Routine, IntrinsicCall
-from psyclone.psyir.symbols import (DataSymbol, INTEGER_TYPE, REAL_TYPE,
-                                    ScalarType)
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import \
@@ -109,6 +78,7 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
     <BLANKLINE>
 
     '''
+
     def __init__(self):
         super().__init__()
         self._intrinsic = IntrinsicCall.Intrinsic.DOT_PRODUCT
@@ -223,7 +193,7 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
 
         # Create new i loop iterator.
         i_loop_symbol = symbol_table.new_symbol(
-            "i", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            "i", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
 
         # Create temporary result variable. Use the datatype of one of
         # the arguments. We can do this as the validate method only
@@ -276,11 +246,12 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
             lower_bound, upper_bound = bounds2[0], bounds2[1]
         # Create i loop and add the above code as a child
         iloop = Loop.create(i_loop_symbol, lower_bound,
-                            upper_bound, Literal("1", INTEGER_TYPE),
+                            upper_bound,
+                            Literal("1", ScalarType.integer_type()),
                             [assign])
         # Create "result = 0.0"
         assign = Assignment.create(result_ref.copy(),
-                                   Literal("0.0", REAL_TYPE))
+                                   Literal("0.0", ScalarType.real_type()))
         # Add the initialisation and loop nodes into the PSyIR tree
         assignment.parent.children.insert(assignment.position, assign)
         assignment.parent.children.insert(assignment.position, iloop)

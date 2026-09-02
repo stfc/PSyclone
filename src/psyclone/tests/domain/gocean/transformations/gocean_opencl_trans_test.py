@@ -1,44 +1,14 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2018-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# ----------------------------------------------------------------------------
-# Authors A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified by R. W. Ford, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
-# ----------------------------------------------------------------------------
+# SPDX-FileCopyrightText: Copyright (c) 2018-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
+# -----------------------------------------------------------------------------
 
 ''' Module containing tests for the PSyclone GOcean OpenCL transformation.'''
 
 import os
+import re
 import pytest
 
 from psyclone.configuration import Config
@@ -48,8 +18,7 @@ from psyclone.domain.gocean.transformations import (
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKernelSchedule
 from psyclone.psyir.symbols import (DataSymbol, ArgumentInterface,
-                                    ScalarType, ArrayType, INTEGER_TYPE,
-                                    REAL_TYPE)
+                                    ScalarType, ArrayType)
 from psyclone.tests.gocean_build import GOceanOpenCLBuild
 from psyclone.tests.utilities import (Compile, get_base_path, get_invoke)
 from psyclone.transformations import (TransformationError,
@@ -264,7 +233,8 @@ def test_invoke_opencl_initialisation(kernel_outputdir, fortran_writer):
   if (first_time) then
     call psy_init()
     cmd_queues => get_cmd_queues()
-    kernel_compute_cu_code = get_kernel_by_name('compute_cu_code')
+    kernel_compute_cu_code_inlined_ = get_kernel_by_name(\
+'compute_cu_code_inlined_')
     call initialise_device_buffer(cu_fld)
     call initialise_device_buffer(p_fld)
     call initialise_device_buffer(u_fld)
@@ -273,8 +243,9 @@ def test_invoke_opencl_initialisation(kernel_outputdir, fortran_writer):
     cu_fld_cl_mem = transfer(cu_fld%device_ptr, cu_fld_cl_mem)
     p_fld_cl_mem = transfer(p_fld%device_ptr, p_fld_cl_mem)
     u_fld_cl_mem = transfer(u_fld%device_ptr, u_fld_cl_mem)
-    call compute_cu_code_set_args(kernel_compute_cu_code, cu_fld_cl_mem, \
-p_fld_cl_mem, u_fld_cl_mem, xstart - 1, xstop - 1, ystart - 1, ystop - 1)
+    call compute_cu_code_inlined__set_args(kernel_compute_cu_code_inlined_, \
+cu_fld_cl_mem, p_fld_cl_mem, u_fld_cl_mem, xstart - 1, xstop - 1, ystart - 1, \
+ystop - 1)
 
     ! write data to the device'''
     assert expected in generated_code
@@ -389,7 +360,8 @@ c_sizeof(field%grid%area_t(1,1))'''
     if (first_time) then
       call psy_init()
       cmd_queues => get_cmd_queues()
-      kernel_compute_kernel_code = get_kernel_by_name('compute_kernel_code')
+      kernel_compute_kernel_code_inlined_ = get_kernel_by_name(\
+'compute_kernel_code_inlined_')
       call initialise_device_buffer(out_fld)
       call initialise_device_buffer(in_out_fld)
       call initialise_device_buffer(in_fld)
@@ -404,7 +376,8 @@ in_out_fld_cl_mem)
       dx_cl_mem = transfer(dx%device_ptr, dx_cl_mem)
       gphiu_cl_mem = transfer(in_fld%grid%gphiu_device, \
 gphiu_cl_mem)
-      call compute_kernel_code_set_args(kernel_compute_kernel_code, \
+      call compute_kernel_code_inlined__set_args(\
+kernel_compute_kernel_code_inlined_, \
 out_fld_cl_mem, in_out_fld_cl_mem, in_fld_cl_mem, dx_cl_mem, \
 in_fld%grid%dx, gphiu_cl_mem, xstart - 1, xstop - 1, ystart - 1, \
 ystop - 1)
@@ -595,7 +568,7 @@ def test_psy_init_defaults(kernel_outputdir):
     if (.not.initialised) then
       initialised = .true.
       call ocl_env_init(1, ocl_device_num, .false., .false.)
-      kernel_names(1) = 'compute_cu_code'
+      kernel_names(1) = 'compute_cu_code_inlined_'
       call add_kernels(1, kernel_names)
     end if
 
@@ -604,10 +577,12 @@ def test_psy_init_defaults(kernel_outputdir):
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
-def test_psy_init_multiple_kernels(kernel_outputdir):
+@pytest.mark.parametrize("do_all", [True, False])
+def test_psy_init_multiple_kernels(kernel_outputdir, do_all):
     ''' Check that we create a psy_init() routine that sets-up the
     kernel_names correctly when there are multiple kernels, some of
-    them repeated. '''
+    them repeated. Tests both with and without the 'update_all' flag
+    to KernelModuleInlineTrans. '''
     # This example has 2 unique kernels, one of them repeated twice
     psy, _ = get_invoke("single_invoke_three_kernels_with_use.f90",
                         API, idx=0, dist_mem=True)
@@ -618,7 +593,10 @@ def test_psy_init_multiple_kernels(kernel_outputdir):
     trans2 = KernelImportsToArguments()
     mod_inline_trans = KernelModuleInlineTrans()
     for kernel in sched.coded_kernels():
-        mod_inline_trans.apply(kernel)
+        try:
+            mod_inline_trans.apply(kernel, update_all=do_all)
+        except TransformationError:
+            pass
         trans1.apply(kernel)
         trans2.apply(kernel)
 
@@ -626,19 +604,28 @@ def test_psy_init_multiple_kernels(kernel_outputdir):
     otrans.apply(sched)
     generated_code = str(psy.gen)
 
+    if do_all:
+        # When update_all is True, all calls to a given kernel point to
+        # a single, module-inlined routine. Therefore there are only
+        # two distinct routines.
+        num_kernels = 2
+    else:
+        num_kernels = 3
     # Check that the kernel_names has enough space for all kernels
-    assert "character(len=30), dimension(2) :: kernel_names" in generated_code
+    assert (f"character(len=30), dimension({num_kernels}) :: kernel_names"
+            in generated_code)
 
-    # The order doesn't matter as far as the two kernels are loaded
-    assert ("kernel_names(1) = 'kernel_with_use_code'" in generated_code or
-            "kernel_names(2) = 'kernel_with_use_code'" in generated_code)
-
-    assert ("kernel_names(1) = 'kernel_with_use2_code'" in generated_code or
-            "kernel_names(2) = 'kernel_with_use2_code'" in generated_code)
-    assert "kernel_names(3)" not in generated_code
+    inlined_names = ['kernel_with_use_code_inlined_',
+                     'kernel_with_use2_code_inlined_']
+    if not do_all:
+        inlined_names.append('kernel_with_use_code_inlined__1')
+    # The order doesn't matter as long as the 2 or 3 kernels are loaded
+    for name in inlined_names:
+        assert re.search(
+            rf"kernel_names\([1-3]\) = '{name}'", generated_code)
 
     # Check that add_kernels is provided with the total number of kernels
-    assert "call add_kernels(2, kernel_names)" in generated_code
+    assert f"call add_kernels({num_kernels}, kernel_names)" in generated_code
 
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(
             psy, dependencies=["model_mod.f90"])
@@ -654,7 +641,7 @@ def test_psy_init_multiple_devices_per_node(kernel_outputdir, monkeypatch):
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     mod_inline_trans = KernelModuleInlineTrans()
     for kernel in sched.coded_kernels():
-        mod_inline_trans.apply(kernel)
+        mod_inline_trans.apply(kernel, update_all=True)
         trans.apply(kernel)
 
     # Test with a different configuration value for OCL_DEVICES_PER_NODE
@@ -678,7 +665,7 @@ def test_psy_init_multiple_devices_per_node(kernel_outputdir, monkeypatch):
       initialised = .true.
       ocl_device_num = mod(get_rank() - 1, 2) + 1
       call ocl_env_init(1, ocl_device_num, .false., .false.)
-      kernel_names(1) = 'compute_cu_code'
+      kernel_names(1) = 'compute_cu_code_inlined_'
       call add_kernels(1, kernel_names)
     end if
 
@@ -750,7 +737,7 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
         # the kernel
         expected += '''
     ierr = clFinish(cmd_queues(1))
-    call check_status('Errors before compute_cu_code launch', ierr)'''
+    call check_status('Errors before compute_cu_code_inlined_ launch', ierr)'''
 
     # Cast dl_esm_inf pointers to cl_mem handlers
     expected += '''
@@ -761,7 +748,7 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
     # Call the set_args subroutine with the boundaries corrected for the
     # OpenCL 0-indexing
     expected += '''
-    call compute_cu_code_set_args(kernel_compute_cu_code, \
+    call compute_cu_code_inlined__set_args(kernel_compute_cu_code_inlined_, \
 cu_fld_cl_mem, p_fld_cl_mem, u_fld_cl_mem, \
 xstart - 1, xstop - 1, \
 ystart - 1, ystop - 1)
@@ -769,17 +756,17 @@ ystart - 1, ystop - 1)
 
     expected += '''
     ! Launch the kernel
-    ierr = clEnqueueNDRangeKernel(cmd_queues(1), kernel_compute_cu_code, \
-2, C_NULL_PTR, C_LOC(globalsize), C_LOC(localsize), 0, C_NULL_PTR, \
-C_NULL_PTR)'''
+    ierr = clEnqueueNDRangeKernel(cmd_queues(1), \
+kernel_compute_cu_code_inlined_, 2, C_NULL_PTR, C_LOC(globalsize), \
+C_LOC(localsize), 0, C_NULL_PTR, C_NULL_PTR)'''
 
     if debug_mode:
         # Check that there are no errors during the kernel launch or during
         # the execution of the kernel.
         expected += '''
-    call check_status('compute_cu_code clEnqueueNDRangeKernel', ierr)
+    call check_status('compute_cu_code_inlined_ clEnqueueNDRangeKernel', ierr)
     ierr = clFinish(cmd_queues(1))
-    call check_status('Errors during compute_cu_code', ierr)'''
+    call check_status('Errors during compute_cu_code_inlined_', ierr)'''
     assert expected in generated_code
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
@@ -925,7 +912,7 @@ def test_opencl_options_effects():
     generated_code = str(psy.gen)
     assert "localsize = (/64, 1/)" in generated_code
     assert "ierr = clEnqueueNDRangeKernel(cmd_queues(1), " \
-        "kernel_compute_cu_code, 2, C_NULL_PTR, C_LOC(globalsize), " \
+        "kernel_compute_cu_code_inlined_, 2, C_NULL_PTR, C_LOC(globalsize), " \
         "C_LOC(localsize), 0, C_NULL_PTR, C_NULL_PTR)" in generated_code
     assert "ierr = clFinish(cmd_queues(1))" in generated_code
     assert "ierr = clFinish(cmd_queues(2))" not in generated_code
@@ -959,7 +946,7 @@ def test_opencl_options_effects():
     otrans.apply(sched)
     generated_code = str(psy.gen)
     assert "ierr = clEnqueueNDRangeKernel(cmd_queues(2), " \
-        "kernel_compute_cu_code, 2, C_NULL_PTR, C_LOC(globalsize), " \
+        "kernel_compute_cu_code_inlined_, 2, C_NULL_PTR, C_LOC(globalsize), " \
         "C_LOC(localsize), 0, C_NULL_PTR, C_NULL_PTR)" in generated_code
     assert "    ierr = clFinish(cmd_queues(1))\n" \
            "    ierr = clFinish(cmd_queues(2))\n" in generated_code
@@ -1047,7 +1034,7 @@ def test_set_kern_args(kernel_outputdir):
     generated_code = str(psy.gen)
     # Check we've only generated one set-args routine with arguments:
     # kernel object + kernel arguments + boundary values
-    assert generated_code.count("subroutine compute_cu_code_set_args("
+    assert generated_code.count("subroutine compute_cu_code_inlined__set_args("
                                 "kernel_obj, cu_fld, p_fld, u_fld, xstart, "
                                 "xstop, ystart, ystop)") == 1
     # Declarations
@@ -1055,46 +1042,55 @@ def test_set_kern_args(kernel_outputdir):
     use clfortran, only : clSetKernelArg
     use iso_c_binding, only : C_LOC, C_SIZEOF, c_intptr_t
     use ocl_utils_mod, only : check_status
-    INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj
-    INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: cu_fld
-    INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: p_fld
-    INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: u_fld
-    INTEGER, INTENT(IN), TARGET :: xstart
-    INTEGER, INTENT(IN), TARGET :: xstop
-    INTEGER, INTENT(IN), TARGET :: ystart
-    INTEGER, INTENT(IN), TARGET :: ystop
+    integer(kind=c_intptr_t), target :: kernel_obj
+    integer(kind=c_intptr_t), intent(in), target :: cu_fld
+    integer(kind=c_intptr_t), intent(in), target :: p_fld
+    integer(kind=c_intptr_t), intent(in), target :: u_fld
+    integer, intent(in), target :: xstart
+    integer, intent(in), target :: xstop
+    integer, intent(in), target :: ystart
+    integer, intent(in), target :: ystop
     integer :: ierr'''
     assert expected in generated_code
     expected = '''\
     ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(cu_fld), C_LOC(cu_fld))
-    call check_status('clSetKernelArg: arg 0 of compute_cu_code', ierr)
+    call check_status('clSetKernelArg: arg 0 of compute_cu_code_inlined_', \
+ierr)
     ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(p_fld), C_LOC(p_fld))
-    call check_status('clSetKernelArg: arg 1 of compute_cu_code', ierr)
+    call check_status('clSetKernelArg: arg 1 of compute_cu_code_inlined_', \
+ierr)
     ierr = clSetKernelArg(kernel_obj, 2, C_SIZEOF(u_fld), C_LOC(u_fld))
-    call check_status('clSetKernelArg: arg 2 of compute_cu_code', ierr)
+    call check_status('clSetKernelArg: arg 2 of compute_cu_code_inlined_', \
+ierr)
     ierr = clSetKernelArg(kernel_obj, 3, C_SIZEOF(xstart), C_LOC(xstart))
-    call check_status('clSetKernelArg: arg 3 of compute_cu_code', ierr)
+    call check_status('clSetKernelArg: arg 3 of compute_cu_code_inlined_', \
+ierr)
     ierr = clSetKernelArg(kernel_obj, 4, C_SIZEOF(xstop), C_LOC(xstop))
-    call check_status('clSetKernelArg: arg 4 of compute_cu_code', ierr)
+    call check_status('clSetKernelArg: arg 4 of compute_cu_code_inlined_', \
+ierr)
     ierr = clSetKernelArg(kernel_obj, 5, C_SIZEOF(ystart), C_LOC(ystart))
-    call check_status('clSetKernelArg: arg 5 of compute_cu_code', ierr)
+    call check_status('clSetKernelArg: arg 5 of compute_cu_code_inlined_', \
+ierr)
     ierr = clSetKernelArg(kernel_obj, 6, C_SIZEOF(ystop), C_LOC(ystop))
-    call check_status('clSetKernelArg: arg 6 of compute_cu_code', ierr)
+    call check_status('clSetKernelArg: arg 6 of compute_cu_code_inlined_', \
+ierr)
 
-  end subroutine compute_cu_code_set_args'''
+  end subroutine compute_cu_code_inlined__set_args'''
     assert expected in generated_code
 
     # The call to the set_args matches the expected kernel signature with
     # the boundary values converted to 0-indexing
-    assert ("call compute_cu_code_set_args(kernel_compute_cu_code, "
+    assert ("call compute_cu_code_inlined__set_args("
+            "kernel_compute_cu_code_inlined_, "
             "cu_fld_cl_mem, p_fld_cl_mem, u_fld_cl_mem, "
             "xstart - 1, xstop - 1, "
             "ystart - 1, ystop - 1)" in generated_code)
 
     # There is also only one version of the set_args for the second kernel
-    assert generated_code.count("subroutine time_smooth_code_set_args("
-                                "kernel_obj, cu_fld, unew_fld, uold_fld, "
-                                "xstart_1, xstop_1, ystart_1, ystop_1)") == 1
+    assert generated_code.count(
+        "subroutine time_smooth_code_inlined__set_args("
+        "kernel_obj, cu_fld, unew_fld, uold_fld, "
+        "xstart_1, xstop_1, ystart_1, ystop_1)") == 1
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
@@ -1117,22 +1113,22 @@ def test_set_kern_args_real_grid_property(kernel_outputdir):
 
     generated_code = str(psy.gen)
     expected = '''\
-  subroutine compute_kernel_code_set_args(kernel_obj, out_fld, in_out_fld, \
-in_fld, dx, dx_1, gphiu, xstart, xstop, ystart, ystop)
+  subroutine compute_kernel_code_inlined__set_args(kernel_obj, out_fld, \
+in_out_fld, in_fld, dx, dx_1, gphiu, xstart, xstop, ystart, ystop)
     use clfortran, only : clSetKernelArg
     use iso_c_binding, only : C_LOC, C_SIZEOF, c_intptr_t
     use ocl_utils_mod, only : check_status
-    INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj
-    INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: out_fld
-    INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: in_out_fld
-    INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: in_fld
-    INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: dx
-    REAL(KIND=go_wp), INTENT(IN), TARGET :: dx_1
-    INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: gphiu
-    INTEGER, INTENT(IN), TARGET :: xstart
-    INTEGER, INTENT(IN), TARGET :: xstop
-    INTEGER, INTENT(IN), TARGET :: ystart
-    INTEGER, INTENT(IN), TARGET :: ystop'''
+    integer(kind=c_intptr_t), target :: kernel_obj
+    integer(kind=c_intptr_t), intent(in), target :: out_fld
+    integer(kind=c_intptr_t), intent(in), target :: in_out_fld
+    integer(kind=c_intptr_t), intent(in), target :: in_fld
+    integer(kind=c_intptr_t), intent(in), target :: dx
+    real(kind=go_wp), intent(in), target :: dx_1
+    integer(kind=c_intptr_t), intent(in), target :: gphiu
+    integer, intent(in), target :: xstart
+    integer, intent(in), target :: xstop
+    integer, intent(in), target :: ystart
+    integer, intent(in), target :: ystop'''
     assert expected in generated_code
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
@@ -1156,42 +1152,42 @@ def test_set_kern_float_arg(kernel_outputdir):
     # This set_args has a name clash on xstop (one is a grid property and the
     # other a loop boundary). One of they should appear as 'xstop_1'
     expected = '''\
-  subroutine bc_ssh_code_set_args(kernel_obj, a_scalar, ssh_fld, xstop, \
-tmask, xstart, xstop_1, ystart, ystop)
+  subroutine bc_ssh_code_inlined__set_args(kernel_obj, a_scalar, ssh_fld, \
+xstop, tmask, xstart, xstop_1, ystart, ystop)
     use clfortran, only : clSetKernelArg
     use iso_c_binding, only : C_LOC, C_SIZEOF, c_intptr_t
     use ocl_utils_mod, only : check_status
-    INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj
-    REAL(KIND=go_wp), INTENT(IN), TARGET :: a_scalar
-    INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: ssh_fld
-    INTEGER, INTENT(IN), TARGET :: xstop
-    INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: tmask
-    INTEGER, INTENT(IN), TARGET :: xstart
-    INTEGER, INTENT(IN), TARGET :: xstop_1
-    INTEGER, INTENT(IN), TARGET :: ystart
-    INTEGER, INTENT(IN), TARGET :: ystop
+    integer(kind=c_intptr_t), target :: kernel_obj
+    real(kind=go_wp), intent(in), target :: a_scalar
+    integer(kind=c_intptr_t), intent(in), target :: ssh_fld
+    integer, intent(in), target :: xstop
+    integer(kind=c_intptr_t), intent(in), target :: tmask
+    integer, intent(in), target :: xstart
+    integer, intent(in), target :: xstop_1
+    integer, intent(in), target :: ystart
+    integer, intent(in), target :: ystop
     integer :: ierr
 '''
     assert expected in generated_code
     expected = '''\
     ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(a_scalar), C_LOC(a_scalar))
-    call check_status('clSetKernelArg: arg 0 of bc_ssh_code', ierr)
+    call check_status('clSetKernelArg: arg 0 of bc_ssh_code_inlined_', ierr)
     ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(ssh_fld), C_LOC(ssh_fld))
-    call check_status('clSetKernelArg: arg 1 of bc_ssh_code', ierr)
+    call check_status('clSetKernelArg: arg 1 of bc_ssh_code_inlined_', ierr)
     ierr = clSetKernelArg(kernel_obj, 2, C_SIZEOF(xstop), C_LOC(xstop))
-    call check_status('clSetKernelArg: arg 2 of bc_ssh_code', ierr)
+    call check_status('clSetKernelArg: arg 2 of bc_ssh_code_inlined_', ierr)
     ierr = clSetKernelArg(kernel_obj, 3, C_SIZEOF(tmask), C_LOC(tmask))
-    call check_status('clSetKernelArg: arg 3 of bc_ssh_code', ierr)
+    call check_status('clSetKernelArg: arg 3 of bc_ssh_code_inlined_', ierr)
     ierr = clSetKernelArg(kernel_obj, 4, C_SIZEOF(xstart), C_LOC(xstart))
-    call check_status('clSetKernelArg: arg 4 of bc_ssh_code', ierr)
+    call check_status('clSetKernelArg: arg 4 of bc_ssh_code_inlined_', ierr)
     ierr = clSetKernelArg(kernel_obj, 5, C_SIZEOF(xstop_1), C_LOC(xstop_1))
-    call check_status('clSetKernelArg: arg 5 of bc_ssh_code', ierr)
+    call check_status('clSetKernelArg: arg 5 of bc_ssh_code_inlined_', ierr)
     ierr = clSetKernelArg(kernel_obj, 6, C_SIZEOF(ystart), C_LOC(ystart))
-    call check_status('clSetKernelArg: arg 6 of bc_ssh_code', ierr)
+    call check_status('clSetKernelArg: arg 6 of bc_ssh_code_inlined_', ierr)
     ierr = clSetKernelArg(kernel_obj, 7, C_SIZEOF(ystop), C_LOC(ystop))
-    call check_status('clSetKernelArg: arg 7 of bc_ssh_code', ierr)
+    call check_status('clSetKernelArg: arg 7 of bc_ssh_code_inlined_', ierr)
 
-  end subroutine bc_ssh_code_set_args'''
+  end subroutine bc_ssh_code_inlined__set_args'''
 
     assert expected in generated_code
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
@@ -1224,13 +1220,13 @@ def test_opencl_kernel_missing_boundary_symbol(monkeypatch):
     # symbol
     sched.symbol_table.new_symbol(
         "a", tag="xstart_compute_cu_code", symbol_type=DataSymbol,
-        datatype=INTEGER_TYPE)
+        datatype=ScalarType.integer_type())
     sched.symbol_table.new_symbol(
         "c", tag="ystart_compute_cu_code", symbol_type=DataSymbol,
-        datatype=INTEGER_TYPE)
+        datatype=ScalarType.integer_type())
     sched.symbol_table.new_symbol(
         "d", tag="ystop_compute_cu_code", symbol_type=DataSymbol,
-        datatype=INTEGER_TYPE)
+        datatype=ScalarType.integer_type())
 
     otrans = GOOpenCLTrans()
     # We skip validation as in this test we purposefully want to have the issue
@@ -1284,7 +1280,7 @@ def test_symtab_implementation_for_opencl():
             in str(err.value))
 
     # Test symbol table with 1 kernel argument
-    arg1 = DataSymbol("arg1", INTEGER_TYPE,
+    arg1 = DataSymbol("arg1", ScalarType.integer_type(),
                       interface=ArgumentInterface(
                           ArgumentInterface.Access.READ))
     kschedule.symbol_table.add(arg1)
@@ -1297,7 +1293,7 @@ def test_symtab_implementation_for_opencl():
             in str(err.value))
 
     # Test symbol table with 2 kernel argument
-    arg2 = DataSymbol("arg2", INTEGER_TYPE,
+    arg2 = DataSymbol("arg2", ScalarType.integer_type(),
                       interface=ArgumentInterface(
                           ArgumentInterface.Access.READ))
     kschedule.symbol_table.add(arg2)
@@ -1307,7 +1303,7 @@ def test_symtab_implementation_for_opencl():
     assert iteration_indices[1] is arg2
 
     # Test symbol table with 3 kernel argument
-    array_type = ArrayType(REAL_TYPE, [10, 10])
+    array_type = ArrayType(ScalarType.real_type(), [10, 10])
     arg3 = DataSymbol("buffer1", array_type,
                       interface=ArgumentInterface(
                           ArgumentInterface.Access.READ))
@@ -1328,7 +1324,7 @@ def test_symtab_implementation_for_opencl():
             in str(err.value))
 
     arg1._datatype._intrinsic = ScalarType.Intrinsic.INTEGER  # restore
-    arg2._datatype = ArrayType(INTEGER_TYPE, [10])
+    arg2._datatype = ArrayType(ScalarType.integer_type(), [10])
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
     assert ("GOcean API kernels second argument should be a scalar integer"

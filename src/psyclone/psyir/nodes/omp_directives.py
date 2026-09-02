@@ -1,43 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-#         A. B. G. Chalk, STFC Daresbury Lab
-#         I. Kavcic,    Met Office
-#         C.M. Maynard, Met Office / University of Reading
-#         J. Henrichs, Bureau of Meteorology
-#         J. Remy, Université Grenoble Alpes, Inria
-#         M. Naylor, University of Cambridge, UK
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the various OpenMP Directive
@@ -83,7 +48,7 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
-    ContainerSymbol, DataSymbol, ImportInterface, INTEGER_TYPE, RoutineSymbol)
+    ContainerSymbol, DataSymbol, ImportInterface, ScalarType, RoutineSymbol)
 
 #: Mapping from PSyIR reduction operator to OMP reduction operator.
 MAP_REDUCTION_OP_TO_OMP = {
@@ -598,7 +563,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 # include stopval, whereas Python loops do not.
                 for i in range(startval, stopval + 1, stepval):
                     new_x = i + binop_val
-                    output_list.append(Literal(f"{new_x}", INTEGER_TYPE))
+                    output_list.append(
+                        Literal(f"{new_x}", ScalarType.integer_type()))
                 return output_list
 
             # If they are not all literals, we have a special case. In this
@@ -609,7 +575,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             output_list["start"] = BinaryOperation.create(
                                        BinaryOperation.Operator.ADD,
                                        start.copy(),
-                                       Literal(f"{binop_val}", INTEGER_TYPE)
+                                       Literal(f"{binop_val}",
+                                               ScalarType.integer_type())
                                     )
             output_list["stop"] = stop.copy()
             output_list["step"] = step.copy()
@@ -635,7 +602,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             # We loop from startval to stopval + 1 as PSyIR loops will include
             # stopval, whereas Python loops do not.
             for i in range(startval, stopval + 1, stepval):
-                output_list.append(Literal(f"{i}", INTEGER_TYPE))
+                output_list.append(Literal(f"{i}", ScalarType.integer_type()))
             return output_list
 
         # the sequence only. In this case, we have a non-parent loop reference
@@ -1341,16 +1308,16 @@ class OMPParallelDirective(DataSharingAttributeMixin, OMPRegionDirective):
             table.find_or_create_tag("omp_num_threads",
                                      root_name="nthreads",
                                      symbol_type=DataSymbol,
-                                     datatype=INTEGER_TYPE)
+                                     datatype=ScalarType.integer_type())
             thread_idx = table.find_or_create_tag(
                 "omp_thread_index", root_name="th_idx",
-                symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+                symbol_type=DataSymbol, datatype=ScalarType.integer_type())
             assignment = Assignment.create(
                 lhs=Reference(thread_idx),
                 rhs=BinaryOperation.create(
                         BinaryOperation.Operator.ADD,
                         Call.create(omp_get_thrd),
-                        Literal("1", INTEGER_TYPE))
+                        Literal("1", ScalarType.integer_type()))
             )
             self.dir_body.addchild(assignment, 0)
 
@@ -1399,6 +1366,15 @@ class OMPParallelDirective(DataSharingAttributeMixin, OMPRegionDirective):
             self._add_reduction_clauses()
 
         for call in reversed(reprod_red_call_list):
+            # Get the reduction variable to initialise and privatise.
+            tag = f"{call.name}:{call._reduction_arg.name}:templocal"
+            sym = self.scope.symbol_table.lookup_with_tag(tag)
+            call.create_thread_private_variable(
+                self, 0, self.scope.symbol_table
+            )
+            call.store_thread_private_value_to_shared_array(
+                self.dir_body, self.scope.symbol_table
+            )
             call.reduction_sum_loop(self.parent, self.position,
                                     self.scope.symbol_table)
 
@@ -1542,10 +1518,10 @@ class OMPTaskloopDirective(OMPRegionDirective):
                 "numtasks clauses specified.")
         super().__init__(**kwargs)
         if self._grainsize is not None:
-            child = [Literal(f"{grainsize}", INTEGER_TYPE)]
+            child = [Literal(f"{grainsize}", ScalarType.integer_type())]
             self._children.append(OMPGrainsizeClause(children=child))
         if self._num_tasks is not None:
-            child = [Literal(f"{num_tasks}", INTEGER_TYPE)]
+            child = [Literal(f"{num_tasks}", ScalarType.integer_type())]
             self._children.append(OMPNumTasksClause(children=child))
         if self._nogroup:
             self._children.append(OMPNogroupClause())
@@ -1911,11 +1887,11 @@ class OMPDoDirective(DataSharingAttributeMixin, OMPRegionDirective):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        # We only attempt to *automatically* add reduction clauses if we have a
-        # high-level (DSL) reduction operation.
+        # We only attempt to *automatically* add reduction clauses if we have
+        # a high-level (DSL) reduction operation (and we are not using the
+        # reproducible reductions option).
         reductions = self.reductions()
-        if not reductions:
-            # No high-level reduction operations.
+        if not reductions or self.reprod:
             return super().lower_to_language_level()
 
         self.children[0].lower_to_language_level()
@@ -2372,6 +2348,7 @@ class OMPAtomicDirective(OMPRegionDirective, AtomicDirectiveMixin):
     :type directive_type: :py:class:`psyclone.psyir.nodes.OMPAtomicDirective.\
                           AtomicDirectiveType`
     '''
+
     def __init__(self, ast=None, children: List[Node] = None,
                  parent: Node = None,
                  directive_type: AtomicDirectiveType = None):
@@ -2471,6 +2448,7 @@ class OMPCriticalDirective(OMPRegionDirective):
     OpenMP directive to inform that the contained region must only be executed
     by a single thread at any time.
     '''
+
     def begin_string(self) -> str:
         '''
         :returns: the opening string statement of this directive.

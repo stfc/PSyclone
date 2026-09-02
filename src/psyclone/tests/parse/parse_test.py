@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
 
 ''' A module to perform pytest unit and functional tests on the parse
 function. '''
@@ -206,31 +177,6 @@ def test_duplicate_named_invoke_case():
     assert ("Found multiple named invoke()'s with the same label ('jack') "
             "when parsing " in str(err.value))
     assert "3.4_multi_invoke_name_clash_case_insensitive.f90" in str(err.value)
-
-
-def test_get_stencil():
-    ''' Check that parse.get_stencil() raises the correct errors when
-    passed various incorrect inputs. '''
-    from psyclone.parse.kernel import get_stencil
-    from psyclone.expression import ExpressionNode, FunctionVar
-    enode = ExpressionNode(["1"])
-    with pytest.raises(ParseError) as excinfo:
-        _ = get_stencil(enode, ["cross"])
-    assert ("Expecting format stencil(<type>[,<extent>]) but found the "
-            "literal" in str(excinfo.value))
-    node = FunctionVar(["stencil()"])
-    with pytest.raises(ParseError) as excinfo:
-        _ = get_stencil(node, ["cross"])
-    assert ("Expecting format stencil(<type>[,<extent>]) but found stencil()"
-            in str(excinfo.value))
-    node = FunctionVar(["stencil", "cross"])
-    # Deliberately break the args member of node in order to trigger an
-    # internal error
-    node.args = [True]
-    with pytest.raises(ParseError) as excinfo:
-        _ = get_stencil(node, ["cross"])
-    assert ("expecting either FunctionVar or str from the expression analyser"
-            in str(excinfo.value))
 
 
 MDATA = '''

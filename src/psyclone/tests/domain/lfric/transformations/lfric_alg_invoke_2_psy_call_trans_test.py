@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory.
 
 ''' Module containing pytest unit tests for the LFRicAlgInvoke2PSyCallTrans
 transformation.
@@ -51,8 +23,7 @@ from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import (
     Call, Routine, Reference, Container, FileContainer, Literal)
 from psyclone.psyir.symbols import (
-    RoutineSymbol, DataTypeSymbol, REAL_TYPE, Symbol, SymbolTable,
-    INTEGER_TYPE)
+    RoutineSymbol, DataTypeSymbol, ScalarType, Symbol, SymbolTable)
 from psyclone.psyir.transformations import TransformationError
 
 
@@ -92,7 +63,7 @@ def test_lfai2psycall_validate():
             "dictionary but found 'NoneType'." in str(err.value))
 
     # kernels entry index not found
-    data_type_symbol = DataTypeSymbol("kern_type", REAL_TYPE)
+    data_type_symbol = DataTypeSymbol("kern_type", ScalarType.real_type())
     arguments = [Reference(Symbol("arg1"))]
     kernel_functor = LFRicFunctor.create(data_type_symbol, arguments)
     call = LFRicAlgorithmInvokeCall.create(
@@ -183,7 +154,7 @@ def test_lfai2psycall_get_arguments():
     # check_arg=True: Invalid number of arguments (metadata expects 2
     # but kernel functor has 1)
     trans = LFRicAlgInvoke2PSyCallTrans()
-    data_type_symbol = DataTypeSymbol("kern_type", REAL_TYPE)
+    data_type_symbol = DataTypeSymbol("kern_type", ScalarType.real_type())
     arguments = [Reference(Symbol("arg1"))]
     kernel_functor = LFRicFunctor.create(data_type_symbol, arguments)
     call = LFRicAlgorithmInvokeCall.create(
@@ -215,7 +186,7 @@ def test_lfai2psycall_get_arguments():
     assert args[0].name == "arg1"
 
     # OK, multi-kern
-    data_type_symbol = DataTypeSymbol("kern2_type", REAL_TYPE)
+    data_type_symbol = DataTypeSymbol("kern2_type", ScalarType.real_type())
     arguments = [Reference(Symbol("arg1")), Reference(Symbol("arg2"))]
     kernel_functor2 = LFRicFunctor.create(data_type_symbol, arguments)
     kernel_functor1 = kernel_functor.copy()
@@ -269,8 +240,10 @@ def test_lfai2psycall_get_arguments():
     assert args[5].name == "qr2"
 
     # error stencil
-    arguments = [Reference(Symbol("arg1")), Reference(Symbol("arg2")),
-                 Reference(Symbol("stencil1")), Literal("1", INTEGER_TYPE),
+    arguments = [Reference(Symbol("arg1")),
+                 Reference(Symbol("arg2")),
+                 Reference(Symbol("stencil1")),
+                 Literal("1", ScalarType.integer_type()),
                  Reference(Symbol("qr"))]
     kernel_functor = LFRicFunctor.create(data_type_symbol, arguments)
     call = LFRicAlgorithmInvokeCall.create(

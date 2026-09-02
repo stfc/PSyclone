@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# ----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
+# -----------------------------------------------------------------------------
 
 '''pytest tests for the GOSymbolTable class.'''
 
@@ -41,7 +13,7 @@ from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOSymbolTable
 from psyclone.psyir.nodes import Schedule
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, REAL_TYPE, UnresolvedType,
+    DataSymbol, ScalarType, UnresolvedType,
     ArgumentInterface, SymbolTable, Symbol)
 
 
@@ -52,10 +24,10 @@ def test_gosymboltable_conformity_check():
 
     '''
     symbol_table = GOSymbolTable()
-    i_var = DataSymbol("i", INTEGER_TYPE,
+    i_var = DataSymbol("i", ScalarType.integer_type(),
                        interface=ArgumentInterface(
                            ArgumentInterface.Access.READ))
-    j_var = DataSymbol("j", INTEGER_TYPE,
+    j_var = DataSymbol("j", ScalarType.integer_type(),
                        interface=ArgumentInterface(
                            ArgumentInterface.Access.READ))
     symbol_table.specify_argument_list([i_var, j_var])
@@ -71,7 +43,7 @@ def test_gosymboltable_conformity_check():
 def test_gosymboltable_properties():
     '''Test the various properties of a GOSymbolTable.'''
     table = GOSymbolTable()
-    i_var = DataSymbol("i", INTEGER_TYPE,
+    i_var = DataSymbol("i", ScalarType.integer_type(),
                        interface=ArgumentInterface(
                            ArgumentInterface.Access.READ))
     table.specify_argument_list([i_var])
@@ -81,13 +53,13 @@ def test_gosymboltable_properties():
     assert ("GOcean API kernels should always have at least two arguments "
             "representing the iteration indices but the Symbol Table has "
             "only 1 argument" in str(err.value))
-    j_var = DataSymbol("j", INTEGER_TYPE,
+    j_var = DataSymbol("j", ScalarType.integer_type(),
                        interface=ArgumentInterface(
                            ArgumentInterface.Access.READ))
     table.specify_argument_list([i_var, j_var])
     assert table.iteration_indices == [i_var, j_var]
     assert table.data_arguments == []
-    fld_var = DataSymbol("fld1", INTEGER_TYPE,
+    fld_var = DataSymbol("fld1", ScalarType.integer_type(),
                          interface=ArgumentInterface(
                              ArgumentInterface.Access.WRITE))
     table.specify_argument_list([i_var, j_var, fld_var])
@@ -103,11 +75,13 @@ def test_gosymboltable_create_from_table():
     table = SymbolTable(default_visibility=Symbol.Visibility.PRIVATE)
     my_sched = Schedule(symbol_table=table)
     tsym = table.new_symbol("tom", symbol_type=DataSymbol,
-                            datatype=INTEGER_TYPE)
-    psym = table.new_symbol("port", symbol_type=DataSymbol, datatype=REAL_TYPE,
+                            datatype=ScalarType.integer_type())
+    psym = table.new_symbol("port", symbol_type=DataSymbol,
+                            datatype=ScalarType.real_type(),
                             interface=ArgumentInterface())
     starb_sym = table.new_symbol("starboad", tag="right",
-                                 symbol_type=DataSymbol, datatype=REAL_TYPE)
+                                 symbol_type=DataSymbol,
+                                 datatype=ScalarType.real_type())
     table.specify_argument_list([psym])
     gotable = GOSymbolTable.create_from_table(table)
     assert isinstance(gotable, GOSymbolTable)

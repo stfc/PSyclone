@@ -1,40 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
-# Modified J. Henrichs, Bureau of Meteorology
-# Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
 ''' This module contains the LFRicRunTimeChecks class which handles
 declarations and code generation for run-time checks. The methods
@@ -47,8 +16,8 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric import LFRicCollection, LFRicConstants
 from psyclone.psyir.symbols import (
-    CHARACTER_TYPE, ContainerSymbol, RoutineSymbol, ImportInterface,
-    DataSymbol, UnresolvedType, INTEGER_TYPE)
+    ScalarType, ContainerSymbol, RoutineSymbol, ImportInterface,
+    DataSymbol, UnresolvedType)
 from psyclone.psyir.nodes import (
     Call, StructureReference, BinaryOperation, Reference, Literal, IfBlock,
     ArrayOfStructuresReference)
@@ -150,7 +119,8 @@ class LFRicRunTimeChecks(LFRicCollection):
                 for name in function_space_names:
                     if arg.vector_size > 1:
                         call = Call.create(ArrayOfStructuresReference.create(
-                            field_symbol, [Literal('1', INTEGER_TYPE)],
+                            field_symbol,
+                            [Literal('1', ScalarType.integer_type())],
                             ["which_function_space"]))
                     else:
                         call = Call.create(StructureReference.create(
@@ -184,7 +154,7 @@ class LFRicRunTimeChecks(LFRicCollection):
                              f"'{kern_call.name}' but its function space is "
                              f"not compatible with the function space "
                              f"specified in the kernel metadata '{fs_name}'.",
-                             CHARACTER_TYPE),
+                             ScalarType.character_type()),
                      Reference(symtab.lookup(log_level))])
 
                 ifblock = IfBlock.create(if_condition, [if_body])
@@ -247,7 +217,8 @@ class LFRicRunTimeChecks(LFRicCollection):
                 [Literal(f"In alg '{self._invoke.invokes.psy.orig_name}' "
                          f"invoke '{self._invoke.name}', field '{field.name}' "
                          f"is on a read-only function space but is modified "
-                         f"by kernel '{call.name}'.", CHARACTER_TYPE),
+                         f"by kernel '{call.name}'.",
+                         ScalarType.character_type()),
                  Reference(symtab.lookup(log_level))])
 
             ifblock = IfBlock.create(if_condition, [if_body])

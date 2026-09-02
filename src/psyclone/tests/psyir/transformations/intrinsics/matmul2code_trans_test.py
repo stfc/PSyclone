@@ -1,39 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Laboratory
-#          T. Vockerodt, Met Office
-# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module containing tests for the matmul2code transformation.'''
 
@@ -46,7 +16,7 @@ from psyclone.psyir.transformations.intrinsics.matmul2code_trans import (
 from psyclone.psyir.nodes import BinaryOperation, Literal, ArrayReference, \
     Assignment, Reference, Range, KernelSchedule, IntrinsicCall
 from psyclone.psyir.symbols import (DataSymbol, SymbolTable, ArrayType,
-                                    INTEGER_TYPE, REAL_TYPE)
+                                    ScalarType)
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import Compile
 
@@ -57,11 +27,12 @@ def create_matmul():
 
     '''
     symbol_table = SymbolTable()
-    one = Literal("1", INTEGER_TYPE)
-    two = Literal("2", INTEGER_TYPE)
-    index = DataSymbol("idx", INTEGER_TYPE, is_constant=True, initial_value=3)
+    one = Literal("1", ScalarType.integer_type())
+    two = Literal("2", ScalarType.integer_type())
+    index = DataSymbol("idx", ScalarType.integer_type(), is_constant=True,
+                       initial_value=3)
     symbol_table.add(index)
-    array_type = ArrayType(REAL_TYPE, [5, 10, 15])
+    array_type = ArrayType(ScalarType.real_type(), [5, 10, 15])
     mat_symbol = DataSymbol("x", array_type)
     symbol_table.add(mat_symbol)
     lbound1 = IntrinsicCall.create(
@@ -80,7 +51,7 @@ def create_matmul():
     my_mat_range2 = Range.create(lbound2, ubound2, one.copy())
     matrix = ArrayReference.create(mat_symbol, [my_mat_range1, my_mat_range2,
                                                 Reference(index)])
-    array_type = ArrayType(REAL_TYPE, [10, 20, 10])
+    array_type = ArrayType(ScalarType.real_type(), [10, 20, 10])
     vec_symbol = DataSymbol("y", array_type)
     symbol_table.add(vec_symbol)
     lbound = IntrinsicCall.create(
@@ -94,7 +65,7 @@ def create_matmul():
                                                 Reference(index), one.copy()])
     matmul = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.MATMUL, [matrix, vector])
-    lhs_type = ArrayType(REAL_TYPE, [10])
+    lhs_type = ArrayType(ScalarType.real_type(), [10])
     lhs_symbol = DataSymbol("result", lhs_type)
     symbol_table.add(lhs_symbol)
     lhs = Reference(lhs_symbol)
@@ -108,9 +79,9 @@ def test_create_array_ref_1d():
     1d array.
 
     '''
-    array_type = ArrayType(REAL_TYPE, [10])
+    array_type = ArrayType(ScalarType.real_type(), [10])
     array_symbol = DataSymbol("x", array_type)
-    i_loop_sym = DataSymbol("i", INTEGER_TYPE)
+    i_loop_sym = DataSymbol("i", ScalarType.integer_type())
     ref1 = _create_array_ref(array_symbol, [i_loop_sym], [], [0], [])
     assert isinstance(ref1, ArrayReference)
     assert ref1.symbol is array_symbol
@@ -123,10 +94,10 @@ def test_create_array_ref_trailing_indices():
     array that has an additional dimension that is not being looped over.
 
     '''
-    array_type = ArrayType(REAL_TYPE, [10, 5])
+    array_type = ArrayType(ScalarType.real_type(), [10, 5])
     array_symbol = DataSymbol("x", array_type)
-    i_loop_sym = DataSymbol("i", INTEGER_TYPE)
-    k_sym = DataSymbol("k", INTEGER_TYPE)
+    i_loop_sym = DataSymbol("i", ScalarType.integer_type())
+    k_sym = DataSymbol("k", ScalarType.integer_type())
     k_ref = Reference(k_sym)
     ref1 = _create_array_ref(array_symbol, [i_loop_sym], [k_ref], [0], [1])
     assert isinstance(ref1, ArrayReference)
@@ -143,10 +114,10 @@ def test_create_array_ref_2d():
     2d array.
 
     '''
-    array_type = ArrayType(REAL_TYPE, [10, 8])
+    array_type = ArrayType(ScalarType.real_type(), [10, 8])
     array_symbol = DataSymbol("x", array_type)
-    i_loop_sym = DataSymbol("i", INTEGER_TYPE)
-    j_loop_sym = DataSymbol("j", INTEGER_TYPE)
+    i_loop_sym = DataSymbol("i", ScalarType.integer_type())
+    j_loop_sym = DataSymbol("j", ScalarType.integer_type())
     ref2 = _create_array_ref(array_symbol,
                              [i_loop_sym, j_loop_sym],
                              [],
@@ -190,7 +161,8 @@ def test_validate_node_not_matmul():
     trans = Matmul2CodeTrans()
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(IntrinsicCall.create(
-            IntrinsicCall.Intrinsic.SUM, [Literal("1.0", REAL_TYPE)]))
+            IntrinsicCall.Intrinsic.SUM,
+            [Literal("1.0", ScalarType.real_type())]))
     assert ("Transformation Error: Error in Matmul2CodeTrans transformation. "
             "The supplied IntrinsicCall must be a 'MATMUL' but "
             "found: 'SUM'." in str(excinfo.value))
@@ -203,8 +175,8 @@ def test_validate_no_assignment_ancestor():
 
     '''
     trans = Matmul2CodeTrans()
-    vector_type = ArrayType(REAL_TYPE, [10])
-    array_type = ArrayType(REAL_TYPE, [10, 10])
+    vector_type = ArrayType(ScalarType.real_type(), [10])
+    array_type = ArrayType(ScalarType.real_type(), [10, 10])
     vector = Reference(DataSymbol("x", vector_type))
     array = Reference(DataSymbol("y", array_type))
     matmul = IntrinsicCall.create(
@@ -224,8 +196,8 @@ def test_validate_not_solely_matmul():
 
     '''
     trans = Matmul2CodeTrans()
-    vector_type = ArrayType(REAL_TYPE, [10])
-    array_type = ArrayType(REAL_TYPE, [10, 10])
+    vector_type = ArrayType(ScalarType.real_type(), [10])
+    array_type = ArrayType(ScalarType.real_type(), [10, 10])
     vector = Reference(DataSymbol("x", vector_type))
     array = Reference(DataSymbol("y", array_type))
     matmul = IntrinsicCall.create(
@@ -247,9 +219,9 @@ def test_validate_arg_not_ref():
 
     '''
     trans = Matmul2CodeTrans()
-    array_type = ArrayType(REAL_TYPE, [10])
+    array_type = ArrayType(ScalarType.real_type(), [10])
     array = ArrayReference.create(DataSymbol("x", array_type),
-                                  [Literal("10", INTEGER_TYPE)])
+                                  [Literal("10", ScalarType.integer_type())])
     mult = BinaryOperation.create(
         BinaryOperation.Operator.MUL, array.copy(), array.copy())
     matmul = IntrinsicCall.create(
@@ -270,7 +242,7 @@ def test_validate_arg_not_arr():
 
     '''
     trans = Matmul2CodeTrans()
-    scalar = Reference(DataSymbol("x", REAL_TYPE))
+    scalar = Reference(DataSymbol("x", ScalarType.real_type()))
     matmul = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.MATMUL, [scalar, scalar.copy()])
     _ = Assignment.create(scalar.copy(), matmul)
@@ -308,7 +280,7 @@ def test_validate_mat_too_few_dims():
 
     '''
     trans = Matmul2CodeTrans()
-    array_type = ArrayType(REAL_TYPE, [10])
+    array_type = ArrayType(ScalarType.real_type(), [10])
     array = Reference(DataSymbol("x", array_type))
     matmul = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.MATMUL, [array.copy(), array.copy()])
@@ -328,7 +300,7 @@ def test_validate_mat_too_many_dims():
 
     '''
     trans = Matmul2CodeTrans()
-    array_type = ArrayType(REAL_TYPE, [10, 10, 10])
+    array_type = ArrayType(ScalarType.real_type(), [10, 10, 10])
     array = Reference(DataSymbol("x", array_type))
     matmul = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.MATMUL, [array.copy(), array.copy()])
@@ -347,9 +319,9 @@ def test_validate_vec_too_many_dims():
 
     '''
     trans = Matmul2CodeTrans()
-    array_type = ArrayType(REAL_TYPE, [10, 10])
+    array_type = ArrayType(ScalarType.real_type(), [10, 10])
     array = Reference(DataSymbol("x", array_type))
-    vector_type = ArrayType(REAL_TYPE, [10, 10, 10])
+    vector_type = ArrayType(ScalarType.real_type(), [10, 10, 10])
     vector = Reference(DataSymbol("y", vector_type))
     matmul = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.MATMUL, [array, vector])
@@ -370,7 +342,7 @@ def test_validate_mat_too_few_full_ranges():
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     matrix = matmul.arguments[0]
-    matrix.children[0] = Literal("1", INTEGER_TYPE)
+    matrix.children[0] = Literal("1", ScalarType.integer_type())
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("To use Matmul2CodeTrans on matmul, 2 indices of the "
@@ -406,8 +378,8 @@ def test_validate_mat_non_full_range():
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     matrix = matmul.arguments[0]
-    matrix.children[2] = Range.create(Literal("1", INTEGER_TYPE),
-                                      Literal("10", INTEGER_TYPE))
+    matrix.children[2] = Range.create(Literal("1", ScalarType.integer_type()),
+                                      Literal("10", ScalarType.integer_type()))
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: To use Matmul2CodeTrans on matmul, "
@@ -425,8 +397,8 @@ def test_validate_vec_non_full_range():
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     vector = matmul.arguments[1]
-    vector.children[2] = Range.create(Literal("1", INTEGER_TYPE),
-                                      Literal("5", INTEGER_TYPE))
+    vector.children[2] = Range.create(Literal("1", ScalarType.integer_type()),
+                                      Literal("5", ScalarType.integer_type()))
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: To use Matmul2CodeTrans on matmul, "
@@ -445,8 +417,8 @@ def test_validate_mat_too_many_full_ranges():
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     matrix = matmul.arguments[0]
-    matrix.children[2] = Range.create(Literal("1", INTEGER_TYPE),
-                                      Literal("15", INTEGER_TYPE))
+    matrix.children[2] = Range.create(Literal("1", ScalarType.integer_type()),
+                                      Literal("15", ScalarType.integer_type()))
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: To use Matmul2CodeTrans on matmul, "
@@ -465,10 +437,10 @@ def test_validate_vec_too_many_full_ranges():
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     vector = matmul.arguments[1]
-    vector.children[1] = Range.create(Literal("1", INTEGER_TYPE),
-                                      Literal("20", INTEGER_TYPE))
-    vector.children[2] = Range.create(Literal("1", INTEGER_TYPE),
-                                      Literal("10", INTEGER_TYPE))
+    vector.children[1] = Range.create(Literal("1", ScalarType.integer_type()),
+                                      Literal("20", ScalarType.integer_type()))
+    vector.children[2] = Range.create(Literal("1", ScalarType.integer_type()),
+                                      Literal("10", ScalarType.integer_type()))
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: To use Matmul2CodeTrans on matmul, "
@@ -635,8 +607,8 @@ def test_apply_matvect_additional_indices(tmpdir, fortran_writer):
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     root = matmul.root
-    matmul.arguments[0].children[2] = Literal("1", INTEGER_TYPE)
-    matmul.arguments[1].children[1] = Literal("2", INTEGER_TYPE)
+    matmul.arguments[0].children[2] = Literal("1", ScalarType.integer_type())
+    matmul.arguments[1].children[1] = Literal("2", ScalarType.integer_type())
     trans.apply(matmul)
     result = fortran_writer(root)
     assert (
@@ -673,9 +645,9 @@ def test_apply_matvect_no_indices(tmpdir, fortran_writer):
     lhs_vector = matrix.parent.parent.lhs
     matrix_symbol = matrix.symbol
     matmul.arguments[0].replace_with(Reference(matrix_symbol))
-    one = Literal("1", INTEGER_TYPE)
-    ten = Literal("10", INTEGER_TYPE)
-    twenty = Literal("20", INTEGER_TYPE)
+    one = Literal("1", ScalarType.integer_type())
+    ten = Literal("10", ScalarType.integer_type())
+    twenty = Literal("20", ScalarType.integer_type())
     matrix_symbol.datatype._shape = [
         ArrayType.ArrayBounds(one.copy(), ten.copy()),
         ArrayType.ArrayBounds(one.copy(), twenty.copy())]

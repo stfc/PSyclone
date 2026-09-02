@@ -108,9 +108,9 @@ tau: $(INF_LIB)
 	        tau_lib $(NAME).tau
 
 # The dl-timer library is available from:
-# https://bitbucket.org/apeg/dl_timer/src/master/
+# https://github.com/stfc/dl_timer
 # As default assume dl_timer is installed 'next' to PSyclone.
-DL_TIMER_ROOT?=$(ROOT_DIR)/../apeg-dl_timer
+DL_TIMER_ROOT?=$(ROOT_DIR)/../dl_timer
 # Needs to link with openmp because the dl_timer library needs openmp.
 dl_timer:
 	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/dl_timer"                     \

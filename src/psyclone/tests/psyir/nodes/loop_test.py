@@ -1,40 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic, Met Office
-#         J. Henrichs, Bureau of Meteorology
-# Modified by L. Turner, Met Office
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Loop PSyIR node. '''
@@ -44,8 +12,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import (
     Assignment, Loop, Literal, Schedule, Return, Reference, Routine)
 from psyclone.psyir.symbols import (
-    DataSymbol, REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, INTEGER_TYPE, ArrayType,
-    REAL_TYPE, SymbolTable)
+    DataSymbol, ScalarType, ArrayType, SymbolTable)
 from psyclone.psyir.tools import DependencyTools
 from psyclone.tests.utilities import check_links
 
@@ -59,14 +26,16 @@ def make_loop():
     :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
     '''
-    start = Literal("0", INTEGER_SINGLE_TYPE)
-    stop = Literal("1", INTEGER_SINGLE_TYPE)
-    step = Literal("1", INTEGER_SINGLE_TYPE)
+    start = Literal("0", ScalarType.integer_single_type())
+    stop = Literal("1", ScalarType.integer_single_type())
+    step = Literal("1", ScalarType.integer_single_type())
     sched = Routine.create("loop_test_sub")
-    tmp = sched.symbol_table.new_symbol("tmp", symbol_type=DataSymbol,
-                                        datatype=REAL_SINGLE_TYPE)
-    isym = sched.symbol_table.new_symbol("i", symbol_type=DataSymbol,
-                                         datatype=INTEGER_SINGLE_TYPE)
+    tmp = sched.symbol_table.new_symbol(
+        "tmp", symbol_type=DataSymbol,
+        datatype=ScalarType.real_single_type())
+    isym = sched.symbol_table.new_symbol(
+        "i", symbol_type=DataSymbol,
+        datatype=ScalarType.integer_single_type())
     child_node = Assignment.create(Reference(tmp), Reference(isym))
     loop = Loop.create(isym, start, stop, step, [child_node])
     sched.addchild(loop)
@@ -81,10 +50,10 @@ def test_loop_init():
     loop = Loop()
     assert loop.parent is None
     assert loop.annotations == []
-    assert loop._variable is None
+    assert loop.variable is None
 
     # valid variable
-    loop = Loop(variable=DataSymbol("var", INTEGER_TYPE))
+    loop = Loop(variable=DataSymbol("var", ScalarType.integer_type()))
     assert loop.variable.name == "var"
 
     # invalid variable (test_check_variable tests check all ways a
@@ -112,17 +81,22 @@ def test_loop_navigation_properties():
     loop = Loop()
 
     # Properties return an error if the node is incomplete
-    error_str = ("Loop is incomplete. It should have exactly 4 "
+    error_str = ("Loop is incomplete. It should have exactly 5 "
                  "children, but found")
     with pytest.raises(InternalError) as err:
         _ = loop.start_expr
     assert error_str in str(err.value)
 
-    loop.addchild(Literal("0", INTEGER_SINGLE_TYPE))
-    loop.addchild(Literal("2", INTEGER_SINGLE_TYPE))
-    loop.addchild(Literal("1", INTEGER_SINGLE_TYPE))
+    ivar = DataSymbol("i", datatype=ScalarType.integer_type())
+    loop.addchild(Reference(ivar))
+    loop.addchild(Literal("0", ScalarType.integer_single_type()))
+    loop.addchild(Literal("2", ScalarType.integer_single_type()))
+    loop.addchild(Literal("1", ScalarType.integer_single_type()))
 
     # If it's not fully complete, it still returns an error
+    with pytest.raises(InternalError) as err:
+        _ = loop.variable_reference
+    assert error_str in str(err.value)
     with pytest.raises(InternalError) as err:
         _ = loop.start_expr
     assert error_str in str(err.value)
@@ -140,15 +114,16 @@ def test_loop_navigation_properties():
     loop.addchild(Schedule(parent=loop))
     loop.loop_body.addchild(Return(parent=loop.loop_body))
 
+    assert loop.variable_reference.name == "i"
     assert loop.start_expr.value == "0"
     assert loop.stop_expr.value == "2"
     assert loop.step_expr.value == "1"
     assert isinstance(loop.loop_body[0], Return)
 
     # Test Setters
-    loop.start_expr = Literal("1", INTEGER_SINGLE_TYPE)
-    loop.stop_expr = Literal("3", INTEGER_SINGLE_TYPE)
-    loop.step_expr = Literal("2", INTEGER_SINGLE_TYPE)
+    loop.start_expr = Literal("1", ScalarType.integer_single_type())
+    loop.stop_expr = Literal("3", ScalarType.integer_single_type())
+    loop.step_expr = Literal("2", ScalarType.integer_single_type())
 
     assert loop.start_expr.value == "1"
     assert loop.stop_expr.value == "3"
@@ -188,6 +163,10 @@ def test_loop_node_str(monkeypatch):
     assert "yes[variable='i', loop_type='i-loop']" in out
     Loop.set_loop_type_inference_rules({})
 
+    # Test an incomplete loop
+    incomplete_loop = Loop()
+    assert incomplete_loop.node_str() == "Loop[]"
+
 
 @pytest.mark.parametrize("table", [None, SymbolTable()])
 def test_loop_replace_symbols_using(table):
@@ -195,7 +174,7 @@ def test_loop_replace_symbols_using(table):
     loop = make_loop()
     assert loop.variable.name == "i"
     # Create a replacement symbol.
-    new_i = DataSymbol("i", datatype=INTEGER_TYPE)
+    new_i = DataSymbol("i", datatype=ScalarType.integer_type())
     assert loop.variable is not new_i
     if table is not None:
         table.add(new_i)
@@ -206,17 +185,6 @@ def test_loop_replace_symbols_using(table):
     assert loop.variable is new_i
     # Check that the method has recursed to the children too.
     assert loop.loop_body[0].rhs.symbol is new_i
-    # Test when the Loop doesn't have the _variable property set.
-    loop = Loop()
-    loop.addchild(Literal("0", INTEGER_SINGLE_TYPE))
-    loop.addchild(Literal("2", INTEGER_SINGLE_TYPE))
-    loop.addchild(Literal("1", INTEGER_SINGLE_TYPE))
-    loop.addchild(Schedule(parent=loop))
-    assert not loop._variable
-    if table is not None:
-        loop.replace_symbols_using(table)
-    else:
-        loop.replace_symbols_using(new_i)
 
 
 def test_loop_str():
@@ -231,6 +199,10 @@ def test_loop_str():
     out = str(loop)
     assert "Loop[variable:'i', loop_type:'i-loop']\n" in out
     Loop.set_loop_type_inference_rules({})
+
+    # Test an incomplete loop
+    incomplete_loop = Loop()
+    assert str(incomplete_loop) == "Loop[variable:None]\nEnd Loop"
 
 
 def test_loop_independent_iterations():
@@ -266,17 +238,18 @@ def test_loop_create(fortran_writer):
     creates a Loop instance.
 
     '''
-    start = Literal("0", INTEGER_SINGLE_TYPE)
-    stop = Literal("1", INTEGER_SINGLE_TYPE)
-    step = Literal("1", INTEGER_SINGLE_TYPE)
+    start = Literal("0", ScalarType.integer_single_type())
+    stop = Literal("1", ScalarType.integer_single_type())
+    step = Literal("1", ScalarType.integer_single_type())
     child_node = Assignment.create(
-        Reference(DataSymbol("tmp", REAL_SINGLE_TYPE)),
-        Reference(DataSymbol("i", REAL_SINGLE_TYPE)))
-    loop = Loop.create(DataSymbol("i", INTEGER_SINGLE_TYPE),
+        Reference(DataSymbol("tmp", ScalarType.real_single_type())),
+        Reference(DataSymbol("i", ScalarType.real_single_type())))
+    loop = Loop.create(DataSymbol("i", ScalarType.integer_single_type()),
                        start, stop, step, [child_node])
-    schedule = loop.children[3]
+    ref = loop.variable_reference
+    schedule = loop.loop_body
     assert isinstance(schedule, Schedule)
-    check_links(loop, [start, stop, step, schedule])
+    check_links(loop, [ref, start, stop, step, schedule])
     check_links(schedule, [child_node])
     result = fortran_writer.loop_node(loop)
     assert result == "do i = 0, 1, 1\n  tmp = i\nenddo\n"
@@ -287,10 +260,10 @@ def test_loop_create_invalid():
     exception if the provided input is invalid.
 
     '''
-    zero = Literal("0", INTEGER_SINGLE_TYPE)
-    one = Literal("1", INTEGER_SINGLE_TYPE)
+    zero = Literal("0", ScalarType.integer_single_type())
+    one = Literal("1", ScalarType.integer_single_type())
     children = Assignment.create(
-        Reference(DataSymbol("x", INTEGER_SINGLE_TYPE)),
+        Reference(DataSymbol("x", ScalarType.integer_single_type())),
         one.copy())
 
     # invalid variable (test_check_variable tests check all ways a
@@ -301,25 +274,28 @@ def test_loop_create_invalid():
     assert ("variable property in Loop class should be a DataSymbol but "
             "found 'int'.") in str(excinfo.value)
 
-    variable = DataSymbol("i", INTEGER_TYPE)
+    variable = DataSymbol("i", ScalarType.integer_type())
 
     # start not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create(variable, "invalid", one, one, [children.copy()])
-    assert ("Item 'str' can't be child 0 of 'Loop'. The valid format is: "
-            "'DataNode, DataNode, DataNode, Schedule'.") in str(excinfo.value)
+    assert ("Item 'str' can't be child 1 of 'Loop'. The valid format is: "
+            "'Reference, DataNode, DataNode, DataNode, Schedule'."
+            in str(excinfo.value))
 
     # stop not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create(variable, zero, "invalid", one, [children.copy()])
-    assert ("Item 'str' can't be child 1 of 'Loop'. The valid format is: "
-            "'DataNode, DataNode, DataNode, Schedule'.") in str(excinfo.value)
+    assert ("Item 'str' can't be child 2 of 'Loop'. The valid format is: "
+            "'Reference, DataNode, DataNode, DataNode, Schedule'."
+            in str(excinfo.value))
 
     # step not a Node.
     with pytest.raises(GenerationError) as excinfo:
         _ = Loop.create(variable, zero, one, "invalid", [children.copy()])
-    assert ("Item 'str' can't be child 2 of 'Loop'. The valid format is: "
-            "'DataNode, DataNode, DataNode, Schedule'.") in str(excinfo.value)
+    assert ("Item 'str' can't be child 3 of 'Loop'. The valid format is: "
+            "'Reference, DataNode, DataNode, DataNode, Schedule'."
+            in str(excinfo.value))
 
     # children not a list
     with pytest.raises(GenerationError) as excinfo:
@@ -340,44 +316,58 @@ def test_loop_children_validation():
 
     '''
     loop = Loop()
-    datanode1 = Literal("1", INTEGER_SINGLE_TYPE)
-    datanode2 = Literal("2", INTEGER_SINGLE_TYPE)
-    datanode3 = Literal("3", INTEGER_SINGLE_TYPE)
+    ivar = DataSymbol("i", datatype=ScalarType.integer_type())
+    datanode1 = Literal("1", ScalarType.integer_single_type())
+    datanode2 = Literal("2", ScalarType.integer_single_type())
+    datanode3 = Literal("3", ScalarType.integer_single_type())
     schedule = Schedule(parent=loop)
 
     # First child
     with pytest.raises(GenerationError) as excinfo:
         loop.addchild(schedule)
     assert ("Item 'Schedule' can't be child 0 of 'Loop'. The valid format is: "
-            "'DataNode, DataNode, DataNode, Schedule'." in str(excinfo.value))
-    loop.addchild(datanode1)
+            "'Reference, DataNode, DataNode, DataNode, Schedule'."
+            in str(excinfo.value))
+    loop.addchild(Reference(ivar))
 
     # Second child
     with pytest.raises(GenerationError) as excinfo:
         loop.addchild(schedule)
     assert ("Item 'Schedule' can't be child 1 of 'Loop'. The valid format is: "
-            "'DataNode, DataNode, DataNode, Schedule'." in str(excinfo.value))
-    loop.addchild(datanode2)
+            "'Reference, DataNode, DataNode, DataNode, Schedule'."
+            in str(excinfo.value))
+    loop.addchild(datanode1)
 
     # Third child
     with pytest.raises(GenerationError) as excinfo:
         loop.addchild(schedule)
     assert ("Item 'Schedule' can't be child 2 of 'Loop'. The valid format is: "
-            "'DataNode, DataNode, DataNode, Schedule'." in str(excinfo.value))
-    loop.addchild(datanode3)
+            "'Reference, DataNode, DataNode, DataNode, Schedule'."
+            in str(excinfo.value))
+    loop.addchild(datanode2)
 
     # Fourth child
     with pytest.raises(GenerationError) as excinfo:
+        loop.addchild(schedule)
+    assert ("Item 'Schedule' can't be child 3 of 'Loop'. The valid format is: "
+            "'Reference, DataNode, DataNode, DataNode, Schedule'."
+            in str(excinfo.value))
+    loop.addchild(datanode3)
+
+    # Fith child
+    with pytest.raises(GenerationError) as excinfo:
         loop.addchild(datanode1)
-    assert ("Item 'Literal' can't be child 3 of 'Loop'. The valid format is: "
-            "'DataNode, DataNode, DataNode, Schedule'." in str(excinfo.value))
+    assert ("Item 'Literal' can't be child 4 of 'Loop'. The valid format is: "
+            "'Reference, DataNode, DataNode, DataNode, Schedule'."
+            in str(excinfo.value))
     loop.addchild(schedule)
 
     # Additional children
     with pytest.raises(GenerationError) as excinfo:
         loop.addchild(schedule)
-    assert ("Item 'Schedule' can't be child 4 of 'Loop'. The valid format is: "
-            "'DataNode, DataNode, DataNode, Schedule'." in str(excinfo.value))
+    assert ("Item 'Schedule' can't be child 5 of 'Loop'. The valid format is: "
+            "'Reference, DataNode, DataNode, DataNode, Schedule'."
+            in str(excinfo.value))
 
 
 def test_check_variable():
@@ -393,20 +383,20 @@ def test_check_variable():
     assert ("variable property in Loop class should be a DataSymbol but "
             "found 'str'." in str(info.value))
 
-    array_type = ArrayType(INTEGER_TYPE, shape=[10, 20])
+    array_type = ArrayType(ScalarType.integer_type(), shape=[10, 20])
     array_symbol = DataSymbol("my_array", array_type)
     with pytest.raises(GenerationError) as info:
         Loop._check_variable(array_symbol)
     assert ("variable 'my_array' in Loop class should be a ScalarType but "
             "found 'ArrayType'." in str(info.value))
 
-    scalar_symbol = DataSymbol("my_array", REAL_TYPE)
+    scalar_symbol = DataSymbol("my_array", ScalarType.real_type())
     with pytest.raises(GenerationError) as info:
         Loop._check_variable(scalar_symbol)
     assert ("variable 'my_array' in Loop class should be a scalar integer but "
             "found 'REAL'." in str(info.value))
 
-    scalar_symbol = DataSymbol("my_array", INTEGER_TYPE)
+    scalar_symbol = DataSymbol("my_array", ScalarType.integer_type())
     assert Loop._check_variable(scalar_symbol) is None
 
 
@@ -417,10 +407,10 @@ def test_variable_setter():
 
     '''
     loop = Loop()
-    assert loop._variable is None
+    assert loop.variable is None
 
     # valid variable
-    loop.variable = DataSymbol("var", INTEGER_TYPE)
+    loop.variable = DataSymbol("var", ScalarType.integer_type())
     assert loop.variable.name == "var"
 
     # invalid variable (test_check_variable tests check all ways a
@@ -432,46 +422,29 @@ def test_variable_setter():
             "found 'NoneType'.") in str(excinfo.value)
 
 
-def test_variable_getter():
-    '''Check that the variable property raises an exception if it is
-    accessed and its value has not been set (is still None).
-
-    '''
-    loop = Loop()
-    # invalid variable (test_check_variable tests check all ways a
-    # variable could be invalid. Here we just check that the
-    # _check_variable() method is called correctly). The particular
-    # case we want to catch in the code is when the variable has not
-    # been set, so is None.
-    with pytest.raises(GenerationError) as excinfo:
-        _ = loop.variable
-    assert ("variable property in Loop class should be a DataSymbol but "
-            "found 'NoneType'.") in str(excinfo.value)
-
-
 def test_loop_equality():
     '''Test the __eq__ method of Loop'''
     # We need to manually set the same SymbolTable instance in both directives
     # for their equality to be True
     symboltable = SymbolTable()
     # Set up the symbols
-    tmp = DataSymbol("tmp", REAL_SINGLE_TYPE)
-    i_sym = DataSymbol("i", REAL_SINGLE_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.real_single_type())
+    i_sym = DataSymbol("i", ScalarType.real_single_type())
 
     # Create two equal loops
-    loop_sym = DataSymbol("i", INTEGER_SINGLE_TYPE)
+    loop_sym = DataSymbol("i", ScalarType.integer_single_type())
     sched1 = Schedule(symbol_table=symboltable)
-    start = Literal("0", INTEGER_SINGLE_TYPE)
-    stop = Literal("1", INTEGER_SINGLE_TYPE)
-    step = Literal("1", INTEGER_SINGLE_TYPE)
+    start = Literal("0", ScalarType.integer_single_type())
+    stop = Literal("1", ScalarType.integer_single_type())
+    step = Literal("1", ScalarType.integer_single_type())
     child_node = Assignment.create(
         Reference(tmp),
         Reference(i_sym))
     sched1.addchild(child_node)
     loop1 = Loop.create(loop_sym,
                         start, stop, step, [])
-    loop1.children[3].detach()
-    loop1.addchild(sched1, 3)
+    loop1.loop_body.detach()
+    loop1.addchild(sched1)
     start2 = start.copy()
     stop2 = stop.copy()
     step2 = step.copy()
@@ -485,12 +458,12 @@ def test_loop_equality():
     sched2.addchild(child_node2)
     loop2 = Loop.create(loop_sym,
                         start2, stop2, step2, [])
-    loop2.children[3].detach()
-    loop2.addchild(sched2, 3)
+    loop2.loop_body.detach()
+    loop2.addchild(sched2)
     assert loop1 == loop2
 
     # Set different variables
-    loop2.variable = DataSymbol("k", INTEGER_SINGLE_TYPE)
+    loop2.variable = DataSymbol("k", ScalarType.integer_single_type())
     assert loop1 != loop2
 
 
@@ -560,6 +533,10 @@ def test_loop_type(fortran_reader):
     Loop.set_loop_type_inference_rules(None)
     assert outer_loop.loop_type is None
     assert inner_loop.loop_type is None
+
+    # Test an incomplete loop
+    incomplete_loop = Loop()
+    assert incomplete_loop.loop_type is None
 
 
 def test_loops_enters_scope():

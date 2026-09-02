@@ -1,39 +1,10 @@
 
 .. -----------------------------------------------------------------------------
-.. BSD 3-Clause License
-..
-.. Copyright (c) 2018-2026, Science and Technology Facilities Council.
-.. All rights reserved.
-..
-.. Redistribution and use in source and binary forms, with or without
-.. modification, are permitted provided that the following conditions are met:
-..
-.. * Redistributions of source code must retain the above copyright notice, this
-..   list of conditions and the following disclaimer.
-..
-.. * Redistributions in binary form must reproduce the above copyright notice,
-..   this list of conditions and the following disclaimer in the documentation
-..   and/or other materials provided with the distribution.
-..
-.. * Neither the name of the copyright holder nor the names of its
-..   contributors may be used to endorse or promote products derived from
-..   this software without specific prior written permission.
-..
-.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-.. POSSIBILITY OF SUCH DAMAGE.
+.. SPDX-FileCopyrightText: Copyright (c) 2018-2026 Science and Technology
+..                         Facilities Council
+.. SPDX-License-Identifier: BSD-3-Clause
+.. See the full LICENSE file in the project root for details.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-.. Modified by I. Kavcic and L. Turner, Met Office
 
 .. _develop_psykal_dsl:
 
@@ -271,7 +242,7 @@ is because `fparser2` does not currently support a symbol table,
 therefore there is no link between variables names and their types. In
 the future, the algorithm layer will be translated into PSyIR, which
 does have a symbol table, so this dictionary will no longer be
-required (see issue #753).
+required (see issue #1618).
 
 All declarations that specify variables or types are stored in the
 dictionary, including those specified within locally defined
@@ -294,7 +265,7 @@ As the current implementation only stores variable names and does not
 know about variable scope there is a restriction that any variables
 within an algorithm code with the same name must have the same
 precision/type. This restriction will be removed when the algorithm
-layer is translated to PSyIR (see issue #753). The current
+layer is translated to PSyIR (see issue #1618). The current
 implementation could be improved but in practice the lfric code does
 not fall foul of this restriction.
 
@@ -329,7 +300,7 @@ via use association. Potential solutions to this problem are 1)
 disallow this in the algorithm layer, 2) use a naming convention for
 the module and/or variable to determine its precision, or 3) search the
 modules for datatype information. At the moment only 1) or 2) will be
-feasible solutions. When we move to using the PSyIR (see issue #753),
+feasible solutions. When we move to using the PSyIR (see issue #1618),
 it may be possible to support 3).
 
 	  

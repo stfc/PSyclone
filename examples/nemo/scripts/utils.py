@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
 ''' Utilities file to parallelise Nemo code. '''
 
@@ -84,14 +56,6 @@ PROFILING_IGNORE = ["flo_dom", "macho", "mpp_", "nemo_gcm", "dyn_ldf"
 # functions, the following subroutines contains known statement functions
 CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 
-# These files change the results from the baseline when psyclone adds
-# parallelisation directives
-PARALLELISATION_ISSUES = [
-    "ldfc1d_c2d.f90",
-    "tramle.f90",
-    "traqsr.f90",
-]
-
 
 def _it_should_be(symbol, of_type, instance):
     ''' Make sure that symbol has the datatype as provided.
@@ -132,10 +96,7 @@ def inline_calls(schedule):
 
     '''
     excluding = ["ctl_nam", "ctl_stop", "ctl_warn", "prt_ctl", "eos",
-                 "iom_", "hist", "mpi_", "timing_", "oasis_",
-                 "fatal_error"  # TODO #2846 - is brought into scope via
-                                # multiple wildcard imports
-                 ]
+                 "iom_", "hist", "mpi_", "timing_", "oasis_"]
     ignore_codeblocks = ["bdy_dyn3d_frs", "bdy_dyn3d_spe", "bdy_dyn3d_zro",
                          "bdy_dyn3d_zgrad"]
     mod_inline_trans = KernelModuleInlineTrans()
@@ -205,10 +166,6 @@ def normalise_loops(
     :param hoist_argument_expressions: whether to hoist array expressions
         out of the containing Call.
     '''
-    # TODO #3412: This is currently limited to iom_put, we want to expand it
-    # throughout the code
-    if hoist_argument_expressions:
-        iom_put_argument_to_temporary(schedule.walk(Call))
 
     if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
         # Apply the HoistLocalArraysTrans when possible, it cannot be applied
@@ -280,6 +237,20 @@ def normalise_loops(
                 except TransformationError:
                     pass
 
+    if hoist_argument_expressions:
+        hoist_arguments_to_temporaries(schedule.walk(Call))
+        normalise_loops(
+            schedule,
+            hoist_local_arrays=hoist_local_arrays,
+            convert_array_notation=convert_array_notation,
+            loopify_array_intrinsics=loopify_array_intrinsics,
+            convert_range_loops=convert_range_loops,
+            scalarise_loops=scalarise_loops,
+            increase_array_ranks=False,
+            hoist_expressions=hoist_expressions,
+            # Make sure we never repeat this step.
+            hoist_argument_expressions=False,
+        )
     # TODO #1928: In order to perform better on the GPU, nested loops with two
     # sibling inner loops need to be fused or apply loop fission to the
     # top level. This would allow the collapse clause to be applied.
@@ -499,6 +470,7 @@ def add_profiling(children: Union[List[Node], Schedule]):
         # (which would create unclosed hooks).
         _allowed_contiguous_statements = (Assignment, Call, CodeBlock)
         _transformation = ProfileTrans
+        _SUB_TRANSFORMATIONS = [ProfileTrans]
 
         def _satisfies_minimum_region_rules(self, region: list[Node]) -> bool:
             '''Returns whether the provided node list satisfies the
@@ -540,9 +512,9 @@ def add_profiling(children: Union[List[Node], Schedule]):
         MaximalProfilingOutsideDirectivesTrans().apply(children)
 
 
-def iom_put_argument_to_temporary(calls: list[Call]):
-    '''Extracts the second argument of all iom_put calls and puts them
-     in a temporary if they are an Operation with an array datatype.
+def hoist_arguments_to_temporaries(calls: list[Call]):
+    '''Extracts the arguments of all calls and puts them
+     in a temporary result if they are an Operation with an array datatype.
 
     :param calls: The list of calls in a subroutine whose arguments
         may be moved into temporary storage to allow additional potential
@@ -550,13 +522,14 @@ def iom_put_argument_to_temporary(calls: list[Call]):
 
      '''
     for call in calls:
-        if call.symbol.name == "iom_put":
-            for arg in call.arguments:
-                dtype = arg.datatype
-                if (isinstance(dtype, ArrayType) and
-                    (isinstance(arg, Operation) or
-                        isinstance(arg, IntrinsicCall))):
-                    try:
-                        DataNodeToTempTrans().apply(arg, verbose=True)
-                    except TransformationError:
-                        pass
+        for arg in call.arguments:
+            dtype = arg.datatype
+            # Only extract expressions that can potentially be loopfied,
+            # i.e. operations over arrays.
+            if (isinstance(dtype, ArrayType) and
+                (isinstance(arg, Operation) or
+                    isinstance(arg, IntrinsicCall))):
+                try:
+                    DataNodeToTempTrans().apply(arg, verbose=True)
+                except TransformationError:
+                    pass

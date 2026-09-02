@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# ----------------------------------------------------------------------------
-# Authors: R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
-#          J. Henrichs, Bureau of Meteorology
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
+# -----------------------------------------------------------------------------
 
 ''' This module tests the hoist transformation. '''
 
@@ -41,8 +12,7 @@ import pytest
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Literal, Loop, Assignment, Reference, \
     IfBlock
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
-    BOOLEAN_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations import HoistTrans, TransformationError
 
 
@@ -112,7 +82,8 @@ def test_validate_ancestor_loop():
 
     '''
     assignment = Assignment.create(
-        Reference(DataSymbol("a", REAL_TYPE)), Literal("1.0", REAL_TYPE))
+        Reference(DataSymbol("a", ScalarType.real_type())),
+        Literal("1.0", ScalarType.real_type()))
     hoist_trans = HoistTrans()
     with pytest.raises(TransformationError) as info:
         hoist_trans.validate(assignment)
@@ -126,13 +97,14 @@ def test_validate_direct_loop():
 
     '''
     assignment = Assignment.create(
-        Reference(DataSymbol("a", REAL_TYPE)), Literal("1.0", REAL_TYPE))
-    condition = Literal("true", BOOLEAN_TYPE)
+        Reference(DataSymbol("a", ScalarType.real_type())),
+        Literal("1.0", ScalarType.real_type()))
+    condition = Literal("true", ScalarType.boolean_type())
     if_condition = IfBlock.create(condition, [assignment])
-    one = Literal("1", INTEGER_TYPE)
+    one = Literal("1", ScalarType.integer_type())
     _ = Loop.create(
-        DataSymbol("i", INTEGER_TYPE), one, one.copy(), one.copy(),
-        [if_condition])
+        DataSymbol("i", ScalarType.integer_type()),
+        one, one.copy(), one.copy(), [if_condition])
     hoist_trans = HoistTrans()
     with pytest.raises(TransformationError) as info:
         hoist_trans.validate(assignment)

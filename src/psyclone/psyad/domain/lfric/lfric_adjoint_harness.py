@@ -1,40 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
-# Modified by L. Turner, Met Office
-# Modified by T. Vockerodt, Met Office
 
 ''' Provides LFRic-specific PSyclone adjoint test-harness functionality. '''
 
@@ -572,7 +541,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     # Parse the kernel metadata. This still uses fparser1 as that's what
     # the meta-data handling is currently based upon. We therefore have to
     # convert back from PSyIR to Fortran for the moment.
-    # TODO #1806 - replace this with the new PSyIR-based metadata handling.
+    # TODO #2151 - replace this with the new PSyIR-based metadata handling.
     # pylint: disable=import-outside-toplevel
     from psyclone.psyir.backend.fortran import FortranWriter
     writer = FortranWriter()
@@ -608,7 +577,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
 
     # Construct an LFRicKern using the metadata and then use it to construct
     # the kernel argument list.
-    # TODO #1806 - once we have the new PSyIR-based metadata handling then
+    # TODO #2151 - once we have the new PSyIR-based metadata handling then
     # we can pass PSyIR to this routine rather than an fparser1 parse tree.
     kern = lfalg.kernel_from_metadata(parse_tree, kernel_name)
 

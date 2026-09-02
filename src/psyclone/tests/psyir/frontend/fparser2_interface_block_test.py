@@ -1,38 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the handling of interface blocks in the fparser2
@@ -47,10 +17,12 @@ from fparser.two.utils import walk
 
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import (
-    DataSymbol, DataTypeSymbol, GenericInterfaceSymbol, INTEGER_TYPE,
-    NoType, RoutineSymbol, Symbol, SymbolTable, UnsupportedFortranType)
+    DataSymbol, DataTypeSymbol, GenericInterfaceSymbol, ScalarType,
+    NoType, RoutineSymbol, Symbol, SymbolTable, UnsupportedFortranType,
+    UnresolvedType)
 
 
 @pytest.mark.parametrize("mod_txt", ["", "module "])
@@ -222,7 +194,7 @@ def test_named_interface_wrong_symbol_type(f2008_parser):
     # Add a DataSymbol with the same name as one of the routines referred to by
     # the interface.
     table.new_symbol("test_code_r4", symbol_type=DataSymbol,
-                     datatype=INTEGER_TYPE)
+                     datatype=ScalarType.integer_type())
     processor = Fparser2Reader()
     # This should raise an InternalError...
     with pytest.raises(InternalError) as err:
@@ -395,3 +367,104 @@ def test_unnamed_interface(fortran_reader, code, start, end):
     assert interface_symbol.datatype.declaration.startswith(start)
     assert interface_symbol.datatype.declaration.endswith(end)
     assert interface_symbol.visibility == Symbol.Visibility.PUBLIC
+
+
+def test_unsupported_interface_kept(fortran_reader, fortran_writer):
+    ''' Test that a call to an unsupported interface doesn't replace
+    its datatype with NoType.'''
+    code = """module test
+      interface my_interface
+         subroutine test1(a)
+         end subroutine
+         subroutine test2(a, b)
+         end subroutine test2
+      end interface
+
+      contains
+
+      subroutine myfunc()
+      integer :: a
+      call my_interface(a)
+      end subroutine
+      end module"""
+    psyir = fortran_reader.psyir_from_source(code)
+    sym = psyir.children[0].symbol_table.lookup("my_interface")
+    assert isinstance(sym.datatype, UnsupportedFortranType)
+    out = fortran_writer(psyir)
+    assert "interface my_interface" in out
+
+
+def test_interface_with_comments_is_supported(fortran_writer):
+    ''' Test that the frontend correctly handles interface blocks with
+    comments enabled, and the datatype is not an UnsupportedFortranType.
+    '''
+    code = """
+    module test
+        ! Preceding comment
+        interface inter1 ! Some comment here
+           ! comment on module procedure
+           module procedure     func1, func2 ! inline comment
+        end interface
+       contains
+        subroutine test
+           call inter1()
+        end subroutine test
+
+    end module"""
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    # Get the interface
+    sym = psyir.children[0].symbol_table.lookup("inter1")
+    assert isinstance(sym.datatype, UnresolvedType)
+
+    correct = """module test
+  implicit none
+  ! Preceding comment
+  interface inter1
+    module procedure :: func1
+    module procedure :: func2
+  end interface inter1
+  public
+
+  contains
+  subroutine test()
+
+    call inter1()
+
+  end subroutine test
+
+end module test"""
+    out = fortran_writer(psyir)
+    # We lose all the comments on the module procedures and the
+    # inline comment on the interface.
+    assert correct in out
+    # We lost the inline comment at the end
+    assert "inline_comment" not in out
+    pytest.xfail(reason="#3517 Inline comments in interface and "
+                        "module procedure declarations are not supported "
+                        "inside Interface blocks. This is a limitation "
+                        "partly due to Fparser issue 521.")
+
+
+def test_unsupported_interface_keep_comment(fortran_writer):
+    ''' Test that an unsupported interface keeps the preceding comments.'''
+    code = """module test
+      ! Here is a preceding comment.
+      interface my_interface
+         subroutine test1(a)
+         end subroutine
+         subroutine test2(a, b)
+         end subroutine test2
+      end interface
+
+      contains
+
+      subroutine myfunc()
+      integer :: a
+      call my_interface(a)
+      end subroutine
+      end module"""
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    out = fortran_writer(psyir)
+    assert "Here is a preceding comment" in out

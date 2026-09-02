@@ -1,38 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified A. B. G. Chalk, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Perform py.test tests on the psygen.psyir.symbols.routinesymbol file '''
@@ -40,7 +10,7 @@
 import pytest
 from psyclone.psyir.symbols import (
     AutomaticInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    ImportInterface, INTEGER_TYPE, RoutineSymbol, ScalarType, Symbol,
+    ImportInterface, RoutineSymbol, ScalarType, Symbol,
     SymbolTable, UnresolvedInterface, UnresolvedType)
 from psyclone.psyir.nodes import Reference
 
@@ -54,10 +24,10 @@ def test_routinesymbol_init():
     # By default we don't know whether a symbol is pure or elemental.
     assert jo_sym.is_pure is None
     assert jo_sym.is_elemental is None
-    ellie_sym = RoutineSymbol('ellie', INTEGER_TYPE,
+    ellie_sym = RoutineSymbol('ellie', ScalarType.integer_type(),
                               visibility=Symbol.Visibility.PRIVATE)
     assert isinstance(ellie_sym, RoutineSymbol)
-    assert ellie_sym.datatype == INTEGER_TYPE
+    assert ellie_sym.datatype == ScalarType.integer_type()
     isaac_sym = RoutineSymbol('isaac', UnresolvedType(),
                               interface=UnresolvedInterface())
     assert isinstance(isaac_sym, RoutineSymbol)
@@ -111,8 +81,8 @@ def test_routinesymbol_specialise_and_process_arguments():
 
     # Include a datatype
     sym2 = Symbol("symbol2")
-    sym2.specialise(RoutineSymbol, datatype=INTEGER_TYPE)
-    assert sym2.datatype is INTEGER_TYPE
+    sym2.specialise(RoutineSymbol, datatype=ScalarType.integer_type())
+    assert sym2.datatype == ScalarType.integer_type()
 
     # Include is_pure
     sym3 = Symbol("sym3")
@@ -130,7 +100,7 @@ def test_routinesymbol_str():
     routine_symbol = RoutineSymbol("roo")
     assert (str(routine_symbol) == "roo: RoutineSymbol<UnresolvedType, "
             "pure=unknown, elemental=unknown>")
-    routine_symbol = RoutineSymbol("roo", INTEGER_TYPE)
+    routine_symbol = RoutineSymbol("roo", ScalarType.integer_type())
     assert (str(routine_symbol) ==
             "roo: RoutineSymbol<Scalar<INTEGER, UNDEFINED>, pure=unknown, "
             "elemental=unknown>")
@@ -172,7 +142,7 @@ def test_routinesymbol_copy():
     assert new_sym.is_pure is None
 
     # Test when the routine has a datatype.
-    wp = DataSymbol("wp", INTEGER_TYPE)
+    wp = DataSymbol("wp", ScalarType.integer_type())
     sym3 = RoutineSymbol("getit", ScalarType(ScalarType.Intrinsic.REAL,
                                              Reference(wp)))
     new_sym3 = sym3.copy()
@@ -188,6 +158,12 @@ def test_routinesymbol_copy():
     assert new_sym4.interface is not interf
     assert new_sym4.interface.container_symbol is csym
 
+    # Test when the routine has a preceding comment
+    sym5 = RoutineSymbol("Hello")
+    sym5.preceding_comment = "Here is my preceding comment"
+    new_sym5 = sym5.copy()
+    assert new_sym5.preceding_comment == "Here is my preceding comment"
+
 
 def test_routinesymbol_copy_properties():
     '''
@@ -195,7 +171,7 @@ def test_routinesymbol_copy_properties():
 
     '''
     csym = ContainerSymbol("a_mod")
-    sym1 = RoutineSymbol('a', datatype=INTEGER_TYPE,
+    sym1 = RoutineSymbol('a', datatype=ScalarType.integer_type(),
                          interface=ImportInterface(csym))
     # Type checking of argument
     with pytest.raises(TypeError) as err:
@@ -206,7 +182,7 @@ def test_routinesymbol_copy_properties():
     assert isinstance(sym2.datatype, UnresolvedType)
     # Copy properties but exclude updating the Interface
     sym2.copy_properties(sym1, exclude_interface=True)
-    assert sym2.datatype == INTEGER_TYPE
+    assert sym2.datatype == ScalarType.integer_type()
     assert isinstance(sym2.interface, AutomaticInterface)
     # Repeat but include the Interface
     sym2.copy_properties(sym1)
@@ -223,7 +199,7 @@ def test_routinesymbol_replace_symbols_using():
     sym1.replace_symbols_using(table)
     assert isinstance(sym1.datatype, UnresolvedType)
     # Test when the routine has a datatype.
-    wp = DataSymbol("wp", INTEGER_TYPE)
+    wp = DataSymbol("wp", ScalarType.integer_type())
     sym3 = RoutineSymbol("getit", ScalarType(ScalarType.Intrinsic.REAL,
                                              Reference(wp)))
     # No symbol in table.

@@ -1,42 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
-#          A. B. G. Chalk, STFC Daresbury Lab
-#          J. G. Wallwork, Met Office / University of Cambridge
-#          S. Valat, Inria / Laboratoire Jean Kuntzmann
-#          M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean Kuntzmann
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the OpenACC PSyIR Directive nodes. '''
@@ -57,10 +23,10 @@ from psyclone.psyir.nodes import (
     ACCDirective)
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.symbols import (
-    Symbol, SymbolTable, DataSymbol, INTEGER_TYPE)
-from psyclone.psyir.transformations import ACCKernelsTrans
+    Symbol, SymbolTable, DataSymbol, ScalarType)
+from psyclone.psyir.transformations import ACCKernelsTrans, ACCLoopTrans
 from psyclone.transformations import (
-    ACCDataTrans, ACCEnterDataTrans, ACCLoopTrans,
+    ACCDataTrans, ACCEnterDataTrans,
     ACCParallelTrans, ACCRoutineTrans)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -92,17 +58,21 @@ def test_accregiondir_signatures():
     routine = Routine.create("test_prog")
     accnode = MyACCRegion()
     routine.addchild(accnode)
-    bob = DataSymbol("bob", INTEGER_TYPE)
-    richard = DataSymbol("richard", INTEGER_TYPE)
+    bob = DataSymbol("bob", ScalarType.integer_type())
+    richard = DataSymbol("richard", ScalarType.integer_type())
     routine.symbol_table.add(bob)
     accnode.dir_body.addchild(
-        Assignment.create(lhs=Reference(bob), rhs=Literal("1", INTEGER_TYPE)))
+        Assignment.create(lhs=Reference(bob),
+                          rhs=Literal("1", ScalarType.integer_type())))
     accnode.dir_body.addchild(
-        Assignment.create(lhs=Reference(bob), rhs=Literal("1", INTEGER_TYPE)))
+        Assignment.create(lhs=Reference(bob),
+                          rhs=Literal("1", ScalarType.integer_type())))
     accnode.dir_body.addchild(
-        Assignment.create(lhs=Reference(bob), rhs=Literal("1", INTEGER_TYPE)))
+        Assignment.create(lhs=Reference(bob),
+                          rhs=Literal("1", ScalarType.integer_type())))
     accnode.dir_body.addchild(
-        Assignment.create(lhs=Reference(bob), rhs=Reference(richard)))
+        Assignment.create(lhs=Reference(bob),
+                          rhs=Reference(richard)))
     # pylint: disable=unbalanced-tuple-unpacking
     reads, writes = accnode.signatures
     assert Signature("richard") in reads
@@ -116,7 +86,7 @@ def test_accenterdatadirective_init():
     the ACCAsyncMixin'''
     _ = ACCEnterDataDirective()
     directive = ACCEnterDataDirective(async_queue=1)
-    assert directive.async_queue == Literal("1", INTEGER_TYPE)
+    assert directive.async_queue == Literal("1", ScalarType.integer_type())
 
 
 # (1/4) Method lower_to_language_level
@@ -643,7 +613,7 @@ def test_directives_async_queue(directive_type, fortran_writer):
     # Value is a PSyIR expression
     directive.async_queue = BinaryOperation.create(
         BinaryOperation.Operator.ADD,
-        Literal("1", INTEGER_TYPE),
+        Literal("1", ScalarType.integer_type()),
         Reference(Symbol("stream")))
     assert 'async(1 + stream)' in fortran_writer(directive).split('\n')[0]
 

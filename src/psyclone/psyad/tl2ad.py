@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified by T. Vockerodt, Met Office
 
 '''The implementation of PSyAD : the PSyclone Adjoint
 support. Transforms an LFRic tangent linear kernel to its adjoint.
@@ -56,7 +27,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     SymbolTable, ImportInterface,
     ContainerSymbol, ScalarType, ArrayType, RoutineSymbol, DataSymbol,
-    INTEGER_TYPE, UnresolvedType, UnsupportedType)
+    UnresolvedType, UnsupportedType)
 from psyclone.psyir.transformations import TransformationError
 
 
@@ -416,7 +387,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
     # to avoid any clashes with any of the container and kernel names.
     dim_size_sym = symbol_table.new_symbol("array_extent",
                                            symbol_type=DataSymbol,
-                                           datatype=INTEGER_TYPE,
+                                           datatype=ScalarType.integer_type(),
                                            is_constant=True,
                                            initial_value=TEST_ARRAY_DIM_SIZE)
 
@@ -690,7 +661,7 @@ def _create_array_inner_product(result, array1, array2, table):
     ranges2 = []
     # Generate a Range object for each dimension of each array
     for idx in range(len(array1.datatype.shape)):
-        idx_literal = Literal(str(idx+1), INTEGER_TYPE)
+        idx_literal = Literal(str(idx+1), ScalarType.integer_type())
         lbound1 = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.LBOUND,
             [Reference(array1), ("dim", idx_literal.copy())])

@@ -1,39 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
-# Modified by A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified by A. B. G. Chalk, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the Routine node handler in the
@@ -93,10 +62,10 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
     sub_scopes = schedule.walk(nodes.Schedule)[1:]
     sub_scopes[0].symbol_table.new_symbol(
         "symbol1", symbol_type=symbols.DataSymbol,
-        datatype=symbols.INTEGER_TYPE)
+        datatype=symbols.ScalarType.integer_type())
     sub_scopes[1].symbol_table.new_symbol(
         "symbol2", symbol_type=symbols.DataSymbol,
-        datatype=symbols.INTEGER_TYPE)
+        datatype=symbols.ScalarType.integer_type())
     # They should be promoted to the routine-scope level
     result = fortran_writer(schedule)
     assert (
@@ -109,10 +78,10 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
     sub_scopes = schedule.walk(nodes.Schedule)[1:]
     sub_scopes[0].symbol_table.new_symbol(
         "symbol2", symbol_type=symbols.DataSymbol,
-        datatype=symbols.INTEGER_TYPE)
+        datatype=symbols.ScalarType.integer_type())
     sub_scopes[1].symbol_table.new_symbol(
         "symbol1", symbol_type=symbols.DataSymbol,
-        datatype=symbols.INTEGER_TYPE)
+        datatype=symbols.ScalarType.integer_type())
     # Since the scopes are siblings they are allowed the same name
     assert "symbol1" in sub_scopes[0].symbol_table
     assert "symbol2" in sub_scopes[0].symbol_table
@@ -133,14 +102,17 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
 
 def test_fw_routine_nameclash(fortran_writer):
     ''' Test that any name clashes are handled when merging symbol tables. '''
-    sym1 = symbols.DataSymbol("var1", symbols.INTEGER_TYPE)
-    sym2 = symbols.DataSymbol("var1", symbols.INTEGER_TYPE)
-    assign1 = nodes.Assignment.create(nodes.Reference(sym1),
-                                      nodes.Literal("1", symbols.INTEGER_TYPE))
-    assign2 = nodes.Assignment.create(nodes.Reference(sym2),
-                                      nodes.Literal("2", symbols.INTEGER_TYPE))
-    ifblock = nodes.IfBlock.create(nodes.Literal("true", symbols.BOOLEAN_TYPE),
-                                   [assign1], [assign2])
+    sym1 = symbols.DataSymbol("var1", symbols.ScalarType.integer_type())
+    sym2 = symbols.DataSymbol("var1", symbols.ScalarType.integer_type())
+    assign1 = nodes.Assignment.create(
+        nodes.Reference(sym1),
+        nodes.Literal("1", symbols.ScalarType.integer_type()))
+    assign2 = nodes.Assignment.create(
+        nodes.Reference(sym2),
+        nodes.Literal("2", symbols.ScalarType.integer_type()))
+    ifblock = nodes.IfBlock.create(
+        nodes.Literal("true", symbols.ScalarType.boolean_type()),
+        [assign1], [assign2])
     # Place the symbols for the two variables in the tables associated with
     # the two branches of the IfBlock. These then represent *different*
     # variables, despite having the same name.
@@ -159,7 +131,7 @@ def test_fw_routine_nameclash(fortran_writer):
     # Add a symbol to the local scope of the else that will clash with
     # the name generated with reference to the routine scope.
     ifblock.else_body.symbol_table.add(
-        symbols.DataSymbol("var1_1", symbols.INTEGER_TYPE))
+        symbols.DataSymbol("var1_1", symbols.ScalarType.integer_type()))
     result = fortran_writer(routine)
     assert ("  integer :: var1\n"
             "  integer :: var1_2\n"
@@ -172,8 +144,9 @@ def test_fw_routine_nameclash(fortran_writer):
             "  end if" in result)
     # Add a symbol to the routine scope that will clash with the first name
     # generated with reference to the else scope.
-    routine.symbol_table.add(symbols.DataSymbol("var1_2",
-                                                symbols.INTEGER_TYPE))
+    routine.symbol_table.add(
+        symbols.DataSymbol("var1_2",
+                           symbols.ScalarType.integer_type()))
     result = fortran_writer(routine)
     assert ("  integer :: var1_2\n"
             "  integer :: var1\n"
@@ -296,7 +269,7 @@ def test_fw_routine_flatten_tables(fortran_reader, fortran_writer):
                               interface=symbols.ImportInterface(csym))
     # Add a variable to this table that will clash with a Container symbol
     # in the routine table.
-    jsym = symbols.DataSymbol("joe", symbols.INTEGER_TYPE)
+    jsym = symbols.DataSymbol("joe", symbols.ScalarType.integer_type())
     table.add(csym)
     table.add(ssym)
     table.add(jsym)
@@ -451,6 +424,28 @@ def test_fw_routine_prefixes_nomodule(fortran_reader, fortran_writer):
     container = fortran_reader.psyir_from_source(code)
     output = fortran_writer(container)
     assert "impure elemental subroutine sub" in output
+
+
+@pytest.mark.parametrize("routine_type", ["function", "subroutine"])
+def test_fw_routine_recursive_prefix(fortran_reader, fortran_writer,
+                                     routine_type):
+    '''Check that a routine recursion hint is written as a prefix.'''
+    code = f'''module test
+    contains
+    recursive {routine_type} sub()
+    real :: sub
+    sub = 1.0
+    end {routine_type} sub
+    end module test'''
+    container = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(container)
+    assert f"recursive {routine_type} sub" in output
+
+    routine = container.walk(Routine)[0]
+    for is_recursive in [False, None]:
+        routine.is_recursive = is_recursive
+        output = fortran_writer(container)
+        assert f"recursive {routine_type} sub" not in output
 
 
 def test_fw_standalone_routine(fortran_reader, fortran_writer):

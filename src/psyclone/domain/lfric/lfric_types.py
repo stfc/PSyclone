@@ -1,39 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2023-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: J. Henrichs, Bureau of Meteorology
-#          A. R. Porter, STFC Daresbury Lab
-#          O. Brunt, Met Office
 
 '''This module contains a singleton class that manages LFRic types. '''
 
@@ -46,8 +16,7 @@ from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Literal, Reference
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
-                                    ImportInterface, INTEGER_TYPE, ScalarType,
-                                    SymbolTable)
+                                    ImportInterface, ScalarType, SymbolTable)
 
 
 class LFRicTypes:
@@ -173,7 +142,8 @@ class LFRicTypes:
                 var_name = module_var.upper()
                 interface = ImportInterface(LFRicTypes(module_name))
                 LFRicTypes._name_to_class[var_name] = \
-                    DataSymbol(module_var, INTEGER_TYPE, interface=interface)
+                    DataSymbol(module_var, ScalarType.integer_type(),
+                               interface=interface)
 
     # ------------------------------------------------------------------------
     @staticmethod
@@ -608,6 +578,9 @@ class LFRicTypes:
         table then add it. Also ensure that the Container symbol from which it
         is imported is in the table.
 
+        Also supports Fortran intrinsic kinds imported from the
+        iso_fortran_env module.
+
         :param table: the symbol table to use.
         :param name: name of the LFRic precision symbol to add to table.
 
@@ -624,7 +597,13 @@ class LFRicTypes:
             raise ValueError(f"'{name}' is not a recognised LFRic precision.")
 
         const = LFRicConstants()
-        mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
+        if name in const.INTRINSIC_KINDS:
+            # This is an intrinsic precision (e.g. real64)
+            mod_name = const.FORTRAN_ISO_MOD_NAME
+            is_intrinsic = True
+        else:
+            mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
+            is_intrinsic = False
 
         sym = table.lookup(name, otherwise=None)
 
@@ -638,8 +617,9 @@ class LFRicTypes:
             return sym
 
         constants_mod = table.find_or_create(mod_name,
-                                             symbol_type=ContainerSymbol)
-        sym = DataSymbol(name, INTEGER_TYPE,
+                                             symbol_type=ContainerSymbol,
+                                             is_intrinsic=is_intrinsic)
+        sym = DataSymbol(name, ScalarType.integer_type(),
                          interface=ImportInterface(constants_mod))
         table.add(sym)
 

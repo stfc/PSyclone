@@ -1,40 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
-# Modified J. Henrichs, Bureau of Meteorology
-# Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
 ''' This module implements the stencil information and code generation
     associated with a PSy-layer routine or Kernel stub in the LFRic API.  '''
@@ -47,7 +16,7 @@ from psyclone.psyir.nodes import (
     Assignment, Reference, Call, StructureReference, IfBlock, BinaryOperation,
     Literal, DataNode)
 from psyclone.psyir.symbols import (
-    DataSymbol, UnsupportedFortranType, INTEGER_TYPE,
+    DataSymbol, UnsupportedFortranType, ScalarType,
     ArgumentInterface, UnresolvedType, ContainerSymbol,
     ImportInterface, ArrayType, DataTypeSymbol)
 
@@ -135,7 +104,7 @@ class LFRicStencils(LFRicCollection):
         '''
         extent_arg = arg.stencil.extent_arg
         if extent_arg.is_literal():
-            return Literal(extent_arg.text, INTEGER_TYPE)
+            return Literal(extent_arg.text, ScalarType.integer_type())
         return Reference(self.symtab.lookup(extent_arg.varname))
 
     @staticmethod
@@ -315,7 +284,7 @@ class LFRicStencils(LFRicCollection):
                             symbol.datatype = ArrayType(
                                     LFRicTypes(
                                         "LFRicIntegerScalarDataType")(),
-                                    [Literal("4", INTEGER_TYPE)])
+                                    [Literal("4", ScalarType.integer_type())])
                             symbol.interface = ArgumentInterface(
                                         ArgumentInterface.Access.READ)
                             self.symtab.append_argument(symbol)
@@ -462,7 +431,7 @@ class LFRicStencils(LFRicCollection):
                         rhs=BinaryOperation.create(
                             BinaryOperation.Operator.ADD,
                             self.extent_value(arg),
-                            Literal("1", INTEGER_TYPE))
+                            Literal("1", ScalarType.integer_type()))
                         )
                     self._invoke.schedule.addchild(stmt, cursor)
                     cursor += 1
@@ -648,7 +617,7 @@ class LFRicStencils(LFRicCollection):
                         LFRicTypes("LFRicIntegerScalarDataType")(),
                         [Reference(symtab.lookup(arg.function_space.ndf_name)),
                          Reference(max_length),
-                         Literal("4", INTEGER_TYPE)])
+                         Literal("4", ScalarType.integer_type())])
             else:
                 size_symbol = self.dofmap_size_symbol(self.symtab, arg)
                 size_symbol.datatype = \

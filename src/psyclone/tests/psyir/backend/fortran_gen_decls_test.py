@@ -1,37 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Performs pytest tests on the 'gen_decls()' method of the fortran
@@ -48,19 +19,17 @@ from psyclone.psyir.symbols import (
     GenericInterfaceSymbol,
     RoutineSymbol, ScalarType, Symbol, SymbolTable, UnresolvedType,
     StructureType, ImportInterface, UnresolvedInterface, ArgumentInterface,
-    INTEGER_TYPE, REAL_TYPE, StaticInterface, PreprocessorInterface,
-    CHARACTER_TYPE)
-from psyclone.tests.utilities import Compile
+    StaticInterface, PreprocessorInterface)
 
 
 def test_gen_decls_dependencies(fortran_writer):
     ''' Test that dependencies between parameter declarations are handled. '''
     symbol_table = SymbolTable()
-    rlg_sym = DataSymbol("rlg", INTEGER_TYPE, is_constant=True,
-                         initial_value=Literal("8", INTEGER_TYPE))
-    wp_sym = DataSymbol("wp", INTEGER_TYPE, is_constant=True,
+    rlg_sym = DataSymbol("rlg", ScalarType.integer_type(), is_constant=True,
+                         initial_value=Literal("8", ScalarType.integer_type()))
+    wp_sym = DataSymbol("wp", ScalarType.integer_type(), is_constant=True,
                         initial_value=Reference(rlg_sym))
-    var_sym = DataSymbol("var", INTEGER_TYPE, is_constant=True,
+    var_sym = DataSymbol("var", ScalarType.integer_type(), is_constant=True,
                          initial_value=BinaryOperation.create(
                              BinaryOperation.Operator.ADD,
                              Reference(rlg_sym), Reference(wp_sym)))
@@ -74,7 +43,8 @@ def test_gen_decls_dependencies(fortran_writer):
     # A Symbol can depend upon itself. We can't currently create such a Symbol
     # directly (because we need the symbol to exist in order to make a
     # Reference to it).
-    circ_sym = DataSymbol("circle", INTEGER_TYPE, is_constant=True,
+    circ_sym = DataSymbol("circle", ScalarType.integer_type(),
+                          is_constant=True,
                           initial_value=IntrinsicCall.create(
                               IntrinsicCall.Intrinsic.HUGE,
                               [Reference(var_sym)]))
@@ -90,7 +60,7 @@ def test_gen_decls_dependencies(fortran_writer):
     # Check that an (invalid, obviously) circular dependency is handled.
     # Replace "rlg" with a new one that depends on "wp".
     del symbol_table._symbols[rlg_sym.name]
-    rlg_sym = DataSymbol("rlg", INTEGER_TYPE, is_constant=True,
+    rlg_sym = DataSymbol("rlg", ScalarType.integer_type(), is_constant=True,
                          initial_value=Reference(wp_sym))
     symbol_table.add(rlg_sym)
     with pytest.raises(VisitorError) as err:
@@ -119,14 +89,15 @@ def test_gen_decls_kind_dep(fortran_writer):
     ''' Check that symbols defining precision are accounted for when
     allowing for dependencies between parameter declarations. '''
     table = SymbolTable()
-    rdef_sym = DataSymbol("r_def", INTEGER_TYPE, is_constant=True,
-                          initial_value=Literal("4", INTEGER_TYPE))
-    wp_sym = DataSymbol("wp", INTEGER_TYPE, is_constant=True,
+    rdef_sym = DataSymbol(
+        "r_def", ScalarType.integer_type(), is_constant=True,
+        initial_value=Literal("4", ScalarType.integer_type()))
+    wp_sym = DataSymbol("wp", ScalarType.integer_type(), is_constant=True,
                         initial_value=Reference(rdef_sym))
     rdef_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(wp_sym))
     var_sym = DataSymbol("var", rdef_type, is_constant=True,
                          initial_value=Literal("1.0", rdef_type))
-    var2_sym = DataSymbol("var2", REAL_TYPE, is_constant=True,
+    var2_sym = DataSymbol("var2", ScalarType.real_type(), is_constant=True,
                           initial_value=Literal("1.0", rdef_type))
     table.add(var2_sym)
     table.add(var_sym)
@@ -164,7 +135,7 @@ end module my_mod''')
         "integer(kind=an_int), parameter :: a_second_int = 5_i_def\n"
         "integer, parameter :: nfieldnames3d = 4\n"
         "integer, dimension(nfieldnames3d), parameter :: "
-        "interpolationlevels = [2, 0, HUGE(InterpolationLevels) / 3, 0]\n")
+        "InterpolationLevels = [2, 0, HUGE(InterpolationLevels) / 3, 0]\n")
 
 
 def test_gen_decls(fortran_writer):
@@ -180,10 +151,10 @@ def test_gen_decls(fortran_writer):
                                interface=ImportInterface(
                                    symbol_table.lookup("my_module")))
     symbol_table.add(use_statement)
-    local_variable = DataSymbol("local", INTEGER_TYPE)
+    local_variable = DataSymbol("local", ScalarType.integer_type())
     symbol_table.add(local_variable)
     dtype = StructureType.create([
-        ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
+        ("flag", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None)])
     dtype_variable = DataTypeSymbol("field", dtype)
     symbol_table.add(dtype_variable)
     grid_type = DataTypeSymbol("grid_type", UnresolvedType(),
@@ -192,8 +163,9 @@ def test_gen_decls(fortran_writer):
     symbol_table.add(grid_type)
     grid_variable = DataSymbol("grid", grid_type)
     symbol_table.add(grid_variable)
-    symbol_table.add(DataSymbol("rlg", INTEGER_TYPE, is_constant=True,
-                                initial_value=Literal("8", INTEGER_TYPE)))
+    symbol_table.add(DataSymbol(
+        "rlg", ScalarType.integer_type(), is_constant=True,
+        initial_value=Literal("8", ScalarType.integer_type())))
     result = fortran_writer.gen_decls(symbol_table)
     # If derived type declaration is not inside a module then its components
     # cannot have accessibility attributes.
@@ -212,7 +184,7 @@ def test_gen_decls(fortran_writer):
                       "type(grid_type), public :: grid\n"
                       "integer, parameter, public :: rlg = 8\n")
     # Add a Symbol with an argument interface.
-    argument_variable = DataSymbol("arg", INTEGER_TYPE,
+    argument_variable = DataSymbol("arg", ScalarType.integer_type(),
                                    interface=ArgumentInterface())
     symbol_table.add(argument_variable)
     result = fortran_writer.gen_decls(symbol_table)
@@ -227,7 +199,7 @@ def test_gen_decls(fortran_writer):
 
     # Add a Symbol with PreprocessorInterface which has to be ignored by
     # the gen_decl method (as no declarations is needed)
-    preprocessor_variable = DataSymbol("__LINE__", CHARACTER_TYPE,
+    preprocessor_variable = DataSymbol("__LINE__", ScalarType.character_type(),
                                        interface=PreprocessorInterface())
     symbol_table.add(preprocessor_variable)
     result = fortran_writer.gen_decls(symbol_table)
@@ -246,14 +218,14 @@ def test_gen_decls(fortran_writer):
             "contains argument(s): '['arg']'." in str(excinfo.value))
 
     # Add a symbol with a deferred (unknown) interface
-    symbol_table.add(DataSymbol("unknown", INTEGER_TYPE,
+    symbol_table.add(DataSymbol("unknown", ScalarType.integer_type(),
                                 interface=UnresolvedInterface()))
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer.gen_decls(symbol_table)
     assert ("The following symbols are not explicitly declared or imported "
-            "from a module and there are no wildcard "
-            "imports which could be bringing them into scope: "
-            "'unknown'" in str(excinfo.value))
+            "from a module and there are no wildcard imports, generic "
+            "interfaces or CodeBlocks which could be bringing them into scope:"
+            " 'unknown'" in str(excinfo.value))
 
 
 def test_gen_decls_char(fortran_writer):
@@ -275,7 +247,7 @@ def test_gen_decls_char(fortran_writer):
                                  ScalarType.Precision.UNDEFINED,
                                  ScalarType.CharLengthParameter.ASSUMED))
     table.add(sym3)
-    char_kind = DataSymbol("ckind", INTEGER_TYPE)
+    char_kind = DataSymbol("ckind", ScalarType.integer_type())
     table.add(char_kind)
     sym4 = DataSymbol("amore",
                       ScalarType(ScalarType.Intrinsic.CHARACTER,
@@ -303,25 +275,27 @@ def test_gen_decls_array(fortran_writer):
     '''
     Test that various forms of array declaration are created correctly.
     '''
-    atype = ArrayType(REAL_TYPE, [3, 5])
+    atype = ArrayType(ScalarType.real_type(), [3, 5])
     symbol_table = SymbolTable()
     symbol_table.add(DataSymbol("simple", atype))
     result = fortran_writer.gen_decls(symbol_table)
     assert "real, dimension(3,5) :: simple" in result
     # With range
     sym = symbol_table.new_symbol("upper", symbol_type=DataSymbol,
-                                  datatype=INTEGER_TYPE)
-    atype = ArrayType(REAL_TYPE, [(3, 5), (-1, Reference(sym))])
+                                  datatype=ScalarType.integer_type())
+    atype = ArrayType(ScalarType.real_type(), [(3, 5), (-1, Reference(sym))])
     symbol_table.add(DataSymbol("simple2", atype))
     result = fortran_writer.gen_decls(symbol_table)
     assert "real, dimension(3:5,-1:upper) :: simple2" in result
     # Only an explicit lower bound.
-    atype = ArrayType(REAL_TYPE, [(3, ArrayType.Extent.ATTRIBUTE)])
+    atype = ArrayType(ScalarType.real_type(),
+                      [(3, ArrayType.Extent.ATTRIBUTE)])
     symbol_table.add(DataSymbol("simple3", atype))
     result = fortran_writer.gen_decls(symbol_table)
     assert "real, dimension(3:) :: simple3" in result
     # With default lower bound.
-    atype = ArrayType(REAL_TYPE, [(1, ArrayType.Extent.ATTRIBUTE)])
+    atype = ArrayType(ScalarType.real_type(),
+                      [(1, ArrayType.Extent.ATTRIBUTE)])
     symbol_table.add(DataSymbol("simple4", atype))
     result = fortran_writer.gen_decls(symbol_table)
     assert "real, dimension(:) :: simple4" in result
@@ -333,7 +307,7 @@ def test_gen_decls_nested_scope(fortran_writer):
 
     '''
     inner_table = SymbolTable()
-    inner_table.add(DataSymbol("unknown1", INTEGER_TYPE,
+    inner_table.add(DataSymbol("unknown1", ScalarType.integer_type(),
                                interface=UnresolvedInterface()))
     routine = Routine.create("my_func", inner_table, [Return()])
     cont_table = SymbolTable()
@@ -344,9 +318,10 @@ def test_gen_decls_nested_scope(fortran_writer):
     # be brought into scope
     with pytest.raises(VisitorError) as err:
         fortran_writer.gen_decls(inner_table)
-    assert ("symbols are not explicitly declared or imported from a module "
-            "and there are no wildcard imports which "
-            "could be bringing them into scope: 'unknown1'" in str(err.value))
+    assert ("The following symbols are not explicitly declared or imported "
+            "from a module and there are no wildcard imports, generic "
+            "interfaces or CodeBlocks which could be bringing them into scope:"
+            " 'unknown1'" in str(err.value))
     # Add a ContainerSymbol with a wildcard import in the outermost scope
     csym = ContainerSymbol("other_mod")
     csym.wildcard_import = True
@@ -392,7 +367,7 @@ def test_gen_decls_name_too_long(fortran_writer):
     '''
     table = SymbolTable()
     bad_name = 100*"a"
-    table.add(DataSymbol(bad_name, INTEGER_TYPE))
+    table.add(DataSymbol(bad_name, ScalarType.integer_type()))
     with pytest.raises(VisitorError) as err:
         fortran_writer.gen_decls(table)
     assert (f"Found a symbol '{bad_name}' with a name greater than "
@@ -421,7 +396,8 @@ def test_gen_decls_static_variables(fortran_writer):
 
     '''
     symbol_table = SymbolTable()
-    sym = DataSymbol("v1", datatype=INTEGER_TYPE, interface=StaticInterface())
+    sym = DataSymbol("v1", datatype=ScalarType.integer_type(),
+                     interface=StaticInterface())
     symbol_table.add(sym)
     assert "integer, save :: v1" in fortran_writer.gen_decls(symbol_table)
     assert "integer, save :: v1" in fortran_writer.gen_vardecl(sym)
@@ -435,8 +411,8 @@ def test_gen_decls_comments(fortran_writer):
     when the symbol has a description.
 
     '''
-    sym = DataSymbol("v1", datatype=INTEGER_TYPE,
-                     initial_value=Literal("1", INTEGER_TYPE),
+    sym = DataSymbol("v1", datatype=ScalarType.integer_type(),
+                     initial_value=Literal("1", ScalarType.integer_type()),
                      is_constant=True)
     sym.preceding_comment = "Preceding comment"
     sym.inline_comment = "Inline comment"
@@ -445,8 +421,8 @@ def test_gen_decls_comments(fortran_writer):
                 "integer, parameter :: v1 = 1 ! Inline comment")
     assert expected in result
 
-    sym2 = DataSymbol("v2", datatype=INTEGER_TYPE,
-                      initial_value=Literal("2", INTEGER_TYPE),
+    sym2 = DataSymbol("v2", datatype=ScalarType.integer_type(),
+                      initial_value=Literal("2", ScalarType.integer_type()),
                       is_constant=True)
     sym2.preceding_comment = "Preceding comment\nwith newline"
     sym2.inline_comment = "Inline comment"
@@ -676,3 +652,67 @@ def test_complex_decl_with_deps(fortran_reader, fortran_writer, tmp_path):
   integer, parameter, public :: dp = KIND(1.0d0)
   complex(kind = dp), dimension(np), public :: myvar = i""" in output
     assert Compile(tmp_path).string_compiles(output)
+    # TODO ARPDBG - fix merge
+    # Check we get the preceding comment as expected
+    isub.preceding_comment = "Here is my preceding comment"
+    out = fortran_writer.gen_interfacedecl(isub)
+    assert (out == """\
+! Here is my preceding comment
+interface subx
+  module procedure :: sub2
+  procedure :: sub1
+end interface subx
+""")
+
+
+def test_procedure_declaration_pointers(fortran_reader, fortran_writer):
+    ''' Check that the procedure declarations are generated, and they have the
+    required attributes added into them.
+    '''
+
+    # The inteface name purposely include public and save interface in their
+    # names to check that this do not confuse the function that adds the
+    # attributes
+    code = """
+    module procedures
+        use other
+        procedure(my_inter) proc_ptr_private
+        procedure(my_public_inter) :: proc_ptr_public
+        public proc_ptr_public
+        private proc_ptr_private
+        implicit none
+        contains
+        subroutine test
+            procedure(my_save_inter), pointer :: proc_ptr => null()
+
+            save proc_ptr
+
+            ! They can be assinged to
+            proc_ptr => my_func
+            ! Called
+            call proc_ptr(10.0, 5.0)
+            ! Or passed as arguments
+            call other_func(proc_ptr)
+
+        end subroutine test
+    end module procedures
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    assert "procedure(my_inter), private :: proc_ptr_private\n" in output
+    assert "procedure(my_public_inter), public :: proc_ptr_public\n" in output
+    assert ("procedure(my_save_inter), pointer, save :: proc_ptr => null()\n"
+            in output)
+
+
+def test_structure_initialiser(fortran_reader, fortran_writer):
+    ''' Check a variable declaration with a structure intialiser.'''
+    code = """
+    subroutine my_sub
+        type(some_type), parameter :: x = some_type()
+    end subroutine my_sub
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    table = psyir.walk(Routine)[0].symbol_table
+    result = fortran_writer._gen_parameter_decls(table)
+    assert result == "type(some_type), parameter :: x = some_type()\n"

@@ -1,45 +1,17 @@
 #!/usr/bin/env python
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
-import os
 import pathlib
 import sys
 from typing import List, Union
 from psyclone.psyir.nodes import (
-    Assignment, IfBlock, Node, OMPDirective, OMPTargetDirective, ProfileNode,
-    Routine, Schedule)
+    Assignment, FileContainer, IfBlock, Node, OMPDirective,
+    OMPTargetDirective, ProfileNode, Routine, Schedule)
 from psyclone.psyir.transformations import OMPTargetTrans, ProfileTrans
 from psyclone.transformations import OMPLoopTrans, TransformationError
 
@@ -48,9 +20,6 @@ SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
 NEMO_SCRIPTS_DIR = SCRIPT_DIR.parent / "scripts"
 if str(NEMO_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(NEMO_SCRIPTS_DIR))
-
-
-PROFILING_ENABLED = os.environ.get("ENABLE_PROFILING", False)
 
 
 def add_omp_region_profiling_markers(children: Union[List[Node], Schedule]):
@@ -94,8 +63,16 @@ def add_omp_region_profiling_markers(children: Union[List[Node], Schedule]):
             add_omp_region_profiling_markers(child.children)
 
 
-def trans(psyir):
-    """Apply OpenMP offloading and insert profiling around target regions."""
+def trans(psyir: FileContainer, profiling: bool = False):
+    """
+    Apply OpenMP offloading and insert profiling around target regions.
+
+    :param psyir: the PSyIR of the file container to modify.
+    :param profiling: if set to True (using the PSyclone command line option
+        --scripts-kwargs "profiling: True"), also adds profiling
+        instrumentation to the generated code.
+    """
+
     from utils import normalise_loops, insert_explicit_loop_parallelism
 
     omp_target_trans = OMPTargetTrans()
@@ -119,5 +96,5 @@ def trans(psyir):
             collapse=True,
             enable_reductions=True
         )
-        if PROFILING_ENABLED:
+        if profiling:
             add_omp_region_profiling_markers(subroutine.children)

@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module containing pytest tests for the _subroutine_handler method
 in the class Fparser2Reader. This handler deals with the translation
@@ -326,12 +297,12 @@ def test_function_unsupported_type(fortran_reader):
         "module a\n"
         "contains\n"
         "  function my_func()\n"
-        "    complex :: my_func\n"
-        "    my_func = CMPLX(1.0, 1.0)\n"
+        "    byte :: my_func\n"
+        "    my_func = 1\n"
         "  end function my_func\n"
         "\n"
-        "  complex function Agrif_CFixed()\n"
-        "    Agrif_CFixed = (0.0, 1.0)\n"
+        "  byte function Agrif_CFixed()\n"
+        "    Agrif_CFixed = 1\n"
         "  end function Agrif_CFixed\n"
         "end module\n")
     psyir = fortran_reader.psyir_from_source(code)
@@ -340,7 +311,7 @@ def test_function_unsupported_type(fortran_reader):
     assert isinstance(routines[0].return_symbol.datatype,
                       UnsupportedFortranType)
     assert (routines[0].return_symbol.datatype.declaration.lower() ==
-            "complex :: my_func")
+            "byte :: my_func")
     # The Agrif_CFixed function ends up as a CodeBlock because of the
     # unsupported type prefix.
     assert isinstance(routines[0].parent.children[1], CodeBlock)
@@ -406,7 +377,7 @@ def test_supported_prefix(fortran_reader, fn_prefix, routine_type):
 
 
 @pytest.mark.parametrize("routine_type", ["function", "subroutine"])
-@pytest.mark.parametrize("fn_prefix", ["recursive", "module"])
+@pytest.mark.parametrize("fn_prefix", ["module"])
 def test_unsupported_routine_prefix(fortran_reader, fn_prefix, routine_type):
     ''' Check that we get a CodeBlock if a Fortran routine has an unsupported
     prefix. '''
@@ -427,6 +398,23 @@ def test_unsupported_routine_prefix(fortran_reader, fn_prefix, routine_type):
         assert isinstance(fsym.datatype, NoType)
     else:
         assert isinstance(fsym.datatype, UnresolvedType)
+
+
+@pytest.mark.parametrize("routine_type", ["function", "subroutine"])
+def test_recursive_routine_prefix(fortran_reader, routine_type):
+    '''Check that a recursive prefix is represented by a property.'''
+    code = (
+        f"module a\n"
+        f"contains\n"
+        f"  recursive {routine_type} my_routine()\n"
+        f"    real :: my_routine\n"
+        f"    my_routine = 1.0\n"
+        f"  end {routine_type} my_routine\n"
+        f"end module\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert routine.is_recursive
+    assert routine.annotations == []
 
 
 def test_char_len_function(fortran_reader):
@@ -618,11 +606,32 @@ def test_module_contains_subroutine_contains_subroutine(
     end function func_a
     end module my_mod"""
     psyir = fortran_reader.psyir_from_source(code)
-    # s symbol should not be in my_mod
-    with pytest.raises(KeyError):
-        psyir.children[0].symbol_table.lookup("s")
+
     out = fortran_writer(psyir)
     assert "subroutine func_a" not in out
+
+    # It is unclear if Codeblock represent their own scope (by definition
+    # we don't know what a Codeblock represents). Some of them do (e.g.
+    # associate blocks, unsupported functions, ...) and some don't.
+
+    # So there is no good way to decide if symbols should be propagated to its
+    # parent scope or not, but it seems preferable to let the symbol escape the
+    # codeblock because:
+    # - If it is not its own scope and we don't propagate it, it won't be part
+    # of the symbol table, and it will be possible to create a double
+    # declaration with symbols with overlapping names.
+    # - If it is its own scope and we wrongly propate it:
+    #  * if a symbol exist with the same name, it must be a location where
+    #    shadowing is possible (otherwise this would be invalid Fortran) and
+    #    it will create a false dependency.
+    #  * if a symbol does not exist, it will unnecessary reserve the name in
+    #    the parent symbol table.
+    # The consequences of propagating it are not fatal, while the ones of not
+    # propagating it are.
+
+    if "s" in psyir.children[0].symbol_table:
+        pytest.xfail("TODO #2205: When support for Routines inside Routines"
+                     " is added, the symbol will not be propagated")
 
 
 def test_module_contains_comment_before_subroutine(
@@ -643,7 +652,6 @@ END MODULE test_mod"""
     fortran_reader = FortranReader(ignore_comments=False)
     psyir = fortran_reader.psyir_from_source(code)
     assert "test" in psyir.children[0].symbol_table
-    assert "subsub" not in psyir.children[0].symbol_table
     out = fortran_writer(psyir)
     assert """  contains
   ! PSyclone CodeBlock (unsupported code) reason:
@@ -654,6 +662,9 @@ END MODULE test_mod"""
     SUBROUTINE subsub
     END SUBROUTINE
   END SUBROUTINE test""" in out
+    if "subsub" in psyir.children[0].symbol_table:
+        pytest.xfail("TODO #2205: When support for Routines inside Routines"
+                     " is added, the symbol will not be propagated")
 
 
 def test_module_contains_comment_before_function(
@@ -675,7 +686,6 @@ END MODULE test_mod"""
     fortran_reader = FortranReader(ignore_comments=False)
     psyir = fortran_reader.psyir_from_source(code)
     assert "test" in psyir.children[0].symbol_table
-    assert "subsub" not in psyir.children[0].symbol_table
     out = fortran_writer(psyir)
     assert """  contains
   ! PSyclone CodeBlock (unsupported code) reason:
@@ -686,3 +696,6 @@ END MODULE test_mod"""
     FUNCTION subsub()
     END FUNCTION
   END FUNCTION test""" in out
+    if "subsub" in psyir.children[0].symbol_table:
+        pytest.xfail("TODO #2205: When support for Routines inside Routines"
+                     " is added, the symbol will not be propagated")

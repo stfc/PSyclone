@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: J. Henrichs, Bureau of Meteorology
-#          N. Nobre and S. Siso, STFC Daresbury Lab
 
 '''This module provides functionality for the PSyclone kernel extraction
 functionality. It contains the class that creates a driver that
@@ -43,8 +14,7 @@ the output data contained in the input file.
 from typing import Optional
 
 from psyclone.domain.common import DriverCreator
-from psyclone.psyir.symbols import (DataSymbol, INTEGER_TYPE, REAL8_TYPE,
-                                    ScalarType, SymbolTable)
+from psyclone.psyir.symbols import DataSymbol, ScalarType, SymbolTable
 
 
 class GOceanDriverCreator(DriverCreator):
@@ -53,14 +23,14 @@ class GOceanDriverCreator(DriverCreator):
     functionality.
 
     :param integer_type: default scalar integer type to be used for integer
-        variables. Defaults to INTEGER_TYPE.
+        variables. Defaults to ScalarType.integer_type().
     :param real_type: default scalar real type to be used for real
-        variables. Defaults to REAL8_TYPE.
+        variables. Defaults to ScalarType.real8_type().
     :param region_name: Suggested region name.
 
     '''
-    def __init__(self, integer_type: ScalarType = INTEGER_TYPE,
-                 real_type: ScalarType = REAL8_TYPE,
+    def __init__(self, integer_type: ScalarType = ScalarType.integer_type(),
+                 real_type: ScalarType = ScalarType.real8_type(),
                  region_name: Optional[tuple[str, str]] = None) -> None:
         super().__init__(region_name)
         # Set the integer and real types to use.

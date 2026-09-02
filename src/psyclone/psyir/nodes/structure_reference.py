@@ -1,38 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: A. R. Porter, N. Nobre and S. Siso STFC Daresbury Lab
-# Author: J. Henrichs, Bureau of Meteorology
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the StructureReference node. '''
@@ -95,7 +65,8 @@ class StructureReference(StructureAccessorMixin, Reference):
         '''
         Create a StructureReference instance given a symbol and a
         list of components. e.g. for "field%bundle(2)%flag" this
-        list would be [("bundle", [Literal("2", INTEGER4_TYPE)]), "flag"].
+        list would be
+        [("bundle", [Literal("2", ScalarType.integer4_type())]), "flag"].
 
         :param symbol: the symbol that this reference is to.
         :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
@@ -147,7 +118,8 @@ class StructureReference(StructureAccessorMixin, Reference):
         '''
         Create an instance of `cls` given a symbol, a type and a
         list of components. e.g. for "field%bundle(2)%flag" this list
-        would be [("bundle", [Literal("2", INTEGER4_TYPE)]), "flag"].
+        would be
+        [("bundle", [Literal("2", ScalarType.integer4_type())]), "flag"].
 
         This 'internal' method is used by both ArrayOfStructuresReference
         *and* this class which is why it is a class method with the symbol
@@ -348,8 +320,11 @@ class StructureReference(StructureAccessorMixin, Reference):
             if not isinstance(cursor_type, (UnresolvedType, UnsupportedType)):
                 # Once we've hit an Unresolved/UnsupportedType the cursor_type
                 # will remain set to that as we can't do any better.
-                cursor_type = cursor_type.components[
-                    cursor.name.lower()].datatype
+                try:
+                    cursor_type = cursor_type.components[
+                        cursor.name.lower()].datatype
+                except KeyError:
+                    return UnresolvedType()
             try:
                 cursor_shape = _get_cursor_shape(cursor, cursor_type)
             except NotImplementedError:
@@ -364,6 +339,8 @@ class StructureReference(StructureAccessorMixin, Reference):
                 shape = cursor_shape
 
         if shape:
+            if isinstance(cursor_type, ArrayType):
+                return ArrayType(cursor_type.elemental_type, shape)
             return ArrayType(cursor_type, shape)
 
         # We must have a scalar.

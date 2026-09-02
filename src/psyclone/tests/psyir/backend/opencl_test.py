@@ -1,38 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author S. Siso, STFC Daresbury Lab
-# Modified by A. R. Porter and R. W. Ford, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclond.psyir.backend.opencl module'''
@@ -43,7 +13,7 @@ from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.psyir.nodes import Return, KernelSchedule, Literal
 from psyclone.psyir.symbols import (
     DataSymbol, SymbolTable, ArgumentInterface, UnresolvedInterface, ArrayType,
-    REAL_TYPE, INTEGER_TYPE)
+    ScalarType)
 
 
 def test_oclw_initialization():
@@ -74,13 +44,14 @@ def test_oclw_gen_id_variable():
 
     '''
     oclwriter = OpenCLWriter()
-    symbol = DataSymbol("id1", INTEGER_TYPE)
+    symbol = DataSymbol("id1", ScalarType.integer_type())
     result = oclwriter.gen_id_variable(symbol, 3)
     assert result == "int id1 = get_global_id(3);\n"
 
-    array_type = ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE,
-                                          ArrayType.Extent.ATTRIBUTE,
-                                          ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(ScalarType.integer_type(),
+                           [ArrayType.Extent.ATTRIBUTE,
+                            ArrayType.Extent.ATTRIBUTE,
+                            ArrayType.Extent.ATTRIBUTE])
     symbol = DataSymbol("array", array_type)
     with pytest.raises(VisitorError) as excinfo:
         _ = oclwriter.gen_id_variable(symbol, 3)
@@ -97,14 +68,15 @@ def test_oclw_gen_declaration():
 
     # Basic entry - Scalar are passed by value and don't have additional
     # qualifiers.
-    symbol = DataSymbol("dummy1", INTEGER_TYPE)
+    symbol = DataSymbol("dummy1", ScalarType.integer_type())
     result = oclwriter.gen_declaration(symbol)
     assert result == "int dummy1"
 
     # Array argument has a memory qualifier (only __global for now)
-    array_type = ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE,
-                                          ArrayType.Extent.ATTRIBUTE,
-                                          ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(ScalarType.integer_type(),
+                           [ArrayType.Extent.ATTRIBUTE,
+                            ArrayType.Extent.ATTRIBUTE,
+                            ArrayType.Extent.ATTRIBUTE])
     symbol = DataSymbol("dummy2", array_type)
     result = oclwriter.gen_declaration(symbol)
     assert result == "__global int * restrict dummy2"
@@ -117,9 +89,10 @@ def test_oclw_gen_declaration():
     assert result == "__global int * restrict dummy2"
 
     # Array with a lower bound other than 1
-    two = Literal("2", INTEGER_TYPE)
-    five = Literal("5", INTEGER_TYPE)
-    array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.ArrayBounds(two, five)])
+    two = Literal("2", ScalarType.integer_type())
+    five = Literal("5", ScalarType.integer_type())
+    array_type = ArrayType(ScalarType.integer_type(),
+                           [2, ArrayType.ArrayBounds(two, five)])
     symbol = DataSymbol("dummy3", array_type)
     with pytest.raises(VisitorError) as err:
         oclwriter.gen_declaration(symbol)
@@ -135,20 +108,21 @@ def test_oclw_gen_array_length_variables():
     oclwriter = OpenCLWriter()
 
     # A scalar should not return any LEN variables
-    symbol1 = DataSymbol("dummy2LEN1", INTEGER_TYPE)
+    symbol1 = DataSymbol("dummy2LEN1", ScalarType.integer_type())
     result = oclwriter.gen_array_length_variables(symbol1)
     assert result == ""
 
     # Array with 1 dimension generates 1 length variable
-    array_type = ArrayType(INTEGER_TYPE, [2])
+    array_type = ArrayType(ScalarType.integer_type(), [2])
     symbol2 = DataSymbol("dummy1", array_type)
     result = oclwriter.gen_array_length_variables(symbol2)
     assert result == "int dummy1LEN1 = get_global_size(0);\n"
 
     # Array with multiple dimension generates one variable per dimension
-    array_type = ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE,
-                                          ArrayType.Extent.ATTRIBUTE,
-                                          ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(ScalarType.integer_type(),
+                           [ArrayType.Extent.ATTRIBUTE,
+                            ArrayType.Extent.ATTRIBUTE,
+                            ArrayType.Extent.ATTRIBUTE])
     symbol3 = DataSymbol("dummy2", array_type)
     result = oclwriter.gen_array_length_variables(symbol3)
     assert result == "int dummy2LEN1 = get_global_size(0);\n" \
@@ -203,9 +177,9 @@ def test_oclw_kernelschedule():
 
     # Create a sample symbol table and kernel schedule
     interface = ArgumentInterface(ArgumentInterface.Access.UNKNOWN)
-    i = DataSymbol('i', INTEGER_TYPE, interface=interface)
-    j = DataSymbol('j', INTEGER_TYPE, interface=interface)
-    array_type = ArrayType(REAL_TYPE, [10, 10])
+    i = DataSymbol('i', ScalarType.integer_type(), interface=interface)
+    j = DataSymbol('j', ScalarType.integer_type(), interface=interface)
+    array_type = ArrayType(ScalarType.real_type(), [10, 10])
     data1 = DataSymbol('data1', array_type, interface=interface)
     data2 = DataSymbol('data2', array_type, interface=interface)
     kschedule.symbol_table.add(i)
@@ -251,7 +225,7 @@ def test_oclw_kernelschedule():
 
     # Add a symbol with an UnresolvedInterface and check that this raises the
     # expected error
-    array_type = ArrayType(REAL_TYPE, [10, 10])
+    array_type = ArrayType(ScalarType.real_type(), [10, 10])
     kschedule.symbol_table.add(DataSymbol('broken', array_type,
                                           interface=UnresolvedInterface()))
     with pytest.raises(VisitorError) as err:

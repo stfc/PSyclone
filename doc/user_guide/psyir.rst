@@ -1,47 +1,16 @@
 .. -----------------------------------------------------------------------------
-.. BSD 3-Clause License
-..
-.. Copyright (c) 2019-2026, Science and Technology Facilities Council.
-.. All rights reserved.
-..
-.. Redistribution and use in source and binary forms, with or without
-.. modification, are permitted provided that the following conditions are met:
-..
-.. * Redistributions of source code must retain the above copyright notice, this
-..   list of conditions and the following disclaimer.
-..
-.. * Redistributions in binary form must reproduce the above copyright notice,
-..   this list of conditions and the following disclaimer in the documentation
-..   and/or other materials provided with the distribution.
-..
-.. * Neither the name of the copyright holder nor the names of its
-..   contributors may be used to endorse or promote products derived from
-..   this software without specific prior written permission.
-..
-.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-.. POSSIBILITY OF SUCH DAMAGE.
+.. SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+..                         Facilities Council
+.. SPDX-License-Identifier: BSD-3-Clause
+.. See the full LICENSE file in the project root for details.
 .. -----------------------------------------------------------------------------
-.. Written by A. R. Porter, STFC Daresbury Lab
-.. Modified by R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
-.. Modified by J. G. Wallwork, Met Office
 
 .. The following section imports those Python modules that are needed in
    subsequent doctest snippets.
 .. testsetup::
 
-        from psyclone.psyir.symbols import DataSymbol, ScalarType, ArrayType, \
-	    REAL4_TYPE, REAL8_TYPE, INTEGER_TYPE, BOOLEAN_TYPE
-	from psyclone.psyir.nodes import Reference
+    from psyclone.psyir.symbols import DataSymbol, ScalarType, ArrayType
+    from psyclone.psyir.nodes import Reference
 
 .. _psyir-ug:
 
@@ -269,18 +238,24 @@ example:
     ...                       ScalarType.Precision.SINGLE)
     >>> bool_type = ScalarType(ScalarType.Intrinsic.BOOLEAN, 4)
     >>> symbol = DataSymbol("rdef", int_type, initial_value=4)
-    >>> scalar_type = ScalarType(ScalarType.Intrinsic.REAL, symbol)
+    >>> scalar_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(symbol))
 
-For convenience PSyclone predefines a number of scalar datatypes:
+For convenience ScalarType has static methods to create a number of
+common scalar datatypes:
 
-``REAL_TYPE``, ``INTEGER_TYPE``, ``BOOLEAN_TYPE`` and
-``CHARACTER_TYPE`` all have precision set to ``UNDEFINED``;
+- ``ScalarType.integer_type()``
+- ``ScalarType.integer_single_type()``
+- ``ScalarType.integer_double_type()``
+- ``ScalarType.integer4_type()``
+- ``ScalarType.integer8_type()``
+- ``ScalarType.real_type()``
+- ``ScalarType.real_single_type()``
+- ``ScalarType.real_double_type()``
+- ``ScalarType.real4_type()``
+- ``ScalarType.real8_type()``
+- ``ScalarType.character_type()``
+- ``ScalarType.boolean_type()``
 
-``REAL_SINGLE_TYPE``, ``REAL_DOUBLE_TYPE``, ``INTEGER_SINGLE_TYPE``
-and ``INTEGER_DOUBLE_TYPE``;
-
-``REAL4_TYPE``, ``REAL8_TYPE``, ``INTEGER4_TYPE`` and
-``INTEGER8_TYPE``.
 
 Array DataType
 --------------
@@ -325,16 +300,18 @@ For example:
 
 .. doctest::
 
-    >>> array_type = ArrayType(REAL4_TYPE, [5, 10])
+    >>> array_type = ArrayType(ScalarType.real4_type(), [5, 10])
 
-    >>> n_var = DataSymbol("n", INTEGER_TYPE)
-    >>> array_type = ArrayType(INTEGER_TYPE, [Reference(n_var),
-    ...                                       Reference(n_var)])
+    >>> n_var = DataSymbol("n", ScalarType.integer_type())
+    >>> array_type = ArrayType(ScalarType.integer_type(),
+    ...                        [Reference(n_var),
+    ...                         Reference(n_var)])
 
-    >>> array_type = ArrayType(REAL8_TYPE, [ArrayType.Extent.ATTRIBUTE,
-    ...                                     ArrayType.Extent.ATTRIBUTE])
+    >>> array_type = ArrayType(ScalarType.real8_type(),
+    ...                        [ArrayType.Extent.ATTRIBUTE,
+    ...                         ArrayType.Extent.ATTRIBUTE])
 
-    >>> array_type = ArrayType(BOOLEAN_TYPE, [ArrayType.Extent.DEFERRED])
+    >>> array_type = ArrayType(ScalarType.boolean_type(), [ArrayType.Extent.DEFERRED])
 
 Note that Fortran "assumed-size" arrays (which have the last dimension
 specified with a ``*``) are not supported in the PSyIR and any such
@@ -368,7 +345,7 @@ For example:
        ("grid", GRID_TYPE_SYMBOL, Symbol.Visibility.PUBLIC),
        ("sub_meshes", ArrayType(GRID_TYPE_SYMBOL, [3]),
         Symbol.Visibility.PUBLIC),
-       ("flag", INTEGER4_TYPE, Symbol.Visibility.PUBLIC)])
+       ("flag", ScalarType.integer4_type(), Symbol.Visibility.PUBLIC)])
 
 Unknown DataType
 ----------------
@@ -487,7 +464,7 @@ PSyIR symbol names can be specified by a user. For example:
 
    var_name = "my_name"
    symbol_table = SymbolTable()
-   data = DataSymbol(var_name, REAL_TYPE)
+   data = DataSymbol(var_name, ScalarType.real_type())
    symbol_table.add(data)
    reference = Reference(data)
 
@@ -552,15 +529,15 @@ as keyword arguments. For example, the following code:
  
 .. code-block:: python
 
-  from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE
+  from psyclone.psyir.symbols import SymbolTable, DataSymbol, ScalarType.real_type()
   symbol_table = SymbolTable()
   symbol_table.new_symbol(root_name="something",
                           symbol_type=DataSymbol,
-                          datatype=REAL_TYPE,
+                          datatype=ScalarType.real_type(),
 			  is_constant=True,
                           initial_value=3)
 
-declares a symbol named "something" of REAL_TYPE datatype where the
+declares a symbol named "something" of ScalarType.real_type() datatype where the
 ``is_constant`` and ``initial_value`` arguments will be passed to the
 DataSymbol constructor.
 
@@ -579,7 +556,7 @@ together. For example:
 .. code-block:: python
 
     assignment = Assignment()
-    literal = Literal("0.0", REAL_TYPE)
+    literal = Literal("0.0", ScalarType.real_type())
     reference = Reference(symbol)
     assignment.children = [reference, literal]
     
@@ -595,7 +572,7 @@ above example then becomes:
 
 .. code-block:: python
 
-    literal = Literal("0.0", REAL_TYPE)
+    literal = Literal("0.0", ScalarType.real_type())
     reference = Reference(symbol)
     assignment = Assignment.create(reference, literal)
 
@@ -618,12 +595,12 @@ A more complicated access involving arrays of structures such as
 
 .. code-block:: python
 
-  from psyclone.psyir.symbols import INTEGER_TYPE
+  from psyclone.psyir.symbols import ScalarType
   from psyclone.psyir.nodes import StructureReference, Reference, Literal
   idx_sym = symbol_table.lookup("idx")
   fld_sym = symbol_table.lookup("field1")
   ref = StructureReference.create(fld_sym,
-      [("sub_grids", [Reference(idx_sym), Literal("1", INTEGER_TYPE)]),
+      [("sub_grids", [Reference(idx_sym), Literal("1", ScalarType.integer_type())]),
        "nx"])
 
 Note that the list of quantities passed to the ``create()`` method now
@@ -759,7 +736,7 @@ Operations) the name of the argument is conserved by default. For example
 
 .. code-block:: python
 
-    call.children[0].replace_with(Literal('2', INTEGER_TYPE))
+    call.children[0].replace_with(Literal('2', ScalarType.integer_type()))
 
 will become:
 
@@ -772,7 +749,7 @@ This behaviour can be changed with the `keep_name_in_context` parameter.
 .. code-block:: python
 
     call.children[0].replace_with(
-        Literal('3', INTEGER_TYPE),
+        Literal('3', ScalarType.integer_type()),
         keep_name_in_context=False
     )
 

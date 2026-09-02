@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: A. R. Porter, R. W. Ford, A. Chalk and S. Siso, STFC Daresbury Lab
 
 '''
 This module contains the InlineTrans transformation.
@@ -51,10 +23,8 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArrayType,
-    BOOLEAN_TYPE,
+    ScalarType,
     DataSymbol,
-    INTEGER_TYPE,
-    StructureType,
     SymbolError,
     UnresolvedType,
     UnsupportedType,
@@ -70,7 +40,7 @@ from psyclone.psyir.nodes.call import CallMatchingArgumentsNotFound
 from psyclone.utils import transformation_documentation_wrapper
 
 
-_ONE = Literal("1", INTEGER_TYPE)
+_ONE = Literal("1", ScalarType.integer_type())
 
 
 @transformation_documentation_wrapper
@@ -141,6 +111,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         Some of these restrictions will be lifted by #924.
 
     '''
+
     def apply(self,
               node: Call,
               routine: Optional[Routine] = None,
@@ -238,6 +209,9 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                 f"have been caught by the validate() method. Original error "
                 f"was {err}") from err
 
+        # TODO #3536: A shallow copy will create common subtrees/references
+        # between the inlined and the original.
+
         # Replace any references to formal arguments with copies of the
         # actual arguments.
         formal_args = routine_table.argument_list
@@ -274,34 +248,6 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                     )
                     new_shape.append(ArrayType.ArrayBounds(lower, upper))
             sym.datatype = ArrayType(sym.datatype.elemental_type, new_shape)
-
-        for sym in table.datatypesymbols:
-            if not isinstance(sym.datatype, StructureType):
-                continue
-            for name, ctype in sym.datatype.components.items():
-                if isinstance(ctype.datatype, ArrayType):
-                    new_shape = []
-                    for dim in ctype.datatype.shape:
-                        lower = self._replace_formal_args_in_expr(
-                            dim.lower, node, formal_args,
-                            routine_node=routine,
-                            use_first_callee_and_no_arg_check=(
-                                use_first_callee_and_no_arg_check),
-                        )
-                        upper = self._replace_formal_args_in_expr(
-                            dim.upper, node, formal_args,
-                            routine_node=routine,
-                            use_first_callee_and_no_arg_check=(
-                                use_first_callee_and_no_arg_check),
-                        )
-                        new_shape.append(ArrayType.ArrayBounds(lower, upper))
-                    sym.datatype.components[name] = (
-                        StructureType.ComponentType(
-                            name=name,
-                            datatype=ArrayType(ctype.datatype.elemental_type,
-                                               new_shape),
-                            visibility=ctype.visibility,
-                            initial_value=ctype.initial_value))
 
         # Copy the nodes from the Routine into the call site.
         # TODO #924 - while doing this we should ensure that any References
@@ -370,9 +316,11 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                                                            None)
                 if is_present:
                     # The argument is present.
-                    intrinsic_call.replace_with(Literal("true", BOOLEAN_TYPE))
+                    intrinsic_call.replace_with(
+                        Literal("true", ScalarType.boolean_type()))
                 else:
-                    intrinsic_call.replace_with(Literal("false", BOOLEAN_TYPE))
+                    intrinsic_call.replace_with(
+                        Literal("false", ScalarType.boolean_type()))
 
     def _optional_arg_eliminate_ifblock_if_const_condition(
         self, routine_node: Routine
@@ -1155,7 +1103,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                         continue
                     exprn = prev.ancestor(Statement, include_self=True)
                     stmt = exprn.debug_string().strip()
-                    if isinstance(prev, (CodeBlock, Call, Kern, Loop)):
+                    if isinstance(prev, (Kern, Loop)):
                         raise TransformationError(
                             f"Cannot inline routine '{routine.name}' "
                             f"because one or more of its declarations "

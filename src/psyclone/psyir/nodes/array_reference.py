@@ -1,52 +1,22 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic, Met Office
-#         J. Henrichs, Bureau of Meteorology
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the ArrayReference node. '''
 
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
+from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import (
     DataSymbol, UnresolvedType, UnsupportedFortranType, UnsupportedType,
-    DataTypeSymbol, ArrayType, INTEGER_TYPE, Symbol, DataType)
+    DataTypeSymbol, ArrayType, ScalarType, Symbol, DataType)
 
 
 class ArrayReference(ArrayMixin, Reference):
@@ -104,11 +74,11 @@ class ArrayReference(ArrayMixin, Reference):
                 lbound = IntrinsicCall.create(
                     IntrinsicCall.Intrinsic.LBOUND,
                     [Reference(symbol),
-                     ("dim", Literal(f"{ind+1}", INTEGER_TYPE))])
+                     ("dim", Literal(f"{ind+1}", ScalarType.integer_type()))])
                 ubound = IntrinsicCall.create(
                     IntrinsicCall.Intrinsic.UBOUND,
                     [Reference(symbol),
-                     ("dim", Literal(f"{ind+1}", INTEGER_TYPE))])
+                     ("dim", Literal(f"{ind+1}", ScalarType.integer_type()))])
                 my_range = Range.create(lbound, ubound)
                 array.addchild(my_range)
             else:
@@ -181,19 +151,28 @@ class ArrayReference(ArrayMixin, Reference):
                 if isinstance(self.symbol.datatype, ArrayType):
                     base_type = self.symbol.datatype.elemental_type.copy()
                 else:
-                    # TODO #3240 - sometimes we have an ArrayReference that is
-                    # actually a character sub-string.
-                    base_type = self.symbol.datatype.copy()
+                    # Sometimes we have an ArrayReference that is actually a
+                    # character sub-string, its return type is a ScalarType
+                    # with different length
+                    if (self.symbol.datatype.intrinsic ==
+                            ScalarType.Intrinsic.CHARACTER):
+                        if len(shape) == 1 and isinstance(shape[0], DataNode):
+                            rtype = self.symbol.datatype.copy()
+                            rtype.length = shape[0]
+                            return rtype
+                    base_type = UnresolvedType()
             return ArrayType(base_type, shape)
         # Otherwise, we're accessing a single element of the array.
         if type(self.symbol) is Symbol:
             return UnresolvedType()
-        if isinstance(self.symbol.datatype, UnsupportedType):
-            if (isinstance(self.symbol.datatype, UnsupportedFortranType) and
-                    self.symbol.datatype.partial_datatype):
-                if isinstance(self.symbol.datatype.partial_datatype,
+        # From here, we know it is a datasymbol, so we can ge the symbol type
+        stype = self.symbol.datatype
+        if isinstance(stype, UnsupportedType):
+            if (isinstance(stype, UnsupportedFortranType) and
+                    stype.partial_datatype):
+                if isinstance(stype.partial_datatype,
                               ArrayType):
-                    return self.symbol.datatype.partial_datatype.elemental_type
+                    return stype.partial_datatype.elemental_type
             # Since we're accessing a single element of an array of
             # UnsupportedType we have to create a new UnsupportedFortranType.
             # Ideally we would re-write the original Fortran
@@ -201,15 +180,22 @@ class ArrayReference(ArrayMixin, Reference):
             # shape in the fparser2 parse tree but, at this point, we
             # wouldn't know what the variable name should be (TODO #2137).
             return UnresolvedType()
-        if not isinstance(self.symbol.datatype, ArrayType):
+        if isinstance(stype, ScalarType):
+            # Character strings are represented with Scalars with length, but
+            # are accessed as arrays (this is the case that it resolves to
+            # one element, if it had a shape it was already processed above)
+            if stype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                rtype = stype.copy()
+                rtype.length = Literal("1", ScalarType.integer_type())
+                return rtype
+        if not isinstance(stype, ArrayType):
             # If we have an array reference to a symbol that is not considered
             # an array by PSyIR, we don't know how to retrieve its element type
-            # (TODO #2448)
             return UnresolvedType()
 
-        if isinstance(self.symbol.datatype.intrinsic, DataTypeSymbol):
-            return self.symbol.datatype.intrinsic
-        return self.symbol.datatype.elemental_type
+        if isinstance(stype.intrinsic, DataTypeSymbol):
+            return stype.intrinsic
+        return stype.elemental_type
 
 
 # For AutoAPI documentation generation

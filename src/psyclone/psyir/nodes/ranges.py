@@ -1,45 +1,16 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2026, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 
 ''' Module containing the definition of the Range node. '''
 
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.symbols import ScalarType, INTEGER_TYPE
+from psyclone.psyir.symbols import ScalarType
 
 
 class Range(Node):
@@ -64,23 +35,26 @@ class Range(Node):
     A common use case is to want to specify all the elements of a given
     array dimension without knowing the extent of that dimension. In the
     PSyIR this is achieved by using the ``LBOUND``, and ``UBOUND``
-    intrinsics::
+    intrinsics:
 
-      >>> one = Literal("1", INTEGER_TYPE)
-      >>> # Declare a 1D real array called 'a' with 10 elements
-      >>> symbol = DataSymbol("a", ArrayType(REAL_TYPE, [10]))
-      >>> # Return the lower bound of the first dimension of array 'a'
-      >>> lbound = IntrinsicCall.create(
-              IntrinsicCall.Intrinsic.LBOUND,
-              [Reference(symbol), one.copy()])
-      >>> # Return the upper bound of the first dimension of array 'a'
-      >>> ubound = IntrinsicCall.create(
-              IntrinsicCall.Intrinsic.UBOUND,
-              [Reference(symbol), one.copy()])
-      >>> # Step defaults to 1 so no need to include it when creating range
-      >>> my_range = Range.create(lbound, ubound)
-      >>> # Create an access to all elements in the 1st dimension of array 'a'
-      >>> array_access = ArrayReference.create(symbol, [my_range])
+    >>> from psyclone.psyir.nodes import (
+    ...      Literal, IntrinsicCall, Reference, ArrayReference, Range)
+    >>> from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType
+    >>> one = Literal("1", ScalarType.integer_type())
+    >>> # Declare a 1D real array called 'a' with 10 elements
+    >>> symbol = DataSymbol("a", ArrayType(ScalarType.real_type(), [10]))
+    >>> # Return the lower bound of the first dimension of array 'a'
+    >>> lbound = IntrinsicCall.create(
+    ...       IntrinsicCall.Intrinsic.LBOUND,
+    ...       [Reference(symbol), one.copy()])
+    >>> # Return the upper bound of the first dimension of array 'a'
+    >>> ubound = IntrinsicCall.create(
+    ...       IntrinsicCall.Intrinsic.UBOUND,
+    ...       [Reference(symbol), one.copy()])
+    >>> # Step defaults to 1 so no need to include it when creating range
+    >>> my_range = Range.create(lbound, ubound)
+    >>> # Create an access to all elements in the 1st dimension of array 'a'
+    >>> array_access = ArrayReference.create(symbol, [my_range])
 
     In Fortran the above access ``array_access`` can be represented by
     ``a(:)``. The Fortran front-ends and back-ends are aware of array
@@ -132,7 +106,7 @@ class Range(Node):
             erange.step = step
         else:
             # No step supplied so default to a value of 1
-            erange.step = Literal("1", INTEGER_TYPE)
+            erange.step = Literal("1", ScalarType.integer_type())
         return erange
 
     @staticmethod

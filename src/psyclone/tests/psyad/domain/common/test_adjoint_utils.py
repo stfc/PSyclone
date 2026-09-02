@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''
 A module to perform pytest tests on the utilities in the
@@ -46,7 +18,7 @@ from psyclone.psyad.domain.common import (
     common_real_comparison)
 from psyclone.psyad.domain.common.adjoint_utils import _common_write
 from psyclone.psyir.nodes import Container, FileContainer, Return, Routine
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, ScalarType
 
 
 # create_adjoint_name function
@@ -61,7 +33,7 @@ def test_create_adjoint_name():
     assert create_adjoint_name("Tl_NaMe") == "adj_name"
     # With optional table supplied.
     table = SymbolTable()
-    table.add(DataSymbol("adj_name", REAL_TYPE))
+    table.add(DataSymbol("adj_name", ScalarType.real_type()))
     assert create_adjoint_name("name", table) == "adj_name_1"
 
 #  create_real_comparison
@@ -71,9 +43,9 @@ def test_create_real_comparison(fortran_writer):
     '''Test for the create_real_comparison method.'''
     symbol_table = SymbolTable()
     var1_symbol = symbol_table.new_symbol(
-        "var1", symbol_type=DataSymbol, datatype=REAL_TYPE)
+        "var1", symbol_type=DataSymbol, datatype=ScalarType.real_type())
     var2_symbol = symbol_table.new_symbol(
-        "var2", symbol_type=DataSymbol, datatype=REAL_TYPE)
+        "var2", symbol_type=DataSymbol, datatype=ScalarType.real_type())
     routine = Routine.create("test", symbol_table, [])
     stmt_list = create_real_comparison(
         symbol_table, routine, var1_symbol, var2_symbol)
@@ -109,9 +81,9 @@ def test_common_real_comparison(fortran_writer):
     '''Test for the common_real_comparison method.'''
     symbol_table = SymbolTable()
     var1_symbol = symbol_table.new_symbol(
-        "var1", symbol_type=DataSymbol, datatype=REAL_TYPE)
+        "var1", symbol_type=DataSymbol, datatype=ScalarType.real_type())
     var2_symbol = symbol_table.new_symbol(
-        "var2", symbol_type=DataSymbol, datatype=REAL_TYPE)
+        "var2", symbol_type=DataSymbol, datatype=ScalarType.real_type())
     routine = Routine.create("test", symbol_table, [])
     stmt_list = common_real_comparison(
         symbol_table, var1_symbol, var2_symbol)
@@ -136,9 +108,9 @@ def test_common_write(fortran_writer):
     '''Test for the _common_write method.'''
     symbol_table = SymbolTable()
     var1_symbol = symbol_table.new_symbol(
-        "var1", symbol_type=DataSymbol, datatype=REAL_TYPE)
+        "var1", symbol_type=DataSymbol, datatype=ScalarType.real_type())
     var2_symbol = symbol_table.new_symbol(
-        "var2", symbol_type=DataSymbol, datatype=REAL_TYPE)
+        "var2", symbol_type=DataSymbol, datatype=ScalarType.real_type())
     # The tags of the following symbols are used (in _common_write),
     # not the symbols themselves.
     _ = symbol_table.new_symbol(

@@ -1,39 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, O. Brunt and L. Turner, Met Office
-# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' This module contains tests for the inter-grid part of the LFRic API
     using pytest. '''
@@ -300,16 +270,20 @@ def test_field_prolong(tmpdir, dist_mem):
     assert "integer(kind=i_def) :: ncell_field1" in code
     assert "integer(kind=i_def) :: ncpc_field1_field2_x" in code
     assert "integer(kind=i_def) :: ncpc_field1_field2_y" in code
-    assert ("integer(kind=i_def), pointer :: "
-            "cell_map_field2(:,:,:) => null()\n" in code)
-    assert ("type(mesh_map_type), pointer :: "
-            "mmap_field1_field2 => null()\n" in code)
+    assert ("type(mesh_map_type), pointer :: mmap_field1_field2 => null()\n"
+            in code)
+
+    assert ("integer(kind=i_def), pointer :: cell_map_field2(:,:,:) => "
+            "null()\n" in code)
+
     if dist_mem:
-        assert "integer(kind=i_def) :: max_halo_depth_mesh_field2" in code
-    assert "type(mesh_type), pointer :: mesh_field2 => null()\n" in code
-    if dist_mem:
-        assert "integer(kind=i_def) :: max_halo_depth_mesh_field1" in code
-    assert "type(mesh_type), pointer :: mesh_field1 => null()\n" in code
+        expected = ("    integer(kind=i_def) :: max_halo_depth_mesh_field1\n"
+                    "    integer(kind=i_def) :: max_halo_depth_mesh_field2\n")
+        assert expected in code
+
+    expected = ("    type(mesh_type), pointer :: mesh_field1 => null()\n"
+                "    type(mesh_type), pointer :: mesh_field2 => null()\n")
+    assert expected in code
 
     expected = (
         "    ! Look-up mesh objects and loop limits for inter-grid "

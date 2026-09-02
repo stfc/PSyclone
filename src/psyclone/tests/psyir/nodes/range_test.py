@@ -1,44 +1,14 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2026, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified by R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 
 ''' pytest tests for the Range class. '''
 
 import pytest
-from psyclone.psyir.symbols import ScalarType, DataSymbol, \
-    INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE
+from psyclone.psyir.symbols import ScalarType, DataSymbol
 from psyclone.psyir.nodes import Range, Literal, Reference
 from psyclone.errors import InternalError, GenerationError
 
@@ -78,8 +48,8 @@ def test_range_init(parser):
 
 def test_range_create():
     ''' Check that the Range.create() method behaves as intended. '''
-    start = Literal("1", INTEGER_SINGLE_TYPE)
-    stop = Literal("10", INTEGER_SINGLE_TYPE)
+    start = Literal("1", ScalarType.integer_single_type())
+    stop = Literal("10", ScalarType.integer_single_type())
     # No step
     erange = Range.create(start, stop)
     assert erange.children[0] is start
@@ -87,7 +57,7 @@ def test_range_create():
     assert erange.children[2].value == "1"
     # Step supplied
     erange3 = Range.create(start.copy(), stop.copy(),
-                           Literal("5", INTEGER_SINGLE_TYPE),)
+                           Literal("5", ScalarType.integer_single_type()),)
     assert erange3.children[2].value == "5"
 
 
@@ -102,7 +72,7 @@ def test_range_setter_errors(prop):
     with pytest.raises(TypeError) as err:
         exec("erange." + prop + " = 1")
     assert "must be a sub-class of Node but got" in str(err.value)
-    val = Literal("1.0", REAL_SINGLE_TYPE)  # noqa: F841
+    val = Literal("1.0", ScalarType.real_single_type())  # noqa: F841
     with pytest.raises(TypeError) as err:
         exec("erange." + prop + " = val")
     assert ("value of a Range is a Literal then it must be of type "
@@ -112,8 +82,8 @@ def test_range_setter_errors(prop):
 def test_range_literals_props():
     ''' Test that the properties of a Range return what we expect
     when the start, stop and step are Literals. '''
-    start = Literal("10", INTEGER_SINGLE_TYPE)
-    stop = Literal("20", INTEGER_SINGLE_TYPE)
+    start = Literal("10", ScalarType.integer_single_type())
+    stop = Literal("20", ScalarType.integer_single_type())
     erange = Range.create(start, stop)
     assert erange.children[0] is start
     assert erange.children[1] is stop
@@ -125,9 +95,10 @@ def test_range_literals_props():
             ScalarType.Precision.UNDEFINED)
     assert erange.children[2].value == "1"
     # Create another one with a specified step
-    start = Literal("10", INTEGER_SINGLE_TYPE)
-    stop = Literal("20", INTEGER_SINGLE_TYPE)
-    erange2 = Range.create(start, stop, Literal("5", INTEGER_SINGLE_TYPE))
+    start = Literal("10", ScalarType.integer_single_type())
+    stop = Literal("20", ScalarType.integer_single_type())
+    erange2 = Range.create(start, stop,
+                           Literal("5", ScalarType.integer_single_type()))
     assert erange2.children[0] is start
     assert erange2.children[1] is stop
     assert (erange2.children[2].datatype.precision ==
@@ -141,18 +112,22 @@ def test_range_references_props():
     from psyclone.psyir.nodes import BinaryOperation, KernelSchedule
     sched = KernelSchedule.create("test_sched")
     sym_table = sched.symbol_table
-    start_symbol = DataSymbol("istart", INTEGER_SINGLE_TYPE)
-    stop_symbol = DataSymbol("istop", INTEGER_SINGLE_TYPE)
-    step_symbol = DataSymbol("istep", INTEGER_SINGLE_TYPE)
+    start_symbol = DataSymbol("istart", ScalarType.integer_single_type())
+    stop_symbol = DataSymbol("istop", ScalarType.integer_single_type())
+    step_symbol = DataSymbol("istep", ScalarType.integer_single_type())
     sym_table.add(start_symbol)
     sym_table.add(stop_symbol)
     sym_table.add(step_symbol)
     startvar = Reference(start_symbol)
     stopvar = Reference(stop_symbol)
-    start = BinaryOperation.create(BinaryOperation.Operator.SUB,
-                                   startvar, Literal("1", INTEGER_SINGLE_TYPE))
-    stop = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                  stopvar, Literal("1", INTEGER_SINGLE_TYPE))
+    start = BinaryOperation.create(
+        BinaryOperation.Operator.SUB,
+        startvar,
+        Literal("1", ScalarType.integer_single_type()))
+    stop = BinaryOperation.create(
+        BinaryOperation.Operator.ADD,
+        stopvar,
+        Literal("1", ScalarType.integer_single_type()))
     step = Reference(step_symbol)
     erange = Range.create(start, stop, step)
     assert erange.start is start
@@ -167,9 +142,9 @@ def test_range_out_of_order_setter():
     ''' Test that setting the start/stop/step props out of order raises the
     expected error. '''
     erange = Range()
-    datanode1 = Literal("1", INTEGER_SINGLE_TYPE)
-    datanode2 = Literal("2", INTEGER_SINGLE_TYPE)
-    datanode3 = Literal("3", INTEGER_SINGLE_TYPE)
+    datanode1 = Literal("1", ScalarType.integer_single_type())
+    datanode2 = Literal("2", ScalarType.integer_single_type())
+    datanode3 = Literal("3", ScalarType.integer_single_type())
 
     # Stop before Start
     with pytest.raises(IndexError) as excinfo:
@@ -215,9 +190,9 @@ def test_range_children_validation():
 
     '''
     erange = Range()
-    datanode1 = Literal("1", INTEGER_SINGLE_TYPE)
-    datanode2 = Literal("2", INTEGER_SINGLE_TYPE)
-    datanode3 = Literal("3", INTEGER_SINGLE_TYPE)
+    datanode1 = Literal("1", ScalarType.integer_single_type())
+    datanode2 = Literal("2", ScalarType.integer_single_type())
+    datanode3 = Literal("3", ScalarType.integer_single_type())
     range2 = Range()
 
     # First child

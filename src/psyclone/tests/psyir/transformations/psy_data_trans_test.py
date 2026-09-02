@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2026, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
-# Modified: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 ''' Module containing tests for generating PSyData hooks'''
 
@@ -136,7 +107,7 @@ def test_class_definitions(fortran_writer):
 
     # By default, no prefix should be used:
     assert "use psy_data_mod, only : PSyDataType" in code
-    assert "type(PSyDataType), save, target :: psy_data" in code
+    assert "type(psydatatype), save, target :: psy_data" in code
     assert "CALL psy_data" in code
 
     # This puts the new PSyDataNode with prefix "extract" around the
@@ -144,13 +115,13 @@ def test_class_definitions(fortran_writer):
     data_trans.apply(schedule, {"prefix": "extract"})
     code = fortran_writer(schedule.root)
     assert "use extract_psy_data_mod, only : extract_PSyDataType" in code
-    assert ("type(extract_PSyDataType), save, target :: "
+    assert ("type(extract_psydatatype), save, target :: "
             "extract_psy_data" in code)
     assert "CALL extract_psy_data" in code
     # The old call must still be there (e.g. not somehow be changed
     # by setting the prefix)
     assert "use psy_data_mod, only : PSyDataType" in code
-    assert "type(PSyDataType), save, target :: psy_data" in code
+    assert "type(psydatatype), save, target :: psy_data" in code
     assert "CALL psy_data" in code
 
     # Now add a third class: "profile", and make sure all previous
@@ -161,10 +132,10 @@ def test_class_definitions(fortran_writer):
     assert "use extract_psy_data_mod, only : extract_PSyDataType" in code
     assert "use profile_psy_data_mod, only : profile_PSyDataType" in code
 
-    assert "type(PSyDataType), save, target :: psy_data" in code
-    assert ("type(extract_PSyDataType), save, target :: "
+    assert "type(psydatatype), save, target :: psy_data" in code
+    assert ("type(extract_psydatatype), save, target :: "
             "extract_psy_data" in code)
-    assert ("type(profile_PSyDataType), save, target :: "
+    assert ("type(profile_psydatatype), save, target :: "
             "profile_psy_data" in code)
 
     assert "CALL psy_data" in code

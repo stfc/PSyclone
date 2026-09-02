@@ -1,37 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors A. B. G. Chalk, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 """ This module contains the implementation of the Dynamic OpenMP Task
 Directive node, which is used pre-lowering to represent Task Directives."""
@@ -72,7 +43,7 @@ from psyclone.psyir.nodes.omp_directives import (
 from psyclone.psyir.nodes.omp_task_directive import (
     OMPTaskDirective
 )
-from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol
+from psyclone.psyir.symbols import ScalarType, DataSymbol
 
 
 class DynamicOMPTaskDirective(OMPTaskDirective):
@@ -459,19 +430,19 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         if divisor > 1:
             step = BinaryOperation.create(
                 BinaryOperation.Operator.MUL,
-                Literal(f"{divisor}", INTEGER_TYPE),
-                Literal(f"{step_val}", INTEGER_TYPE),
+                Literal(f"{divisor}", ScalarType.integer_type()),
+                Literal(f"{step_val}", ScalarType.integer_type()),
             )
             if divisor > 2:
                 step2 = BinaryOperation.create(
                     BinaryOperation.Operator.MUL,
-                    Literal(f"{divisor-1}", INTEGER_TYPE),
-                    Literal(f"{step_val}", INTEGER_TYPE),
+                    Literal(f"{divisor-1}", ScalarType.integer_type()),
+                    Literal(f"{step_val}", ScalarType.integer_type()),
                 )
             else:
-                step2 = Literal(f"{step_val}", INTEGER_TYPE)
+                step2 = Literal(f"{step_val}", ScalarType.integer_type())
         else:
-            step = Literal(f"{step_val}", INTEGER_TYPE)
+            step = Literal(f"{step_val}", ScalarType.integer_type())
 
         # Create a Binary Operation of the correct format.
         binop = None
@@ -1830,7 +1801,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # Finished handling the loop bounds now
 
         # Recurse to the children
-        for child_node in node.children[3].children:
+        for child_node in node.loop_body.children:
             self._evaluate_node(
                 child_node,
                 clause_lists
@@ -2083,9 +2054,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # symbols. This means we need to try to get external symbols as well
         for ref in in_list:
             if isinstance(ref.symbol, DataSymbol) and ref.symbol.is_constant:
-                continue
-            if (ref.symbol.is_import and
-                    ref.symbol.get_external_symbol().is_constant):
                 continue
             in_clause.addchild(ref)
         out_clause = OMPDependClause(

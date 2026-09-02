@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2023-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
 
 '''This module contains a singleton class that manages information about
 which module is contained in which file (including full location). '''
@@ -141,6 +113,11 @@ class ModuleManager:
         self._module_pattern = re.compile(r"^\s*module\s+([a-z]\S*)\s*$",
                                           flags=re.IGNORECASE | re.MULTILINE)
 
+        # Files with an extension from this set will be considered
+        # when searching for Fortran files
+        self._fortran_file_exts = {".F90", ".f90", ".X90", ".x90",
+                                   ".F95", ".f95", ".F03", ".f03"}
+
     @property
     def cache_active(self) -> bool:
         '''
@@ -210,6 +187,29 @@ class ModuleManager:
                         f"str, but found an item of {type(x)}")
         self._resolve_indirect_imports = value
 
+    @property
+    def fortran_file_exts(self) -> set[str]:
+        '''
+        :returns: the set of file extensions that are considered when
+            searching for Fortran files.
+        '''
+        return self._fortran_file_exts
+
+    @fortran_file_exts.setter
+    def fortran_file_exts(self, exts: set[str]):
+        '''
+        :param exts: the set of file extensions that are considered when
+            searching for Fortran files.
+
+        :raises TypeError: if the provided value is not a set.
+        '''
+        if not isinstance(exts, set):
+            raise TypeError(
+                f"'fortran_file_exts' must be a set, but found "
+                f"{type(exts).__name__}"
+            )
+        self._fortran_file_exts = exts
+
     # ------------------------------------------------------------------------
     def add_search_path(self,
                         directories: Union[str, Path,
@@ -254,7 +254,7 @@ class ModuleManager:
     # ------------------------------------------------------------------------
     def _add_all_files_from_dir(self, directory: str) -> list[FileInfo]:
         '''This function creates (and caches) FileInfo objects for all files
-        with an extension of (F/f/X/x)90 in the given directory that have
+        with a Fortran file extension in the given directory that have
         not previously been visited. The new FileInfo objects are returned.
 
         :param directory: the directory containing Fortran files
@@ -269,7 +269,7 @@ class ModuleManager:
             for entry in all_entries:
                 _, ext = os.path.splitext(entry.name)
                 if (not entry.is_file() or
-                        ext not in [".F90", ".f90", ".X90", ".x90"]):
+                        ext not in self._fortran_file_exts):
                     continue
                 full_path = os.path.join(directory, entry.name)
                 if full_path in self._visited_files:
@@ -321,7 +321,7 @@ class ModuleManager:
                     self._modules[name] = mod_info
                     # A file that has been (or does not require)
                     # preprocessing always takes precedence.
-                    if finfo.filename.endswith(".f90"):
+                    if self._doesnt_need_preprocessing(finfo.filename):
                         return mod_info
         return mod_info
 
@@ -490,6 +490,19 @@ class ModuleManager:
         """
         return list(self._filepath_to_file_info.values())
 
+    def _doesnt_need_preprocessing(self, filename: str) -> bool:
+        """Returns True if the file with the given filename
+        doesn't need preprocessing."""
+        # The current method is just to check that the file extension
+        # is a lower-case Fortran file extension and doesn't begin
+        # with '.x'. (The latter condition is present to preserve
+        # previous behaviour, although it's unclear if that behavior
+        # is indeed desired.)
+        base, ext = os.path.splitext(filename)
+        return (ext in self._fortran_file_exts and
+                ext.islower() and
+                not ext.startswith(".x"))
+
     def get_module_info(self, module_name: str) -> Optional[ModuleInfo]:
         """This function returns the ModuleInfo for the specified
         module.
@@ -509,16 +522,15 @@ class ModuleManager:
             return None
 
         # First check if we have already seen this module. We only end the
-        # search early if the file we've found does not require pre-processing
-        # (i.e. has a .f90 suffix).
+        # search early if the file we've found does not require pre-processing.
         mod_info = self._modules.get(mod_lower, None)
-        if mod_info and mod_info.filename.endswith(".f90"):
+        if mod_info and self._doesnt_need_preprocessing(mod_info.filename):
             return mod_info
         old_mod_info = mod_info
         # Are any of the files that we've already seen a good match?
         mod_info = self._find_module_in_files(mod_lower,
                                               self._visited_files.values())
-        if mod_info and mod_info.filename.endswith(".f90"):
+        if mod_info and self._doesnt_need_preprocessing(mod_info.filename):
             return mod_info
         old_mod_info = mod_info
 

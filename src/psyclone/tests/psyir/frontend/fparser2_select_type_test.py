@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2023-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, STFC Daresbury Lab
-#          A. R. Porter, STFC Daresbury Lab
 
 '''Module containing pytest tests for the handling of select type
 construction for the Fparser->PSyIR frontend.
@@ -90,11 +61,9 @@ def test_type(fortran_reader, fortran_writer, tmpdir):
         "      branch1 = 1\n"
         "      branch2 = 0\n"
         "      iinfo = ptr_INTEGER\n"
-        "    else\n"
-        "      if (type_string == 'real') then\n"
-        "        branch2 = 1\n"
-        "        rinfo = ptr_REAL\n"
-        "      end if\n"
+        "    elseif (type_string == 'real') then\n"
+        "      branch2 = 1\n"
+        "      rinfo = ptr_REAL\n"
         "    end if\n")
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir).lower()
@@ -151,13 +120,11 @@ def test_default(fortran_reader, fortran_writer, tmpdir):
         "      branch1 = 1\n"
         "      branch2 = 0\n"
         "      iinfo = ptr_INTEGER\n"
+        "    elseif (type_string == 'real') then\n"
+        "      branch2 = 1\n"
+        "      rinfo = ptr_REAL\n"
         "    else\n"
-        "      if (type_string == 'real') then\n"
-        "        branch2 = 1\n"
-        "        rinfo = ptr_REAL\n"
-        "      else\n"
-        "        branch3 = 1\n"
-        "      end if\n"
+        "      branch3 = 1\n"
         "    end if\n\n"
         "  end subroutine select_type\n").lower()
     psyir = fortran_reader.psyir_from_source(code)
@@ -230,21 +197,15 @@ def test_class(fortran_reader, fortran_writer, tmpdir):
         "    if (type_string == 'type2') then\n"
         "      branch0 = 1\n"
         "      my_type2 = ptr_type2\n"
-        "    else\n"
-        "      if (type_string == 'integer') then\n"
-        "        branch1 = 1\n"
-        "        branch2 = 0\n"
-        "        iinfo = ptr_INTEGER\n"
-        "      else\n"
-        "        if (type_string == 'type3') then\n"
-        "          branch2 = 1\n"
-        "          my_type3 = ptr_type3\n"
-        "        else\n"
-        "          if (type_string == 'real') then\n"
-        "            branch3 = 1\n"
-        "          end if\n"
-        "        end if\n"
-        "      end if\n"
+        "    elseif (type_string == 'integer') then\n"
+        "      branch1 = 1\n"
+        "      branch2 = 0\n"
+        "      iinfo = ptr_INTEGER\n"
+        "    elseif (type_string == 'type3') then\n"
+        "      branch2 = 1\n"
+        "      my_type3 = ptr_type3\n"
+        "    elseif (type_string == 'real') then\n"
+        "      branch3 = 1\n"
         "    end if\n").lower()
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir).lower()
@@ -399,11 +360,9 @@ def test_kind(fortran_reader, fortran_writer, tmpdir):
         "      branch1 = 1\n"
         "      branch2 = 0\n"
         "      rinfo1 = ptr_REAL_4\n"
-        "    else\n"
-        "      if (type_string == 'real_8') then\n"
-        "        branch2 = 1\n"
-        "        rinfo2 = ptr_REAL_8\n"
-        "      end if\n"
+        "    elseif (type_string == 'real_8') then\n"
+        "      branch2 = 1\n"
+        "      rinfo2 = ptr_REAL_8\n"
         "    end if\n").lower()
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir).lower()
@@ -435,6 +394,7 @@ def test_derived(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n"
         "end module\n")
     expected1 = (
+        "    class(*), target :: type\n"
         "    type :: field_type\n"
         "      integer :: x\n"
         "    end type field_type\n"
@@ -520,16 +480,12 @@ def test_datatype(fortran_reader, fortran_writer, tmpdir):
         "      branch1 = 1\n"
         "      branch2 = 0\n"
         "      logical_type = ptr_LOGICAL\n"
-        "    else\n"
-        "      if (type_string == 'character_star') then\n"
-        "        branch2 = 1\n"
-        "        character_type = ptr_CHARACTER_star\n"
-        "      else\n"
-        "        if (type_string == 'complex') then\n"
-        "          branch3 = 1\n"
-        "          complex_type = ptr_COMPLEX\n"
-        "        end if\n"
-        "      end if\n"
+        "    elseif (type_string == 'character_star') then\n"
+        "      branch2 = 1\n"
+        "      character_type = ptr_CHARACTER_star\n"
+        "    elseif (type_string == 'complex') then\n"
+        "      branch3 = 1\n"
+        "      complex_type = ptr_COMPLEX\n"
         "    end if\n").lower()
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir).lower()

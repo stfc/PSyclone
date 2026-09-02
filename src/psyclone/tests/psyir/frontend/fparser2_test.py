@@ -1,38 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the fparser2 PSyIR front-end '''
@@ -58,13 +28,12 @@ from psyclone.psyir.nodes import (
     Schedule, CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation,
     IfBlock, Reference, ArrayReference, Literal, KernelSchedule,
     RegionDirective, Routine, StandaloneDirective,
-    Call, IntrinsicCall)
+    Call, IntrinsicCall, ArrayConstructor, Fparser2CodeBlock)
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, ArgumentInterface, ArrayType,
-    SymbolError, ScalarType, INTEGER_TYPE, REAL_TYPE, RoutineSymbol,
-    UnsupportedFortranType, UnresolvedType, Symbol, UnresolvedInterface,
-    ImportInterface, BOOLEAN_TYPE, StaticInterface, UnknownInterface,
-    StructureType, DataTypeSymbol)
+    SymbolError, ScalarType, RoutineSymbol, UnsupportedFortranType,
+    UnresolvedType, Symbol, UnresolvedInterface, ImportInterface,
+    StaticInterface, UnknownInterface, StructureType, DataTypeSymbol)
 
 # pylint: disable=too-many-statements
 
@@ -461,7 +430,7 @@ def test_get_partial_datatype():
     # No entry in symbol table.
     # Notice the space before complex keyword. This avoids it being
     # treated as a comment.
-    reader = FortranStringReader(" complex :: c\n")
+    reader = FortranStringReader(" byte :: c\n")
     node = Specification_Part(reader).content[0]
     ids = [id(entry) for entry in walk(node)]
     dtype, init = processor._get_partial_datatype(node, fake_parent, st, {})
@@ -580,8 +549,8 @@ def test_process_declarations():
         fake_parent.symbol_table.lookup("val1")
 
     # Initialisation with a complex constant expression
-    symtab.add(DataSymbol("precisionkind", INTEGER_TYPE, is_constant=True,
-                          initial_value=4))
+    symtab.add(DataSymbol("precisionkind", ScalarType.integer_type(),
+                          is_constant=True, initial_value=4))
     reader = FortranStringReader(
         "integer, parameter :: val3 = 2 * (val1 + val2) + 2_precisionkind")
     fparser2spec = Specification_Part(reader).content[0]
@@ -777,7 +746,8 @@ def test_array_declarations_with_initialisations(fortran_reader):
     all_syms = [gsym, hsym]
 
     assert all(isinstance(sym, DataSymbol) for sym in all_syms)
-    assert all(isinstance(sym.initial_value, CodeBlock) for sym in all_syms)
+    assert isinstance(gsym.initial_value, ArrayConstructor)
+    assert isinstance(hsym.initial_value, CodeBlock)
     lsym = inner_st.lookup('l')
     assert isinstance(lsym.initial_value, Reference)
 
@@ -864,12 +834,12 @@ def test_process_unsupported_declarations(fortran_reader):
 
     # Test with unsupported intrinsic type. Note the space before complex
     # below which stops the line being treated as a comment.
-    reader = FortranStringReader(" complex     ::      c2")
+    reader = FortranStringReader(" byte     ::      c2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     c2sym = fake_parent.symbol_table.lookup("c2")
     assert isinstance(c2sym.datatype, UnsupportedFortranType)
-    assert c2sym.datatype.declaration == "COMPLEX :: c2"
+    assert c2sym.datatype.declaration == "BYTE :: c2"
 
     # Test that CodeBlocks and references to variables initialised with a
     # CodeBlock are handled correctly
@@ -927,26 +897,43 @@ def test_unsupported_decln(fortran_reader):
     assert "Unrecognised attribute type 'str'" in str(error.value)
 
 
-def test_unsupported_decln_structure_type(fortran_reader):
+def test_decln_structure_type(fortran_reader):
     '''
-    Check that the frontend generated code for unsupported values when
-    creating a DataSymbol.
+    Check that the frontend allows initialisers containing
+    a structure constructor.
     '''
     code = '''
     module my_mod
     use some_other_mod
     contains
     subroutine my_sub
-       type(some_type), parameter :: x = func()
+       type(some_type), parameter :: x = some_type()
     end subroutine my_sub
     end module my_mod
     '''
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     assert isinstance(routine.symbol_table.lookup('x').datatype,
-                      UnsupportedFortranType)
-    assert (routine.symbol_table.lookup('x').datatype.declaration ==
-            "TYPE(some_type), PARAMETER :: x = func()")
+                      DataTypeSymbol)
+
+
+def test_decln_array_of_structure_type(fortran_reader):
+    '''
+    Check that the frontend allows initialisers containing
+    an array-of-structures constructor.
+    '''
+    code = '''
+    module my_mod
+    use some_other_mod
+    contains
+    subroutine my_sub
+       type(some_type) :: x(1) = [some_type()]
+    end subroutine my_sub
+    end module my_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert isinstance(routine.symbol_table.lookup('x').datatype, ArrayType)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -957,7 +944,7 @@ def test_unsupported_decln_duplicate_symbol():
     fake_parent.symbol_table.add(Symbol("var"))
     processor = Fparser2Reader()
     # Note leading white space to ensure fparser doesn't identify a comment
-    reader = FortranStringReader(" complex var")
+    reader = FortranStringReader(" byte :: var")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(SymbolError) as err:
         processor.process_declarations(fake_parent, [fparser2spec], [])
@@ -1435,10 +1422,11 @@ def test_process_declarations_stmt_functions():
 
     # If 'a' is declared in the symbol table as an array, it is an array
     # assignment which belongs in the execution part.
-    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(ScalarType.real_type(),
+                           [ArrayType.Extent.ATTRIBUTE])
     fake_parent.symbol_table.add(
         DataSymbol('a', array_type))
-    fake_parent.symbol_table.add(DataSymbol('x', REAL_TYPE))
+    fake_parent.symbol_table.add(DataSymbol('x', ScalarType.real_type()))
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert len(fake_parent.children) == 1
     array = fake_parent.children[0].children[0]
@@ -1449,11 +1437,12 @@ def test_process_declarations_stmt_functions():
     fake_parent = KernelSchedule.create("dummy_schedule")
     reader = FortranStringReader("b(x, y) = 1")
     fparser2spec = Stmt_Function_Stmt(reader)
-    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE,
-                                       ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(ScalarType.real_type(),
+                           [ArrayType.Extent.ATTRIBUTE,
+                            ArrayType.Extent.ATTRIBUTE])
     fake_parent.symbol_table.add(DataSymbol('b', array_type))
-    fake_parent.symbol_table.add(DataSymbol('x', INTEGER_TYPE))
-    fake_parent.symbol_table.add(DataSymbol('y', INTEGER_TYPE))
+    fake_parent.symbol_table.add(DataSymbol('x', ScalarType.integer_type()))
+    fake_parent.symbol_table.add(DataSymbol('y', ScalarType.integer_type()))
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert len(fake_parent.children) == 1
     array = fake_parent.children[0].children[0]
@@ -1461,7 +1450,7 @@ def test_process_declarations_stmt_functions():
     assert array.name == "b"
 
     # Test that if symbol is not an array, it raises InternalError
-    fake_parent.symbol_table.lookup('b').datatype = INTEGER_TYPE
+    fake_parent.symbol_table.lookup('b').datatype = ScalarType.integer_type()
     with pytest.raises(InternalError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "Could not process '" in str(error.value)
@@ -1515,8 +1504,8 @@ def test_parse_array_dimensions_attributes():
     assert shape[1][0].value == "1"
     assert shape[1][1].value == "5"
 
-    sym_table.add(DataSymbol('var1', INTEGER_TYPE))
-    sym_table.add(DataSymbol('var1_upper', INTEGER_TYPE))
+    sym_table.add(DataSymbol('var1', ScalarType.integer_type()))
+    sym_table.add(DataSymbol('var1_upper', ScalarType.integer_type()))
 
     reader = FortranStringReader("dimension(var1)")
     fparser2spec = Dimension_Attr_Spec(reader)
@@ -1767,7 +1756,7 @@ def test_process_use_stmts_resolving_external_imports(
     assert isinstance(symtab.lookup("a_func"), RoutineSymbol)
     assert isinstance(symtab.lookup("N"), DataSymbol)
     assert isinstance(symtab.lookup("unused_array"), DataSymbol)
-    assert symtab.lookup("n").datatype == INTEGER_TYPE
+    assert symtab.lookup("n").datatype == ScalarType.integer_type()
     # But not the private symbols
     assert "private_array" not in symtab
     # The local symbols respect the local visibility statements
@@ -1791,6 +1780,43 @@ def test_process_use_stmts_resolving_external_imports(
     stmt_rhs = routine[0].rhs
     assert isinstance(stmt_rhs.children[0], Reference)
     assert isinstance(stmt_rhs.children[1], Call)
+
+
+def test_process_resolving_modules_from_multiple_use_stmts(
+        parser, tmp_path, monkeypatch):
+    ''' Test that when an import from a single module is split
+    between multiple use statements, all of them are resolved. '''
+
+    # Write a module into a tmp file
+    other1 = tmp_path / "other.f90"
+    with open(other1, "w", encoding='utf-8') as my_file:
+        my_file.write('''
+    module other
+        integer :: variable1
+        integer :: variable2
+        integer :: variable3
+        integer :: variable4
+    end module
+    ''')
+    # Use the previous module
+    reader = FortranStringReader('''
+    module test
+        use other, only: variable1
+        use other, only: variable2
+        use other, only: variable3
+    end module
+    ''')
+    parse_tree = parser(reader)
+    module = parse_tree.children[0]
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
+    processor = Fparser2Reader(resolve_modules=True)
+    psyir = processor._module_handler(module, None)
+    # We must know that variable[1/2/3] are integers, and 4 is not imported
+    int_type = ScalarType.integer_type()
+    assert psyir.symbol_table.lookup("variable1").datatype == int_type
+    assert psyir.symbol_table.lookup("variable1").datatype == int_type
+    assert psyir.symbol_table.lookup("variable1").datatype == int_type
+    assert "variable4" not in psyir.symbol_table
 
 
 def test_process_resolving_modules_give_correct_types(
@@ -1852,6 +1878,34 @@ def test_process_resolving_modules_give_correct_types(
     assert isinstance(assigns[2].rhs, Call)
     assert assigns[2].rhs.is_elemental
     assert assigns[2].rhs.is_pure
+
+
+def test_modules_info_from_same_filecontainer(f2008_parser):
+    ''' Check that modules are connected to their implementations when they
+    are in the same file container.'''
+    reader = FortranStringReader('''
+        module test
+            integer :: a
+            contains
+            subroutine sub1
+            end subroutine
+        end module test
+
+        module main
+            use test
+            integer :: b
+        end module
+        ''')
+    prog = f2008_parser(reader)
+    processor = Fparser2Reader()
+    root = processor.generate_psyir(prog)
+    main = [m for m in root.children if m.name == "main"][0]
+    # The 'main' module has the local symbols
+    assert "test" in main.symbol_table
+    assert "b" in main.symbol_table
+    # And also the imported ones
+    assert "a" in main.symbol_table
+    assert "sub1" in main.symbol_table
 
 
 def test_intrinsic_use_stmt(parser):
@@ -1982,7 +2036,7 @@ def test_handling_assignment_stmt():
 
     fake_parent = Schedule()
     fake_parent.symbol_table.new_symbol("x", symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
+                                        datatype=ScalarType.integer_type())
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2assignment])
     # Check a new node was generated and connected to parent
@@ -1999,7 +2053,7 @@ def test_handling_labelled_assignment_stmt():
     fparser2assignment = Execution_Part.match(reader)[0][0]
     fake_parent = Schedule()
     fake_parent.symbol_table.new_symbol("x", symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
+                                        datatype=ScalarType.integer_type())
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2assignment])
     assert len(fake_parent.children) == 1
@@ -2017,7 +2071,7 @@ def test_handling_name():
     fake_parent = KernelSchedule.create('kernel')
     processor = Fparser2Reader()
 
-    fake_parent.symbol_table.add(DataSymbol('x', INTEGER_TYPE))
+    fake_parent.symbol_table.add(DataSymbol('x', ScalarType.integer_type()))
     processor.process_nodes(fake_parent, [fparser2name])
     assert len(fake_parent.children) == 1
     assignment = fake_parent.children[0]
@@ -2097,9 +2151,9 @@ def test_handling_if_stmt():
 
     fake_parent = Schedule()
     fake_parent.symbol_table.new_symbol("x", symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
+                                        datatype=ScalarType.integer_type())
     fake_parent.symbol_table.new_symbol("y", symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
+                                        datatype=ScalarType.integer_type())
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2if_stmt])
     # Check a new node was generated and connected to parent
@@ -2119,9 +2173,9 @@ def test_handling_labelled_if_stmt():
 
     fake_parent = Schedule()
     fake_parent.symbol_table.new_symbol("x", symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
+                                        datatype=ScalarType.integer_type())
     fake_parent.symbol_table.new_symbol("y", symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
+                                        datatype=ScalarType.integer_type())
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2if_stmt])
     # Check that a CodeBlock was created
@@ -2265,9 +2319,9 @@ def test_handling_labelled_if_construct():
 
     fake_parent = Schedule()
     fake_parent.symbol_table.new_symbol("condition1", symbol_type=DataSymbol,
-                                        datatype=BOOLEAN_TYPE)
+                                        datatype=ScalarType.boolean_type())
     fake_parent.symbol_table.new_symbol("condition2", symbol_type=DataSymbol,
-                                        datatype=BOOLEAN_TYPE)
+                                        datatype=ScalarType.boolean_type())
     processor = Fparser2Reader()
     fparser2if_construct = Execution_Part.match(reader)[0][0]
     processor.process_nodes(fake_parent, [fparser2if_construct])
@@ -2498,6 +2552,84 @@ def test_nodes_to_code_block_3():
         _ = Fparser2Reader.nodes_to_code_block(RegionDirective(), "hello")
     assert ("A CodeBlock with a Directive as parent is not yet supported."
             in str(excinfo.value))
+
+
+def test_codeblock_symbol_propagation(f2008_parser, monkeypatch, tmp_path):
+    '''Check that unresolved symbols do not cross a module boundary.'''
+
+    def codeblock_subroutine_handler(_, node, parent):
+        '''Represent every subroutine as a CodeBlock for this test.'''
+        return Fparser2CodeBlock(node, CodeBlock.Structure.STATEMENT,
+                                 parent=parent)
+
+    monkeypatch.setattr(Fparser2Reader, "_subroutine_handler",
+                        codeblock_subroutine_handler)
+    reader = FortranStringReader('''
+        module test
+            use other
+            contains
+            subroutine sub1
+                use another
+                a = 1
+            end subroutine
+        end module test
+
+        module main
+            use test
+            use another
+        end module
+        ''')
+    prog = f2008_parser(reader)
+    processor = Fparser2Reader()
+    psyir = processor.generate_psyir(prog)
+
+    # 'a' and 'another' have unresolved interfaces in 'test' because we only
+    # know they may exist (and reserve the names), but we don't know where they
+    # originate
+    assert isinstance(
+        psyir.children[0].symbol_table.lookup("another").interface,
+        UnresolvedInterface)
+    assert isinstance(
+        psyir.children[0].symbol_table.lookup("a").interface,
+        UnresolvedInterface)
+
+    # But they do not cross the module boundary (because it would not be safe,
+    # for example there would be a clash with 'another' here)
+    assert "a" not in psyir.children[1].symbol_table
+    assert isinstance(psyir.children[1].symbol_table.lookup("another"),
+                      ContainerSymbol)
+
+    # Repeat the test but with an external module to show that the behaviour
+    # is the same
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmp_path)])
+    filename = tmp_path / "test.f90"
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module test
+            use other
+            contains
+            subroutine sub1
+                use another
+                a = 1
+            end subroutine
+        end module test
+        ''')
+    reader = FortranStringReader('''
+        module main
+            use test
+            use another
+        end module
+        ''')
+    prog = f2008_parser(reader)
+    processor = Fparser2Reader(resolve_modules=True)
+    psyir = processor.generate_psyir(prog)
+    # Check that the external module is actually resolved
+    interface = psyir.children[0].symbol_table.lookup("test").interface
+    assert interface.get_container("test")
+    # And the UnresolvedInterface symbols are not propagated
+    assert "a" not in psyir.children[0].symbol_table
+    assert isinstance(psyir.children[0].symbol_table.lookup("another"),
+                      ContainerSymbol)
 
 
 def test_named_and_wildcard_use_var(f2008_parser):

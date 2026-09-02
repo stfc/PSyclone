@@ -1,3 +1,10 @@
+! -----------------------------------------------------------------------------
+! SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+!                         Facilities Council
+! SPDX-License-Identifier: BSD-3-Clause
+! See the full LICENSE file in the project root for details.
+! -----------------------------------------------------------------------------
+
 module adj_convert_hdiv_field_kernel_mod
   use kernel_mod, only : kernel_type
   use argument_mod, only : any_discontinuous_space_3, any_space_1, any_space_2, wchi, arg_type, cell_column, func_type, &

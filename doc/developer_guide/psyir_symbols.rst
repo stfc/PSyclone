@@ -1,45 +1,16 @@
 .. -----------------------------------------------------------------------------
-   BSD 3-Clause License
-
-   Copyright (c) 2020-2026, Science and Technology Facilities Council.
-   All rights reserved.
-
-   Redistribution and use in source and binary forms, with or without
-   modification, are permitted provided that the following conditions are met:
-
-   * Redistributions of source code must retain the above copyright notice,
-     this list of conditions and the following disclaimer.
-
-   * Redistributions in binary form must reproduce the above copyright notice,
-     this list of conditions and the following disclaimer in the documentation
-     and/or other materials provided with the distribution.
-
-   * Neither the name of the copyright holder nor the names of its
-     contributors may be used to endorse or promote products derived from
-     this software without specific prior written permission.
-
-   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-   FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-   COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-   INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-   BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-   CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-   LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-   POSSIBILITY OF SUCH DAMAGE.
-   -----------------------------------------------------------------------------
-   Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+.. SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+..                         Facilities Council
+.. SPDX-License-Identifier: BSD-3-Clause
+.. See the full LICENSE file in the project root for details.
+.. -----------------------------------------------------------------------------
 
 .. The following section imports those Python modules that are needed in
    subsequent doctest snippets.
 .. testsetup::
 
     from psyclone.psyir.symbols import Symbol, DataSymbol, RoutineSymbol, \
-        ScalarType, ArrayType, REAL4_TYPE, REAL8_TYPE, INTEGER_TYPE, \
-        BOOLEAN_TYPE
+        ScalarType, ArrayType
     from psyclone.psyir.nodes import Reference
 
 PSyIR Types and Symbols
@@ -129,7 +100,7 @@ and has the following pre-defined shortcut
 
 ::
 
-   scalar_type = REAL4_TYPE
+   scalar_type = ScalarType.real4_type()
 
 If we were to subclass, it would have looked something like this::
 
@@ -332,15 +303,16 @@ specialisations are possible:
     >>> # sym.specialise(DataSymbol)
     >>> # The following statement is valid (in this case initial_value will
     >>> # default to None and is_constant to False):
-    >>> sym.specialise(DataSymbol, datatype=INTEGER_TYPE)
+    >>> sym.specialise(DataSymbol, datatype=ScalarType.integer_type())
 
     >>> sym2 = Symbol("b")
     >>> # The following statement would fail because the initial_value doesn't
     >>> # match the datatype of the symbol:
-    >>> # sym2.specialise(DataSymbol, datatype=INTEGER_TYPE, initial_value=3.14)
+    >>> # sym2.specialise(DataSymbol, datatype=ScalarType.integer_type(),
+    >>> #                 initial_value=3.14)
     >>> # The following statement is valid and initial_value is set to 3
     >>> # (and is_constant will default to False):
-    >>> sym2.specialise(DataSymbol, datatype=INTEGER_TYPE, initial_value=3)
+    >>> sym2.specialise(DataSymbol, datatype=ScalarType.integer_type(), initial_value=3)
     >>> print(sym2.initial_value)
     Literal[value:'3', Scalar<INTEGER, UNDEFINED>]
     >>> print(sym2.is_constant)

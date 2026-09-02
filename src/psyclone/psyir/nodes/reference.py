@@ -1,40 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic, Met Office
-#         J. Henrichs, Bureau of Meteorology
-# Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the Reference node.'''
@@ -45,7 +13,12 @@ from psyclone.core import AccessType, Signature, VariablesAccessMap
 # We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols import Symbol, AutomaticInterface
+from psyclone.psyir.symbols import (
+    Symbol,
+    AutomaticInterface,
+    RoutineSymbol,
+    IntrinsicSymbol
+)
 from psyclone.psyir.symbols.datatypes import UnresolvedType
 
 
@@ -95,6 +68,12 @@ class Reference(DataNode):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.assignment import Assignment
         from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
+
+        # If the symbol is a RoutineSymbol or IntrinsicSymbol we don't read
+        # the symbol.
+        if isinstance(self.symbol, (RoutineSymbol, IntrinsicSymbol)):
+            return False
+
         parent = self.parent
         if isinstance(parent, Assignment):
             if parent.lhs is self:
@@ -119,7 +98,9 @@ class Reference(DataNode):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.assignment import Assignment
         from psyclone.psyir.nodes.call import Call
+        from psyclone.psyir.nodes.codeblock import CodeBlock
         from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
+        from psyclone.psyir.nodes.loop import Loop
         parent = self.parent
         # pure or inquiry IntrinsicCall nodes do not write to their arguments.
         if (isinstance(parent, IntrinsicCall) and (parent.is_inquiry or
@@ -132,6 +113,12 @@ class Reference(DataNode):
             return True
         # The reference that is the LHS of an assignment is a write.
         if isinstance(parent, Assignment) and parent.lhs is self:
+            return True
+        # Assume the worst for CodeBlocks
+        if isinstance(parent, CodeBlock):
+            return True
+        # Loop control variable is also a write
+        if isinstance(parent, Loop) and parent.variable_reference is self:
             return True
         return False
 
@@ -235,31 +222,31 @@ class Reference(DataNode):
             return super().datatype
         return self.symbol.datatype
 
-    def previous_accesses(self):
+    def previous_accesses(self) -> list[Node]:
         '''
         :returns: the nodes accessing the same symbol directly before this
                   reference. It can be multiple nodes if the control flow
                   diverges and there are multiple possible accesses.
-        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
         '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools import DefinitionUseChain
         chain = DefinitionUseChain(self)
-        return chain.find_backward_accesses()
+        sig = self.get_signature_and_indices()[0]
+        return chain.find_backward_accesses()[sig]
 
-    def next_accesses(self):
+    def next_accesses(self) -> list[Node]:
         '''
         :returns: the nodes accessing the same symbol directly after this
                   reference. It can be multiple nodes if the control flow
                   diverges and there are multiple possible accesses.
-        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
         '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools import DefinitionUseChain
         chain = DefinitionUseChain(self)
-        return chain.find_forward_accesses()
+        sig = self.get_signature_and_indices()[0]
+        return chain.find_forward_accesses()[sig]
 
     def escapes_scope(
             self, scope: Node, visited_nodes: Optional[set] = None

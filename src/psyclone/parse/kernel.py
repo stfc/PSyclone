@@ -1,41 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: L. Mitchell Imperial College
-#          R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
-# Modified: C.M. Maynard, Met Office / University of Reading,
-#           I. Kavcic and L. Turner, Met Office
-#           J. Henrichs, Bureau of Meteorology
 
 '''Module that uses the Fortran parser fparser1 to parse
 PSyclone-conformant kernel code.
@@ -315,7 +283,7 @@ def get_mesh(metadata, valid_mesh_types):
     :return: the name of the mesh
     :rtype: string
 
-    :raises ParseError: if the supplied meta-data is not a recognised \
+    :raises ParseError: if the supplied meta-data is not a recognised
                         mesh identifier.
     :raises ParseError: if the mesh type is unsupported.
 
@@ -398,6 +366,34 @@ def get_stencil(metadata, valid_types):
             "Kernels with fixed stencil extents are not currently "
             "supported")
     return {"type": stencil_type, "extent": stencil_extent}
+
+
+def get_char_value(metadata: expr.NamedArg,
+                   keyword: str) -> str:
+    '''
+    :param metadata: node in fparser1 ast holding the meta-data.
+    :param keyword: the name of the meta-data entry to extract.
+
+    :returns: a label or int (as a string) representing the value
+              of the metadata element.
+
+    :raises ParseError: if the supplied metadata doesn't represent
+        a named argument for the specified keyword.
+    :raises ParseError: if the value associated with the keyword is
+        not provided as a string.
+
+    '''
+    if (not isinstance(metadata, expr.NamedArg) or
+            metadata.name.lower() != keyword):
+        raise ParseError(
+            f"{metadata} is not a valid {keyword} specifier (expected "
+            f"{keyword}='label | int')")
+    if not metadata.is_string:
+        raise ParseError(
+            f"The value of {keyword} must be specified as a quoted string "
+            f"but got {metadata}")
+
+    return metadata.value.lower()
 
 
 class Descriptor():

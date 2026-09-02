@@ -1,43 +1,17 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
 
 '''Module containing the FieldVector Arg class which captures the metadata
 associated with a field vector argument. Supports the creation, modification
 and Fortran output of a Field Vector argument.
 
 '''
+from typing import Optional, Tuple
+from fparser.two import Fortran2003
 from psyclone.domain.lfric.kernel.field_arg_metadata import FieldArgMetadata
 
 
@@ -68,30 +42,35 @@ class FieldVectorArgMetadata(FieldArgMetadata):
     vector = True
 
     def __init__(self, datatype, access, function_space, vector_length,
-                 stencil=None):
-        super().__init__(datatype, access, function_space, stencil=stencil)
+                 stencil=None, nlevels=None, ndata=1):
+        super().__init__(datatype, access, function_space, stencil=stencil,
+                         nlevels=nlevels, ndata=ndata)
         self.vector_length = vector_length
 
     @classmethod
-    def _get_metadata(cls, fparser2_tree):
+    def _get_metadata(
+            cls,
+            fparser2_tree: Fortran2003.Part_Ref) -> Tuple[str, str, str, str,
+                                                          Optional[str],
+                                                          Optional[str],
+                                                          Optional[str]]:
         '''Extract the required metadata from the fparser2 tree and return it
         as strings. Also check that the metadata is in the expected
         form (but do not check the metadata values as that is done
         separately).
 
-        :param fparser2_tree: fparser2 tree containing the metadata \
+        :param fparser2_tree: fparser2 tree containing the metadata
             for this argument.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
 
-        :returns: a tuple containing the datatype, access, function \
-            space, vector-length and stencil metadata.
-        :rtype: Tuple[str, str, str, str, Optional[str]]
+        :returns: a tuple containing the datatype, access, function
+            space, vector-length, stencil, nlevels and ndata metadata.
 
         '''
-        datatype, access, function_space, stencil = super()._get_metadata(
-            fparser2_tree)
+        (datatype, access, function_space, stencil,
+         nlevels, ndata) = super()._get_metadata(fparser2_tree)
         vector_length = cls.get_vector_length(fparser2_tree)
-        return (datatype, access, function_space, vector_length, stencil)
+        return (datatype, access, function_space, vector_length, stencil,
+                nlevels, ndata)
 
     def fortran_string(self):
         '''

@@ -7,7 +7,7 @@ dl_timer API. This library is **thread-safe**.
 ## Dependencies
 
 The library dl_timer must be installed, which can be downloaded from
-https://bitbucket.org/apeg/dl_timer.
+https://github.com/stfc/dl_timer.
 
 This profiling library uses the [PSyData API](
 https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) to interface with
@@ -37,7 +37,7 @@ To compile the PSyclone wrapper library for dl_timer, one of the
 following two ``Makefile`` variables must be set to specify the path to
 the dl_timer installation:
 
-- ``DL_TIMER_ROOT``, the path to the ``apeg-dl_timer`` directory in which
+- ``DL_TIMER_ROOT``, the path to the ``stfc/dl_timer`` directory in which
   dl_timer is compiled. It defaults to ``./../../../../dl_timer`` in
   the ``Makefile`` (i.e., it assumes dl_timer is installed next to a
   PSyclone clone).

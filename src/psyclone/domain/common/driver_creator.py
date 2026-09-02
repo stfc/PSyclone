@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2024-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: J. Henrichs, Bureau of Meteorology
-# Modified: S. Siso, STFC Daresbury Lab
 
 '''This module provides a base class for all domain-specific kernel extraction
 implementations.
@@ -51,8 +22,8 @@ from psyclone.psyir.nodes import (
     Call, ExtractNode, FileContainer, Literal, Node, Reference, Routine,
     StructureReference)
 from psyclone.psyir.symbols import (
-    CHARACTER_TYPE, ContainerSymbol, DataTypeSymbol, ImportInterface,
-    INTEGER_TYPE, NoType, RoutineSymbol, DataSymbol, UnsupportedFortranType,
+    ScalarType, ContainerSymbol, DataTypeSymbol, ImportInterface,
+    NoType, RoutineSymbol, DataSymbol, UnsupportedFortranType,
     Symbol, AutomaticInterface, UnresolvedType, SymbolTable)
 from psyclone.psyir.tools import ReadWriteInfo
 
@@ -177,12 +148,12 @@ class DriverCreator:
 
         DriverCreator.add_call(program, "compare_init",
                                [Literal(f"{len(output_symbols)}",
-                                        INTEGER_TYPE)])
+                                        ScalarType.integer_type())])
 
         # TODO #2083: check if this can be combined with psyad result
         # comparison.
         for (sym_computed, sym_read) in output_symbols:
-            lit_name = Literal(sym_computed.name, CHARACTER_TYPE)
+            lit_name = Literal(sym_computed.name, ScalarType.character_type())
             DriverCreator.add_call(program, "compare",
                                    [lit_name, Reference(sym_computed),
                                     Reference(sym_read)])
@@ -250,7 +221,7 @@ class DriverCreator:
             post_tag = f"{name}{postfix}@{module_name}"
         else:
             post_tag = f"{name}{postfix}"
-        name_lit = Literal(post_tag, CHARACTER_TYPE)
+        name_lit = Literal(post_tag, ScalarType.character_type())
         DriverCreator.add_read_call(program, name_lit, post_sym, read_var)
 
         return (sym, post_sym)
@@ -308,7 +279,8 @@ class DriverCreator:
                 symbol_table.add(sym)
                 # Only add the variable if it is not to be ignored
                 if (module_name, signature) not in vars_to_ignore:
-                    name_lit = Literal(str(signature), CHARACTER_TYPE)
+                    name_lit = Literal(str(signature),
+                                       ScalarType.character_type())
                     read_stmts.append((name_lit, sym))
 
         # Now do the input external variables. These are done after the locals
@@ -322,7 +294,7 @@ class DriverCreator:
                 orig_sym = mod_info.get_symbol(signature[0])
                 tag = f"{signature[0]}@{module_name}"
                 sym = symbol_table.lookup_with_tag(tag)
-                name_lit = Literal(tag, CHARACTER_TYPE)
+                name_lit = Literal(tag, ScalarType.character_type())
                 read_stmts.append((name_lit, sym))
 
         for name_lit, sym in read_stmts:
@@ -470,14 +442,14 @@ class DriverCreator:
             else:
                 psydata_arg = str_unique_name
 
-        psydata_len = \
-            program_symbol_table.find_or_create("psydata_len",
-                                                symbol_type=DataSymbol,
-                                                datatype=INTEGER_TYPE).name
-        psydata_i = \
-            program_symbol_table.find_or_create("psydata_i",
-                                                symbol_type=DataSymbol,
-                                                datatype=INTEGER_TYPE).name
+        psydata_len = program_symbol_table.find_or_create(
+            "psydata_len",
+            symbol_type=DataSymbol,
+            datatype=ScalarType.integer_type()).name
+        psydata_i = program_symbol_table.find_or_create(
+            "psydata_i",
+            symbol_type=DataSymbol,
+            datatype=ScalarType.integer_type()).name
         # We can only parse one statement at a time, so start with the
         # command line handling:
         code = f"""

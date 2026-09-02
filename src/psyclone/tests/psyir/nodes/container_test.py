@@ -1,39 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic, Met Office
-#         J. Henrichs, Bureau of Meteorology
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Container PSyIR node. '''
@@ -43,7 +12,7 @@ from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Call, colored, Container, FileContainer,
                                   KernelSchedule, Return, Routine)
-from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, SymbolTable
+from psyclone.psyir.symbols import DataSymbol, ScalarType, SymbolTable
 from psyclone.tests.utilities import check_links
 
 
@@ -104,7 +73,7 @@ def test_container_create():
 
     '''
     symbol_table = SymbolTable()
-    symbol_table.add(DataSymbol("tmp", REAL_SINGLE_TYPE))
+    symbol_table.add(DataSymbol("tmp", ScalarType.real_single_type()))
     kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
     kernel2 = KernelSchedule.create("mod_2", SymbolTable(), [])
     container = Container.create("container_name", symbol_table,
@@ -131,7 +100,7 @@ def test_container_create_invalid():
 
     '''
     symbol_table = SymbolTable()
-    symbol_table.add(DataSymbol("x", REAL_SINGLE_TYPE))
+    symbol_table.add(DataSymbol("x", ScalarType.real_single_type()))
     children = [KernelSchedule.create("mod_1", SymbolTable(), [])]
 
     # name is not a string.
@@ -156,7 +125,7 @@ def test_container_create_invalid():
     with pytest.raises(GenerationError) as excinfo:
         _ = Container.create("mod_name", symbol_table, ["invalid"])
     assert ("Item 'str' can't be child 0 of 'Container'. The valid format is:"
-            " '[Container | Routine | CodeBlock]*'."
+            " '[Container | Routine | CodeBlock | StandaloneDirective]*'."
             in str(excinfo.value))
 
 
@@ -175,8 +144,9 @@ def test_container_children_validation():
     ret = Return()
     with pytest.raises(GenerationError) as excinfo:
         container.addchild(ret)
+    print(str(excinfo.value))
     assert ("Item 'Return' can't be child 1 of 'Container'. The valid format"
-            " is: '[Container | Routine | CodeBlock]*'."
+            " is: '[Container | Routine | CodeBlock | StandaloneDirective]*'."
             "" in str(excinfo.value))
 
 

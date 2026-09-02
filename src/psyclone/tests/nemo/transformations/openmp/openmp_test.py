@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 ''' Module containing py.test tests for the transformation of
     the PSy representation of NEMO code '''
@@ -209,16 +181,16 @@ def test_omp_do_code_gen(fortran_reader, fortran_writer):
     loop_trans.apply(schedule[0].loop_body[1]
                      .else_body[0].else_body[0].dir_body[0])
     code = fortran_writer(psyir).lower()
-    correct = '''        !$omp parallel default(shared) private(ji,jj)
-        !$omp do schedule(auto)
-        do jj = 1, jpj, 1
-          do ji = 1, jpi, 1
-            zdkt(ji,jj) = (ptb(ji,jj,jk - 1,jn) - ptb(ji,jj,jk,jn)) * \
+    correct = '''      !$omp parallel default(shared) private(ji,jj)
+      !$omp do schedule(auto)
+      do jj = 1, jpj, 1
+        do ji = 1, jpi, 1
+          zdkt(ji,jj) = (ptb(ji,jj,jk - 1,jn) - ptb(ji,jj,jk,jn)) * \
 wmask(ji,jj,jk)
-          enddo
         enddo
-        !$omp end do
-        !$omp end parallel'''
+      enddo
+      !$omp end do
+      !$omp end parallel'''
     assert correct in code
     directive = schedule[0].loop_body[1].else_body[0].else_body[0].dir_body[0]
     assert isinstance(directive, OMPDoDirective)
@@ -237,15 +209,15 @@ def test_omp_do_within_if(fortran_reader, fortran_writer):
     otrans.apply(loop)
     gen = fortran_writer(psyir).lower()
     expected = (
-        "      else\n"
-        "        !$omp parallel do default(shared) private(ji,jj) "
+        "    else\n"
+        "      !$omp parallel do default(shared) private(ji,jj) "
         "schedule(auto)\n"
-        "        do jj = 1, jpj, 1\n"
-        "          do ji = 1, jpi, 1\n"
-        "            zdkt(ji,jj) = (ptb(ji,jj,jk - 1,jn) - "
+        "      do jj = 1, jpj, 1\n"
+        "        do ji = 1, jpi, 1\n"
+        "          zdkt(ji,jj) = (ptb(ji,jj,jk - 1,jn) - "
         "ptb(ji,jj,jk,jn)) * wmask(ji,jj,jk)\n"
-        "          enddo\n"
         "        enddo\n"
-        "        !$omp end parallel do\n"
-        "      end if\n")
+        "      enddo\n"
+        "      !$omp end parallel do\n"
+        "    end if\n")
     assert expected in gen

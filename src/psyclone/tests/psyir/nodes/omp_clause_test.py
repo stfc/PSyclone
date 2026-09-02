@@ -1,38 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: A. B. G. Chalk, STFC Daresbury Lab
-# Modified: S. Siso, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the OpenMP PSyIR Clause nodes. '''
@@ -45,7 +15,7 @@ from psyclone.psyir.nodes.omp_clauses import (
     OMPDefaultClause, OMPScheduleClause, OMPReductionClause)
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 
 
 def test_nowait_clause():
@@ -58,22 +28,24 @@ def test_nowait_clause():
 def test_grainsize_clause():
     ''' Test the OMPGrainsizeClause functionality. '''
 
-    nowait = OMPGrainsizeClause(children=[Literal("32", INTEGER_TYPE)])
+    nowait = OMPGrainsizeClause(
+        children=[Literal("32", ScalarType.integer_type())])
     assert nowait.clause_string == "grainsize"
-    assert OMPGrainsizeClause._validate_child(0, Literal("64", INTEGER_TYPE))\
-        is True
-    assert OMPGrainsizeClause._validate_child(1, Literal("64", INTEGER_TYPE))\
-        is False
+    assert OMPGrainsizeClause._validate_child(
+        0, Literal("64", ScalarType.integer_type())) is True
+    assert OMPGrainsizeClause._validate_child(
+        1, Literal("64", ScalarType.integer_type())) is False
 
 
 def test_numtasks_clause():
     ''' Test the OMPNumTasksClause functionality. '''
-    nowait = OMPNumTasksClause(children=[Literal("32", INTEGER_TYPE)])
+    nowait = OMPNumTasksClause(
+        children=[Literal("32", ScalarType.integer_type())])
     assert nowait.clause_string == "num_tasks"
-    assert OMPNumTasksClause._validate_child(0, Literal("64", INTEGER_TYPE))\
-        is True
-    assert OMPNumTasksClause._validate_child(1, Literal("64", INTEGER_TYPE))\
-        is False
+    assert OMPNumTasksClause._validate_child(
+        0, Literal("64", ScalarType.integer_type())) is True
+    assert OMPNumTasksClause._validate_child(
+        1, Literal("64", ScalarType.integer_type())) is False
 
 
 def test_nogroup_clause():
@@ -140,7 +112,7 @@ def test_shared_clause():
     ''' Test the OMPSharedClause functionality. '''
     shared = OMPSharedClause()
     assert shared.clause_string == ""
-    tmp = DataSymbol("tmp", INTEGER_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_type())
     ref1 = Reference(tmp)
     shared.addchild(ref1)
     assert shared.clause_string == "shared"
@@ -153,7 +125,7 @@ def test_private_and_firstprivate_clause(testclass, string):
     ''' Test the OMPPrivateClause and OMPFirstprivateClause functionality. '''
     private = testclass()
     assert private.clause_string == ""
-    tmp = DataSymbol("tmp", INTEGER_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_type())
     ref1 = Reference(tmp)
     private.addchild(ref1)
     assert private.clause_string == string
@@ -167,9 +139,9 @@ def test_private_clause_create(testclass, string):
     accept a list of symbols and add children with references containing
     those symbols. '''
 
-    symbol1 = DataSymbol("a", INTEGER_TYPE)
-    symbol2 = DataSymbol("b", INTEGER_TYPE)
-    symbol3 = DataSymbol("c", INTEGER_TYPE)
+    symbol1 = DataSymbol("a", ScalarType.integer_type())
+    symbol2 = DataSymbol("b", ScalarType.integer_type())
+    symbol3 = DataSymbol("c", ScalarType.integer_type())
 
     # Check that it just accepts a list of symbols
     with pytest.raises(TypeError) as err:
@@ -222,7 +194,7 @@ def test_depend_clause():
 
 def test_depend_validate_child():
     ''' Test the validate_child function of the OMPDependClause. '''
-    tmp = DataSymbol("tmp", INTEGER_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_type())
     ref1 = Reference(tmp)
     assert OMPDependClause._validate_child(0, ref1) is True
     assert OMPDependClause._validate_child(110, ref1) is True
@@ -253,7 +225,7 @@ def test_omp_reduction_clause():
 
 def test_reduction_validate_child():
     ''' Test the validate_child function of the OMPReductionClause. '''
-    tmp = DataSymbol("tmp", INTEGER_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_type())
     ref1 = Reference(tmp)
     assert OMPReductionClause._validate_child(0, ref1) is True
     assert OMPReductionClause._validate_child(110, ref1) is True

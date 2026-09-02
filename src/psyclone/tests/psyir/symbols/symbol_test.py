@@ -1,40 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author S. Siso, STFC Daresbury Lab
-# Modified by R. W. Ford, STFC Daresbury Lab
-#             A. R. Porter, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 '''Perform py.test tests on the psyclone.psyir.symbols.symbol module.
@@ -54,7 +22,7 @@ from psyclone.psyir.nodes import Container, Literal, KernelSchedule, Reference
 from psyclone.psyir.symbols import (
     ArgumentInterface, ContainerSymbol,
     DataSymbol, ImportInterface, DefaultModuleInterface, StaticInterface,
-    INTEGER_SINGLE_TYPE, AutomaticInterface, CommonBlockInterface,
+    ScalarType, AutomaticInterface, CommonBlockInterface,
     NoType, RoutineSymbol, Symbol, SymbolError, UnknownInterface,
     SymbolTable, UnresolvedInterface)
 
@@ -163,7 +131,7 @@ def test_symbol_interface_setter_and_is_properties():
     assert not symbol.is_commonblock
     assert not symbol.is_unknown_interface
 
-    symbol.interface = CommonBlockInterface()
+    symbol.interface = CommonBlockInterface("")
     assert not symbol.is_automatic
     assert not symbol.is_import
     assert not symbol.is_argument
@@ -218,7 +186,7 @@ def test_find_symbol_table():
     sym3 = Symbol("missing")
     assert sym3.find_symbol_table(sched) is None
     # When there is no SymbolTable associated with the PSyIR node
-    orphan = Literal("1", INTEGER_SINGLE_TYPE)
+    orphan = Literal("1", ScalarType.integer_single_type())
     assert sym3.find_symbol_table(orphan) is None
 
 
@@ -370,10 +338,10 @@ def test_get_external_symbol_missing(monkeypatch):
             "points to module 'some_mod' but could not find the definition of "
             "'b' in that module." in str(err.value))
     # Add an entry for 'b' to the Container's symbol table
-    ctable2.add(DataSymbol("b", INTEGER_SINGLE_TYPE))
+    ctable2.add(DataSymbol("b", ScalarType.integer_single_type()))
     new_sym = bsym.resolve_type()
     assert isinstance(new_sym, DataSymbol)
-    assert new_sym.datatype == INTEGER_SINGLE_TYPE
+    assert new_sym.datatype == ScalarType.integer_single_type()
 
 
 def test_symbol_resolve_type(monkeypatch):
@@ -389,13 +357,14 @@ def test_symbol_resolve_type(monkeypatch):
     # Monkeypatch the get_external_symbol() method so that it just returns
     # a new DataSymbol
     monkeypatch.setattr(bsym, "get_external_symbol",
-                        lambda: DataSymbol("b", INTEGER_SINGLE_TYPE))
+                        lambda: DataSymbol("b",
+                                           ScalarType.integer_single_type()))
     new_sym = bsym.resolve_type()
     # The symbol should be the same instance as before but with properties and
     # type obtained from the other table.
     assert new_sym is bsym
     assert isinstance(new_sym, DataSymbol)
-    assert new_sym.datatype == INTEGER_SINGLE_TYPE
+    assert new_sym.datatype == ScalarType.integer_single_type()
     assert new_sym.visibility == Symbol.Visibility.PRIVATE
     assert new_sym.is_import
     # Repeat the test but get_external_symbol() just returns
@@ -417,15 +386,17 @@ def test_symbol_resolve_type(monkeypatch):
     # a new DataSymbol
     monkeypatch.setattr(
         csym, "get_external_symbol",
-        lambda: DataSymbol("c", INTEGER_SINGLE_TYPE,
-                           is_constant=True,
-                           initial_value=Literal("1", INTEGER_SINGLE_TYPE)))
+        lambda: DataSymbol(
+           "c", ScalarType.integer_single_type(),
+           is_constant=True,
+           initial_value=Literal("1", ScalarType.integer_single_type())))
     new_sym = csym.resolve_type()
     assert new_sym is csym
-    assert new_sym.datatype == INTEGER_SINGLE_TYPE
+    assert new_sym.datatype == ScalarType.integer_single_type()
     assert new_sym.is_import
     assert new_sym.is_constant
-    assert new_sym.initial_value == Literal("1", INTEGER_SINGLE_TYPE)
+    assert new_sym.initial_value == Literal("1",
+                                            ScalarType.integer_single_type())
     # Repeat but test when the import turns out to be a RoutineSymbol.
     dsym = Symbol("d", visibility=Symbol.Visibility.PRIVATE,
                   interface=ImportInterface(other_container))
@@ -456,9 +427,9 @@ def test_symbol_array_handling():
     assert ("index variable 'i' specified, but no access information given"
             in str(err.value))
     # Supply some access information.
-    svinfo = AccessSequence(Signature("i"))
-    svinfo.add_access(AccessType.READ, Reference(asym))
-    assert not asym.is_array_access("i", svinfo)
+    access_seq = AccessSequence(Signature("i"))
+    access_seq.add_access(AccessType.READ, Reference(asym))
+    assert not asym.is_array_access("i", access_seq)
 
 
 @pytest.mark.parametrize("table", [None, SymbolTable()])

@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
-# Modified: S. Siso, STFC Daresbury Labs
 
 '''Module providing a transformation that removes induction variables from
 a loop. '''
@@ -41,10 +12,13 @@ from psyclone.core import AccessType
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (ArrayReference, Assignment, BinaryOperation,
                                   Call, CodeBlock, Loop, Reference)
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError
+)
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class ReplaceInductionVariablesTrans(Transformation):
     '''Move all supported induction variables out of the loop, and replace
     their usage inside the loop. For example:
@@ -197,17 +171,17 @@ class ReplaceInductionVariablesTrans(Transformation):
         return True
 
     # ------------------------------------------------------------------------
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''Apply the ReplaceInductionVariablesTrans transformation to the
         specified node. The node must be a loop. In case of nested
         loops, the transformation might need to be applied several
         times, from the inner-most loop outwards.
 
         :param node: a Loop node.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
 
         '''
-        self.validate(node, options)
+        # TODO #2668: Remove options.
+        self.validate(node, options, **kwargs)
         loop_var = node.variable.name
 
         # Find assignments that are directly part of the loop (this
@@ -263,18 +237,18 @@ class ReplaceInductionVariablesTrans(Transformation):
             # statement in the body.
 
     # ------------------------------------------------------------------------
-    def validate(self, node, options=None):
+    def validate(self, node: Loop, options=None, **kwargs):
         '''Perform various checks to ensure that it is valid to apply the
         ReplaceInductionVariablesTrans transformation to the supplied PSyIR
         Node.
 
         :param node: the node that is being checked.
-        :type node: :py:class:`psyclone.psyir.nodes.Assignment`
 
-        :raises TransformationError: if the node argument is not a \
+        :raises TransformationError: if the node argument is not a
             Loop.
 
         '''
+        self.validate_options(**kwargs)
         if not isinstance(node, Loop):
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied node "

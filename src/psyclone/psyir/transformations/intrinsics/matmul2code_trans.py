@@ -1,40 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Laboratory
-# Modified: S. Siso, A. R. Porter and N. Nobre, STFC Daresbury Lab
-#           T. Vockerodt, Met Office
-# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR MATMUL operator to
 PSyIR code. This could be useful if the MATMUL operator is not
@@ -50,7 +19,7 @@ from psyclone.psyir.nodes import (
     BinaryOperation, Assignment, Reference,
     Loop, Literal, ArrayReference, Range, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, REAL_TYPE, TypedSymbol, UnsupportedType)
+    DataSymbol, ScalarType, TypedSymbol, UnsupportedType)
 from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
     Intrinsic2CodeTrans)
 from psyclone.utils import transformation_documentation_wrapper
@@ -133,6 +102,7 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
     a rank-1 array.
 
     '''
+
     def __init__(self):
         super().__init__()
         self._intrinsic = IntrinsicCall.Intrinsic.MATMUL
@@ -363,10 +333,10 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
 
         # Create new i and j loop iterators.
         symbol_table = node.scope.symbol_table
-        i_loop_sym = symbol_table.new_symbol("i", symbol_type=DataSymbol,
-                                             datatype=INTEGER_TYPE)
-        j_loop_sym = symbol_table.new_symbol("j", symbol_type=DataSymbol,
-                                             datatype=INTEGER_TYPE)
+        i_loop_sym = symbol_table.new_symbol(
+             "i", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
+        j_loop_sym = symbol_table.new_symbol(
+             "j", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
 
         # Create "result(i)"
         r_fr_order, r_nfr_order, r_nfr = self._get_full_range_split(result)
@@ -408,10 +378,10 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
             first_pos = v_fr_order[0]
         lower_bound, upper_bound = vector.symbol.get_bounds(first_pos)
         jloop = Loop.create(j_loop_sym, lower_bound, upper_bound,
-                            Literal("1", INTEGER_TYPE), [assign])
+                            Literal("1", ScalarType.integer_type()), [assign])
         # Create "result(i) = 0.0"
         assign = Assignment.create(result_ref.copy(),
-                                   Literal("0.0", REAL_TYPE))
+                                   Literal("0.0", ScalarType.real_type()))
         # Create i loop and add assignment and j loop as children
         if len(m_fr_order) == 0:
             # If no full ranges, then matrix was specified
@@ -421,7 +391,8 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
             first_pos = m_fr_order[0]
         lower_bound, upper_bound = matrix.symbol.get_bounds(first_pos)
         iloop = Loop.create(i_loop_sym, lower_bound, upper_bound,
-                            Literal("1", INTEGER_TYPE), [assign, jloop])
+                            Literal("1", ScalarType.integer_type()),
+                            [assign, jloop])
         # Replace the existing assignment with the new loop.
         assignment.replace_with(iloop)
 
@@ -442,12 +413,12 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
 
         # Create new i, j and ii loop iterators.
         symbol_table = node.scope.symbol_table
-        i_loop_sym = symbol_table.new_symbol("i", symbol_type=DataSymbol,
-                                             datatype=INTEGER_TYPE)
-        j_loop_sym = symbol_table.new_symbol("j", symbol_type=DataSymbol,
-                                             datatype=INTEGER_TYPE)
-        ii_loop_sym = symbol_table.new_symbol("ii", symbol_type=DataSymbol,
-                                              datatype=INTEGER_TYPE)
+        i_loop_sym = symbol_table.new_symbol(
+             "i", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
+        j_loop_sym = symbol_table.new_symbol(
+             "j", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
+        ii_loop_sym = symbol_table.new_symbol(
+             "ii", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
         # Create "result(i,j)"
         r_fr_order, r_nfr_order, r_nfr = self._get_full_range_split(result)
         result_ref = _create_array_ref(result.symbol,
@@ -488,10 +459,10 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
             pos_last = m1_fr_order[-1]
         lower_bound, upper_bound = matrix1.symbol.get_bounds(pos_last)
         iiloop = Loop.create(ii_loop_sym, lower_bound, upper_bound,
-                             Literal("1", INTEGER_TYPE), [assign])
+                             Literal("1", ScalarType.integer_type()), [assign])
         # Create "result(i,j) = 0.0"
         assign = Assignment.create(result_ref.copy(),
-                                   Literal("0.0", REAL_TYPE))
+                                   Literal("0.0", ScalarType.real_type()))
         # Create i loop and add assignment and ii loop as children.
         if len(m1_fr_order) == 0:
             # If no full ranges, then matrix was specified
@@ -501,7 +472,8 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
             pos_first = m1_fr_order[0]
         lower_bound, upper_bound = matrix1.symbol.get_bounds(pos_first)
         iloop = Loop.create(i_loop_sym, lower_bound, upper_bound,
-                            Literal("1", INTEGER_TYPE), [assign, iiloop])
+                            Literal("1", ScalarType.integer_type()),
+                            [assign, iiloop])
         # Create j loop and add i loop as child.
         if len(m2_fr_order) == 0:
             # If no full ranges, then matrix was specified
@@ -511,7 +483,7 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
             pos_last = m2_fr_order[-1]
         lower_bound, upper_bound = matrix2.symbol.get_bounds(pos_last)
         jloop = Loop.create(j_loop_sym, lower_bound, upper_bound,
-                            Literal("1", INTEGER_TYPE), [iloop])
+                            Literal("1", ScalarType.integer_type()), [iloop])
         # Replace the original assignment with the new loop.
         assignment.replace_with(jloop)
 

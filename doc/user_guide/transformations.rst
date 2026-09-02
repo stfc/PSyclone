@@ -1,40 +1,9 @@
 .. -----------------------------------------------------------------------------
-.. BSD 3-Clause License
-..
-.. Copyright (c) 2017-2026, Science and Technology Facilities Council
-.. All rights reserved.
-..
-.. Redistribution and use in source and binary forms, with or without
-.. modification, are permitted provided that the following conditions are met:
-..
-.. * Redistributions of source code must retain the above copyright notice, this
-..   list of conditions and the following disclaimer.
-..
-.. * Redistributions in binary form must reproduce the above copyright notice,
-..   this list of conditions and the following disclaimer in the documentation
-..   and/or other materials provided with the distribution.
-..
-.. * Neither the name of the copyright holder nor the names of its
-..   contributors may be used to endorse or promote products derived from
-..   this software without specific prior written permission.
-..
-.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-.. POSSIBILITY OF SUCH DAMAGE.
+.. SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+..                         Facilities Council
+.. SPDX-License-Identifier: BSD-3-Clause
+.. See the full LICENSE file in the project root for details.
 .. -----------------------------------------------------------------------------
-.. Written by: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-..             A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
-..             I. Kavcic, Met Office
-..             J. Dendy, Met Office
 
 .. _transformations:
 
@@ -211,7 +180,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.ACCLoopTrans
+.. autoclass:: psyclone.psyir.transformations.ACCLoopTrans
     :members: apply
     :no-index:
 
@@ -378,6 +347,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.OMPCPURoutineTrans
+    :members: apply
+    :no-index:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.OMPCriticalTrans
     :members: apply
     :no-index:
@@ -413,7 +388,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.OMPParallelLoopTrans
+.. autoclass:: psyclone.psyir.transformations.OMPParallelLoopTrans
     :members: apply
     :no-index:
 
@@ -547,11 +522,6 @@ This is achieved using ``KernelModuleInlineTrans``:
 
 Once the PSy-layer has its own, private copy of the Kernel, it may
 subsequently be transformed.
-
-.. note:: Currently ``KernelModuleInlineTrans`` does not support re-naming
-	  the in-lined Kernel routine. This means that *all* calls to that
-	  Kernel in that source file are updated so as to call the same,
-	  local copy. #2846 will lift this limitation.
 
 To transform a kernel, one must first obtain its PSyIR with:
 
@@ -742,13 +712,26 @@ transformation.
 
 OpenMP Tasking
 ++++++++++++++
-PSyclone supports OpenMP Tasking, through the `OMPTaskloopTrans` and
-`OMPTaskwaitTrans` transformations. `OMPTaskloopTrans`
-transformations can be applied to loops, whilst the `OMPTaskwaitTrans`
+PSyclone supports OpenMP Tasking, through the ``OMPTaskloopTrans`` and
+``OMPTaskwaitTrans`` transformations. ``OMPTaskloopTrans``
+transformations can be applied to loops, whilst the ``OMPTaskwaitTrans``
 operator is applied to an OpenMP Parallel Region, and computes the dependencies
 caused by Taskloops, and adds OpenMP Taskwait statements to satisfy those
 dependencies. An example of using OpenMP tasking is available in
 `PSyclone/examples/nemo/eg1/openmp_taskloop_trans.py`.
+
+OpenMP CPU Routine Transformation
++++++++++++++++++++++++++++++++++
+The OpenMP CPU Routine transformation applies OpenMP parallelism to
+an entire routine. The transformation attempts to apply OpenMP loop directives
+to every loop in the routine, and then builds the largest OpenMP parallel
+region(s) possible to apply parallelism. If the ``nowait`` option is specified,
+then the transformation will attempt to maximise the number of nowait clauses
+on the loop directives, and minimise the number of barriers required to
+keep the output code correct.
+
+See the transformation's (``OMPCPURoutineTrans``) documentation for more details.
+
 
 .. _opencl:
 

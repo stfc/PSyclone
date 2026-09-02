@@ -1,39 +1,9 @@
 .. -----------------------------------------------------------------------------
-.. BSD 3-Clause License
-..
-.. Copyright (c) 2018-2026, Science and Technology Facilities Council
-.. All rights reserved.
-..
-.. Redistribution and use in source and binary forms, with or without
-.. modification, are permitted provided that the following conditions are met:
-..
-.. * Redistributions of source code must retain the above copyright notice, this
-..   list of conditions and the following disclaimer.
-..
-.. * Redistributions in binary form must reproduce the above copyright notice,
-..   this list of conditions and the following disclaimer in the documentation
-..   and/or other materials provided with the distribution.
-..
-.. * Neither the name of the copyright holder nor the names of its
-..   contributors may be used to endorse or promote products derived from
-..   this software without specific prior written permission.
-..
-.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-.. POSSIBILITY OF SUCH DAMAGE.
+.. SPDX-FileCopyrightText: Copyright (c) 2018-2026 Science and Technology
+..                         Facilities Council
+.. SPDX-License-Identifier: BSD-3-Clause
+.. See the full LICENSE file in the project root for details.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-.. Modified by: J. Henrichs, Bureau of Meteorology,
-..              I. Kavcic, Met Office
 
 .. _configuration:
 
@@ -92,7 +62,6 @@ section e.g.:
     [DEFAULT]
     DISTRIBUTED_MEMORY = true
     REPRODUCIBLE_REDUCTIONS = false
-    REPROD_PAD_SIZE = 8
     PSYIR_ROOT_NAME = psyir_tmp
     VALID_PSY_DATA_PREFIXES = profile, extract
     FORTRAN_STANDARD = f2008
@@ -155,11 +124,6 @@ DISTRIBUTED_MEMORY           Whether or not to generate code for distributed-mem
                              only supported for the LFRic API.
 REPRODUCIBLE_REDUCTIONS      Whether or not to generate code for reproducible OpenMP bool
                              reductions (see :ref:`openmp-reductions`) by default.
-REPROD_PAD_SIZE              If generating code for reproducible OpenMP reductions,  int
-                             this setting controls the amount of padding used
-                             between elements of the array in which each thread
-                             accumulates its local reduction. (This prevents false
-                             sharing of cache lines by different threads.)
 PSYIR_ROOT_NAME              The root for generated PSyIR symbol names if one is not str
                              supplied when creating a symbol. Defaults to
                              "psyir_tmp".
@@ -251,9 +215,9 @@ The option takes a space-separated list of ``key=value`` pairs, for
 example:
 ::
 
-    psyclone --config-opts="run_time_checks=warn reprod_pad_size=27" ...
+    psyclone --config-opts="run_time_checks=warn ...
 
-This will overwrite the settings for ``run_time_checks`` and ``reprod_pad_size``
+This will overwrite the settings for ``run_time_checks``
 in the configuration file. You can overwrite any setting in any section (without
 having to specify the section). Capitalisation of the keys is ignored.
 If an invalid key is specified, an exception will be raised and

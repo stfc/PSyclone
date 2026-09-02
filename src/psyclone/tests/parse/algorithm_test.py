@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
 
 '''A module to perform pytest unit tests on the parse/algorithm.py
 file. Some tests for this file are in parse_test.py. This file adds
@@ -247,7 +218,9 @@ def test_parser_invokeinfo_datatypes_mixed():
     args1 = info.calls[0].kcalls[1].args
     args2 = info.calls[0].kcalls[2].args
     args3 = info.calls[0].kcalls[3].args
-    assert len(info.calls[0].kcalls) == 4
+    args4 = info.calls[0].kcalls[4].args
+    args5 = info.calls[0].kcalls[5].args
+    assert len(info.calls[0].kcalls) == 6
     assert args0[0]._datatype == ("real", "r_def")
     assert args0[1]._datatype == ("field_type", None)
     assert args0[2]._datatype == ("operator_type", None)
@@ -259,6 +232,11 @@ def test_parser_invokeinfo_datatypes_mixed():
     assert args2[2]._datatype == ("r_tran_operator_type", None)
     assert args3[0]._datatype == ("real", "r_bl")
     assert args3[1]._datatype == ("r_bl_field_type", None)
+    assert args4[0]._datatype == ("real", "real32")
+    assert args4[1]._datatype == ("field_real32_type", None)
+    assert args5[0]._datatype == ("real", "real64")
+    assert args5[1]._datatype == ("field_real64_type", None)
+    assert args5[2]._datatype == ("operator_real64_type", None)
 
 
 def test_parser_invokeinfo_datatypes_self():
@@ -347,7 +325,7 @@ def test_parser_invokeinfo_datatypes_clash():
     is simply a limitation of the current implementation as we do not
     capture the context of a symbol so do not deal with variable
     scope. This limitation will disappear when the PSyIR is used to
-    determine datatypes, see issue #753.
+    determine datatypes, see issue #1618.
 
     '''
     alg_filename = os.path.join(

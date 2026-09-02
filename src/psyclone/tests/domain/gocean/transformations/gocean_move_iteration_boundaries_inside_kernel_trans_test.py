@@ -1,37 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors: S. Siso and A. R. Porter, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for the PSyclone
@@ -46,7 +17,7 @@ from psyclone.domain.gocean.transformations import (
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.nodes import (
     Assignment, Container, IfBlock, Return)
-from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, ScalarType
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.utilities import get_invoke
@@ -84,11 +55,11 @@ def test_go_move_iteration_boundaries_inside_kernel_trans(tmp_path):
 
     # Add some name conflicting symbols in the Invoke and the Kernel
     kernel.ancestor(Container).symbol_table.new_symbol(
-        "xstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        "xstop", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
     routines = kernel.get_callees()
     ksched = routines[0]
     ksched.symbol_table.new_symbol(
-        "ystart", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        "ystart", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
 
     # Apply the transformation
     KernelModuleInlineTrans().apply(kernel)
@@ -209,8 +180,8 @@ def test_go_move_iteration_boundaries_inside_kernel_two_kernels_apply_twice(
   ystop = cu_fld%internal%ystop
   do j = 1, SIZE(cu_fld%data, dim=2), 1
     do i = 1, SIZE(cu_fld%data, dim=1), 1
-      call compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data, xstart, \
-xstop, ystart, ystop)
+      call compute_cu_code_inlined_(i, j, cu_fld%data, p_fld%data, u_fld%data,\
+ xstart, xstop, ystart, ystop)
     enddo
   enddo
   xstart_1 = 1
@@ -219,8 +190,8 @@ xstop, ystart, ystop)
   ystop_1 = SIZE(uold_fld%data, dim=2)
   do j = 1, SIZE(uold_fld%data, dim=2), 1
     do i = 1, SIZE(uold_fld%data, dim=1), 1
-      call time_smooth_code(i, j, cu_fld%data, unew_fld%data, uold_fld%data, \
-xstart_1, xstop_1, ystart_1, ystop_1)
+      call time_smooth_code_inlined_(i, j, cu_fld%data, unew_fld%data, \
+uold_fld%data, xstart_1, xstop_1, ystart_1, ystop_1)
     enddo
   enddo
 

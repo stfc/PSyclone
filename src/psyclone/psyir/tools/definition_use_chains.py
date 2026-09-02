@@ -1,42 +1,13 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2024-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: A. B. G. Chalk, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 """This module contains the DefinitionUseChain class"""
 
 import sys
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Union
 
 from fparser.two.Fortran2003 import (
     Cycle_Stmt,
@@ -44,6 +15,8 @@ from fparser.two.Fortran2003 import (
     Goto_Stmt,
 )
 
+from psyclone.core import Signature
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     Assignment,
     Call,
@@ -61,14 +34,15 @@ from psyclone.psyir.nodes import (
     WhileLoop,
     PSyDataNode,
 )
+from psyclone.psyir.symbols import UnsupportedType, UnresolvedType
 
 
 class DefinitionUseChain:
     """The DefinitionUseChain class is used to find nodes in a tree
     that have data dependencies on the provided reference.
 
-    :param reference: The Reference for which the dependencies will be
-                      computed.
+    :param references: The References for which the dependencies will be
+                       computed.
     :param control_flow_region: Optional region to search for data
                                 dependencies. Default is the parent Routine or
                                 the root of the tree's children if no ancestor
@@ -79,25 +53,60 @@ class DefinitionUseChain:
                            dependency search.
 
     :raises TypeError: If one of the arguments is the wrong type.
-
+    :raises InternalError: If not all of the references have the same parent.
     """
 
     def __init__(
         self,
-        reference: Reference,
+        references: Union[list[Reference], Reference],
         control_flow_region: Iterable[Node] = (),
         start_point: Optional[int] = None,
         stop_point: Optional[int] = None,
     ):
-        if not isinstance(reference, Reference):
+        if isinstance(references, Reference):
+            references = [references]
+        if not isinstance(references, list):
             raise TypeError(
-                f"The 'reference' argument passed into a DefinitionUseChain "
-                f"must be a Reference but found "
-                f"'{type(reference).__name__}'."
+                f"The 'references' argument passed into a DefinitionUseChain "
+                f"must be a list of References or a single Reference but "
+                f"found '{type(references).__name__}'."
             )
-        self._reference = reference
-        # Store the absolute position for later.
-        self._reference_abs_pos = reference.abs_position
+        for ref in references:
+            if not isinstance(ref, Reference):
+                raise TypeError(
+                    f"The 'references' argument passed into a "
+                    f"DefinitionUseChain must be a Reference or "
+                    f"list of References but found "
+                    f"'{type(ref).__name__}'."
+                )
+        # We need all the references to have the same ancestor Schedule and
+        # belong to the same child of the Schedule.
+        # Skip this check if we only have 1 input.
+        if len(references) > 1:
+            parent = references[0].ancestor(Schedule)
+            # Skip this check for detached nodes, since we get copies
+            # provided to the recursive calls.
+            if parent:
+                parent_idx = references[0].path_from(parent)[0]
+                for ref in references:
+                    if (ref.ancestor(Schedule) is not parent or
+                            ref.path_from(parent)[0] != parent_idx):
+                        raise InternalError(
+                            "All references provided into a "
+                            "DefinitionUseChain must have the same parent in "
+                            "the ancestor Schedule."
+                            )
+        # Make a shallow copy of the list so we can modify it.
+        self._references = references[:]
+        # Store the absolute positions and signatures for later.
+        self._reference_signatures = []
+        self._references_abs_pos = {}
+        self._references[0].compute_cached_abs_positions()
+        for ref in references:
+            sig, _ = ref.get_signature_and_indices()
+            self._reference_signatures.append(sig)
+            self._references_abs_pos[sig] = ref.abs_position
+
         # To enable loops to work correctly we can set the start/stop point
         # and not just use base it on the reference's absolute position
         if start_point and not isinstance(start_point, int):
@@ -115,9 +124,9 @@ class DefinitionUseChain:
         self._start_point = start_point
         self._stop_point = stop_point
         if not control_flow_region:
-            self._scope = [reference.ancestor(Routine)]
+            self._scope = [references[0].ancestor(Routine)]
             if self._scope[0] is None:
-                self._scope = reference.root.children[:]
+                self._scope = references[0].root.children[:]
         else:
             # We need a list of regions for control flow.
             if not isinstance(control_flow_region, list):
@@ -134,37 +143,53 @@ class DefinitionUseChain:
                 )
             self._scope = control_flow_region
 
-        # The uses, defsout and killed sets as defined for each basic block.
-        self._uses = []
-        self._defsout = []
-        self._killed = []
+        # These are maps of signatures to node for the region of code provided
+        # to the DUC, for every singature:
+        # - The uses collects every possible read reached from the start of the
+        # region (until we find any guaranteed write).
+        self._uses = {}
+        # - The defout collects the nodes that could represent end points of
+        # the signature use chain (all writes before the guaranteed write).
+        self._defsout = {}
+        # - The killed is a working collection used by compute_x_uses to store
+        # writes found that are defenitely not the final write.
+        self._killed = {}
+        # - The reaches collects all nodes that can be reached for each
+        # signature from the start of the region.
+        self._reaches = {}
 
-        # The output map, mapping between nodes and the reach of that node.
-        self._reaches = []
+        # Initialise the maps.
+        for sig in self._reference_signatures:
+            self._uses[sig] = []
+            self._defsout[sig] = []
+            self._killed[sig] = []
+            self._reaches[sig] = []
 
     @property
-    def uses(self) -> list[Node]:
+    def uses(self) -> dict[list[Node]]:
         """
-        :returns: the list of nodes using the value that the referenced symbol
-                  has before it is reassigned.
+        :returns: a map holding, for each referenced Symbol, the list of nodes
+                  that use the value that the Symbol had before it is
+                  reassigned.
         """
         return self._uses
 
     @property
-    def defsout(self) -> list[Node]:
+    def defsout(self) -> dict[list[Node]]:
         """
-        :returns: the list of nodes that reach the end of the block without
-                  being killed, and therefore can have dependencies outside
-                  of this block.
+        :returns: a map holding, for each referenced Symbol, the list of nodes
+                  whose values reach the end of the block without being killed,
+                  and therefore can have dependencies outside of this block.
         """
         return self._defsout
 
     @property
-    def killed(self) -> list[Node]:
+    def killed(self) -> dict[list[Node]]:
         """
-        :returns: the list of nodes that represent the last use of an assigned
-                  variable. Calling next_access on any of these nodes will find
-                  a write that reassigns it's value.
+        :returns: a map holding, for each reference Symbol, the list of nodes
+                  that represent the last use of the assigned Symbol. Calling
+                  next_access on any of these nodes will find a write that
+                  reassigns the value of the Symbol inside this block.
         """
         return self._killed
 
@@ -183,9 +208,9 @@ class DefinitionUseChain:
                 return False
         return True
 
-    def find_forward_accesses(self) -> list[Node]:
+    def find_forward_accesses(self) -> dict[Signature, list[Node]]:
         """
-        Find all the forward accesses for the reference defined in this
+        Find all the forward accesses for the references defined in this
         DefinitionUseChain.
         Forward accesses are all of the References or Calls that read
         or write to the symbol of the reference up to the point that a
@@ -194,13 +219,13 @@ class DefinitionUseChain:
         that occur inside control flow do not end the forward access
         chain.
 
-        :returns: the forward accesses of the reference given to this
+        :returns: the forward accesses of the references given to this
                   DefinitionUseChain
         """
         # Compute the abs position caches as we'll use these a lot.
         # The compute_cached_abs_position will only do this if needed
         # so we don't need to check here.
-        self._reference.compute_cached_abs_positions()
+        self._references[0].compute_cached_abs_positions()
 
         # Setup the start and stop positions
         save_start_position = self._start_point
@@ -208,7 +233,12 @@ class DefinitionUseChain:
         # If there is no set start point, then we look for all
         # accesses after the Reference.
         if self._start_point is None:
-            self._start_point = self._reference_abs_pos
+            # Find the highest abs position, as all of these are contained
+            # in the same parent. We start after the last of the provided
+            # references, as for a statement such as b = a + a we don't want
+            # to return any of the References to a if the second a Reference
+            # is provided as an input to the DUC.
+            self._start_point = max(list(self._references_abs_pos.values()))
         # If there is no set stop point, then any Reference after
         # the start point can potentially be a forward access.
         if self._stop_point is None:
@@ -229,10 +259,10 @@ class DefinitionUseChain:
             # called but thats hard to otherwise track.
             if (
                 isinstance(self._scope[0], Routine)
-                or self._scope[0] is self._reference.root
+                or self._scope[0] is self._references[0].root
             ):
                 # Check if there is an ancestor Loop/WhileLoop.
-                ancestor = self._reference.ancestor((Loop, WhileLoop))
+                ancestor = self._references[0].ancestor((Loop, WhileLoop))
                 while ancestor is not None:
                     # Create a basic block for the ancestor Loop.
                     body = ancestor.loop_body.children[:]
@@ -240,10 +270,8 @@ class DefinitionUseChain:
                     # Find the stop point - this needs to be the node after
                     # the ancestor statement.
                     sub_stop_point = (
-                        self._reference.ancestor(Statement)
-                        .walk(Node)[-1]
-                        .abs_position
-                        + 1
+                        self._references[0].ancestor(Statement)
+                        .get_last_descendant_node().abs_position + 1
                     )
                     # If we have a basic block with no children then skip it,
                     # e.g. for an if block with no code before the else
@@ -253,19 +281,19 @@ class DefinitionUseChain:
                         # node to avoid handling the special cases based on
                         # the parents of the reference.
                         chain = DefinitionUseChain(
-                            self._reference.copy(),
+                            [ref.copy() for ref in self._references],
                             body,
                             start_point=ancestor.abs_position,
                             stop_point=sub_stop_point,
                         )
                         chains.insert(0, chain)
-                    # If its a while loop, create a basic block for the while
+                    # If it's a while loop, create a basic block for the while
                     # condition.
                     if isinstance(ancestor, WhileLoop):
                         control_flow_nodes.insert(0, None)
                         sub_stop_point = ancestor.loop_body.abs_position
                         chain = DefinitionUseChain(
-                            self._reference.copy(),
+                            [ref.copy() for ref in self._references],
                             [ancestor.condition],
                             start_point=ancestor.abs_position,
                             stop_point=sub_stop_point,
@@ -274,25 +302,35 @@ class DefinitionUseChain:
                     ancestor = ancestor.ancestor((Loop, WhileLoop))
 
                 # Check if there is an ancestor Assignment.
-                ancestor = self._reference.ancestor(Assignment)
+                ancestor = self._references[0].ancestor(Assignment)
                 if ancestor is not None:
                     # If the reference is the lhs then we can ignore the RHS.
-                    if ancestor.lhs is self._reference:
+                    # This can only be the case if we only have a single
+                    # reference input.
+                    if (ancestor.lhs is self._references[0]
+                            and len(self._references) == 1):
                         # Find the last node in the assignment
-                        last_node = ancestor.walk(Node)[-1]
+                        last_node = ancestor.get_last_descendant_node()
                         # Modify the start_point to only include the node after
                         # this assignment.
                         self._start_point = last_node.abs_position
-                    else:
+                    elif (all([ref is not ancestor.lhs for
+                               ref in self._references])):
                         # Add the lhs as a potential basic block with
-                        # different start and stop positions.
+                        # different start and stop positions, but don't
+                        # include the lhs if the lhs is present.
                         chain = DefinitionUseChain(
-                            self._reference,
+                            [ref.copy() for ref in self._references],
                             [ancestor.lhs],
                             start_point=ancestor.lhs.abs_position - 1,
                             stop_point=ancestor.lhs.abs_position + 1,
                         )
-                        control_flow_nodes.append(None)
+                        index = len(chains)
+                        # This chain is missed by the call to
+                        # _find_basic_blocks, so we nede to add a None
+                        # into the control_flow_nodes list at the correct
+                        # place to keep behaviour correct.
+                        control_flow_nodes.insert(index, None)
                         chains.append(chain)
                         # N.B. For now this assumes that for an expression
                         # b = a * a, that next_access to the first Reference
@@ -306,12 +344,13 @@ class DefinitionUseChain:
                 if len(block) == 0:
                     continue
                 chain = DefinitionUseChain(
-                    self._reference,
+                    self._references[:],
                     block,
                     start_point=self._start_point,
                     stop_point=self._stop_point,
                 )
                 chains.append(chain)
+
             for i, chain in enumerate(chains):
                 # Compute the defsout, killed and reaches for the block.
                 chain.find_forward_accesses()
@@ -320,15 +359,37 @@ class DefinitionUseChain:
                 if cfn is None:
                     # We're outside a control flow region, updating the reaches
                     # here is to find all the reached nodes.
-                    for ref in chain._reaches:
-                        # Add unique references to reaches. Since we're not
-                        # in a control flow region, we can't have added
-                        # these references into the reaches array yet so
-                        # they're guaranteed to be unique.
-                        self._reaches.append(ref)
-                    # If we have a defsout in the chain then we can stop as we
-                    # will never get past the write as its not conditional.
-                    if len(chain.defsout) > 0:
+                    # Some signatures may already have been removed by being
+                    # killed, so we only add those that haven't already been
+                    # killed.
+                    for sig in chain._reaches:
+                        if sig in self._reference_signatures:
+                            for ref in chain._reaches[sig]:
+                                # Add unique references to reaches. We always
+                                # need to check as the input can have multiple
+                                # References to the same symbol.
+                                for ref2 in self._reaches[sig]:
+                                    if ref2 is ref:
+                                        break
+                                else:
+                                    self._reaches[sig].append(ref)
+                    # If we have a defsout in the chain then we can stop for
+                    # that reference as we will never get past the write
+                    # as it's not conditional. Since we don't always include
+                    # the LHS of an assignment into the chain we skip the
+                    # signature if it's not present in the chain defsout dict.
+                    for i, sig in enumerate(self._reference_signatures):
+                        if (sig in chain.defsout and
+                                len(chain.defsout[sig]) > 0):
+                            self._references.pop(i)
+                            self._reference_signatures.pop(i)
+                            # Make sure we propagate the defsout updates
+                            # to ensure we don't go past it for other
+                            # accesses above.
+                            self._defsout[sig].extend(chain.defsout[sig])
+                    # If we have found an end point for all references then
+                    # we can finish.
+                    if len(self._references) == 0:
                         # Reset the start and stop points before returning
                         # the result.
                         self._start_point = save_start_position
@@ -341,43 +402,55 @@ class DefinitionUseChain:
                     # or if block structures to see if we're guaranteed to
                     # write to the symbol.
                     # If the control flow node is a Loop we have to check
-                    # if the variable is the same symbol as the _reference.
+                    # if the variable is the same symbol as any of the
+                    # References in _references.
                     if isinstance(cfn, Loop):
                         cfn_abs_pos = cfn.abs_position
-                        if (
-                            cfn.variable == self._reference.symbol
-                            and cfn_abs_pos >= self._start_point
-                            and cfn_abs_pos < self._stop_point
-                        ):
-                            # The loop variable is always written to and so
-                            # we're done if its reached.
-                            self._reaches.append(cfn)
-                            self._start_point = save_start_position
-                            self._stop_point = save_stop_position
-                            return self._reaches
+                        for i, ref in enumerate(self._references[:]):
+                            if (
+                                cfn.variable == ref.symbol
+                                and cfn_abs_pos >= self._start_point
+                                and cfn_abs_pos < self._stop_point
+                            ):
+                                # The loop variable is always written to.
+                                sig = self._reference_signatures[i]
+                                self._reaches[sig].append(cfn)
+                                # This reference is killed by this access.
+                                self._references.pop(i)
+                                self._reference_signatures.pop(i)
+                                # If we have found an end point for all
+                                # references then we can finish.
+                                if len(self._references) == 0:
+                                    self._start_point = save_start_position
+                                    self._stop_point = save_stop_position
+                                    return self._reaches
 
-                    for ref in chain._reaches:
-                        # Add node to the _reaches list if it is not already
-                        # contained. Note that a "not in" check is not
-                        # sufficient as it checks for equality, but this needs
-                        # identity uniqueness.
-                        for ref2 in self._reaches:
-                            if ref2 is ref:
-                                break
-                        else:
-                            self._reaches.append(ref)
+                    for sig in chain._reaches:
+                        # Not all signatures are still being searched for,
+                        # some have already been killed by previous accesses
+                        # so we should skip them.
+                        if sig in self._reference_signatures:
+                            for ref in chain._reaches[sig]:
+                                # Add unique references to reaches. Since we
+                                # could have multiple references to the same
+                                # symbol in the input they're not unique, so
+                                # we need to check for uniqueness. As nodes
+                                # can be == but not the same object, this
+                                # has to be done using a loop and `is`.
+                                for ref2 in self._reaches[sig]:
+                                    if ref2 is ref:
+                                        break
+                                else:
+                                    self._reaches[sig].append(ref)
         else:
             # Check if there is an ancestor Assignment.
-            ancestor = self._reference.ancestor(Assignment)
+            ancestor = self._references[0].ancestor(Assignment)
             if ancestor is not None:
-                # If we get here to check the start part of a loop we need
-                # to handle this differently.
-                if self._start_point != self._reference_abs_pos:
-                    pass
-                # If the reference is the lhs then we can ignore the RHS.
-                if ancestor.lhs is self._reference:
+                # If any of the references is the lhs then we can ignore the
+                # RHS.
+                if any([ancestor.lhs is ref for ref in self._references]):
                     # Find the last node in the assignment
-                    last_node = ancestor.walk(Node)[-1]
+                    last_node = ancestor.get_last_descendant_node()
                     # Modify the start_point to only include the node after
                     # this assignment.
                     self._start_point = last_node.abs_position
@@ -389,18 +462,26 @@ class DefinitionUseChain:
                     # Add the lhs as a potential basic block with different
                     # start and stop positions.
                     chain = DefinitionUseChain(
-                        self._reference,
+                        [ref for ref in self._references],
                         [ancestor.lhs],
                         start_point=ancestor.lhs.abs_position - 1,
                         stop_point=ancestor.lhs.abs_position + 1,
                     )
                     # Find any forward_accesses in the lhs.
                     chain.find_forward_accesses()
-                    for ref in chain._reaches:
-                        self._reaches.append(ref)
+                    for sig in chain._reaches:
+                        if sig in self._reference_signatures:
+                            for ref in chain._reaches[sig]:
+                                self._reaches[sig].append(ref)
                     # If we have a defsout in the chain then we can stop as we
-                    # will never get past the write as its not conditional.
-                    if len(chain.defsout) > 0:
+                    # will never get past the write as it's not conditional.
+                    for i, sig in enumerate(self._reference_signatures):
+                        if len(chain.defsout[sig]) > 0:
+                            self._references.pop(i)
+                            self._reference_signatures.pop(i)
+                    # If we have found an end point for all references then
+                    # we can finish.
+                    if len(self._references) == 0:
                         # Reset the start and stop points before returning
                         # the result.
                         self._start_point = save_start_position
@@ -408,25 +489,258 @@ class DefinitionUseChain:
                         return self._reaches
             # We can compute the rest of the accesses
             self._compute_forward_uses(self._scope)
-            for ref in self._uses:
-                self._reaches.append(ref)
-            # If this block doesn't kill any accesses, then we add
-            # the defsout into the reaches array.
-            if len(self.killed) == 0:
-                for ref in self._defsout:
-                    self._reaches.append(ref)
-            else:
-                # If this block killed any accesses, then the first element
-                # of the killed writes is the access access that we're
-                # dependent with.
-                self._reaches.append(self.killed[0])
+            for sig in self._reference_signatures:
+                for ref in self._uses[sig]:
+                    self._reaches[sig].append(ref)
+                # If this block doesn't kill any accesses, then we add
+                # the defsout into the reaches array.
+                if len(self.killed[sig]) == 0:
+                    for ref in self._defsout[sig]:
+                        self._reaches[sig].append(ref)
+                else:
+                    # If this block killed any accesses, then the first element
+                    # of the killed writes is the access that we're
+                    # dependent with.
+                    self._reaches[sig].append(self.killed[sig][0])
 
         # Reset the start and stop points before returning the result.
         self._start_point = save_start_position
         self._stop_point = save_stop_position
         return self._reaches
 
-    def _compute_forward_uses(self, basic_block_list: list[Node]):
+    def _check_forward_parent_codeblock(self, reference: Reference) -> None:
+        """
+        Updates the defsout and killed dicts when a Codeblock is found
+        as a parent of a Reference during _compute_forward_uses.
+
+        :param reference: The Reference contained in a CodeBlock.
+
+        """
+        for i, ref in enumerate(self._references[:]):
+            if ref.symbol.is_automatic:
+                continue  # We use the standard reference logic
+            # If not, assume the worst for a CodeBlock and we count
+            # them as killed and defsout and uses.
+            sig = self._reference_signatures[i]
+            if self._defsout[sig]:
+                self._killed[sig].extend(self._defsout[sig])
+                self._defsout[sig] = []
+            self._defsout[sig].append(reference)
+
+    def _check_forward_codeblock(self, reference: CodeBlock) -> bool:
+        """
+        Updates the defsout and killed dicts when a CodeBlock is
+        found during _compute_forward_uses.
+
+        :param reference: The CodeBlock being analysed.
+
+        :returns: whether the calling function should terminate.
+
+        :raises NotImplementedError: If a GOTO statement is found in the code
+                                     region.
+        """
+        # CodeBlocks only find symbols, so we can only do as good
+        # as checking the symbol - this means we can get false
+        # positives for structure accesses inside CodeBlocks.
+        # TODO #3568: Codeblocks should have an implemented method
+        # to check for the presence of Goto statements.
+        if any([isinstance(node, Goto_Stmt) for node in
+                reference.parse_tree_nodes]):
+            raise NotImplementedError(
+                "DefinitionUseChains can't handle code containing"
+                " GOTO statements."
+            )
+        # If we find an Exit or Cycle statement, we can't
+        # reach further in this code region so we can return.
+        # TODO #3568: Codeblocks should have implemented methods
+        # to check for the presence of these statements.
+        if any([isinstance(
+            ref, (Exit_Stmt, Cycle_Stmt)) for ref in
+            reference.parse_tree_nodes]
+        ):
+            return True
+
+        for i, ref in enumerate(self._references[:]):
+            # If the DUC's searched Reference is to an UnsupportedType then
+            # it needs to assume the worst case for the CodeBlock if it
+            # contains an UnsupportedType or UnresolvedType
+            if isinstance(ref.datatype, UnsupportedType):
+                for sym in reference.get_symbol_names():
+                    symbol = reference.scope.symbol_table.lookup(
+                        sym
+                    )
+                    if isinstance(symbol.datatype,
+                                  (UnsupportedType,
+                                   UnresolvedType)):
+                        # Assume the worst for a CodeBlock and we count them
+                        # as killed and defsout.
+                        sig = self._reference_signatures[i]
+                        if self._defsout[sig]:
+                            self._killed[sig].extend(
+                                self._defsout[sig]
+                            )
+                            self._defsout[sig] = []
+                        self._defsout[sig].append(reference)
+                continue
+        return False
+
+    def _check_forward_call(self, reference: Call) -> None:
+        """
+        Updates the defsout and killed dicts when a Call is
+        found during _compute_forward_uses.
+
+        :param reference: The Call being analysed.
+        """
+        # If it's a local variable we can ignore it as we'll catch
+        # the Reference later if it's passed into the Call.
+        for i, ref in enumerate(self._references[:]):
+            if ref.symbol.is_automatic:
+                continue
+            if isinstance(reference, IntrinsicCall):
+                # IntrinsicCall can only do stuff to arguments, these will be
+                # caught by Reference walk already. Note that this assumes
+                # two symbols are not aliases of each other.
+                continue
+            if reference.is_pure:
+                # Pure subroutines only touch their arguments, so we'll catch
+                # the arguments that are passed into the call later as
+                # References.
+                continue
+            # For now just assume calls are bad if we have a non-local
+            # variable: we treat them as though they were a write.
+            sig = self._reference_signatures[i]
+            if self._defsout[sig]:
+                self._killed[sig].extend(self._defsout[sig])
+                self._defsout[sig] = []
+            self._defsout[sig].append(reference)
+
+    def _check_forward_matched_reference(self, reference: Reference) -> None:
+        """
+        Updates the defsout, uses and killed dicts when a Reference
+        is matched by name during _compute_forward_uses.
+
+        :param reference: The Reference being analysed.
+        """
+        sig = reference.get_signature_and_indices()[0]
+        # Work out if it's read only or not.
+        assign = reference.ancestor(Assignment)
+        if assign is not None:
+            if assign.lhs is reference:
+                # This is a write to the reference, so kill the previous
+                # defsout and set this to be the defsout.
+                if self._defsout[sig]:
+                    self._killed[sig].extend(self._defsout[sig])
+                    self._defsout[sig] = []
+                self._defsout[sig].append(reference)
+            elif (
+                self._defsout[sig] and assign.lhs is self._defsout[sig][-1]
+                and len(self._killed[sig]) == 0
+                and assign.lhs.get_signature_and_indices()[0] == sig
+                and any(
+                    [assign.lhs is not ref for ref in self._references]
+                )
+            ):
+                # reference is on the rhs of an assignment such as
+                # a = a + 1. Since the PSyIR tree walk accesses
+                # the lhs of an assignment before the rhs of an
+                # assignment we need to not ignore these accesses.
+                self._uses[sig].append(reference)
+            else:
+                # Read only, so if we've not yet set written to this variable
+                # this is a use.
+                if not self._defsout[sig]:
+                    self._uses[sig].append(reference)
+        elif reference.ancestor((Call, CodeBlock)):
+            # Otherwise we assume read/write access as PSyclone does not
+            # know information about intents or CodeBlock accesses.
+            if self._defsout[sig]:
+                self._killed[sig].extend(self._defsout[sig])
+                self._defsout[sig] = []
+            self._defsout[sig].append(reference)
+        else:
+            # Reference outside an Assignment - read only. This could be
+            # References inside a While loop condition for example.
+            if not self._defsout[sig]:
+                self._uses[sig].append(reference)
+
+    def _check_forward_unsupported_type(self, reference: Reference) -> None:
+        """
+        Updates the defsout and killed dicts when a Reference
+        with an UnsupportedType datatype is matched
+        during _compute_forward_uses.
+
+        :param reference: The Reference being analysed.
+
+        """
+        # If it's accessed on the lhs of an assignment or as an
+        # argument of a call then it's a write to every signature of
+        # a Reference of an UnsupportedType, otherwise it's a read
+        # to every signature of a Reference of an UnsupportedType.
+        assign = reference.ancestor(Assignment)
+        if assign is not None:
+            if assign.lhs is reference:
+                for i, sig in enumerate(self._reference_signatures):
+                    if not isinstance(
+                        self._references[i].datatype,
+                        UnsupportedType
+                    ):
+                        continue
+                    if self._defsout[sig]:
+                        self._killed[sig].extend(self._defsout[sig])
+                        self._defsout[sig] = []
+                    self._defsout[sig].append(reference)
+            # If the reference is on the rhs of an assignment where the lhs
+            # is a write to any of the signatures then this should be added
+            # to the uses for that signature if it's also an UnsupportedType.
+            elif (
+                any((self._defsout[sig] and
+                     self._defsout[sig][-1] is assign.lhs and
+                     len(self._killed[sig]) == 0) for sig in
+                    self._reference_signatures)
+            ):
+                for i, sig in enumerate(self._reference_signatures):
+                    if not isinstance(
+                        self._references[i].datatype,
+                        UnsupportedType
+                    ):
+                        continue
+                    if (self._defsout[sig][-1] is assign.lhs and
+                            len(self._killed[sig]) == 0):
+                        self._uses[sig].append(reference)
+            else:
+                # If the reference is on a rhs it is a use for any unkilled
+                # unsupported type.
+                for i, sig in enumerate(self._reference_signatures):
+                    if not isinstance(
+                        self._references[i].datatype,
+                        UnsupportedType
+                    ):
+                        continue
+                    if not self._defsout[sig]:
+                        self._uses[sig].append(reference)
+
+        elif reference.ancestor(Call):
+            # If it's an argument to a Call then it is considered a readwrite
+            # to all UnsupportedType references.
+            for i, sig in enumerate(self._reference_signatures):
+                if not isinstance(self._references[i].datatype,
+                                  UnsupportedType):
+                    continue
+                if self._defsout[sig]:
+                    self._killed[sig].extend(self._defsout[sig])
+                    self._defsout[sig] = []
+                self._defsout[sig].append(reference)
+        else:
+            # Otherwise all other UnsupportedType References
+            # count as a read to all UnsupportedType inputs.
+            for i, sig in enumerate(self._reference_signatures):
+                if not isinstance(self._references[i].datatype,
+                                  UnsupportedType):
+                    continue
+                if not self._defsout[sig]:
+                    self._uses[sig].append(reference)
+
+    def _compute_forward_uses(self, basic_block_list: list[Node]) -> None:
         """
         Compute the forward uses for self._reference for the
         basic_block_list provided. This function will not work
@@ -443,9 +757,10 @@ class DefinitionUseChain:
         :raises NotImplementedError: If a GOTO statement is found in the code
                                      region.
         """
-        sig, _ = self._reference.get_signature_and_indices()
-        # For a basic block we will only ever have one defsout
-        defs_out = None
+        # For a basic block we will only ever have one defsout per reference.
+        self._defsout = {}
+        for sig in self._reference_signatures:
+            self._defsout[sig] = []
         for region in basic_block_list:
             for reference in region.walk((Reference, Call, CodeBlock, Return)):
                 # Store the position instead of computing it twice.
@@ -455,108 +770,29 @@ class DefinitionUseChain:
                 if isinstance(reference, Return):
                     # When we find a return statement any following statements
                     # can be ignored so we can return.
-                    if defs_out is not None:
-                        self._defsout.append(defs_out)
                     return
-                # If its parent is an inquiry function then its neither
-                # a read nor write if its the first argument.
+                # If its parent is an inquiry function then it's neither
+                # a read nor write if it's the first argument.
                 if (isinstance(reference.parent, IntrinsicCall) and
                         reference.parent.is_inquiry and
                         reference.parent.arguments[0] is reference):
                     continue
+                if isinstance(reference.parent, CodeBlock):
+                    self._check_forward_parent_codeblock(reference)
                 if isinstance(reference, CodeBlock):
-                    # CodeBlocks only find symbols, so we can only do as good
-                    # as checking the symbol - this means we can get false
-                    # positives for structure accesses inside CodeBlocks.
-                    if isinstance(reference.parse_tree_nodes[0], Goto_Stmt):
-                        raise NotImplementedError(
-                            "DefinitionUseChains can't handle code containing"
-                            " GOTO statements."
-                        )
-                    # If we find an Exit or Cycle statement, we can't
-                    # reach further in this code region so we can return.
-                    if isinstance(
-                        reference.parse_tree_nodes[0], (Exit_Stmt, Cycle_Stmt)
-                    ):
-                        if defs_out is not None:
-                            self._defsout.append(defs_out)
+                    stop = self._check_forward_codeblock(reference)
+                    if stop:
                         return
-                    if (
-                        self._reference.symbol.name
-                        in reference.get_symbol_names()
-                    ):
-                        # Assume the worst for a CodeBlock and we count them
-                        # as killed and defsout and uses.
-                        if defs_out is not None:
-                            self._killed.append(defs_out)
-                        defs_out = reference
-                        continue
                 elif isinstance(reference, Call):
-                    # If its a local variable we can ignore it as we'll catch
-                    # the Reference later if its passed into the Call.
-                    if self._reference.symbol.is_automatic:
-                        continue
-                    if isinstance(reference, IntrinsicCall):
-                        # IntrinsicCall can only do stuff to arguments, these
-                        # will be caught by Reference walk already.
-                        # Note that this assumes two symbols are not
-                        # aliases of each other.
-                        continue
-                    if reference.is_pure:
-                        # Pure subroutines only touch their arguments, so we'll
-                        # catch the arguments that are passed into the call
-                        # later as References.
-                        continue
-                    # For now just assume calls are bad if we have a non-local
-                    # variable and we treat them as though they were a write.
-                    if defs_out is not None:
-                        self._killed.append(defs_out)
-                    defs_out = reference
-                    continue
-                elif reference.get_signature_and_indices()[0] == sig:
-                    # Work out if its read only or not.
-                    assign = reference.ancestor(Assignment)
-                    if assign is not None:
-                        if assign.lhs is reference:
-                            # This is a write to the reference, so kill the
-                            # previous defs_out and set this to be the
-                            # defs_out.
-                            if defs_out is not None:
-                                self._killed.append(defs_out)
-                            defs_out = reference
-                        elif (
-                            assign.lhs is defs_out
-                            and len(self._killed) == 0
-                            and assign.lhs.get_signature_and_indices()[0]
-                            == sig
-                            and assign.lhs is not self._reference
-                        ):
-                            # reference is on the rhs of an assignment such as
-                            # a = a + 1. Since the PSyIR tree walk accesses
-                            # the lhs of an assignment before the rhs of an
-                            # assignment we need to not ignore these accesses.
-                            self._uses.append(reference)
-                        else:
-                            # Read only, so if we've not yet set written to
-                            # this variable this is a use. NB. We need to
-                            # check the if the write is the LHS of the parent
-                            # assignment and if so check if we killed any
-                            # previous assignments.
-                            if defs_out is None:
-                                self._uses.append(reference)
-                    elif reference.ancestor(Call):
-                        # Otherwise we assume read/write access for now.
-                        if defs_out is not None:
-                            self._killed.append(defs_out)
-                        defs_out = reference
-                    else:
-                        # Reference outside an Assignment - read only
-                        # This could be References inside a While loop
-                        # condition for example.
-                        if defs_out is None:
-                            self._uses.append(reference)
-        if defs_out is not None:
-            self._defsout.append(defs_out)
+                    self._check_forward_call(reference)
+                elif (reference.get_signature_and_indices()[0] in
+                      self._reference_signatures):
+                    self._check_forward_matched_reference(reference)
+                # If we have a reference whose datatype is an
+                # UnsupportedType then we must assume it is aliased and
+                # therefore can access any other UnsupportedType Reference.
+                elif isinstance(reference.datatype, UnsupportedType):
+                    self._check_forward_unsupported_type(reference)
 
     def _find_basic_blocks(
         self, nodelist: list[Node]
@@ -649,9 +885,12 @@ class DefinitionUseChain:
                 if node.else_body:
                     refs = node.else_body.walk(Reference)
                     for ref in refs:
-                        if ref is self._reference:
-                            # If its in the else_body we don't add the if_body
-                            in_else_body = True
+                        # If it's in the else_body we don't add the if_body
+                        for ref2 in self._references:
+                            if ref is ref2:
+                                in_else_body = True
+                                break
+                        if in_else_body:
                             break
                 if not in_else_body:
                     control_flow_nodes.append(node)
@@ -660,8 +899,11 @@ class DefinitionUseChain:
                 in_if_body = False
                 refs = node.if_body.walk(Reference)
                 for ref in refs:
-                    if ref is self._reference:
-                        in_if_body = True
+                    for ref2 in self._references:
+                        if ref is ref2:
+                            in_if_body = True
+                            break
+                    if in_if_body:
                         break
                 if node.else_body and not in_if_body:
                     control_flow_nodes.append(node)
@@ -676,8 +918,8 @@ class DefinitionUseChain:
                 # careful, i.e. if we add support for the if clause.
                 # We add a basic block for each of the parts of the
                 # RegionDirective. We don't need to do anything with the
-                # control flow storing for now.
-                # This assumes that data in clauses is inquiry for now.
+                # control flow storage.
+                # This assumes that data in clauses is inquiry.
                 control_flow_nodes.append(None)
                 basic_blocks.append([node.dir_body])
             elif isinstance(node, PSyDataNode):
@@ -696,7 +938,229 @@ class DefinitionUseChain:
             control_flow_nodes.append(None)
         return control_flow_nodes, basic_blocks
 
-    def _compute_backward_uses(self, basic_block_list: list[Node]):
+    def _check_backward_codeblock(self, reference: CodeBlock) -> None:
+        """
+        Updates the defsout, uses, and killed dicts when a CodeBlock is
+        found during _compute_backward_uses.
+
+        :param reference: The CodeBlock being analysed.
+        """
+        for i, ref in enumerate(self._references[:]):
+            # If the DUC's searched Reference is to an UnsupportedType then
+            # it needs to assume the worst case for the CodeBlock if it
+            # contains an UnsupportedType or UnresolvedType
+            if isinstance(ref.datatype, UnsupportedType):
+                for sym in reference.get_symbol_names():
+                    symbol = reference.scope.symbol_table.lookup(sym)
+                    if isinstance(symbol.datatype,
+                                  (UnsupportedType,
+                                   UnresolvedType)):
+                        # Assume the worst for a CodeBlock and we count them
+                        # as killed and defsout.
+                        sig = self._reference_signatures[i]
+                        if self._defsout[sig]:
+                            self._killed[sig].extend(self._defsout[sig])
+                            self._defsout[sig] = []
+                        self._defsout[sig].append(reference)
+                continue
+
+    def _check_backward_call(self, reference: Call) -> None:
+        """
+        Updates the defsout, uses, and killed dicts when a Call is
+        found during _compute_backward_uses.
+
+        :param reference: The Call being analysed.
+        """
+        # If it's a local variable we can ignore it as we'll catch
+        # the Reference later if it's passed into the Call.
+        for i, ref in enumerate(self._references):
+            if ref.symbol.is_automatic:
+                continue
+            # If the call is an ancestor of the Reference then we skip it
+            # for backwards accesses.
+            if ref.is_descendant_of(reference):
+                continue
+            if isinstance(reference, IntrinsicCall):
+                # IntrinsicCall can only do stuff to arguments, these will
+                # be caught by Reference walk already.
+                continue
+            if reference.is_pure:
+                # Pure subroutines only touch their arguments, so we'll catch
+                # the arguments that are passed into the call later as
+                # References.
+                continue
+            # For now just assume calls are bad if we have a non-local variable
+            # and we treat them as though they were a write.
+            sig = self._reference_signatures[i]
+            if self._defsout[sig]:
+                self._killed[sig].extend(self._defsout[sig])
+                self._defsout[sig] = []
+            self._defsout[sig].append(reference)
+
+    def _check_backward_matched_reference(self, reference: Reference) -> None:
+        """
+        Updates the defsout, uses, and killed dicts when a Reference matched
+        by name is found during _compute_backward_uses.
+
+        :param reference: The Reference being analysed.
+        """
+        sig = reference.get_signature_and_indices()[0]
+        # Work out if it's read only or not.
+        assign = reference.ancestor(Assignment)
+        # RHS reads occur "before" LHS writes, so if we hit the LHS or an
+        # assignment then we won't have a dependency to the value used from
+        # the LHS.
+        if assign is not None:
+            if assign.lhs is reference:
+                # Check if the RHS contains the self._references. Can't use
+                # in since equality is not what we want here. We also only
+                # stop if the stop_point of the chain is in the assignment's
+                # rhs.
+                # If the RHS contains the self._reference, then this LHS is
+                # "after" so we skip it
+                for ref in assign.rhs.walk(Reference):
+                    if (
+                        any([ref is ref2 for
+                             ref2 in self._references])
+                        and self._stop_point == ref.abs_position
+                    ):
+                        return
+                # This is a write to the reference, so kill the previous
+                # defsout and set this to be the defsout.
+                if self._defsout[sig]:
+                    self._killed[sig].extend(self._defsout[sig])
+                    self._defsout[sig] = []
+                self._defsout[sig].append(reference)
+            elif (
+                assign.lhs.get_signature_and_indices()[0] == sig
+                and any(
+                    [assign.lhs is not ref for
+                     ref in self._references]
+                )
+            ):
+                # TODO #3552: This block is not well explained or understood
+                # but is necessary to avoid incorrect results. An improved
+                # implementation or comments explaining why will be added
+                # later.
+                # Reference is on the rhs of an assignment such as a = a + 1.
+                # Since we're looping through the tree walk in reverse, we
+                # find the a on the RHS of the statement separately from the
+                # LHS when inside a loop and one of the self._references
+                # appears in this RHS. In this case we avoid adding anything
+                # from this RHS to the chain.
+                return
+            else:
+                # Read only, so if we've not yet set written to this variable
+                # this is a use.
+                if not self._defsout[sig]:
+                    self._uses[sig].append(reference)
+        elif reference.ancestor((Call, CodeBlock)):
+            # Otherwise we assume read/write access as PSyclone does not
+            # know information about intents or CodeBlock accesses.
+            if self._defsout[sig]:
+                self._killed[sig].extend(self._defsout[sig])
+                self._defsout[sig] = []
+            self._defsout[sig].append(reference)
+        else:
+            # Reference outside an Assignment - read only. This could be
+            # References inside a While loop condition for example.
+            if not self._defsout[sig]:
+                self._uses[sig].append(reference)
+
+    def _check_backward_unsupported_type(self, reference: Reference) -> None:
+        """
+        Updates the defsout and killed dicts when a Reference with an
+        UnsupportedType datatype is matched during _compute_backward_uses.
+
+        :param reference: The Reference being analysed.
+
+        """
+        assign = reference.ancestor(Assignment)
+        if assign is not None:
+            # If the reference is on the lhs of an Assignment it can only be
+            # in the definition use chains of other UnsupportedTypes inputs
+            # that are not on the right hand side of this assignment.
+            if assign.lhs is reference:
+                for i, sig in enumerate(self._reference_signatures):
+                    if not isinstance(
+                        self._references[i].datatype, UnsupportedType
+                    ):
+                        continue
+                    # If the input Reference is on the rhs of this
+                    # assignment then we should skip the lhs.
+                    if (any(self._references[i] is ref for
+                            ref in assign.rhs.walk(Reference))):
+                        continue
+                    if self._defsout[sig]:
+                        self._killed[sig].extend(self._defsout[sig])
+                        self._defsout[sig] = []
+                    self.defsout[sig].append(reference)
+            else:
+                # If the LHS of an Assignment is an UnsupportedType then we
+                # can skip the RHS of this Assignment for UnsupportedTypes.
+                # This handles cases such as a = a + 1, where searching
+                # backwards from the a on the rhs needs to skip the lhs, as
+                # semantically the access to the lhs happens after the access
+                # to the rhs. This also applies for any pair of
+                # UnsupportedType accesses, as the DUCs consider them to all
+                # potentially access the same data.
+                # TODO #3552: This block is not well explained or understood
+                # but is necessary to avoid incorrect results. An improved
+                # implementation or comments explaining why will be added
+                # later.
+                if isinstance(assign.lhs.datatype, UnsupportedType):
+                    return
+                # If it's on the RHS of an Assignment then we
+                # add it as a read of all other UnsupportedTypes
+                for i, sig in enumerate(self._reference_signatures):
+                    if not isinstance(
+                        self._references[i].datatype,
+                        UnsupportedType
+                    ):
+                        continue
+                    if not self._defsout[sig]:
+                        self._uses[sig].append(reference)
+        elif reference.ancestor(Call):
+            # If it's an argument to a Call then it is considered a readwrite
+            # to all UnsupportedType references.
+            for i, sig in enumerate(self._reference_signatures):
+                if not isinstance(self._references[i].datatype,
+                                  UnsupportedType):
+                    continue
+                if self._defsout[sig]:
+                    self._killed[sig].extend(self._defsout[sig])
+                    self._defsout[sig] = []
+                self._defsout[sig].append(reference)
+        else:
+            # Otherwise all other UnsupportedType References count as a read
+            # to all UnsupportedType inputs.
+            for i, sig in enumerate(self._reference_signatures):
+                if not isinstance(self._references[i].datatype,
+                                  UnsupportedType):
+                    continue
+                if not self._defsout[sig]:
+                    self._uses[sig].append(reference)
+
+    def _check_backward_parent_codeblock(self, reference: Reference) -> None:
+        """
+        Updates the defsout and killed dicts when a Codeblock is found
+        as a parent of a Reference during _compute_backward_uses.
+
+        :param reference: The Reference contained in a CodeBlock.
+
+        """
+        for i, ref in enumerate(self._references[:]):
+            if ref.symbol.is_automatic:
+                continue  # We use the standard reference logic
+            # If not, assume the worst for a CodeBlock and we count
+            # them as killed and defsout and uses.
+            sig = self._reference_signatures[i]
+            if self._defsout[sig]:
+                self._killed[sig].extend(self._defsout[sig])
+                self._defsout[sig] = []
+            self._defsout[sig].append(reference)
+
+    def _compute_backward_uses(self, basic_block_list: list[Node]) -> None:
         """
         Compute the backward uses for self._reference for the
         basic_block_list provided. This function will not work
@@ -715,9 +1179,10 @@ class DefinitionUseChain:
         :raises NotImplementedError: If a GOTO statement is found in the code
                                      region.
         """
-        sig, _ = self._reference.get_signature_and_indices()
-        # For a basic block we will only ever have one defsout
-        defs_out = None
+        # For a basic block we will only ever have one defsout per reference.
+        self._defsout = {}
+        for sig in self._reference_signatures:
+            self._defsout[sig] = []
         # Working backwards so reverse the basic_block_list
         basic_block_list.reverse()
         stop_position = self._stop_point
@@ -734,8 +1199,11 @@ class DefinitionUseChain:
                 if isinstance(reference, Return):
                     stop_position = min(reference.abs_position, stop_position)
                 if isinstance(reference, CodeBlock):
-                    if isinstance(
-                        reference.parse_tree_nodes[0], (Exit_Stmt, Cycle_Stmt)
+                    # TODO #3568: Codeblocks should have implemented methods
+                    # to check for the presence of these statements.
+                    if any([isinstance(
+                        ref, (Exit_Stmt, Cycle_Stmt)) for ref in
+                        reference.parse_tree_nodes]
                     ):
                         stop_position = min(
                             reference.abs_position, stop_position
@@ -749,120 +1217,39 @@ class DefinitionUseChain:
                 abs_pos = reference.abs_position
                 if abs_pos < self._start_point or abs_pos >= stop_position:
                     continue
-                # If its parent is an inquiry function then its neither
-                # a read nor write if its the first argument.
+                # If its parent is an inquiry function then it's neither
+                # a read nor write if it's the first argument.
                 if (isinstance(reference.parent, IntrinsicCall) and
                         reference.parent.is_inquiry and
                         reference.parent.arguments[0] is reference):
                     continue
+                if isinstance(reference.parent, CodeBlock):
+                    self._check_backward_parent_codeblock(reference)
                 if isinstance(reference, CodeBlock):
                     # CodeBlocks only find symbols, so we can only do as good
                     # as checking the symbol - this means we can get false
                     # positives for structure accesses inside CodeBlocks.
-                    if isinstance(reference.parse_tree_nodes[0], Goto_Stmt):
+                    # TODO #3568: Codeblocks should have an implemented method
+                    # to check for the presence of just Goto statements.
+                    if any([isinstance(node, Goto_Stmt) for node in
+                            reference.parse_tree_nodes]):
                         raise NotImplementedError(
                             "DefinitionUseChains can't handle code containing"
                             " GOTO statements."
                         )
-                    if (
-                        self._reference.symbol.name
-                        in reference.get_symbol_names()
-                    ):
-                        # Assume the worst for a CodeBlock and we count them
-                        # as killed and defsout and uses.
-                        if defs_out is not None:
-                            self._killed.append(defs_out)
-                        defs_out = reference
-                        continue
+                    self._check_backward_codeblock(reference)
                 elif isinstance(reference, Call):
-                    # If its a local variable we can ignore it as we'll catch
-                    # the Reference later if its passed into the Call.
-                    if self._reference.symbol.is_automatic:
-                        continue
-                    # If the call is an ancestor of the Reference then
-                    # we skip it for backwards accesses.
-                    if self._reference.is_descendant_of(reference):
-                        continue
-                    if isinstance(reference, IntrinsicCall):
-                        # IntrinsicCall can only do stuff to arguments, these
-                        # will be caught by Reference walk already.
-                        # Note that this assumes two symbols are not
-                        # aliases of each other.
-                        continue
-                    if reference.is_pure:
-                        # Pure subroutines only touch their arguments, so we'll
-                        # catch the arguments that are passed into the call
-                        # later as References.
-                        continue
-                    # For now just assume calls are bad if we have a non-local
-                    # variable and we treat them as though they were a write.
-                    if defs_out is not None:
-                        self._killed.append(defs_out)
-                    defs_out = reference
-                    continue
-                elif reference.get_signature_and_indices()[0] == sig:
-                    # Work out if its read only or not.
-                    assign = reference.ancestor(Assignment)
-                    # RHS reads occur "before" LHS writes, so if we
-                    # hit the LHS or an assignment then we won't have
-                    # a dependency to the value used from the LHS.
-                    if assign is not None:
-                        if assign.lhs is reference:
-                            # Check if the RHS contains the self._reference.
-                            # Can't use in since equality is not what we want
-                            # here.
-                            found = False
-                            for ref in assign.rhs.walk(Reference):
-                                if (
-                                    ref is self._reference
-                                    and self._stop_point == ref.abs_position
-                                ):
-                                    found = True
-                            # If the RHS contains the self._reference, then
-                            # this LHS is "after" so we skip it
-                            if found:
-                                continue
-                            # This is a write to the reference, so kill the
-                            # previous defs_out and set this to be the
-                            # defs_out.
-                            if defs_out is not None:
-                                self._killed.append(defs_out)
-                            defs_out = reference
-                        elif (
-                            assign.lhs.get_signature_and_indices()[0] == sig
-                            and assign.lhs is not self._reference
-                        ):
-                            # Reference is on the rhs of an assignment such as
-                            # a = a + 1. Since we're looping through the tree
-                            # walk in reverse, we find the a on the RHS of the
-                            # statement before the a on the LHS. Since the LHS
-                            # of the statement is a write to this symbol, the
-                            # RHS needs to not be a dependency when working
-                            # backwards.
-                            continue
-                        else:
-                            # Read only, so if we've not yet set written to
-                            # this variable this is a use. NB. We need to
-                            # check the if the write is the LHS of the parent
-                            # assignment and if so check if we killed any
-                            # previous assignments.
-                            if defs_out is None:
-                                self._uses.append(reference)
-                    elif reference.ancestor(Call):
-                        # Otherwise we assume read/write access for now.
-                        if defs_out is not None:
-                            self._killed.append(defs_out)
-                        defs_out = reference
-                    else:
-                        # Reference outside an Assignment - read only
-                        # This could be References inside a While loop
-                        # condition for example.
-                        if defs_out is None:
-                            self._uses.append(reference)
-        if defs_out is not None:
-            self._defsout.append(defs_out)
+                    self._check_backward_call(reference)
+                elif (reference.get_signature_and_indices()[0] in
+                      self._reference_signatures):
+                    self._check_backward_matched_reference(reference)
+                # If we have a reference whose datatype is an
+                # UnsupportedType then we must assume it is aliased and
+                # therefore can access any other UnsupportedType Reference.
+                elif isinstance(reference.datatype, UnsupportedType):
+                    self._check_backward_unsupported_type(reference)
 
-    def find_backward_accesses(self) -> list[Node]:
+    def find_backward_accesses(self) -> dict[Signature, list[Node]]:
         """
         Find all the backward accesses for the reference defined in this
         DefinitionUseChain.
@@ -879,17 +1266,22 @@ class DefinitionUseChain:
         # Compute the abs position caches as we'll use these a lot.
         # The compute_cached_abs_position will only do this if needed
         # so we don't need to check here.
-        self._reference.compute_cached_abs_positions()
+        self._references[0].compute_cached_abs_positions()
 
         # Setup the start and stop positions
         save_start_position = self._start_point
         save_stop_position = self._stop_point
-        # If there is no set start point, then we look for all
-        # accesses after the Reference.
+        # If there is no set start point, then we look for all accesses after
+        # the Reference.
         if self._stop_point is None:
-            self._stop_point = self._reference_abs_pos
-        # If there is no set stop point, then any Reference after
-        # the start point can potentially be a forward access.
+            # Find the min abs position, as all of these are contained in the
+            # same parent. We stop before any of the provided references, as
+            # for a statement such as 'b = a + a' we don't want to return
+            # any of the References to 'a' if both of the 'a' References
+            # are provided as an input to the DUC.
+            self._stop_point = min(list(self._references_abs_pos.values()))
+        # If there is no set start point, then any Reference
+        # before the stop point can potentially be a backward access.
         if self._start_point is None:
             self._start_point = self._scope[0].abs_position
         if not self.is_basic_block:
@@ -907,8 +1299,10 @@ class DefinitionUseChain:
                 # statement.
                 if len(block) == 0:
                     continue
+                # Create a copy of the list as it can modify elements
+                # in the list.
                 chain = DefinitionUseChain(
-                    self._reference,
+                    self._references[:],
                     block,
                     start_point=self._start_point,
                     stop_point=self._stop_point,
@@ -923,44 +1317,48 @@ class DefinitionUseChain:
             # called but thats hard to otherwise track.
             if (
                 isinstance(self._scope[0], Routine)
-                or self._scope[0] is self._reference.root
+                or self._scope[0] is self._references[0].root
             ):
                 # Check if there is an ancestor Loop/WhileLoop.
-                ancestor = self._reference.ancestor((Loop, WhileLoop))
+                ancestor = self._references[0].ancestor((Loop, WhileLoop))
                 while ancestor is not None:
                     # Create a basic block for the ancestor Loop.
                     body = ancestor.loop_body.children[:]
                     # Find the stop point - this needs to be the last node
                     # in the ancestor loop
-                    sub_stop_point = ancestor.walk(Node)[-1].abs_position + 1
+                    sub_stop_point = (
+                        ancestor.get_last_descendant_node().abs_position + 1
+                    )
                     # We make a copy of the reference to have a detached
                     # node to avoid handling the special cases based on
                     # the parents of the reference.
-                    if self._reference.ancestor(Assignment) is not None:
-                        sub_start_point = self._reference.ancestor(
+                    if self._references[0].ancestor(Assignment) is not None:
+                        sub_start_point = self._references[0].ancestor(
                             Assignment
                         ).abs_position
                     else:
-                        sub_start_point = self._reference.abs_position
+                        sub_start_point = min(list(
+                            self._references_abs_pos.values()
+                        ))
                     # If we have a basic block with no children then skip it,
                     # e.g. for an if block with no code before the else
                     # statement.
                     if len(body) > 0:
                         chain = DefinitionUseChain(
-                            self._reference.copy(),
+                            [ref.copy() for ref in self._references],
                             body,
                             start_point=sub_start_point,
                             stop_point=sub_stop_point,
                         )
                         chains.append(chain)
                         control_flow_nodes.append(ancestor)
-                    # If its a while loop, create a basic block for the while
+                    # If it's a while loop, create a basic block for the while
                     # condition.
                     if isinstance(ancestor, WhileLoop):
                         control_flow_nodes.append(None)
                         sub_stop_point = ancestor.loop_body.abs_position
                         chain = DefinitionUseChain(
-                            self._reference.copy(),
+                            [ref.copy() for ref in self._references],
                             [ancestor.condition],
                             start_point=ancestor.abs_position,
                             stop_point=sub_stop_point,
@@ -969,21 +1367,22 @@ class DefinitionUseChain:
                     ancestor = ancestor.ancestor((Loop, WhileLoop))
 
                 # Check if there is an ancestor Assignment.
-                ancestor = self._reference.ancestor(Assignment)
+                ancestor = self._references[0].ancestor(Assignment)
                 if ancestor is not None:
                     # If the reference is not the lhs then we can ignore
                     # the RHS.
-                    if ancestor.lhs is self._reference:
-                        end = ancestor.walk(Node)[-1]
+                    if any([ancestor.lhs is ref for ref in self._references]):
+                        end = ancestor.get_last_descendant_node()
                         # Add the rhs as a potential basic block with
                         # different start and stop positions.
                         chain = DefinitionUseChain(
-                            self._reference.copy(),
+                            [ancestor.lhs.copy()],
                             ancestor.rhs.children[:],
                             start_point=ancestor.rhs.abs_position,
                             stop_point=end.abs_position,
                         )
-                        control_flow_nodes.append(None)
+                        index = len(chains)
+                        control_flow_nodes.insert(index, None)
                         chains.append(chain)
                         # N.B. For now this assumes that for an expression
                         # b = a * a, that next_access to the first Reference
@@ -1000,21 +1399,33 @@ class DefinitionUseChain:
                 if cfn is None:
                     # We're outside a control flow region, updating the reaches
                     # here is to find all the reached nodes.
-                    for ref in chain._reaches:
-                        # Add unique references to reaches. Since we're not
-                        # in a control flow region, we can't have added
-                        # these references into the reaches array yet so
-                        # they're guaranteed to be unique.
-                        found = False
-                        for ref2 in self._reaches:
-                            if ref is ref2:
-                                found = True
-                                break
-                        if not found:
-                            self._reaches.append(ref)
+                    for sig in chain._reaches:
+                        if sig in self._reference_signatures:
+                            for ref in chain._reaches[sig]:
+                                # Add unique references to reaches. Since
+                                # we're not in a control flow region, we
+                                # can't have added these references into the
+                                # reaches array yet so they're guaranteed
+                                # to be unique.
+                                found = False
+                                for ref2 in self._reaches[sig]:
+                                    if ref is ref2:
+                                        found = True
+                                        break
+                                if not found:
+                                    self._reaches[sig].append(ref)
                     # If we have a defsout in the chain then we can stop as we
-                    # will never get past the write as its not conditional.
-                    if len(chain.defsout) > 0:
+                    # will never get past the write as it's not conditional.
+                    for i, sig in enumerate(self._reference_signatures):
+                        # Not all references are passed into all subchains.
+                        if sig in chain.defsout:
+                            if len(chain.defsout[sig]) > 0:
+                                self._references.pop(i)
+                                self._reference_signatures.pop(i)
+                                self._defsout[sig].extend(chain.defsout[sig])
+                    # If we have found an end point for all references then
+                    # we can stop.
+                    if len(self._references) == 0:
                         # Reset the start and stop points before returning
                         # the result.
                         self._start_point = save_start_position
@@ -1030,34 +1441,43 @@ class DefinitionUseChain:
                     # if the variable is the same symbol as the _reference.
                     if isinstance(cfn, Loop):
                         cfn_abs_pos = cfn.abs_position
-                        if (
-                            cfn.variable == self._reference.symbol
-                            and cfn_abs_pos >= self._start_point
-                            and cfn_abs_pos < self._stop_point
-                        ):
-                            # The loop variable is always written to and so
-                            # we're done if its reached.
-                            self._reaches.append(cfn)
-                            self._start_point = save_start_position
-                            self._stop_point = save_stop_position
-                            return self._reaches
-
-                    for ref in chain._reaches:
-                        found = False
-                        for ref2 in self._reaches:
-                            if ref is ref2:
-                                found = True
-                                break
-                        if not found:
-                            self._reaches.append(ref)
+                        for i, ref in enumerate(self._references[:]):
+                            if (
+                                cfn.variable == ref.symbol
+                                and cfn_abs_pos >= self._start_point
+                                and cfn_abs_pos < self._stop_point
+                            ):
+                                # The loop variable is always written
+                                sig = self._reference_signatures[i]
+                                self._reaches[sig].append(cfn)
+                                # This reference is killed by this access.
+                                self._references.pop(i)
+                                self._reference_signatures.pop(i)
+                                # If we have found an end point for all
+                                # references then we can finish.
+                                if len(self._references) == 0:
+                                    self._start_point = save_start_position
+                                    self._stop_point = save_stop_position
+                                    return self._reaches
+                    for sig in chain._reaches:
+                        if sig in self._reference_signatures:
+                            for ref in chain._reaches[sig]:
+                                found = False
+                                for ref2 in self._reaches[sig]:
+                                    if ref is ref2:
+                                        found = True
+                                        break
+                                if not found:
+                                    self._reaches[sig].append(ref)
         else:
             # Check if there is an ancestor Assignment.
-            ancestor = self._reference.ancestor(Assignment)
+            ancestor = self._references[0].ancestor(Assignment)
             if ancestor is not None:
                 # If we get here to check the start part of a loop we need
                 # to handle this differently.
-                # If the reference is the lhs then we can ignore the RHS.
-                if ancestor.lhs is not self._reference:
+                # If no reference is the lhs then we can skip the rhs when
+                # searching backwards..
+                if all([ancestor.lhs is not ref for ref in self._references]):
                     pass
                 elif ancestor.rhs is self._scope[0] and len(self._scope) == 1:
                     # If the ancestor RHS is the scope of this chain then we
@@ -1065,32 +1485,35 @@ class DefinitionUseChain:
                     pass
                 else:
                     # Add the rhs as a potential basic block with different
-                    # start and stop positions.
+                    # start and stop positions. This only needs to be computed
+                    # for the Reference on the LHS of the ancestor assignment.
                     chain = DefinitionUseChain(
-                        self._reference,
+                        [ancestor.lhs],
                         [ancestor.rhs],
                         start_point=ancestor.rhs.abs_position,
                         stop_point=sys.maxsize,
                     )
                     # Find any backward_accesses in the rhs.
                     chain.find_backward_accesses()
-                    for ref in chain._reaches:
-                        self._reaches.append(ref)
+                    for sig in chain._reaches:
+                        for ref in chain._reaches[sig]:
+                            self._reaches[sig].append(ref)
 
             # We can compute the rest of the accesses
             self._compute_backward_uses(self._scope)
-            for ref in self._uses:
-                self._reaches.append(ref)
-            # If this block doesn't kill any accesses, then we add
-            # the defsout into the reaches array.
-            if len(self.killed) == 0:
-                for ref in self._defsout:
-                    self._reaches.append(ref)
-            else:
-                # If this block killed any accesses, then the first element
-                # of the killed writes is the access access that we're
-                # dependent with.
-                self._reaches.append(self.killed[0])
+            for sig in self._reference_signatures:
+                for ref in self._uses[sig]:
+                    self._reaches[sig].append(ref)
+                # If this block doesn't kill any accesses, then we add the
+                # defsout into the reaches array.
+                if len(self.killed[sig]) == 0:
+                    for ref in self._defsout[sig]:
+                        self._reaches[sig].append(ref)
+                else:
+                    # If this block killed any accesses, then the first element
+                    # of the killed writes is the access that we're
+                    # dependent with.
+                    self._reaches[sig].append(self.killed[sig][0])
 
         # Reset the start and stop points before returning the result.
         self._start_point = save_start_position

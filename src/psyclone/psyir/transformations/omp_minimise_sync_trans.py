@@ -1,43 +1,13 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2025-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Contains the OMPMinimiseSyncTrans.'''
 
-# TODO #2837: Once we leave python 3.8 we can use list instead of List for
-# type hints.
-from typing import List, Union
+from typing import Union
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
@@ -124,7 +94,7 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
       integer, dimension(100) :: b
       integer :: i
     <BLANKLINE>
-      !$omp parallel default(shared), private(i)
+      !$omp parallel default(shared) private(i)
       !$omp do schedule(auto)
       do i = 1, 100, 1
         a(i) = i
@@ -146,13 +116,13 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
         a(i) = a(i) + 1
       enddo
       !$omp end do nowait
-      !$omp barrier
       !$omp end parallel
     <BLANKLINE>
     end subroutine test
     <BLANKLINE>
 
     '''
+
     def __str__(self) -> str:
         '''Returns the string representation of this OMPMinimiseSyncTrans
         object.'''
@@ -192,12 +162,14 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
         '''
         Removes excess adjacent bar_type barriers from the input routine, i.e:
 
-        >>> !$omp taskwait
-        >>> !$omp taskwait
+        .. code-block:: fortran
+            !$omp taskwait
+            !$omp taskwait
 
         will be simplified to just:
 
-        >>> !$omp taskwait
+        .. code-block:: fortran
+            !$omp taskwait
 
         :param routine: the routine to remove duplicate barriers from.
         :param bar_type: the barrier type to remove.
@@ -213,8 +185,8 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
             if barrier.immediately_follows(barriers[i-1]):
                 barrier.detach()
 
-    def _find_dependencies(self, directives: List[Directive]) \
-            -> List[Union[Node, bool]]:
+    def _find_dependencies(self, directives: list[Directive]) \
+            -> list[Union[Node, bool]]:
         '''
         Finds the next dependencies for each of the directives provided.
 
@@ -247,8 +219,8 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
         return dependencies
 
     @staticmethod
-    def _reduce_barrier_set(required_barriers: List[Node],
-                            depending_barriers: List[List[Node]]) -> None:
+    def _reduce_barrier_set(required_barriers: list[Node],
+                            depending_barriers: list[list[Node]]) -> None:
         '''
         Reduces the depending_barriers set according to the list of
         required_barriers, i.e. if a required_barrier is present in one of
@@ -288,7 +260,7 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
 
     @staticmethod
     def _get_max_barrier_dependency(
-            depending_barriers: List[List[Node]]) -> int:
+            depending_barriers: list[list[Node]]) -> int:
         '''
         Returns the maximum size of a sublist in the depending_barriers
         input.
@@ -302,7 +274,7 @@ class OMPMinimiseSyncTrans(Transformation, AsyncTransMixin):
         '''
         return len(max(depending_barriers, key=len))
 
-    def _eliminate_barriers(self, node: Routine, directives: List[Directive],
+    def _eliminate_barriers(self, node: Routine, directives: list[Directive],
                             barrier_type: type) -> None:
         '''
         Eliminates barriers of the barrier_type in the input Routine node that

@@ -1,52 +1,21 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter, R. W. Ford and S. Siso, STFC Daresbury Lab
-# Modified: I. Kavcic and L. Turner, Met Office
 
 
 ''' Module containing py.test tests for dependency analysis.'''
 
 import os
-import pytest
 
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.domain.lfric import KernStubArgList, LFRicKern, LFRicKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Assignment, IfBlock, Loop
-from psyclone.tests.utilities import get_invoke, get_ast
+from psyclone.tests.utilities import get_psylayer_schedule, get_invoke, get_ast
 
 # Constants
 API = "nemo"
@@ -206,36 +175,12 @@ def test_nemo_array_range(fortran_reader):
             "t: INQUIRY+READ")
 
 
-@pytest.mark.xfail(reason="Gocean loops boundaries are strings #440")
 def test_goloop():
-    ''' Check the handling of non-NEMO do loops.
-    TODO #440: Does not work atm, GOLoops also have start/stop as
-    strings, which are even not defined. Only after lowering is called will
-    they be defined.
-    '''
+    ''' Check the handling of PSyKAL (e.g. GOLoops) do loops. '''
 
-    _, invoke = get_invoke("single_invoke_two_kernels_scalars.f90",
-                           "gocean", name="invoke_0")
-    do_loop = invoke.schedule.children[0]
-    assert isinstance(do_loop, Loop)
-    var_accesses = do_loop.reference_accesses()
-    assert (str(var_accesses) == ": READ, a_scalar: READ, i: READ+WRITE, "
-                                 "j: READ+WRITE, " "ssh_fld: READ+WRITE, "
-                                 "tmask: READ")
-    # TODO #440: atm the return value starts with:  ": READ, cu_fld: WRITE ..."
-    # The empty value is caused by not having start, stop, end of the loop
-    # defined at this stage.
-
-
-def test_goloop_partially():
-    ''' Check the handling of non-NEMO do loops.
-    TODO #440: This test is identical to test_goloop above, but it asserts in a
-    way that works before #440 is fixed, so that we make sure we test the rest
-    of the gocean variable access handling.
-    '''
-    _, invoke = get_invoke("single_invoke_two_kernels_scalars.f90",
-                           "gocean", name="invoke_0", dist_mem=False)
-    do_loop = invoke.schedule.children[0]
+    schedule = get_psylayer_schedule(
+        "single_invoke_two_kernels_scalars.f90", api="gocean")
+    do_loop = schedule.children[0]
     assert isinstance(do_loop, Loop)
 
     # The third argument is GO_GRID_X_MAX_INDEX, which is scalar
@@ -259,16 +204,11 @@ def test_lfric():
     from the kernel metadata, not the actual kernel usage.
 
     '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "lfric",
-                                 "1_single_invoke.f90"),
-                    api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_type')
-    schedule = invoke.schedule
+    schedule = get_psylayer_schedule("1_single_invoke.f90", api="lfric")
     var_accesses = schedule.reference_accesses()
     assert str(var_accesses) == (
-        "a: READ, cell: WRITE+READ, f1_data: INC, f2_data: READ, field_type: "
+        "a: READ, cell: WRITE+READ, f1_data: INC, f2_data: READ, "
+        "field_proxy_type: CONSTANT, field_type: "
         "CONSTANT, i_def: CONSTANT, m1_data: READ, m2_data: READ, map_w1: "
         "READ, map_w2: READ, map_w3: READ, ndf_w1: READ, ndf_w2: READ, "
         "ndf_w3: READ, nlayers_f1: READ, r_def: CONSTANT, undf_w1: READ, "
@@ -334,9 +274,9 @@ def test_lfric_ref_element():
     '''Test handling of variables if an LFRic's RefElement is used.
 
     '''
-    psy, invoke_info = get_invoke("23.4_ref_elem_all_faces_invoke.f90",
-                                  "lfric", idx=0)
-    var_info = str(invoke_info.schedule.reference_accesses())
+    schedule = get_psylayer_schedule("23.4_ref_elem_all_faces_invoke.f90",
+                                     "lfric")
+    var_info = str(schedule.reference_accesses())
     assert "normals_to_faces: READ," in var_info
     assert "out_normals_to_faces: READ," in var_info
     assert "nfaces_re: READ," in var_info
@@ -347,15 +287,15 @@ def test_lfric_operator():
     handled correctly.
 
     '''
-    psy, invoke_info = get_invoke("6.1_eval_invoke.f90", "lfric", idx=0)
-    var_info = str(invoke_info.schedule.reference_accesses())
+    schedule = get_psylayer_schedule("6.1_eval_invoke.f90", "lfric")
+    var_info = str(schedule.reference_accesses())
     assert "f0_data: INC," in var_info
     assert "cmap_data: READ," in var_info
     assert "basis_w0_on_w0: READ," in var_info
     assert "diff_basis_w1_on_w0: READ," in var_info
 
 
-def test_lfric_cma(fortran_writer):
+def test_lfric_cma():
     '''Test that parameters related to CMA operators are handled
     correctly in the variable usage analysis.
 

@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author A. Porter, A. B. G. Chalk and S. Siso, STFC Daresbury Laboratory
 
 ''' Module containing pytest tests for the handling of some select case
 construction for the Fparser->PSyIR frontend.'''
@@ -49,8 +21,7 @@ from psyclone.psyir.frontend.fparser2 import (
 from psyclone.psyir.nodes import (
     Schedule, CodeBlock, Assignment, BinaryOperation, IfBlock, Routine, Return,
     Container)
-from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, Symbol)
+from psyclone.psyir.symbols import DataSymbol, ScalarType, Symbol
 
 
 @pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
@@ -143,9 +114,9 @@ def test_case_default():
     # present in the symbol table.
     symbols = []
     for idx in [1, 2, 3]:
-        symbols.append(DataSymbol(f"branch{idx}", INTEGER_TYPE))
+        symbols.append(DataSymbol(f"branch{idx}", ScalarType.integer_type()))
     for var_name in ["selector", "label1", "label2"]:
-        symbols.append(DataSymbol(var_name, INTEGER_TYPE))
+        symbols.append(DataSymbol(var_name, ScalarType.integer_type()))
 
     # Loop over the 3 possible locations for the 'default' clause
     for idx1, idx2, idx3 in [(0, 1, 2), (1, 0, 2), (1, 2, 0)]:
@@ -290,11 +261,11 @@ def test_handling_labelled_case_construct():
 
     fake_parent = Schedule()
     fake_parent.symbol_table.new_symbol("selector", symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
+                                        datatype=ScalarType.integer_type())
     fake_parent.symbol_table.new_symbol("pick_me", symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
+                                        datatype=ScalarType.integer_type())
     fake_parent.symbol_table.new_symbol("branch3", symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
+                                        datatype=ScalarType.integer_type())
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [fparser2case_construct])
     assert len(fake_parent.children) == 1
@@ -494,9 +465,9 @@ def has_cmp_interface(code):
 
     # Check that the generic interface is in the code
     assert '''interface test_psyclone_internal_cmp
-    procedure :: test_psyclone_internal_cmp_int, \
-test_psyclone_internal_cmp_logical, \
-test_psyclone_internal_cmp_char
+    procedure :: test_psyclone_internal_cmp_int
+    procedure :: test_psyclone_internal_cmp_logical
+    procedure :: test_psyclone_internal_cmp_char
   end interface test_psyclone_internal_cmp
 ''' in code
 
@@ -582,9 +553,9 @@ def test_find_or_create_psyclone_internal_cmp(fortran_writer):
 
     # Check that the interface new names are internally consistent
     assert '''interface test_psyclone_internal_cmp_1
-    procedure :: test_psyclone_internal_cmp_int_1, \
-test_psyclone_internal_cmp_logical_1, \
-test_psyclone_internal_cmp_char_1
+    procedure :: test_psyclone_internal_cmp_int_1
+    procedure :: test_psyclone_internal_cmp_logical_1
+    procedure :: test_psyclone_internal_cmp_char_1
   end interface test_psyclone_internal_cmp_1''' in fortran_writer(container)
 
     # And that from now on the tag refers to the new symbol

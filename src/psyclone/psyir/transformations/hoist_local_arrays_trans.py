@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified: S. Siso, STFC Daresbury Lab
 
 '''
 This module contains the HoistLocalArraysTrans transformation.
@@ -48,7 +19,7 @@ from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
                                   IntrinsicCall, BinaryOperation, Reference,
                                   DataNode)
 from psyclone.psyir.symbols import (
-    ArrayType, DataSymbol, DataTypeSymbol, INTEGER_TYPE, Symbol)
+    ArrayType, DataSymbol, DataTypeSymbol, ScalarType, Symbol)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 from psyclone.utils import transformation_documentation_wrapper
@@ -61,7 +32,7 @@ class HoistLocalArraysTrans(Transformation):
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
-    >>> from psyclone.psyir.nodes import Assignment
+    >>> from psyclone.psyir.nodes import Assignment, Routine
     >>> from psyclone.psyir.transformations import HoistLocalArraysTrans
     >>> code = ("module test_mod\\n"
     ...         "contains\\n"
@@ -85,21 +56,19 @@ class HoistLocalArraysTrans(Transformation):
       real, allocatable, dimension(:,:), private :: a
       public
     <BLANKLINE>
-      public :: test_sub
-    <BLANKLINE>
       contains
       subroutine test_sub(n)
         integer :: n
         integer :: i
         integer :: j
-        real :: value = 1.0
+        real, save :: value = 1.0
     <BLANKLINE>
-        if (.not.allocated(a) .or. ubound(a, 1) /= n .or. ubound(a, 2) /= n) \
-then
+        if (.not.allocated(a) .or. ubound(a, dim=1) /= n .or. \
+ubound(a, dim=2) /= n) then
           if (allocated(a)) then
             deallocate(a)
           end if
-          allocate(a(1 : n, 1 : n))
+          allocate(a(1:n,1:n))
         end if
         do i = 1, n, 1
           do j = 1, n, 1
@@ -119,6 +88,7 @@ then
     call.
 
     '''
+
     def apply(self, node: Routine, options=None,
               allow_accroutine: bool = False, **kwargs):
         '''Applies the transformation to the supplied Routine node,
@@ -203,7 +173,8 @@ then
                                 lbound = child.start
                                 ubound = child.stop
                             else:
-                                lbound = Literal("1", INTEGER_TYPE)
+                                lbound = Literal("1",
+                                                 ScalarType.integer_type())
                                 ubound = child
                             orig_shape.append(
                                 ArrayType.ArrayBounds(lbound, ubound)
@@ -256,7 +227,8 @@ then
                             IntrinsicCall.create(
                                 IntrinsicCall.Intrinsic.LBOUND,
                                 [Reference(sym),
-                                 ("dim", Literal(str(idx+1), INTEGER_TYPE))]),
+                                 ("dim", Literal(str(idx+1),
+                                                 ScalarType.integer_type()))]),
                             dim.lower.copy())
                     # We chain the new check to the already existing cond_expr
                     # which starts with the 'not allocated' condition added
@@ -270,7 +242,8 @@ then
                             IntrinsicCall.create(
                                 IntrinsicCall.Intrinsic.UBOUND,
                                 [Reference(sym),
-                                 ("dim", Literal(str(idx+1), INTEGER_TYPE))]),
+                                 ("dim", Literal(str(idx+1),
+                                                 ScalarType.integer_type()))]),
                             dim.upper.copy())
                     # We chain the new check to the already existing cond_expr
                     # which starts with the 'not allocated' condition added
