@@ -50,3 +50,6 @@ class ArrayIntrinsic2LoopTrans(Intrinsic2CodeTrans):
         # The apply function is required for the docstring wrapper to work
         # correctly.
         super().apply(node, **kwargs)
+
+
+__all__ = ["ArrayIntrinsic2LoopTrans"]
