@@ -87,7 +87,8 @@ class LFRicCollection():
 
         '''
 
-    def invoke_declarations(self):
+    @abc.abstractmethod
+    def invoke_declarations(self) -> None:
         '''
         Add necessary Invoke declarations for this Collection.
 
