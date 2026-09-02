@@ -9,8 +9,13 @@
 metatransformation.'''
 
 import pytest
+import logging
 from psyclone.psyir.nodes import IntrinsicCall
 from psyclone.psyir.transformations import Intrinsic2CodeTrans
+
+
+LOGGER_NAME = ("psyclone.psyir.transformations.metatransformations."
+               "intrinsic2code_trans")
 
 
 def test_intrinsic2code_trans_validate(fortran_reader):
@@ -68,6 +73,22 @@ def test_intrinsic2code_trans_apply(fortran_reader, fortran_writer,
     Intrinsic2CodeTrans().apply(intrinsic)
 
     out = fortran_writer(psyir)
-    print(out)
     correct = f"{expected}"
     assert correct in out
+
+
+def test_intrinsic2code_trans_apply_logging(fortran_reader, caplog):
+    '''Test the apply function of the Intrinsic2CodeTrans metatransformation
+    logs a message when an unsupported Intrinsic is found.'''
+    code = """subroutine test
+    real :: j
+
+    j = log10(j)
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    intrinsic = psyir.walk(IntrinsicCall)[0]
+    with caplog.at_level(logging.DEBUG, logger=LOGGER_NAME):
+        Intrinsic2CodeTrans().apply(intrinsic)
+    assert ("Input node was intrinsic of type 'LOG10' which is not "
+            "transformed by Intrinsic2CodeTrans. Supported intrinsics are "
+            in caplog.text)

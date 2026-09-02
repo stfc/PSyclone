@@ -8,6 +8,7 @@
 '''This module contains the Intrinsic2CodeTrans metatransformation.'''
 
 from typing import Any
+import logging
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import IntrinsicCall
@@ -92,9 +93,22 @@ class Intrinsic2CodeTrans(Transformation):
 
         # If the intrinsic is one of the supported intrinsics then
         # apply the relevant transformation.
-        if node.intrinsic in Intrinsic2CodeTrans.intrinsic_to_trans:
-            Intrinsic2CodeTrans.intrinsic_to_trans[node.intrinsic]().\
-                apply(node, **kwargs_dict[node.intrinsic])
+        if node.intrinsic in self.intrinsic_to_trans:
+            self.intrinsic_to_trans[node.intrinsic]().apply(
+                node, **kwargs_dict[node.intrinsic]
+            )
+        else:
+            # Setup the logger.
+            logger = logging.getLogger(__name__)
+            supported_intrinsics = []
+            if logger.isEnabledFor(logging.INFO):
+                supported_intrinsics = [intrinsic.name for intrinsic in
+                                        self.intrinsic_to_trans.keys()]
+            logger.info(
+                f"Input node was intrinsic of type '{node.intrinsic.name}' "
+                f"which is not transformed by {self.name}. Supported "
+                f"intrinsics are {supported_intrinsics}."
+            )
 
 
 __all__ = ["Intrinsic2CodeTrans"]
