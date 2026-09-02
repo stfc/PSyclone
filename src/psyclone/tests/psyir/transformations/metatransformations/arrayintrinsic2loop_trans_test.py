@@ -19,6 +19,7 @@ from psyclone.psyir.transformations import (
 LOGGER_NAME = ("psyclone.psyir.transformations.metatransformations."
                "intrinsic2code_trans")
 
+
 @pytest.mark.parametrize("code, transformation", [
     ("j = MAXVAL(i)", Maxval2LoopTrans),
     ("j = MINVAL(i)", Minval2LoopTrans),
@@ -52,8 +53,10 @@ def test_arrayintrinsic2loop_trans_apply(fortran_reader, monkeypatch,
 
 
 def test_arrayintrinsic2loop_trans_apply_logging(fortran_reader, caplog):
-    '''Test the apply function of the ArrayIntrinsic2LoopTrans metatransformation
-    logs a message when an unsupported Intrinsic is found.'''
+    '''
+    Test the apply function of the ArrayIntrinsic2LoopTrans
+    metatransformation logs a message when an unsupported Intrinsic is found.
+    '''
     code = """subroutine test
     real :: j
 
@@ -64,5 +67,5 @@ def test_arrayintrinsic2loop_trans_apply_logging(fortran_reader, caplog):
     with caplog.at_level(logging.DEBUG, logger=LOGGER_NAME):
         ArrayIntrinsic2LoopTrans().apply(intrinsic)
     assert ("Input node was intrinsic of type 'MATMUL' which is not "
-            "transformed by ArrayIntrinsic2LoopTrans. Supported intrinsics are "
-            in caplog.text)
+            "transformed by ArrayIntrinsic2LoopTrans. Supported intrinsics "
+            "are " in caplog.text)
