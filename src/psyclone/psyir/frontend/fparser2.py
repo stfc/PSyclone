@@ -2406,7 +2406,8 @@ class Fparser2Reader():
             # 2: '::' string
             # 3: Binding_Name
             # 4: Procedure_Name
-            # If a item doesn't exist it has None in that position
+            # If an item doesn't exist then it has None in that position
+            # instead.
             binding_name = procedure.items[3].string
             visibility = default_visibility
             if procedure.items[1] is not None:
@@ -2420,9 +2421,9 @@ class Fparser2Reader():
             target = None
             if procedure.items[4] is not None:
                 target_name = procedure.items[4].string
-                # This is not the delcaration of the Procedure_Name, but
-                # we can already tell thi sybol will be a RoutineSymbol (the
-                # interface and datatype can not be infered here yet)
+                # This is not the declaration of the Procedure_Name, but
+                # we can already tell this symbol will be a RoutineSymbol (the
+                # interface and datatype can not be inferred here yet)
                 target_symbol = parent.symbol_table.lookup(
                     target_name, otherwise=None)
                 if target_symbol is None:
