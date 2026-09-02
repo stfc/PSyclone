@@ -28,7 +28,8 @@ def test_create():
     # was plural. Python >= 3.12 tweaks the error message yet again to mention
     # the lack of an implementation and to quote the method name.
     # We split the check to accommodate for this.
-    assert ("Can't instantiate abstract class Intrinsic2CodeBaseTrans with" in msg)
+    assert ("Can't instantiate abstract class Intrinsic2CodeBaseTrans "
+            "with" in msg)
     assert ("abstract method" in msg)
     assert ("apply" in msg)
 

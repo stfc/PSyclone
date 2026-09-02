@@ -14,8 +14,9 @@ better than the intrinsic.
 
 # pylint: disable=too-many-locals
 
-from psyclone.psyir.nodes import (BinaryOperation, Assignment, Reference,
-    Loop, Literal, ArrayReference, Range, Routine, IntrinsicCall)
+from psyclone.psyir.nodes import (
+    BinaryOperation, Assignment, Reference, Loop, Literal, ArrayReference,
+    Range, Routine, IntrinsicCall)
 from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
