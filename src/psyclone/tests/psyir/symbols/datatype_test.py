@@ -1404,6 +1404,8 @@ def test_structuretype_eq():
     )
     # Something that is not a StructureType
     assert stype != NoType()
+    # Something that is not a ComponentType
+    assert stype.components['nancy'] != "invalid"
     # Component with a different name.
     assert stype != StructureType.create(
         [
