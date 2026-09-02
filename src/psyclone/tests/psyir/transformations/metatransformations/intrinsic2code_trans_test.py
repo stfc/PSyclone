@@ -5,22 +5,22 @@
 # See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
-'''This module contains the tests for the Intrinsic2CodeMetaTrans
+'''This module contains the tests for the Intrinsic2CodeTrans
 metatransformation.'''
 
 import pytest
 from psyclone.psyir.nodes import IntrinsicCall
-from psyclone.psyir.transformations import Intrinsic2CodeMetaTrans
+from psyclone.psyir.transformations import Intrinsic2CodeTrans
 
 
 def test_intrinsic2code_trans_validate(fortran_reader):
     '''
-    Tests the validate method of the Intrinsic2CodeMetaTrans
+    Tests the validate method of the Intrinsic2CodeTrans
     metatransformation.
     '''
     with pytest.raises(TypeError) as err:
-        Intrinsic2CodeMetaTrans().validate(123)
-    assert ("Input node to Intrinsic2CodeMetaTrans must be an IntrinsicCall "
+        Intrinsic2CodeTrans().validate(123)
+    assert ("Input node to Intrinsic2CodeTrans must be an IntrinsicCall "
             "but received 'int'." in str(err.value))
 
 
@@ -53,7 +53,7 @@ def test_intrinsic2code_trans_validate(fortran_reader):
     ])
 def test_intrinsic2code_trans_apply(fortran_reader, fortran_writer,
                                     code, expected):
-    '''Test the apply function of the Intrinsic2CodeMetaTrans
+    '''Test the apply function of the Intrinsic2CodeTrans
     metatransformation.
     '''
     code = f"""subroutine test
@@ -65,7 +65,7 @@ def test_intrinsic2code_trans_apply(fortran_reader, fortran_writer,
   end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
     intrinsic = psyir.walk(IntrinsicCall)[0]
-    Intrinsic2CodeMetaTrans().apply(intrinsic)
+    Intrinsic2CodeTrans().apply(intrinsic)
 
     out = fortran_writer(psyir)
     print(out)

@@ -5,14 +5,14 @@
 # See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
-'''Module containing tests for the Intrinsic2CodeTrans abstract class which
+'''Module containing tests for the Intrinsic2CodeBaseTrans abstract class which
 provides common functionality for the intrinsic transformations (such as MIN,
 ABS and SIGN).'''
 
 import pytest
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
-    Intrinsic2CodeTrans)
+from psyclone.psyir.transformations.intrinsics.intrinsic2code_basetrans \
+    import Intrinsic2CodeBaseTrans
 from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.nodes import (
     Reference, Assignment, Literal, IntrinsicCall)
@@ -20,21 +20,21 @@ from psyclone.psyir.nodes import (
 
 def test_create():
     # pylint: disable=abstract-class-instantiated
-    '''Check that Intrinsic2CodeTrans is abstract.'''
+    '''Check that Intrinsic2CodeBaseTrans is abstract.'''
     with pytest.raises(TypeError) as excinfo:
-        _ = Intrinsic2CodeTrans()
+        _ = Intrinsic2CodeBaseTrans()
     msg = str(excinfo.value)
     # Python >= 3.9 spots that 'method' should be singular. Prior to this it
     # was plural. Python >= 3.12 tweaks the error message yet again to mention
     # the lack of an implementation and to quote the method name.
     # We split the check to accommodate for this.
-    assert ("Can't instantiate abstract class Intrinsic2CodeTrans with" in msg)
+    assert ("Can't instantiate abstract class Intrinsic2CodeBaseTrans with" in msg)
     assert ("abstract method" in msg)
     assert ("apply" in msg)
 
 
-class DummyTrans(Intrinsic2CodeTrans):
-    '''Dummy transformation class used to test Intrinsic2CodeTrans
+class DummyTrans(Intrinsic2CodeBaseTrans):
+    '''Dummy transformation class used to test Intrinsic2CodeBaseTrans
     methods.'''
     # pylint: disable=arguments-differ, no-method-argument
     def apply():
