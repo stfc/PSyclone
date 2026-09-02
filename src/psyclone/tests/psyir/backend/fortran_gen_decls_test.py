@@ -20,6 +20,7 @@ from psyclone.psyir.symbols import (
     RoutineSymbol, ScalarType, Symbol, SymbolTable, UnresolvedType,
     StructureType, ImportInterface, UnresolvedInterface, ArgumentInterface,
     StaticInterface, PreprocessorInterface)
+from psyclone.tests.utilities import Compile
 
 
 def test_gen_decls_dependencies(fortran_writer):
@@ -499,6 +500,16 @@ def test_gen_interfacedecl(fortran_writer):
   procedure :: sub1
 end interface subx
 ''')
+    # Check we get the preceding comment as expected
+    isub.preceding_comment = "Here is my preceding comment"
+    out = fortran_writer.gen_interfacedecl(isub)
+    assert (out == """\
+! Here is my preceding comment
+interface subx
+  module procedure :: sub2
+  procedure :: sub1
+end interface subx
+""")
 
 
 def test_non_param_in_param_decln(fortran_reader, fortran_writer, tmp_path):
@@ -650,19 +661,11 @@ def test_complex_decl_with_deps(fortran_reader, fortran_writer, tmp_path):
     output = fortran_writer(psyir)
     assert """\
   integer, parameter, public :: dp = KIND(1.0d0)
-  complex(kind = dp), dimension(np), public :: myvar = i""" in output
+  integer, parameter, public :: np = 5
+  complex, parameter, public :: i = (0, 1)
+  complex(kind=dp), dimension(np), save, public :: myvar = i
+  integer, public :: a_var""" in output
     assert Compile(tmp_path).string_compiles(output)
-    # TODO ARPDBG - fix merge
-    # Check we get the preceding comment as expected
-    isub.preceding_comment = "Here is my preceding comment"
-    out = fortran_writer.gen_interfacedecl(isub)
-    assert (out == """\
-! Here is my preceding comment
-interface subx
-  module procedure :: sub2
-  procedure :: sub1
-end interface subx
-""")
 
 
 def test_procedure_declaration_pointers(fortran_reader, fortran_writer):
@@ -709,10 +712,11 @@ def test_structure_initialiser(fortran_reader, fortran_writer):
     ''' Check a variable declaration with a structure intialiser.'''
     code = """
     subroutine my_sub
+        use some_mod
         type(some_type), parameter :: x = some_type()
     end subroutine my_sub
     """
     psyir = fortran_reader.psyir_from_source(code)
     table = psyir.walk(Routine)[0].symbol_table
-    result = fortran_writer._gen_parameter_decls(table)
-    assert result == "type(some_type), parameter :: x = some_type()\n"
+    result = fortran_writer.gen_decls(table)
+    assert "type(some_type), parameter :: x = some_type()\n" in result

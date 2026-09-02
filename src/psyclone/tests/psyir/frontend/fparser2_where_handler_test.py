@@ -1419,8 +1419,8 @@ def test_where_with_empty_line_before(fortran_writer):
     assert len(psyir.walk(CodeBlock)) == 0
     out = fortran_writer(psyir)
     correct = """subroutine x(arr2)
-  integer, dimension(:) :: arr2
   integer, dimension(:) :: arr1
+  integer, dimension(:) :: arr2
   integer :: widx1
 
   arr1(:) = arr2(:)

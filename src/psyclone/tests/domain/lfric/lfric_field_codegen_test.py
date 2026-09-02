@@ -637,8 +637,8 @@ def test_int_field_fs(tmpdir):
   contains
   subroutine invoke_0_testkern_fs_int_field_type({', '.join(fld_names)})
     use mesh_mod, only : mesh_type
-{decln_text}
     integer(kind=i_def) :: cell
+{decln_text}
     type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: max_halo_depth_mesh
 {ptrs_text}

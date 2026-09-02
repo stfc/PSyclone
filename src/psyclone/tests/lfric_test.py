@@ -3885,7 +3885,6 @@ field_real32, operator_real32, scalar_real64, field_real64, operator_real64)
     real(kind=real64), intent(in) :: scalar_real64
     type(field_real64_type), intent(in) :: field_real64
     type(operator_real64_type), intent(in) :: operator_real64
-    integer(kind=i_def) :: cell
     type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: max_halo_depth_mesh
     real(kind=r_def), pointer, dimension(:) :: field_r_def_data => null()
