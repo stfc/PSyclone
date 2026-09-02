@@ -13,12 +13,10 @@ functions.
 '''
 
 import logging
-import os
 from pathlib import Path
 import re
 import shutil
 import stat
-from sys import modules
 from typing import Optional
 import pytest
 
@@ -47,37 +45,18 @@ LFRIC_BASE_PATH = Path(get_base_path("lfric"))
 GOCEAN_BASE_PATH = Path(get_base_path("gocean"))
 
 
-@pytest.fixture(name="script_factory", scope="function")
-def create_script_factor(tmpdir):
-    ''' Fixture that creates a psyclone optimisation script given the string
+def script_factory(tmp_path: Path, code: str) -> Path:
+    """
+    Function that creates a psyclone optimisation script given the string
     representing the body of the script:
 
         script_path = script_factory("def trans(psyir):\n  pass")
 
-    It has a 'function' scope and a tear down section because using a script
-    imports the file and this is kept in the python interpreter state, so we
-    delete it for future tests.
-
-    '''
-    tmpfile = os.path.join(tmpdir, "test_script.py")
-
-    def populate_script(string):
-        with open(tmpfile, 'w+', encoding="utf8") as script:
-            script.write(string)
-        return tmpfile
-
-    yield populate_script
-    # Tear down section executed after each test that uses the fixture
-    # If the created script was used, then its module (file) was imported
-    # into the interpreter runtime, we need to make sure it is deleted
-    modname = "test_script"
-    if modname in modules:
-        del modules[modname]
-    for mod in modules.values():
-        try:
-            delattr(mod, modname)
-        except AttributeError:
-            pass
+    """
+    tmpfile = tmp_path / "test_script.py"
+    with open(tmpfile, 'w+', encoding="utf8") as script:
+        script.write(code)
+    return tmpfile
 
 
 def test_script_file_not_found():
@@ -125,14 +104,14 @@ def test_script_file_wrong_extension():
             "extension" in str(error.value))
 
 
-def test_script_invalid_content(script_factory):
+def test_script_invalid_content(tmp_path):
     '''Checks that load_script() in generator.py raises the expected
     exception when a script file does not contain valid python. This
     test uses the generate() function to call load_script as this is
     a simple way to create its required arguments.
 
     '''
-    error_syntax = script_factory("""
+    error_syntax = script_factory(tmp_path, """
 this is invalid python
     """)
     with pytest.raises(Exception) as err:
@@ -141,7 +120,7 @@ this is invalid python
             api="lfric", script_name=error_syntax)
     assert "invalid syntax (test_script.py, line 2)" in str(err.value)
 
-    error_import = script_factory("""
+    error_import = script_factory(tmp_path, """
 import non_existent
     """)
     with pytest.raises(Exception) as err:
@@ -151,7 +130,7 @@ import non_existent
     assert "No module named 'non_existent'" in str(err.value)
 
 
-def test_script_invalid_content_runtime(script_factory):
+def test_script_invalid_content_runtime(tmp_path):
     '''Checks that load_script() function in generator.py raises the
     expected exception when a script file contains valid python
     syntactically but produces a runtime exception. This test uses the
@@ -159,7 +138,7 @@ def test_script_invalid_content_runtime(script_factory):
     to create its required arguments.
 
     '''
-    runtime_error = script_factory("""
+    runtime_error = script_factory(tmp_path, """
 def trans(psyir):
     # this will produce a runtime error as b has not been assigned
     psyir = b
@@ -171,7 +150,7 @@ def trans(psyir):
     assert "name 'b' is not defined" in str(error.value)
 
 
-def test_script_no_trans(script_factory):
+def test_script_no_trans(tmp_path):
     '''Checks that load_script() function in generator.py raises the
     expected exception when a script file does not contain a trans()
     function. This test uses the generate() function to call
@@ -179,7 +158,7 @@ def test_script_no_trans(script_factory):
     arguments.
 
     '''
-    no_trans_script = script_factory("""
+    no_trans_script = script_factory(tmp_path, """
 def nottrans(psyir):
     pass
 
@@ -195,7 +174,7 @@ def tran():
             in str(error.value))
 
 
-def test_script_no_trans_alg(capsys, script_factory):
+def test_script_no_trans_alg(capsys, tmp_path):
     '''Checks that load_script() function in generator.py does not raise
     an exception when a script file does not contain a trans_alg()
     function as these are optional. At the moment this function is
@@ -204,7 +183,7 @@ def test_script_no_trans_alg(capsys, script_factory):
     its required arguments.
 
     '''
-    no_alg_script = script_factory("def trans(psyir):\n  pass")
+    no_alg_script = script_factory(tmp_path, "def trans(psyir):\n  pass")
     _, _ = generate(str(GOCEAN_BASE_PATH / "single_invoke.f90"),
                     api="gocean", script_name=no_alg_script)
 
@@ -213,7 +192,7 @@ def test_script_no_trans_alg(capsys, script_factory):
     assert "Deprecation warning:" not in captured.err
 
 
-def test_script_with_legacy_trans_signature(capsys, script_factory):
+def test_script_with_legacy_trans_signature(capsys, tmp_path):
     '''Checks that load_script() function in generator.py does not raise
     an exception when a script file uses the legacy trans signature.
 
@@ -223,7 +202,7 @@ def test_script_with_legacy_trans_signature(capsys, script_factory):
     This will eventually be deprecated.
 
     '''
-    legacy_script = script_factory("""
+    legacy_script = script_factory(tmp_path, """
 def trans(psy):
     # The following are backwards-compatible expressions with legacy scripts
     _ = psy.invokes.invoke_list
@@ -391,13 +370,13 @@ def test_no_script_gocean():
     assert "module psy_single_invoke_test" in str(psy)
 
 
-def test_script_gocean(script_factory):
+def test_script_gocean(tmp_path):
     '''Test that the generate function in generator.py returns
     successfully if a script (containing both trans_alg() and trans()
     functions) is specified.
 
     '''
-    alg_script = script_factory("""
+    alg_script = script_factory(tmp_path, """
 def trans_alg(psyir):
     pass
 
@@ -444,12 +423,12 @@ def test_invalid_gocean_alg(monkeypatch, caplog, capsys):
         assert "Failed to create PSyIR from file '" in err
 
 
-def test_script_attr_error(script_factory):
+def test_script_attr_error(tmp_path):
     '''Checks that generator.py raises an appropriate error when a script
     file contains a trans() function which raises an attribute error.
 
     '''
-    error_script = script_factory("""
+    error_script = script_factory(tmp_path, """
 from psyclone.psyGen import Loop
 from psyclone.transformations import ColourTrans
 
@@ -467,12 +446,12 @@ def trans(psyir):
     assert 'object has no attribute' in str(excinfo.value)
 
 
-def test_script_null_trans(script_factory):
+def test_script_null_trans(tmp_path):
     '''Checks that generator.py works correctly when the trans() function
     in a valid script file does no transformations.
 
     '''
-    empty_script = script_factory("def trans(psyir):\n  pass")
+    empty_script = script_factory(tmp_path, "def trans(psyir):\n  pass")
     alg1, psy1 = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
                           api="lfric")
     alg2, psy2 = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
@@ -485,24 +464,25 @@ def test_script_null_trans(script_factory):
         '\n'.join(str(psy2).split('\n')[1:])
 
 
-def test_script_null_trans_relative(script_factory):
+def test_script_null_trans_relative(monkeypatch, tmp_path):
     '''Checks that generator.py works correctly when the trans() function
     in a valid script file does no transformations (it simply passes
     input to output). In this case the valid script file contains no
-    path and must therefore be found via the PYTHOPATH path list.
+    path, but is invoked from the script's directory, as a relative
+    path.
 
     '''
     alg1, psy1 = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
                           api="lfric")
-    empty_script = script_factory("def trans(psyir):\n  pass")
-    basename = os.path.basename(empty_script)
-    path = os.path.dirname(empty_script)
-    # Set the script directory in the PYTHONPATH
-    os.sys.path.append(path)
+    empty_script = script_factory(tmp_path, "def trans(psyir):\n  pass")
+    basename = empty_script.name
+
+    # Change into the script's directory so it's found as a relative import.
+    monkeypatch.chdir(tmp_path)
+
     alg2, psy2 = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
                           api="lfric", script_name=basename)
-    # Remove the path from PYTHONPATH
-    os.sys.path.pop()
+
     # we need to remove the first line before comparing output as
     # this line is an instance specific header
     assert '\n'.join(str(alg1).split('\n')[1:]) == \
@@ -510,13 +490,13 @@ def test_script_null_trans_relative(script_factory):
     assert str(psy1) == str(psy2)
 
 
-def test_script_trans_lfric(script_factory):
+def test_script_trans_lfric(tmp_path):
     '''Checks that generator.py works correctly when a transformation is
     provided as a script, i.e. it applies the transformations
     correctly.
 
     '''
-    fuse_loop_script = script_factory("""
+    fuse_loop_script = script_factory(tmp_path, """
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 def trans(psyir):
     module = psyir.children[0]
@@ -794,9 +774,9 @@ def test_main_api():
     assert Config.get().api == "lfric"
 
 
-def test_keep_comments_and_keep_directives(capsys, caplog, tmpdir_factory):
+def test_keep_comments_and_keep_directives(capsys, caplog, tmp_path):
     ''' Test the keep comments and keep directives arguments to main. '''
-    filename = str(tmpdir_factory.mktemp('psyclone_test').join("test.f90"))
+    filename = tmp_path / "test.f90"
     code = """subroutine a()
     ! Here is a comment
     integer :: a
@@ -813,7 +793,7 @@ def test_keep_comments_and_keep_directives(capsys, caplog, tmpdir_factory):
     with open(filename, "w", encoding='utf-8') as wfile:
         wfile.write(code)
 
-    main([filename, "--keep-comments"])
+    main([str(filename), "--keep-comments"])
     output, _ = capsys.readouterr()
 
     correct = """subroutine a()
@@ -830,7 +810,7 @@ end subroutine a
 """
     assert output == correct
 
-    main([filename, "--keep-comments", "--keep-directives"])
+    main([str(filename), "--keep-comments", "--keep-directives"])
     output, _ = capsys.readouterr()
 
     correct = """subroutine a()
@@ -853,12 +833,12 @@ end subroutine a
     assert output == correct
 
     with caplog.at_level(logging.WARNING, logger="psyclone.generator"):
-        main([filename, "--keep-directives"])
+        main([str(filename), "--keep-directives"])
     assert ("keep_directives requires keep_comments so "
             "PSyclone enabled keep_comments." in caplog.text)
 
 
-def test_conditional_openmp_statements(capsys, tmpdir_factory):
+def test_conditional_openmp_statements(capsys, tmp_path):
     ''' Check that the Conditional OpenMP statements are ignored
     or parser depending on the flags provided to psyclone.
     '''
@@ -871,10 +851,10 @@ def test_conditional_openmp_statements(capsys, tmpdir_factory):
     i = 1
     !$ omp_threads = omp_get_num_threads()
     end subroutine x"""
-    filename = str(tmpdir_factory.mktemp('psyclone_test').join("test.f90"))
+    filename = tmp_path / "test.f90"
     with open(filename, "w", encoding='utf-8') as wfile:
         wfile.write(code)
-    main([filename])
+    main([str(filename)])
     output, _ = capsys.readouterr()
     correct = """subroutine x()
   integer :: i
@@ -886,7 +866,7 @@ end subroutine x
 """
     assert output == correct
 
-    main([filename, "--keep-conditional-openmp-statements"])
+    main([str(filename), "--keep-conditional-openmp-statements"])
     output, _ = capsys.readouterr()
     correct = """subroutine x()
   use omp_lib
@@ -938,9 +918,7 @@ def test_config_flag():
         file references in the environment variable.
     '''
     filename = str(LFRIC_BASE_PATH / "1_single_invoke.f90")
-    config_name = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               "test_files", "dummy_config.cfg")
-
+    config_path = LFRIC_BASE_PATH.parent / "dummy_config.cfg"
     # Test with no option
     Config._HAS_CONFIG_BEEN_INITIALISED = False
     main([filename, "-api", "lfric"])
@@ -949,13 +927,13 @@ def test_config_flag():
 
     # Test with with --config
     Config._HAS_CONFIG_BEEN_INITIALISED = False
-    main([filename, "--config", config_name, "-api", "lfric"])
+    main([filename, "--config", str(config_path), "-api", "lfric"])
     assert Config.get().api == "lfric"
     assert Config.has_config_been_initialised() is True
 
     # Test with with -c
     Config._HAS_CONFIG_BEEN_INITIALISED = False
-    main([filename, "-c", config_name, "-api", "lfric"])
+    main([filename, "-c", str(config_path), "-api", "lfric"])
     assert Config.get().api == "lfric"
     assert Config.has_config_been_initialised() is True
 
@@ -1016,7 +994,7 @@ def test_main_expected_fatal_error(capsys):
     assert output == expected_output
 
 
-def test_code_transformation_skip_files_error(tmpdir, capsys):
+def test_code_transformation_skip_files_error(tmp_path, capsys):
     ''' Test that applying recipes in the code-transformation mode skips the
     files marked as FILES_TO_SKIP '''
     code = '''
@@ -1030,17 +1008,17 @@ FILES_TO_SKIP = ["funny_syntax.f90"]
 def trans(psyir):
     assert False
     '''
-    inputfile = str(tmpdir.join("funny_syntax.f90"))
+    inputfile = tmp_path / "funny_syntax.f90"
     with open(inputfile, "w", encoding='utf-8') as my_file:
         my_file.write(code)
-    recipefile = str(tmpdir.join("recipe.py"))
+    recipefile = tmp_path / "recipe.py"
     with open(recipefile, "w", encoding='utf-8') as my_file:
         my_file.write(recipe)
 
     # Execute the recipe with FILES_TO_SKIP (it should not call the
     # recipe assert because the file is skipped)
-    outputfile = str(tmpdir.join("output.f90"))
-    main([inputfile, "-s", recipefile, "-o", outputfile])
+    outputfile = tmp_path / "output.f90"
+    main([str(inputfile), "-s", str(recipefile), "-o", str(outputfile)])
 
     # We can also check that the output syntax has not been normalised
     with open(outputfile, "r", encoding='utf-8') as my_file:
@@ -1049,8 +1027,8 @@ def trans(psyir):
 
     # When doing the same but without a '-o' (output file), we just print
     # in stdout that the file was skipped.
-    outputfile = str(tmpdir.join("output.f90"))
-    main([inputfile, "-s", recipefile])
+    outputfile = tmp_path / "output.f90"
+    main([str(inputfile), "-s", str(recipefile)])
     output, _ = capsys.readouterr()
     assert ("funny_syntax.f90' skipped because it is listed in FILES_TO_SKIP."
             in output)
@@ -1068,7 +1046,7 @@ def trans(psyir):
           # Now change both with case insensitive names
           ("5", "[\"mOdule1\",\"moduLe2\"]", "result = 1 + 1 + c")
           ])
-def test_code_transformation_resolve_imports(tmpdir, capsys, monkeypatch,
+def test_code_transformation_resolve_imports(tmp_path, capsys, monkeypatch,
                                              idx, value, output):
     ''' Test that applying recipes in the code-transformation mode follows the
     selected list of module names when generating the tree. '''
@@ -1119,11 +1097,11 @@ def trans(psyir):
                               ("module3.f90", module3),
                               ("code.f90", code),
                               (recipe_name, recipe)]:
-        with open(tmpdir.join(filename), "w", encoding='utf-8') as my_file:
+        with open(tmp_path / filename, "w", encoding='utf-8') as my_file:
             my_file.write(content)
 
     # Execute the recipe (no -I needed as we have everything at the same place)
-    monkeypatch.chdir(tmpdir)
+    monkeypatch.chdir(tmp_path)
     ModuleManager._instance = None
     main(["code.f90", "-s", recipe_name])
     captured = capsys.readouterr()
@@ -1132,7 +1110,7 @@ def trans(psyir):
     assert output in str(captured), str(captured)
 
 
-def test_code_transformation_trans(tmpdir):
+def test_code_transformation_trans(tmp_path):
     ''' Test that applying recipes that have a trans, and are not listed
     in the FILES_TO_SKIP, executes the recipe transformations. '''
     code = '''
@@ -1144,21 +1122,21 @@ def test_code_transformation_trans(tmpdir):
 def trans(psyir):
     psyir.children[0].name = "newname"
     '''
-    inputfile = str(tmpdir.join("funny_syntax.f90"))
+    inputfile = tmp_path / "funny_syntax.f90"
     with open(inputfile, "w", encoding='utf-8') as my_file:
         my_file.write(code)
-    recipefile = str(tmpdir.join("change_name.py"))
+    recipefile = tmp_path / "change_name.py"
     with open(recipefile, "w", encoding='utf-8') as my_file:
         my_file.write(recipe)
-    outputfile = str(tmpdir.join("output.f90"))
-    main([inputfile, "-s", recipefile, "-o", outputfile])
+    outputfile = tmp_path / "output.f90"
+    main([str(inputfile), "-s", str(recipefile), "-o", str(outputfile)])
     # We will get the normalise syntax and the recipe code change
     with open(outputfile, "r", encoding='utf-8') as my_file:
         new_code = my_file.read()
     assert "module newname\n" in new_code
 
 
-def test_code_transformation_free_form(tmpdir, capsys):
+def test_code_transformation_free_form(tmp_path, capsys):
     '''Test that the free-form option works for code transformation.'''
     code = '''
     subroutine test
@@ -1167,10 +1145,10 @@ def test_code_transformation_free_form(tmpdir, capsys):
     end subroutine'''
     # Using a fixed format file extension to check the --free-form
     # option is correctly overriding the default behaviour.
-    inputfile = str(tmpdir.join("free_form.f"))
+    inputfile = tmp_path / "free_form.f"
     with open(inputfile, "w", encoding='utf-8') as my_file:
         my_file.write(code)
-    main([inputfile, "--free-form"])
+    main([str(inputfile), "--free-form"])
     captured, _ = capsys.readouterr()
     correct = """subroutine test()
   integer :: n
@@ -1181,7 +1159,7 @@ end subroutine test"""
     assert correct in captured
 
 
-def test_code_transformation_fixed_form(tmpdir, capsys, caplog):
+def test_code_transformation_fixed_form(tmp_path, capsys, caplog):
     ''' Test that the fixed-form option works for code transformation.'''
     code = '''
       subroutine test
@@ -1191,10 +1169,10 @@ c     Comment here.
       n = 3 +
      &4
       end subroutine'''
-    inputfile = str(tmpdir.join("fixed_form.f90"))
+    inputfile = tmp_path / "fixed_form.f90"
     with open(inputfile, "w", encoding='utf-8') as my_file:
         my_file.write(code)
-    main([inputfile, "--fixed-form"])
+    main([str(inputfile), "--fixed-form"])
     captured, _ = capsys.readouterr()
     correct = """subroutine test()
   integer :: n
@@ -1205,7 +1183,7 @@ end subroutine test"""
     assert correct in captured
 
     with pytest.raises(SystemExit) as error:
-        main([inputfile])
+        main([str(inputfile)])
     with open(inputfile, "w", encoding='utf-8') as my_file:
         my_file.write(code)
     assert error.value.code == 1
@@ -1223,10 +1201,10 @@ c     Comment here.
       n = 3 +
      &4
       end subroutine'''
-    inputfile = str(tmpdir.join("fixed_form.f"))
+    inputfile = tmp_path / "fixed_form.f"
     with open(inputfile, "w", encoding='utf-8') as my_file:
         my_file.write(code)
-    main([inputfile])
+    main([str(inputfile)])
     captured, _ = capsys.readouterr()
     correct = """subroutine test()
   integer :: n
@@ -1240,11 +1218,11 @@ end subroutine test"""
     # Check an unknown file extension gives a log message and fails for a
     # fixed form input.
     with caplog.at_level(logging.INFO, logger="psyclone.generator"):
-        inputfile = str(tmpdir.join("fixed_form.1s2"))
+        inputfile = tmp_path / "fixed_form.1s2"
         with open(inputfile, "w", encoding='utf-8') as my_file:
             my_file.write(code)
         with pytest.raises(SystemExit) as error:
-            main([inputfile])
+            main([str(inputfile)])
         assert error.value.code == 1
         _, err = capsys.readouterr()
         assert "Failed to create PSyIR from file " in err
@@ -1287,7 +1265,7 @@ def test_code_transformation_backend_validation(validate: bool,
     # The actual assert is in the dummy_fortran_writer function above
 
 
-def test_code_transformation_parse_failure(tmpdir, caplog, capsys):
+def test_code_transformation_parse_failure(tmp_path, caplog, capsys):
     '''
     Test the error handling in the code_transformation_mode() method when
     there is invalid Fortran in the supplied file.
@@ -1298,19 +1276,19 @@ def test_code_transformation_parse_failure(tmpdir, caplog, capsys):
       ! This is not valid Fortran
     end prog invalid
     '''
-    inputfile = str(tmpdir.join("funny_syntax.f90"))
+    inputfile = tmp_path / "funny_syntax.f90"
     with open(inputfile, "w", encoding='utf-8') as my_file:
         my_file.write(code)
     with caplog.at_level(logging.ERROR, logger="psyclone.generator"):
         with pytest.raises(SystemExit):
-            code_transformation_mode(inputfile, None, None, False, False,
+            code_transformation_mode(str(inputfile), None, None, False, False,
                                      False)
         _, err = capsys.readouterr()
         assert "Failed to create PSyIR from file '" in err
         assert "Is the input valid Fortran" in caplog.text
 
 
-def test_generate_trans_error(tmpdir, capsys, monkeypatch):
+def test_generate_trans_error(tmp_path, capsys, monkeypatch):
     '''Test that a TransformationError exception in the generate function
     is caught and output as expected by the main function.  The
     exception is only raised with the new PSyIR approach to modify the
@@ -1332,11 +1310,11 @@ def test_generate_trans_error(tmpdir, capsys, monkeypatch):
         "  call invoke(setval_c(field, value))\n"
         "end subroutine setval_c\n"
         "end module setval_c_mod\n")
-    filename = str(tmpdir.join("alg.f90"))
+    filename = tmp_path / "alg.f90"
     with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(code)
     with pytest.raises(SystemExit) as excinfo:
-        main([filename, "-api", "lfric"])
+        main([str(filename), "-api", "lfric"])
     # the error code should be 1
     assert str(excinfo.value) == "1"
     _, output = capsys.readouterr()
@@ -1344,7 +1322,7 @@ def test_generate_trans_error(tmpdir, capsys, monkeypatch):
             "Algorithm routine name. This is not allowed." in output)
 
 
-def test_generate_no_builtin_container(tmpdir, monkeypatch):
+def test_generate_no_builtin_container(tmp_path, monkeypatch):
     '''Test that a builtin use statement is removed if it has been added
     to a Container (a module). Also tests that everything works OK if
     no use statement is found in a symbol table (as FileContainer does
@@ -1361,10 +1339,10 @@ def test_generate_no_builtin_container(tmpdir, monkeypatch):
         "    call invoke(setval_c(field, 0.0))\n"
         "  end subroutine test\n"
         "end module\n")
-    filename = str(tmpdir.join("alg.f90"))
+    filename = tmp_path / "alg.f90"
     with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(code)
-    alg, _ = generate(filename, api="lfric")
+    alg, _ = generate(str(filename), api="lfric")
     assert "use _psyclone_builtins" not in alg
 
 
@@ -1476,19 +1454,19 @@ def test_main_no_invoke_alg_stdout(capsys):
         assert expected_output == out
 
 
-def test_main_write_psy_file(capsys, tmpdir):
+def test_main_write_psy_file(capsys, tmp_path):
     '''Tests that the main() function outputs successfully writes the
     generated psy output to a specified file.
 
     '''
     alg_filename = str(LFRIC_BASE_PATH / "1_single_invoke.f90")
 
-    psy_filename = str(tmpdir.join("psy.f90"))
+    psy_filename = tmp_path / "psy.f90"
 
-    main([alg_filename, '-api', 'lfric', '-opsy', psy_filename])
+    main([alg_filename, '-api', 'lfric', '-opsy', str(psy_filename)])
 
     # check psy file is created
-    assert os.path.isfile(psy_filename)
+    assert psy_filename.is_file()
 
     # extract psy file content
     with open(psy_filename, encoding="utf8") as psy_file:
@@ -1499,7 +1477,7 @@ def test_main_write_psy_file(capsys, tmpdir):
         assert psy_str in stdout
 
 
-def test_main_no_invoke_alg_file(capsys, tmpdir):
+def test_main_no_invoke_alg_file(capsys, tmp_path):
     '''Tests that the main() function outputs the original algorithm input
     file to file when the algorithm file does not contain an invoke
     and that it does not produce any psy output.
@@ -1508,12 +1486,12 @@ def test_main_no_invoke_alg_file(capsys, tmpdir):
     # pass in a kernel file as that has no invokes in it
     kern_filename = str(LFRIC_BASE_PATH / "testkern_mod.F90")
 
-    alg_filename = str(tmpdir.join("alg.f90"))
-    psy_filename = str(tmpdir.join("psy.f90"))
+    alg_filename = tmp_path / "alg.f90"
+    psy_filename = tmp_path / "psy.f90"
     # no need to delete the files as they have not been created
 
     main([kern_filename, '-api', 'lfric',
-          '-oalg', alg_filename, '-opsy', psy_filename])
+          '-oalg', str(alg_filename), '-opsy', str(psy_filename)])
     stdout, _ = capsys.readouterr()
 
     # check stdout contains warning
@@ -1528,10 +1506,9 @@ def test_main_no_invoke_alg_file(capsys, tmpdir):
     with open(alg_filename, encoding="utf8") as expected_file:
         expected_alg_str = expected_file.read()
         assert expected_alg_str == kern_str
-    os.remove(alg_filename)
 
     # check psy file is not created
-    assert not os.path.isfile(psy_filename)
+    assert not psy_filename.exists()
 
 
 def test_main_kern_output_no_dir(capsys):
@@ -1548,16 +1525,16 @@ def test_main_kern_output_no_dir(capsys):
             "exist" in output)
 
 
-def test_main_kern_output_no_write(tmpdir, capsys):
+def test_main_kern_output_no_write(tmp_path, capsys):
     '''Test for when the specified output directory (for transformed
     kernels) cannot be written to.
 
     '''
     alg_filename = str(LFRIC_BASE_PATH / "1_single_invoke.f90")
     # Create a new directory and make it readonly
-    new_dir = os.path.join(str(tmpdir), "no_write_access")
-    os.mkdir(new_dir)
-    os.chmod(new_dir, stat.S_IREAD)
+    new_dir = tmp_path / "no_write_access"
+    new_dir.mkdir()
+    new_dir.chmod(stat.S_IREAD)
     with pytest.raises(SystemExit) as err:
         main([alg_filename, '-api', 'lfric', '-okern', str(new_dir)])
     assert str(err.value) == "1"
@@ -1566,22 +1543,22 @@ def test_main_kern_output_no_write(tmpdir, capsys):
             f"({str(new_dir)})" in output)
 
 
-def test_main_kern_output_dir(tmpdir):
+def test_main_kern_output_dir(tmp_path):
     '''Test that we can specify a valid kernel output directory.'''
 
     alg_filename = str(LFRIC_BASE_PATH / "1_single_invoke.f90")
-    main([alg_filename, '-api', 'lfric', '-okern', str(tmpdir)])
+    main([alg_filename, '-api', 'lfric', '-okern', str(tmp_path)])
     # The specified kernel output directory should have been stored in
     # the configuration object
-    assert Config.get().kernel_output_dir == str(tmpdir)
+    assert Config.get().kernel_output_dir == str(tmp_path)
 
     # If no kernel_output_dir is set, it should default to the
     # current directory
     Config.get().kernel_output_dir = None
-    assert Config.get().kernel_output_dir == str(os.getcwd())
+    assert Config.get().kernel_output_dir == str(Path.cwd())
 
 
-def test_enable_cache_flag(tmpdir, monkeypatch):
+def test_enable_cache_flag(tmp_path, monkeypatch):
     ''' Check that if the --enable-cache flag is provided, resolve imports will
     create .psycache files for each imported module.
 
@@ -1619,36 +1596,36 @@ def trans(psyir):
                               ("module2.f90", module2),
                               ("code.f90", code),
                               (recipe_name, recipe)]:
-        with open(tmpdir.join(filename), "w", encoding='utf-8') as my_file:
+        with open(tmp_path / filename, "w", encoding='utf-8') as my_file:
             my_file.write(content)
 
     # If enable-cache not used, no .psycache files exist
-    monkeypatch.chdir(tmpdir)
+    monkeypatch.chdir(tmp_path)
     ModuleManager._instance = None
     main(["code.f90", "-s", recipe_name])
-    assert not os.path.isfile("module1.psycache")
-    assert not os.path.isfile("module2.psycache")
+    assert not (tmp_path / "module1.psycache").exists()
+    assert not (tmp_path / "module2.psycache").exists()
     assert not ModuleManager.get()._cache_active
 
     # If enable-cache is used, it will generate .psycache files for each module
     ModuleManager._instance = None
     main(["code.f90", "-s", recipe_name, "--enable-cache"])
-    assert os.path.isfile(tmpdir.join("module1.psycache"))
-    assert os.path.isfile(tmpdir.join("module2.psycache"))
+    assert (tmp_path / "module1.psycache").is_file()
+    assert (tmp_path / "module2.psycache").is_file()
     assert ModuleManager.get()._cache_active
 
     ModuleManager._instance = None
 
 
-def test_main_include_invalid(capsys, tmpdir):
+def test_main_include_invalid(capsys, tmp_path):
     '''Check that the main function complains if a non-existent location
     is specified as a search path for INCLUDE files.
 
     '''
     alg_file = str(NEMO_BASE_PATH / "include_stmt.f90")
-    fake_path = tmpdir.join('does_not_exist')
+    fake_path = tmp_path / 'does_not_exist'
     with pytest.raises(SystemExit) as err:
-        main([alg_file, '-I', fake_path.strpath])
+        main([alg_file, '-I', str(fake_path)])
     assert str(err.value) == "1"
     capout = capsys.readouterr()
     assert "does_not_exist' does not exist" in capout.err
@@ -1670,8 +1647,7 @@ def test_main_include_path(capsys):
             in str(err.value))
     # Now specify two locations to search with only the second containing
     # the necessary header file
-    inc_path1 = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "test_files")
+    inc_path1 = Path(get_base_path("lfric"))
     inc_path2 = str(NEMO_BASE_PATH / "include_files")
     main([alg_file, '-I', str(inc_path1), '-I', str(inc_path2)])
     stdout, _ = capsys.readouterr()
@@ -1681,14 +1657,14 @@ def test_main_include_path(capsys):
     assert str(inc_path2) in Config.get().include_paths
 
 
-def test_utf_char(tmpdir):
+def test_utf_char(tmp_path):
     '''Test that the generate method works OK when both the Algorithm and
     Kernel code contain utf-encoded chars.
 
     '''
-    algfile = os.path.join(str(tmpdir), "alg.f90")
+    algfile = tmp_path / "alg.f90"
     main([str(GOCEAN_BASE_PATH / "test29_utf_chars.f90"),
-          "-api", "gocean", "-oalg", algfile])
+          "-api", "gocean", "-oalg", str(algfile)])
     # We only check the algorithm layer since we generate the PSy
     # layer from scratch in this API (and thus it contains no
     # non-ASCII characters).
@@ -1698,9 +1674,9 @@ def test_utf_char(tmpdir):
         assert "call invoke_0_kernel_utf" in alg
     # Check without PSyKAl DSLs
     test_file = NEMO_BASE_PATH / "utf_char.f90"
-    tmp_file = os.path.join(str(tmpdir), "test_psy.f90")
-    main(["-o", tmp_file, str(test_file)])
-    assert os.path.isfile(tmp_file)
+    tmp_file = tmp_path / "test_psy.f90"
+    main(["-o", str(tmp_file), str(test_file)])
+    assert tmp_file.is_file()
 
 
 def test_check_psyir():
@@ -1797,7 +1773,7 @@ def test_no_script_lfric_new(monkeypatch):
     assert "use _psyclone_builtins" not in alg
 
 
-def test_script_lfric_new(monkeypatch, script_factory):
+def test_script_lfric_new(monkeypatch, tmp_path):
     '''Test that the generate function in generator.py returns
     successfully if a script (containing both trans_alg() and trans()
     functions) is specified. This test uses the new PSyIR approach to
@@ -1806,7 +1782,7 @@ def test_script_lfric_new(monkeypatch, script_factory):
     monkeypatching.
 
     '''
-    alg_script = script_factory("""
+    alg_script = script_factory(tmp_path, """
 def trans_alg(psyir):
     pass
 
@@ -1873,7 +1849,7 @@ def test_no_invokes_lfric_new(monkeypatch):
 
 
 @pytest.mark.parametrize("invoke", ["call invoke", "if (.true.) call invoke"])
-def test_generate_unresolved_container_lfric(invoke, tmpdir, monkeypatch):
+def test_generate_unresolved_container_lfric(invoke, tmp_path, monkeypatch):
     '''Test that a GenerationError exception in the generate function is
     raised for the LFRic DSL if one of the functors is not explicitly
     declared. This can happen in LFRic algorithm code as it is never
@@ -1906,13 +1882,13 @@ def test_generate_unresolved_container_lfric(invoke, tmpdir, monkeypatch):
         f"  {invoke}(testkern_type(scalar, field1, field2, field3, field4))\n"
         f"end subroutine some_kernel\n"
         f"end module some_kernel_mod\n")
-    alg_filename = str(tmpdir.join("alg.f90"))
+    alg_filename = tmp_path / "alg.f90"
     with open(alg_filename, "w", encoding='utf-8') as my_file:
         my_file.write(code)
     kern_filename = str(LFRIC_BASE_PATH / "testkern_mod.F90")
-    shutil.copyfile(kern_filename, str(tmpdir.join("testkern_mod.F90")))
+    shutil.copyfile(kern_filename, tmp_path / "testkern_mod.F90")
     with pytest.raises(GenerationError) as info:
-        _, _ = generate(alg_filename, api="lfric")
+        _, _ = generate(str(alg_filename), api="lfric")
     assert ("Kernel functor 'testkern_type' in routine 'some_kernel' from "
             "algorithm file '" in str(info.value))
     assert ("alg.f90' must be named in a use statement (found ["
@@ -1921,7 +1897,7 @@ def test_generate_unresolved_container_lfric(invoke, tmpdir, monkeypatch):
             "['x_plus_y', 'inc_x_plus_y'," in str(info.value))
 
 
-def test_generate_unresolved_container_gocean(tmpdir):
+def test_generate_unresolved_container_gocean(tmp_path):
     '''Test that a GenerationError exception in the generate function is
     raised for the GOcean DSL if one of the functors is not explicitly
     declared. This can happen in GOcean algorithm code as it is never
@@ -1949,13 +1925,13 @@ def test_generate_unresolved_container_gocean(tmpdir):
         "  call invoke( compute_cu(cu_fld, p_fld, u_fld) )\n"
         "end subroutine some_kernel\n"
         "end module some_kernel_mod\n")
-    alg_filename = str(tmpdir.join("alg.f90"))
+    alg_filename = tmp_path / "alg.f90"
     with open(alg_filename, "w", encoding='utf-8') as my_file:
         my_file.write(code)
     kern_filename = str(GOCEAN_BASE_PATH / "compute_cu_mod.f90")
-    shutil.copyfile(kern_filename, str(tmpdir.join("compute_cu_mod.f90")))
+    shutil.copyfile(kern_filename, tmp_path / "compute_cu_mod.f90")
     with pytest.raises(GenerationError) as info:
-        _, _ = generate(alg_filename, api="gocean")
+        _, _ = generate(str(alg_filename), api="gocean")
     assert ("Kernel functor 'compute_cu' in routine 'some_kernel' from "
             "algorithm file '" in str(info.value))
     assert ("alg.f90' must be named in a use statement (found "
@@ -1976,13 +1952,13 @@ def test_ignore_pattern():
     assert mod_man._ignore_files == set(["abc1", "abc2"])
 
 
-def test_intrinsic_control_settings(tmpdir):
+def test_intrinsic_control_settings(tmp_path):
     '''Checks that the intrinsic output control settings update the config
     correctly'''
     # Create dummy piece of code.
     code = """program test
     end program"""
-    filename = str(tmpdir.join("test.f90"))
+    filename = str(tmp_path / "test.f90")
     with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(code)
     main([filename, "--backend-add-all-intrinsic-arg-names"])
