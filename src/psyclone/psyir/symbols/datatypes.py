@@ -24,6 +24,7 @@ from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.symbol import Symbol
 if TYPE_CHECKING:
     from psyclone.psyir.nodes.datanode import DataNode
+    from psyclone.psyir.nodes import Node
     from psyclone.psyir.symbols import SymbolTable
 
 
@@ -1284,12 +1285,38 @@ class StructureType(DataType):
         :param visibility: whether this member is public or private.
         :param initial_value: the initial value of this member (if any) or the
             redirection value if it is a procedure.
-        :type initial_value: Optional[:py:class:`psyclone.psyir.nodes.Node`]
         '''
         name: str
         datatype: Union[DataType, DataTypeSymbol]
         visibility: Symbol.Visibility
-        initial_value: Any
+        initial_value: Optional[Node]
+        _preceding_comment: str = ""
+        _inline_comment: str = ""
+
+        def __eq__(self, other: Any) -> bool:
+            '''
+            :param other: the object to check equality to.
+
+            :returns: whether this type is equal to the 'other' type.
+
+            '''
+            if type(other) is not type(self):
+                return False
+
+            if self.name != other.name:
+                return False
+
+            if self.datatype != other.datatype:
+                return False
+
+            if self.visibility != other.visibility:
+                return False
+
+            if self.initial_value != other.initial_value:
+                return False
+
+            # The _preceding_comment and _inline_comment are ignored
+            return True
 
     def __init__(self):
         self._components = OrderedDict()
@@ -1477,14 +1504,9 @@ class StructureType(DataType):
         key_name = name.lower()
         self._components[key_name] = self.ComponentType(name, datatype,
                                                         visibility,
-                                                        initial_value)
-        # Use object.__setattr__ due to the frozen nature of ComponentType
-        object.__setattr__(self._components[key_name],
-                           "_preceding_comment",
-                           preceding_comment)
-        object.__setattr__(self._components[key_name],
-                           "_inline_comment",
-                           inline_comment)
+                                                        initial_value,
+                                                        preceding_comment,
+                                                        inline_comment)
 
     def lookup(self, name: str) -> 'StructureType.ComponentType':
         '''
@@ -1559,12 +1581,8 @@ class StructureType(DataType):
 
         key_name = name.lower()
         self._procedure_components[key_name] = self.ComponentType(
-            name, datatype, visibility, initial_value)
-        # Use object.__setattr__ due to the frozen nature of ComponentType.
-        object.__setattr__(self._procedure_components[key_name],
-                           "_preceding_comment", preceding_comment)
-        object.__setattr__(self._procedure_components[key_name],
-                           "_inline_comment", inline_comment)
+            name, datatype, visibility, initial_value, preceding_comment,
+            inline_comment)
 
     def __eq__(self, other: Any) -> bool:
         '''

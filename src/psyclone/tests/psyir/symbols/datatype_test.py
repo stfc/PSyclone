@@ -1460,19 +1460,19 @@ def test_structuretype_componenttype_eq():
     assert comp1 == comp2
 
     comp1 = StructureType.ComponentType("fred", ScalarType.integer_type(),
-                                        Symbol.Visibility.PUBLIC, None)
-    object.__setattr__(comp1, "_preceding_comment", "A comment")
+                                        Symbol.Visibility.PUBLIC, None,
+                                        "A comment")
     comp2 = StructureType.ComponentType("fred", ScalarType.integer_type(),
-                                        Symbol.Visibility.PUBLIC, None)
-    object.__setattr__(comp2, "_preceding_comment", "Another comment")
+                                        Symbol.Visibility.PUBLIC, None,
+                                        "Another comment")
     assert comp1 == comp2
 
     comp1 = StructureType.ComponentType("fred", ScalarType.integer_type(),
-                                        Symbol.Visibility.PUBLIC, None)
-    object.__setattr__(comp1, "_inline_comment", "A comment")
+                                        Symbol.Visibility.PUBLIC, None,
+                                        _inline_comment="A comment")
     comp2 = StructureType.ComponentType("fred", ScalarType.integer_type(),
-                                        Symbol.Visibility.PUBLIC, None)
-    object.__setattr__(comp2, "_inline_comment", "Another comment")
+                                        Symbol.Visibility.PUBLIC, None,
+                                        _inline_comment="Another comment")
     assert comp1 == comp2
 
     comp1 = StructureType.ComponentType("fred", ScalarType.integer_type(),
