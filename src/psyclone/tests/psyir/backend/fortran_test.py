@@ -375,10 +375,22 @@ def test_gen_typedecl_validation(fortran_writer, monkeypatch):
     assert ("cannot generate code for symbol 'my_type' of type "
             "'UnsupportedType'" in str(err.value))
     # Symbol with an invalid visibility
-    dtype = StructureType.create([
-        ("flag", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        ("secret", ScalarType.integer_type(),
-         Symbol.Visibility.PRIVATE, None)])
+    dtype = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "flag",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            StructureType.ComponentType(
+                "secret",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PRIVATE,
+                None,
+            ),
+        ]
+    )
     tsymbol = DataTypeSymbol("my_type", dtype)
     tsymbol._visibility = "wrong"
     with pytest.raises(InternalError) as err:
@@ -448,17 +460,36 @@ def test_gen_typedecl(fortran_writer):
     dynamic_atype = ArrayType(ScalarType.real_type(),
                               [ArrayType.Extent.DEFERRED])
     tsymbol = DataTypeSymbol("grid_type", UnresolvedType())
-    dtype = StructureType.create([
-        # Scalar integer
-        ("flag", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        # Private, scalar integer
-        ("secret", ScalarType.integer_type(), Symbol.Visibility.PRIVATE, None),
-        # Static array
-        ("matrix", atype, Symbol.Visibility.PUBLIC, None),
-        # Allocatable array
-        ("data", dynamic_atype, Symbol.Visibility.PUBLIC, None),
-        # Derived type
-        ("grid", tsymbol, Symbol.Visibility.PRIVATE, None)])
+    dtype = StructureType.create(
+        [
+            # Scalar integer
+            StructureType.ComponentType(
+                "flag",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            # Private, scalar integer
+            StructureType.ComponentType(
+                "secret",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PRIVATE,
+                None,
+            ),
+            # Static array
+            StructureType.ComponentType(
+                "matrix", atype, Symbol.Visibility.PUBLIC, None
+            ),
+            # Allocatable array
+            StructureType.ComponentType(
+                "data", dynamic_atype, Symbol.Visibility.PUBLIC, None
+            ),
+            # Derived type
+            StructureType.ComponentType(
+                "grid", tsymbol, Symbol.Visibility.PRIVATE, None
+            ),
+        ]
+    )
     tsymbol = DataTypeSymbol("my_type", dtype)
     assert (fortran_writer.gen_typedecl(tsymbol) ==
             "type, public :: my_type\n"
@@ -481,14 +512,34 @@ def test_gen_typedecl_extends_contains(fortran_writer):
     initialise = Symbol("initialise_impl")
     code = Symbol("code_impl")
     dtype = StructureType.create(
-        [("flag", ScalarType.integer_type(), Symbol.Visibility.PUBLIC)],
-        [("initialise", UnresolvedType(), Symbol.Visibility.PRIVATE,
-          Reference(initialise), "Initialise the object", "binding"),
-         ("reset", UnresolvedType(), Symbol.Visibility.PUBLIC),
-         ("code", UnsupportedFortranType(
-             "PROCEDURE, NOPASS :: code => code_impl"),
-          Symbol.Visibility.PUBLIC, Reference(code))],
-        extends=parent_type)
+        [
+            StructureType.ComponentType(
+                "flag", ScalarType.integer_type(), Symbol.Visibility.PUBLIC
+            )
+        ],
+        [
+            StructureType.ComponentType(
+                "initialise",
+                UnresolvedType(),
+                Symbol.Visibility.PRIVATE,
+                Reference(initialise),
+                "Initialise the object",
+                "binding",
+            ),
+            StructureType.ComponentType(
+                "reset", UnresolvedType(), Symbol.Visibility.PUBLIC
+            ),
+            StructureType.ComponentType(
+                "code",
+                UnsupportedFortranType(
+                    "PROCEDURE, NOPASS :: code => code_impl"
+                ),
+                Symbol.Visibility.PUBLIC,
+                Reference(code),
+            ),
+        ],
+        extends=parent_type,
+    )
     tsymbol = DataTypeSymbol(
         "child_type", dtype, visibility=Symbol.Visibility.PRIVATE)
     tsymbol.inline_comment = "derived type"

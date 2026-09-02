@@ -531,10 +531,19 @@ def test_arraytype_datatypesymbol_only():
     ''' Test that we currently refuse to make an ArrayType with an intrinsic
     type of StructureType. (This limitation is the subject of #1031.) '''
     with pytest.raises(NotImplementedError) as err:
-        _ = ArrayType(StructureType.create(
-            [("nx", ScalarType.integer_type(),
-             Symbol.Visibility.PUBLIC, None)]),
-                      [5])
+        _ = ArrayType(
+            StructureType.create(
+                [
+                    StructureType.ComponentType(
+                        "nx",
+                        ScalarType.integer_type(),
+                        Symbol.Visibility.PUBLIC,
+                        None,
+                    )
+                ]
+            ),
+            [5],
+        )
     assert ("When creating an array of structures, the type of those "
             "structures must be supplied as a DataTypeSymbol but got a "
             "StructureType instead." in str(err.value))
@@ -1218,11 +1227,25 @@ def test_create_structuretype():
     # One member will have its initial value defined by the
     # default.
     tsymbol = DataTypeSymbol("my_type", UnresolvedType())
-    stype = StructureType.create([
-        ("fred", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        ("george", ScalarType.real_type(), Symbol.Visibility.PRIVATE,
-         Literal("1.0", ScalarType.real_type())),
-        ("barry", tsymbol, Symbol.Visibility.PUBLIC)])
+    stype = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "fred",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            StructureType.ComponentType(
+                "george",
+                ScalarType.real_type(),
+                Symbol.Visibility.PRIVATE,
+                Literal("1.0", ScalarType.real_type()),
+            ),
+            StructureType.ComponentType(
+                "barry", tsymbol, Symbol.Visibility.PUBLIC
+            ),
+        ]
+    )
     assert len(stype.components) == 3
     george = stype.lookup("george")
     assert isinstance(george, StructureType.ComponentType)
@@ -1236,14 +1259,11 @@ def test_create_structuretype():
     assert barry.visibility == Symbol.Visibility.PUBLIC
     assert not barry.initial_value
     with pytest.raises(TypeError) as err:
-        StructureType.create([
-            ("fred", ScalarType.integer_type(), Symbol.Visibility.PUBLIC,
-             None),
-            ("george", Symbol.Visibility.PRIVATE)])
-    assert ("Each component must be specified using a 3 to 6-tuple of (name, "
-            "type, visibility, initial_value, preceding_comment, "
-            "inline_comment) but found a tuple with 2 members: ('george', "
-            in str(err.value))
+        StructureType.create(
+            [("fred", ScalarType.integer_type(), Symbol.Visibility.PUBLIC)]
+        )
+    assert ("component added to a StructureType must be an instance of "
+            "'StructureType.ComponentType' but got 'tuple'" in str(err.value))
 
 
 def test_create_structuretype_procedures_and_extends():
@@ -1253,9 +1273,18 @@ def test_create_structuretype_procedures_and_extends():
     parent_type = Symbol("parent_type")
     stype = StructureType.create(
         [],
-        [("ProC", UnresolvedType(), Symbol.Visibility.PRIVATE,
-          Reference(target), "Before", "After")],
-        extends=parent_type)
+        [
+            StructureType.ComponentType(
+                "ProC",
+                UnresolvedType(),
+                Symbol.Visibility.PRIVATE,
+                Reference(target),
+                "Before",
+                "After",
+            )
+        ],
+        extends=parent_type,
+    )
 
     assert stype.extends is parent_type
     assert list(stype.procedure_components) == ["proc"]
@@ -1272,10 +1301,10 @@ def test_create_structuretype_procedures_and_extends():
 
     with pytest.raises(TypeError) as err:
         StructureType.create(
-            [], [("proc", UnresolvedType())])
-    assert ("Each procedure component must be specified using a 3 to 6-tuple "
-            "of (name, type, visibility, initial_value, preceding_comment, "
-            "inline_comment) but found a tuple with 2 members" in
+            [], [("proc", UnresolvedType(), Symbol.Visibility.PUBLIC)]
+        )
+    assert ("procedure component added to a StructureType must be an instance "
+            "of 'StructureType.ComponentType' but got 'tuple'" in
             str(err.value))
 
     with pytest.raises(TypeError) as err:
@@ -1341,43 +1370,134 @@ def test_structuretype_add_procedure_errors():
 
 def test_structuretype_eq():
     '''Test the equality operator of StructureType.'''
-    stype = StructureType.create([
-        ("nancy", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        ("peggy", ScalarType.real_type(), Symbol.Visibility.PRIVATE,
-         Literal("1.0", ScalarType.real_type()))])
-    assert stype == StructureType.create([
-        ("nancy", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        ("peggy", ScalarType.real_type(), Symbol.Visibility.PRIVATE,
-         Literal("1.0", ScalarType.real_type()))])
+    stype = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "nancy",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            StructureType.ComponentType(
+                "peggy",
+                ScalarType.real_type(),
+                Symbol.Visibility.PRIVATE,
+                Literal("1.0", ScalarType.real_type()),
+            ),
+        ]
+    )
+    assert stype == StructureType.create(
+        [
+            StructureType.ComponentType(
+                "nancy",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            StructureType.ComponentType(
+                "peggy",
+                ScalarType.real_type(),
+                Symbol.Visibility.PRIVATE,
+                Literal("1.0", ScalarType.real_type()),
+            ),
+        ]
+    )
     # Something that is not a StructureType
     assert stype != NoType()
     # Component with a different name.
-    assert stype != StructureType.create([
-        ("nancy", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        ("roger", ScalarType.real_type(), Symbol.Visibility.PRIVATE,
-         Literal("1.0", ScalarType.real_type()))])
+    assert stype != StructureType.create(
+        [
+            StructureType.ComponentType(
+                "nancy",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            StructureType.ComponentType(
+                "roger",
+                ScalarType.real_type(),
+                Symbol.Visibility.PRIVATE,
+                Literal("1.0", ScalarType.real_type()),
+            ),
+        ]
+    )
     # Component with a different type.
-    assert stype != StructureType.create([
-        ("nancy", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        ("peggy", ScalarType.integer_type(), Symbol.Visibility.PRIVATE,
-         Literal("1.0", ScalarType.real_type()))])
+    assert stype != StructureType.create(
+        [
+            StructureType.ComponentType(
+                "nancy",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            StructureType.ComponentType(
+                "peggy",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PRIVATE,
+                Literal("1.0", ScalarType.real_type()),
+            ),
+        ]
+    )
     # Component with a different visibility.
-    assert stype != StructureType.create([
-        ("nancy", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        ("peggy", ScalarType.real_type(), Symbol.Visibility.PUBLIC,
-         Literal("1.0", ScalarType.real_type()))])
+    assert stype != StructureType.create(
+        [
+            StructureType.ComponentType(
+                "nancy",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            StructureType.ComponentType(
+                "peggy",
+                ScalarType.real_type(),
+                Symbol.Visibility.PUBLIC,
+                Literal("1.0", ScalarType.real_type()),
+            ),
+        ]
+    )
     # Component with a different initialisation
-    assert stype != StructureType.create([
-        ("nancy", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        ("peggy", ScalarType.real_type(), Symbol.Visibility.PRIVATE, None)])
+    assert stype != StructureType.create(
+        [
+            StructureType.ComponentType(
+                "nancy",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            StructureType.ComponentType(
+                "peggy",
+                ScalarType.real_type(),
+                Symbol.Visibility.PRIVATE,
+                None,
+            ),
+        ]
+    )
     # Different number of components.
-    assert stype != StructureType.create([
-        ("nancy", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        ("peggy", ScalarType.real_type(), Symbol.Visibility.PRIVATE,
-         Literal("1.0", ScalarType.real_type())),
-        ("roger", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None)])
+    assert stype != StructureType.create(
+        [
+            StructureType.ComponentType(
+                "nancy",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            StructureType.ComponentType(
+                "peggy",
+                ScalarType.real_type(),
+                Symbol.Visibility.PRIVATE,
+                Literal("1.0", ScalarType.real_type()),
+            ),
+            StructureType.ComponentType(
+                "roger",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
 
-    procedure = [("proc", UnresolvedType(), Symbol.Visibility.PUBLIC)]
+    procedure = [StructureType.ComponentType(
+        "proc", UnresolvedType(), Symbol.Visibility.PUBLIC)]
     proc_stype = StructureType.create([], procedure)
     assert proc_stype == StructureType.create([], procedure)
     assert proc_stype != StructureType()
@@ -1395,11 +1515,25 @@ def test_structuretype_replace_symbols(table):
 
     '''
     tsymbol = DataTypeSymbol("my_type", UnresolvedType())
-    stype = StructureType.create([
-        ("fred", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        ("george", ScalarType.real_type(), Symbol.Visibility.PRIVATE,
-         Literal("1.0", ScalarType.real_type())),
-        ("barry", tsymbol, Symbol.Visibility.PUBLIC, None)])
+    stype = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "fred",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            StructureType.ComponentType(
+                "george",
+                ScalarType.real_type(),
+                Symbol.Visibility.PRIVATE,
+                Literal("1.0", ScalarType.real_type()),
+            ),
+            StructureType.ComponentType(
+                "barry", tsymbol, Symbol.Visibility.PUBLIC, None
+            ),
+        ]
+    )
     assert stype.components["barry"].datatype is tsymbol
     if table is not None:
         # Empty table should do nothing.
@@ -1424,10 +1558,22 @@ def test_structuretype_replace_procedure_and_extends(use_table):
     original = Symbol("dependency")
     proc_type = ArrayType(ScalarType.real_type(), [Reference(original)])
     stype = StructureType.create(
-        [], [("proc", proc_type, Symbol.Visibility.PUBLIC,
-              Reference(original), "Before", "After"),
-             ("no_target", UnresolvedType(), Symbol.Visibility.PRIVATE)],
-        extends=original)
+        [],
+        [
+            StructureType.ComponentType(
+                "proc",
+                proc_type,
+                Symbol.Visibility.PUBLIC,
+                Reference(original),
+                "Before",
+                "After",
+            ),
+            StructureType.ComponentType(
+                "no_target", UnresolvedType(), Symbol.Visibility.PRIVATE
+            ),
+        ],
+        extends=original,
+    )
 
     # A non-matching Symbol or an empty table must leave all references to the
     # original symbol unchanged.
@@ -1469,15 +1615,37 @@ def test_structuretype_get_all_accessed_symbols():
     proc_target = Symbol("proc_target")
     parent_type = Symbol("parent_type")
     proc_type = ArrayType(ScalarType.real_type(), [Reference(proc_ndim)])
-    stype = StructureType.create([
-        ("fred", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        ("george", atype, Symbol.Visibility.PRIVATE,
-         Literal("1.0", ScalarType.real_type())),
-        ("barry", tsymbol, Symbol.Visibility.PUBLIC, None)],
-        [("proc", proc_type, Symbol.Visibility.PUBLIC,
-          Reference(proc_target)),
-         ("no_target", UnresolvedType(), Symbol.Visibility.PRIVATE)],
-        extends=parent_type)
+    stype = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "fred",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            StructureType.ComponentType(
+                "george",
+                atype,
+                Symbol.Visibility.PRIVATE,
+                Literal("1.0", ScalarType.real_type()),
+            ),
+            StructureType.ComponentType(
+                "barry", tsymbol, Symbol.Visibility.PUBLIC, None
+            ),
+        ],
+        [
+            StructureType.ComponentType(
+                "proc",
+                proc_type,
+                Symbol.Visibility.PUBLIC,
+                Reference(proc_target),
+            ),
+            StructureType.ComponentType(
+                "no_target", UnresolvedType(), Symbol.Visibility.PRIVATE
+            ),
+        ],
+        extends=parent_type,
+    )
     dependent_symbols = stype.get_all_accessed_symbols()
     assert tsymbol in dependent_symbols
     assert ndim in dependent_symbols
@@ -1523,12 +1691,33 @@ def test_structuretype___copy__():
     '''Test the __copy__ method of StructureType.'''
     target = Symbol("target")
     parent_type = Symbol("parent_type")
-    stype = StructureType.create([
-        ("nancy", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        ("peggy", ScalarType.real_type(), Symbol.Visibility.PRIVATE,
-         Literal("1.0", ScalarType.real_type()))],
-        [("proc", UnresolvedType(), Symbol.Visibility.PUBLIC,
-          Reference(target), "Before", "After")], extends=parent_type)
+    stype = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "nancy",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            StructureType.ComponentType(
+                "peggy",
+                ScalarType.real_type(),
+                Symbol.Visibility.PRIVATE,
+                Literal("1.0", ScalarType.real_type()),
+            ),
+        ],
+        [
+            StructureType.ComponentType(
+                "proc",
+                UnresolvedType(),
+                Symbol.Visibility.PUBLIC,
+                Reference(target),
+                "Before",
+                "After",
+            )
+        ],
+        extends=parent_type,
+    )
     copied = stype.__copy__()
     assert copied == stype
     assert copied is not stype

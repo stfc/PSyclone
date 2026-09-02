@@ -1382,32 +1382,16 @@ class StructureType(DataType):
 
     @staticmethod
     def create(
-        components: list[Union[
-            tuple[str, Union[DataType, DataTypeSymbol], Symbol.Visibility],
-            tuple[str, Union[DataType, DataTypeSymbol], Symbol.Visibility,
-                  DataNode],
-            tuple[str, Union[DataType, DataTypeSymbol], Symbol.Visibility,
-                  DataNode, str],
-            tuple[str, Union[DataType, DataTypeSymbol], Symbol.Visibility,
-                  DataNode, str, str]]],
-        procedure_components: Optional[list[Union[
-            tuple[str, Union[DataType, DataTypeSymbol], Symbol.Visibility],
-            tuple[str, Union[DataType, DataTypeSymbol], Symbol.Visibility,
-                  DataNode],
-            tuple[str, Union[DataType, DataTypeSymbol], Symbol.Visibility,
-                  DataNode, str],
-            tuple[str, Union[DataType, DataTypeSymbol], Symbol.Visibility,
-                  DataNode, str, str]]]] = None,
+        components: list[StructureType.ComponentType],
+        procedure_components: Optional[
+            list[StructureType.ComponentType]] = None,
         extends: Optional[DataTypeSymbol] = None
     ) -> 'StructureType':
         '''
-        Creates a StructureType from the supplied list of properties.
+        Creates a StructureType from the supplied lists of components.
 
-        :param components: the name, type, visibility (whether public or
-            private), initial value (if any), preceding comment (if any)
-            and inline comment (if any) of each component.
-        :param procedure_components: the procedure bindings of this type,
-            specified in the same way as data components.
+        :param components: the data components of this type.
+        :param procedure_components: the procedure components of this type.
         :param extends: the type extended by this type, if any.
 
         :returns: the new type object.
@@ -1415,24 +1399,10 @@ class StructureType(DataType):
         '''
         stype = StructureType()
         for component in components:
-            if len(component) not in (3, 4, 5, 6):
-                raise TypeError(
-                    f"Each component must be specified using a 3 to 6-tuple "
-                    f"of (name, type, visibility, initial_value, "
-                    f"preceding_comment, inline_comment) but found a "
-                    f"tuple with {len(component)} members: {component}")
-            stype.add(StructureType.ComponentType(*component))
+            stype.add(component)
         if procedure_components:
             for component in procedure_components:
-                if len(component) not in (3, 4, 5, 6):
-                    raise TypeError(
-                        f"Each procedure component must be specified using a "
-                        f"3 to 6-tuple of (name, type, visibility, "
-                        f"initial_value, preceding_comment, inline_comment) "
-                        f"but found a tuple with {len(component)} members: "
-                        f"{component}")
-                stype.add_procedure_component(
-                    StructureType.ComponentType(*component))
+                stype.add_procedure_component(component)
         if extends is not None:
             stype.extends = extends
         return stype
