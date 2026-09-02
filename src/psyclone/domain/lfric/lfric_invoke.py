@@ -289,7 +289,7 @@ class LFRicInvoke(Invoke):
 
         '''
         cursor = len(self.schedule.children)
-        #for entities in [self.proxies, self.run_time_checks,
+        # for entities in [self.proxies, self.run_time_checks,
         #                 self.cell_iterators, self.meshes,
         #                 self.stencil, self.dofmaps,
         #                 self.cma_ops, self.boundary_conditions,
@@ -323,10 +323,12 @@ class LFRicInvoke(Invoke):
 
         # Now that all initialisation is done, add the comment before
         # the start of the kernels
-        #if Config.get().distributed_memory:
+        # TODO commented-out for now because getting 'cursor' right needs
+        # some work...
+        # if Config.get().distributed_memory:
         #    self.schedule[cursor].preceding_comment = (
         #        "Call kernels and communication routines")
-        #else:
+        # else:
         #    self.schedule[cursor].preceding_comment = (
         #        "Call kernels")
 
