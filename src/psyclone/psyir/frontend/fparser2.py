@@ -2361,9 +2361,10 @@ class Fparser2Reader():
                 else:
                     datatype = symbol.datatype
                     initial_value = symbol.initial_value
-                    dtype.add(symbol.name, datatype, symbol.visibility,
-                              initial_value, symbol.preceding_comment,
-                              symbol.inline_comment)
+                    dtype.add(StructureType.ComponentType(
+                        symbol.name, datatype, symbol.visibility,
+                        initial_value, symbol.preceding_comment,
+                        symbol.inline_comment))
 
             # Update its type with the definition we've found
             tsymbol.datatype = dtype
@@ -2435,9 +2436,9 @@ class Fparser2Reader():
                     target_symbol.datatype = UnresolvedType()
                 target = Reference(target_symbol)
 
-            dtype.add_procedure_component(
+            dtype.add_procedure_component(StructureType.ComponentType(
                 binding_name, UnsupportedFortranType(str(procedure)),
-                visibility, target)
+                visibility, target))
 
     def _get_partial_datatype(
         self,

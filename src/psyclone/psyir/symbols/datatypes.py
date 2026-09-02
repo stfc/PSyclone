@@ -24,7 +24,6 @@ from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.symbol import Symbol
 if TYPE_CHECKING:
     from psyclone.psyir.nodes.datanode import DataNode
-    from psyclone.psyir.nodes import Node
     from psyclone.psyir.symbols import SymbolTable
 
 
@@ -1289,9 +1288,50 @@ class StructureType(DataType):
         name: str
         datatype: Union[DataType, DataTypeSymbol]
         visibility: Symbol.Visibility
-        initial_value: Optional[Node]
+        initial_value: Optional[DataNode] = None
         _preceding_comment: str = ""
         _inline_comment: str = ""
+
+        def __post_init__(self) -> None:
+            '''Validate the attributes of this component.
+
+            :raises TypeError: if any of the supplied values are of the wrong
+                type.
+            '''
+            # This import must be placed here to avoid circular dependencies.
+            # pylint: disable-next=import-outside-toplevel
+            from psyclone.psyir.nodes import DataNode
+
+            if not isinstance(self.name, str):
+                raise TypeError(
+                    "The name of a component of a StructureType must be a "
+                    f"'str' but got '{type(self.name).__name__}'")
+            if not isinstance(self.datatype, (DataType, DataTypeSymbol)):
+                raise TypeError(
+                    "The type of a component of a StructureType must be a "
+                    "'DataType' or 'DataTypeSymbol' but got "
+                    f"'{type(self.datatype).__name__}'")
+            if not isinstance(self.visibility, Symbol.Visibility):
+                raise TypeError(
+                    "The visibility of a component of a StructureType must "
+                    "be an instance of 'Symbol.Visibility' but got "
+                    f"'{type(self.visibility).__name__}'")
+            if (self.initial_value is not None and
+                    not isinstance(self.initial_value, DataNode)):
+                raise TypeError(
+                    "The initial value of a component of a StructureType "
+                    "must be None or an instance of 'DataNode', but got "
+                    f"'{type(self.initial_value).__name__}'.")
+            if not isinstance(self.preceding_comment, str):
+                raise TypeError(
+                    "The preceding_comment of a component of a StructureType "
+                    "must be a 'str' but got "
+                    f"'{type(self.preceding_comment).__name__}'")
+            if not isinstance(self.inline_comment, str):
+                raise TypeError(
+                    "The inline_comment of a component of a StructureType "
+                    "must be a 'str' but got "
+                    f"'{type(self.inline_comment).__name__}'")
 
         def __eq__(self, other: Any) -> bool:
             '''
@@ -1333,15 +1373,10 @@ class StructureType(DataType):
         '''
         new = StructureType()
 
-        for name, component in self.components.items():
-            new.add(name, component.datatype, component.visibility,
-                    component.initial_value, component.preceding_comment,
-                    component.inline_comment)
-        for name, component in self.procedure_components.items():
-            new.add_procedure_component(
-                name, component.datatype, component.visibility,
-                component.initial_value, component.preceding_comment,
-                component.inline_comment)
+        for component in self.components.values():
+            new.add(component)
+        for component in self.procedure_components.values():
+            new.add_procedure_component(component)
         new._extends = self.extends
         return new
 
@@ -1386,7 +1421,7 @@ class StructureType(DataType):
                     f"of (name, type, visibility, initial_value, "
                     f"preceding_comment, inline_comment) but found a "
                     f"tuple with {len(component)} members: {component}")
-            stype.add(*component)
+            stype.add(StructureType.ComponentType(*component))
         if procedure_components:
             for component in procedure_components:
                 if len(component) not in (3, 4, 5, 6):
@@ -1396,7 +1431,8 @@ class StructureType(DataType):
                         f"initial_value, preceding_comment, inline_comment) "
                         f"but found a tuple with {len(component)} members: "
                         f"{component}")
-                stype.add_procedure_component(*component)
+                stype.add_procedure_component(
+                    StructureType.ComponentType(*component))
         if extends is not None:
             stype.extends = extends
         return stype
@@ -1437,76 +1473,30 @@ class StructureType(DataType):
                 f"Symbol but got '{type(value).__name__}'.")
         self._extends = value
 
-    def add(
-        self,
-        name: str,
-        datatype: Union[DataType, DataTypeSymbol],
-        visibility: Symbol.Visibility,
-        initial_value: Optional[DataNode] = None,
-        preceding_comment: str = "",
-        inline_comment: str = ""
-    ) -> None:
+    def add(self, component: 'StructureType.ComponentType') -> None:
         '''
-        Create a component with the supplied attributes and add it to
-        this StructureType.
+        Add the supplied component to this StructureType.
 
-        :param name: the name of the new component.
-        :param datatype: the type of the new component.
-        :param visibility: whether this component is public or private.
-        :param initial_value: the initial value of the new component.
-        :param preceding_comment: a comment that precedes this component.
-        :param inline_comment: a comment that follows this component on the
-                               same line.
+        :param component: the component to add.
 
-        :raises TypeError: if any of the supplied values are of the wrong type.
+        :raises TypeError: if the supplied value is not a ComponentType or if
+            the component would make this StructureType recursive.
 
         '''
-        # This import must be placed here to avoid circular dependencies.
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import DataNode
-        if not isinstance(name, str):
+        if not isinstance(component, self.ComponentType):
             raise TypeError(
-                f"The name of a component of a StructureType must be a 'str' "
-                f"but got '{type(name).__name__}'")
-        if not isinstance(datatype, (DataType, DataTypeSymbol)):
-            raise TypeError(
-                f"The type of a component of a StructureType must be a "
-                f"'DataType' or 'DataTypeSymbol' but got "
-                f"'{type(datatype).__name__}'")
-        if not isinstance(visibility, Symbol.Visibility):
-            raise TypeError(
-                f"The visibility of a component of a StructureType must be "
-                f"an instance of 'Symbol.Visibility' but got "
-                f"'{type(visibility).__name__}'")
-        if datatype is self:
+                "The component added to a StructureType must be an instance "
+                "of 'StructureType.ComponentType' but got "
+                f"'{type(component).__name__}'")
+        if component.datatype is self:
             # A StructureType cannot contain a component of its own type
             raise TypeError(
-                f"Error attempting to add component '{name}' - a "
+                f"Error attempting to add component '{component.name}' - a "
                 f"StructureType definition cannot be recursive - i.e. it "
                 f"cannot contain components with the same type as itself.")
-        if (initial_value is not None and
-                not isinstance(initial_value, DataNode)):
-            raise TypeError(
-                f"The initial value of a component of a StructureType must "
-                f"be None or an instance of 'DataNode', but got "
-                f"'{type(initial_value).__name__}'.")
-        if not isinstance(preceding_comment, str):
-            raise TypeError(
-                f"The preceding_comment of a component of a StructureType "
-                f"must be a 'str' but got "
-                f"'{type(preceding_comment).__name__}'")
-        if not isinstance(inline_comment, str):
-            raise TypeError(
-                f"The inline_comment of a component of a StructureType must "
-                f"be a 'str' but got "
-                f"'{type(inline_comment).__name__}'")
 
-        key_name = name.lower()
-        self._components[key_name] = self.ComponentType(name, datatype,
-                                                        visibility,
-                                                        initial_value,
-                                                        preceding_comment,
-                                                        inline_comment)
+        key_name = component.name.lower()
+        self._components[key_name] = component
 
     def lookup(self, name: str) -> 'StructureType.ComponentType':
         '''
@@ -1521,68 +1511,39 @@ class StructureType(DataType):
         return self._procedure_components[lower_name]
 
     def add_procedure_component(
-        self,
-        name: str,
-        datatype: DataType,
-        visibility: Symbol.Visibility,
-        initial_value: Optional[DataNode] = None,
-        preceding_comment: str = "",
-        inline_comment: str = ""
+        self, component: 'StructureType.ComponentType'
     ) -> None:
         '''Add a type-bound procedure to this StructureType.
 
-        The procedure is represented by the same immutable record as a data
-        component. Its optional initial value is a Reference to the routine
-        implementing the binding.
+        :param component: the procedure component to add.
 
-        :param name: the binding name.
-        :param datatype: the datatype of the binding.
-        :param visibility: whether this binding is public or private.
-        :param initial_value: reference to the bound routine, if specified.
-        :param preceding_comment: a comment preceding this binding.
-        :param inline_comment: a comment following this binding.
-
-        :raises TypeError: if any supplied value is of the wrong type.
+        :raises TypeError: if the supplied value is not a ComponentType or is
+            not valid for a procedure component.
         '''
         # Imports here avoid circular dependencies.
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import Reference
 
-        if not isinstance(name, str):
+        if not isinstance(component, self.ComponentType):
             raise TypeError(
-                f"The name of a procedure component of a StructureType must "
-                f"be a 'str' but got '{type(name).__name__}'")
-        if not isinstance(datatype, DataType):
+                "The procedure component added to a StructureType must be an "
+                "instance of 'StructureType.ComponentType' but got "
+                f"'{type(component).__name__}'")
+        if not isinstance(component.datatype, DataType):
             raise TypeError(
                 f"The type of a procedure component of a StructureType must "
-                f"be a 'DataType' but got '{type(datatype).__name__}'")
-        if not isinstance(visibility, Symbol.Visibility):
-            raise TypeError(
-                f"The visibility of a procedure component of a StructureType "
-                f"must be an instance of 'Symbol.Visibility' but got "
-                f"'{type(visibility).__name__}'")
-        if (initial_value is not None and
-                (not isinstance(initial_value, Reference) or
-                 not isinstance(initial_value.symbol, Symbol))):
+                f"be a 'DataType' but got "
+                f"'{type(component.datatype).__name__}'")
+        if (component.initial_value is not None and
+                (not isinstance(component.initial_value, Reference) or
+                 not isinstance(component.initial_value.symbol, Symbol))):
             raise TypeError(
                 "The initial value of a procedure component of a "
                 "StructureType must be None or a Reference to a "
-                f"Symbol but got '{type(initial_value).__name__}'.")
-        if not isinstance(preceding_comment, str):
-            raise TypeError(
-                "The preceding_comment of a procedure component of a "
-                f"StructureType must be a 'str' but got "
-                f"'{type(preceding_comment).__name__}'")
-        if not isinstance(inline_comment, str):
-            raise TypeError(
-                "The inline_comment of a procedure component of a "
-                f"StructureType must be a 'str' but got "
-                f"'{type(inline_comment).__name__}'")
+                f"Symbol but got '{type(component.initial_value).__name__}'.")
 
-        key_name = name.lower()
-        self._procedure_components[key_name] = self.ComponentType(
-            name, datatype, visibility, initial_value, preceding_comment,
-            inline_comment)
+        key_name = component.name.lower()
+        self._procedure_components[key_name] = component
 
     def __eq__(self, other: Any) -> bool:
         '''
@@ -1650,10 +1611,9 @@ class StructureType(DataType):
 
             # Construct the new ComponentType
             key_name = component.name.lower()
-            self.add(key_name, new_type, component.visibility,
-                     initial_value,
-                     preceding_comment=component.preceding_comment,
-                     inline_comment=component.inline_comment)
+            self.add(self.ComponentType(
+                key_name, new_type, component.visibility, initial_value,
+                component.preceding_comment, component.inline_comment))
 
         # Similarly, since procedure_components is also a frozen dataclass
         # we need to replace the instance with a new one with updated values
@@ -1666,10 +1626,10 @@ class StructureType(DataType):
                 initial_value = initial_value.copy()
                 initial_value.replace_symbols_using(table_or_symbol)
 
-            self.add_procedure_component(
+            self.add_procedure_component(self.ComponentType(
                 component.name, new_type, component.visibility,
                 initial_value, component.preceding_comment,
-                component.inline_comment)
+                component.inline_comment))
 
         # Update reference in the extends attribute
         if self.extends:

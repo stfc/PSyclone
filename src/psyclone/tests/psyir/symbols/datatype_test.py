@@ -1148,45 +1148,52 @@ def test_structure_type():
     stype = StructureType()
     assert str(stype) == "StructureType<>"
     assert not stype.components
-    stype.add("flaG", ScalarType.integer_type(),
-              Symbol.Visibility.PUBLIC, None)
+    stype.add(StructureType.ComponentType(
+        "flaG", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None))
     # Lookup is not case sensitive
     flag = stype.lookup("flag")
     # But we retain information on the original capitalisation
     assert flag.name == "flaG"
     assert not flag.initial_value
     assert isinstance(flag, StructureType.ComponentType)
-    stype.add("flag2", ScalarType.integer_type(), Symbol.Visibility.PUBLIC,
-              Literal("1", ScalarType.integer_type()))
+    stype.add(StructureType.ComponentType(
+        "flag2", ScalarType.integer_type(), Symbol.Visibility.PUBLIC,
+        Literal("1", ScalarType.integer_type())))
     flag2 = stype.lookup("flag2")
     assert isinstance(flag2, StructureType.ComponentType)
     assert flag2.initial_value.value == "1"
     with pytest.raises(TypeError) as err:
-        stype.add(1, "hello", "hello", None)
+        StructureType.ComponentType(1, ScalarType.integer_type(),
+                                    Symbol.Visibility.PUBLIC, None)
     assert ("name of a component of a StructureType must be a 'str' but got "
             "'int'" in str(err.value))
     with pytest.raises(TypeError) as err:
-        stype.add("hello", "hello", "hello", None)
+        StructureType.ComponentType("hello", "hello",
+                                    Symbol.Visibility.PUBLIC, None)
     assert ("type of a component of a StructureType must be a 'DataType' "
             "or 'DataTypeSymbol' but got 'str'" in str(err.value))
     with pytest.raises(TypeError) as err:
-        stype.add("hello", ScalarType.integer_type(), "hello", None)
+        StructureType.ComponentType("hello", ScalarType.integer_type(),
+                                    "hello", None)
     assert ("visibility of a component of a StructureType must be an instance "
             "of 'Symbol.Visibility' but got 'str'" in str(err.value))
     with pytest.raises(TypeError) as err:
-        stype.add("hello", ScalarType.integer_type(),
-                  Symbol.Visibility.PUBLIC, "Hello")
+        StructureType.ComponentType(
+            "hello", ScalarType.integer_type(), Symbol.Visibility.PUBLIC,
+            "Hello")
     assert ("The initial value of a component of a StructureType must be "
             "None or an instance of 'DataNode', but got 'str'."
             in str(err.value))
     with pytest.raises(TypeError) as err:
-        stype.add("hello", ScalarType.integer_type(),
-                  Symbol.Visibility.PUBLIC, None, preceding_comment=None)
+        StructureType.ComponentType(
+            "hello", ScalarType.integer_type(), Symbol.Visibility.PUBLIC,
+            None, _preceding_comment=None)
     assert ("The preceding_comment of a component of a StructureType "
             "must be a 'str' but got 'NoneType'" in str(err.value))
     with pytest.raises(TypeError) as err:
-        stype.add("hello", ScalarType.integer_type(), Symbol.Visibility.PUBLIC,
-                  None, inline_comment=None)
+        StructureType.ComponentType(
+            "hello", ScalarType.integer_type(), Symbol.Visibility.PUBLIC,
+            None, _inline_comment=None)
     assert ("The inline_comment of a component of a StructureType "
             "must be a 'str' but got 'NoneType'" in str(err.value))
 
@@ -1194,9 +1201,14 @@ def test_structure_type():
         stype.lookup("missing")
     # Cannot have a recursive type definition
     with pytest.raises(TypeError) as err:
-        stype.add("hello", stype, Symbol.Visibility.PUBLIC, None)
+        stype.add(StructureType.ComponentType(
+            "hello", stype, Symbol.Visibility.PUBLIC, None))
     assert ("attempting to add component 'hello' - a StructureType definition "
             "cannot be recursive" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        stype.add("invalid")
+    assert ("component added to a StructureType must be an instance of "
+            "'StructureType.ComponentType' but got 'str'" in str(err.value))
     assert stype.is_allocatable is False
 
 
@@ -1276,30 +1288,55 @@ def test_create_structuretype_procedures_and_extends():
     "arguments, expected",
     [
         ((1, UnresolvedType(), Symbol.Visibility.PUBLIC),
-         "name of a procedure component of a StructureType must be a 'str' "
+         "name of a component of a StructureType must be a 'str' "
          "but got 'int'"),
         (("proc", "invalid", Symbol.Visibility.PUBLIC),
-         "type of a procedure component of a StructureType must be a "
-         "'DataType' but got 'str'"),
+         "type of a component of a StructureType must be a 'DataType' or "
+         "'DataTypeSymbol' but got 'str'"),
         (("proc", UnresolvedType(), "invalid"),
-         "visibility of a procedure component of a StructureType must be an "
+         "visibility of a component of a StructureType must be an "
          "instance of 'Symbol.Visibility' but got 'str'"),
         (("proc", UnresolvedType(), Symbol.Visibility.PUBLIC, "invalid"),
-         "initial value of a procedure component of a StructureType must be "
-         "None or a Reference to a Symbol but got 'str'"),
+         "initial value of a component of a StructureType must be None or an "
+         "instance of 'DataNode', but got 'str'"),
         (("proc", UnresolvedType(), Symbol.Visibility.PUBLIC, None, None),
-         "preceding_comment of a procedure component of a StructureType must "
+         "preceding_comment of a component of a StructureType must "
          "be a 'str' but got 'NoneType'"),
         (("proc", UnresolvedType(), Symbol.Visibility.PUBLIC, None, "", None),
-         "inline_comment of a procedure component of a StructureType must be "
+         "inline_comment of a component of a StructureType must be "
          "a 'str' but got 'NoneType'")
     ])
-def test_structuretype_add_procedure_errors(arguments, expected):
-    '''Test validation when adding a procedure component.'''
+def test_structuretype_component_errors(arguments, expected):
+    '''Test common validation when constructing a component.'''
+    with pytest.raises(TypeError) as err:
+        StructureType.ComponentType(*arguments)
+    assert expected in str(err.value)
+
+
+def test_structuretype_add_procedure_errors():
+    '''Test procedure-specific validation when adding a component.'''
     stype = StructureType()
     with pytest.raises(TypeError) as err:
-        stype.add_procedure_component(*arguments)
-    assert expected in str(err.value)
+        stype.add_procedure_component("invalid")
+    assert ("procedure component added to a StructureType must be an instance "
+            "of 'StructureType.ComponentType' but got 'str'" in str(err.value))
+
+    component = StructureType.ComponentType(
+        "proc", DataTypeSymbol("proc_type", UnresolvedType()),
+        Symbol.Visibility.PUBLIC, None)
+    with pytest.raises(TypeError) as err:
+        stype.add_procedure_component(component)
+    assert ("type of a procedure component of a StructureType must be a "
+            "'DataType' but got 'DataTypeSymbol'" in str(err.value))
+
+    component = StructureType.ComponentType(
+        "proc", UnresolvedType(), Symbol.Visibility.PUBLIC,
+        Literal("1", ScalarType.integer_type()))
+    with pytest.raises(TypeError) as err:
+        stype.add_procedure_component(component)
+    assert ("initial value of a procedure component of a StructureType must "
+            "be None or a Reference to a Symbol but got 'Literal'" in
+            str(err.value))
 
 
 def test_structuretype_eq():
@@ -1496,9 +1533,9 @@ def test_structuretype___copy__():
     assert copied == stype
     assert copied is not stype
     # The components should be the same objects
-    assert copied.components["nancy"] == stype.components["nancy"]
-    assert copied.components["peggy"] == stype.components["peggy"]
-    assert copied.procedure_components["proc"] == \
+    assert copied.components["nancy"] is stype.components["nancy"]
+    assert copied.components["peggy"] is stype.components["peggy"]
+    assert copied.procedure_components["proc"] is \
         stype.procedure_components["proc"]
     assert copied.procedure_components["proc"].preceding_comment == "Before"
     assert copied.procedure_components["proc"].inline_comment == "After"

@@ -513,7 +513,9 @@ def test_gen_proceduredecl_validation(fortran_writer):
             "'str'" in str(err.value))
 
     procedure = StructureType.ComponentType(
-        "proc", UnresolvedType(), "invalid", None)
+        "proc", UnresolvedType(), Symbol.Visibility.PUBLIC, None)
+    # Set visibility byypassing the frozen state and validations
+    object.__setattr__(procedure, "visibility", "invalid")
     with pytest.raises(InternalError) as err:
         fortran_writer.gen_proceduredecl(procedure)
     assert ("type-bound procedure must be either public or private but "
