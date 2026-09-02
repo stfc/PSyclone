@@ -7,6 +7,8 @@
 
 '''This module contains the Intrinsic2CodeTrans metatransformation.'''
 
+from typing import Any
+
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import IntrinsicCall
 from psyclone.psyir.transformations.intrinsics.maxval2loop_trans\
@@ -31,11 +33,13 @@ class Intrinsic2CodeTrans(Transformation):
                             Minval2LoopTrans, Product2LoopTrans]
 
     # Create a map of intrinsic names to the appropriate Intrinsic2Code
-    # transformation.
-    intrinsic_to_trans = {"MAXVAL": Maxval2LoopTrans,
-                          "SUM": Sum2LoopTrans,
-                          "MINVAL": Minval2LoopTrans,
-                          "PRODUCT": Product2LoopTrans}
+    # transformation. This should be in the same order as the
+    # _SUB_TRANSFORMATIONS else the _split_kwargs on this Transformation
+    # may not work correctly.
+    intrinsic_to_trans = {IntrinsicCall.Intrinsic.MAXVAL: Maxval2LoopTrans,
+                          IntrinsicCall.Intrinsic.SUM: Sum2LoopTrans,
+                          IntrinsicCall.Intrinsic.MINVAL: Minval2LoopTrans,
+                          IntrinsicCall.Intrinsic.PRODUCT: Product2LoopTrans}
 
     def validate(self, node: IntrinsicCall, **kwargs) -> None:
         '''
@@ -54,6 +58,24 @@ class Intrinsic2CodeTrans(Transformation):
                 f"received '{type(node).__name__}'."
             )
 
+    def _split_kwargs(self, **kwargs) -> \
+            tuple[dict[str, Any],
+                  dict[IntrinsicCall.Intrinsic, dict[str, Any]]]:
+        '''
+        :returns: the kwargs for this transformation and the kwargs dict for
+           the sub transformations indexed by appropriate Intrinsic.
+        '''
+        # The split_kwargs function returns a tuple containing the
+        # kwargs for this transformation as the first entry and then
+        # the kwargs for the SUB_TRANSFORAMTIONS in order as the following
+        # entries.
+        split_kwargs = self.split_kwargs(**kwargs)
+        local_kwargs = split_kwargs[0]
+        sub_kwargs = {}
+        for i, intrinsic in enumerate(self.intrinsic_to_trans):
+            sub_kwargs[intrinsic] = split_kwargs[i+1]
+        return local_kwargs, sub_kwargs
+
     def apply(self, node: IntrinsicCall, **kwargs) -> None:
         '''
         Applies the appropriate Intrinsic2Code transformation to the provided
@@ -64,17 +86,15 @@ class Intrinsic2CodeTrans(Transformation):
         # Split the options for the subtransformations. The options are
         # returned in the order of the _SUB_TRANSFORMATIONS list.
         kwargs_dict = {}
-        local_kwargs, kwargs_dict["MAXVAL"], kwargs_dict["SUM"], \
-            kwargs_dict["MINVAL"], kwargs_dict["PRODUCT"] = \
-            self.split_kwargs(**kwargs)
+        local_kwargs, kwargs_dict = self._split_kwargs(**kwargs)
 
         self.validate(node, **local_kwargs)
 
         # If the intrinsic is one of the supported intrinsics then
         # apply the relevant transformation.
-        if node.intrinsic.name in Intrinsic2CodeTrans.intrinsic_to_trans:
-            Intrinsic2CodeTrans.intrinsic_to_trans[node.intrinsic.name]().\
-                apply(node, **kwargs_dict[node.intrinsic.name])
+        if node.intrinsic in Intrinsic2CodeTrans.intrinsic_to_trans:
+            Intrinsic2CodeTrans.intrinsic_to_trans[node.intrinsic]().\
+                apply(node, **kwargs_dict[node.intrinsic])
 
 
 __all__ = ["Intrinsic2CodeTrans"]
