@@ -357,10 +357,14 @@ class Fparser2CodeBlock(CodeBlock):
         # Complex literals require even more special attention.
         for node in walk(parse_tree, Fortran2003.Complex_Literal_Constant):
             # A complex literal constant has a real part and an imaginary part.
-            # Each of these can have a kind.
+            # Each of these can have a kind. Each of these can also be an
+            # indirect name rather than a direct literal.
             for part in node.items:
-                if part.items[1]:
-                    result.append(part.items[1])
+                if isinstance(part, Fortran2003.Name):
+                    result.append(str(part))
+                else:
+                    if part.items[1]:
+                        result.append(part.items[1])
         # For directives, we need to analyse all alphanumeric* parts of the
         # comment string and return any names that match a symbol in the
         # symbol table.

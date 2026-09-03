@@ -341,8 +341,8 @@ def test_rrbl_annotating_fortran_code_because_complex_not_literal(
     """test fortran code annotation with transformation warning"""
 
     source = """subroutine foo()
-    complex, parameter ::  a = (1.0, 1.0)
-    complex :: x
+    byte, parameter :: a = 1
+    integer :: x
     x = a
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(source)
@@ -358,7 +358,7 @@ def test_rrbl_annotating_fortran_code_because_complex_not_literal(
     assert (
         f"{rbbl.name}: only "
         f"support constant (parameter) but UnsupportedFortranType"
-        f"('COMPLEX, PARAMETER :: a = (1.0, 1.0)') "
+        f"('BYTE, PARAMETER :: a = 1') "
         f"is not seen by Psyclone as a constant."
         in written_code
     )

@@ -1,3 +1,31 @@
+   44) PR #3571 for #3570. Update fparser version.
+
+   43) PR #3566 towards #1995. More tidying of copyright/license
+   headers to use SPDX form.
+ 
+   42) PR #3468 for #3461. Cleans up the use of sys.path so that
+   different transformation scripts with the same name can be imported.
+ 
+   41) PR #3573. Improves Developer Guide description of coding style
+   and fixes a few incorrect type-hints.
+ 
+   40) PR #3499 towards #2905. Moves lfric symbol creation into the
+   LFRicInvoke constructor.
+
+   39) PR #3492. Improves the Dependence-Use-Chain handling of references
+   to unsupported types (since we can't guarantee the absence of aliasing).
+ 
+   38) PR #3554 for #1590. Adds PSyIR support for complex types and complex
+   literals.
+
+   37) PR #3567. Fixes some typos in the NEMO examples README and the nemo
+   v5 workflow.
+
+   36) PR #3562 for #3559. Ensure all imports are resolved when there are
+   multiple USE statements targeting the same module.
+ 
+   35) PR #3565 for #3564. Bumps the requires setuptools version to 75.0.
+
    34) PR #3561 for #3506. Remove or replace remaining TODOs of closed issues.
 
    33) PR #3555 for #3553. Fix issues with line_length breaking comments.

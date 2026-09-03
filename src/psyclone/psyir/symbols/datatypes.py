@@ -376,6 +376,7 @@ class ScalarType(DataType):
         REAL = 2
         BOOLEAN = 3
         CHARACTER = 4
+        COMPLEX = 5
 
     class Precision(ScalarTypeAttribute):
         '''Enumeration of the different types of 'default' precision that may
@@ -665,6 +666,34 @@ class ScalarType(DataType):
     def real8_type() -> "ScalarType":
         ''' :returns: a REAL 8-byte scalartype '''
         return ScalarType(ScalarType.Intrinsic.REAL, 8)
+
+    @staticmethod
+    def complex_type() -> "ScalarType":
+        ''' :returns: a COMPLEX scalartype '''
+        return ScalarType(ScalarType.Intrinsic.COMPLEX,
+                          ScalarType.Precision.UNDEFINED)
+
+    @staticmethod
+    def complex_single_type() -> "ScalarType":
+        ''' :returns: a COMPLEX single scalartype '''
+        return ScalarType(ScalarType.Intrinsic.COMPLEX,
+                          ScalarType.Precision.SINGLE)
+
+    @staticmethod
+    def complex_double_type() -> "ScalarType":
+        ''' :returns: a COMPLEX double scalartype '''
+        return ScalarType(ScalarType.Intrinsic.COMPLEX,
+                          ScalarType.Precision.DOUBLE)
+
+    @staticmethod
+    def complex4_type() -> "ScalarType":
+        ''' :returns: a COMPLEX 4-byte scalartype '''
+        return ScalarType(ScalarType.Intrinsic.COMPLEX, 4)
+
+    @staticmethod
+    def complex8_type() -> "ScalarType":
+        ''' :returns: a COMPLEX 8-byte scalartype '''
+        return ScalarType(ScalarType.Intrinsic.COMPLEX, 8)
 
     @staticmethod
     def integer_type() -> "ScalarType":

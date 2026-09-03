@@ -430,7 +430,7 @@ def test_get_partial_datatype():
     # No entry in symbol table.
     # Notice the space before complex keyword. This avoids it being
     # treated as a comment.
-    reader = FortranStringReader(" complex :: c\n")
+    reader = FortranStringReader(" byte :: c\n")
     node = Specification_Part(reader).content[0]
     ids = [id(entry) for entry in walk(node)]
     dtype, init = processor._get_partial_datatype(node, fake_parent, st, {})
@@ -834,12 +834,12 @@ def test_process_unsupported_declarations(fortran_reader):
 
     # Test with unsupported intrinsic type. Note the space before complex
     # below which stops the line being treated as a comment.
-    reader = FortranStringReader(" complex     ::      c2")
+    reader = FortranStringReader(" byte     ::      c2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     c2sym = fake_parent.symbol_table.lookup("c2")
     assert isinstance(c2sym.datatype, UnsupportedFortranType)
-    assert c2sym.datatype.declaration == "COMPLEX :: c2"
+    assert c2sym.datatype.declaration == "BYTE :: c2"
 
     # Test that CodeBlocks and references to variables initialised with a
     # CodeBlock are handled correctly
@@ -944,7 +944,7 @@ def test_unsupported_decln_duplicate_symbol():
     fake_parent.symbol_table.add(Symbol("var"))
     processor = Fparser2Reader()
     # Note leading white space to ensure fparser doesn't identify a comment
-    reader = FortranStringReader(" complex var")
+    reader = FortranStringReader(" byte :: var")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(SymbolError) as err:
         processor.process_declarations(fake_parent, [fparser2spec], [])
@@ -1780,6 +1780,43 @@ def test_process_use_stmts_resolving_external_imports(
     stmt_rhs = routine[0].rhs
     assert isinstance(stmt_rhs.children[0], Reference)
     assert isinstance(stmt_rhs.children[1], Call)
+
+
+def test_process_resolving_modules_from_multiple_use_stmts(
+        parser, tmp_path, monkeypatch):
+    ''' Test that when an import from a single module is split
+    between multiple use statements, all of them are resolved. '''
+
+    # Write a module into a tmp file
+    other1 = tmp_path / "other.f90"
+    with open(other1, "w", encoding='utf-8') as my_file:
+        my_file.write('''
+    module other
+        integer :: variable1
+        integer :: variable2
+        integer :: variable3
+        integer :: variable4
+    end module
+    ''')
+    # Use the previous module
+    reader = FortranStringReader('''
+    module test
+        use other, only: variable1
+        use other, only: variable2
+        use other, only: variable3
+    end module
+    ''')
+    parse_tree = parser(reader)
+    module = parse_tree.children[0]
+    monkeypatch.setattr(Config.get(), '_include_paths', [tmp_path])
+    processor = Fparser2Reader(resolve_modules=True)
+    psyir = processor._module_handler(module, None)
+    # We must know that variable[1/2/3] are integers, and 4 is not imported
+    int_type = ScalarType.integer_type()
+    assert psyir.symbol_table.lookup("variable1").datatype == int_type
+    assert psyir.symbol_table.lookup("variable1").datatype == int_type
+    assert psyir.symbol_table.lookup("variable1").datatype == int_type
+    assert "variable4" not in psyir.symbol_table
 
 
 def test_process_resolving_modules_give_correct_types(

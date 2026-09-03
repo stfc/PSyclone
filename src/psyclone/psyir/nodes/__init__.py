@@ -32,6 +32,7 @@ from psyclone.psyir.nodes.array_of_structures_member import (
 from psyclone.psyir.nodes.operation import (
     Operation, UnaryOperation, BinaryOperation)
 from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.complex_literal import ComplexLiteral
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.reference import Reference
@@ -95,6 +96,7 @@ __all__ = [
         'CallMatchingArgumentsNotFound',
         'Clause',
         'CodeBlock',
+        'ComplexLiteral',
         'Container',
         'DataNode',
         'FileContainer',
