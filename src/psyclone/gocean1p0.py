@@ -1352,29 +1352,21 @@ class GOKernelArgument(KernelArgument):
             # the meantime, we can declare a representative type
             public = Symbol.Visibility.PUBLIC
             region_type = StructureType()
-            region_type.add("nx", datatype=ScalarType.integer_type(),
-                            visibility=public)
-            region_type.add("ny", datatype=ScalarType.integer_type(),
-                            visibility=public)
-            region_type.add("xstart", datatype=ScalarType.integer_type(),
-                            visibility=public)
-            region_type.add("ystart", datatype=ScalarType.integer_type(),
-                            visibility=public)
-            region_type.add("xstop", datatype=ScalarType.integer_type(),
-                            visibility=public)
-            region_type.add("ystop", datatype=ScalarType.integer_type(),
-                            visibility=public)
+            for name in ["nx", "ny", "xstart", "ystart", "xstop",
+                         "ystop"]:
+                region_type.add(StructureType.ComponentType(
+                    name, ScalarType.integer_type(), public, None))
             r2d_field_type = StructureType()
-            r2d_field_type.add(
+            r2d_field_type.add(StructureType.ComponentType(
                 "data",
-                datatype=ArrayType(ScalarType.real_type(),
-                                   [ArrayType.Extent.DEFERRED,
-                                    ArrayType.Extent.DEFERRED]),
-                visibility=public)
-            r2d_field_type.add(
-                "internal", datatype=region_type, visibility=public)
-            r2d_field_type.add(
-                "whole", datatype=region_type, visibility=public)
+                ArrayType(ScalarType.real_type(),
+                          [ArrayType.Extent.DEFERRED,
+                           ArrayType.Extent.DEFERRED]),
+                public, None))
+            r2d_field_type.add(StructureType.ComponentType(
+                "internal", region_type, public, None))
+            r2d_field_type.add(StructureType.ComponentType(
+                "whole", region_type, public, None))
             # r2d_field can have UnresolvedInterface because
             # it is an unnamed import from a module.
             type_symbol = symtab.find_or_create_tag(
