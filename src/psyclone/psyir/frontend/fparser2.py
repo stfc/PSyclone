@@ -2929,6 +2929,19 @@ class Fparser2Reader():
             been declared yet or when it is not just the symbol name).
 
         '''
+        # This method may be called more than once for the same common block:
+        # common /name/ var1, var2
+        # common /name/ var3, var4
+        # So we initialise the next position for each block from any interfaces
+        # that have already been created in this symbol table.
+        next_positions = {}
+        for symbol in psyir_parent.symbol_table.symbols:
+            if symbol.is_commonblock:
+                block_name = symbol.interface.name.lower()
+                next_positions[block_name] = max(
+                    next_positions.get(block_name, 0),
+                    symbol.interface.position + 1)
+
         for node in nodes:
             if isinstance(node, Fortran2003.Common_Stmt):
                 # Get the names of the symbols accessed with the commonblock,
@@ -2939,7 +2952,7 @@ class Fparser2Reader():
                     for cb_object in node.children[0]:
                         # Get the name of the common block
                         name = cb_object[0]
-                        name_str = name.string if name is not None else ""
+                        nstr = name.string.lower() if name is not None else ""
 
                         for symbol_name in cb_object[1].items:
                             sym = psyir_parent.symbol_table.lookup(
@@ -2951,7 +2964,9 @@ class Fparser2Reader():
                                     f" ({sym.initial_value.debug_string()}) "
                                     f"but appears in a common block. This is "
                                     f"not valid Fortran.")
-                            sym.interface = CommonBlockInterface(name_str)
+                            sym.interface = CommonBlockInterface(
+                                nstr, next_positions.get(nstr, 0))
+                            next_positions[nstr] = (sym.interface.position + 1)
                 except KeyError as error:
                     raise NotImplementedError(
                         f"The symbol interface of a common block variable "

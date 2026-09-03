@@ -657,13 +657,43 @@ class FortranWriter(LanguageWriter):
         if symbol.inline_comment != "":
             result += f" {self._COMMENT_PREFIX}{symbol.inline_comment}"
 
-        if isinstance(symbol, Symbol) and symbol.is_commonblock:
-            result += (
-                f"\n{self._nindent}common /{symbol.interface.name}/ "
-                f"{symbol.name}"
-            )
-
         return result + "\n"
+
+    def _gen_common_block_decls(self, symbols: list[Symbol]) -> str:
+        '''Generate declarations for all common blocks represented by the
+        supplied Symbols. Members of each block are ordered by the position
+        stored in their CommonBlockInterface.
+
+        :param symbols: symbols that may belong to common blocks.
+
+        :returns: the common-block declarations.
+
+        :raises VisitorError: if two Symbols in the same common block have
+            the same position.
+
+        '''
+        # Create a dict of common block names and the symbols that belong to
+        # that common block
+        common_blocks = {}
+        for symbol in symbols:
+            if symbol.is_commonblock:
+                name = symbol.interface.name.lower()
+                common_blocks.setdefault(name, []).append(symbol)
+
+        # Order the symbols by their commonblock interface possition
+        declarations = ""
+        for name, members in common_blocks.items():
+            positions = [symbol.interface.position for symbol in members]
+            if len(positions) != len(set(positions)):
+                raise VisitorError(
+                    f"Common block '{members[0].interface.name}' has Symbols "
+                    f"with duplicate positions: {positions}.")
+            members.sort(key=lambda symbol: symbol.interface.position)
+            declarations += (
+                f"{self._nindent}common /{name}/ "
+                f"{', '.join(symbol.name for symbol in members)}\n")
+
+        return declarations
 
     def gen_interfacedecl(self, symbol):
         '''
@@ -1073,6 +1103,8 @@ class FortranWriter(LanguageWriter):
         for symbol in all_symbols:
             declarations += self.gen_vardecl(
                 symbol, include_visibility=is_module_scope)
+
+        declarations += self._gen_common_block_decls(all_symbols)
 
         return declarations
 

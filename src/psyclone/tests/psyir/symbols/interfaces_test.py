@@ -63,26 +63,38 @@ def test_commonblockinterface():
     __str__, __eq__, copy, and property methods.
 
     '''
-    interface = CommonBlockInterface("name")
-    interface.name == "name"
+    interface = CommonBlockInterface("name", 1)
+    assert interface.name == "name"
+    assert interface.position == 1
     assert str(interface) == "CommonBlock 'name'"
 
     # Interfaces can be unnamed
-    interface2 = CommonBlockInterface("")
-    interface2.name == ""
+    interface2 = CommonBlockInterface("", 0)
+    assert interface2.name == ""
     assert str(interface2) == "CommonBlock ''"
 
     # Check that they only accept strings
     with pytest.raises(TypeError) as err:
-        _ = CommonBlockInterface(3)
+        _ = CommonBlockInterface(3, 0)
     assert ("The common block name should be a valid string, but found 'int'"
             in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        _ = CommonBlockInterface("name", "first")
+    assert ("The common block position should be an int, but found 'str'"
+            in str(err.value))
+
+    with pytest.raises(ValueError) as err:
+        _ = CommonBlockInterface("name", -1)
+    assert ("The common block position should be non-negative, but found "
+            "'-1'" in str(err.value))
 
     # Test copy and equality
     assert interface != interface2
     copy = interface.copy()
     assert interface is not copy
     assert interface == copy
+    assert interface != CommonBlockInterface("name", 2)
 
 
 def test_unresolvedinterface():
