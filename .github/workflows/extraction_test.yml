@@ -193,12 +193,15 @@ jobs:
         # `name` is the 'basic' name. A driver file is then called driver-$FILE.F90, and
         # the kernel data files are called $FILE-$RANK.nc
         all_files="sci_fem_constants_mod_psy-invoke_compute_w2_mass_matrix_fv-compute_mass_matrix_w2_code-r0
-                   sci_fem_constants_mod_psy-invoke_compute_w1_mass_matrix-compute_mass_matrix_w1_code-r0"
+          sci_fem_constants_mod_psy-invoke_9-mm_diagonal_kernel_code-r1"
+
         for name in $all_files; do
           # We link with yaxt, since a few drivers inline a module that contains yaxt
           # functions (though these functions and therefore yaxt are not actually used
-          # during the execution of the driver)
-          mpif90 driver-${name}.F90 $FFLAGS $LDFLAGS -l yaxt_c -o driver-${name}
+          # during the execution of the driver). Also, if the code should have
+          # (unused) MPI functions, we need allow-argument-mismatch for gnu
+          mpif90 driver-${name}.F90 $FFLAGS -fallow-argument-mismatch \
+            $LDFLAGS -lyaxt -l yaxt_c -o driver-${name}
           compile_count=$((compile_count+1 ))
         done
 
