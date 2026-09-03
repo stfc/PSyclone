@@ -57,16 +57,13 @@ class LFRicAlg:
         sub = cont.walk(Routine)[0]
         table = sub.symbol_table
 
-        # Parse the kernel metadata. Currently this uses fparser1 as that's
-        # what the existing meta-data handling is based upon. Ultimately, this
-        # will be replaced by the new, fparser2-based functionality being
-        # implemented in #1631.
+        # Parse the kernel metadata
         parse_tree = get_kernel_parse_tree(kernel_path)
 
         # Get the name of the module that contains the kernel and create a
         # ContainerSymbol for it.
         kernel_mod_name = parse_tree.content[0].name
-        # TODO #1806. The current meta-data parsing requires that we specify
+        # TODO #2151. The current meta-data parsing requires that we specify
         # the name of the kernel. It would be much better if we could query the
         # meta-data for the name of the kernel. For now we require that the
         # LFRic naming scheme is strictly adhered to (since this is simpler

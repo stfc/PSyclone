@@ -2886,7 +2886,7 @@ def test_rename_symbol_errors():
 
     # Cannot rename a common block symbol
     asym = symbols.DataSymbol("a", symbols.ScalarType.integer_type(),
-                              interface=symbols.CommonBlockInterface())
+                              interface=symbols.CommonBlockInterface(""))
     table.add(asym)
     with pytest.raises(symbols.SymbolError) as err:
         table.rename_symbol(asym, "b")

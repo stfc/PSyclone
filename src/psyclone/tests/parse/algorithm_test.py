@@ -325,7 +325,7 @@ def test_parser_invokeinfo_datatypes_clash():
     is simply a limitation of the current implementation as we do not
     capture the context of a symbol so do not deal with variable
     scope. This limitation will disappear when the PSyIR is used to
-    determine datatypes, see issue #753.
+    determine datatypes, see issue #1618.
 
     '''
     alg_filename = os.path.join(

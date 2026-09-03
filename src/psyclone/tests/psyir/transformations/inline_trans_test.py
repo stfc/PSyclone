@@ -517,8 +517,6 @@ def test_apply_struct_local_limits_routine(fortran_reader, fortran_writer,
         f"  end subroutine run_it\n"
         f"  subroutine sub3(y, start, stop, z)\n"
         f"    type(my_type), dimension(4:6) :: y\n"
-        # TODO #2125 - if 'start' is used for the lower bound instead of a
-        # literal then the inlined code is incorrect.
         f"    real, dimension(3:) :: z\n"
         f"    integer :: start, stop\n"
         f"    y(:)%data(2) = 2.0\n"

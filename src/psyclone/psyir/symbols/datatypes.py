@@ -376,6 +376,7 @@ class ScalarType(DataType):
         REAL = 2
         BOOLEAN = 3
         CHARACTER = 4
+        COMPLEX = 5
 
     class Precision(ScalarTypeAttribute):
         '''Enumeration of the different types of 'default' precision that may
@@ -442,7 +443,7 @@ class ScalarType(DataType):
                     f"DataSymbol must be of either 'unresolved' or "
                     f"scalar, integer type but got: ScalarType with "
                     f"datatype {dtype}")
-        # TODO #3135 If the precision is an int, then we would like to make
+        # TODO #3538 If the precision is an int, then we would like to make
         # a Literal containing it instead, however this is not currently
         # possible due to circular imports.
         self._precision = precision
@@ -628,7 +629,7 @@ class ScalarType(DataType):
         :returns: a copy of self.
         '''
         if isinstance(self.precision, int):
-            # TODO #3135 - ideally precision will always be stored as a
+            # TODO #3538 - ideally precision will always be stored as a
             # DataNode and this branch of the `if` won't be necessary.
             precision = self.precision
         else:
@@ -665,6 +666,34 @@ class ScalarType(DataType):
     def real8_type() -> "ScalarType":
         ''' :returns: a REAL 8-byte scalartype '''
         return ScalarType(ScalarType.Intrinsic.REAL, 8)
+
+    @staticmethod
+    def complex_type() -> "ScalarType":
+        ''' :returns: a COMPLEX scalartype '''
+        return ScalarType(ScalarType.Intrinsic.COMPLEX,
+                          ScalarType.Precision.UNDEFINED)
+
+    @staticmethod
+    def complex_single_type() -> "ScalarType":
+        ''' :returns: a COMPLEX single scalartype '''
+        return ScalarType(ScalarType.Intrinsic.COMPLEX,
+                          ScalarType.Precision.SINGLE)
+
+    @staticmethod
+    def complex_double_type() -> "ScalarType":
+        ''' :returns: a COMPLEX double scalartype '''
+        return ScalarType(ScalarType.Intrinsic.COMPLEX,
+                          ScalarType.Precision.DOUBLE)
+
+    @staticmethod
+    def complex4_type() -> "ScalarType":
+        ''' :returns: a COMPLEX 4-byte scalartype '''
+        return ScalarType(ScalarType.Intrinsic.COMPLEX, 4)
+
+    @staticmethod
+    def complex8_type() -> "ScalarType":
+        ''' :returns: a COMPLEX 8-byte scalartype '''
+        return ScalarType(ScalarType.Intrinsic.COMPLEX, 8)
 
     @staticmethod
     def integer_type() -> "ScalarType":
