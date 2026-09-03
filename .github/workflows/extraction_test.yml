@@ -133,6 +133,8 @@ jobs:
         # ------------------------------------------------------
         cp ${PSYCLONE_ROOT}/.github/workflows/fab_scripts/extract_mixin.py \
           lfric_core/lfric_build
+        cp ${PSYCLONE_ROOT}/.github/workflows/fab_scripts/make_public.py \
+          lfric_core/lfric_build
         cp ${PSYCLONE_ROOT}/.github/workflows/fab_scripts/fab_gungho_model_extract.py \
             lfric_apps/applications/gungho_model/
         mkdir -p lfric_apps/applications/gungho_model/optimisation/extract
