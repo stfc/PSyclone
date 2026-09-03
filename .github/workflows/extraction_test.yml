@@ -155,8 +155,8 @@ jobs:
 
         # Set the directory names for the extraction runs:
         # -----------------------------------------------
-        export LFRIC_CORE=${RUNDIR}/extraction_test/lfric_core
-        export LFRIC_APPS=${RUNDIR}/extraction_test/lfric_apps
+        export LFRIC_CORE=${RUNDIR}/lfric_extraction/lfric_core
+        export LFRIC_APPS=${RUNDIR}/lfric_extraction/lfric_apps
 
         # Build GungHo with the BAF extraction script
         # -------------------------------------------
