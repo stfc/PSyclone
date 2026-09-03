@@ -169,17 +169,8 @@ jobs:
         cd ${LFRIC_APPS}/applications/gungho_model
         export FAB_WORKSPACE=$PWD/fab_workspace
         mkdir -p ${FAB_WORKSPACE}
+
         # Run the Fab build script
-        echo "PP ${PYTHONPATH}"
-        echo "PWD ${PWD}"
-        echo "DIRS ${LFRIC_CORE} ${LFRIC_APPS}"
-        ls
-
-        echo "COMMAND IS ./fab_gungho_model_extract.py --core ${LFRIC_CORE}      \
-          --fab-workspace ${FAB_WORKSPACE}                      \
-          --profile ${COMPILER_PROFILE} --nproc ${NUM_PARALLEL} \
-          -fc $LDMPI -ld $LDMPI -cc $CC"
-
         ./fab_gungho_model_extract.py --core ${LFRIC_CORE}      \
           --fab-workspace ${FAB_WORKSPACE}                      \
           --profile ${COMPILER_PROFILE} --nproc ${NUM_PARALLEL} \
@@ -201,8 +192,9 @@ jobs:
 
         # `name` is the 'basic' name. A driver file is then called driver-$FILE.F90, and
         # the kernel data files are called $FILE-$RANK.nc
-        for name in sci_fem_constants_mod_psy-invoke_compute_w1_mass_matrix-compute_mass_matrix_w1_code-r0; do
-
+        all_files="sci_fem_constants_mod_psy-invoke_compute_w2_mass_matrix_fv-compute_mass_matrix_w2_code-r0
+                   sci_fem_constants_mod_psy-invoke_compute_w1_mass_matrix-compute_mass_matrix_w1_code-r0"
+        for name in $all_files; do
           # We link with yaxt, since a few drivers inline a module that contains yaxt
           # functions (though these functions and therefore yaxt are not actually used
           # during the execution of the driver)
@@ -211,7 +203,6 @@ jobs:
         done
 
         run_count=0
-        all_files="sci_fem_constants_mod_psy-invoke_compute_w1_mass_matrix-compute_mass_matrix_w1_code-r0"
         for name in $all_files; do
           # Execute the driver for each kernel data file,
           # which will print results to the screen
