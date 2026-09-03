@@ -29,13 +29,14 @@ from psyclone.configuration import Config
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.nodes import (
-    ArrayConstructor,
-    ArrayMember, ACCRoutineDirective, ArrayOfStructuresReference,
-    ArrayReference, Assignment, BinaryOperation, Call, CodeBlock, Container,
+    ArrayConstructor, ArrayMember, ACCRoutineDirective,
+    ArrayOfStructuresReference, ArrayReference, Assignment,
+    BinaryOperation, Call, CodeBlock, Container, ComplexLiteral,
     DataNode, Directive, FileContainer, IfBlock, IntrinsicCall, Literal, Loop,
     Member, Node, OMPDeclareTargetDirective, Range, Reference, Return,
     Routine, Schedule, StructureReference, UnaryOperation, WhileLoop,
     Fparser2CodeBlock, ScopingNode, UnknownDirective)
+
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, AutomaticInterface, ScalarType,
@@ -63,7 +64,9 @@ TYPE_MAP_FROM_FORTRAN = {"integer": ScalarType.Intrinsic.INTEGER,
                          "character": ScalarType.Intrinsic.CHARACTER,
                          "logical": ScalarType.Intrinsic.BOOLEAN,
                          "real": ScalarType.Intrinsic.REAL,
-                         "double precision": ScalarType.Intrinsic.REAL}
+                         "double precision": ScalarType.Intrinsic.REAL,
+                         "complex": ScalarType.Intrinsic.COMPLEX,
+                         "double complex": ScalarType.Intrinsic.COMPLEX}
 
 #: Mapping from Fortran access specifiers to PSyIR visibilities
 VISIBILITY_MAP_FROM_FORTRAN = {"public": Symbol.Visibility.PUBLIC,
@@ -72,9 +75,11 @@ VISIBILITY_MAP_FROM_FORTRAN = {"public": Symbol.Visibility.PUBLIC,
 #: Mapping from fparser2 Fortran Literal types to PSyIR types
 CONSTANT_TYPE_MAP = {
     Fortran2003.Real_Literal_Constant: ScalarType.Intrinsic.REAL,
+    Fortran2003.Signed_Real_Literal_Constant: ScalarType.Intrinsic.REAL,
     Fortran2003.Logical_Literal_Constant: ScalarType.Intrinsic.BOOLEAN,
     Fortran2003.Char_Literal_Constant: ScalarType.Intrinsic.CHARACTER,
-    Fortran2003.Int_Literal_Constant: ScalarType.Intrinsic.INTEGER}
+    Fortran2003.Int_Literal_Constant: ScalarType.Intrinsic.INTEGER,
+    Fortran2003.Signed_Int_Literal_Constant: ScalarType.Intrinsic.INTEGER}
 
 #: Mapping from Fortran intent to PSyIR access type
 INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
@@ -569,35 +574,37 @@ def default_real_type():
                       default_precision(ScalarType.Intrinsic.REAL))
 
 
-def get_literal_precision(fparser2_node, psyir_literal_parent):
+def get_literal_precision(
+        fparser2_node: Union[Fortran2003.Real_Literal_Constant,
+                             Fortran2003.Signed_Real_Literal_Constant,
+                             Fortran2003.Logical_Literal_Constant,
+                             Fortran2003.Char_Literal_Constant,
+                             Fortran2003.Int_Literal_Constant,
+                             Fortran2003.Signed_Int_Literal_Constant],
+        psyir_literal_parent: Node) -> ScalarType.Precision:
     '''Takes a Fortran2003 literal node as input and returns the appropriate
      PSyIR precision type for that node. Adds a UnresolvedType DataSymbol in
     the SymbolTable if the precision is given by an undefined symbol.
 
     :param fparser2_node: the fparser2 literal node.
-    :type fparser2_node: :py:class:`Fortran2003.Real_Literal_Constant` or \
-        :py:class:`Fortran2003.Logical_Literal_Constant` or \
-        :py:class:`Fortran2003.Char_Literal_Constant` or \
-        :py:class:`Fortran2003.Int_Literal_Constant`
-    :param psyir_literal_parent: the PSyIR node that will be the \
-        parent of the PSyIR literal node that will be created from the \
+    :param psyir_literal_parent: the PSyIR node that will be the
+        parent of the PSyIR literal node that will be created from the
         fparser2 node information.
-    :type psyir_literal_parent: :py:class:`psyclone.psyir.nodes.Node`
 
     :returns: the PSyIR Precision of this literal value.
-    :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`, int or \
-        :py:class:`psyclone.psyir.symbols.ScalarType.Precision`
 
     :raises InternalError: if the arguments are of the wrong type.
-    :raises InternalError: if there's no symbol table associated with \
+    :raises InternalError: if there's no symbol table associated with
                            `psyir_literal_parent` or one of its ancestors.
 
     '''
     if not isinstance(fparser2_node,
                       (Fortran2003.Real_Literal_Constant,
+                       Fortran2003.Signed_Real_Literal_Constant,
                        Fortran2003.Logical_Literal_Constant,
                        Fortran2003.Char_Literal_Constant,
-                       Fortran2003.Int_Literal_Constant)):
+                       Fortran2003.Int_Literal_Constant,
+                       Fortran2003.Signed_Int_Literal_Constant)):
         raise InternalError(
             f"Unsupported literal type '{type(fparser2_node).__name__}' found "
             f"in get_literal_precision.")
@@ -609,7 +616,9 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
     precision_name = fparser2_node.items[1]
     if not precision_name:
         # Precision may still be specified by the exponent in a real literal
-        if isinstance(fparser2_node, Fortran2003.Real_Literal_Constant):
+        if isinstance(fparser2_node,
+                      (Fortran2003.Real_Literal_Constant,
+                       Fortran2003.Signed_Real_Literal_Constant)):
             precision_value = fparser2_node.items[0]
             if "d" in precision_value.lower():
                 return ScalarType.Precision.DOUBLE
@@ -980,6 +989,8 @@ class Fparser2Reader():
             Fortran2003.Int_Literal_Constant: self._number_handler,
             Fortran2003.Char_Literal_Constant: self._char_literal_handler,
             Fortran2003.Logical_Literal_Constant: self._bool_literal_handler,
+            Fortran2003.Complex_Literal_Constant:
+                self._complex_literal_handler,
             utils.BinaryOpBase: self._binary_op_handler,
             Fortran2003.End_Do_Stmt: self._ignore_handler,
             Fortran2003.End_Subroutine_Stmt: self._ignore_handler,
@@ -1676,9 +1687,8 @@ class Fparser2Reader():
                         parent.symbol_table.resolve_imports([container])
 
             # External modules are resolved only when requested
-            if (not container._reference and (
-                    self._resolve_all_modules or
-                    lowered_name in self._modules_to_resolve)):
+            if (self._resolve_all_modules or
+                    lowered_name in self._modules_to_resolve):
                 parent.symbol_table.resolve_imports([container])
 
             if visibility_map:
@@ -1722,10 +1732,10 @@ class Fparser2Reader():
             except KeyError as err:
                 raise NotImplementedError(
                     f"Could not process {type_spec}. Only 'real', 'double "
-                    f"precision', 'integer', 'logical' and 'character' "
-                    f"intrinsic types are supported.") from err
-            if fort_type == "double precision":
-                # Fortran double precision is equivalent to a REAL
+                    f"precision', 'integer', 'logical', 'character' and "
+                    f"'complex' intrinsic types are supported.") from err
+            if fort_type in ["double precision", "double complex"]:
+                # Fortran double precision is equivalent to a REAL/COMLPEX
                 # intrinsic with precision DOUBLE in the PSyIR.
                 precision = ScalarType.Precision.DOUBLE
             else:
@@ -3190,8 +3200,8 @@ class Fparser2Reader():
         # them.
         if not self._ignore_directives and len(preceding_comments) != 0:
             for comment in preceding_comments[:]:
-                # TODO: fparser #469. This only captures some free-form
-                # directives.
+                # TODO: https://github.com/stfc/fparser/issues/469
+                # This only captures some free-form directives.
                 if comment.tostr().startswith("!$"):
                     self.nodes_to_code_block(parent, [comment])
                     preceding_comments.remove(comment)
@@ -5520,11 +5530,13 @@ class Fparser2Reader():
         :raises NotImplementedError: if the fparser2 node is not recognised.
 
         '''
-        if isinstance(node, Fortran2003.Int_Literal_Constant):
+        if isinstance(node, (Fortran2003.Int_Literal_Constant,
+                             Fortran2003.Signed_Int_Literal_Constant)):
             integer_type = ScalarType(ScalarType.Intrinsic.INTEGER,
                                       get_literal_precision(node, parent))
             return Literal(str(node.items[0]), integer_type)
-        if isinstance(node, Fortran2003.Real_Literal_Constant):
+        if isinstance(node, (Fortran2003.Real_Literal_Constant,
+                             Fortran2003.Signed_Real_Literal_Constant)):
             real_type = ScalarType(ScalarType.Intrinsic.REAL,
                                    get_literal_precision(node, parent))
             # Make sure any exponent is lower case
@@ -5535,9 +5547,10 @@ class Fparser2Reader():
             # If the value has a "." without a digit before it then
             # add a "0" as the PSyIR does not allow this
             # format. e.g. +.3 => +0.3
-            if value[0] == "." or value[0:1] in ["+.", "-."]:
+            if value[0] == "." or value[0:2] in ["+.", "-."]:
                 value = value.replace(".", "0.")
             return Literal(value, real_type)
+
         # Unrecognised datatype - will result in a CodeBlock
         raise NotImplementedError("Unsupported datatype of literal number")
 
@@ -5559,9 +5572,10 @@ class Fparser2Reader():
         '''
         character_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
                                     get_literal_precision(node, parent))
-        # fparser issue #295 - the value of the character string currently
-        # contains the quotation symbols themselves. Once that's fixed this
-        # check will need to be changed.
+        # fparser issue https://github.com/stfc/fparser/issues/295 - the
+        # value of the character string currently contains the quotation
+        # symbols themselves. Once that's fixed this check will need to
+        # be changed.
         char_value = str(node.items[0])
         if not ((char_value.startswith("'") and char_value.endswith("'")) or
                 (char_value.startswith('"') and char_value.endswith('"'))):
@@ -5601,6 +5615,30 @@ class Fparser2Reader():
         raise GenerationError(
             f"Expected to find '.true.' or '.false.' as fparser2 logical "
             f"literal, but found '{value}' instead.")
+
+    def _complex_literal_handler(self,
+                                 node: Fortran2003.Complex_Literal_Constant,
+                                 parent: Node) -> ComplexLiteral:
+        '''
+        Transforms an fparser2 complex literal into a PSyIR ComplexLiteral
+        node.
+
+        :param node: node in fparser2 parse tree.
+        :param parent: parent node of the PSyIR node we are constructing.
+        :returns: PSyIR representation of node.
+        '''
+        # Convert real and imaginary parts to PSyIR nodes
+        lit = ComplexLiteral(parent=parent)
+        parts = []
+        for part in node.items:
+            if isinstance(part, Fortran2003.Name):
+                # Handle a named parameter
+                parts.append(self._name_handler(part, lit))
+            else:
+                # Handle a integer or real literal
+                parts.append(self._number_handler(part, lit))
+        lit.children.extend(parts)
+        return lit
 
     def _call_handler(self, node, parent):
         '''Transforms an fparser2 CALL statement into a PSyIR Call node.

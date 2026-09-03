@@ -1500,7 +1500,7 @@ module my_mod
 subroutine top()
   call bottom()
 end subroutine top
-complex function possibly()
+byte function possibly()
     possibly = 1
 end function possibly
 end module my_mod
@@ -1744,9 +1744,9 @@ contains
     luggage = luggage + real(my_func(1))
   end subroutine top
 
-  complex function my_func(val)
+  byte function my_func(val)
     integer, intent(in) :: val
-    my_func = CMPLX(1 + val, 1.0)
+    my_func = 1
   end function my_func
 end module some_mod'''
     psyir = fortran_reader.psyir_from_source(code)

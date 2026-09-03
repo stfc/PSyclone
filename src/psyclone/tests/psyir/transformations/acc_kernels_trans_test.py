@@ -436,7 +436,7 @@ subroutine ice(dtype, dtype_ptr, type_list, assumed_size_char, assumed2, &
   real, dimension(10,10) :: my_var
   character(len=*), dimension(:) :: assumed4
   ! An unsupported declaration for which we have no partial_datatype
-  complex :: ctype
+  byte :: ctype
 
   if (assumed_size_char == 'literal') then
     my_var(:UBOUND(my_var)) = 0.0
