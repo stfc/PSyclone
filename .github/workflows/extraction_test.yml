@@ -113,9 +113,6 @@ jobs:
         git clone git@github.com:hiker/lfric_apps.git
         pushd lfric_apps
         git checkout ${LFRIC_APPS_HASH}
-        # Always use https - that doesn't work for me, even though
-        # it does in lfric_test.yml :(
-        # git config --global url."https://github.com/" insteadgit@github.com:hiker/lfric_core.gitOf git@github.com:
         popd
 
         # Checkout core:
