@@ -111,7 +111,7 @@ jobs:
         pushd lfric_apps
         git checkout -b ${LFRIC_APPS_HASH}
         # Always use https:
-        git config --global url."https://github.com/" insteadOf git@github.com:
+        # git config --global url."https://github.com/" insteadOf git@github.com:
         popd
 
         # Checkout core:
