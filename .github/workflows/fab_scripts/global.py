@@ -12,8 +12,7 @@ the initialisation built-ins generically.
 
 '''
 
-from psyclone_tools import (redundant_computation_setval,
-                            view_transformed_schedule)
+from psyclone_tools import redundant_computation_setval
 from psyclone.domain.lfric import LFRicLoop
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 
