@@ -110,9 +110,9 @@ jobs:
         git clone https://github.com/MetOffice/lfric_apps.git
         pushd lfric_apps
         git checkout -b ${LFRIC_APPS_HASH}
-        popd
         # Always use https:
         git config --global url."https://github.com/" insteadOf git@github.com:
+        popd
 
         # Checkout core:
         # This script will checkout the version specified in dependencies.yaml
