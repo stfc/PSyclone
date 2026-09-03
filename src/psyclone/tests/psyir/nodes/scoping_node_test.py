@@ -324,10 +324,19 @@ def test_reference_accesses_struct():
                             datatype=ScalarType.integer_type())
     int_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(idef))
     real_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(rdef))
-    stype = StructureType.create([
-        ("iflag", int_type, Symbol.Visibility.PRIVATE, None),
-        ("rmask", real_type, Symbol.Visibility.PUBLIC,
-         Literal("100", real_type))])
+    stype = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "iflag", int_type, Symbol.Visibility.PRIVATE, None
+            ),
+            StructureType.ComponentType(
+                "rmask",
+                real_type,
+                Symbol.Visibility.PUBLIC,
+                Literal("100", real_type),
+            ),
+        ]
+    )
     ssym = DataTypeSymbol("my_type", stype)
     table.add(ssym)
     vai3 = sched.reference_accesses()
