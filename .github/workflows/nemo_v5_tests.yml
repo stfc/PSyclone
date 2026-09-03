@@ -51,7 +51,6 @@ env:
 jobs:
   run_if_on_mirror:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
-    if: ${{ false }}   # <‑‑ disables the job but workflow still loads
     runs-on: self-hosted
     
     outputs:
