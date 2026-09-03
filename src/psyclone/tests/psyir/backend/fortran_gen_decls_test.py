@@ -649,7 +649,7 @@ def test_complex_decl_with_deps(fortran_reader, fortran_writer, tmp_path):
     module test_mod
       implicit none
       ! This ordering of declarations is not valid Fortran but fparser2 doesn't
-      ! check and this lets us mimick the fact that symbols can be added to
+      ! check and this lets us mimic the fact that symbols can be added to
       ! a SymbolTable in any order.
       complex(kind=dp), dimension(np) :: myvar = i
       complex, parameter :: i = (0,1)
