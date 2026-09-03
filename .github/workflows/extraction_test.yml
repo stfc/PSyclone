@@ -48,9 +48,13 @@ jobs:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
     env:
-      LFRIC_APPS_REV: 7536
-      LFRIC_CORE_REV: 52054
+      # For now hard-core the CORE branch, till all the Fab
+      # PRs are properly merged in.
+      LFRIC_CORE_HASH: 458_mesh_for_mesh_tools
+      LFRIC_APPS_HASH: 741_more_fab_scripts
+      GNU_TOOLCHAIN: gnu14_openmpi
       PYTHON_VERSION: "3.13"
+      RUNDIR: "/archive/psyclone-tests/latest-run"
 
     steps:
     - uses: actions/checkout@v3
@@ -71,97 +75,94 @@ jobs:
         module load python/${PYTHON_VERSION}
         python -m venv .runner_venv
         . .runner_venv/bin/activate
+
         python -m pip install --upgrade pip
         # Uncomment the below to use the submodule version of fparser rather
         # than the latest release from pypi.
         # pip install external/fparser
         pip install .[test]
-        # Install BAF, and its version of Fab:
-        # ------------------------------------
-        git clone -b psyclone_ci_branch --recurse-submodules https://github.com/MetOffice/lfric-baf.git
-        # First install Fab:
-        pushd lfric-baf/fab
-        pip install .
-        popd
-
-        # Now process the extraction library in PSyclone, and overwrite the
-        # psydata files included in Fab:
-        pushd lfric-baf/infrastructure/build/psyclone/psydata/extract
-        rm *90   # Delete the old files (in case that the names are changed)
-        popd
+        export PSYCLONE_ROOT=${PWD}
 
         # Create the new Fortran files, i.e. processing with Jinja2
         pushd lib/extract/netcdf/lfric
-        make read_kernel_data_mod.f90 compare_variables_mod.F90 extract_netcdf_base.F90 \
-             kernel_data_netcdf.f90 psy_data_base.f90 read_kernel_data_mod.f90
+        make read_kernel_data_mod.f90 compare_variables_mod.F90 \
+             extract_netcdf_base.F90 kernel_data_netcdf.f90 psy_data_base.f90 \
+             read_kernel_data_mod.f90
+        # Keep the location of the extraction source files
+        export PSYCLONE_EXTRACT_DIR=${PWD}
         popd
 
-        # Copy the files into the LFRic Fab build system
-        cp lib/extract/netcdf/lfric/*90 lfric-baf/infrastructure/build/psyclone/psydata/extract
-
-        # Fetch the specified version of LFRic apps
-        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
-        spack load fcm/zefe2ha
-        cd /archive/psyclone-tests/latest-run
+        cd ${RUNDIR}
         rm -rf lfric_extraction
         mkdir lfric_extraction
         cd lfric_extraction
-        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-          -r ${LFRIC_APPS_REV} https://code.metoffice.gov.uk/svn/lfric_apps/main/trunk/ lfric_apps
-        fcm co --username ${{ secrets.UKMO_USER }} --password '${{ secrets.UKMO_PASSW }}' \
-          -r ${LFRIC_CORE_REV} https://code.metoffice.gov.uk/svn/lfric/LFRic/trunk/ lfric_core
-        sed -i "s|lfric_core_rev=$LFRIC_CORE_REV|lfric_core_rev=|g" lfric_apps/dependencies.sh
-        sed -i "s|lfric_core_sources=|lfric_core_sources=$PWD/lfric_core|g" lfric_apps/dependencies.sh
-        sed -i "s|use_xios_io=.true.|use_xios_io=.false.|g" lfric_apps/applications/gungho_model/example/configuration.nml
 
+        # Checkout and install Fab:
+        # -------------------------
+        # For now hard-code a branch
+        git clone -b fab_for_lfric_apps_specific https://github.com/MetOffice/fab.git
+        pushd fab
+        pip install
+        popd
+
+        # Checkout LFRic apps, then core:
+        # -------------------------------
+        git clone https://github.com/MetOffice/lfric_apps.git
+        git checkout ${LFRIC_APPS_HASH}
+        # Always use https:
+        git config --global url."https://github.com/" insteadOf git@github.com:
+
+        # Checkout core:
+        # This script will checkout the version specified in dependencies.yaml
+        #./lfric_apps/build/fetch_core.py lfric_apps/dependencies.yaml lfric_core
+
+        # For now, until all Fab PRs are merged, hard-code the branch we need,
+        # and just use git clone
+        git clone https://github.com/MetOffice/lfric_core.git
+        git checkout ${LFRIC_CORE_HASH}
+
+        # Copy scripts and PSyData files into the LFRic sources:
+        # ------------------------------------------------------
+        cp .github/workflows/fab_scripts/extract_mixin.py lfric_core/lfric_build
+        cp .github/workflows/fab_scripts/fab_gungho_model_extract.py \
+            lfric_apps/applications/gungho_model/
+        mkdir -p lfric_apps/applications/gungho_model/optimisation/extract
+        cp .github/workflows/fab_scripts/global.py \
+            lfric_apps/applications/gungho_model/optimisation/extract
+
+        # Copy the extract PSyData files into the LFRic Fab build system:
+        mkdir -p lfric_core/infrastructure/build/psyclone/psydata/extract
+        cp ${PSYCLONE_EXTRACT_DIR}/*90 lfric_core/infrastructure/build/psyclone/psydata/extract
+
+        # Is this still required?
+        sed -i "s|use_xios_io=.true.|use_xios_io=.false.|g" lfric_apps/applications/gungho_model/example/configuration.nml
 
     # Compile GungHo with extraction
     - name: GungHo Extraction Compilation
       run:  |
         # Set up environment
         source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
-        spack load lfric-build-environment %gnu14_openmpi
+        spack load lfric-build-environment %${GNU_TOOLCHAIN}
         source .runner_venv/bin/activate
-        export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
-        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export COMPILER_PROFILE=fast-debug
         export NUM_PROCS=6
         export MAX_PROC=$((NUM_PROCS-1))
 
         # Set the directory names for the extraction runs:
         # -----------------------------------------------
-        export RUNDIR=/archive/psyclone-tests/latest-run/extraction_test
-        export LFRIC_CORE=${RUNDIR}/lfric_core
-        export LFRIC_APPS=${RUNDIR}/lfric_apps
-
-        # Copy the lfric source files (BAF copies files into the source tree)
-        # -------------------------------------------------------------------
-        rm -rf ${RUNDIR}
-        mkdir -p ${LFRIC_CORE} ${LFRIC_APPS}
-        cp -r /archive/psyclone-tests/latest-run/lfric_extraction/lfric_core/ ${RUNDIR}
-        cp -r /archive/psyclone-tests/latest-run/lfric_extraction/lfric_apps/ ${RUNDIR}
-
-        # Install the BAF scripts into the lfric directories:
-        # ---------------------------------------------------
-        cd lfric-baf
-        ./install.sh ${LFRIC_CORE} ${LFRIC_APPS}
-
-        # Copy the modified extraction script from PSyclone
-        # -------------------------------------------------
-        # This allows us to keep the extraction script working,
-        # even if we are using new features/names.
-        export EXTRACT_DIR=${LFRIC_APPS}/applications/gungho_model/optimisation/extract
-        # Note that this directory exists after the BAF installation
-        cp ${PSYCLONE_LFRIC_DIR}/extract_script.py ${EXTRACT_DIR}/global.py
+        export LFRIC_CORE=${RUNDIR}/extraction_test/lfric_core
+        export LFRIC_APPS=${RUNDIR}/extraction_test/lfric_apps
 
         # Build GungHo with the BAF extraction script
         # -------------------------------------------
         cd ${LFRIC_APPS}/applications/gungho_model
-        mkdir -p $PWD/fab_workspace
         export FAB_WORKSPACE=$PWD/fab_workspace
+        mkdir -p ${FAB_WORKSPACE}
         # Run the Fab build script
-        ${LFRIC_CORE}/build.sh ./fab_gungho_model_extract.py   \
-          --profile ${COMPILER_PROFILE} --nproc 4 -fc $LDMPI -ld $LDMPI  -cc $CC
+        ./fab_gungho_model_extract.py --core ${LFRIC_CORE}  \
+          --fab-workspace ${FAB_WORKSPACE}                  \
+          --profile ${COMPILER_PROFILE} --nproc 4           \
+          -fc $LDMPI -ld $LDMPI -cc $CC
 
         # Run gungho (which will create the NetCDF kernel data files)
         # -----------------------------------------------------------
