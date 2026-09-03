@@ -112,7 +112,7 @@ jobs:
         # git clone https://github.com/MetOffice/lfric_apps.git
         git clone git@github.com:hiker/lfric_apps.git
         pushd lfric_apps
-        git checkout -b ${LFRIC_APPS_HASH}
+        git checkout ${LFRIC_APPS_HASH}
         # Always use https - that doesn't work for me, even though
         # it does in lfric_test.yml :(
         # git config --global url."https://github.com/" insteadgit@github.com:hiker/lfric_core.gitOf git@github.com:
@@ -126,7 +126,7 @@ jobs:
         # and just use git clone
         git clone git@github.com:hiker/lfric_core.git
         pushd lfric_core
-        git checkout -b ${LFRIC_CORE_HASH}
+        git checkout ${LFRIC_CORE_HASH}
         popd
 
         # Copy scripts and PSyData files into the LFRic sources:
