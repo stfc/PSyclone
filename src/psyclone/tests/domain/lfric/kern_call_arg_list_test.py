@@ -13,7 +13,7 @@ import pytest
 
 from psyclone.core import Signature, VariablesAccessMap
 from psyclone.domain.lfric import (KernCallArgList,
-                                   LFRicTypes, LFRicKern)
+                                   LFRicKern, LFRicLoop, LFRicTypes)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -234,7 +234,7 @@ def test_kerncallarglist_mesh_properties(fortran_writer):
 
     schedule = psy.invokes.invoke_list[0].schedule
     ctrans = LFRicColourTrans()
-    ctrans.apply(schedule.children[0])
+    ctrans.apply(schedule.walk(LFRicLoop)[0])
 
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     var_info = VariablesAccessMap()
@@ -266,7 +266,7 @@ def test_kerncallarglist_evaluator(fortran_writer):
 
     schedule = psy.invokes.invoke_list[0].schedule
     ctrans = LFRicColourTrans()
-    ctrans.apply(schedule.children[0])
+    ctrans.apply(schedule.walk(LFRicLoop)[0])
 
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
@@ -306,7 +306,7 @@ def test_kerncallarglist_stencil(fortran_writer):
 
     schedule = psy.invokes.invoke_list[0].schedule
     ctrans = LFRicColourTrans()
-    ctrans.apply(schedule.children[0])
+    ctrans.apply(schedule.walk(LFRicLoop, stop_type=LFRicLoop)[0])
 
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
@@ -369,7 +369,7 @@ def test_kerncallarglist_bcs(fortran_writer, monkeypatch):
 
     check_psyir_results(create_arg_list, fortran_writer)
 
-    loop = schedule.children[0]
+    loop = schedule.walk(LFRicLoop, stop_type=LFRicLoop)[0]
     call = loop.loop_body[0]
     arg = call.arguments.args[0]
 

@@ -218,6 +218,8 @@ class ArgOrdering:
             intrinsic_type = LFRicTypes("LFRicIntegerScalarDataType")()
 
         if not symbol:
+            # This branch probably no longer needed as Symbols created
+            # when Invoke is created - ARPDBG.
             symbol = self._symtab.find_or_create_tag(
                 tag=tag, root_name=array_name, symbol_type=DataSymbol,
                 datatype=ArrayType(

@@ -46,15 +46,13 @@ BASE_PATH = os.path.join(
 API = "lfric"
 
 
-def builtin_from_file(filename: str):
+def builtin_from_file(filename: str) -> LFRicBuiltIn:
     '''
     :param filename: the name of the file to check for the builtin.
-    :returns: the first builtin in the first invoke.
+
     '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, filename), api=API)
-    psy = PSyFactory(API).create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
-    return first_invoke.schedule.children[0].loop_body[0]
+    _, invoke = get_invoke(filename, api=API, idx=0)
+    return invoke.schedule.kernels()[0]
 
 
 def dummy_func(self, _1, _2=True):
@@ -538,7 +536,7 @@ def test_lfricbuiltin_cma(dist_mem):
         api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].loop_body[0]
+    kern = first_invoke.schedule.kernels()[0]
     assert kern.cma_operation is None
 
 
@@ -560,8 +558,7 @@ def test_get_indexed_field_argument_refs():
                                         "15.1.8_a_plus_X_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    loop = psy.invokes.invoke_list[0].schedule[0]
-    kern = loop.loop_body[0]
+    kern = psy.invokes.invoke_list[0].schedule.kernels()[0]
     refs = kern.get_indexed_field_argument_references()
     # Kernel has two field arguments
     assert len(refs) == 2
@@ -582,12 +579,12 @@ def test_get_scalar_argument_references():
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    kern = sched[0].loop_body[0]
+    kern = sched.kernels()[0]
     refs = kern.get_scalar_argument_references()
     assert len(refs) == 1
     assert isinstance(refs[0], Reference)
     assert refs[0].symbol.name == "i_scalar"
-    kern = sched[1].loop_body[0]
+    kern = sched.kernels()[1]
     refs = kern.get_scalar_argument_references()
     assert len(refs) == 1
     assert isinstance(refs[0], UnaryOperation)
@@ -602,8 +599,7 @@ def test_get_dof_loop_index_symbol():
                                         "15.1.8_a_plus_X_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    loop = psy.invokes.invoke_list[0].schedule[0]
-    kern = loop.loop_body[0]
+    kern = psy.invokes.invoke_list[0].schedule.kernels()[0]
     sym = kern.get_dof_loop_index_symbol()
     assert sym.name == "df"
     assert sym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
@@ -615,8 +611,7 @@ def test_reference_accesses(monkeypatch):
                                         "15.1.8_a_plus_X_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    loop = psy.invokes.invoke_list[0].schedule[0]
-    kern = loop.loop_body[0]
+    kern = psy.invokes.invoke_list[0].schedule.kernels()[0]
     var_info = kern.reference_accesses()
     # f2_data(df) = a + f1_data(df)
     assert var_info.is_written(Signature("f2_data"))
@@ -2050,7 +2045,7 @@ def test_real_to_int_x_precision(monkeypatch, tmpdir, kind_name):
     psy = PSyFactory(API).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     table = first_invoke.schedule.symbol_table
-    arg = first_invoke.schedule.children[0].loop_body[0].args[0]
+    arg = first_invoke.schedule.kernels()[0].args[0]
     # Set 'f2_data' to another 'i_<prec>'
     sym_kern = table.lookup_with_tag(f"{arg.name}:data")
     monkeypatch.setattr(sym_kern.datatype.partial_datatype.precision.symbol,
@@ -2120,7 +2115,7 @@ def test_real_to_real_x_lowering(monkeypatch, tmpdir, kind_name):
                      distributed_memory=False).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     table = first_invoke.schedule.symbol_table
-    arg = first_invoke.schedule.children[0].loop_body[0].args[0]
+    arg = first_invoke.schedule.kernels()[0].args[0]
     # Set 'f2_data' to another 'r_<prec>'
     sym_kern = table.lookup_with_tag(f"{arg.name}:data")
     monkeypatch.setattr(sym_kern.datatype.partial_datatype.precision.symbol,
@@ -2175,8 +2170,10 @@ def test_field_access_info_for_arrays_in_builtins():
     assert Signature("f2_data") in vam
 
     assert (
-        "a: READ, df: WRITE+READ, f1_data: READ, f2_data: WRITE, "
-        "field_proxy_type: CONSTANT, field_type: "
-        "CONSTANT, i_def: CONSTANT, r_def: CONSTANT, "
-        "uninitialised_loop0_start: READ, uninitialised_loop0_stop: READ"
+        "a: READ, df: WRITE+READ, f1%get_proxy: CALL, f1_data: WRITE+READ, "
+        "f1_proxy%data: READ, f1_proxy: WRITE, f2%get_proxy: CALL, f2_data: "
+        "WRITE, f2_proxy%data: READ, f2_proxy%vspace%get_undf: CALL, "
+        "f2_proxy: WRITE, field_proxy_type: CONSTANT, field_type: CONSTANT, "
+        "i_def: CONSTANT, loop0_start: WRITE+READ, loop0_stop: WRITE+READ, "
+        "r_def: CONSTANT, undf_as1_f2: WRITE+READ"
         == str(vam))

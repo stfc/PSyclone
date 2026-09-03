@@ -3241,13 +3241,13 @@ class LFRicBasisFunctions(LFRicCollection):
 
         # Allocate basis arrays
         for basis in basis_arrays:
-            dims = "("+",".join([":"]*len(basis_arrays[basis]))+")"
             new_name = self.symtab.next_available_name(basis)
             symbol = self.symtab.find_or_create_tag(
                 new_name, symbol_type=DataSymbol,
-                datatype=UnsupportedFortranType(
-                    f"real(kind=r_def), allocatable :: {new_name}{dims}"
-                ))
+                datatype=ArrayType(
+                    LFRicTypes("LFRicRealScalarDataType")(),
+                    [ArrayType.Extent.DEFERRED]*len(basis_arrays[basis]))
+            )
             alloc = IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.ALLOCATE,
                 [ArrayReference.create(
