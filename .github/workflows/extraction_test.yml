@@ -53,7 +53,7 @@ jobs:
       LFRIC_CORE_HASH: 458_mesh_for_mesh_tools
       LFRIC_APPS_HASH: 741_more_fab_scripts
       GNU_TOOLCHAIN: gnu14_openmpi
-      PYTHON_VERSION: "3.13"
+      PYTHON_VERSION: "3.14"
       RUNDIR: "/archive/psyclone-tests/latest-run"
 
     steps:
