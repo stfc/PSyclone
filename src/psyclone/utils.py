@@ -154,6 +154,8 @@ def transformation_documentation_wrapper(*args,
 
         :raises InternalError: if cls is not a Transformation.
         '''
+        if not __debug__:
+            return cls
         # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import Transformation
         if not issubclass(cls, Transformation):
