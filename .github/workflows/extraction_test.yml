@@ -53,7 +53,8 @@ jobs:
       LFRIC_CORE_HASH: 458_mesh_for_mesh_tools
       LFRIC_APPS_HASH: 741_more_fab_scripts
       GNU_TOOLCHAIN: gnu14_openmpi
-      PYTHON_VERSION: "3.14"
+      PYTHON_VERSION: "3.13"
+      NUM_PARALLEL: 6
       RUNDIR: "/archive/psyclone-tests/latest-run"
 
     steps:
@@ -128,7 +129,8 @@ jobs:
 
         # Copy scripts and PSyData files into the LFRic sources:
         # ------------------------------------------------------
-        cp ${PSYCLONE_ROOT}/.github/workflows/fab_scripts/extract_mixin.py lfric_core/lfric_build
+        cp ${PSYCLONE_ROOT}/.github/workflows/fab_scripts/extract_mixin.py \
+          lfric_core/lfric_build
         cp ${PSYCLONE_ROOT}/.github/workflows/fab_scripts/fab_gungho_model_extract.py \
             lfric_apps/applications/gungho_model/
         mkdir -p lfric_apps/applications/gungho_model/optimisation/extract
@@ -164,10 +166,20 @@ jobs:
         export FAB_WORKSPACE=$PWD/fab_workspace
         mkdir -p ${FAB_WORKSPACE}
         # Run the Fab build script
-        ./fab_gungho_model_extract.py --core ${LFRIC_CORE}  \
-          --fab-workspace ${FAB_WORKSPACE}                  \
-          --profile ${COMPILER_PROFILE} --nproc 4           \
+        echo "PP ${PYTHONPATH}"
+        echo "PWD ${PWD}"
+        echo "DIRS ${LFRIC_CORE} ${LFRIC_APPS}"
+        ls ${LFRIC_CORE}
+        ls ${LFRIC_APPS}
+
+        echo "COMMAND IS ./fab_gungho_model_extract.py --core ${LFRIC_CORE}      \
+          --fab-workspace ${FAB_WORKSPACE}                      \
+          --profile ${COMPILER_PROFILE} --nproc ${NUM_PARALLEL} \
           -fc $LDMPI -ld $LDMPI -cc $CC
+        ./fab_gungho_model_extract.py --core ${LFRIC_CORE}      \
+          --fab-workspace ${FAB_WORKSPACE}                      \
+          --profile ${COMPILER_PROFILE} --nproc ${NUM_PARALLEL} \
+          -fc $LDMPI -ld $LDMPI -cc $CC  "
 
         # Run gungho (which will create the NetCDF kernel data files)
         # -----------------------------------------------------------
