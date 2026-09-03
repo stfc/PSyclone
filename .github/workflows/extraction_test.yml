@@ -169,17 +169,17 @@ jobs:
         echo "PP ${PYTHONPATH}"
         echo "PWD ${PWD}"
         echo "DIRS ${LFRIC_CORE} ${LFRIC_APPS}"
-        ls ${LFRIC_CORE}
-        ls ${LFRIC_APPS}
+        ls
 
         echo "COMMAND IS ./fab_gungho_model_extract.py --core ${LFRIC_CORE}      \
           --fab-workspace ${FAB_WORKSPACE}                      \
           --profile ${COMPILER_PROFILE} --nproc ${NUM_PARALLEL} \
-          -fc $LDMPI -ld $LDMPI -cc $CC
+          -fc $LDMPI -ld $LDMPI -cc $CC"
+
         ./fab_gungho_model_extract.py --core ${LFRIC_CORE}      \
           --fab-workspace ${FAB_WORKSPACE}                      \
           --profile ${COMPILER_PROFILE} --nproc ${NUM_PARALLEL} \
-          -fc $LDMPI -ld $LDMPI -cc $CC  "
+          -fc $LDMPI -ld $LDMPI -cc $CC
 
         # Run gungho (which will create the NetCDF kernel data files)
         # -----------------------------------------------------------
