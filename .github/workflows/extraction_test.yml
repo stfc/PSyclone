@@ -108,7 +108,9 @@ jobs:
         # Checkout LFRic apps, then core:
         # -------------------------------
         git clone https://github.com/MetOffice/lfric_apps.git
+        pushd lfric_apps
         git checkout ${LFRIC_APPS_HASH}
+        popd
         # Always use https:
         git config --global url."https://github.com/" insteadOf git@github.com:
 
@@ -119,7 +121,9 @@ jobs:
         # For now, until all Fab PRs are merged, hard-code the branch we need,
         # and just use git clone
         git clone https://github.com/MetOffice/lfric_core.git
+        pushd lfric_core
         git checkout ${LFRIC_CORE_HASH}
+        popd
 
         # Copy scripts and PSyData files into the LFRic sources:
         # ------------------------------------------------------
