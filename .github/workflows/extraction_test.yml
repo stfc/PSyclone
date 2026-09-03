@@ -110,7 +110,8 @@ jobs:
         git clone https://github.com/MetOffice/lfric_apps.git
         pushd lfric_apps
         git checkout -b ${LFRIC_APPS_HASH}
-        # Always use https:
+        # Always use https - that doesn't work for me, even though
+        # it does in lfric_test.yml :(
         # git config --global url."https://github.com/" insteadOf git@github.com:
         popd
 
@@ -127,11 +128,11 @@ jobs:
 
         # Copy scripts and PSyData files into the LFRic sources:
         # ------------------------------------------------------
-        cp .github/workflows/fab_scripts/extract_mixin.py lfric_core/lfric_build
-        cp .github/workflows/fab_scripts/fab_gungho_model_extract.py \
+        cp ${PSYCLONE_ROOT}/.github/workflows/fab_scripts/extract_mixin.py lfric_core/lfric_build
+        cp ${PSYCLONE_ROOT}/.github/workflows/fab_scripts/fab_gungho_model_extract.py \
             lfric_apps/applications/gungho_model/
         mkdir -p lfric_apps/applications/gungho_model/optimisation/extract
-        cp .github/workflows/fab_scripts/global.py \
+        cp ${PSYCLONE_ROOT}/.github/workflows/fab_scripts/global.py \
             lfric_apps/applications/gungho_model/optimisation/extract
 
         # Copy the extract PSyData files into the LFRic Fab build system:
