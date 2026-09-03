@@ -21,12 +21,15 @@ class FieldArgMetadata(ScalarArgMetadata):
     '''Class to capture LFRic kernel metadata information for a field
     argument.
 
-    :param str datatype: the datatype of this field (GH_INTEGER, ...).
-    :param str access: the way the kernel accesses this field (GH_WRITE, ...).
-    :param str function_space: the function space that this field is
+    :param datatype: the datatype of this field (GH_INTEGER, ...).
+    :param access: the way the kernel accesses this field (GH_WRITE, ...).
+    :param function_space: the function space that this field is
         on (W0, ...).
-    :param Optional[str] stencil: the type of stencil used by the
-        kernel when accessing this field.
+    :param stencil: the type of stencil used by the kernel when accessing
+        this field.
+    :param nlayers: the number of vertical layers for this field argument (if
+        it differs from that of the first field argument to the Kernel).
+    :param ndata: the number of data values at each DoF. (Default is 1.)
 
     '''
     # The name used to specify a field argument in LFRic metadata.
@@ -51,7 +54,7 @@ class FieldArgMetadata(ScalarArgMetadata):
     def __init__(self, datatype: str, access: str, function_space: str,
                  stencil: Optional[str] = None,
                  nlayers: Optional[str] = None,
-                 ndata: Optional[str] = "1"):
+                 ndata: str = "1"):
         super().__init__(datatype, access)
         self.function_space = function_space
         self.stencil = stencil

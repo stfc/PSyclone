@@ -1197,9 +1197,9 @@ def test_field_nlayers(tmp_path):
     ! Look-up dofmaps for each function space
     map_w1 => f1_proxy%vspace%get_whole_dofmap()
     map_w2 => f2_proxy%vspace%get_whole_dofmap()
-    map_w2_shallow => f2_proxy%vspace%get_whole_dofmap()
-    map_w2_precip => f2_proxy%vspace%get_whole_dofmap()
-    map_w2_shallow_precip => f2_proxy%vspace%get_whole_dofmap()
+    map_w2_shallow => f3_proxy%vspace%get_whole_dofmap()
+    map_w2_precip => f5_proxy%vspace%get_whole_dofmap()
+    map_w2_shallow_precip => f6_proxy%vspace%get_whole_dofmap()
 
     ! Initialise number of DoFs for w1
     ndf_w1 = f1_proxy%vspace%get_ndf()

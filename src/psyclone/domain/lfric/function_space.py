@@ -44,7 +44,7 @@ class FunctionSpace():
                  name: str,
                  kernel_args: "LFRicKernelArguments",
                  nlayers: Optional[str] = None,
-                 ndata: Optional[str] = "1"):
+                 ndata: str = "1"):
         self._orig_name = name
         self._kernel_args = kernel_args
         self._nlayers = nlayers
@@ -299,7 +299,7 @@ class FunctionSpace():
                 # First, test that argument is a field as some argument
                 # objects won't have function spaces, e.g. scalars
                 if arg.is_field and \
-                   arg.function_space.orig_name == self.orig_name:
+                   arg.function_space.mangled_name == self.mangled_name:
                     return arg
         return None
 
