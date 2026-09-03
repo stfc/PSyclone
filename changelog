@@ -1,3 +1,6 @@
+   46) PR #3581 for #3579. Bypass docstring wrapper when debug info is
+   missing. This allows to use python -O or PYTHONOPTIMIZE.
+
    45) PR #3563 for #2642. Adds support for PSyclone handling structures
    with extends and contains.
 
