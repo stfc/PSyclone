@@ -1,3 +1,9 @@
+   43) PR #3566 towards #1995. More tidying of copyright/license
+   headers to use SPDX form.
+ 
+   42) PR #3468 for #3461. Cleans up the use of sys.path so that
+   different transformation scripts with the same name can be imported.
+ 
    41) PR #3573. Improves Developer Guide description of coding style
    and fixes a few incorrect type-hints.
  
