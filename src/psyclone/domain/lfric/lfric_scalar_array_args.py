@@ -20,7 +20,8 @@ from psyclone.domain.lfric import (LFRicCollection, LFRicConstants, LFRicTypes,
                                    LFRicKern, LFRicInvoke)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import FORTRAN_INTENT_NAMES
-from psyclone.psyir.nodes import Literal, ArrayReference
+from psyclone.psyir.nodes import (
+    ArrayReference, Assignment, IntrinsicCall, Literal, Reference)
 from psyclone.psyir.symbols import (DataSymbol, ArrayType,
                                     ScalarType, ArgumentInterface)
 
@@ -32,7 +33,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
     Handles the declarations of ScalarArray kernel arguments appearing in
     either an Invoke or a Kernel stub.
 
-    :param node: the Invoke or Kernel stub for which to manage the \
+    :param node: the Invoke or Kernel stub for which to manage the
                  ScalarArray arguments.
     '''
     def __init__(self, node: Union[LFRicKern, LFRicInvoke]):
@@ -179,35 +180,54 @@ class LFRicScalarArrayArgs(LFRicCollection):
         # ScalarArray arguments
         for intent in FORTRAN_INTENT_NAMES:
             for arg in self._scalar_array_args[intent]:
-                # Create the dimensions array symbol
-                dims_array_symbol = self.symtab.find_or_create_tag(
+                # Create the symbol for the dimensions array.
+                self.symtab.find_or_create_tag(
                     tag="dims_" + arg.name,
                     symbol_type=DataSymbol,
                     datatype=ArrayType(
                         LFRicTypes("LFRicIntegerScalarDataType")(),
                         [arg._array_ndims]))
-                dims_array_symbol.interface = ArgumentInterface(
-                                    INTENT_MAPPING[intent])
-                self.symtab.append_argument(dims_array_symbol)
-                # Create list of dims_array references
-                sym_list = [ArrayReference.create(
-                    dims_array_symbol,
-                    [Literal(str(idx), ScalarType.integer_type())])
-                        for idx in range(1, arg._array_ndims + 1)]
                 # Find the ScalarArray tag and convert it to an ArrayType
                 array_symbol = self.symtab.lookup_with_tag(
                     "AlgArgs_" + arg.name)
                 array_symbol.datatype = ArrayType(
                     type_map[arg.intrinsic_type],
-                    sym_list)
-                # Replace the symbol with itself to ensure
-                # the ScalarArray is generated after the
-                # dimensions array to avoid compilation errors
-                # TODO: #2202 may allow this to be removed
-                self.symtab.swap(array_symbol, array_symbol)
+                    arg._array_ndims*[ArrayType.Extent.ATTRIBUTE])
                 array_symbol.interface = ArgumentInterface(
                                     INTENT_MAPPING[intent])
                 self.symtab.append_argument(array_symbol)
+
+    def initialise(self, cursor: int) -> int:
+        '''
+        Add code to initialise the array holding the extent of each dimension
+        of any ScalarArray arguments.
+
+        :param cursor: position to add the next initialisation statements.
+
+        :returns: Updated cursor value.
+
+        '''
+        first = True
+        # For each ScalarArray argument...
+        for intent in FORTRAN_INTENT_NAMES:
+            for arg in self._scalar_array_args[intent]:
+                # We want dims_array = SHAPE(scalar_array)
+                dim_array_sym = self.symtab.lookup_with_tag("dims_" + arg.name)
+                array_symbol = self.symtab.lookup_with_tag(
+                    "AlgArgs_" + arg.name)
+                shape_call = IntrinsicCall.create(
+                    IntrinsicCall.Intrinsic.SHAPE,
+                    [Reference(array_symbol)])
+                assign = Assignment.create(lhs=Reference(dim_array_sym),
+                                           rhs=shape_call)
+                if first:
+                    assign.preceding_comment = (
+                        "Store dimensions of ScalarArray arguments.")
+                    first = False
+                self._invoke.schedule.addchild(assign, cursor)
+                cursor += 1
+
+        return cursor
 
 
 # ---------- Documentation utils -------------------------------------------- #
