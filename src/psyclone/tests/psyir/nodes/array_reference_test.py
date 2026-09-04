@@ -10,7 +10,6 @@
 import pytest
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.nodes import (
     Reference, ArrayReference, Assignment,
     Literal, BinaryOperation, Range, KernelSchedule, IntrinsicCall)
@@ -18,6 +17,7 @@ from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, ScalarType, Symbol,
     UnsupportedFortranType, StructureType, UnresolvedType)
 from psyclone.tests.utilities import check_links
+from psyclone.utils import colored
 
 
 def test_array_node_str():

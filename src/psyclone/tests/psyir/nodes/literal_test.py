@@ -13,7 +13,7 @@ from psyclone.psyir.nodes import Literal, Reference
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, ScalarType, SymbolTable)
 from psyclone.errors import GenerationError
-from psyclone.psyir.nodes.node import colored
+from psyclone.utils import colored
 
 
 def test_literal_init():

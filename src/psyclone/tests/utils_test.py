@@ -7,11 +7,14 @@
 
 '''This module implements tests for the generic utility functions.'''
 
+import builtins
 import pytest
+import runpy
 import sys
 from typing import Union
 
 
+from psyclone import utils
 from psyclone.errors import InternalError
 from psyclone.transformations import Transformation
 from psyclone.utils import (
@@ -499,3 +502,21 @@ def test_parse_kwargs_errors_wrong_type(kwargs):
 
     assert (f"Invalid syntax for keyword arguments '{kwargs}'. It was parsed "
             f"as 'set', not as a dictionary." == str(err.value))
+
+
+def test_colored_fallback_without_termcolor(monkeypatch):
+    '''Exercise the fallback implementation of ``colored`` when termcolor
+    cannot be imported.
+
+    '''
+    original_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        '''Raise ImportError only for termcolor.'''
+        if name == "termcolor":
+            raise ImportError("termcolor unavailable")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    module_globals = runpy.run_path(utils.__file__)
+    assert module_globals["colored"]("text", "green") == "text"

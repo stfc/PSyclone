@@ -19,9 +19,9 @@ from psyclone.psyir.frontend.fortran_treesitter_reader import \
 from psyclone.psyir.nodes.codeblock import (
     CodeBlock, Fparser2CodeBlock, TreeSitterCodeBlock
 )
-from psyclone.psyir.nodes.node import colored
 from psyclone.errors import GenerationError, InternalError
 from psyclone.tests.utilities import min_version_3_10
+from psyclone.utils import colored
 
 
 # TODO #3416: Skip treesitter tests below 3.10 as they're unsupported by

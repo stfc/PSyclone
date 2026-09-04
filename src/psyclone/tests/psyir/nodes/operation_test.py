@@ -15,12 +15,13 @@ import pytest
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
-    ArrayReference, BinaryOperation, colored, IntrinsicCall,
+    ArrayReference, BinaryOperation, IntrinsicCall,
     Literal, Range, Reference, Return, StructureReference, UnaryOperation)
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, UnresolvedType, ScalarType, Symbol, StructureType,
     UnsupportedFortranType)
 from psyclone.tests.utilities import check_links
+from psyclone.utils import colored
 
 
 # Test BinaryOperation class
