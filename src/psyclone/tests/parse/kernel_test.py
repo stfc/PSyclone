@@ -688,17 +688,22 @@ def test_get_char_value():
     '''
     enode = ExpressionNode(["1"])
     with pytest.raises(ParseError) as err:
-        _ = get_char_value(enode, "nlevels")
-    assert "not a valid nlevels specifier (expected" in str(err.value)
+        _ = get_char_value(enode, "nlayers")
+    assert "not a valid nlayers specifier (expected" in str(err.value)
     # Value must be a quoted string
-    node = NamedArg(["nlevels", "=", "1"])
+    node = NamedArg(["nlayers", "=", "1"])
     with pytest.raises(ParseError) as err:
-        _ = get_char_value(node, "nlevels")
-    assert ("nlevels must be specified as a quoted string but got nlevels=1"
+        _ = get_char_value(node, "nlayers")
+    assert ("nlayers must be specified as a quoted string but got nlayers=1"
             in str(err.value))
-    node2 = NamedArg(["nlevels", "=", "'1'"])
-    value = get_char_value(node2, "nlevels")
+    node2 = NamedArg(["nlayers", "=", "'1'"])
+    value = get_char_value(node2, "nlayers")
     assert value == "1"
+    node3 = NamedArg(["nlayers", "=", "'not a valid name'"])
+    with pytest.raises(ParseError) as err:
+        _ = get_char_value(node3, "nlayers")
+    assert ("A string value assigned to 'nlayers' must be a valid Fortran "
+            "name but 'not a valid name' is not" in str(err.value))
 
 
 def test_get_integer_variable_err():

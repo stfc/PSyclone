@@ -1,0 +1,25 @@
+! -----------------------------------------------------------------------------
+! SPDX-FileCopyrightText: Copyright (c) 2026 Science and Technology
+!                         Facilities Council
+! SPDX-License-Identifier: BSD-3-Clause
+! See the full LICENSE file in the project root for details.
+! -----------------------------------------------------------------------------
+
+!> A (non-executable) example LFRic algorithm layer that invokes two different
+!! kernels that both have field arguments with custom values of NLAYERS and NDATA.
+!! The example is not executable because it omits all the initialisation
+!! required to construct fully valid field objects.
+program my_alg
+  use constants_mod, only: r_def
+  use field_mod, only: field_type
+  use testkern_nlayers_ndata2_mod, only: testkern_nlayers_ndata2_type
+  use testkern_nlayers_ndata_mod, only: testkern_nlayers_ndata_type
+  implicit none
+  real(kind=r_def) :: scalar
+  type(field_type) :: fld1, fld2, fld3, fld4, fld5, fld6, fld_2d
+
+  call invoke( &
+     testkern_nlayers_ndata_type(scalar, fld1, fld2, fld3, fld4, fld5, fld6), &
+     testkern_nlayers_ndata2_type(fld1, fld2, fld3, fld4, fld_2d) )
+
+end program

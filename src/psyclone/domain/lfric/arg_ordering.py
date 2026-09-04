@@ -10,6 +10,7 @@ kernel calls.
 '''
 
 import abc
+from typing import Optional
 
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature, VariablesAccessMap
@@ -19,7 +20,7 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.metadata_to_arguments_rules import (
     MetadataToArgumentsRules)
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import ArrayReference, Reference
+from psyclone.psyir.nodes import ArrayReference, Node, Reference
 from psyclone.psyir.symbols import DataSymbol, ArrayType, SymbolTable
 
 
@@ -77,17 +78,21 @@ class ArgOrdering:
             return current_invoke.schedule.symbol_table
         return SymbolTable()
 
-    def psyir_append(self, node):
+    def psyir_append(self, node: Node) -> None:
         '''Appends a PSyIR node to the PSyIR argument list.
 
         :param node: the node to append.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         self._psyir_arglist.append(node)
 
-    def append(self, var_name, var_accesses=None, var_access_name=None,
-               mode=AccessType.READ, metadata_posn=None):
+    def append(self,
+               var_name: str,
+               var_accesses: Optional[VariablesAccessMap] = None,
+               var_access_name: Optional[str] = None,
+               mode: AccessType = AccessType.READ,
+               metadata_posn: Optional[int] = None
+               ) -> None:
         # pylint: disable=too-many-arguments
         '''Appends the specified variable name to the list of all arguments and
         stores the mapping between the position of this actual argument and
@@ -97,18 +102,14 @@ class ArgOrdering:
         it is assumed that access mode is READ (which can be set with
         ``mode``).
 
-        :param str var_name: the name of the variable.
-        :param var_accesses: optional class to store variable access \
+        :param var_name: the name of the variable.
+        :param var_accesses: optional class to store variable access
             information.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
-        :param str var_access_name: optional name of the variable for \
-            which access information is stored (used e.g. when the \
-            actual argument is field_proxy, but the access is to be \
-            recorded for field).
+        :param var_access_name: optional name of the variable for which
+            access information is stored (used e.g. when the actual argument
+            is field_proxy, but the access is to be recorded for field).
         :param mode: optional access mode (defaults to READ).
-        :type mode: :py:class:`psyclone.core.access_type.AccessType`
-        :param int metadata_posn: the location of the corresponding entry in \
+        :param metadata_posn: the location of the corresponding entry in
             the list of arguments in the kernel metadata (if any).
 
         '''
@@ -324,7 +325,9 @@ class ArgOrdering:
         '''
         return self._arg_index_to_metadata_index[idx]
 
-    def generate(self, var_accesses: VariablesAccessMap = None):
+    def generate(self,
+                 var_accesses: Optional[VariablesAccessMap] = None
+                 ) -> None:
         # pylint: disable=too-many-statements, too-many-branches
         '''
         Specifies which arguments appear in an argument list, their type
@@ -349,10 +352,14 @@ class ArgOrdering:
         if self._kern.arguments.has_operator():
             # All operator types require the cell index to be provided
             self.cell_position(var_accesses=var_accesses)
-        # Pass the number of layers in the mesh unless this kernel is
-        # applying a CMA operator or doing a CMA matrix-matrix calculation
+
+        # Pass the number of layers and number of data pts/dof associated with
+        # the various field/operator arguments unless this kernel is applying
+        # a CMA operator or doing a CMA matrix-matrix calculation.
         if self._kern.cma_operation not in ["apply", "matrix-matrix"]:
             self.mesh_height(var_accesses=var_accesses)
+            self.field_ndata(var_accesses=var_accesses)
+
         # Pass the number of cells in the mesh if this kernel has a
         # LMA operator argument
         # TODO this code should replace the code that currently includes
@@ -536,37 +543,43 @@ class ArgOrdering:
 
         '''
 
-    def mesh_height(self, var_accesses=None):
+    def mesh_height(self,
+                    var_accesses: Optional[VariablesAccessMap] = None) -> None:
         '''Add mesh height (nlayers) to the argument list and if supplied
         stores this access in var_accesses.
 
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
-
         '''
 
-    def _mesh_ncell2d(self, var_accesses=None):
+    def field_ndata(self,
+                    var_accesses: Optional[VariablesAccessMap] = None) -> None:
+        '''Add any distinct values of ndata (number of data values per dof)
+        required by field arguments to the argument list. Also add these
+        accesses to `var_accesses` if supplied.
+
+        :param var_accesses: optional VariablesAccessMap instance to store
+            the information about variable accesses.
+        '''
+
+    def _mesh_ncell2d(self,
+                      var_accesses: Optional[VariablesAccessMap] = None
+                      ) -> None:
         '''Add the number of columns in the mesh (including halos) to the
         argument list and stores this access in var_accesses (if supplied).
 
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
-
         '''
 
-    def _mesh_ncell2d_no_halos(self, var_accesses=None):
+    def _mesh_ncell2d_no_halos(
+            self,
+            var_accesses: Optional[VariablesAccessMap] = None) -> None:
         '''Add the number of columns in the mesh (excluding halos) to the
         argument list and stores this access in var_accesses (if supplied).
 
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
-
         '''
 
     @abc.abstractmethod

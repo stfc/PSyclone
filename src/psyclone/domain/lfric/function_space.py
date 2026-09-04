@@ -21,11 +21,17 @@ class FunctionSpace():
     '''
     Manages the name of a function space. If it is an any_space or
     any_discontinuous_space then its name is mangled such that it is unique
-    within the scope of an Invoke.
+    within the scope of an Invoke. If the function space is associated with
+    a non-default number of layers and/or data values per dof then the
+    labels specifying those are also incorporated in the name.
 
     :param name: original name of function space.
     :param kernel_args: object encapsulating all arguments to the kernel,
                         one or more of which are on this function space.
+    :param nlayers: the label specifying the number of layers associated
+                    with this function space.
+    :param ndata: the label (or integer literal) specifying the number of
+                  data values per dof.
 
     :raises InternalError: if an unrecognised function space is encountered.
 
@@ -34,9 +40,15 @@ class FunctionSpace():
     ## and field names.
     MAX_NAME_LEN = 21
 
-    def __init__(self, name: str, kernel_args: "LFRicKernelArguments"):
+    def __init__(self,
+                 name: str,
+                 kernel_args: "LFRicKernelArguments",
+                 nlayers: Optional[str] = None,
+                 ndata: str = "1"):
         self._orig_name = name
         self._kernel_args = kernel_args
+        self._nlayers = nlayers
+        self._ndata = ndata
 
         const = LFRicConstants()
         # Check whether the function space name is a valid name
@@ -76,20 +88,35 @@ class FunctionSpace():
         const = LFRicConstants()
         if (self._orig_name not in const.VALID_ANY_SPACE_NAMES +
                 const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES):
-            return self._orig_name
+            if (not self._nlayers) and self._ndata == "1":
+                return self._orig_name
+            base_name = self._orig_name
+        else:
+            base_name = ""
+            # List kernel arguments
+            args = self._kernel_args.args
+            # Mangle the function space name for any_*_space
+            lorig_name = self._orig_name.lower()
+            for arg in args:
+                for fspace in arg.function_spaces:
+                    if (fspace and fspace.orig_name.lower() == lorig_name):
+                        base_name = f"{self.short_name}_{arg.name}"
+                        break
+                if base_name:
+                    break
+            else:
+                # Raise an error if there are no kernel arguments on this
+                # function space
+                raise FieldNotFoundError(
+                    f"No kernel argument found for function "
+                    f"space '{self._orig_name}'")
 
-        # List kernel arguments
-        args = self._kernel_args.args
-        # Mangle the function space name for any_*_space
-        lorig_name = self._orig_name.lower()
-        for arg in args:
-            for fspace in arg.function_spaces:
-                if (fspace and fspace.orig_name.lower() == lorig_name):
-                    return self._shorten_name(f"{self.short_name}_{arg.name}")
-        # Raise an error if there are no kernel arguments on this
-        # function space
-        raise FieldNotFoundError(f"No kernel argument found for function "
-                                 f"space '{self._orig_name}'")
+        parts = [base_name]
+        if self._nlayers:
+            parts.append(self._nlayers)
+        if self._ndata != "1":
+            parts.append(self._ndata)
+        return self._shorten_name("_".join(parts))
 
     @staticmethod
     def _shorten_name(name: str) -> str:
@@ -272,7 +299,7 @@ class FunctionSpace():
                 # First, test that argument is a field as some argument
                 # objects won't have function spaces, e.g. scalars
                 if arg.is_field and \
-                   arg.function_space.orig_name == self.orig_name:
+                   arg.function_space.mangled_name == self.mangled_name:
                     return arg
         return None
 

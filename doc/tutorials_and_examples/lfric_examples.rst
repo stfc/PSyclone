@@ -340,3 +340,19 @@ algorithm layer run:
 
     cd eg20/
     psyclone-kern -gen alg ../code/testkern_mod.F90
+
+Example 21: Field arguments with custom values for NDATA or NLAYERS
+-------------------------------------------------------------------
+
+An example demonstrating a kernel with field arguments that have custom
+values for either :ref:`NDATA <ndata-metadata>` (number of values per dof)
+and/or :ref:`NLAYERS <number-of-layers-metadata>` (number of vertical levels).
+The example is compilable but not executable:
+
+.. code-block:: bash
+
+    cd eg21/
+    make compile
+
+The kernel metadata can be seen in ``../code/testkern_nlayers_ndata_mod.F90``
+and the generated PSy layer is put in ``nlayers_ndata_eg_alg_psy.f90``.

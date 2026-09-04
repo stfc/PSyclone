@@ -202,9 +202,12 @@ class KernCallArgList(ArgOrdering):
         sym = self.append_integer_reference(base_name)
         self.append(sym.name, var_accesses)
 
-    def mesh_height(self, var_accesses: Optional[VariablesAccessMap] = None):
-        '''Add mesh height (nlayers) to the argument list and if supplied
-        stores this access in var_accesses.
+    def mesh_height(self,
+                    var_accesses: Optional[VariablesAccessMap] = None) -> None:
+        '''Add mesh height (nlayers) of the first field/operator argument to
+        the argument list. If other field arguments have different numbers of
+        layers then these are also added to the list. These accesses are
+        stored in var_accesses if it is supplied.
 
         :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
@@ -212,10 +215,52 @@ class KernCallArgList(ArgOrdering):
         '''
         if self._kern.iterates_over == "dof":
             return
+        nlayers_names = set()
+        # By default we always pass the number of layers associated with the
+        # first field or operator argument.
         name = f"nlayers_{self._kern.arguments.first_field_or_operator.name}"
+        nlayers_names.add(name)
         nlayers_symbol = self.append_integer_reference(name, tag=name)
         self.append(nlayers_symbol.name, var_accesses)
         self._nlayers_positions.append(self.num_args)
+        # We also have to pass any other values of nlayers for those args
+        # that have a different number and which is unknown at compile time.
+        for arg in self._kern.arguments.args:
+            if arg.nlayers and not arg.nlayers.isnumeric():
+                sym = self._symtab.lookup_with_tag(
+                    f"nlayers_{arg.nlayers}")
+                if sym.name in nlayers_names:
+                    # Make sure we don't duplicate arguments.
+                    continue
+                nlayers_names.add(sym.name)
+                self.append(sym.name, var_accesses)
+                self.psyir_append(Reference(sym))
+                self._nlayers_positions.append(self.num_args)
+
+    def field_ndata(self,
+                    var_accesses: Optional[VariablesAccessMap] = None) -> None:
+        '''Add any distinct values of ndata (number of data values per dof)
+        required by field arguments to the argument list. Also add these
+        accesses to `var_accesses` if supplied.
+
+        :param var_accesses: optional VariablesAccessMap instance to store
+            the information about variable accesses.
+        '''
+        if self._kern.iterates_over == "dof":
+            return
+        ndata_names = set()
+        for arg in self._kern.arguments.args:
+            if arg.ndata and not arg.ndata.isnumeric():
+                sym = self._symtab.lookup_with_tag(
+                    f"ndata_{arg.ndata}")
+                if sym.name in ndata_names:
+                    # Make sure we don't duplicate arguments.
+                    continue
+                ndata_names.add(sym.name)
+                self.append(sym.name, var_accesses)
+                self.psyir_append(Reference(sym))
+                # TODO #3498 keep track of positions of ndata
+                # arguments c.f. nlayers
 
     def scalar(self, scalar_arg,
                var_accesses: Optional[VariablesAccessMap] = None):

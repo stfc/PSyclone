@@ -1464,10 +1464,11 @@ def test_basis_evaluator(fortran_writer):
     code = fortran_writer(kernel.gen_stub)
 
     assert (
-        "subroutine dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
-        "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
-        "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, field_9_wchi, "
-        "op_10_ncell_3d, op_10, field_11_w2vtrace, op_12_ncell_3d, op_12, "
+        "subroutine dummy_code(cell, nlayers_field_1, field_1_w0, "
+        "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, "
+        "field_5_wtheta, op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, "
+        "op_8, field_9_wchi, op_10_ncell_3d, op_10, field_11_w2vtrace, "
+        "op_12_ncell_3d, op_12, "
         "ndf_w0, undf_w0, map_w0, basis_w0_on_w0, ndf_w1, basis_w1_on_w0, "
         "ndf_w2, undf_w2, map_w2, basis_w2_on_w0, ndf_w3, basis_w3_on_w0, "
         "ndf_wtheta, undf_wtheta, map_wtheta, basis_wtheta_on_w0, ndf_w2h, "
@@ -1476,7 +1477,7 @@ def test_basis_evaluator(fortran_writer):
         "basis_wchi_on_w0, ndf_w2trace, basis_w2trace_on_w0, ndf_w2vtrace, "
         "undf_w2vtrace, map_w2vtrace, basis_w2vtrace_on_w0, ndf_w2htrace, "
         "basis_w2htrace_on_w0)" in code)
-    assert "integer(kind=i_def), intent(in) :: nlayers" in code
+    assert "integer(kind=i_def), intent(in) :: nlayers_field_1" in code
     assert "integer(kind=i_def), intent(in) :: ndf_w0" in code
     assert ("integer(kind=i_def), dimension(ndf_w0), intent(in) "
             ":: map_w0" in code)
@@ -1677,7 +1678,8 @@ def test_diff_basis(fortran_writer):
         "  implicit none\n"
         "  public\n\n"
         "  contains\n"
-        "  subroutine dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
+        "  subroutine dummy_code(cell, nlayers_field_1, "
+        "field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
         "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, field_9_wchi, "
         "op_10_ncell_3d, op_10, field_11_w2htrace, op_12_ncell_3d, op_12, "
@@ -1694,7 +1696,7 @@ def test_diff_basis(fortran_writer):
         "weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
         "    use constants_mod\n") in code
 
-    assert "integer(kind=i_def), intent(in) :: nlayers" in code
+    assert "integer(kind=i_def), intent(in) :: nlayers_field_1" in code
     assert "integer(kind=i_def), intent(in) :: ndf_w0" in code
     assert ("integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0"
             in code)
@@ -1854,7 +1856,8 @@ def test_diff_basis_eval(fortran_writer):
         "  public\n"
         "\n"
         "  contains\n"
-        "  subroutine dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
+        "  subroutine dummy_code(cell, nlayers_field_1, "
+        "field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
         "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, field_9_wchi, "
         "op_10_ncell_3d, op_10, field_11_w2vtrace, op_12_ncell_3d, op_12, "
@@ -1871,7 +1874,7 @@ def test_diff_basis_eval(fortran_writer):
     assert output_args in generated_code
     assert """\
     use constants_mod
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers_field_1
     integer(kind=i_def), intent(in) :: ndf_w0
     integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
     integer(kind=i_def), intent(in) :: ndf_w2
@@ -1966,7 +1969,8 @@ def test_2eval_stubgen(fortran_writer):
     generated_code = fortran_writer(kernel.gen_stub)
 
     assert (
-        "subroutine dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
+        "subroutine dummy_code(cell, nlayers_field_1, "
+        "field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
         "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, "
         "field_9_wchi, op_10_ncell_3d, op_10, field_11_w2vtrace, "
@@ -1989,7 +1993,7 @@ def test_2eval_stubgen(fortran_writer):
         generated_code)
     assert """\
     use constants_mod
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers_field_1
     integer(kind=i_def), intent(in) :: ndf_w0
     integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
     integer(kind=i_def), intent(in) :: ndf_w2

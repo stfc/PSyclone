@@ -2250,7 +2250,7 @@ def test_mangle_function_space():
 
 def test_no_mangle_specified_function_space():
     ''' Test that we do not name-mangle a function space that is not
-    any_space or any_discontinuous_space.
+    any_space or any_discontinuous_space unless ndata or nlayers is specified.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2264,6 +2264,21 @@ def test_no_mangle_specified_function_space():
     short_name = FunctionSpace(fs_name, first_kernel.arguments).short_name
     assert mangled_name == fs_name
     assert short_name == fs_name
+    # When nlayers is specified.
+    fspace = FunctionSpace(fs_name, first_kernel.arguments,
+                           nlayers="twod")
+    assert fspace.mangled_name == "w2_twod"
+    assert fspace.short_name == "w2"
+    # ndata=1 is the default so is not included in the name.
+    fspace = FunctionSpace(fs_name, first_kernel.arguments,
+                           nlayers="twod", ndata="1")
+    assert fspace.mangled_name == "w2_twod"
+    assert fspace.short_name == "w2"
+    # With both nlayers and ndata
+    fspace = FunctionSpace(fs_name, first_kernel.arguments,
+                           nlayers="3", ndata="physics")
+    assert fspace.mangled_name == "w2_3_physics"
+    assert fspace.short_name == "w2"
 
 
 @pytest.mark.parametrize(
