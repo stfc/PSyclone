@@ -12,8 +12,10 @@
 
 include ../lfric_common.mk
 
+OBJ = testkern_mod.o single_invoke_psy.o single_invoke_alg.o
+
 GENERATED_FILES = single_invoke_alg.f90 single_invoke_psy.f90 \
-	single_invoke_psy.o *.mod testkern_mod.o
+	*.mod ${OBJ} *.exe
 
 F90 ?= gfortran
 F90FLAGS ?= -g -O0
@@ -32,7 +34,11 @@ single_invoke_alg.f90 single_invoke_psy.f90: single_invoke.x90
 		-oalg single_invoke_alg.f90 \
 		-opsy single_invoke_psy.f90
 
+# Note that we compile and link primarily for testing purposes - the
+# resulting binary won't run successfully because the example omits
+# all the necessary LFRic setup.
 compile: $(LFRIC_LIB) single_invoke_psy.o single_invoke_alg.o
+	$(F90) $(F90FLAGS) -o will_not_run.exe ${OBJ} ${LDFLAGS}
 
 testkern_mod.o: ../code/testkern_mod.F90
 	$(F90) $(F90FLAGS) -c $<

@@ -124,9 +124,8 @@ Scalar Array
 
 In the LFRic API a scalar array represents a Fortran array of scalars, of at
 least rank (number of dimensions) one. Scalar arrays are identified with
-``GH_SCALAR_ARRAY`` metadata, which has the required metadata:
-``arg_type(GH_SCALAR_ARRAY, <datatype>, GH_READ, <rank>)``. As with scalars,
-array arguments can have ``real``, ``integer`` or ``logical`` data type in
+``GH_SCALAR_ARRAY`` metadata. As with scalars, array arguments can have
+``real``, ``integer`` or ``logical`` data type in
 :ref:`user-defined Kernels <lfric-kernel-valid-data-type>`.
 
 .. _lfric-field:
