@@ -1,3 +1,17 @@
+   46) PR #3581 for #3579. Bypass docstring wrapper when debug info is
+   missing. This allows to use python -O or PYTHONOPTIMIZE.
+
+   45) PR #3563 for #2642. Adds support for PSyclone handling structures
+   with extends and contains.
+
+   44) PR #3571 for #3570. Update fparser version.
+
+   43) PR #3566 towards #1995. More tidying of copyright/license
+   headers to use SPDX form.
+ 
+   42) PR #3468 for #3461. Cleans up the use of sys.path so that
+   different transformation scripts with the same name can be imported.
+ 
    41) PR #3573. Improves Developer Guide description of coding style
    and fixes a few incorrect type-hints.
  

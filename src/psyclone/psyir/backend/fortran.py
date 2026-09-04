@@ -516,6 +516,52 @@ class FortranWriter(LanguageWriter):
                     f"{renames}\n")
         return f"{self._nindent}use{intrinsic_str}{symbol.name}\n"
 
+    def gen_proceduredecl(
+            self, symbol: StructureType.ComponentType,
+    ) -> str:
+        '''Create the Fortran declaration for a type-bound procedure.
+
+        :param symbol: the procedure component to declare.
+
+        :returns: the Fortran procedure declaration.
+
+        :raises VisitorError: if symbol is not a StructureType component.
+        :raises InternalError: if visibility is requested but is neither
+            PUBLIC nor PRIVATE.
+        '''
+        if not isinstance(symbol, StructureType.ComponentType):
+            raise VisitorError(
+                "gen_proceduredecl() expects a "
+                "'StructureType.ComponentType' as its first argument but "
+                f"got '{type(symbol).__name__}'")
+
+        result = self.gen_preceding_comments(symbol)
+
+        if isinstance(symbol.datatype, UnsupportedFortranType):
+            # The original declaration preserves attributes that have no
+            # representation in PSyIR, such as PASS, NOPASS and DEFERRED.
+            result += f"{self._nindent}{symbol.datatype.declaration}"
+        else:
+            result += f"{self._nindent}procedure"
+            if symbol.visibility == Symbol.Visibility.PRIVATE:
+                result += ", private"
+            elif symbol.visibility == Symbol.Visibility.PUBLIC:
+                result += ", public"
+            else:
+                raise InternalError(
+                    "A type-bound procedure must be either public or "
+                    f"private but procedure '{symbol.name}' has "
+                    f"visibility '{symbol.visibility}'")
+
+            result += f" :: {symbol.name}"
+            if symbol.initial_value:
+                result += f" => {self._visit(symbol.initial_value)}"
+
+        if symbol.inline_comment:
+            result += f" {self._COMMENT_PREFIX}{symbol.inline_comment}"
+
+        return result + "\n"
+
     def gen_vardecl(self,
                     symbol: Union[DataSymbol, Member],
                     include_visibility: bool = False) -> str:
@@ -727,6 +773,11 @@ class FortranWriter(LanguageWriter):
                 f"gen_typedecl expects a DataTypeSymbol as argument but "
                 f"got: '{type(symbol).__name__}'")
 
+        if isinstance(symbol.datatype, UnresolvedType):
+            raise VisitorError(
+                f"Fortran backend cannot generate code for symbol "
+                f"'{symbol.name}' of type '{type(symbol.datatype).__name__}'")
+
         if isinstance(symbol.datatype, UnsupportedType):
             if isinstance(symbol.datatype, UnsupportedFortranType):
                 # This is a declaration of UnsupportedType. We have to ensure
@@ -744,6 +795,9 @@ class FortranWriter(LanguageWriter):
 
         result += f"{self._nindent}type"
 
+        if symbol.datatype.extends:
+            result += f", extends({symbol.datatype.extends.name})"
+
         if include_visibility:
             if symbol.visibility == Symbol.Visibility.PRIVATE:
                 result += ", private"
@@ -756,12 +810,6 @@ class FortranWriter(LanguageWriter):
                     f"type '{type(symbol.visibility).__name__}'")
         result += f" :: {symbol.name}\n"
 
-        if isinstance(symbol.datatype, UnresolvedType):
-            raise VisitorError(
-                f"Local Symbol '{symbol.name}' is of UnresolvedType and "
-                f"therefore no declaration can be created for it. Should it "
-                f"have an ImportInterface?")
-
         self._depth += 1
 
         for member in symbol.datatype.components.values():
@@ -770,6 +818,13 @@ class FortranWriter(LanguageWriter):
             # part of a module.
             result += self.gen_vardecl(member,
                                        include_visibility=include_visibility)
+
+        if symbol.datatype.procedure_components:
+            result += f"{self._nindent}contains\n"
+            self._depth += 1
+            for procedure in symbol.datatype.procedure_components.values():
+                result += self.gen_proceduredecl(procedure)
+            self._depth -= 1
         self._depth -= 1
 
         result += f"{self._nindent}end type {symbol.name}"
