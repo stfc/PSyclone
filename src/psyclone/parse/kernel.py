@@ -401,7 +401,7 @@ def get_char_value(metadata: expr.NamedArg,
             FortranReader.validate_name(result)
         except (ValueError, TypeError) as err:
             raise ParseError(
-                f"A string value assigned to {keyword} must be a valid "
+                f"A string value assigned to '{keyword}' must be a valid "
                 f"Fortran name but '{result}' is not."
             ) from err
 

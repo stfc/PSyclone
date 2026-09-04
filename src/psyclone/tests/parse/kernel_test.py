@@ -699,6 +699,11 @@ def test_get_char_value():
     node2 = NamedArg(["nlayers", "=", "'1'"])
     value = get_char_value(node2, "nlayers")
     assert value == "1"
+    node3 = NamedArg(["nlayers", "=", "'not a valid name'"])
+    with pytest.raises(ParseError) as err:
+        _ = get_char_value(node3, "nlayers")
+    assert ("A string value assigned to 'nlayers' must be a valid Fortran "
+            "name but 'not a valid name' is not" in str(err.value))
 
 
 def test_get_integer_variable_err():
