@@ -8,8 +8,8 @@
 '''This module implements tests for the generic utility functions.'''
 
 import builtins
-import runpy
 import pytest
+import runpy
 import sys
 from typing import Union
 

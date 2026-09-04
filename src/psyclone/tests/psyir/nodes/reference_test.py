@@ -14,12 +14,12 @@ from psyclone.psyGen import GenerationError
 from psyclone.psyir.nodes import (
     ArrayReference, Assignment, CodeBlock,
     KernelSchedule, Literal, Reference, Loop)
-from psyclone.utils import colored
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
                                     UnresolvedType, ImportInterface,
                                     ScalarType, Symbol, SymbolTable)
 from psyclone.psyir.transformations import ProfileTrans
+from psyclone.utils import colored
 
 
 def test_reference_bad_init():

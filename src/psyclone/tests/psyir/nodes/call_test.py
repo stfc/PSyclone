@@ -15,10 +15,10 @@ from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import (
     ArrayReference, BinaryOperation, Call, Literal,
     Node, Reference, Routine, Schedule, CallMatchingArgumentsNotFound)
-from psyclone.utils import colored
 from psyclone.psyir.symbols import (
     ArrayType, ScalarType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     NoType, RoutineSymbol, SymbolError, UnresolvedInterface, UnresolvedType)
+from psyclone.utils import colored
 
 
 class SpecialCall(Call):

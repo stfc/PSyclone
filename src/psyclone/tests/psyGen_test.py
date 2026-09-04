@@ -37,7 +37,6 @@ from psyclone.psyGen import (TransInfo, PSyFactory,
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
                                   Literal, Loop, Node, KernelSchedule, Call,
                                   Reference, Schedule)
-from psyclone.utils import colored
 from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, ScalarType,
                                     ImportInterface, ContainerSymbol,
                                     UnresolvedType, SymbolTable)
@@ -47,6 +46,7 @@ from psyclone.tests.test_files.dummy_transformations import LocalTransformation
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (LFRicColourTrans,
                                       Transformation)
+from psyclone.utils import colored
 
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),

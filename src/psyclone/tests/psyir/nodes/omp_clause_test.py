@@ -8,7 +8,6 @@
 ''' Performs py.test tests on the OpenMP PSyIR Clause nodes. '''
 
 import pytest
-from psyclone.utils import colored
 from psyclone.psyir.nodes.omp_clauses import (
     OMPGrainsizeClause, OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause,
     OMPSharedClause, OMPDependClause, OMPPrivateClause, OMPFirstprivateClause,
@@ -16,6 +15,7 @@ from psyclone.psyir.nodes.omp_clauses import (
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import DataSymbol, ScalarType
+from psyclone.utils import colored
 
 
 def test_nowait_clause():

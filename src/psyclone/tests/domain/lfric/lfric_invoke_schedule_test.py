@@ -11,9 +11,9 @@ import os
 from psyclone.domain.lfric import LFRicInvokeSchedule
 from psyclone.parse.algorithm import parse
 from psyclone.psyir.nodes import Container
-from psyclone.utils import colored
 from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.psyGen import PSyFactory
+from psyclone.utils import colored
 
 
 BASE_PATH = os.path.join(

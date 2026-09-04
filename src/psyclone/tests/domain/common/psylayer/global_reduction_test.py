@@ -13,9 +13,9 @@ from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError
 from psyclone.domain.common.psylayer import GlobalReduction
 from psyclone.psyir.nodes import Literal
-from psyclone.utils import colored
 from psyclone.psyir.symbols import ScalarType
 from psyclone.tests.utilities import get_invoke
+from psyclone.utils import colored
 
 
 def test_globalreduction_node_str_and_dag_name():

@@ -10,11 +10,11 @@
 
 import pytest
 from psyclone.errors import GenerationError
-from psyclone.utils import colored
 from psyclone.psyir.nodes import (
     Literal, ComplexLiteral, Assignment, BinaryOperation, Reference)
 from psyclone.psyir.symbols import ScalarType, DataSymbol, SymbolTable
 from psyclone.core import Signature, AccessType
+from psyclone.utils import colored
 
 
 def test_complex_literal_create():

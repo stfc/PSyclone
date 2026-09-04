@@ -12,9 +12,9 @@ from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Call, Container, FileContainer,
                                   KernelSchedule, Return, Routine)
-from psyclone.utils import colored
 from psyclone.psyir.symbols import DataSymbol, ScalarType, SymbolTable
 from psyclone.tests.utilities import check_links
+from psyclone.utils import colored
 
 
 def test_container_init():

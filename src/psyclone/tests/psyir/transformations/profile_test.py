@@ -18,7 +18,6 @@ from psyclone.profiler import Profiler
 from psyclone.psyir.nodes import (
     ProfileNode, Loop, Literal, Assignment, Return, Reference,
     OMPDoDirective, KernelSchedule, Routine, Schedule)
-from psyclone.utils import colored
 from psyclone.psyir.symbols import (
     SymbolTable, DataSymbol, ScalarType)
 from psyclone.psyir.transformations import (
@@ -27,6 +26,7 @@ from psyclone.psyir.transformations import (
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (
     GOceanOMPLoopTrans, LFRicOMPLoopTrans)
+from psyclone.utils import colored
 
 
 # -----------------------------------------------------------------------------

@@ -12,11 +12,11 @@ import pytest
 
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Node, ReadOnlyVerifyNode, Schedule
-from psyclone.utils import colored
 from psyclone.psyir.transformations import (ReadOnlyVerifyTrans,
                                             TransformationError)
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import OMPParallelLoopTrans
+from psyclone.utils import colored
 
 # --------------------------------------------------------------------------- #
 # ================== ReadOnly Transformation tests ========================== #
