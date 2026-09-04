@@ -699,6 +699,21 @@ def test_swap_symbol():
     assert symbol1 not in sym_table._symbols
 
 
+def test_swap_symbol_preserves_tag():
+    ''' Test that SymbolTable.swap() preserves any tag associated with the
+    old symbol by re-associating it with the new symbol. '''
+    sym_table = symbols.SymbolTable()
+    symbol1 = symbols.Symbol("var1")
+    sym_table.add(symbol1, tag="var1_tag")
+    symbol2 = symbols.Symbol("Var1")
+
+    sym_table.swap(symbol1, symbol2)
+
+    assert sym_table.lookup("var1") is symbol2
+    # The tag must follow the new symbol rather than being dropped.
+    assert sym_table.lookup_with_tag("var1_tag") is symbol2
+
+
 def test_check_for_clashes_imports():
     '''Test the check_for_clashes method for two tables that import the same
     symbol from different tables.'''

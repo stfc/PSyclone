@@ -1253,13 +1253,20 @@ class SymbolTable():
             raise SymbolError(
                 f"Cannot swap symbols that have different names, got: "
                 f"'{old_symbol.name}' and '{new_symbol.name}'")
+        # Preserve any tag associated with old_symbol so that it is carried
+        # over to new_symbol rather than being silently dropped.
+        old_tag = None
+        for tag, symbol in self._tags.items():
+            if symbol is old_symbol:
+                old_tag = tag
+                break
         for sym in self.symbols:
             sym.replace_symbols_using(new_symbol)
         if self.node:
             # Update the PSyIR tree associated with this table.
             self.node.replace_symbols_using(new_symbol)
         self.remove(old_symbol)
-        self.add(new_symbol)
+        self.add(new_symbol, tag=old_tag)
 
     def _validate_remove_routinesymbol(self, symbol):
         '''
