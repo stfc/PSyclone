@@ -384,7 +384,9 @@ class Fparser2CodeBlock(CodeBlock):
         '''
         output = []
         for node in self._parse_tree_nodes:
-            output.extend(node.tofortran().split("\n"))
+            output.extend(
+                node if isinstance(node, str) else
+                node.tofortran().split("\n"))
         return output
 
 
