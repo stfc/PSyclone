@@ -14,6 +14,7 @@ from typing import Optional, TYPE_CHECKING
 from psyclone.core import VariablesAccessMap
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, UnresolvedType, SymbolTable,
@@ -27,15 +28,13 @@ class KernCallInvokeArgList(ArgOrdering):
     kernel, according to that kernel's metadata.
 
     :param kern: the kernel object for which to determine arguments.
-    :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
-    :param symbol_table: the symbol table associated with the routine that \
+    :param symbol_table: the symbol table associated with the routine that
         contains the `invoke` of this kernel.
-    :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
     :raises TypeError: if supplied symbol table is of incorrect type.
 
     '''
-    def __init__(self, kern, symbol_table):
+    def __init__(self, kern: LFRicKern, symbol_table: SymbolTable):
         super().__init__(kern)
         if not isinstance(symbol_table, SymbolTable):
             raise TypeError(
@@ -136,15 +135,6 @@ class KernCallInvokeArgList(ArgOrdering):
         consts = LFRicConstants()
         precision_name = consts.SCALAR_PRECISION_MAP[scalar_arg.intrinsic_type]
         LFRicTypes.add_precision_symbol(self._symtab, precision_name)
-
-        if scalar_arg.is_scalar_array:
-            dims_sym = self._symtab.find_or_create_tag(
-                    tag="dims_" + scalar_arg.name,
-                    symbol_type=DataSymbol,
-                    datatype=ArrayType(
-                        LFRicTypes("LFRicIntegerScalarDataType")(),
-                        [scalar_arg._array_ndims]))
-            self.psyir_append(dims_sym)
 
         sym = self._symtab.new_symbol(scalar_arg.name,
                                       symbol_type=DataSymbol,
