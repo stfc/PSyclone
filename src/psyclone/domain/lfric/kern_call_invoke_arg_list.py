@@ -14,6 +14,7 @@ from typing import Optional, TYPE_CHECKING
 from psyclone.core import VariablesAccessMap
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, UnresolvedType, SymbolTable,
@@ -27,15 +28,13 @@ class KernCallInvokeArgList(ArgOrdering):
     kernel, according to that kernel's metadata.
 
     :param kern: the kernel object for which to determine arguments.
-    :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
-    :param symbol_table: the symbol table associated with the routine that \
+    :param symbol_table: the symbol table associated with the routine that
         contains the `invoke` of this kernel.
-    :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
     :raises TypeError: if supplied symbol table is of incorrect type.
 
     '''
-    def __init__(self, kern, symbol_table):
+    def __init__(self, kern: LFRicKern, symbol_table: SymbolTable):
         super().__init__(kern)
         if not isinstance(symbol_table, SymbolTable):
             raise TypeError(
