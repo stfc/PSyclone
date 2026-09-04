@@ -11,12 +11,11 @@
 
 import os
 import pytest
-from fparser import api as fpapi
-from psyclone.domain.lfric import LFRicKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import create_lfric_metadata
 
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
@@ -25,13 +24,13 @@ BASE_PATH = os.path.join(
 TEST_API = "lfric"
 
 
-def test_domain_kernel():
+def test_domain_kernel(fortran_reader):
     ''' Check that we can successfully parse metadata that specifies a
     kernel with operates_on = DOMAIN. '''
-    ast = fpapi.parse('''
+    psyir = fortran_reader.psyir_from_source('''
 module testkern_domain_mod
   type, extends(kernel_type) :: testkern_domain_type
-     type(arg_type), meta_args(5) =                             &
+     type(arg_type), dimension(5) :: meta_args =                             &
           (/ arg_type(gh_scalar, gh_real,    gh_read),          &
              arg_type(gh_field,  gh_real,    gh_readwrite, w3), &
              arg_type(gh_field,  gh_real,    gh_read,      w3), &
@@ -43,20 +42,20 @@ module testkern_domain_mod
      procedure, nopass :: code => testkern_domain_code
   end type testkern_domain_type
 contains
-  subroutine testkern_domain_code(a, b, c, d)
-  end subroutine testkern_domain_code
+  subroutine testkern_domain_code()
+end subroutine testkern_domain_code
 end module testkern_domain_mod
-''', ignore_comments=False)
-    dkm = LFRicKernMetadata(ast, name="testkern_domain_type")
-    assert dkm.iterates_over == "domain"
+''')
+    dkm = create_lfric_metadata(psyir, name="testkern_domain_type")
+    assert dkm.operates_on == "domain"
 
 
-def test_invalid_arg_domain_kernel():
+def test_invalid_arg_domain_kernel(fortran_reader):
     ''' Check that we reject a domain kernel if its metadata specifies
     an operator argument. '''
-    ast = fpapi.parse('''module testkern_domain_mod
+    psyir = fortran_reader.psyir_from_source('''module testkern_domain_mod
   type, extends(kernel_type) :: testkern_domain_type
-     type(arg_type), meta_args(4) =                               &
+     type(arg_type), dimension(4) :: meta_args =                    &
           (/ arg_type(gh_scalar,   gh_real, gh_read),             &
              arg_type(gh_field,    gh_real, gh_readwrite, w3),    &
              arg_type(gh_field,    gh_real, gh_read,      w3),    &
@@ -67,24 +66,22 @@ def test_invalid_arg_domain_kernel():
      procedure, nopass :: code => testkern_domain_code
   end type testkern_domain_type
 contains
-  subroutine testkern_domain_code(a, b, c, d)
-  end subroutine testkern_domain_code
+  subroutine testkern_domain_code()
+end subroutine testkern_domain_code
 end module testkern_domain_mod
-''', ignore_comments=False)
+''')
     with pytest.raises(ParseError) as err:
-        LFRicKernMetadata(ast, name="testkern_domain_type")
-    assert ("In the LFRic API a kernel that operates on 'domain' is only "
-            "permitted to accept scalar and field arguments but the "
-            "metadata for kernel 'testkern_domain_type' includes an "
-            "argument of type 'gh_operator'" in str(err.value))
+        create_lfric_metadata(psyir, name="testkern_domain_type")
+    assert "Domain kernels may only contain scalar or field arguments" in str(
+        err.value)
 
 
-def test_invalid_space_domain_kernel():
+def test_invalid_space_domain_kernel(fortran_reader):
     ''' Check that we reject a domain kernel if its metadata specifies a
     field argument on a continuous space. '''
-    ast = fpapi.parse('''module testkern_domain_mod
+    psyir = fortran_reader.psyir_from_source('''module testkern_domain_mod
   type, extends(kernel_type) :: testkern_domain_type
-     type(arg_type), meta_args(3) =                          &
+     type(arg_type), dimension(3) :: meta_args =                          &
           (/ arg_type(gh_scalar, gh_real, gh_read),          &
              arg_type(gh_field,  gh_real, gh_readwrite, w3), &
              arg_type(gh_field,  gh_real, gh_read,      w2)  &
@@ -94,23 +91,22 @@ def test_invalid_space_domain_kernel():
      procedure, nopass :: code => testkern_domain_code
   end type testkern_domain_type
 contains
-  subroutine testkern_domain_code(a, b, c, d)
-  end subroutine testkern_domain_code
+  subroutine testkern_domain_code()
+end subroutine testkern_domain_code
 end module testkern_domain_mod
-''', ignore_comments=False)
+''')
     with pytest.raises(ParseError) as err:
-        LFRicKernMetadata(ast, name="testkern_domain_type")
-    assert ("domain only accept field arguments on discontinuous function "
-            "spaces but found 'w2' in 'arg_type(gh_field, gh_real, "
-            "gh_read, w2)'" in str(err.value))
+        create_lfric_metadata(psyir, name="testkern_domain_type")
+    assert ("Domain kernels only accept fields on discontinuous function "
+            "spaces but found 'w2'" in str(err.value))
 
 
-def test_no_stencil_domain_kernel():
+def test_no_stencil_domain_kernel(fortran_reader):
     ''' Check that we reject a domain kernel if it has an argument with a
     stencil access. '''
-    ast = fpapi.parse('''module testkern_domain_mod
+    psyir = fortran_reader.psyir_from_source('''module testkern_domain_mod
   type, extends(kernel_type) :: testkern_domain_type
-     type(arg_type), meta_args(3) =                                         &
+     type(arg_type), dimension(3) :: meta_args =                              &
           (/ arg_type(gh_scalar, gh_real, gh_read),                         &
              arg_type(gh_field,  gh_real, gh_readwrite, w3),                &
              arg_type(gh_field,  gh_real, gh_read,      w3, stencil(cross)) &
@@ -120,24 +116,24 @@ def test_no_stencil_domain_kernel():
      procedure, nopass :: code => testkern_domain_code
   end type testkern_domain_type
 contains
-  subroutine testkern_domain_code(a, b, c, d)
-  end subroutine testkern_domain_code
+  subroutine testkern_domain_code()
+end subroutine testkern_domain_code
 end module testkern_domain_mod
-''', ignore_comments=False)
+''')
     with pytest.raises(ParseError) as err:
-        LFRicKernMetadata(ast, name="testkern_domain_type")
-    assert ("domain are not permitted to have arguments with a stencil "
-            "access but found: 'arg_type(gh_field, gh_real, gh_read, "
-            "w3, stencil(cross))'" in str(err.value))
+        create_lfric_metadata(psyir, name="testkern_domain_type")
+    assert ("Domain kernels may not have arguments with a stencil access "
+            "but found 'arg_type(gh_field, gh_real, gh_read, w3, "
+            "stencil(cross))'" in str(err.value))
 
 
-def test_invalid_basis_domain_kernel():
+def test_invalid_basis_domain_kernel(fortran_reader):
     ''' Check that we reject a kernel with operates_on=domain if it requires
     basis functions. '''
-    ast = fpapi.parse('''
+    psyir = fortran_reader.psyir_from_source('''
 module testkern_domain_mod
   type, extends(kernel_type) :: testkern_domain_type
-     type(arg_type), meta_args(3) =                          &
+     type(arg_type), dimension(3) :: meta_args =                          &
           (/ arg_type(gh_scalar, gh_real, gh_read),          &
              arg_type(gh_field,  gh_real, gh_readwrite, w3), &
              arg_type(gh_field,  gh_real, gh_read,      w3)  &
@@ -151,24 +147,22 @@ module testkern_domain_mod
      procedure, nopass :: code => testkern_domain_code
   end type testkern_domain_type
 contains
-  subroutine testkern_domain_code(a, b, c, d)
-  end subroutine testkern_domain_code
+  subroutine testkern_domain_code()
+end subroutine testkern_domain_code
 end module testkern_domain_mod
 ''')
     with pytest.raises(ParseError) as err:
-        LFRicKernMetadata(ast, name="testkern_domain_type")
-    assert ("'domain' cannot be passed basis/differential basis functions "
-            "but the metadata for kernel 'testkern_domain_type' contains an "
-            "entry for 'meta_funcs'" in str(err.value))
+        create_lfric_metadata(psyir, name="testkern_domain_type")
+    assert "Domain kernels may not request basis functions" in str(err.value)
 
 
-def test_invalid_mesh_props_domain_kernel():
+def test_invalid_mesh_props_domain_kernel(fortran_reader):
     ''' Check that we reject a kernel with operates_on=domain if it requires
     properties of the mesh. '''
-    ast = fpapi.parse('''
+    psyir = fortran_reader.psyir_from_source('''
 module testkern_domain_mod
   type, extends(kernel_type) :: testkern_domain_type
-     type(arg_type), meta_args(2) =                         &
+     type(arg_type), dimension(2) :: meta_args =                         &
           (/ arg_type(gh_scalar, gh_real, gh_read),         &
              arg_type(gh_field,  gh_real, gh_readwrite, w3) &
            /)
@@ -179,24 +173,23 @@ module testkern_domain_mod
      procedure, nopass :: code => testkern_domain_code
   end type testkern_domain_type
 contains
-  subroutine testkern_domain_code(a, b, c, d)
-  end subroutine testkern_domain_code
+  subroutine testkern_domain_code()
+end subroutine testkern_domain_code
 end module testkern_domain_mod
 ''')
     with pytest.raises(ParseError) as err:
-        LFRicKernMetadata(ast, name="testkern_domain_type")
-    assert ("Kernel 'testkern_domain_type' operates on 'domain' but requests "
-            "properties of the mesh ([" in str(err.value))
-    assert "ADJACENT_FACE" in str(err.value)
+        create_lfric_metadata(psyir, name="testkern_domain_type")
+    assert "Domain kernels may not request basis functions or mesh" in str(
+        err.value)
 
 
-def test_invalid_ref_elem_props_domain_kernel():
+def test_invalid_ref_elem_props_domain_kernel(fortran_reader):
     ''' Check that we reject a kernel with operates_on=domain if it requires
     properties of the reference element. '''
-    ast = fpapi.parse('''
+    psyir = fortran_reader.psyir_from_source('''
 module testkern_domain_mod
   type, extends(kernel_type) :: testkern_domain_type
-     type(arg_type), meta_args(2) =                         &
+     type(arg_type), dimension(2) :: meta_args =                         &
           (/ arg_type(gh_scalar, gh_real, gh_read),         &
              arg_type(gh_field,  gh_real, gh_readwrite, w3) &
            /)
@@ -208,21 +201,20 @@ module testkern_domain_mod
      procedure, nopass :: code => testkern_domain_code
   end type testkern_domain_type
 contains
-  subroutine testkern_domain_code(a, b, c, d)
-  end subroutine testkern_domain_code
+  subroutine testkern_domain_code()
+end subroutine testkern_domain_code
 end module testkern_domain_mod
 ''')
     with pytest.raises(ParseError) as err:
-        LFRicKernMetadata(ast, name="testkern_domain_type")
-    assert ("Kernel 'testkern_domain_type' operates on 'domain' but requests "
-            "properties of the reference element ([" in str(err.value))
-    assert "NORMALS_TO_HORIZONTAL_FACES" in str(err.value)
+        create_lfric_metadata(psyir, name="testkern_domain_type")
+    assert ("Kernels operating on 'domain' may not request evaluator, "
+            "reference-element or mesh data" in str(err.value))
 
 
-def test_invalid_mg_domain_kernel():
+def test_invalid_mg_domain_kernel(fortran_reader):
     ''' Check that we reject a kernel with operates_on=domain if it involves
     multi-grid (fields on different grids). '''
-    ast = fpapi.parse('''
+    psyir = fortran_reader.psyir_from_source('''
 module restrict_mod
 type, public, extends(kernel_type) :: restrict_kernel_type
    private
@@ -242,9 +234,8 @@ contains
 end module restrict_mod
 ''')
     with pytest.raises(ParseError) as err:
-        LFRicKernMetadata(ast, name="restrict_kernel_type")
-    assert ("'restrict_kernel_type' operates on 'domain' but has fields on "
-            "different mesh resolutions" in str(err.value))
+        create_lfric_metadata(psyir, name="restrict_kernel_type")
+    assert "An inter-grid kernel must operate on cell_column" in str(err.value)
 
 
 def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):

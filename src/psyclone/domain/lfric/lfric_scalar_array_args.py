@@ -128,11 +128,11 @@ class LFRicScalarArrayArgs(LFRicCollection):
             if arg.is_scalar_array:
                 # Check whether the ScalarArrays are of a supported data
                 # type
-                if (arg.descriptor.data_type not in
+                if (arg.metadata_datatype not in
                         const.VALID_SCALAR_DATA_TYPES):
                     raise InternalError(
                         f"Found an unsupported data type "
-                        f"'{arg.descriptor.data_type}' for the "
+                        f"'{arg.metadata_datatype}' for the "
                         f"ScalarArray argument '{arg.declaration_name}'"
                         f". Supported types are "
                         f"{const.VALID_SCALAR_DATA_TYPES}.")

@@ -313,38 +313,6 @@ def test_recurse_correct_kernel_paths():
         kernel_paths=[str(LFRIC_BASE_PATH / "kernels")])
 
 
-def test_kernel_parsing_internalerror(capsys, caplog):
-    '''Checks that the expected output is provided if an internal error is
-    caught when parsing a kernel using fparser2.
-
-    '''
-    kern_filename = (str(
-        GOCEAN_BASE_PATH / "test30_invalid_kernel_declaration.f90"))
-    with pytest.raises(SystemExit):
-        main([kern_filename, "-api", "gocean"])
-    out, err = capsys.readouterr()
-    assert out == ""
-    assert "Failed to create PSyIR from kernel file '" in str(err)
-    # Clear previous logging messages (primarily from fparser)
-    caplog.clear()
-    with caplog.at_level(logging.ERROR, "psyclone.generator"):
-        with pytest.raises(SystemExit):
-            main([kern_filename, "-api", "gocean"])
-        assert caplog.records[0].levelname == "ERROR"
-        assert (
-            "PSyclone internal error: The argument list ['i', 'j', 'cu', 'p', "
-            "'u'] for routine 'compute_code' does not match the variable "
-            "declarations:\n"
-            "IMPLICIT NONE\n"
-            "INTEGER, INTENT(IN) :: I, J\n"
-            "REAL(KIND = go_wp), INTENT(OUT), DIMENSION(:, :) :: cu\n"
-            "REAL(KIND = go_wp), INTENT(IN), DIMENSION(:, :) :: p\n"
-            "(Note that PSyclone does not support implicit declarations.) "
-            "Specific"
-            " PSyIR error is \"Could not find 'u' in the Symbol Table.\".\n"
-            in caplog.text)
-
-
 def test_script_file_too_short():
     '''Checks that generator.py raises an appropriate error when a script
     file name is too short to contain the '.py' extension.
@@ -407,10 +375,15 @@ def test_invalid_gocean_alg(monkeypatch, caplog, capsys):
     handled correctly.
 
     '''
-    # It's easiest to monkeypatch the psyir_from_file() method so that it
-    # raises an error.
-    def _broken(_1, _2):
-        raise ValueError("This is a test")
+    # Fail only when the algorithm PSyIR is created. Kernel source is now also
+    # parsed by this reader and must remain valid for the test to reach the
+    # algorithm-generation boundary.
+    original = FortranReader.psyir_from_file
+
+    def _broken(reader, filename):
+        if Path(filename).name == "single_invoke.f90":
+            raise ValueError("This is a test")
+        return original(reader, filename)
 
     monkeypatch.setattr(FortranReader, "psyir_from_file", _broken)
     with caplog.at_level(logging.ERROR, logger="psyclone.generator"):

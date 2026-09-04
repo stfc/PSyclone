@@ -10,11 +10,11 @@
 import os
 import pytest
 
-from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.domain.lfric import KernCallInvokeArgList, LFRicKern
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
 from psyclone.errors import InternalError
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, UnresolvedType, DataTypeSymbol,
@@ -243,12 +243,12 @@ def test_kernel_from_metadata():
     Tests for the kernel_from_metadata() utility.
 
     '''
-    # Invalid parse tree should raise an error.
+    # Invalid PSyIR should raise an error.
     with pytest.raises(ValueError) as err:
         LFRicAlg().kernel_from_metadata("not fortran", "john")
-    assert ("Failed to find kernel 'john' in supplied code: 'not fortran'. "
-            "Is it a valid LFRic kernel? Original error was 'Parse Error: "
-            "Kernel type john does not exist'." in str(err.value))
+    assert ("Failed to find kernel 'john' in supplied PSyIR: 'not fortran'. "
+            in str(err.value))
+    assert "Is it a valid LFRic kernel?" in str(err.value)
     code = '''\
 module testkern_mod
 
@@ -275,15 +275,15 @@ contains
   end subroutine testkern_code
 end module testkern_mod
 '''
-    # Valid parse tree but wrong name.
-    ptree = fpapi.parse(code)
+    # Valid PSyIR but wrong name.
+    psyir = FortranReader().psyir_from_source(code)
     with pytest.raises(ValueError) as err:
-        LFRicAlg().kernel_from_metadata(ptree, "john")
-    assert "Failed to find kernel 'john' in supplied code: '" in str(err.value)
-    assert ("Is it a valid LFRic kernel? Original error was 'Parse Error: "
-            "Kernel type john does not exist'." in str(err.value))
-    # Valid parse tree and correct name.
-    kern = LFRicAlg().kernel_from_metadata(ptree, "testkern_type")
+        LFRicAlg().kernel_from_metadata(psyir, "john")
+    assert ("Failed to find kernel 'john' in supplied PSyIR: '"
+            in str(err.value))
+    assert "Is it a valid LFRic kernel?" in str(err.value)
+    # Valid PSyIR and correct name.
+    kern = LFRicAlg().kernel_from_metadata(psyir, "testkern_type")
     assert isinstance(kern, LFRicKern)
 
 

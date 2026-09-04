@@ -57,7 +57,7 @@ contains
 
     ! Some random accesses to create the stencil (123,110,100)
 
-    CU(I,J) = q.0/9.0*(P(i-1,j+1) +                         &
+    CU(I,J) = 1.0/9.0*(P(i-1,j+1) +                         &
                        P(i,j+1) + P(i,j+2) +                &
                        P(i+1,j+1) +P(i+2,j+2) +P(i+3,j+3) + &
                        P(i-1,j) +                           &

@@ -12,10 +12,9 @@ import os
 import pytest
 
 import fparser
-from fparser import api as fpapi
-
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants, LFRicKern, LFRicKernMetadata
+from psyclone.domain.lfric import (
+    LFRicConstants, LFRicKern, LFRicKernelMetadata)
 from psyclone.errors import GenerationError
 from psyclone.gen_kernel_stub import generate
 
@@ -31,13 +30,12 @@ def setup():
     Config.get().api = "lfric"
 
 
-def test_kernel_stub_invalid_iteration_space():
+def test_kernel_stub_invalid_iteration_space(fortran_reader):
     ''' Check that we raise an exception if we attempt to generate kernel
     stub for a kernel with an unsupported iteration space. '''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_dofs_mod.f90"),
-                      ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_file(
+        os.path.join(BASE_PATH, "testkern_dofs_mod.f90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
@@ -103,7 +101,7 @@ def test_stub_generate_working():
 INTENT = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(3) =                     &
+     type(arg_type), dimension(3) :: meta_args =        &
           (/ arg_type(gh_field, gh_real, gh_write, w3), &
              arg_type(gh_field, gh_real, gh_inc,   w1), &
              arg_type(gh_field, gh_real, gh_read,  w1)  &
@@ -119,15 +117,16 @@ end module dummy_mod
 '''
 
 
-def test_load_meta_wrong_type():
+def test_load_meta_wrong_type(monkeypatch, fortran_reader):
     ''' Test that the load_meta function raises an appropriate error
     if the metadata contains an un-recognised type. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    ast = fpapi.parse(INTENT, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(INTENT)
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     # Break the metadata
-    metadata.arg_descriptors[0]._argument_type = "gh_hedge"
+    monkeypatch.setattr(
+        type(metadata.meta_args[0]), "form", "gh_hedge")
     with pytest.raises(GenerationError) as excinfo:
         kernel.load_meta(metadata)
     const = LFRicConstants()
@@ -136,10 +135,10 @@ def test_load_meta_wrong_type():
             f"'gh_hedge'" in str(excinfo.value))
 
 
-def test_intent(fortran_writer):
+def test_intent(fortran_writer, fortran_reader):
     ''' test that field intent is generated correctly for kernel stubs '''
-    ast = fpapi.parse(INTENT, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(INTENT)
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
@@ -177,7 +176,7 @@ def test_intent(fortran_writer):
 SPACES = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(12) =                          &
+     type(arg_type), dimension(12) :: meta_args =             &
           (/ arg_type(gh_field, gh_real, gh_inc,   w0),       &
              arg_type(gh_field, gh_real, gh_inc,   w1),       &
              arg_type(gh_field, gh_real, gh_inc,   w2),       &
@@ -202,12 +201,12 @@ end module dummy_mod
 '''
 
 
-def test_spaces(fortran_writer):
+def test_spaces(fortran_writer, fortran_reader):
     ''' Test that field spaces are handled correctly for kernel stubs.
 
     '''
-    ast = fpapi.parse(SPACES, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(SPACES)
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -309,7 +308,7 @@ def test_spaces(fortran_writer):
 ANY_SPACES = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(3) =                                  &
+     type(arg_type), dimension(3) :: meta_args =                     &
           (/ arg_type(gh_field, gh_real, gh_read,                    &
                                          any_discontinuous_space_1), &
              arg_type(gh_field, gh_real, gh_inc,       any_space_7), &
@@ -327,13 +326,13 @@ end module dummy_mod
 '''
 
 
-def test_any_spaces(fortran_writer):
+def test_any_spaces(fortran_writer, fortran_reader):
     ''' Test that any_space and any_discontinuous_space metadata are handled
     correctly for kernel stubs.
 
     '''
-    ast = fpapi.parse(ANY_SPACES, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(ANY_SPACES)
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -379,7 +378,7 @@ def test_any_spaces(fortran_writer):
 VECTORS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =                    &
+     type(arg_type), dimension(1) :: meta_args =       &
           (/ arg_type(gh_field*3, gh_real, gh_inc, w0) &
            /)
      integer :: operates_on = cell_column
@@ -393,10 +392,10 @@ end module dummy_mod
 '''
 
 
-def test_vectors(fortran_writer):
+def test_vectors(fortran_writer, fortran_reader):
     ''' test that field vectors are handled correctly for kernel stubs '''
-    ast = fpapi.parse(VECTORS, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(VECTORS)
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -427,31 +426,14 @@ def test_vectors(fortran_writer):
     assert output in generated_code
 
 
-def test_arg_descriptor_vec_str():
-    ''' Tests that the string method for LFRicArgDescriptor works as
-    expected when we have a vector quantity. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    ast = fpapi.parse(VECTORS, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
-    field_descriptor = metadata.arg_descriptors[0]
-    result = str(field_descriptor)
-    expected_output = (
-        "LFRicArgDescriptor object\n"
-        "  argument_type[0]='gh_field'*3\n"
-        "  data_type[1]='gh_real'\n"
-        "  access_descriptor[2]='gh_inc'\n"
-        "  function_space[3]='w0'")
-    assert expected_output in result
-
-
-def test_enforce_bc_kernel_stub_gen(fortran_writer):
+def test_enforce_bc_kernel_stub_gen(fortran_writer, fortran_reader):
     ''' Test that the enforce_bc_kernel boundary layer argument modification
     is handled correctly for kernel stubs.
 
     '''
-    ast = fpapi.parse(os.path.join(BASE_PATH, "enforce_bc_kernel_mod.f90"),
-                      ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_file(
+        os.path.join(BASE_PATH, "enforce_bc_kernel_mod.f90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -485,15 +467,14 @@ def test_enforce_bc_kernel_stub_gen(fortran_writer):
             assert line in generated_code, line
 
 
-def test_enforce_op_bc_kernel_stub_gen(fortran_writer):
+def test_enforce_op_bc_kernel_stub_gen(fortran_writer, fortran_reader):
     ''' Test that the enforce_operator_bc_kernel boundary dofs argument
     modification is handled correctly for kernel stubs.
 
     '''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "enforce_operator_bc_kernel_mod.F90"),
-                      ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_file(
+        os.path.join(BASE_PATH, "enforce_operator_bc_kernel_mod.F90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -524,13 +505,12 @@ def test_enforce_op_bc_kernel_stub_gen(fortran_writer):
     assert output == generated_code
 
 
-def test_multi_qr_stub_gen(fortran_writer):
+def test_multi_qr_stub_gen(fortran_writer, fortran_reader):
     ''' Test that the stub generator correctly handles a kernel requiring
     more than one quadrature rule. '''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_2qr_mod.F90"),
-                      ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_file(
+        os.path.join(BASE_PATH, "testkern_2qr_mod.F90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -572,13 +552,12 @@ def test_multi_qr_stub_gen(fortran_writer):
             in generated_code)
 
 
-def test_qr_plus_eval_stub_gen(fortran_writer):
+def test_qr_plus_eval_stub_gen(fortran_writer, fortran_reader):
     ''' Test the stub generator for a kernel that requires both an evaluator
     and quadrature. '''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_qr_eval_mod.F90"),
-                      ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_file(
+        os.path.join(BASE_PATH, "testkern_qr_eval_mod.F90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     code = fortran_writer(kernel.gen_stub)
@@ -617,7 +596,7 @@ def test_qr_plus_eval_stub_gen(fortran_writer):
 SUB_NAME = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =                  &
+     type(arg_type), dimension(1) :: meta_args =     &
           (/ arg_type(gh_field, gh_real, gh_inc, w1) &
            /)
      integer :: operates_on = cell_column
@@ -631,13 +610,13 @@ end module dummy_mod
 '''
 
 
-def test_sub_name(fortran_writer):
+def test_sub_name(fortran_writer, fortran_reader):
     ''' test for expected behaviour when the kernel subroutine does
     not conform to the convention of having "_code" at the end of its
     name. In this case we append "_code to the name and _mod to the
     kernel name.'''
-    ast = fpapi.parse(SUB_NAME, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(SUB_NAME)
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)

@@ -9,8 +9,9 @@
 
 import pytest
 from psyclone.configuration import Config
+from psyclone.domain.common.kernel import parse_fortran_source
+from psyclone.domain.lfric.kernel import LFRicKernelMetadata
 from psyclone.domain.lfric.lfric_kern import LFRicKern
-from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 
 
 @pytest.fixture(autouse=True)
@@ -28,7 +29,7 @@ def lfrickern_fixture():
     mdata_code = '''
 module testkern_field_mod
   type, extends(kernel_type) :: testkern_field_type
-     type(arg_type), meta_args(8) =                               &
+     type(arg_type), dimension(8) :: meta_args =                  &
           (/ arg_type(gh_scalar, gh_real,    gh_read),            &
              arg_type(gh_field,  gh_real,    gh_readinc, w0),     &
              arg_type(gh_field,  gh_real,    gh_inc,     w1),     &
@@ -52,10 +53,9 @@ contains
   end subroutine testkern_field_code
 end module testkern_field_mod
 '''
-
-    kernel_metadata = get_kernel_parse_tree(mdata_code)
-    ktype = KernelTypeFactory(api="lfric").create(
-        kernel_metadata, name="testkern_field_type")
+    kernel_metadata = parse_fortran_source(mdata_code)
+    ktype = LFRicKernelMetadata.create_from_kernel_psyir(
+        kernel_metadata, name="testkern_field_type").metadata
     kern = LFRicKern()
     kern.load_meta(ktype)
     return kern
@@ -71,7 +71,7 @@ def lfrichalokern_fixture():
     mdata_code = '''
 module testkern_field_mod
   type, extends(kernel_type) :: testkern_field_type
-     type(arg_type), meta_args(8) =                               &
+     type(arg_type), dimension(8) :: meta_args =                  &
           (/ arg_type(gh_scalar, gh_real,    gh_read),            &
              arg_type(gh_field,  gh_real,    gh_readinc, w0),     &
              arg_type(gh_field,  gh_real,    gh_inc,     w1),     &
@@ -90,10 +90,9 @@ contains
   end subroutine testkern_field_code
 end module testkern_field_mod
 '''
-
-    kernel_metadata = get_kernel_parse_tree(mdata_code)
-    ktype = KernelTypeFactory(api="lfric").create(
-        kernel_metadata, name="testkern_field_type")
+    kernel_metadata = parse_fortran_source(mdata_code)
+    ktype = LFRicKernelMetadata.create_from_kernel_psyir(
+        kernel_metadata, name="testkern_field_type").metadata
     kern = LFRicKern()
     kern.load_meta(ktype)
     return kern
@@ -109,7 +108,7 @@ def lfrickern_op_fixture():
     mdata_code = '''
 module testkern_field_mod
   type, extends(kernel_type) :: testkern_field_type
-     type(arg_type), meta_args(5) =                               &
+     type(arg_type), dimension(5) :: meta_args =                  &
           (/ arg_type(gh_scalar, gh_real,    gh_read),            &
              arg_type(gh_field,  gh_real,    gh_readinc, w0),     &
              arg_type(gh_field,  gh_real,    gh_inc,     w1),     &
@@ -130,10 +129,9 @@ contains
   end subroutine testkern_field_code
 end module testkern_field_mod
 '''
-
-    kernel_metadata = get_kernel_parse_tree(mdata_code)
-    ktype = KernelTypeFactory(api="lfric").create(
-        kernel_metadata, name="testkern_field_type")
+    kernel_metadata = parse_fortran_source(mdata_code)
+    ktype = LFRicKernelMetadata.create_from_kernel_psyir(
+        kernel_metadata, name="testkern_field_type").metadata
     kern = LFRicKern()
     kern.load_meta(ktype)
     return kern

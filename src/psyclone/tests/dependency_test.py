@@ -11,11 +11,12 @@
 import os
 
 from psyclone.core import AccessType, Signature, VariablesAccessMap
-from psyclone.domain.lfric import KernStubArgList, LFRicKern, LFRicKernMetadata
+from psyclone.domain.lfric import (
+    KernStubArgList, LFRicKern, LFRicKernelMetadata)
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Assignment, IfBlock, Loop
-from psyclone.tests.utilities import get_psylayer_schedule, get_invoke, get_ast
+from psyclone.tests.utilities import get_psylayer_schedule, get_invoke
 
 # Constants
 API = "nemo"
@@ -389,13 +390,14 @@ def test_lfric_operator_bc_kernel():
     assert "boundary_dofs_op_a: READ," in var_info
 
 
-def test_lfric_stub_args():
+def test_lfric_stub_args(fortran_reader, lfric_config):
     '''Check that correct stub code is produced when there are multiple
     stencils.
 
     '''
-    ast = get_ast("lfric", "testkern_stencil_multi_mod.f90")
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_file(os.path.join(
+        BASE_PATH, "lfric", "testkern_stencil_multi_mod.f90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -425,13 +427,14 @@ def test_lfric_stub_args():
     assert "undf_w3: READ" in var_info
 
 
-def test_lfric_stub_args2():
+def test_lfric_stub_args2(fortran_reader, lfric_config):
     '''Check variable usage detection for scalars, basis_name, quad rule
     and mesh properties.
 
     '''
-    ast = get_ast("lfric", "testkern_mesh_prop_face_qr_mod.F90")
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_file(os.path.join(
+        BASE_PATH, "lfric", "testkern_mesh_prop_face_qr_mod.F90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -445,13 +448,14 @@ def test_lfric_stub_args2():
     assert "weights_xyz_qr_face: READ" in var_info
 
 
-def test_lfric_stub_args3():
+def test_lfric_stub_args3(fortran_reader, lfric_config):
     '''Check variable usage detection for cell position, operator
 
     '''
-    ast = get_ast("lfric",
-                  "testkern_any_discontinuous_space_op_1_mod.f90")
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_file(os.path.join(
+        BASE_PATH, "lfric",
+        "testkern_any_discontinuous_space_op_1_mod.f90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -465,12 +469,13 @@ def test_lfric_stub_args3():
     assert "op_4_ncell_3d: READ," in var_info
 
 
-def test_lfric_stub_boundary_dofs():
+def test_lfric_stub_boundary_dofs(fortran_reader, lfric_config):
     '''Check variable usage detection for boundary dofs.
 
     '''
-    ast = get_ast("lfric", "enforce_bc_kernel_mod.f90")
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_file(os.path.join(
+        BASE_PATH, "lfric", "enforce_bc_kernel_mod.f90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -479,12 +484,13 @@ def test_lfric_stub_boundary_dofs():
     assert "boundary_dofs_field_1: READ" in str(var_accesses)
 
 
-def test_lfric_stub_field_vector():
+def test_lfric_stub_field_vector(fortran_reader, lfric_config):
     '''Check variable usage detection field vectors.
 
     '''
-    ast = get_ast("lfric", "testkern_stencil_vector_mod.f90")
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_file(os.path.join(
+        BASE_PATH, "lfric", "testkern_stencil_vector_mod.f90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -500,12 +506,13 @@ def test_lfric_stub_field_vector():
     assert "field_2_w3_v4: READ," in var_info
 
 
-def test_lfric_stub_basis():
+def test_lfric_stub_basis(fortran_reader, lfric_config):
     '''Check variable usage detection of basis, diff-basis.
 
     '''
-    ast = get_ast("lfric", "testkern_qr_eval_mod.F90")
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_file(os.path.join(
+        BASE_PATH, "lfric", "testkern_qr_eval_mod.F90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -520,13 +527,14 @@ def test_lfric_stub_basis():
     assert "diff_basis_w3_on_w1: READ," in var_info
 
 
-def test_lfric_stub_cma_operators():
+def test_lfric_stub_cma_operators(fortran_reader, lfric_config):
     '''Check variable usage detection cma operators.
     mesh_ncell2d, cma_operator
 
     '''
-    ast = get_ast("lfric", "columnwise_op_mul_2scalars_kernel_mod.F90")
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_file(os.path.join(
+        BASE_PATH, "lfric", "columnwise_op_mul_2scalars_kernel_mod.F90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -545,12 +553,13 @@ def test_lfric_stub_cma_operators():
         assert "cma_op_"+num+"_gamma_p: READ" in var_info
 
 
-def test_lfric_stub_banded_dofmap():
+def test_lfric_stub_banded_dofmap(fortran_reader, lfric_config):
     '''Check variable usage detection for banded dofmaps.
 
     '''
-    ast = get_ast("lfric", "columnwise_op_asm_kernel_mod.F90")
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_file(os.path.join(
+        BASE_PATH, "lfric", "columnwise_op_asm_kernel_mod.F90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -561,11 +570,12 @@ def test_lfric_stub_banded_dofmap():
     assert "cbanded_map_ads2_op_1: READ" in var_info
 
 
-def test_lfric_stub_indirection_dofmap():
+def test_lfric_stub_indirection_dofmap(fortran_reader, lfric_config):
     '''Check variable usage detection in indirection dofmap.
     '''
-    ast = get_ast("lfric", "columnwise_op_app_kernel_mod.F90")
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_file(os.path.join(
+        BASE_PATH, "lfric", "columnwise_op_app_kernel_mod.F90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()
@@ -576,13 +586,14 @@ def test_lfric_stub_indirection_dofmap():
     assert "cma_indirection_map_as2_field_2: READ" in var_info
 
 
-def test_lfric_stub_boundary_dofmap():
+def test_lfric_stub_boundary_dofmap(fortran_reader, lfric_config):
     '''Check variable usage detection in boundary_dofs array fix
     for operators.
 
     '''
-    ast = get_ast("lfric", "enforce_operator_bc_kernel_mod.F90")
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_file(os.path.join(
+        BASE_PATH, "lfric", "enforce_operator_bc_kernel_mod.F90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessMap()

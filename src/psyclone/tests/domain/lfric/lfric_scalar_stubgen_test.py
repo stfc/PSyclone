@@ -13,9 +13,8 @@ LFRic scalar arguments.
 import os
 import pytest
 
-from fparser import api as fpapi
 from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
-                                   LFRicKernMetadata, LFRicScalarArgs,
+                                   LFRicKernelMetadata, LFRicScalarArgs,
                                    LFRicScalarArrayArgs)
 from psyclone.errors import InternalError
 from psyclone.gen_kernel_stub import generate
@@ -29,21 +28,20 @@ BASE_PATH = os.path.join(
 TEST_API = "lfric"
 
 
-def test_lfricscalars_stub_err():
+def test_lfricscalars_stub_err(fortran_reader):
     ''' Check that LFRicScalarArgs.stub_declarations() raises the
     expected internal error if it encounters an unrecognised data
     type of a scalar argument when generating a kernel stub.
 
     '''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar_mod.f90"),
-                      ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_file(
+        os.path.join(BASE_PATH, "testkern_one_int_scalar_mod.f90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Sabotage the scalar argument to make it have an invalid data type
     arg = kernel.arguments.args[1]
-    arg.descriptor._data_type = "gh_invalid_scalar"
+    arg._metadata_datatype = "gh_invalid_scalar"
     with pytest.raises(InternalError) as err:
         LFRicScalarArgs(kernel).stub_declarations()
     const = LFRicConstants()
@@ -52,21 +50,20 @@ def test_lfricscalars_stub_err():
             f"{const.VALID_SCALAR_DATA_TYPES}." in str(err.value))
 
 
-def test_lfricscalararray_stub_err():
+def test_lfricscalararray_stub_err(fortran_reader):
     ''' Check that LFRicScalarArrayArgs.stub_declarations() raises the
     expected internal error if it encounters an unrecognised data
     type of a scalar argument when generating a kernel stub.
 
     '''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_scalar_array_mod.f90"),
-                      ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_file(
+        os.path.join(BASE_PATH, "testkern_scalar_array_mod.f90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Sabotage the scalar argument to make it have an invalid data type
     arg = kernel.arguments.args[1]
-    arg.descriptor._data_type = "gh_invalid_scalar"
+    arg._metadata_datatype = "gh_invalid_scalar"
     with pytest.raises(InternalError) as err:
         LFRicScalarArrayArgs(kernel).stub_declarations()
     const = LFRicConstants()
@@ -127,8 +124,8 @@ def test_stub_generate_with_scalar_sums_err():
             api=TEST_API)
     assert (
         "A user-supplied LFRic kernel must not write/update a scalar "
-        "argument but kernel 'simple_with_reduction_type' has a scalar "
-        "argument with 'gh_reduction' access." in str(err.value))
+        "argument but kernel 'simple_with_reduction_type' does."
+        in str(err.value))
 
 
 def test_stub_generate_with_scalar_array():

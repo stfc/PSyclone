@@ -809,7 +809,7 @@ class KernCallArgList(ArgOrdering):
             the information about variable accesses.
 
         '''
-        if self._kern.mesh.properties:
+        if self._kern.mesh:
             # Avoid circular import:
             # pylint: disable=import-outside-toplevel
             from psyclone.lfric import LFRicMeshProperties

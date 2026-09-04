@@ -1067,7 +1067,7 @@ def test_offset_any_all_points(tmpdir):
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
-def test_find_grid_access(monkeypatch):
+def test_find_grid_access():
     ''' Tests for the GOKernelArguments.find_grid_access method. This
     identifies the best kernel argument from which to access grid
     properties. '''
@@ -1079,10 +1079,8 @@ def test_find_grid_access(monkeypatch):
     assert isinstance(arg, GOKernelArgument)
     # The first read-only argument for this kernel is the pressure field
     assert arg.name == "p_fld"
-    # Now monkeypatch the type of each of the kernel arguments so that
-    # none of them is a field
-    for karg in kern.arguments._args:
-        monkeypatch.setattr(karg._arg, "_argument_type", "broken")
+    # An empty argument collection has no field from which to access the grid.
+    kern.arguments._args = []
     # find_grid_access should now return None
     arg = kern.arguments.find_grid_access()
     assert arg is None
@@ -1310,8 +1308,9 @@ def test06_kernel_invalid_access():
                            "test_files", "gocean1p0",
                            "test06_invoke_kernel_wrong_access.f90"),
               api="gocean")
-    assert ("compute_cu: argument access is given as 'wrong' but must be one "
-            "of ['go_read', 'go_readwrite', 'go_write']" in str(err.value))
+    assert ("Expected field access to be one of "
+            "['go_read', 'go_write', 'go_readwrite'] but found 'wrong'"
+            in str(err.value))
 
 
 def test07_kernel_wrong_gridpt_type():
@@ -1334,16 +1333,17 @@ def test08_kernel_invalid_grid_property():
                    "test_files", "gocean1p0",
                    "test08_invoke_kernel_invalid_grid_property.f90"),
               api="gocean")
-    assert "Meta-data error in kernel compute_cu: un-recognised grid " \
-           "property 'grid_area_wrong' requested." in str(err.value)
+    assert ("Expected grid-property name to be one of"
+            in str(err.value))
+    assert "'grid_area_wrong'" in str(err.value)
 
     # GOKernelGridArgument contains also a test for the validity of
     # a grid property. It's easier to create a dummy class to test this:
     class DummyDescriptor():
         '''Dummy class to test error handling.'''
         def __init__(self):
-            self.access = "read"
-            self.grid_prop = "does not exist"
+            self.access_type = AccessType.READ
+            self.name = "does not exist"
     descriptor = DummyDescriptor()
     with pytest.raises(GenerationError) as err:
         GOKernelGridArgument(descriptor, None)
@@ -1404,9 +1404,8 @@ def test14_no_builtins():
     assert "Built-ins are not supported for the GOcean" in str(excinfo.value)
 
 
-def test_go_descriptor_str():
-    '''Tests  the __str__ function of a GO1p0Descriptor.
-    '''
+def test_go_argument_metadata_string():
+    '''Test serialisation of typed GOcean argument metadata.'''
     # Parse an existing kernel to create the required kernel_call
     # type.
     _, invoke_info = parse(os.path.join(get_base_path(API),
@@ -1414,13 +1413,14 @@ def test_go_descriptor_str():
                            api=API)
 
     kernel_call = invoke_info.calls[0].kcalls[0]
-    arg_descriptors = kernel_call.ktype.arg_descriptors
+    arguments = kernel_call.kernel.metadata.meta_args
 
-    assert "Descriptor(READ, go_r_scalar, 0)" == str(arg_descriptors[0])
+    assert "go_arg(go_read, go_r_scalar, go_pointwise)" == \
+        arguments[0].fortran_string()
 
 
 def test_go_kerneltype_str():
-    '''Tests  the __str__ function of a GOKernelType1p0.
+    '''Tests the __str__ function of GOceanKernelMetadata.
     '''
     # Parse an existing kernel to create the required kernel_call
     # type.
@@ -1430,5 +1430,5 @@ def test_go_kerneltype_str():
 
     kernel_call = invoke_info.calls[0].kcalls[0]
 
-    assert ("GOcean 1.0 kernel bc_ssh, index-offset = go_offset_ne, "
-            "iterates-over = go_all_pts" == str(kernel_call.ktype))
+    assert ("GOcean kernel bc_ssh, index-offset = go_offset_ne, "
+            "iterates-over = go_all_pts" == str(kernel_call.kernel.metadata))

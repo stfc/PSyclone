@@ -10,11 +10,10 @@
 
 # The order here is not alphabetical, but important because
 # there are various dependencies between the modules (e.g.
-# KernCallAccArgList imports KernCallArgList, ArgOrdering
-# imports LFRicArgDescriptor, ...).
+# KernCallAccArgList imports KernCallArgList and ArgOrdering.
 from psyclone.domain.lfric.function_space import FunctionSpace
-from psyclone.domain.lfric.lfric_arg_descriptor import LFRicArgDescriptor
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.domain.lfric.kernel import LFRicKernelMetadata
 from psyclone.domain.lfric.lfric_halo_depths import LFRicHaloDepths
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
@@ -44,7 +43,6 @@ from psyclone.domain.lfric.lfric_invokes import LFRicInvokes
 from psyclone.domain.lfric.lfric_scalar_args import LFRicScalarArgs
 from psyclone.domain.lfric.lfric_scalar_array_args import LFRicScalarArrayArgs
 from psyclone.domain.lfric.lfric_loop_bounds import LFRicLoopBounds
-from psyclone.domain.lfric.lfric_kern_metadata import LFRicKernMetadata
 from psyclone.domain.lfric.lfric_psy import LFRicPSy
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.domain.lfric.lfric_dofmaps import LFRicDofmaps

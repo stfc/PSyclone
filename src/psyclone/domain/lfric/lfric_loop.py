@@ -682,7 +682,7 @@ class LFRicLoop(PSyLoop):
                 return False
             if arg.access in AccessType.all_read_accesses():
                 # This is a read access
-                if arg.descriptor.stencil:
+                if arg.metadata_stencil:
                     if self._upper_bound_name not in ["cell_halo", "ncells"]:
                         raise GenerationError(
                             f"Loop bounds other than 'cell_halo' and 'ncells' "

@@ -12,10 +12,9 @@ user-supplied kernels operating on degrees of freedom (dofs)
 import os
 import pytest
 
-from fparser import api as fpapi
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicKernMetadata, LFRicLoop
+from psyclone.domain.lfric import LFRicLoop
 from psyclone.domain.lfric.transformations import (
     LFRicRedundantComputationTrans)
 from psyclone.lfric import LFRicHaloExchange
@@ -23,6 +22,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import create_lfric_metadata
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -51,31 +51,28 @@ CODE = '''
 
         contains
 
-        subroutine testkern_dofs_code(a, b)
-        end subroutine testkern_dofs_code
+        subroutine testkern_dofs_code()
+end subroutine testkern_dofs_code
 
         end module testkern_dofs_mod
         '''
 
 
-def test_dof_kernel_mixed_function_spaces():
+def test_dof_kernel_mixed_function_spaces(fortran_reader):
     '''
     Check that we raise an exception if we encounter a dof kernel
     call with arguments of different function spaces.
 
     '''
 
-    ast = fpapi.parse(CODE, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(CODE)
     name = "testkern_dofs_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("Kernel 'testkern_dofs_type' operates on 'dof' but has "
-            "fields on different function spaces: ['w1', 'w2']. This is not "
-            "permitted in the LFRic API."
-            in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "A dof kernel must use one function space" in str(excinfo.value)
 
 
-def test_dof_kernel_invalid_arg():
+def test_dof_kernel_invalid_arg(fortran_reader):
     '''
     Check that we raise an exception if we find metadata for a dof kernel
     which specifies arguments that are not fields or scalars.
@@ -92,15 +89,12 @@ def test_dof_kernel_invalid_arg():
                       arg_type(gh_scalar, gh_real, gh_read)             &
         """,
         1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_dofs_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("In the LFRic API a kernel that operates on 'dof' is only "
-            "permitted to accept scalar and field arguments but the "
-            "metadata for kernel 'testkern_dofs_type' includes an "
-            "argument of type 'gh_operator'"
-            in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert ("Kernels operating on 'dof' may only contain scalar and field "
+            "arguments" in str(excinfo.value))
 
 
 def test_upper_bounds(monkeypatch, annexed, dist_mem, tmpdir):

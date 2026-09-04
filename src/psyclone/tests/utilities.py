@@ -18,8 +18,6 @@ from typing import Optional, Tuple, Union
 
 import pytest
 
-from fparser import api as fpapi
-from fparser.one.block_statements import BeginSource
 from psyclone.configuration import Config
 from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleInfo, FileInfo, ModuleManager
@@ -612,21 +610,21 @@ def get_examples_path(relative_path: str):
         relative_path)
 
 
-def get_ast(api: str, filename: str) -> BeginSource:
-    '''Returns the fparser1 parse tree for a filename that is stored in the
-    test files for the specified API.
+def create_lfric_metadata(psyir, name=None):
+    """Create and validate LFRic metadata from PSyIR.
 
-    :param api: the API to use, which determines the directory \
-        where files are stored.
-    :param filename: the file name to parse.
+    :param psyir: PSyIR containing an LFRic metadata declaration.
+    :param name: optional name of the metadata type to select.
 
-    :returns: the parse tree for the specified Fortran source file.
+    :returns: validated LFRic kernel metadata.
+    :rtype: :py:class:`psyclone.domain.lfric.LFRicKernelMetadata`
+    """
+    # Keep this test helper dependency local so that importing the general
+    # test utilities does not initialise an API-specific domain package.
+    from psyclone.domain.lfric import LFRicKernelMetadata
 
-    '''
-    Config.get().api = api
-    ast = fpapi.parse(os.path.join(get_base_path(api), filename),
-                      ignore_comments=False)
-    return ast
+    return LFRicKernelMetadata.create_from_kernel_psyir(
+        psyir, name=name).metadata
 
 
 def check_links(parent: Node, children: list[Node]) -> None:

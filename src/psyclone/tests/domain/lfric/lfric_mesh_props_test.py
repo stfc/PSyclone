@@ -13,14 +13,13 @@ of the LFRic API.
 import os
 import pytest
 import fparser
-from fparser import api as fpapi
-from psyclone.domain.lfric import LFRicKernMetadata
-from psyclone.lfric import LFRicMeshProperties, MeshProperty
+from psyclone.lfric import LFRicMeshProperties
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, Kern
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import create_lfric_metadata
 
 
 # Constants
@@ -43,80 +42,79 @@ module testkern_mesh_mod
      procedure, nopass :: code => testkern_mesh_code
   end type testkern_mesh_type
 contains
-  subroutine testkern_mesh_code(a, b)
-  end subroutine testkern_mesh_code
+  subroutine testkern_mesh_code()
+end subroutine testkern_mesh_code
 end module testkern_mesh_mod
 '''
 
 # Tests for parsing the metadata
 
 
-def test_mdata_parse():
+def test_mdata_parse(fortran_reader):
     ''' Check that we get the correct list of mesh properties. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = MESH_PROPS_MDATA
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_mesh_type"
-    dkm = LFRicKernMetadata(ast, name=name)
-    assert dkm.mesh.properties == [MeshProperty.ADJACENT_FACE]
+    dkm = create_lfric_metadata(psyir, name=name)
+    assert len(dkm.meta_mesh) == 1
+    assert dkm.meta_mesh[0].mesh == "adjacent_face"
 
 
 @pytest.mark.parametrize("property_name", ["not_a_property", "ncell_2d"])
-def test_mdata_invalid_property(property_name):
+def test_mdata_invalid_property(property_name, fortran_reader):
     ''' Check that we raise the expected error if an unrecognised mesh
     property is requested. Also test with a value that *is* a valid mesh
     property but is not supported in kernel metadata. '''
     code = MESH_PROPS_MDATA.replace("adjacent_face", property_name)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_mesh_type"
     with pytest.raises(ParseError) as err:
-        LFRicKernMetadata(ast, name=name)
-    assert (f"in metadata: '{property_name}'. Supported values are: "
-            f"['ADJACENT_FACE'" in str(err.value))
+        create_lfric_metadata(psyir, name=name)
+    assert "Expected mesh property to be one of" in str(err.value)
+    assert f"'{property_name}'" in str(err.value)
 
 
-def test_mdata_wrong_arg_count():
+def test_mdata_wrong_arg_count(fortran_reader):
     ''' Check that we raise the expected error if the wrong dimension value
     is specified for the mesh_data_type array. '''
     code = MESH_PROPS_MDATA.replace("mesh_data_type), dimension(1)",
                                     "mesh_data_type), dimension(4)")
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_mesh_type"
     with pytest.raises(ParseError) as err:
-        LFRicKernMetadata(ast, name=name)
-    assert ("'meta_mesh' metadata, the number of items in the array "
-            "constructor (1) does not match the extent of the array (4)"
-            in str(err.value))
+        create_lfric_metadata(psyir, name=name)
+    assert ("Metadata component 'meta_mesh' has extent 4 but its constructor "
+            "contains 1 values" in str(err.value))
 
 
-def test_mdata_wrong_name():
+def test_mdata_wrong_name(fortran_reader):
     ''' Check that we raise the expected error if the array holding properties
     of the mesh is given the wrong name. '''
     code = MESH_PROPS_MDATA.replace("meta_mesh =", "meta_meshes =")
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_mesh_type"
     with pytest.raises(ParseError) as err:
-        LFRicKernMetadata(ast, name=name)
-    assert ("No variable named 'meta_mesh' found in the metadata for"
-            in str(err.value))
+        create_lfric_metadata(psyir, name=name)
+    assert "Unexpected LFRic metadata component(s): ['meta_meshes']" in str(
+        err.value)
 
 
-def test_mdata_wrong_type_var():
+def test_mdata_wrong_type_var(fortran_reader):
     ''' Check that we raise the expected error if the array holding properties
     of the mesh contains an item of the wrong type. '''
     code = MESH_PROPS_MDATA.replace(
         "mesh_data_type(adjacent_face",
         "ref_element_data_type(adjacent_face")
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_mesh_type"
     with pytest.raises(ParseError) as err:
-        LFRicKernMetadata(ast, name=name)
-    assert ("'meta_mesh' metadata must consist of an array of "
-            "structure constructors, all of type 'mesh_data_type'"
-            " but found: ['ref_element_data_type']" in str(err.value))
+        create_lfric_metadata(psyir, name=name)
+    assert "meta_mesh entries must use the mesh_data_type constructor" in str(
+        err.value)
 
 
-def test_mdata_duplicate_var():
+def test_mdata_duplicate_var(fortran_reader):
     ''' Check that we raise the expected error if the array holding properties
     of the mesh contains a duplicate item. '''
     code = MESH_PROPS_MDATA.replace("mesh_data_type), dimension(1)",
@@ -124,12 +122,11 @@ def test_mdata_duplicate_var():
     code = code.replace("adjacent_face) ",
                         "adjacent_face), mesh_data_type(adjacent_face) ")
 
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_mesh_type"
     with pytest.raises(ParseError) as err:
-        LFRicKernMetadata(ast, name=name)
-    assert ("Duplicate mesh property found: "
-            "'MeshProperty.ADJACENT_FACE'." in str(err.value))
+        create_lfric_metadata(psyir, name=name)
+    assert "meta_mesh must not contain duplicates" in str(err.value)
 
 
 def test_mesh_properties():

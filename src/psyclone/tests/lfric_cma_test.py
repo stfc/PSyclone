@@ -11,18 +11,17 @@ the LFRic API using pytest. '''
 import os
 import pytest
 import fparser
-from fparser import api as fpapi
 
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
-                                   LFRicKernMetadata)
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import InternalError
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
+from psyclone.tests.utilities import create_lfric_metadata
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -36,7 +35,7 @@ OP_WRITE_ACCESSES = ["gh_write", "gh_readwrite"]
 CMA_ASSEMBLE = '''
 module testkern_cma
   type, extends(kernel_type) :: testkern_cma_type
-     type(arg_type), meta_args(4) =                                &
+     type(arg_type), dimension(4) :: meta_args =                     &
           (/ arg_type(gh_operator, gh_real, gh_read, any_space_1,  &
                                                      any_space_2), &
              arg_type(gh_columnwise_operator, gh_real, gh_write,   &
@@ -49,8 +48,8 @@ module testkern_cma
      procedure, nopass :: code => testkern_cma_code
   end type testkern_cma_type
 contains
-  subroutine testkern_cma_code(a, b, c, d)
-  end subroutine testkern_cma_code
+  subroutine testkern_cma_code()
+end subroutine testkern_cma_code
 end module testkern_cma
 '''
 
@@ -61,43 +60,25 @@ def setup():
     Config.get().api = "lfric"
 
 
-def test_cma_mdata_assembly():
+def test_cma_mdata_assembly(fortran_reader):
     ''' Check that we can parse metadata entries relating to Column-Matrix
     Assembly. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_ASSEMBLE
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_cma_type"
-    dkm = LFRicKernMetadata(ast, name=name)
-    cma_op_desc = dkm.arg_descriptors[1]
+    dkm = create_lfric_metadata(psyir, name=name)
+    cma_op_desc = dkm.meta_args[1]
 
-    # Assert correct string representation from LFRicArgDescriptor
-    cma_op_desc_str = str(cma_op_desc)
-    expected = (
-        "LFRicArgDescriptor object\n"
-        "  argument_type[0]='gh_columnwise_operator'\n"
-        "  data_type[1]='gh_real'\n"
-        "  access_descriptor[2]='gh_write'\n"
-        "  function_space_to[3]='any_space_1'\n"
-        "  function_space_from[4]='any_space_2'\n")
-
-    assert expected in cma_op_desc_str
-    assert dkm._cma_operation == "assembly"
-
-    # Check LFRicArgDescriptor argument properties
-    assert cma_op_desc.argument_type == "gh_columnwise_operator"
-    assert cma_op_desc.data_type == "gh_real"
+    assert cma_op_desc.form == "gh_columnwise_operator"
+    assert cma_op_desc.datatype == "gh_real"
+    assert cma_op_desc.access == "gh_write"
     assert cma_op_desc.function_space_to == "any_space_1"
     assert cma_op_desc.function_space_from == "any_space_2"
-    assert cma_op_desc.function_space == "any_space_2"
-    assert cma_op_desc.function_spaces == ['any_space_1', 'any_space_2']
-    assert str(cma_op_desc.access) == "WRITE"
-    assert cma_op_desc.mesh is None
-    assert cma_op_desc.stencil is None
-    assert cma_op_desc.vector_size == 1
+    assert dkm.cma_operation == "assembly"
 
 
-def test_cma_mdata_invalid_data_type():
+def test_cma_mdata_invalid_data_type(fortran_reader):
     ''' Tests that an error is raised when the argument descriptor
     metadata for a column-wise operator has an invalid data type. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -105,52 +86,15 @@ def test_cma_mdata_invalid_data_type():
     code = CMA_ASSEMBLE.replace(
         "arg_type(gh_columnwise_operator, gh_real, gh_write,   &\n",
         "arg_type(gh_columnwise_operator, gh_unreal, gh_write,   &\n", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    const = LFRicConstants()
+    psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert (f"In the LFRic API the 2nd argument of a 'meta_arg' "
-            f"entry should be a valid data type (one of "
-            f"{const.VALID_SCALAR_DATA_TYPES}), but found 'gh_unreal' "
-            f"in 'arg_type(gh_columnwise_operator, gh_unreal, "
-            f"gh_write, any_space_1, any_space_2)'." in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert ("Expected operator datatype descriptor to be one of "
+            "['gh_real'] but found "
+            "'gh_unreal'." in str(excinfo.value))
 
 
-def test_cma_mdata_init_wrong_argument_type():
-    ''' Test that an error is raised if something other than an operator
-    is passed to the LFRicArgDescriptor._init_operator() method. '''
-    ast = fpapi.parse(CMA_ASSEMBLE, ignore_comments=False)
-    name = "testkern_cma_type"
-    metadata = LFRicKernMetadata(ast, name=name)
-    # Get an argument which is not an operator
-    wrong_arg = metadata._inits[3]
-    with pytest.raises(InternalError) as excinfo:
-        LFRicArgDescriptor(
-            wrong_arg, metadata.iterates_over, 0)._init_operator(wrong_arg)
-    assert ("Expected an operator argument but got an argument of type "
-            "'gh_scalar'." in str(excinfo.value))
-
-
-def test_cma_mdata_init_wrong_data_type():
-    ''' Test that an error is raised if an invalid data type
-    is passed to the LFRicArgDescriptor._init_operator() method. '''
-    ast = fpapi.parse(CMA_ASSEMBLE, ignore_comments=False)
-    name = "testkern_cma_type"
-    metadata = LFRicKernMetadata(ast, name=name)
-    # Get a column-wise operator argument descriptor and set a wrong data type
-    cma_op_arg = metadata._inits[1]
-    cma_op_arg.args[1].name = "gh_integer"
-    with pytest.raises(ParseError) as excinfo:
-        LFRicArgDescriptor(
-            cma_op_arg, metadata.iterates_over, 0)._init_operator(cma_op_arg)
-    const = LFRicConstants()
-    assert (f"In the LFRic API the allowed data types for operator arguments "
-            f"are one of {const.VALID_OPERATOR_DATA_TYPES}, but found "
-            f"'gh_integer' in 'arg_type(gh_columnwise_operator, gh_integer, "
-            f"gh_write, any_space_1, any_space_2)'." in str(excinfo.value))
-
-
-def test_cma_mdata_assembly_missing_op():
+def test_cma_mdata_assembly_missing_op(fortran_reader):
     ''' Check that we raise the expected error if the supplied metadata
     is assembling a gh_columnwise_operator but doesn't have a read-only
     gh_operator '''
@@ -158,18 +102,15 @@ def test_cma_mdata_assembly_missing_op():
     code = CMA_ASSEMBLE.splitlines()
     # Remove the (required) LMA operator
     code[4:6] = ["          (/ &"]
-    code = "\n".join(code).replace("meta_args(4) =", "meta_args(3) =", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    code = "\n".join(code).replace("dimension(4)", "dimension(3)", 1)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("Kernel 'testkern_cma_type' has a single column-wise operator "
-            "argument but does not conform to the rules for an Assembly "
-            "kernel because it does not have any read-only LMA operator "
-            "arguments.") in str(excinfo.value)
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "CMA apply kernel requires" in str(excinfo.value)
 
 
-def test_cma_mdata_multi_writes():
+def test_cma_mdata_multi_writes(fortran_reader):
     ''' Check that we raise the expected error if the supplied metadata
     specifies more than one CMA operator that is written to '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -181,27 +122,25 @@ def test_cma_mdata_multi_writes():
         code = CMA_ASSEMBLE.replace(
             "arg_type(gh_field, gh_real, gh_read, any_space_1)",
             cmaopstring, 1)
-        ast = fpapi.parse(code, ignore_comments=False)
+        psyir = fortran_reader.psyir_from_source(code)
         name = "testkern_cma_type"
         with pytest.raises(ParseError) as excinfo:
-            _ = LFRicKernMetadata(ast, name=name)
-        assert ("An LFRic kernel cannot update more than one CMA "
-                "(column-wise) operator but kernel 'testkern_cma_type' "
-                "updates 2") in str(excinfo.value)
+            _ = create_lfric_metadata(psyir, name=name)
+        assert "CMA assembly kernel must write one CMA operator" in str(
+            excinfo.value)
         code = CMA_ASSEMBLE.replace(
             "arg_type(gh_field, gh_real, gh_read, any_space_1)",
             cmaopstring + ",&\n" +
             cmaopstring, 1)
-        code = code.replace("meta_args(4) = ", "meta_args(5) = ", 1)
-        ast = fpapi.parse(code, ignore_comments=False)
+        code = code.replace("dimension(4)", "dimension(5)", 1)
+        psyir = fortran_reader.psyir_from_source(code)
         with pytest.raises(ParseError) as excinfo:
-            _ = LFRicKernMetadata(ast, name=name)
-        assert ("An LFRic kernel cannot update more than one CMA "
-                "(column-wise) operator but kernel 'testkern_cma_type' "
-                "updates 3") in str(excinfo.value)
+            _ = create_lfric_metadata(psyir, name=name)
+        assert "CMA assembly kernel must write one CMA operator" in str(
+            excinfo.value)
 
 
-def test_cma_mdata_mutable_op():
+def test_cma_mdata_mutable_op(fortran_reader):
     ''' Check that we raise the expected error if the supplied metadata
     is assembling a gh_columnwise_operator but doesn't have a read-only
     gh_operator '''
@@ -213,16 +152,15 @@ def test_cma_mdata_mutable_op():
         code = CMA_ASSEMBLE.replace(
             "gh_operator, gh_real, gh_read, any_space_1,  &\n",
             opstring, 1)
-        ast = fpapi.parse(code, ignore_comments=False)
+        psyir = fortran_reader.psyir_from_source(code)
         name = "testkern_cma_type"
         with pytest.raises(ParseError) as excinfo:
-            _ = LFRicKernMetadata(ast, name=name)
-        assert ("Kernel 'testkern_cma_type' writes to a column-wise operator "
-                "but also writes to ['gh_operator'] argument(s). This is "
-                "not allowed.") in str(excinfo.value)
+            _ = create_lfric_metadata(psyir, name=name)
+        assert "CMA assembly kernel may only read LMA operators" in str(
+            excinfo.value)
 
 
-def test_cma_mdata_writes_lma_op():
+def test_cma_mdata_writes_lma_op(fortran_reader):
     ''' Check that we raise the expected error if the supplied metadata
     is assembling a gh_columnwise_operator but also writes to a
     gh_operator '''
@@ -234,17 +172,16 @@ def test_cma_mdata_writes_lma_op():
             ", any_space_1, any_space_2), &")
         code = CMA_ASSEMBLE.split("\n")
         code.insert(6, opstring)
-        code = "\n".join(code).replace("meta_args(4)", "meta_args(5)", 1)
-        ast = fpapi.parse(code, ignore_comments=False)
+        code = "\n".join(code).replace("dimension(4)", "dimension(5)", 1)
+        psyir = fortran_reader.psyir_from_source(code)
         name = "testkern_cma_type"
         with pytest.raises(ParseError) as excinfo:
-            _ = LFRicKernMetadata(ast, name=name)
-        assert ("Kernel 'testkern_cma_type' writes to a column-wise operator "
-                "but also writes to ['gh_operator'] argument(s). This is "
-                "not allowed.") in str(excinfo.value)
+            _ = create_lfric_metadata(psyir, name=name)
+        assert "CMA assembly kernel may only read LMA operators" in str(
+            excinfo.value)
 
 
-def test_cma_mdata_assembly_diff_spaces():
+def test_cma_mdata_assembly_diff_spaces(fortran_reader):
     ''' Check that we successfully parse the supplied metadata if it
     is assembling a gh_columnwise_operator but the to/from spaces don't
     match those of the supplied 'gh_operator'.
@@ -255,22 +192,19 @@ def test_cma_mdata_assembly_diff_spaces():
     code = CMA_ASSEMBLE.replace(
         "arg_type(gh_operator, gh_real, gh_read, any_space_1,",
         "arg_type(gh_operator, gh_real, gh_read, any_space_3,", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_cma_type"
-    dkm = LFRicKernMetadata(ast, name=name)
-    dkm_str = str(dkm.arg_descriptors[0])
-    expected = (
-        "LFRicArgDescriptor object\n"
-        "  argument_type[0]='gh_operator'\n"
-        "  data_type[1]='gh_real'\n"
-        "  access_descriptor[2]='gh_read'\n"
-        "  function_space_to[3]='any_space_3'\n"
-        "  function_space_from[4]='any_space_2'\n")
-    assert expected in dkm_str
-    assert dkm._cma_operation == "assembly"
+    dkm = create_lfric_metadata(psyir, name=name)
+    lma_arg = dkm.meta_args[0]
+    assert lma_arg.form == "gh_operator"
+    assert lma_arg.datatype == "gh_real"
+    assert lma_arg.access == "gh_read"
+    assert lma_arg.function_space_to == "any_space_3"
+    assert lma_arg.function_space_from == "any_space_2"
+    assert dkm.cma_operation == "assembly"
 
 
-def test_cma_mdata_asm_vector_error():
+def test_cma_mdata_asm_vector_error(fortran_reader):
     ''' Check that we raise the expected error if a kernel assembling a
     CMA operator has any vector arguments. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -280,25 +214,23 @@ def test_cma_mdata_asm_vector_error():
     code = CMA_ASSEMBLE.replace(
         "arg_type(gh_field, gh_real, gh_read, any_space_1)",
         "arg_type(gh_field*3, gh_real, gh_read, any_space_1)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("Kernel 'testkern_cma_type' takes a CMA operator but has a "
-            "vector argument 'gh_field*3'. This is forbidden."
-            in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "CMA kernels may not use vector or stencil arguments" in str(
+        excinfo.value)
 
     # Reject a CMA operator vector argument
     code = CMA_ASSEMBLE.replace(
         "gh_columnwise_operator,", "gh_columnwise_operator*2,", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("In the LFRic API, vector notation is only supported "
-            "for ['gh_field'] argument types but found "
-            "'gh_columnwise_operator * 2'." in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "Vector notation is only supported for gh_field" in str(
+        excinfo.value)
 
 
-def test_cma_mdata_asm_fld_stencil_error():
+def test_cma_mdata_asm_fld_stencil_error(fortran_reader):
     ''' Check that we raise the expected error if a kernel assembling a
     CMA operator specifies a stencil access on a field. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -306,17 +238,16 @@ def test_cma_mdata_asm_fld_stencil_error():
     code = CMA_ASSEMBLE.replace(
         "arg_type(gh_field, gh_real, gh_read, any_space_1)",
         "arg_type(gh_field, gh_real, gh_read, any_space_1, stencil(x1d))", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("Kernel 'testkern_cma_type' takes a CMA operator but has an "
-            "argument with a stencil access ('x1d'). This is forbidden."
-            in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "CMA kernels may not use vector or stencil arguments" in str(
+        excinfo.value)
 
 
 @pytest.mark.parametrize("mdata_name", ["NLEVELS", "NDATA"])
-def test_cma_mdata_asm_fld_nlevels_ndata_error(mdata_name):
+def test_cma_mdata_asm_fld_nlevels_ndata_error(mdata_name, fortran_reader):
     '''
     Check that we raise the expected error if a CMA kernel has an argument
     with a non-default value of either NLEVELS or NDATA.
@@ -325,13 +256,12 @@ def test_cma_mdata_asm_fld_nlevels_ndata_error(mdata_name):
         "arg_type(gh_field, gh_real, gh_read, any_space_1)",
         f"arg_type(gh_field, gh_real, gh_read, any_space_1, "
         f"{mdata_name}='bad')", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert (f"Kernel 'testkern_cma_type' takes a CMA operator but has an "
-            f"argument with a non-default value ('bad') of {mdata_name}."
-            in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "CMA kernels require default NDATA and NLEVELS" in str(
+        excinfo.value)
 
 
 def test_invoke_uniq_declns_valid_access_cma_op():
@@ -423,42 +353,35 @@ module testkern_cma_apply
      procedure, nopass :: code => testkern_cma_code
   end type testkern_cma_type
 contains
-  subroutine testkern_cma_code(a, b, c, d)
-  end subroutine testkern_cma_code
+  subroutine testkern_cma_code()
+end subroutine testkern_cma_code
 end module testkern_cma_apply
 '''
 
 
-def test_cma_mdata_apply():
+def test_cma_mdata_apply(fortran_reader):
     ''' Check that we can parse metadata entries relating to the
     application of Column-Matrix operators. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_APPLY
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_cma_type"
-    dkm = LFRicKernMetadata(ast, name=name)
-    dkm_str = str(dkm.arg_descriptors[1])
-    expected = (
-        "LFRicArgDescriptor object\n"
-        "  argument_type[0]='gh_field'\n"
-        "  data_type[1]='gh_real'\n"
-        "  access_descriptor[2]='gh_read'\n"
-        "  function_space[3]='any_space_2'\n")
-
-    assert expected in dkm_str
-    dkm_str = str(dkm.arg_descriptors[2])
-    expected = (
-        "LFRicArgDescriptor object\n"
-        "  argument_type[0]='gh_columnwise_operator'\n"
-        "  data_type[1]='gh_real'\n"
-        "  access_descriptor[2]='gh_read'\n"
-        "  function_space_to[3]='any_space_1'\n"
-        "  function_space_from[4]='any_space_2'\n")
-    assert expected in dkm_str
-    assert dkm._cma_operation == "apply"
+    dkm = create_lfric_metadata(psyir, name=name)
+    field_arg = dkm.meta_args[1]
+    assert field_arg.form == "gh_field"
+    assert field_arg.datatype == "gh_real"
+    assert field_arg.access == "gh_read"
+    assert field_arg.function_space == "any_space_2"
+    cma_arg = dkm.meta_args[2]
+    assert cma_arg.form == "gh_columnwise_operator"
+    assert cma_arg.datatype == "gh_real"
+    assert cma_arg.access == "gh_read"
+    assert cma_arg.function_space_to == "any_space_1"
+    assert cma_arg.function_space_from == "any_space_2"
+    assert dkm.cma_operation == "apply"
 
 
-def test_cma_mdata_apply_too_many_ops():
+def test_cma_mdata_apply_too_many_ops(fortran_reader):
     ''' Check that we raise the expected error if there are too-many
     CMA operators '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -469,16 +392,15 @@ def test_cma_mdata_apply_too_many_ops():
         "       arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, &\n"
         "                                ANY_SPACE_1, ANY_SPACE_2) &\n", 1)
     code = code.replace("meta_args(3)", "meta_args(4)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("a kernel that applies a CMA operator must only have one such "
-            "operator in its list of arguments but found 2"
-            in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert ("CMA apply kernel requires one read-only CMA operator and two "
+            "fields" in str(excinfo.value))
 
 
-def test_cma_mdata_apply_too_many_flds():
+def test_cma_mdata_apply_too_many_flds(fortran_reader):
     ''' Check that we raise the expected error if there are too-many
     field args to a kernel that applies a CMA operator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -488,16 +410,15 @@ def test_cma_mdata_apply_too_many_flds():
         "arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2), &\n"
         "       arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2), &\n", 1)
     code = code.replace("meta_args(3)", "meta_args(4)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("a kernel that applies a CMA operator must have 3 arguments "
-            "(the operator and two fields) but kernel 'testkern_cma_type' "
-            "has 4") in str(excinfo.value)
+        _ = create_lfric_metadata(psyir, name=name)
+    assert ("CMA apply kernel requires one read-only CMA operator and two "
+            "fields" in str(excinfo.value))
 
 
-def test_cma_mdata_apply_no_read_fld():
+def test_cma_mdata_apply_no_read_fld(fortran_reader):
     ''' Check that we raise the expected error if there is no read-only
     field arg to a kernel that applies a CMA operator.'''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -505,15 +426,15 @@ def test_cma_mdata_apply_no_read_fld():
     code = CMA_APPLY.replace(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2), ",
         "arg_type(GH_FIELD, GH_REAL, GH_INC,  ANY_SPACE_2), ", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("has a read-only CMA operator. In order to apply it the kernel "
-            "must have one read-only field argument") in str(excinfo.value)
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "CMA apply kernel requires one read and one written field" in str(
+        excinfo.value)
 
 
-def test_cma_mdata_apply_no_write_fld():
+def test_cma_mdata_apply_no_write_fld(fortran_reader):
     ''' Check that we raise the expected error if there is no written
     field arg to a kernel that applies a CMA operator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -522,15 +443,15 @@ def test_cma_mdata_apply_no_write_fld():
         "arg_type(GH_FIELD, GH_REAL, GH_INC,  ANY_SPACE_1), ",
         "arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, ANY_SPACE_1, "
         "ANY_SPACE_1), ", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("has a read-only CMA operator. In order to apply it the kernel "
-            "must write to one field argument") in str(excinfo.value)
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "CMA assembly kernel must write one CMA operator" in str(
+        excinfo.value)
 
 
-def test_cma_mdata_apply_wrong_spaces():
+def test_cma_mdata_apply_wrong_spaces(fortran_reader):
     ''' Check that we raise the expected error if the function spaces of the
     read and write fields do not match the from and to function spaces of the
     CMA operator '''
@@ -539,27 +460,25 @@ def test_cma_mdata_apply_wrong_spaces():
     code = CMA_APPLY.replace(
         "arg_type(GH_FIELD, GH_REAL, GH_INC,  ANY_SPACE_1)",
         "arg_type(GH_FIELD, GH_REAL, GH_INC,  ANY_SPACE_3)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("applies a CMA operator but the function space of the field "
-            "argument it writes to ('any_space_3') does not match the 'to' "
-            "space of the operator ('any_space_1')") in str(excinfo.value)
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "CMA apply field spaces must match the operator spaces" in str(
+        excinfo.value)
     # Change the space of the field that is read
     code = CMA_APPLY.replace(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2)",
         "arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_3)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("applies a CMA operator but the function space of the field "
-            "argument it reads from ('any_space_3') does not match the 'from' "
-            "space of the operator ('any_space_2')") in str(excinfo.value)
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "CMA apply field spaces must match the operator spaces" in str(
+        excinfo.value)
 
 
-def test_cma_mdata_apply_vector_error():
+def test_cma_mdata_apply_vector_error(fortran_reader):
     ''' Check that we raise the expected error if the metadata for a kernel
     that applies a CMA operator contains a vector argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -569,25 +488,23 @@ def test_cma_mdata_apply_vector_error():
     code = CMA_APPLY.replace(
         "arg_type(GH_FIELD, GH_REAL, GH_INC,  ANY_SPACE_1)",
         "arg_type(GH_FIELD*3, GH_REAL, GH_INC,  ANY_SPACE_1)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("Kernel 'testkern_cma_type' takes a CMA operator but has a "
-            "vector argument 'gh_field*3'. This is forbidden."
-            in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "CMA kernels may not use vector or stencil arguments" in str(
+        excinfo.value)
 
     # Reject a CMA operator vector argument
     code = CMA_APPLY.replace("GH_COLUMNWISE_OPERATOR,",
                              "GH_COLUMNWISE_OPERATOR*4,", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("In the LFRic API, vector notation is only supported "
-            "for ['gh_field'] argument types but found "
-            "'gh_columnwise_operator * 4'." in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "Vector notation is only supported for gh_field" in str(
+        excinfo.value)
 
 
-def test_cma_mdata_apply_fld_stencil_error():
+def test_cma_mdata_apply_fld_stencil_error(fortran_reader):
     ''' Check that we raise the expected error if the metadata for a kernel
     that applies a CMA operator contains a field argument with a stencil
     access. '''
@@ -595,16 +512,15 @@ def test_cma_mdata_apply_fld_stencil_error():
     code = CMA_APPLY.replace(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2)",
         "arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2, STENCIL(X1D))", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("Kernel 'testkern_cma_type' takes a CMA operator but has an "
-            "argument with a stencil access ('x1d'). This is "
-            "forbidden.") in str(excinfo.value)
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "CMA kernels may not use vector or stencil arguments" in str(
+        excinfo.value)
 
 
-def test_cma_mdata_apply_invalid_field_data_type():
+def test_cma_mdata_apply_invalid_field_data_type(fortran_reader):
     ''' Check that we raise the expected error if the metadata for a kernel
     that applies a CMA operator contains a field argument with an invalid
     data type (other than 'gh_real'). '''
@@ -612,14 +528,12 @@ def test_cma_mdata_apply_invalid_field_data_type():
     code = CMA_APPLY.replace(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_2)",
         "arg_type(GH_FIELD, GH_INTEGER, GH_READ, ANY_SPACE_2)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("In the LFRic API a kernel that takes a CMA operator argument "
-            "must only have field arguments with 'gh_real' data type but "
-            "kernel 'testkern_cma_type' has a field argument with "
-            "'gh_integer' data type." in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "CMA kernels may only contain real-valued fields" in str(
+        excinfo.value)
 
 
 CMA_MATRIX = '''
@@ -639,34 +553,30 @@ module testkern_cma_matrix_matrix
      procedure, nopass :: code => testkern_cma_code
   end type testkern_cma_type
 contains
-  subroutine testkern_cma_code(a, b, c, d)
-  end subroutine testkern_cma_code
+  subroutine testkern_cma_code()
+end subroutine testkern_cma_code
 end module testkern_cma_matrix_matrix
 '''
 
 
-def test_cma_mdata_matrix_prod():
+def test_cma_mdata_matrix_prod(fortran_reader):
     ''' Check that we can parse metadata entries relating to a kernel
     that performs a product of two CMA operators. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_MATRIX
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_cma_type"
-    dkm = LFRicKernMetadata(ast, name=name)
-    dkm_str = str(dkm.arg_descriptors[2])
-    expected = (
-        "LFRicArgDescriptor object\n"
-        "  argument_type[0]='gh_columnwise_operator'\n"
-        "  data_type[1]='gh_real'\n"
-        "  access_descriptor[2]='gh_read'\n"
-        "  function_space_to[3]='any_space_1'\n"
-        "  function_space_from[4]='any_space_2'\n")
-
-    assert expected in dkm_str
-    assert dkm._cma_operation == "matrix-matrix"
+    dkm = create_lfric_metadata(psyir, name=name)
+    cma_arg = dkm.meta_args[2]
+    assert cma_arg.form == "gh_columnwise_operator"
+    assert cma_arg.datatype == "gh_real"
+    assert cma_arg.access == "gh_read"
+    assert cma_arg.function_space_to == "any_space_1"
+    assert cma_arg.function_space_from == "any_space_2"
+    assert dkm.cma_operation == "matrix-matrix"
 
 
-def test_cma_mdata_matrix_too_few_args():
+def test_cma_mdata_matrix_too_few_args(fortran_reader):
     ''' Check that we raise the expected error when there are too few
     arguments specified in metadata '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -675,16 +585,14 @@ def test_cma_mdata_matrix_too_few_args():
     del code[4:6]
     del code[5:7]
     code = "\n".join(code).replace("meta_args(4)", "meta_args(2)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("has a single column-wise operator argument but does not conform "
-            "to the rules for an Assembly kernel because it does not have "
-            "any read-only LMA operator arguments") in str(excinfo.value)
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "CMA matrix-matrix kernel" in str(excinfo.value)
 
 
-def test_cma_mdata_matrix_field_arg():
+def test_cma_mdata_matrix_field_arg(fortran_reader):
     ''' Check that we raise the expected error when a matrix-matrix kernel
     reads from a field argument. Adding an argument that is not a CMA
     operator or scalar means that PSyclone attempts to identify this as an
@@ -693,16 +601,14 @@ def test_cma_mdata_matrix_field_arg():
     code = CMA_MATRIX.split("\n")
     code[4:6] = ["       arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_SPACE_1), &"]
     code = "\n".join(code)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("A column-wise matrix-matrix kernel must have only column-wise "
-            "operators and scalars as arguments but kernel "
-            "'testkern_cma_type' has: ['gh_field', ") in str(excinfo.value)
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "CMA apply kernel requires" in str(excinfo.value)
 
 
-def test_cma_mdata_matrix_no_scalar_arg():
+def test_cma_mdata_matrix_no_scalar_arg(fortran_reader):
     ''' Check that we successfully parse metadata for a matrix-matrix kernel
     that has no scalar arguments. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -710,13 +616,13 @@ def test_cma_mdata_matrix_no_scalar_arg():
         "arg_type(GH_SCALAR,              GH_REAL, GH_READ)",
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, ANY_SPACE_1, "
         "ANY_SPACE_2)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_cma_type"
-    dkm = LFRicKernMetadata(ast, name=name)
-    assert dkm._cma_operation == "matrix-matrix"
+    dkm = create_lfric_metadata(psyir, name=name)
+    assert dkm.cma_operation == "matrix-matrix"
 
 
-def test_cma_mdata_matrix_2_scalar_args():
+def test_cma_mdata_matrix_2_scalar_args(fortran_reader):
     ''' Check that we successfully parse metadata for a matrix-matrix kernel
     that has 2 scalar arguments. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -725,13 +631,13 @@ def test_cma_mdata_matrix_2_scalar_args():
         "                         ANY_SPACE_1, ANY_SPACE_2), &\n",
         "arg_type(GH_SCALAR,              GH_REAL, GH_READ)",
         1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_cma_type"
-    dkm = LFRicKernMetadata(ast, name=name)
-    assert dkm._cma_operation == "matrix-matrix"
+    dkm = create_lfric_metadata(psyir, name=name)
+    assert dkm.cma_operation == "matrix-matrix"
 
 
-def test_cma_mdata_matrix_2_writes():
+def test_cma_mdata_matrix_2_writes(fortran_reader):
     ''' Check that we raise the expected error when a matrix-matrix kernel
     writes (write and readwrite access) to more than one CMA operator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -741,43 +647,39 @@ def test_cma_mdata_matrix_2_writes():
         code = CMA_MATRIX.split("\n")
         code.insert(7, cmaopstring)
         code = "\n".join(code).replace("meta_args(4)", "meta_args(5)", 1)
-        ast = fpapi.parse(code, ignore_comments=False)
+        psyir = fortran_reader.psyir_from_source(code)
         name = "testkern_cma_type"
         with pytest.raises(ParseError) as excinfo:
-            _ = LFRicKernMetadata(ast, name=name)
-        assert ("An LFRic kernel cannot update more than one CMA "
-                "(column-wise) operator but kernel 'testkern_cma_type' "
-                "updates 2") in str(excinfo.value)
+            _ = create_lfric_metadata(psyir, name=name)
+        assert "CMA matrix-matrix kernel must write exactly one" in str(
+            excinfo.value)
 
 
-def test_cma_mdata_stencil_invalid():
+def test_cma_mdata_stencil_invalid(fortran_reader):
     ''' Check that we raise the expected error when a matrix-matrix kernel
     specifies a stencil. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_MATRIX.replace(
         "                 ANY_SPACE_1, ANY_SPACE_2), &\n",
         "                 ANY_SPACE_1, stencil(cross)), &\n", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("In the LFRic API argument 5 of a 'meta_arg' operator entry must "
-            "be a valid function-space name") in str(excinfo.value)
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "Expected a metadata name or literal but found 'Call'" in str(
+        excinfo.value)
     code = CMA_MATRIX.replace(
         "                 ANY_SPACE_1, ANY_SPACE_2)  &\n",
         "                 ANY_SPACE_1, ANY_SPACE_2, stencil(cross)) &\n", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
+        _ = create_lfric_metadata(psyir, name=name)
 
-    const = LFRicConstants()
-    assert (f"each 'meta_arg' entry must have 5 arguments if its first "
-            f"argument is an operator (one of {const.VALID_OPERATOR_NAMES})"
-            in str(excinfo.value))
+    assert "Operator metadata must have five arguments" in str(excinfo.value)
 
 
-def test_cma_mdata_matrix_vector_error():
+def test_cma_mdata_matrix_vector_error(fortran_reader):
     ''' Check that we raise the expected error when a matrix-matrix kernel
     contains a vector argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -788,12 +690,11 @@ def test_cma_mdata_matrix_vector_error():
         "arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_WRITE, &\n",
         "arg_type(GH_COLUMNWISE_OPERATOR*3, GH_REAL, GH_WRITE, &\n",
         1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("In the LFRic API, vector notation is only supported "
-            "for ['gh_field'] argument types but found "
-            "'gh_columnwise_operator * 3'." in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "Vector notation is only supported for gh_field" in str(
+        excinfo.value)
 
 
 def test_cma_asm(tmpdir, dist_mem):

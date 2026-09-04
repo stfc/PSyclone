@@ -12,17 +12,15 @@ import os
 
 import pytest
 
-from fparser.one.block_statements import Program
-
 from psyclone.parse.algorithm import parse
 from psyclone.parse.module_manager import ModuleManager
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.utilities import (
-    change_dir, check_links, count_lines, Compile, CompileError, get_ast,
-    get_base_path, get_infrastructure_path, get_invoke, line_number,
-    make_external_module, print_diffs)
+    change_dir, check_links, count_lines, Compile, CompileError, get_base_path,
+    get_infrastructure_path, get_invoke, line_number, make_external_module,
+    print_diffs)
 
 
 HELLO_CODE = '''
@@ -366,16 +364,6 @@ def test_get_infrastructure_path():
     with pytest.raises(RuntimeError) as err:
         _ = get_infrastructure_path("wrong")
     assert "API 'wrong' is not supported" in str(err.value)
-
-
-# -----------------------------------------------------------------------------
-def test_get_ast():
-    """Tests the get_ast function.
-    """
-    ast = get_ast("lfric", "19.12_single_stencil_region.f90")
-    program = ast.content[7]  # 0:6 are comments
-    assert isinstance(program, Program)
-    assert program.name == "single_stencil_region"
 
 
 # -----------------------------------------------------------------------------
