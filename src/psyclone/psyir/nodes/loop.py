@@ -11,6 +11,7 @@ from typing import Union, Optional
 
 from psyclone.core import VariablesAccessMap
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.reference import Reference
@@ -513,3 +514,32 @@ class Loop(Statement):
         '''
         # pylint: disable=unused-argument
         return False
+
+    def next_accesses(self) -> list[Node]:
+        '''
+        :returns: the combined next_accesses for the children of this Loop.
+        '''
+        next_accesses = []
+        # Loop through the non loop_body children and compute accesses.
+        for child in self.children[0:4]:
+            for ref in child.walk(Reference):
+                var_accesses = ref.next_accesses()
+                self._merge_accesses(next_accesses, var_accesses)
+        for child in self.loop_body:
+            self._merge_accesses(next_accesses, child.next_accesses())
+        return next_accesses
+
+    def previous_accesses(self) -> list[Node]:
+        '''
+        :returns: the combined previous_accesses for the children of this
+            Loop.
+        '''
+        prev_accesses = []
+        # Loop through the non loop_body children and compute accesses.
+        for child in self.children[0:4]:
+            for ref in child.walk(Reference):
+                var_accesses = ref.previous_accesses()
+                self._merge_accesses(prev_accesses, var_accesses)
+        for child in self.loop_body:
+            self._merge_accesses(prev_accesses, child.previous_accesses())
+        return prev_accesses

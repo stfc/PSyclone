@@ -567,6 +567,20 @@ class Routine(Schedule, CommentableMixin):
                 "replaced.")
         super().replace_with(node, keep_name_in_context=keep_name_in_context)
 
+    def next_accesses(self) -> list[Node]:
+        '''
+        :returns: an empty list as PSyclone doesn't know about dependencies
+            that go outside of Routine scope.
+        '''
+        return []
+
+    def previous_accesses(self) -> list[Node]:
+        '''
+        :returns: an empty list as PSyclone doesn't know about dependencies
+            that go outside of Routine scope.
+        '''
+        return []
+
 
 # For automatic documentation generation
 __all__ = ["Routine"]

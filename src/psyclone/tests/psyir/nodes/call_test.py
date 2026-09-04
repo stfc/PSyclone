@@ -13,7 +13,7 @@ from psyclone.configuration import Config
 from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import (
-    ArrayReference, BinaryOperation, Call, Literal,
+    ArrayReference, Assignment, BinaryOperation, Call, Literal,
     Node, Reference, Routine, Schedule, CallMatchingArgumentsNotFound)
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
@@ -2051,3 +2051,41 @@ def test_call_datatype(fortran_reader):
     # TODO #1799: Improve datatype inference, the following one
     # has a definition that says is an ArrayType
     assert isinstance(calls[3].datatype, UnresolvedType)
+
+
+def test_call_next_accesses(fortran_reader):
+    ''' Test the next_accesses method of Call gives the correct results.'''
+    psyir = fortran_reader.psyir_from_source("""
+    subroutine test
+        use some_mod
+        integer :: i, j, k
+        call my_fun(i)
+        j = i
+        i = k
+   end subroutine test""")
+    call = psyir.walk(Call)[0]
+    access = call.next_accesses()
+    assigns = psyir.walk(Assignment)
+    # The result is the 2 following accesses to i.
+    assert len(access) == 2
+    assert access[0] is assigns[0].rhs
+    assert access[1] is assigns[1].lhs
+
+
+def test_call_previous_accesses(fortran_reader):
+    ''' Test the previous_accesses method of Call gives the correct results.'''
+    psyir = fortran_reader.psyir_from_source("""
+    subroutine test
+        use some_mod
+        integer :: i, j, k
+        i = k
+        j = i
+        call my_fun(i)
+   end subroutine test""")
+    call = psyir.walk(Call)[0]
+    access = call.previous_accesses()
+    assigns = psyir.walk(Assignment)
+    # The result is the 2 following accesses to i.
+    assert len(access) == 2
+    assert access[0] is assigns[1].rhs
+    assert access[1] is assigns[0].lhs
