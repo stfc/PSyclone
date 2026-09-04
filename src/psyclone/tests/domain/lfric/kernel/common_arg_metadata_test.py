@@ -117,6 +117,14 @@ def test_get_named_arg():
         Fortran2003.Component_Spec)
     assert test_cls.get_named_arg(fparser_tree2, "red") is None
     assert test_cls.get_named_arg(fparser_tree2, "nlayers") == "crazy"
+    # string value must be a valid Fortran name
+    fparser_tree2 = CommonArgMetadata.create_fparser2(
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, nlayers='crazy horse')",
+        Fortran2003.Component_Spec)
+    with pytest.raises(ValueError) as err:
+        test_cls.get_named_arg(fparser_tree2, "nlayers")
+    assert ("string value assigned to a named metadata element must be a "
+            "valid Fortran name but 'crazy horse' is not" in str(err.value))
     # Named argument with a parameter value
     fparser_tree3 = test_cls.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, mesh=GH_FINE)",

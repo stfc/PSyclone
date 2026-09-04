@@ -1765,12 +1765,14 @@ would be specified as::
 
 Alternatively, it may be given a name, e.g.::
 
-  arg_type(GH_FIELD, GH_REAL, GH_READ, W3, NLAYERS="some name")
+  arg_type(GH_FIELD, GH_REAL, GH_READ, W3, NLAYERS="some_name")
 
 in which case the actual value is obtained at application runtime by
 interrogating the associated LFRic field or operator object. (As a
 consequence, the name used in the metadata does not have to correspond
-to anything in the LFRic infrastructure.)
+to anything in the LFRic infrastructure.) Note that the name must be
+valid as a Fortran variable name. PSyclone will report an error if
+it isn't.
 
 If two or more field/operator arguments are on the same function space
 and have the same number of layers (whether a literal or a name) then
@@ -1794,7 +1796,7 @@ it is known at compile time. Alternatively, it may be a name in which
 case the number of data values at each DoF is determined at runtime by
 querying the field object (in the generated PSy layer). As with ``NLAYERS``,
 this name is just a label and does not have to correspond to anything in the
-LFRic infrastructure.
+LFRic infrastructure. However, it must be valid as a Fortran variable name.
 
 Since the data in an LFRic field object is stored as a 1D array, having more
 than one data value associated with each DoF affects the dofmap. This is

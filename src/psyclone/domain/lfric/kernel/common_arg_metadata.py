@@ -15,7 +15,7 @@ from fparser.two import Fortran2003
 from fparser.two import utils as fp_utils
 
 from psyclone.domain.lfric.kernel.common_metadata import CommonMetadata
-
+from psyclone.psyir.frontend.fortran import FortranReader
 
 class CommonArgMetadata(CommonMetadata):
     '''Class to capture common LFRic kernel argument metadata.'''
@@ -130,13 +130,15 @@ class CommonArgMetadata(CommonMetadata):
         Searches the supplied metadata for 'name=value' expressions and
         returns the value corresponding to the supplied name if found.
         Otherwise returns None. If the value is a string then it is
-        lower-cased.
+        lower-cased and must be a valid Fortran variable name.
 
         :param fparser2_tree: the parse tree of the metadata.
         :param name: the name of the metadata element that we want.
 
         :returns: the value of the named metadata element or None if not found.
 
+        :raises ValueError: if the value is a str but is not a valid Fortran
+                            name.
         '''
         for child in fp_utils.walk(fparser2_tree, Fortran2003.Component_Spec):
             if child.children[0].tostr().lower() == name:
@@ -145,7 +147,15 @@ class CommonArgMetadata(CommonMetadata):
                               Fortran2003.Char_Literal_Constant):
                     # TODO https://github.com/stfc/fparser/issues/295 -
                     # fparser keeps the quotation marks in character strings.
-                    return text[1:-1].lower()
+                    label = text[1:-1].lower()
+                    try:
+                        FortranReader.validate_name(label)
+                    except (ValueError, TypeError) as err:
+                        raise ValueError(
+                            f"A string value assigned to a named metadata "
+                            f"element must be a valid Fortran name but "
+                            f"'{label}' is not.") from err
+                    return label
                 return text
         return None
 

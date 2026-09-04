@@ -194,6 +194,8 @@ def test_ndata_named_values():
     ndata_precip = kernel_interface._symtab.lookup("ndata_precip")
     assert isinstance(ndata_precip,
                       LFRicTypes("NumberOfValuesPerDofDataSymbol"))
+    assert isinstance(ndata_precip.interface, ArgumentInterface)
+    assert ndata_precip.interface.access == ArgumentInterface.Access.READ
     # Ensure it appears only once even if used multiple times
     assert kernel_interface._arglist.count(ndata_precip) == 1
 

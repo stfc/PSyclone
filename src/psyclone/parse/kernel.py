@@ -27,6 +27,7 @@ import psyclone.expression as expr
 from psyclone.errors import InternalError
 from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
 from psyclone.parse.utils import check_api, check_line_length, ParseError
+from psyclone.psyir.frontend.fortran import FortranReader
 
 
 def get_kernel_filepath(module_name, kernel_paths, alg_filename):
@@ -381,6 +382,7 @@ def get_char_value(metadata: expr.NamedArg,
         a named argument for the specified keyword.
     :raises ParseError: if the value associated with the keyword is
         not provided as a string.
+    :raises ParseError: if the value is not a number or valid Fortran name.
 
     '''
     if (not isinstance(metadata, expr.NamedArg) or
@@ -392,8 +394,18 @@ def get_char_value(metadata: expr.NamedArg,
         raise ParseError(
             f"The value of {keyword} must be specified as a quoted string "
             f"but got {metadata}")
+    result = metadata.value.lower()
 
-    return metadata.value.lower()
+    if not result.isnumeric():
+        try:
+            FortranReader.validate_name(result)
+        except (ValueError, TypeError) as err:
+            raise ParseError(
+                f"A string value assigned to {keyword} must be a valid "
+                f"Fortran name but '{result}' is not."
+            ) from err
+
+    return result
 
 
 class Descriptor():

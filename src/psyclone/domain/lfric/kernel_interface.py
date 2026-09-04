@@ -168,7 +168,8 @@ class KernelInterface(ArgOrdering):
             if arg.ndata and not arg.ndata.isnumeric():
                 sym = self._symtab.find_or_create_tag(
                     f"ndata_{arg.ndata}",
-                    symbol_type=LFRicTypes("NumberOfValuesPerDofDataSymbol"))
+                    symbol_type=LFRicTypes("NumberOfValuesPerDofDataSymbol"),
+                    interface=self._read_access)
                 if sym not in self._arglist:
                     self._arglist.append(sym)
 
