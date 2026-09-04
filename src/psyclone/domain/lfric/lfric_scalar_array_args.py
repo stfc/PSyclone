@@ -222,7 +222,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
                                            rhs=shape_call)
                 if first:
                     assign.preceding_comment = (
-                        "Store dimensions of ScalarArray arguments.")
+                        "Store dimensions of ScalarArray arguments")
                     first = False
                 self._invoke.schedule.addchild(assign, cursor)
                 cursor += 1

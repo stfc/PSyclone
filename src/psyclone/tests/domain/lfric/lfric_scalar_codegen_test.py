@@ -604,6 +604,14 @@ def test_scalar_array(tmpdir, dist_mem):
     )
     assert expected_local_declns in generated_code
 
+    expected_init = (
+        "    ! Store dimensions of ScalarArray arguments\n"
+        "    dims_real_array = SHAPE(real_array)\n"
+        "    dims_logical_array = SHAPE(logical_array)\n"
+        "    dims_integer_array_1 = SHAPE(integer_array)\n"
+    )
+    assert expected_init in generated_code
+
     expected_calls = (
         "    do cell = loop0_start, loop0_stop, 1\n"
         "      call testkern_scalar_array_code(nlayers_f1, f1_data, "
