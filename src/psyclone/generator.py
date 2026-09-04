@@ -1005,5 +1005,8 @@ def code_transformation_mode(input_file: str,
             print(f"File '{input_file}' skipped because it is listed in "
                   "FILES_TO_SKIP.", file=sys.stdout)
 
-    # TODO #3514: proper cleanup using with
-    del sys.path[0]
+    # load_script() prepends the script directory to sys.path. Only remove it
+    # when a script was actually loaded.
+    if script_name:
+        # TODO #3514: proper cleanup using with
+        del sys.path[0]
