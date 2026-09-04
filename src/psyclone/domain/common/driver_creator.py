@@ -10,7 +10,7 @@ implementations.
 '''
 
 from abc import abstractmethod
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from psyclone.core import Signature
 from psyclone.line_length import FortLineLength
@@ -25,7 +25,9 @@ from psyclone.psyir.symbols import (
     ScalarType, ContainerSymbol, DataTypeSymbol, ImportInterface,
     NoType, RoutineSymbol, DataSymbol, UnsupportedFortranType,
     Symbol, AutomaticInterface, UnresolvedType, SymbolTable)
-from psyclone.psyir.tools import ReadWriteInfo
+
+if TYPE_CHECKING:
+    from psyclone.psyir.tools import ReadWriteInfo
 
 
 class DriverCreator:
