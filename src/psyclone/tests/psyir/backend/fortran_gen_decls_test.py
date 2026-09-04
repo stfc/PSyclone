@@ -153,8 +153,16 @@ def test_gen_decls(fortran_writer):
     symbol_table.add(use_statement)
     local_variable = DataSymbol("local", ScalarType.integer_type())
     symbol_table.add(local_variable)
-    dtype = StructureType.create([
-        ("flag", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None)])
+    dtype = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "flag",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            )
+        ]
+    )
     dtype_variable = DataTypeSymbol("field", dtype)
     symbol_table.add(dtype_variable)
     grid_type = DataTypeSymbol("grid_type", UnresolvedType(),
