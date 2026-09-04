@@ -2060,9 +2060,16 @@ def test_datatypesymbols():
     correct symbols. '''
     sym_table = symbols.SymbolTable()
     assert sym_table.datatypesymbols == []
-    region_type = symbols.StructureType.create([
-        ("startx", symbols.ScalarType.integer_type(),
-         symbols.Symbol.Visibility.PUBLIC, None)])
+    region_type = symbols.StructureType.create(
+        [
+            symbols.StructureType.ComponentType(
+                "startx",
+                symbols.ScalarType.integer_type(),
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            )
+        ]
+    )
     region_sym = symbols.DataTypeSymbol("region_type", region_type)
     sym_table.add(region_sym)
     # Add other symbol types
