@@ -332,17 +332,6 @@ def test_get_non_local_read_write_info_errors(caplog):
     routine = cntr.find_routine_psyir("testkern_import_symbols_code")
     # Remove the kernel routine from the PSyIR.
     routine.detach()
-
-    rw_info = ReadWriteInfo()
-    with caplog.at_level(logging.WARNING, logger=TEST_LOGGER):
-        ctu.get_non_local_read_write_info(schedule, rw_info)
-    assert (f"Could not get PSyIR for Routine 'testkern_import_symbols_code' "
-            f"from module '{kernels[0].module_name}' as no possible"
-            in caplog.text)
-
-    # Add a RoutineSymbol back into the symbol table to mimic a CodeBlock
-    # representing the routine.
-    cntr.symbol_table.add(RoutineSymbol("testkern_import_symbols_code"))
     rw_info = ReadWriteInfo()
     with caplog.at_level(logging.WARNING, logger=TEST_LOGGER):
         ctu.get_non_local_read_write_info(schedule, rw_info)
@@ -355,6 +344,33 @@ def test_get_non_local_read_write_info_errors(caplog):
         ctu.get_non_local_read_write_info(schedule, rw_info)
     assert (f"Could not get PSyIR for module '{kernels[0].module_name}'"
             in caplog.text)
+
+
+@pytest.mark.usefixtures("clear_module_manager_instance")
+def test_get_non_local_read_write_info_no_possible_routines(caplog,
+                                                            monkeypatch):
+    '''Test the handling of a kernel for which routine resolution finds no
+    possible routines in the module PSyIR.
+    '''
+    Config.get().api = "lfric"
+    test_file = os.path.join("driver_creation", "module_with_builtin_mod.f90")
+    psyir, _ = get_invoke(test_file, "lfric", 0, dist_mem=False)
+    schedule = psyir.invokes.invoke_list[0].schedule
+    kernel = schedule.walk(Kern)[0]
+
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path(os.path.join(get_base_path("lfric"),
+                                         "driver_creation"))
+    cntr = mod_man.get_module_info(kernel.module_name).get_psyir()
+    monkeypatch.setattr(cntr, "resolve_routine", lambda _: [])
+
+    with caplog.at_level(logging.WARNING, logger=TEST_LOGGER):
+        CallTreeUtils().get_non_local_read_write_info(
+            schedule, ReadWriteInfo())
+
+    assert (f"Could not get PSyIR for Routine '{kernel.name}' from module "
+            f"'{kernel.module_name}' as no possible routines  were found - "
+            "ignored." in caplog.text)
 
 
 # -----------------------------------------------------------------------------
