@@ -48,12 +48,12 @@ def test_field(tmpdir):
         "  contains\n"
         "  subroutine invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
         "    use constants_mod, only : i_def\n"
+        "    integer(kind=i_def) :: cell\n"
         "    real(kind=r_def), intent(in) :: a\n"
         "    type(field_type), intent(in) :: f1\n"
         "    type(field_type), intent(in) :: f2\n"
         "    type(field_type), intent(in) :: m1\n"
         "    type(field_type), intent(in) :: m2\n"
-        "    integer(kind=i_def) :: cell\n"
         "    real(kind=r_def), pointer, dimension(:) :: f1_data => null()\n"
         "    real(kind=r_def), pointer, dimension(:) :: f2_data => null()\n"
         "    real(kind=r_def), pointer, dimension(:) :: m1_data => null()\n"
@@ -147,12 +147,12 @@ def test_field_deref(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output = (
+        "    integer(kind=i_def) :: cell\n"
         "    real(kind=r_def), intent(in) :: a\n"
         "    type(field_type), intent(in) :: f1\n"
         "    type(field_type), intent(in) :: est_f2\n"
         "    type(field_type), intent(in) :: m1\n"
         "    type(field_type), intent(in) :: est_m2\n"
-        "    integer(kind=i_def) :: cell\n"
     )
     assert output in generated_code
     output = (
@@ -292,6 +292,7 @@ module single_invoke_fs_psy
 f6, m5, m6, m7)
     use mesh_mod, only : mesh_type
     use constants_mod, only : i_def
+    integer(kind=i_def) :: cell
     type(field_type), intent(in) :: f1
     type(field_type), intent(in) :: f2
     type(field_type), intent(in) :: m1
@@ -305,7 +306,6 @@ f6, m5, m6, m7)
     type(field_type), intent(in) :: m5
     type(field_type), intent(in) :: m6
     type(field_type), intent(in) :: m7
-    integer(kind=i_def) :: cell
     type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: max_halo_depth_mesh
     real(kind=r_def), pointer, dimension(:) :: f1_data => null()
@@ -637,8 +637,8 @@ def test_int_field_fs(tmpdir):
   contains
   subroutine invoke_0_testkern_fs_int_field_type({', '.join(fld_names)})
     use mesh_mod, only : mesh_type
-{decln_text}
     integer(kind=i_def) :: cell
+{decln_text}
     type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: max_halo_depth_mesh
 {ptrs_text}

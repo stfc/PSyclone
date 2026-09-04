@@ -58,9 +58,9 @@ class HoistLocalArraysTrans(Transformation):
     <BLANKLINE>
       contains
       subroutine test_sub(n)
-        integer :: n
         integer :: i
         integer :: j
+        integer :: n
         real, save :: value = 1.0
     <BLANKLINE>
         if (.not.allocated(a) .or. ubound(a, dim=1) /= n .or. \
