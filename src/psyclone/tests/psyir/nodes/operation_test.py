@@ -359,10 +359,19 @@ def test_binaryop_structure_datatype():
 
     '''
     arrtype = ArrayType(ScalarType.real_single_type(), [10, 5])
-    stype = StructureType.create([
-        ("nx", ScalarType.integer_single_type(),
-         Symbol.Visibility.PUBLIC, None),
-        ("data", arrtype, Symbol.Visibility.PUBLIC, None)])
+    stype = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "nx",
+                ScalarType.integer_single_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            StructureType.ComponentType(
+                "data", arrtype, Symbol.Visibility.PUBLIC, None
+            ),
+        ]
+    )
     sym1 = DataSymbol("field", stype)
     ref1 = StructureReference.create(sym1, ["nx"])
     oper = BinaryOperation.Operator.SUB

@@ -26,21 +26,49 @@ def create_structure_symbol(table):
     :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
     '''
-    region_type = symbols.StructureType.create([
-        ("nx", symbols.ScalarType.integer_type(),
-         symbols.Symbol.Visibility.PUBLIC, None),
-        ("ny", symbols.ScalarType.integer_type(),
-         symbols.Symbol.Visibility.PUBLIC, None),
-        ("domain", symbols.DataTypeSymbol("dom_type",
-                                          symbols.UnresolvedType()),
-         symbols.Symbol.Visibility.PUBLIC, None)])
+    region_type = symbols.StructureType.create(
+        [
+            symbols.StructureType.ComponentType(
+                "nx",
+                symbols.ScalarType.integer_type(),
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            symbols.StructureType.ComponentType(
+                "ny",
+                symbols.ScalarType.integer_type(),
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            symbols.StructureType.ComponentType(
+                "domain",
+                symbols.DataTypeSymbol("dom_type", symbols.UnresolvedType()),
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
     region_type_sym = symbols.DataTypeSymbol("grid_type", region_type)
     region_array_type = symbols.ArrayType(region_type_sym, [2, 2])
-    grid_type = symbols.StructureType.create([
-        ("dx", symbols.ScalarType.integer_type(),
-         symbols.Symbol.Visibility.PUBLIC, None),
-        ("area", region_type_sym, symbols.Symbol.Visibility.PUBLIC, None),
-        ("levels", region_array_type, symbols.Symbol.Visibility.PUBLIC, None)])
+    grid_type = symbols.StructureType.create(
+        [
+            symbols.StructureType.ComponentType(
+                "dx",
+                symbols.ScalarType.integer_type(),
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            symbols.StructureType.ComponentType(
+                "area", region_type_sym, symbols.Symbol.Visibility.PUBLIC, None
+            ),
+            symbols.StructureType.ComponentType(
+                "levels",
+                region_array_type,
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
     grid_type_sym = symbols.DataTypeSymbol("grid_type", grid_type)
     grid_var = symbols.DataSymbol("grid", grid_type_sym)
     table.add(grid_type_sym)
