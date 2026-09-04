@@ -9,12 +9,6 @@
 import sys
 from typing import Iterable, Optional, Union
 
-from fparser.two.Fortran2003 import (
-    Cycle_Stmt,
-    Exit_Stmt,
-    Goto_Stmt,
-)
-
 from psyclone.core import Signature
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
@@ -542,22 +536,15 @@ class DefinitionUseChain:
         # CodeBlocks only find symbols, so we can only do as good
         # as checking the symbol - this means we can get false
         # positives for structure accesses inside CodeBlocks.
-        # TODO #3568: Codeblocks should have an implemented method
-        # to check for the presence of Goto statements.
-        if any([isinstance(node, Goto_Stmt) for node in
-                reference.parse_tree_nodes]):
+        if reference.contains_goto_stmt():
             raise NotImplementedError(
                 "DefinitionUseChains can't handle code containing"
                 " GOTO statements."
             )
         # If we find an Exit or Cycle statement, we can't
         # reach further in this code region so we can return.
-        # TODO #3568: Codeblocks should have implemented methods
-        # to check for the presence of these statements.
-        if any([isinstance(
-            ref, (Exit_Stmt, Cycle_Stmt)) for ref in
-            reference.parse_tree_nodes]
-        ):
+        if (reference.contains_exit_stmt() or
+                reference.contains_cycle_stmt()):
             return True
 
         for i, ref in enumerate(self._references[:]):
@@ -1199,12 +1186,8 @@ class DefinitionUseChain:
                 if isinstance(reference, Return):
                     stop_position = min(reference.abs_position, stop_position)
                 if isinstance(reference, CodeBlock):
-                    # TODO #3568: Codeblocks should have implemented methods
-                    # to check for the presence of these statements.
-                    if any([isinstance(
-                        ref, (Exit_Stmt, Cycle_Stmt)) for ref in
-                        reference.parse_tree_nodes]
-                    ):
+                    if (reference.contains_exit_stmt() or
+                            reference.contains_cycle_stmt()):
                         stop_position = min(
                             reference.abs_position, stop_position
                         )
@@ -1229,10 +1212,7 @@ class DefinitionUseChain:
                     # CodeBlocks only find symbols, so we can only do as good
                     # as checking the symbol - this means we can get false
                     # positives for structure accesses inside CodeBlocks.
-                    # TODO #3568: Codeblocks should have an implemented method
-                    # to check for the presence of just Goto statements.
-                    if any([isinstance(node, Goto_Stmt) for node in
-                            reference.parse_tree_nodes]):
+                    if reference.contains_goto_stmt():
                         raise NotImplementedError(
                             "DefinitionUseChains can't handle code containing"
                             " GOTO statements."

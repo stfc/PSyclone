@@ -8,9 +8,10 @@
 ''' This module contains the CodeBlock node implementation.'''
 
 from __future__ import annotations
+import abc
 import re
 from enum import Enum
-from typing import Optional, Any, Union
+from typing import Optional, Any, Union, Iterable
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature, VariablesAccessMap
@@ -227,6 +228,42 @@ class CodeBlock(Statement, DataNode):
             return []
         raise NotImplementedError("Use appropriate CodeBlock subclass")
 
+    @abc.abstractmethod
+    def contains_goto_stmt(self, only: bool = False) -> bool:
+        '''
+        :param only: whether to check if the only statement containined
+            in this CodeBlock is a GOTO statement.
+
+        :returns: whether the Codeblock contains a GOTO statement.
+        '''
+
+    @abc.abstractmethod
+    def contains_exit_stmt(self, only: bool = False) -> bool:
+        '''
+        :param only: whether to check if the only statement containined
+            in this CodeBlock is a EXIT statement.
+
+        :returns: whether the Codeblock contains an EXIT statement.
+        '''
+
+    @abc.abstractmethod
+    def contains_cycle_stmt(self, only: bool = False) -> bool:
+        '''
+        :param only: whether to check if the only statement containined
+            in this CodeBlock is a CYCLE statement.
+
+        :returns: whether the Codeblock contains a CYCLE statement.
+        '''
+
+    @abc.abstractmethod
+    def contains_stop_stmt(self, only: bool = False) -> bool:
+        '''
+        :param only: whether to check if the only statement containined
+            in this CodeBlock is a STOP statement.
+
+        :returns: whether the Codeblock contains a STOP statement.
+        '''
+
 
 class Fparser2CodeBlock(CodeBlock):
     ''' The fparser2 implementation of CodeBlock. '''
@@ -250,7 +287,7 @@ class Fparser2CodeBlock(CodeBlock):
         else:
             structure = CodeBlock.Structure.STATEMENT
 
-        # Purposely inlined to lazily load this modules only when needed
+        # Purposely inlined to lazily load this module only when needed
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.frontend.fparser2 import Fparser2Reader
         reader = Fparser2Reader()
@@ -278,7 +315,7 @@ class Fparser2CodeBlock(CodeBlock):
 
         :returns: the symbol names used inside the CodeBock.
         '''
-        # Purposely inlined to lazily load this modules only when needed
+        # Purposely inlined to lazily load this module only when needed
         # pylint: disable=import-outside-toplevel
         from fparser.two import Fortran2003, pattern_tools
         from fparser.two.utils import walk
@@ -356,7 +393,7 @@ class Fparser2CodeBlock(CodeBlock):
         :returns: whether this CodeBlock contains a potential control flow
                   jump, e.g. GOTO, EXIT or a labeled statement.
         '''
-        # Purposely inlined to lazily load this modules only when needed
+        # Purposely inlined to lazily load this module only when needed
         # pylint: disable=import-outside-toplevel
         from fparser.two import Fortran2003
         from fparser.two.utils import walk
@@ -387,6 +424,82 @@ class Fparser2CodeBlock(CodeBlock):
             output.extend(node.tofortran().split("\n"))
         return output
 
+    def _contains_stmt(self, stmt_cls: Union[type, Iterable[type]],
+                       only: bool = False) -> bool:
+        '''
+        :param stmt_cls: the class or classes to check if is contains in this
+            CodeBlock's _parse_tree_nodes.
+        :param only: whether to check if the only statement containined
+            in this CodeBlock is a statement of the input stmt_cls.
+
+        :returns: whether the Codeblock contains a statement of (any of) the
+            stmt_cls type.
+        '''
+        # Purposely inlined to lazily load this module only when needed
+        # pylint: disable=import-outside-toplevel
+        from fparser.two.utils import walk
+        # If we want to match exactly the stmt_cls, then we
+        # need to have only one element in the _parse_tree_nodes
+        # and it needs to be a stmt_cls.
+        if only:
+            return (len(self._parse_tree_nodes) == 1 and
+                    isinstance(self._parse_tree_nodes[0],
+                               stmt_cls))
+        # Otherwise we check for the presence of any stmt_cls.
+        for node in self._parse_tree_nodes:
+            if walk(node, stmt_cls):
+                return True
+        return False
+
+    def contains_goto_stmt(self, only: bool = False) -> bool:
+        '''
+        :param only: whether to check if the only statement containined
+            in this CodeBlock is a GOTO statement.
+
+        :returns: whether the Codeblock contains a GOTO statement.
+        '''
+        # Purposely inlined to lazily load this module only when needed
+        # pylint: disable=import-outside-toplevel
+        from fparser.two import Fortran2003
+        return self._contains_stmt(Fortran2003.Goto_Stmt, only=only)
+
+    def contains_exit_stmt(self, only: bool = False) -> bool:
+        '''
+        :param only: whether to check if the only statement containined
+            in this CodeBlock is an EXIT statement.
+
+        :returns: whether the Codeblock contains an EXIT statement.
+        '''
+        # Purposely inlined to lazily load this module only when needed
+        # pylint: disable=import-outside-toplevel
+        from fparser.two import Fortran2003
+        return self._contains_stmt(Fortran2003.Exit_Stmt, only=only)
+
+    def contains_cycle_stmt(self, only: bool = False) -> bool:
+        '''
+        :param only: whether to check if the only statement containined
+            in this CodeBlock is a CYCLE statement.
+
+        :returns: whether the Codeblock contains a CYCLE statement.
+        '''
+        # Purposely inlined to lazily load this module only when needed
+        # pylint: disable=import-outside-toplevel
+        from fparser.two import Fortran2003
+        return self._contains_stmt(Fortran2003.Cycle_Stmt, only=only)
+
+    def contains_stop_stmt(self, only: bool = False) -> bool:
+        '''
+        :param only: whether to check if the only statement containined
+            in this CodeBlock is a STOP statement.
+
+        :returns: whether the Codeblock contains a STOP statement.
+        '''
+        # Purposely inlined to lazily load this module only when needed
+        # pylint: disable=import-outside-toplevel
+        from fparser.two import Fortran2003, Fortran2008
+        return self._contains_stmt((Fortran2003.Stop_Stmt,
+                                    Fortran2008.Error_Stop_Stmt), only=only)
+
 
 class TreeSitterCodeBlock(CodeBlock):
     ''' The treesitter implementation of CodeBlock. '''
@@ -409,7 +522,7 @@ class TreeSitterCodeBlock(CodeBlock):
         else:
             structure = CodeBlock.Structure.STATEMENT
 
-        # Purposely inlined to lazily load this modules only when needed
+        # Purposely inlined to lazily load this module only when needed
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.frontend.fortran_treesitter_reader import \
             FortranTreeSitterReader
@@ -433,3 +546,39 @@ class TreeSitterCodeBlock(CodeBlock):
         '''
         # TODO #3083: Treesitter support is incomplete
         return []
+
+    def contains_goto_stmt(self) -> bool:
+        '''
+        :returns: whether the Codeblock contains a GOTO statement.
+
+        :raises NotImplementedError: when called.
+        '''
+        # TODO #3083: Treesitter support is incomplete
+        raise NotImplementedError("Treesitter support is incomplete.")
+
+    def contains_exit_stmt(self) -> bool:
+        '''
+        :returns: whether the Codeblock contains an EXIT statement.
+
+        :raises NotImplementedError: when called.
+        '''
+        # TODO #3083: Treesitter support is incomplete
+        raise NotImplementedError("Treesitter support is incomplete.")
+
+    def contains_cycle_stmt(self) -> bool:
+        '''
+        :returns: whether the Codeblock contains a CYCLE statement.
+
+        :raises NotImplementedError: when called.
+        '''
+        # TODO #3083: Treesitter support is incomplete
+        raise NotImplementedError("Treesitter support is incomplete.")
+
+    def contains_stop_stmt(self) -> bool:
+        '''
+        :returns: whether the Codeblock contains a STOP statement.
+
+        :raises NotImplementedError: when called.
+        '''
+        # TODO #3083: Treesitter support is incomplete
+        raise NotImplementedError("Treesitter support is incomplete.")
