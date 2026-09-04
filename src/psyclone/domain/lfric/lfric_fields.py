@@ -106,7 +106,7 @@ class LFRicFields(LFRicCollection):
             fld_kind = fld.precision
 
             # Check for invalid descriptor data type
-            fld_ad_dtype = fld.descriptor.data_type
+            fld_ad_dtype = fld.metadata_datatype
             if fld_ad_dtype not in const.VALID_FIELD_DATA_TYPES:
                 raise InternalError(
                     f"Found an unsupported data type '{fld_ad_dtype}' in "

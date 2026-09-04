@@ -14,18 +14,17 @@ import copy
 import os
 import pytest
 
-from fparser import api as fpapi
 
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
-                                   LFRicKern, LFRicKernMetadata)
-from psyclone.lfric import LFRicFuncDescriptor, FunctionSpace
+from psyclone.domain.lfric import LFRicConstants, LFRicKern
+from psyclone.lfric import FunctionSpace
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, args_filter
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import create_lfric_metadata
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir import symbols
 
@@ -38,7 +37,7 @@ TEST_API = "lfric"
 CODE = '''
 module testkern_qr
   type, extends(kernel_type) :: testkern_qr_type
-     type(arg_type), meta_args(6) =                              &
+     type(arg_type), dimension(6) :: meta_args =                              &
           (/ arg_type(gh_scalar,   gh_real,    gh_read),         &
              arg_type(gh_field,    gh_real,    gh_inc,  w1),     &
              arg_type(gh_field,    gh_real,    gh_read, w2),     &
@@ -57,8 +56,8 @@ module testkern_qr
      procedure, nopass :: code => testkern_qr_code
   end type testkern_qr_type
 contains
-  subroutine testkern_qr_code(a, b ,c, d)
-  end subroutine testkern_qr_code
+  subroutine testkern_qr_code()
+end subroutine testkern_qr_code
 end module testkern_qr
 '''
 
@@ -77,285 +76,214 @@ def test_get_op_wrong_name():
     assert "Unsupported name 'not_an_op' found" in str(err.value)
 
 
-def test_ad_op_type_invalid_data_type():
+def test_ad_op_type_invalid_data_type(fortran_reader):
     ''' Tests that an error is raised when the argument descriptor
     metadata for an operator has an invalid data type. '''
     code = CODE.replace(
         "arg_type(gh_operator, gh_real,    gh_read, w2, w2)",
-        "arg_type(gh_operator, gh_clear,    gh_read, w2)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+        "arg_type(gh_operator, gh_clear,    gh_read, w2, w2)", 1)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_qr_type"
-    const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert (f"In the LFRic API the 2nd argument of a 'meta_arg' entry should "
-            f"be a valid data type (one of {const.VALID_SCALAR_DATA_TYPES}), "
-            f"but found 'gh_clear' in 'arg_type(gh_operator, gh_clear, "
-            f"gh_read, w2)'." in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "operator datatype descriptor" in str(excinfo.value)
+    assert "'gh_clear'" in str(excinfo.value)
 
 
-def test_ad_op_type_too_few_args():
+def test_ad_op_type_too_few_args(fortran_reader):
     ''' Tests that an error is raised when the operator descriptor
     metadata has fewer than 5 args. '''
     code = CODE.replace(
         "arg_type(gh_operator, gh_real,    gh_read, w2, w2)",
         "arg_type(gh_operator, gh_real,    gh_read, w2)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    const = LFRicConstants()
-    assert (f"'meta_arg' entry must have 5 arguments if its first "
-            f"argument is an operator (one of {const.VALID_OPERATOR_NAMES})"
-            in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "Operator metadata must have five arguments" in str(excinfo.value)
 
 
-def test_ad_op_type_too_many_args():
+def test_ad_op_type_too_many_args(fortran_reader):
     ''' Tests that an error is raised when the operator descriptor
     metadata has more than 5 args. '''
     code = CODE.replace(
         "arg_type(gh_operator, gh_real,    gh_read, w2, w2)",
         "arg_type(gh_operator, gh_real,    gh_read, w2, w2, w2)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert "'meta_arg' entry must have 5 arguments" in str(excinfo.value)
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "Operator metadata must have five arguments" in str(excinfo.value)
 
 
-def test_ad_op_type_4th_arg_not_space():
+def test_ad_op_type_4th_arg_not_space(fortran_reader):
     ''' Tests that an error is raised when the 4th entry in the operator
     metadata contains something that is not a valid function space. '''
     code = CODE.replace(
         "arg_type(gh_operator, gh_real,    gh_read, w2, w2)",
         "arg_type(gh_operator, gh_real,    gh_read, wbroke, w2)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("LFRic API argument 4 of a 'meta_arg' operator entry "
-            "must be a valid function-space name" in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "function_space_to" in str(excinfo.value)
+    assert "'wbroke'" in str(excinfo.value)
 
 
-def test_ad_op_type_5th_arg_not_space():
+def test_ad_op_type_5th_arg_not_space(fortran_reader):
     ''' Tests that an error is raised when the 5th entry in the operator
     metadata contains something that is not a valid function space. '''
     code = CODE.replace(
         "arg_type(gh_operator, gh_real,    gh_read, w2, w2)",
         "arg_type(gh_operator, gh_real,    gh_read, w2, wbroke)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("LFRic API argument 5 of a 'meta_arg' operator entry "
-            "must be a valid function-space name" in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "function_space_from" in str(excinfo.value)
+    assert "'wbroke'" in str(excinfo.value)
 
 
-def test_no_vector_operator():
+def test_no_vector_operator(fortran_reader):
     ''' Test that we raise an error when kernel metadata erroneously
     specifies a vector operator argument. '''
     code = CODE.replace(
         "arg_type(gh_operator, gh_real,    gh_read, w2, w2)",
         "arg_type(gh_operator*3, gh_real,    gh_read, w2, w2)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("vector notation is only supported for ['gh_field'] "
-            "argument types but found 'gh_operator * 3'" in
-            str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "Vector notation is only supported for gh_field" in str(
+        excinfo.value)
+    assert "'gh_operator'" in str(excinfo.value)
 
 
-def test_ad_op_type_init_wrong_argument_type():
-    ''' Test that an error is raised if something other than an operator
-    is passed to the LFRicArgDescriptor._init_operator() method. '''
-    ast = fpapi.parse(CODE, ignore_comments=False)
-    name = "testkern_qr_type"
-    metadata = LFRicKernMetadata(ast, name=name)
-    # Get an argument which is not an operator
-    wrong_arg = metadata._inits[1]
-    with pytest.raises(InternalError) as excinfo:
-        LFRicArgDescriptor(
-            wrong_arg, metadata.iterates_over, 0)._init_operator(wrong_arg)
-    assert ("Expected an operator argument but got an argument of type "
-            "'gh_field'." in str(excinfo.value))
-
-
-def test_ad_op_type_init_wrong_data_type():
-    ''' Test that an error is raised if an invalid data type
-    is passed to the LFRicArgDescriptor._init_operator() method. '''
-    ast = fpapi.parse(CODE, ignore_comments=False)
-    name = "testkern_qr_type"
-    metadata = LFRicKernMetadata(ast, name=name)
-    # Get an operator argument descriptor and set a wrong data type
-    op_arg = metadata._inits[3]
-    op_arg.args[1].name = "gh_integer"
-    with pytest.raises(ParseError) as excinfo:
-        LFRicArgDescriptor(
-            op_arg, metadata.iterates_over, 0)._init_operator(op_arg)
-    const = LFRicConstants()
-    assert (f"In the LFRic API the allowed data types for operator "
-            f"arguments are one of {const.VALID_OPERATOR_DATA_TYPES}, but "
-            f"found 'gh_integer' in 'arg_type(gh_operator, gh_integer, "
-            f"gh_read, w2, w2)'." in str(excinfo.value))
-
-
-def test_ad_op_type_wrong_access():
+def test_ad_op_type_wrong_access(fortran_reader):
     ''' Test that an error is raised if an operator has 'gh_inc' access. '''
     code = CODE.replace(
         "arg_type(gh_operator, gh_real,    gh_read, w2, w2)",
         "arg_type(gh_operator, gh_real,    gh_inc, w2, w2)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("In the LFRic API, allowed accesses for operators are "
-            "['gh_read', 'gh_write', 'gh_readwrite'] because they behave "
-            "as discontinuous quantities, but found 'gh_inc'" in
-            str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "operator access descriptor" in str(excinfo.value)
+    assert "'gh_inc'" in str(excinfo.value)
 
 
-def test_ad_op_invalid_field_data_type():
+def test_ad_op_invalid_field_data_type(fortran_reader):
     ''' Check that we raise the expected error if the metadata for a kernel
     that has an LMA operator argument contains a field argument with an
     invalid data type (other than 'gh_real'). '''
     code = CODE.replace(
         "arg_type(gh_field,    gh_real,    gh_read, w3)",
         "arg_type(gh_field,    gh_integer, gh_read, w3)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("In the LFRic API a kernel that has an LMA operator argument "
-            "must only have field arguments with 'gh_real' data type but "
-            "kernel 'testkern_qr_type' has a field argument with "
-            "'gh_integer' data type." in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert ("A kernel with an operator argument must only contain "
+            "real-valued field arguments" in str(excinfo.value))
 
 
-def test_arg_descriptor_op():
-    ''' Test that the LFRicArgDescriptor argument representation works
+def test_arg_descriptor_op(fortran_reader):
+    ''' Test that the typed argument-metadata representation works
     as expected when we have an operator. '''
-    ast = fpapi.parse(CODE, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(CODE)
     name = "testkern_qr_type"
-    metadata = LFRicKernMetadata(ast, name=name)
-    operator_descriptor = metadata.arg_descriptors[3]
+    metadata = create_lfric_metadata(psyir, name=name)
+    operator_descriptor = metadata.meta_args[3]
 
-    # Assert correct string representation from LFRicArgDescriptor
-    result = str(operator_descriptor)
-    expected_output = (
-        "LFRicArgDescriptor object\n"
-        "  argument_type[0]='gh_operator'\n"
-        "  data_type[1]='gh_real'\n"
-        "  access_descriptor[2]='gh_read'\n"
-        "  function_space_to[3]='w2'\n"
-        "  function_space_from[4]='w2'\n")
-    assert expected_output in result
-
-    # Check LFRicArgDescriptor argument properties
-    assert operator_descriptor.argument_type == "gh_operator"
-    assert operator_descriptor.data_type == "gh_real"
+    assert operator_descriptor.form == "gh_operator"
+    assert operator_descriptor.datatype == "gh_real"
     assert operator_descriptor.function_space_to == "w2"
     assert operator_descriptor.function_space_from == "w2"
-    assert operator_descriptor.function_space == "w2"
-    assert operator_descriptor.function_spaces == ['w2', 'w2']
-    assert str(operator_descriptor.access) == "READ"
-    assert operator_descriptor.mesh is None
-    assert operator_descriptor.stencil is None
-    assert operator_descriptor.vector_size == 1
+    assert operator_descriptor.access == "gh_read"
+    assert operator_descriptor.fortran_string() == (
+        "arg_type(gh_operator, gh_real, gh_read, w2, w2)")
 
 
-def test_fs_descriptor_wrong_type():
+def test_fs_descriptor_wrong_type(fortran_reader):
     ''' Tests that an error is raised when the function space descriptor
     metadata is not of type func_type. '''
     code = CODE.replace("func_type(w2", "funced_up_type(w2", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("'meta_funcs' metadata must consist of an array of structure "
-            "constructors, all of type 'func_type'" in str(excinfo.value))
-    # Check that the LFRicFuncDescriptor rejects it too
-
-    class FakeCls():
-        ''' Class that just has a name property (which is not "func_type") '''
-        name = "not-func-type"
-
-    with pytest.raises(ParseError) as excinfo:
-        LFRicFuncDescriptor(FakeCls())
-    assert ("each meta_func entry must be of type 'func_type' but found "
-            in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "Each meta_funcs entry must use the func_type constructor" in str(
+        excinfo.value)
 
 
-def test_fs_descriptor_too_few_args():
+def test_fs_descriptor_too_few_args(fortran_reader):
     ''' Tests that an error is raised when there are two few arguments in
     the function space descriptor metadata (must be at least 2). '''
     code = CODE.replace("w1, gh_basis", "w1", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert 'meta_func entry must have at least 2 args' in str(excinfo.value)
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "func_type requires a function space" in str(excinfo.value)
 
 
-def test_fs_desc_invalid_fs_type():
+def test_fs_desc_invalid_fs_type(fortran_reader):
     ''' Tests that an error is raised when an invalid function space name
     is provided as the first argument. '''
     code = CODE.replace("w3, gh_basis", "w4, gh_basis", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert '1st argument of a meta_func entry should be a valid function ' + \
-        'space name' in str(excinfo.value)
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "meta_funcs function space" in str(excinfo.value)
+    assert "'w4'" in str(excinfo.value)
 
 
-def test_fs_desc_replicated_fs_type():
+def test_fs_desc_replicated_fs_type(fortran_reader):
     ''' Tests that an error is raised when a function space name
     is replicated. '''
     code = CODE.replace("w3, gh_basis", "w1, gh_basis", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert "function spaces specified in 'meta_funcs' must be unique" \
-        in str(excinfo.value)
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "Function space 'w1' is repeated in meta_funcs" in str(
+        excinfo.value)
 
 
-def test_fs_desc_invalid_op_type():
+def test_fs_desc_invalid_op_type(fortran_reader):
     ''' Tests that an error is raised when an invalid function space
     operator name is provided as an argument. '''
     code = CODE.replace("w2, gh_diff_basis", "w2, gh_dif_basis", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert '2nd argument and all subsequent arguments of a meta_func ' + \
-        'entry should be one of' in str(excinfo.value)
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "Invalid meta_funcs operator(s)" in str(excinfo.value)
 
 
-def test_fs_desc_replicated_op_type():
+def test_fs_desc_replicated_op_type(fortran_reader):
     ''' Tests that an error is raised when a function space
     operator name is replicated as an argument. '''
     code = CODE.replace("w3, gh_basis, gh_diff_basis",
                         "w3, gh_basis, gh_basis", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert 'error to specify an operator name more than once' \
-        in str(excinfo.value)
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "must not be repeated in func_type" in str(excinfo.value)
 
 
-def test_fsdesc_fs_not_in_argdesc():
+def test_fsdesc_fs_not_in_argdesc(fortran_reader):
     ''' Tests that an error is raised when a function space
     name is provided that has not been used in the arg descriptor. '''
     code = CODE.replace("w3, gh_basis", "w0, gh_basis", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert "function spaces specified in 'meta_funcs' must exist in " + \
-        "'meta_args'" in str(excinfo.value)
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "Function space 'w0' in meta_funcs does not exist" in str(
+        excinfo.value)
 
 
 def test_invoke_uniq_declns_valid_access_op():
@@ -401,15 +329,15 @@ def test_invoke_uniq_declns_valid_access_op():
     assert ops_proxy_written == ["op4_proxy"]
 
 
-def test_operator_arg_lfricconst_properties(monkeypatch):
+def test_operator_arg_lfricconst_properties(monkeypatch, fortran_reader):
     ''' Tests that properties of supported LMA operator arguments
     ('real'-valued 'operator_type') defined in LFRicConstants are
     correctly set up in the LFRicKernelArgument class.
 
     '''
-    ast = fpapi.parse(CODE, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(CODE)
     name = "testkern_qr_type"
-    metadata = LFRicKernMetadata(ast, name=name)
+    metadata = create_lfric_metadata(psyir, name=name)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
 
@@ -763,13 +691,15 @@ def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
     monkeypatch.setattr(arg, "_argument_type", value="gh_field")
     # We have to populate the Symbol table to get to the desired error.
     schedule.symbol_table.find_or_create_tag("op_a:data")
-    schedule.symbol_table.find_or_create("map_as1_op_a",
-                                         tag="map_as1_op_a",
-                                         symbol_type=symbols.DataSymbol,
-                                         datatype=symbols.UnresolvedType())
     schedule.symbol_table.find_or_create("undf_as1_op_a",
                                          symbol_type=symbols.DataSymbol,
                                          datatype=symbols.UnresolvedType())
+    schedule.symbol_table.find_or_create_tag(
+        "map_as1_op_a", symbol_type=symbols.DataSymbol,
+        datatype=symbols.ArrayType(
+            symbols.ScalarType(symbols.ScalarType.Intrinsic.INTEGER,
+                               symbols.ScalarType.Precision.UNDEFINED),
+            [symbols.ArrayType.Extent.DEFERRED] * 2))
     with pytest.raises(VisitorError) as excinfo:
         _ = psy.gen
     assert ("Expected an LMA operator from which to look-up boundary dofs "
@@ -794,10 +724,12 @@ def test_operator_bc_kernel_multi_args_err(dist_mem):
     schedule.symbol_table.find_or_create("undf_as1_op_a",
                                          symbol_type=symbols.DataSymbol,
                                          datatype=symbols.UnresolvedType())
-    schedule.symbol_table.find_or_create("map_as1_op_a",
-                                         tag="map_as1_op_a",
-                                         symbol_type=symbols.DataSymbol,
-                                         datatype=symbols.UnresolvedType())
+    schedule.symbol_table.find_or_create_tag(
+        "map_as1_op_a", symbol_type=symbols.DataSymbol,
+        datatype=symbols.ArrayType(
+            symbols.ScalarType(symbols.ScalarType.Intrinsic.INTEGER,
+                               symbols.ScalarType.Precision.UNDEFINED),
+            [symbols.ArrayType.Extent.DEFERRED] * 2))
     # Make the list of arguments invalid by duplicating (a copy of)
     # this argument. We take a copy because otherwise, when we change
     # the type of arg 1 below, we change it for both.
@@ -843,7 +775,7 @@ def test_operator_bc_kernel_wrong_access_err(dist_mem, monkeypatch):
 OPERATORS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(13) =                                 &
+     type(arg_type), dimension(13) :: meta_args =                         &
           (/ arg_type(gh_operator, gh_real, gh_write,     w0, w0),   &
              arg_type(gh_operator, gh_real, gh_readwrite, w1, w1),   &
              arg_type(gh_operator, gh_real, gh_read,      w2, w2),   &
@@ -876,13 +808,13 @@ end module dummy_mod
 '''
 
 
-def test_operators(fortran_writer):
+def test_operators(fortran_writer, fortran_reader):
     ''' Test that operators are handled correctly for kernel stubs (except
     for Wchi space as the fields on this space are read-only).
 
     '''
-    ast = fpapi.parse(OPERATORS, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(OPERATORS)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -981,7 +913,7 @@ end module dummy_mod
 OPERATOR_DIFFERENT_SPACES = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =                           &
+     type(arg_type), dimension(1) :: meta_args =                           &
           (/ arg_type(gh_operator, gh_real, gh_write, w0, w1) &
            /)
      integer :: operates_on = cell_column
@@ -995,15 +927,15 @@ end module dummy_mod
 '''
 
 
-def test_stub_operator_different_spaces(fortran_writer):
+def test_stub_operator_different_spaces(fortran_writer, fortran_reader):
     ''' Test that the correct function spaces are provided in the
     correct order when generating a kernel stub with an operator on
     different spaces.
 
     '''
     # Check the original code (to- and from- spaces both continuous)
-    ast = fpapi.parse(OPERATOR_DIFFERENT_SPACES, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(OPERATOR_DIFFERENT_SPACES)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     result = fortran_writer(kernel.gen_stub)
@@ -1013,15 +945,15 @@ def test_stub_operator_different_spaces(fortran_writer):
     code = OPERATOR_DIFFERENT_SPACES.replace(
         "(gh_operator, gh_real, gh_write, w0, w1)",
         "(gh_operator, gh_real, gh_write, w3, any_discontinuous_space_2)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(code)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     result = fortran_writer(kernel.gen_stub)
     assert ("(cell, nlayers, op_1_ncell_3d, op_1, ndf_w3, ndf_ads2_op_1)"
             in result)
     assert "dimension(op_1_ncell_3d,ndf_w3,ndf_ads2_op_1)" in result
-    field_descriptor = metadata.arg_descriptors[0]
-    result = str(field_descriptor)
-    assert "function_space_to[3]='w3'" in result
-    assert "function_space_from[4]='any_discontinuous_space_2'" in result
+    operator_descriptor = metadata.meta_args[0]
+    assert operator_descriptor.function_space_to == "w3"
+    assert (operator_descriptor.function_space_from ==
+            "any_discontinuous_space_2")

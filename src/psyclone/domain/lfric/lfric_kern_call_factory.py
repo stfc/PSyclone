@@ -34,12 +34,12 @@ class LFRicKernCallFactory():
         :type parent: :py:class:`psyclone.psyir.nodes.Schedule`
 
         '''
-        if call.ktype.iterates_over == "domain":
+        if call.kernel.metadata.iterates_over == "domain":
             # Kernel operates on whole domain so there is no loop.
             # We still need a loop object though as that is where the logic
             # for handling halo exchanges is currently implemented.
             loop_type = "null"
-        elif call.ktype.iterates_over == "dof":
+        elif call.kernel.metadata.iterates_over == "dof":
             # Loop over dofs within a field.
             loop_type = "dof"
         else:

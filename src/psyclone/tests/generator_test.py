@@ -424,10 +424,15 @@ def test_invalid_gocean_alg(monkeypatch, caplog, capsys):
     handled correctly.
 
     '''
-    # It's easiest to monkeypatch the psyir_from_file() method so that it
-    # raises an error.
-    def _broken(_1, _2):
-        raise ValueError("This is a test")
+    # Fail only when the algorithm PSyIR is created. Kernel source is now also
+    # parsed by this reader and must remain valid for the test to reach the
+    # algorithm-generation boundary.
+    original = FortranReader.psyir_from_file
+
+    def _broken(reader, filename):
+        if Path(filename).name == "single_invoke.f90":
+            raise ValueError("This is a test")
+        return original(reader, filename)
 
     monkeypatch.setattr(FortranReader, "psyir_from_file", _broken)
     with caplog.at_level(logging.ERROR, logger="psyclone.generator"):

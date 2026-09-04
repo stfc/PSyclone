@@ -8,22 +8,21 @@
 '''Tests of handling of arguments for GOcean kernels.
 '''
 
-import os
+from dataclasses import FrozenInstanceError, replace
 
 import pytest
 from psyclone.configuration import Config
 from psyclone.domain.gocean import GOSymbolTable
+from psyclone.domain.gocean.kernel import GOceanScalarArgMetadata
 from psyclone.errors import InternalError, GenerationError
 from psyclone.gocean1p0 import GOKernelArgument, GOKernelArguments
-from psyclone.parse.algorithm import Arg, parse
-from psyclone.parse.kernel import Descriptor
-from psyclone.parse.utils import ParseError
+from psyclone.parse.algorithm import Arg
 from psyclone.psyir.nodes import (Node, StructureReference, Member,
                                   StructureMember, Reference, Literal)
 from psyclone.psyir.symbols import (SymbolTable, UnresolvedType, DataSymbol,
                                     ScalarType,
                                     ArgumentInterface, DataTypeSymbol)
-from psyclone.tests.utilities import get_base_path, get_invoke
+from psyclone.tests.utilities import get_invoke
 
 
 API = "gocean"
@@ -70,7 +69,7 @@ def test_gokernelarguments_append():
            " var1, var2)" in generated_code
 
 
-def test_gokernelargument_infer_datatype():
+def test_gokernelargument_infer_datatype(monkeypatch):
     ''' Check the GOcean specialisation of the infer_datatype works for each
     possible type of KernelArgument. '''
 
@@ -102,14 +101,17 @@ def test_gokernelargument_infer_datatype():
     assert argument_list.args[1].infer_datatype().name == "r2d_field"
 
     # Test an incompatible Kernel Argument
-    argument_list.args[0]._arg._space = "incompatible"
+    object.__setattr__(argument_list.args[0]._arg,
+                       "datatype", "incompatible")
     with pytest.raises(InternalError) as excinfo:
         _ = argument_list.args[0].infer_datatype()
     assert ("GOcean expects scalar arguments to be of 'go_r_scalar' or "
             "'go_i_scalar' type but found 'incompatible'."
             in str(excinfo.value))
 
-    argument_list.args[0]._arg._argument_type = "incompatible"
+    monkeypatch.setattr(
+        GOKernelArgument, "argument_type",
+        property(lambda _argument: "incompatible"))
     with pytest.raises(InternalError) as excinfo:
         _ = argument_list.args[0].infer_datatype()
     assert ("GOcean expects the Argument.argument_type() to be 'field' or "
@@ -131,7 +133,8 @@ def test_gokernelargument_intrinsic_type():
     assert argument_list[1].intrinsic_type == ""
     # Change the first argument metadata type to integer, and check the
     # intrinsic_type value also changes
-    argument_list[0]._arg._space = "go_i_scalar"
+    argument_list[0]._arg = replace(
+        argument_list[0]._arg, datatype="go_i_scalar")
     assert argument_list[0].intrinsic_type == "integer"
 
 
@@ -165,7 +168,7 @@ def test_gokernelarguments_psyir_expressions():
         assert isinstance(argument, StructureReference)
 
 
-def test_gokernelargument_psyir_expression():
+def test_gokernelargument_psyir_expression(monkeypatch):
     ''' Check the GOcean specialisation of psyir_expression returns the
     expected expression for any GOKernelArgument and GOKernelGridArguments'''
 
@@ -198,7 +201,9 @@ def test_gokernelargument_psyir_expression():
     assert isinstance(expr3, Reference)
 
     # Test an incompatible Kernel Argument
-    argument_list.args[0]._arg._argument_type = "incompatible"
+    monkeypatch.setattr(
+        GOKernelArgument, "argument_type",
+        property(lambda _argument: "incompatible"))
     with pytest.raises(InternalError) as excinfo:
         _ = argument_list.args[0].psyir_expression()
     assert ("GOcean expects the Argument.argument_type() to be 'field' or "
@@ -224,7 +229,7 @@ def test_gokernelargument_constant_psyir_expression():
         assert expr.datatype.intrinsic == intr_type
 
 
-def test_gokernelargument_type(monkeypatch):
+def test_gokernelargument_type():
     ''' Check the type property of the GOKernelArgument'''
 
     # Create a dummy node with the symbol_table property
@@ -232,17 +237,17 @@ def test_gokernelargument_type(monkeypatch):
     dummy_node.symbol_table = SymbolTable()
 
     # Create a dummy GOKernelArgument
-    descriptor = Descriptor(None, "go_r_scalar", 0)
+    descriptor = GOceanScalarArgMetadata("go_read", "go_r_scalar")
     arg = Arg("variable", "arg", "arg")
     argument = GOKernelArgument(descriptor, arg, dummy_node)
 
     # If the descriptor does not have a type it defaults to 'scalar'
     assert argument.argument_type == "scalar"
 
-    # Otherwise it returns the descriptor type
-    # Mock the descriptor type method
-    monkeypatch.setattr(argument._arg, "_argument_type", "descriptor_type")
-    assert argument.argument_type == "descriptor_type"
+    # Descriptors are immutable so consumers cannot silently invalidate
+    # already-validated metadata.
+    with pytest.raises(FrozenInstanceError):
+        argument._arg.argument_type = "descriptor_type"
 
     # Test that the expected exception is raised in method
     # _check_gocean_conformity within GOSymbolTable when one or both of
@@ -263,27 +268,6 @@ def test_gokernelargument_type(monkeypatch):
         symbol_table._check_gocean_conformity()
     assert ("GOcean API kernels first argument should be a scalar integer "
             "but got 'UnresolvedType'." in str(excinfo.value))
-
-
-def test_gokernelargument_invalid_type():
-    '''Tests that invalid kernel argument types are handled correctly.
-    '''
-    # Parse an existing kernel to create the required kernel_call
-    # type.
-    _, invoke_info = parse(os.path.join(get_base_path(API),
-                                        "single_invoke_scalar_float_arg.f90"),
-                           api=API)
-
-    kernel_call = invoke_info.calls[0].kcalls[0]
-    arg_descriptors = kernel_call.ktype.arg_descriptors
-
-    # Now modify the argument type to be invalid.
-    arg_descriptors[0]._argument_type = "INVALID"
-    with pytest.raises(ParseError) as err:
-        _ = GOKernelArguments(kernel_call, None)
-
-    assert ("Invalid kernel argument type. Found 'INVALID' but must be one of "
-            "['grid_property', 'scalar', 'field']" in str(err.value))
 
 
 def test_gokernelarguments_scalar():

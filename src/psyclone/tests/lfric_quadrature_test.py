@@ -12,10 +12,10 @@ quadrature in the LFRic API '''
 import os
 import pytest
 
-from fparser import api as fpapi
-
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants, LFRicKern, LFRicKernMetadata
+from psyclone.domain.common.kernel import KernelInfo
+from psyclone.domain.lfric import (
+    LFRicConstants, LFRicKern, LFRicKernelMetadata)
 from psyclone.lfric import LFRicBasisFunctions, qr_basis_alloc_args
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import KernelCall, parse
@@ -695,7 +695,7 @@ def test_lfricbasisfns_dealloc(monkeypatch):
             "one of 'basis' or 'diff-basis'" in str(err.value))
 
 
-def test_lfrickern_setup(monkeypatch):
+def test_lfrickern_setup(monkeypatch, fortran_reader):
     ''' Check that internal-consistency checks in LFRicKern._setup() work
     as expected. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -713,15 +713,15 @@ def test_lfrickern_setup(monkeypatch):
                         lambda me, mname, ktype, args: None)
     # Break the shape of the quadrature for this kernel
     monkeypatch.setattr(kern, "_eval_shapes", value=["gh_wrong_shape"])
-    # Rather than try and mock-up an LFRicKernMetadata object, it's easier
+    # Rather than try and mock-up an LFRicKernelMetadata object, it's easier
     # to make one properly by parsing the kernel code.
-    ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_qr_mod.F90"),
-                      ignore_comments=False)
     name = "testkern_qr_type"
-    dkm = LFRicKernMetadata(ast, name=name)
+    psyir = fortran_reader.psyir_from_file(
+        os.path.join(BASE_PATH, "testkern_qr_mod.F90"))
+    dkm = LFRicKernelMetadata.create_from_psyir(psyir, name=name)
     # Finally, call the _setup() method
     with pytest.raises(InternalError) as excinfo:
-        kern._setup(dkm, "my module", None, None)
+        kern._setup(KernelInfo(dkm), "my module", None, None)
     assert ("Evaluator shape(s) ['gh_wrong_shape'] is/are not "
             "recognised" in str(excinfo.value))
 
@@ -729,7 +729,7 @@ def test_lfrickern_setup(monkeypatch):
 BASIS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(12) =                                 &
+     type(arg_type), dimension(12) :: meta_args =                    &
           (/ arg_type(gh_field,    gh_real, gh_inc,       w0),       &
              arg_type(gh_operator, gh_real, gh_readwrite, w1, w1),   &
              arg_type(gh_field,    gh_real, gh_read,      w2),       &
@@ -746,7 +746,7 @@ module dummy_mod
              arg_type(gh_operator, gh_real, gh_read,      w2vtrace,  &
                                                           w2vtrace)  &
            /)
-     type(func_type), meta_funcs(12) =      &
+     type(func_type), dimension(12) :: meta_funcs = &
           (/ func_type(w0, gh_basis),       &
              func_type(w1, gh_basis),       &
              func_type(w2, gh_basis),       &
@@ -772,13 +772,13 @@ end module dummy_mod
 '''
 
 
-def test_qr_basis_stub(fortran_writer):
+def test_qr_basis_stub(fortran_writer, fortran_reader):
     ''' Test that basis functions for quadrature are handled correctly for
     kernel stubs.
 
     '''
-    ast = fpapi.parse(BASIS, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(BASIS)
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -888,12 +888,12 @@ weights_xy_qr_xyoz
 end module dummy_mod\n""" == generated_code
 
 
-def test_stub_basis_wrong_shape(monkeypatch):
+def test_stub_basis_wrong_shape(monkeypatch, fortran_reader):
     ''' Check that stub generation for a kernel requiring basis functions
     for quadrature raises the correct errors if the kernel metadata is
     broken '''
-    ast = fpapi.parse(BASIS, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(BASIS)
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     monkeypatch.setattr(kernel, "_eval_shapes",
@@ -915,15 +915,15 @@ def test_stub_basis_wrong_shape(monkeypatch):
             "lfric.qr_basis_alloc_args" in str(excinfo.value))
 
 
-def test_stub_dbasis_wrong_shape(monkeypatch):
+def test_stub_dbasis_wrong_shape(monkeypatch, fortran_reader):
     ''' Check that stub generation for a kernel requiring differential basis
     functions for quadrature raises the correct errors if the kernel metadata
     is broken '''
     # Change metadata to specify differential basis functions
     diff_basis = BASIS.replace("gh_basis", "gh_diff_basis")
 
-    ast = fpapi.parse(diff_basis, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(diff_basis)
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     monkeypatch.setattr(kernel, "_eval_shapes",

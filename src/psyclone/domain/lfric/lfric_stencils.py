@@ -129,13 +129,13 @@ class LFRicStencils(LFRicCollection):
         '''
         unique = context
         unique += arg.function_space.mangled_name
-        unique += arg.descriptor.stencil['type']
-        if arg.descriptor.stencil['extent']:
+        unique += arg.metadata_stencil['type']
+        if arg.metadata_stencil['extent']:
             raise GenerationError(
                 "Found a stencil with an extent specified in the metadata. "
                 "This is not coded for.")
         unique += arg.stencil.extent_arg.text.lower()
-        if arg.descriptor.stencil['type'] == 'xory1d':
+        if arg.metadata_stencil['type'] == 'xory1d':
             unique += arg.stencil.direction_arg.text.lower()
         return unique
 
@@ -278,7 +278,7 @@ class LFRicStencils(LFRicCollection):
         if self._unique_extent_vars:
             if self._kernel:
                 for arg in self._kern_args:
-                    if arg.descriptor.stencil['type'] == "cross2d":
+                    if arg.metadata_stencil['type'] == "cross2d":
                         for var in self._unique_extent_vars:
                             symbol = self.symtab.lookup(var)
                             symbol.datatype = ArrayType(
@@ -389,7 +389,7 @@ class LFRicStencils(LFRicCollection):
             if map_name not in stencil_map_names:
                 # Only initialise maps once.
                 stencil_map_names.append(map_name)
-                stencil_type = arg.descriptor.stencil['type']
+                stencil_type = arg.metadata_stencil['type']
                 symtab = self.symtab
                 if stencil_type == "xory1d":
                     direction_name = arg.stencil.direction_arg.varname
@@ -441,7 +441,7 @@ class LFRicStencils(LFRicCollection):
                     except KeyError as err:
                         raise GenerationError(
                             f"Unsupported stencil type "
-                            f"'{arg.descriptor.stencil['type']}' supplied. "
+                            f"'{arg.metadata_stencil['type']}' supplied. "
                             f"Supported mappings are "
                             f"{str(const.STENCIL_MAPPING)}") from err
 
@@ -469,7 +469,7 @@ class LFRicStencils(LFRicCollection):
 
                 # Add look-up of stencil size
                 size_symbol = self.dofmap_size_symbol(self.symtab, arg)
-                if arg.descriptor.stencil['type'] == "cross2d":
+                if arg.metadata_stencil['type'] == "cross2d":
                     num_dimensions = 2
                 else:
                     num_dimensions = 1
@@ -517,7 +517,7 @@ class LFRicStencils(LFRicCollection):
             symbol = self.symtab.new_symbol(
                 root_name=f"{arg.name}_stencil_map", tag=unique_tag)
             name = symbol.name
-            stencil_type = arg.descriptor.stencil['type']
+            stencil_type = arg.metadata_stencil['type']
             if stencil_type == "cross2d":
                 smap_mod = self.symtab.find_or_create(
                         const.STENCIL_TYPE_MAP["stencil_2D_dofmap"]["module"],
@@ -580,7 +580,7 @@ class LFRicStencils(LFRicCollection):
                     except KeyError as err:
                         raise GenerationError(
                             f"Unsupported stencil type "
-                            f"'{arg.descriptor.stencil['type']}' supplied. "
+                            f"'{arg.metadata_stencil['type']}' supplied. "
                             f"Supported mappings are "
                             f"{const.STENCIL_MAPPING}") from err
                     self.symtab.find_or_create(
@@ -607,7 +607,7 @@ class LFRicStencils(LFRicCollection):
         symtab = self.symtab
         for arg in self._kern_args:
             symbol = self.dofmap_symbol(symtab, arg)
-            if arg.descriptor.stencil['type'] == "cross2d":
+            if arg.metadata_stencil['type'] == "cross2d":
                 max_length = self.max_branch_length(symtab, arg)
                 if max_length not in symtab.argument_list:
                     max_length.interface = ArgumentInterface(

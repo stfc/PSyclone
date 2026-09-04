@@ -48,7 +48,7 @@ class LFRicConstants():
         LFRicConstants.VALID_EVALUATOR_SHAPES = \
             LFRicConstants.VALID_QUADRATURE_SHAPES + ["gh_evaluator"]
 
-        # ---------- LFRicArgDescriptor class constants  ----------------------
+        # ---------- Kernel argument metadata constants -----------------------
 
         # Supported LFRic API argument types (scalars, fields, operators)
         LFRicConstants.VALID_SCALAR_NAMES = ["gh_scalar"]
