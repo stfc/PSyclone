@@ -1322,6 +1322,8 @@ class SymbolTable():
         :raises KeyError: if the supplied symbol is not in the symbol table.
         :raises ValueError: if the supplied container symbol is referenced
                             by one or more DataSymbols.
+        :raises ValueError: if the supplied symbol belongs to a common block
+                            and is not its final member.
         :raises InternalError: if the supplied symbol is not the same as the
                                entry with that name in this SymbolTable.
         '''
@@ -1343,6 +1345,22 @@ class SymbolTable():
                 f"The Symbol with name '{symbol.name}' in this symbol table "
                 f"is not the same Symbol object as the one that has been "
                 f"supplied to the remove() method.")
+
+        # Removing a member from within a common block would shift every
+        # subsequent member to a different storage position. Only removal
+        # from the end preserves the existing storage sequence.
+        if symbol.is_commonblock:
+            block_name = symbol.interface.name.lower()
+            for other_symbol in self.symbols:
+                if (other_symbol.is_commonblock and
+                        other_symbol.interface.name.lower() == block_name and
+                        other_symbol.interface.position >
+                        symbol.interface.position):
+                    raise ValueError(
+                        f"Cannot remove Symbol '{symbol.name}' from common "
+                        f"block '{symbol.interface.name}' because it has a "
+                        f"subsequent member. Only the final member of a "
+                        f"common block may be removed.")
 
         # We can only remove a ContainerSymbol if no DataSymbols are
         # being imported from it
