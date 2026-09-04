@@ -726,7 +726,7 @@ class FortranWriter(LanguageWriter):
                 name = symbol.interface.name.lower()
                 common_blocks.setdefault(name, []).append(symbol)
 
-        # Order the symbols by their commonblock interface possition
+        # Order the symbols by their commonblock interface position
         declarations = ""
         for name, members in common_blocks.items():
             positions = [symbol.interface.position for symbol in members]
