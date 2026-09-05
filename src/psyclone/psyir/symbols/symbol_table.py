@@ -1228,16 +1228,15 @@ class SymbolTable():
         return [symbol for symbol in self.imported_symbols if
                 symbol.interface.container_symbol is csymbol]
 
-    def swap(self, old_symbol, new_symbol):
+    def swap(self, old_symbol: Symbol, new_symbol: Symbol) -> None:
         '''
         Remove the `old_symbol` from the table and replace it with the
         `new_symbol`. Any references to `old_symbol` in the PSyIR tree
-        associated with this table (if any) will also be updated.
+        associated with this table (if any) will also be updated. Any tag
+        associated with `old_symbol` is moved to `new_symbol`.
 
         :param old_symbol: the symbol to remove from the table.
-        :type old_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
         :param new_symbol: the symbol to add to the table.
-        :type new_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
 
         :raises TypeError: if either old/new_symbol are not Symbols.
         :raises SymbolError: if `old_symbol` and `new_symbol` don't have
@@ -1253,13 +1252,20 @@ class SymbolTable():
             raise SymbolError(
                 f"Cannot swap symbols that have different names, got: "
                 f"'{old_symbol.name}' and '{new_symbol.name}'")
+        # Preserve any tag associated with old_symbol so that it is carried
+        # over to new_symbol rather than being silently dropped.
+        old_tag = None
+        for tag, symbol in self._tags.items():
+            if symbol is old_symbol:
+                old_tag = tag
+                break
         for sym in self.symbols:
             sym.replace_symbols_using(new_symbol)
         if self.node:
             # Update the PSyIR tree associated with this table.
             self.node.replace_symbols_using(new_symbol)
         self.remove(old_symbol)
-        self.add(new_symbol)
+        self.add(new_symbol, tag=old_tag)
 
     def _validate_remove_routinesymbol(self, symbol):
         '''
