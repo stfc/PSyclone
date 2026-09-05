@@ -1228,16 +1228,15 @@ class SymbolTable():
         return [symbol for symbol in self.imported_symbols if
                 symbol.interface.container_symbol is csymbol]
 
-    def swap(self, old_symbol, new_symbol):
+    def swap(self, old_symbol: Symbol, new_symbol: Symbol) -> None:
         '''
         Remove the `old_symbol` from the table and replace it with the
         `new_symbol`. Any references to `old_symbol` in the PSyIR tree
-        associated with this table (if any) will also be updated.
+        associated with this table (if any) will also be updated. Any tag
+        associated with `old_symbol` is moved to `new_symbol`.
 
         :param old_symbol: the symbol to remove from the table.
-        :type old_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
         :param new_symbol: the symbol to add to the table.
-        :type new_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
 
         :raises TypeError: if either old/new_symbol are not Symbols.
         :raises SymbolError: if `old_symbol` and `new_symbol` don't have
