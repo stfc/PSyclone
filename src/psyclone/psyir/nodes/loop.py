@@ -519,27 +519,27 @@ class Loop(Statement):
         '''
         :returns: the combined next_accesses for the children of this Loop.
         '''
-        next_accesses = []
-        # Loop through the non loop_body children and compute accesses.
+        access_nodes = []
+        # Find all the nodes contained in the loop that make up the Loop's
+        # next accesses.
         for child in self.children[0:4]:
             for ref in child.walk(Reference):
-                var_accesses = ref.next_accesses()
-                self._merge_accesses(next_accesses, var_accesses)
+                access_nodes.append(ref)
         for child in self.loop_body:
-            self._merge_accesses(next_accesses, child.next_accesses())
-        return next_accesses
+            access_nodes.append(child)
+        return self._get_next_accesses(access_nodes)
 
     def previous_accesses(self) -> list[Node]:
         '''
         :returns: the combined previous_accesses for the children of this
             Loop.
         '''
-        prev_accesses = []
-        # Loop through the non loop_body children and compute accesses.
+        # Find all the nodes contained in the loop that make up the Loop's
+        # next accesses.
+        access_nodes = []
         for child in self.children[0:4]:
             for ref in child.walk(Reference):
-                var_accesses = ref.previous_accesses()
-                self._merge_accesses(prev_accesses, var_accesses)
+                access_nodes.append(ref)
         for child in self.loop_body:
-            self._merge_accesses(prev_accesses, child.previous_accesses())
-        return prev_accesses
+            access_nodes.append(child)
+        return self._get_prev_accesses(access_nodes)

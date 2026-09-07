@@ -18,6 +18,14 @@ class Statement(Node, CommentableMixin, metaclass=abc.ABCMeta):
     Abstract node representing a general PSyIR Statement.
     '''
 
+    def _get_next_accesses(self, sub_nodelist: list[Node]) -> list[Node]:
+        '''TODO'''
+        next_accesses = []
+        for node in sub_nodelist:
+            var_accesses = node.next_accesses()
+            self._merge_accesses(next_accesses, var_accesses)
+        return next_accesses
+
     @abc.abstractmethod
     def next_accesses(self) -> list[Node]:
         '''
@@ -27,7 +35,15 @@ class Statement(Node, CommentableMixin, metaclass=abc.ABCMeta):
 
         :returns: an empty list.
         '''
-        return []
+        return self._get_next_accesses(self.children[:])
+
+    def _get_prev_accesses(self, sub_nodelist: list[Node]) -> list[Node]:
+        '''TODO'''
+        prev_accesses = []
+        for node in sub_nodelist:
+            var_accesses = node.previous_accesses()
+            self._merge_accesses(prev_accesses, var_accesses)
+        return prev_accesses
 
     @abc.abstractmethod
     def previous_accesses(self) -> list[Node]:
@@ -38,7 +54,7 @@ class Statement(Node, CommentableMixin, metaclass=abc.ABCMeta):
 
         :returns: an empty list.
         '''
-        return []
+        return self._get_next_accesses(self.children[:])
 
     def _merge_accesses(
         self, current_accesses: list[Node], new_accesses: list[Node]

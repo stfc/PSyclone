@@ -771,7 +771,7 @@ def test_loop_next_accesses(fortran_reader):
     loop.loop_body.addchild(direc)
 
     assigns = psyir.walk(Assignment)
-    accesses = loop.previous_accesses()
+    accesses = loop.next_accesses()
     assert len(accesses) == 2
     assert accesses[0] is assigns[1].lhs
     assert accesses[1] is assigns[0].lhs
