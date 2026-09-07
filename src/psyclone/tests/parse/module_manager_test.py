@@ -11,6 +11,8 @@
 import logging
 import os
 from pathlib import Path
+from unittest import mock
+
 import pytest
 
 from psyclone.errors import InternalError
@@ -112,6 +114,51 @@ def test_mod_manager_directory_reading() -> None:
         mod_man.add_search_path(123)
     assert ("ModuleManager.add_search_path expects a string or Path as "
             "directory, got '123', which is ' of type 'int'" in str(err.value))
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+                         "mod_man_test_setup_directories")
+def test_mod_manager_no_duplicated_reading() -> None:
+    '''Tests that the module manager will not walk across directories more
+    than once, especially if the same directory is given more than once.
+    Note that the previous tests only verifies that no internal data structure
+    is added/modified. This test actually ensures that no unnecessary calls
+    to the file system are executed.
+
+    tmp/d1/a_mod.f90
+    tmp/d1/d3/b_mod.F90
+    tmp/d1/d3/c_mod.x90
+    tmp/d2/d_mod.X90
+    tmp/d2/d4/e_mod.F90
+    tmp/d2/d4/f_mod.ignore
+    '''
+
+    mod_man = ModuleManager.get()
+
+    orig_os_walk = os.walk
+
+    def side_effect_wrapper(*args, **kwargs):
+        # Call the original os.walk with its real arguments,
+        # so that recursion works as expected.
+        return orig_os_walk(*args, **kwargs)
+
+    with mock.patch('psyclone.parse.module_manager.os.walk') as mocked_walk:
+        mocked_walk.side_effect = side_effect_wrapper
+        assert len(mocked_walk.call_args_list) == 0
+        mod_man.add_search_path("d1")
+        # One walk must be done here.
+        assert len(mocked_walk.call_args_list) == 1
+        mod_man.add_search_path("d1")
+        # Adding the same search path again, should not use walk again.
+        assert len(mocked_walk.call_args_list) == 1
+        # Adding a directory that was previously found during the recursion
+        # should not trigger another walk:
+        mod_man.add_search_path("d1/d3")
+        assert len(mocked_walk.call_args_list) == 1
+        # But adding a new search path must add one more walk
+        mod_man.add_search_path("d2")
+        assert len(mocked_walk.call_args_list) == 2
 
 
 # ----------------------------------------------------------------------------
@@ -523,7 +570,7 @@ def test_mod_manager_load_all_module_trigger_error_file_read_twice() -> None:
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_mod_manager_fortran_file_exts() -> None:
-    '''Tests functionality for modifying managing Fortran file etensions.'''
+    '''Tests functionality for modifying managing Fortran file extensions.'''
     mod_man = ModuleManager.get()
 
     # Check that the default extensions include '.f90' and '.F90'

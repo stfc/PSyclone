@@ -232,6 +232,8 @@ class ModuleManager:
             directories = [directories]
 
         for directory in directories:
+            if directory in self._original_search_paths:
+                continue
             if not isinstance(directory, (str, Path)):
                 raise TypeError(f"ModuleManager.add_search_path expects a "
                                 f"string or Path as directory, got "
