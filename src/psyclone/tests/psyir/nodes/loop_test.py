@@ -11,6 +11,7 @@ import pytest
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import (
     Assignment, Loop, Literal, Schedule, Return, Reference, Routine)
+from psyclone.psyir.nodes import OMPParallelDoDirective
 from psyclone.psyir.symbols import (
     DataSymbol, ScalarType, ArrayType, SymbolTable)
 from psyclone.psyir.tools import DependencyTools
@@ -738,6 +739,37 @@ def test_loop_body_previous_accesses(fortran_reader):
     end subroutine test"""
     psyir = fortran_reader.psyir_from_source(code)
     loop = psyir.walk(Loop)[0]
+    assigns = psyir.walk(Assignment)
+    accesses = loop.previous_accesses()
+    assert len(accesses) == 2
+    assert accesses[0] is assigns[1].lhs
+    assert accesses[1] is assigns[0].lhs
+
+
+def test_loop_next_accesses(fortran_reader):
+    """Test that the next_accesses function for a loop also finds accesses
+    from a child RegionDirective"""
+    code = """subroutine test
+    integer :: i, j, k, m
+    do i = 1, 100
+        do m = 1, 100
+            j = 4 * i
+            k = 3 + i
+        end do
+    end do
+    j = j * 2
+    k = k + 3
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    # Pull out the body.
+    loop_body = loop.loop_body.children[0].detach()
+    # Place the loop body into a directive and add the directive
+    # into the original loop.
+    direc = OMPParallelDoDirective()
+    direc.dir_body.addchild(loop_body)
+    loop.loop_body.addchild(direc)
+
     assigns = psyir.walk(Assignment)
     accesses = loop.previous_accesses()
     assert len(accesses) == 2
