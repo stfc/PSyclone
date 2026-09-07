@@ -2209,27 +2209,27 @@ class Fparser2Reader():
 
         return sym
 
-    def _process_derived_type_decln(self, parent, decl, visibility_map):
+    def _process_derived_type_decln(
+        self,
+        parent: Node,
+        decl: Fortran2003.Type_Declaration_Stmt,
+        visibility_map: dict[str, Symbol.Visibility]
+    ) -> DataTypeSymbol:
         '''
         Process the supplied fparser2 parse tree for a derived-type
         declaration. A DataTypeSymbol representing the derived-type is added
         to the symbol table associated with the parent node.
 
         :param parent: PSyIR node in which to insert the symbols found.
-        :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
         :param decl: fparser2 parse tree of declaration to process.
-        :type decl: :py:class:`fparser.two.Fortran2003.Type_Declaration_Stmt`
         :param visibility_map: mapping of symbol name to visibility (for
             those symbols listed in an accessibility statement).
-        :type visibility_map: dict[str,
-            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
 
         :raises SymbolError: if a Symbol already exists with the same name
             as the derived type being defined and it is not a DataTypeSymbol
             or is not of UnresolvedType.
 
         :return: the DataTypeSymbol representing the derived type.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
 
         '''
         name = str(walk(decl.children[0], Fortran2003.Type_Name)[0]).lower()
@@ -2291,14 +2291,32 @@ class Fparser2Reader():
         # Populate this StructureType by processing the components of
         # the derived type
         try:
-            # We don't support derived-types with additional
-            # attributes e.g. "extends" or "abstract". Note, we do
-            # support public/private attributes but these are stored
-            # as Access_Spec, not Type_Attr_Spec.
+            # EXTENDS is the only additional derived-type attribute that we
+            # currently support. Note that public/private attributes are
+            # represented by Access_Spec rather than Type_Attr_Spec.
             derived_type_stmt = decl.children[0]
-            if walk(derived_type_stmt, Fortran2003.Type_Attr_Spec):
-                raise NotImplementedError(
-                    "Derived-type definition contains unsupported attributes.")
+            for attr in walk(derived_type_stmt,
+                             Fortran2003.Type_Attr_Spec):
+                if attr.items[0].upper() != "EXTENDS":
+                    raise NotImplementedError(
+                        "Derived-type definition contains unsupported "
+                        "attributes.")
+
+                extends_name = attr.items[1].string
+                extends_symbol = parent.symbol_table.lookup(
+                    extends_name, otherwise=None)
+                if extends_symbol is None:
+                    extends_symbol = DataTypeSymbol(
+                        extends_name, StructureType(),
+                        interface=UnresolvedInterface())
+                    parent.symbol_table.add(extends_symbol)
+                elif type(extends_symbol) is Symbol:
+                    # The name may already have been introduced by a USE
+                    # statement for which no declaration information was
+                    # available.
+                    extends_symbol.specialise(DataTypeSymbol)
+                    extends_symbol.datatype = StructureType()
+                dtype.extends = extends_symbol
 
             # Re-use the existing code for processing symbols. This needs to
             # be able to find any symbols declared in an outer scope but
@@ -2319,6 +2337,10 @@ class Fparser2Reader():
                             parent, local_table, component,
                             preceding_comments=preceding_comments)
                         preceding_comments = []
+                elif isinstance(
+                        child, Fortran2003.Type_Bound_Procedure_Part):
+                    self._process_derived_type_contains_block(
+                        parent, child, dtype)
                 elif isinstance(child, (Fortran2003.Private_Components_Stmt,
                                         Fortran2003.End_Type_Stmt)):
                     continue
@@ -2339,9 +2361,10 @@ class Fparser2Reader():
                 else:
                     datatype = symbol.datatype
                     initial_value = symbol.initial_value
-                    dtype.add(symbol.name, datatype, symbol.visibility,
-                              initial_value, symbol.preceding_comment,
-                              symbol.inline_comment)
+                    dtype.add(StructureType.ComponentType(
+                        symbol.name, datatype, symbol.visibility,
+                        initial_value, symbol.preceding_comment,
+                        symbol.inline_comment))
 
             # Update its type with the definition we've found
             tsymbol.datatype = dtype
@@ -2353,6 +2376,69 @@ class Fparser2Reader():
             tsymbol.interface = UnknownInterface()
 
         return tsymbol
+
+    @staticmethod
+    def _process_derived_type_contains_block(
+        parent: ScopingNode,
+        contains: Fortran2003.Type_Bound_Procedure_Part,
+        dtype: StructureType
+    ) -> None:
+        '''Process type-bound procedures in a derived type's CONTAINS part.
+
+        Currently all bindings are UnsupportedFortranType, but its name and
+        visibility is parsed in order to add the correct component in the
+        parent's StructureType.
+
+        :param parent: PSyIR scope containing the derived-type declaration.
+        :param contains: fparser2 type-bound-procedure part.
+        :param dtype: StructureType being populated.
+        '''
+        # Each Type_Bound_Procedure_Part has an optional Private Statement
+        # and one of multiple Specific Binding statements
+        private_stmts = walk(contains,
+                             Fortran2003.Binding_Private_Stmt)
+        default_visibility = (Symbol.Visibility.PRIVATE if private_stmts
+                              else Symbol.Visibility.PUBLIC)
+
+        for procedure in walk(contains, Fortran2003.Specific_Binding):
+            # Each Specific Binding has the items:
+            # 0: Interface_Name
+            # 1: Binding_Attr_List
+            # 2: '::' string
+            # 3: Binding_Name
+            # 4: Procedure_Name
+            # If an item doesn't exist then it has None in that position
+            # instead.
+            binding_name = procedure.items[3].string
+            visibility = default_visibility
+            if procedure.items[1] is not None:
+                access_specs = walk(procedure.items[1],
+                                    Fortran2003.Access_Spec)
+                # If a binding statement has a visibility attribute, this
+                # has precedence over the default_visiblity statement
+                if access_specs:
+                    visibility = _process_access_spec(access_specs[0])
+
+            target = None
+            if procedure.items[4] is not None:
+                target_name = procedure.items[4].string
+                # This is not the declaration of the Procedure_Name, but
+                # we can already tell this symbol will be a RoutineSymbol (the
+                # interface and datatype can not be inferred here yet)
+                target_symbol = parent.symbol_table.lookup(
+                    target_name, otherwise=None)
+                if target_symbol is None:
+                    target_symbol = RoutineSymbol(
+                        target_name, interface=UnresolvedInterface())
+                    parent.symbol_table.add(target_symbol)
+                elif type(target_symbol) is Symbol:
+                    target_symbol.specialise(RoutineSymbol)
+                    target_symbol.datatype = UnresolvedType()
+                target = Reference(target_symbol)
+
+            dtype.add_procedure_component(StructureType.ComponentType(
+                binding_name, UnsupportedFortranType(str(procedure)),
+                visibility, target))
 
     def _get_partial_datatype(
         self,
@@ -2929,6 +3015,19 @@ class Fparser2Reader():
             been declared yet or when it is not just the symbol name).
 
         '''
+        # This method may be called more than once for the same common block:
+        # common /name/ var1, var2
+        # common /name/ var3, var4
+        # So we initialise the next position for each block from any interfaces
+        # that have already been created in this symbol table.
+        next_positions = {}
+        for symbol in psyir_parent.symbol_table.symbols:
+            if symbol.is_commonblock:
+                block_name = symbol.interface.name.lower()
+                next_positions[block_name] = max(
+                    next_positions.get(block_name, 0),
+                    symbol.interface.position + 1)
+
         for node in nodes:
             if isinstance(node, Fortran2003.Common_Stmt):
                 # Get the names of the symbols accessed with the commonblock,
@@ -2939,7 +3038,7 @@ class Fparser2Reader():
                     for cb_object in node.children[0]:
                         # Get the name of the common block
                         name = cb_object[0]
-                        name_str = name.string if name is not None else ""
+                        nstr = name.string.lower() if name is not None else ""
 
                         for symbol_name in cb_object[1].items:
                             sym = psyir_parent.symbol_table.lookup(
@@ -2951,7 +3050,9 @@ class Fparser2Reader():
                                     f" ({sym.initial_value.debug_string()}) "
                                     f"but appears in a common block. This is "
                                     f"not valid Fortran.")
-                            sym.interface = CommonBlockInterface(name_str)
+                            sym.interface = CommonBlockInterface(
+                                nstr, next_positions.get(nstr, 0))
+                            next_positions[nstr] = (sym.interface.position + 1)
                 except KeyError as error:
                     raise NotImplementedError(
                         f"The symbol interface of a common block variable "

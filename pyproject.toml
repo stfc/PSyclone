@@ -39,7 +39,7 @@ classifiers = [
 ]
 dependencies = [
     "pyparsing",
-    "fparser==0.2.4",
+    "fparser==0.2.5",
     "configparser",
     "sympy<=1.13.3",  # TODO #3474: Adjoint fails with sympy >= 1.14
     "Jinja2",

@@ -9,6 +9,7 @@
 kernel-layer-specific class that captures the LFRic kernel metadata.
 
 '''
+from __future__ import annotations
 import inspect
 
 from fparser.two import Fortran2003
@@ -45,8 +46,10 @@ from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
 from psyclone.domain.lfric.kernel.shapes_metadata import ShapesMetadata
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.symbols import DataTypeSymbol, UnsupportedFortranType
+from psyclone.psyir.symbols import (
+    DataTypeSymbol, StructureType, UnsupportedFortranType)
 
 # pylint: disable=too-many-lines
 # pylint: disable=too-many-instance-attributes
@@ -644,21 +647,18 @@ class LFRicKernelMetadata(CommonMetadata):
                 f"'{coarse_function_space}'"))
 
     @staticmethod
-    def create_from_psyir(symbol):
+    def create_from_psyir(symbol: DataTypeSymbol) -> LFRicKernelMetadata:
         '''Create a new instance of LFRicKernelMetadata populated with
         metadata from a kernel in language-level PSyIR.
 
-        :param symbol: the symbol in which the metadata is stored \
+        :param symbol: the symbol in which the metadata is stored
             in language-level PSyIR.
-        :type symbol: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
 
         :returns: an instance of LFRicKernelMetadata.
-        :rtype: :py:class:`psyclone.domain.lfric.kernel.psyir.\
-            LFRicKernelMetadata`
 
-        :raises TypeError: if the symbol argument is not the expected \
+        :raises TypeError: if the symbol argument is not the expected
             type.
-        :raises InternalError: if the datatype of the provided symbol \
+        :raises InternalError: if the datatype of the provided symbol
             is not the expected type.
 
         '''
@@ -669,16 +669,17 @@ class LFRicKernelMetadata(CommonMetadata):
 
         datatype = symbol.datatype
 
-        if not isinstance(datatype, UnsupportedFortranType):
-            raise InternalError(
-                f"Expected kernel metadata to be stored in the PSyIR as "
-                f"an UnsupportedFortranType, but found "
-                f"{type(datatype).__name__}.")
+        if isinstance(datatype, StructureType):
+            # TODO #239: LFricKernelMetadata.create_from_psyir will
+            # replace this
+            declaration = FortranWriter().gen_typedecl(
+                symbol, include_visibility=False)
+            return LFRicKernelMetadata.create_from_fortran_string(declaration)
 
-        # In an UnsupportedFortranType, the declaration is stored as a
-        # string, so use create_from_fortran_string()
-        return LFRicKernelMetadata.create_from_fortran_string(
-            datatype.declaration)
+        raise InternalError(
+            f"Expected kernel metadata to be stored in the PSyIR as "
+            f"an StructureType, but found "
+            f"{type(datatype).__name__}.")
 
     @staticmethod
     def create_from_fparser2(fparser2_tree):
