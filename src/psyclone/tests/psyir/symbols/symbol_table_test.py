@@ -710,7 +710,8 @@ def test_swap_symbol_preserves_tag():
     sym_table.swap(symbol1, symbol2)
 
     assert sym_table.lookup("var1") is symbol2
-    # Search for tag must find the new symbol rather than being dropped.
+    # Searching for the tag must find the new symbol rather than being
+    # dropped.
     assert sym_table.lookup_with_tag("var1_tag") is symbol2
 
 
