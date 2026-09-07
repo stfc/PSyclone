@@ -200,11 +200,6 @@ class LFRicScalarArrayArgs(LFRicCollection):
                 array_symbol.datatype = ArrayType(
                     type_map[arg.intrinsic_type],
                     sym_list)
-                # Replace the symbol with itself to ensure
-                # the ScalarArray is generated after the
-                # dimensions array to avoid compilation errors
-                # TODO: #2202 may allow this to be removed
-                self.symtab.swap(array_symbol, array_symbol)
                 array_symbol.interface = ArgumentInterface(
                                     INTENT_MAPPING[intent])
                 self.symtab.append_argument(array_symbol)
