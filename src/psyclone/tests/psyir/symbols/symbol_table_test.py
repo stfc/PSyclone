@@ -632,6 +632,43 @@ def test_remove_case_insensitive(sym_name):
     assert "var1" not in sym_table
 
 
+@pytest.mark.parametrize("block_name", ["some_block", ""])
+def test_remove_commonblock_symbols_from_tail(block_name):
+    '''Check that common-block members may only be removed from the end of
+    their storage sequence. This applies to named and blank common blocks.
+
+    '''
+    sym_table = symbols.SymbolTable()
+    symbol1 = symbols.DataSymbol(
+        "var1", symbols.ScalarType.integer_type(),
+        interface=symbols.CommonBlockInterface(block_name, 0))
+    symbol2 = symbols.DataSymbol(
+        "var2", symbols.ScalarType.integer_type(),
+        interface=symbols.CommonBlockInterface(block_name.upper(), 1))
+    symbol3 = symbols.DataSymbol(
+        "var3", symbols.ScalarType.integer_type(),
+        interface=symbols.CommonBlockInterface(block_name, 3))
+    sym_table.add(symbol1)
+    sym_table.add(symbol2)
+    sym_table.add(symbol3)
+
+    with pytest.raises(ValueError) as err:
+        sym_table.remove(symbol2)
+
+    assert (f"Cannot remove Symbol 'var2' from common block "
+            f"'{symbol2.interface.name}' because it has a subsequent member. "
+            f"Only the final member of a common block may be removed." in
+            str(err.value))
+    assert symbol2 in sym_table.symbols
+
+    # Removing members from the tail inwards is permitted. Gaps in the
+    # positions do not affect which member is last.
+    sym_table.remove(symbol3)
+    sym_table.remove(symbol2)
+    sym_table.remove(symbol1)
+    assert not sym_table.symbols
+
+
 def test_swap_symbol():
     ''' Test the SymbolTable.swap() method. '''
     symbol1 = symbols.Symbol("var1")
@@ -2893,7 +2930,7 @@ def test_rename_symbol_errors():
 
     # Cannot rename a common block symbol
     asym = symbols.DataSymbol("a", symbols.ScalarType.integer_type(),
-                              interface=symbols.CommonBlockInterface(""))
+                              interface=symbols.CommonBlockInterface("", 0))
     table.add(asym)
     with pytest.raises(symbols.SymbolError) as err:
         table.rename_symbol(asym, "b")

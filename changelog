@@ -1,3 +1,6 @@
+   47) PR #3582 for #3392. Fixes PSyclone reordering the declarations in
+   common blocks.
+
    46) PR #3581 for #3579. Bypass docstring wrapper when debug info is
    missing. This allows to use python -O or PYTHONOPTIMIZE.
 
