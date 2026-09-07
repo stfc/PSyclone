@@ -1168,6 +1168,8 @@ class CodedKern(Kern):
         self._schedules = None
         #: Whether or not this kernel has been transformed
         self._modified = False
+        #: Whether or not this kernel is to be fully inlined when lowered.
+        self._inline = False
         self._opencl_options = {'local_size': 64, 'queue_number': 1}
         self.arg_descriptors = call.ktype.arg_descriptors
 
@@ -1275,6 +1277,14 @@ class CodedKern(Kern):
         return self._module_name
 
     @property
+    def inline(self) -> bool:
+        '''
+        :returns: whether this kernel is marked for inlining when lowered.
+
+        '''
+        return self._inline
+
+    @property
     def dag_name(self):
         '''
         :returns: the name to use in the DAG for this node.
@@ -1295,13 +1305,14 @@ class CodedKern(Kern):
         return (self.coloured_name(colour) +
                 f" {self.name}({self.arguments.names})")
 
-    def lower_to_language_level(self) -> Node:
+    def lower_to_language_level(self) -> Optional[Node]:
         '''
         In-place replacement of CodedKern concept into language level
         PSyIR constructs. The CodedKern is implemented as a Call to a
         routine with the appropriate arguments.
 
-        :returns: the lowered version of this node.
+        :returns: the lowered Call, the first statement inserted by inlining,
+            or ``None`` if an empty kernel routine is inlined.
 
         '''
         symtab = self.ancestor(InvokeSchedule).symbol_table
@@ -1314,6 +1325,41 @@ class CodedKern(Kern):
 
         # Swap itself with the appropriate Call node
         self.replace_with(call_node)
+
+        if self.inline:
+            # These imports are local to avoid a circular import: InlineTrans
+            # uses CodedKern via CalleeTransformationMixin.
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.nodes import Return
+            from psyclone.psyir.transformations import (
+                InlineTrans, TransformationError)
+
+            callees = call_node.get_callees()
+            if len(callees) != 1:
+                raise TransformationError(
+                    f"Cannot inline Kernel '{self.name}' during lowering "
+                    f"because it has {len(callees)} possible callees. "
+                    f"Inlining polymorphic kernels is not supported.")
+
+            has_body = (bool(callees[0].children) and
+                        not isinstance(callees[0].children[0], Return))
+            parent = call_node.parent
+            position = call_node.position
+
+            # LFRic kind symbols in the actual and formal argument types can
+            # have different interfaces even though they denote the same
+            # Fortran kind. Kernel metadata guarantees the positional
+            # interface and the single-callee checks above avoid overload
+            # selection. InlineTrans still performs its remaining safety,
+            # rank and shape validation wherever type information is
+            # available.
+            InlineTrans().apply(
+                call_node, use_first_callee_and_no_arg_check=True)
+
+            if has_body:
+                return parent.children[position]
+            return None
+
         return call_node
 
     def incremented_arg(self) -> str:

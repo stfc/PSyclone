@@ -1076,7 +1076,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                 call_node=node,
                 call_arg=actual_arg,
                 routine_node=routine,
-                routine_arg=routine_arg
+                routine_arg=routine_arg,
+                allow_unknown=use_first_callee_and_no_arg_check
             )
 
         # Check for dependencies within the SymbolTable of the target
@@ -1128,12 +1129,14 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
 
         return (routine, arg_match_list)
 
+    # pylint: disable=too-many-arguments
     def _validate_inline_of_call_and_routine_argument_pairs(
         self,
         call_node: Call,
         call_arg: DataNode,
         routine_node: Routine,
-        routine_arg: DataSymbol
+        routine_arg: DataSymbol,
+        allow_unknown: bool = False
     ):
         """This function performs tests to see whether the inlining can
         cope with the specified call and corresponding dummy argument pair.
@@ -1142,6 +1145,9 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         :param call_arg: The argument of a call
         :param routine: The routine to be inlined
         :param routine_arg: The argument of a routine
+        :param allow_unknown: whether to permit an actual argument with an
+            unknown type. If its rank is also unknown then no shape checks can
+            be performed for this argument.
 
         :raises TransformationError: if the type of an actual argument is
             unknown and it corresponds to a formal argument that is an array.
@@ -1164,16 +1170,24 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         # TODO #924. It would be useful if the `datatype` property was
         # a method that took an optional 'resolve' argument to indicate
         # that it should attempt to resolve any UnresolvedTypes.
-        if (isinstance(call_arg.datatype,
+        unknown_actual_type = (
+            isinstance(call_arg.datatype,
                        (UnresolvedType, UnsupportedType)) or
             (isinstance(call_arg.datatype, ArrayType) and
              isinstance(call_arg.datatype.intrinsic,
-                        (UnresolvedType, UnsupportedType)))):
-            raise TransformationError(
-                f"Routine '{routine_node.name}' cannot be inlined because "
-                f"the type of the actual argument "
-                f"'{call_arg.debug_string()}' corresponding to an array"
-                f" formal argument ('{routine_arg.name}') is unknown.")
+                        (UnresolvedType, UnsupportedType))))
+        if unknown_actual_type:
+            if not allow_unknown:
+                raise TransformationError(
+                    f"Routine '{routine_node.name}' cannot be inlined because "
+                    f"the type of the actual argument "
+                    f"'{call_arg.debug_string()}' corresponding to an array"
+                    f" formal argument ('{routine_arg.name}') is unknown.")
+            if not isinstance(call_arg.datatype, ArrayType):
+                # The override says that the caller has external knowledge of
+                # the interface but this PSyIR datatype does not even expose
+                # the rank, so no further checks are possible for this pair.
+                return
 
         formal_rank = 0
         actual_rank = 0
