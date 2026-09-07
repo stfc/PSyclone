@@ -124,7 +124,7 @@ def test_kernel_inline_trans_callee_error(monkeypatch):
             "'testkern_code' due to: test failure" in str(err.value))
 
 
-def test_kernel_inline_trans_defers_body_validation(parser):
+def test_kernel_inline_trans_defers_body_validation(parser, capsys):
     """Routine-body restrictions are checked only during lowering."""
     _, invoke = get_invoke("1_single_invoke.f90", "lfric",
                            idx=0, dist_mem=False)
@@ -143,9 +143,15 @@ def test_kernel_inline_trans_defers_body_validation(parser):
     # Setting the flag is intentionally a locality-only operation.
     KernelInlineTrans().apply(kernel)
     assert kernel.inline
-    with pytest.raises(TransformationError) as err:
-        kernel.lower_to_language_level()
-    assert "contains one or more CodeBlocks" in str(err.value)
+    lowered = kernel.lower_to_language_level()
+    assert isinstance(lowered, Call)
+    assert capsys.readouterr().out == (
+        "Inline failed for kernel 'testkern_code_inlined_' due to:\n"
+        "Transformation Error: Routine 'testkern_code_inlined_' contains "
+        "one or more CodeBlocks and therefore cannot be inlined. (If you "
+        "are confident that the code may safely be inlined despite this "
+        "then use the `permit_codeblocks=True` argument to "
+        "InlineTrans.apply() to override.)\n")
 
 
 def test_kernel_inline_trans_lfric_colouring(tmpdir):
@@ -173,7 +179,7 @@ def test_kernel_inline_trans_lfric_colouring(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_kernel_inline_trans_gocean():
+def test_kernel_inline_trans_gocean(capsys):
     """The deferred transformation is generic across CodedKern APIs."""
     psy, invoke = get_invoke("single_invoke.f90", "gocean",
                              idx=0, dist_mem=False)
@@ -184,6 +190,8 @@ def test_kernel_inline_trans_gocean():
     code = str(psy.gen)
     assert "call compute_cu_code_inlined_" not in code
     assert "0.5d0" in code
+    assert capsys.readouterr().out == (
+        "Inline successful for kernel 'compute_cu_code_inlined_'\n")
 
 
 def test_kernel_inline_trans_empty_body_does_not_skip_sibling():
@@ -223,7 +231,7 @@ def test_kernel_inline_trans_domain_splicing(statement_count):
     assert all(isinstance(child, Assignment) for child in schedule.children)
 
 
-def test_kernel_inline_trans_rechecks_callees(monkeypatch):
+def test_kernel_inline_trans_rechecks_callees(monkeypatch, capsys):
     """Polymorphism introduced after marking is caught during lowering."""
     _, invoke = get_invoke("1_single_invoke.f90", "lfric",
                            idx=0, dist_mem=False)
@@ -233,6 +241,10 @@ def test_kernel_inline_trans_rechecks_callees(monkeypatch):
     routine = kernel.get_callees()[0]
     monkeypatch.setattr(Call, "get_callees", lambda _: [routine, routine])
 
-    with pytest.raises(TransformationError) as err:
-        kernel.lower_to_language_level()
-    assert "it has 2 possible callees" in str(err.value)
+    lowered = kernel.lower_to_language_level()
+    assert isinstance(lowered, Call)
+    assert capsys.readouterr().out == (
+        "Inline failed for kernel 'testkern_code_inlined_' due to:\n"
+        "Transformation Error: Cannot inline Kernel "
+        "'testkern_code_inlined_' during lowering because it has 2 possible "
+        "callees. Inlining polymorphic kernels is not supported.\n")

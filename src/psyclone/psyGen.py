@@ -1326,6 +1326,8 @@ class CodedKern(Kern):
         # Swap itself with the appropriate Call node
         self.replace_with(call_node)
 
+        # TODO #2216: Ideally InlineTrans should not be deferred and the
+        # reporting should be done in the trasformation script.
         if self.inline:
             # These imports are local to avoid a circular import: InlineTrans
             # uses CodedKern via CalleeTransformationMixin.
@@ -1334,27 +1336,39 @@ class CodedKern(Kern):
             from psyclone.psyir.transformations import (
                 InlineTrans, TransformationError)
 
-            callees = call_node.get_callees()
-            if len(callees) != 1:
-                raise TransformationError(
-                    f"Cannot inline Kernel '{self.name}' during lowering "
-                    f"because it has {len(callees)} possible callees. "
-                    f"Inlining polymorphic kernels is not supported.")
+            try:
+                callees = call_node.get_callees()
 
-            has_body = (bool(callees[0].children) and
-                        not isinstance(callees[0].children[0], Return))
-            parent = call_node.parent
-            position = call_node.position
+                # Argument matching often fails for LFRic kernels due to mixed
+                # precision symbols not being properly interconnected and other
+                # psy-layer objects having incomplete types. To proceed we set
+                # the 'use_first_callee_and_no_arg_check' InlineTrans option,
+                # but to make this safe we only allow it when the kernel has
+                # only one implementation.
+                if len(callees) != 1:
+                    raise TransformationError(
+                        f"Cannot inline Kernel '{self.name}' during lowering "
+                        f"because it has {len(callees)} possible callees. "
+                        f"Inlining polymorphic kernels is not supported.")
 
-            # LFRic kind symbols in the actual and formal argument types can
-            # have different interfaces even though they denote the same
-            # Fortran kind. Kernel metadata guarantees the positional
-            # interface and the single-callee checks above avoid overload
-            # selection. InlineTrans still performs its remaining safety,
-            # rank and shape validation wherever type information is
-            # available.
-            InlineTrans().apply(
-                call_node, use_first_callee_and_no_arg_check=True)
+                has_body = (bool(callees[0].children) and
+                            not isinstance(callees[0].children[0], Return))
+                parent = call_node.parent
+                position = call_node.position
+
+                InlineTrans().apply(
+                    call_node, use_first_callee_and_no_arg_check=True)
+            except TransformationError as err:
+                # If inline failes, we still continue with the non-inlined
+                # version. We report the issues in stdout. Even if the most
+                # natural reporting would be to use logging, the lfric call
+                # to psyclone is hardcoded in their build system, but we
+                # want to count this errors in our gpu offloading report.
+                print(f"Inline failed for kernel '{self.name}' due to:\n"
+                      f"{err.value}")
+                return call_node
+
+            print(f"Inline successful for kernel '{self.name}'")
 
             if has_body:
                 return parent.children[position]
