@@ -88,8 +88,8 @@ class Intrinsic2CodeTrans(Transformation):
         '''
         # The split_kwargs function returns a tuple containing the
         # kwargs for this transformation as the first entry and then
-        # the kwargs for the SUB_TRANSFORAMTIONS in order as the following
-        # entries.
+        # the kwargs for the SUB_TRANSFORAMTIONS in the same order as the
+        # following entries.
         split_kwargs = self.split_kwargs(**kwargs)
         local_kwargs = split_kwargs[0]
         sub_kwargs = {}
@@ -104,9 +104,9 @@ class Intrinsic2CodeTrans(Transformation):
 
         :param node: the IntrinsicCall to be transformed.
         '''
-        # Split the options for the subtransformations. The options are
-        # returned in the order of the _SUB_TRANSFORMATIONS list.
-        kwargs_dict = {}
+        # Split the options for the subtransformations. The options for
+        # the subtransforamtions are returned in the kwargs_dict and
+        # indexed by the relevant intrinsic.
         local_kwargs, kwargs_dict = self._split_kwargs(**kwargs)
 
         self.validate(node, **local_kwargs)
@@ -121,6 +121,8 @@ class Intrinsic2CodeTrans(Transformation):
             # Setup the logger.
             logger = logging.getLogger(__name__)
             supported_intrinsics = []
+            # We only generate the supported intrinsics list if logging
+            # is at a high enough level for the logging message to occur.
             if logger.isEnabledFor(logging.INFO):
                 supported_intrinsics = [intrinsic.name for intrinsic in
                                         self.intrinsic_to_trans.keys()]

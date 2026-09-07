@@ -47,7 +47,8 @@ def test_intrinsic2code_trans_validate(fortran_reader):
 def test_intrinsic2code_trans_apply(fortran_reader, monkeypatch,
                                     code, transformation):
     '''Test the apply function of the Intrinsic2CodeTrans
-    metatransformation.
+    metatransformation calls the apply method of the correct
+    subtransformation.
     '''
     code = f"""subroutine test
   integer, dimension(:) :: i

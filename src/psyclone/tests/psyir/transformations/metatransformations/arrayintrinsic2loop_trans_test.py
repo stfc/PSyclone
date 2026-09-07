@@ -29,7 +29,8 @@ LOGGER_NAME = ("psyclone.psyir.transformations.metatransformations."
 def test_arrayintrinsic2loop_trans_apply(fortran_reader, monkeypatch,
                                          code, transformation):
     '''Test the apply function of the ArrayIntrinsic2LoopTrans
-    metatransformation.
+    metatransformation calls the apply method of the expected
+    subtransformation.
     '''
     code = f"""subroutine test
   integer, dimension(:) :: i
