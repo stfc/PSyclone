@@ -165,7 +165,7 @@ def test_loop_node_str(monkeypatch):
 
     # Test an incomplete loop
     incomplete_loop = Loop()
-    assert incomplete_loop.node_str() == "Loop[]"
+    assert incomplete_loop.node_str(colour=False) == "Loop[]"
 
 
 @pytest.mark.parametrize("table", [None, SymbolTable()])

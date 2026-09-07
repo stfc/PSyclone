@@ -16,7 +16,11 @@ from psyclone.core import Signature
 
 class ReadWriteInfo:
     '''This class stores signature and container name of variables read or
-    written. The container name is optional, it will default to "" if the
+    written, and an optional `dsl_name`. The latter is used when e.g. the
+    variable access is `field_proxy%data`, but the DSL name of the field is
+    `field`. This can be used for user-friendly error messages and names, e.g.
+    in PSyData libraries.
+    The container name is optional, it will default to "" if the
     signature belongs to a symbol declared in the local scope, otherwise it
     is the name of the container from which it must be imported.
 
@@ -28,13 +32,13 @@ class ReadWriteInfo:
     '''
 
     def __init__(self) -> None:
-        self._read_list: list[Tuple[str, Signature]] = []
-        self._write_list: list[Tuple[str, Signature]] = []
+        self._read_list: list[Tuple[str, Signature, str]] = []
+        self._write_list: list[Tuple[str, Signature, str]] = []
         self._sorted = True
 
     # -------------------------------------------------------------------------
     @property
-    def read_list(self) -> List[Tuple[str, Signature]]:
+    def read_list(self) -> List[Tuple[str, Signature, str]]:
         '''
         :returns: the sorted list of container_name,signature pairs that
             are read.
@@ -54,11 +58,11 @@ class ReadWriteInfo:
         :returns: the list of all signatures read.
 
         '''
-        return [sig for _, sig in self.read_list]
+        return [sig for _, sig, _ in self.read_list]
 
     # -------------------------------------------------------------------------
     @property
-    def write_list(self) -> List[Tuple[str, Signature]]:
+    def write_list(self) -> List[Tuple[str, Signature, str]]:
         '''
         :returns: the sorted list of container_name,signature pairs that
             are written.
@@ -77,14 +81,14 @@ class ReadWriteInfo:
         :returns: the list of all signatures written.
 
         '''
-        return [sig for _, sig in self.write_list]
+        return [sig for _, sig, _ in self.write_list]
 
     # -------------------------------------------------------------------------
     @property
-    def all_used_vars_list(self) -> List[Tuple[str, Signature]]:
+    def all_used_vars_list(self) -> List[Tuple[str, Signature, str]]:
         '''
-        :returns: the sorted list of container_name,signature pairs that
-            are used.
+        :returns: the sorted list of container_name, signature pairs,
+            dsl_names that are used.
 
         '''
         all_vars = list(set(self._read_list) | set(self._write_list))
@@ -94,7 +98,8 @@ class ReadWriteInfo:
     # -------------------------------------------------------------------------
     def add_read(self,
                  signature: Signature,
-                 container_name: Optional[str] = None) -> None:
+                 container_name: Optional[str] = None,
+                 dsl_name: Optional[str] = None) -> None:
         '''This function adds a read access to the specified signature and
         container name. The container_name is optional and defaults to "",
         indicating that this signature is not based on importing a symbol
@@ -102,18 +107,20 @@ class ReadWriteInfo:
 
         :param signature: the signature of the access.
         :param container_name: the container name (optional)
+        :param dsl_name: optional, the DSL-specific name of the access.
 
         '''
         if container_name:
-            self._read_list.append((container_name, signature))
+            self._read_list.append((container_name, signature, dsl_name))
         else:
-            self._read_list.append(("", signature))
+            self._read_list.append(("", signature, dsl_name))
         self._sorted = False
 
     # -------------------------------------------------------------------------
     def add_write(self,
                   signature: Signature,
-                  container_name: Optional[str] = None) -> None:
+                  container_name: Optional[str] = None,
+                  dsl_name: Optional[str] = None) -> None:
         '''This function adds a write access to the specified signature and
         container name. The container_name is optional and defaults to "",
         indicating that this signature is not based on importing a symbol
@@ -121,12 +128,13 @@ class ReadWriteInfo:
 
         :param signature: the signature of the access.
         :param container_name: the container name (optional)
+        :param dsl_name: optional, the DSL-specific name of the access.
 
         '''
         if container_name:
-            self._write_list.append((container_name, signature))
+            self._write_list.append((container_name, signature, dsl_name))
         else:
-            self._write_list.append(("", signature))
+            self._write_list.append(("", signature, dsl_name))
         self._sorted = False
 
     # -------------------------------------------------------------------------
@@ -140,7 +148,7 @@ class ReadWriteInfo:
             of the container name).
 
         '''
-        return any(signature == sig for _, sig in self._read_list)
+        return any(signature == sig for _, sig, _ in self._read_list)
 
     # -------------------------------------------------------------------------
     def remove(self,
@@ -161,16 +169,21 @@ class ReadWriteInfo:
         '''
         var_info = (container_name, signature)
         not_found_counter = 0
-        try:
-            self._read_list.remove(var_info)
-        except ValueError:
+
+        read_list = [i for i in self._read_list if i[0:2] != var_info]
+        if len(read_list) < len(self._read_list):
+            self._read_list = read_list
+        else:
             # If the variable is not in that list, ignore it
             not_found_counter += 1
-        try:
-            self._write_list.remove(var_info)
-        except ValueError:
+
+        write_list = [i for i in self._write_list if i[0:2] != var_info]
+        if len(write_list) < len(self._write_list):
+            self._write_list = write_list
+        else:
             # If the variable is not in that list, ignore it
             not_found_counter += 1
+
         if not_found_counter == 2:
             logger = logging.getLogger(__name__)
             logger.warning(f"ExtractNode: Variable '{var_info[1]}' is to "
