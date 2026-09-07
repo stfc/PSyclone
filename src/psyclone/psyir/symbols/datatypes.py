@@ -1282,163 +1282,244 @@ class StructureType(DataType):
         :param name: the name of the member.
         :param datatype: the type of the member.
         :param visibility: whether this member is public or private.
-        :param initial_value: the initial value of this member (if any).
-        :type initial_value: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        :param initial_value: the initial value of this member (if any) or the
+            redirection value if it is a procedure.
         '''
         name: str
         datatype: Union[DataType, DataTypeSymbol]
         visibility: Symbol.Visibility
-        initial_value: Any
+        initial_value: Optional[DataNode] = None
+        _preceding_comment: str = ""
+        _inline_comment: str = ""
+
+        def __post_init__(self) -> None:
+            '''Validate the attributes of this component.
+
+            :raises TypeError: if any of the supplied values are of the wrong
+                type.
+            '''
+            # This import must be placed here to avoid circular dependencies.
+            # pylint: disable-next=import-outside-toplevel
+            from psyclone.psyir.nodes import DataNode
+
+            if not isinstance(self.name, str):
+                raise TypeError(
+                    "The name of a component of a StructureType must be a "
+                    f"'str' but got '{type(self.name).__name__}'")
+            if not isinstance(self.datatype, (DataType, DataTypeSymbol)):
+                raise TypeError(
+                    "The type of a component of a StructureType must be a "
+                    "'DataType' or 'DataTypeSymbol' but got "
+                    f"'{type(self.datatype).__name__}'")
+            if not isinstance(self.visibility, Symbol.Visibility):
+                raise TypeError(
+                    "The visibility of a component of a StructureType must "
+                    "be an instance of 'Symbol.Visibility' but got "
+                    f"'{type(self.visibility).__name__}'")
+            if (self.initial_value is not None and
+                    not isinstance(self.initial_value, DataNode)):
+                raise TypeError(
+                    "The initial value of a component of a StructureType "
+                    "must be None or an instance of 'DataNode', but got "
+                    f"'{type(self.initial_value).__name__}'.")
+            if not isinstance(self.preceding_comment, str):
+                raise TypeError(
+                    "The preceding_comment of a component of a StructureType "
+                    "must be a 'str' but got "
+                    f"'{type(self.preceding_comment).__name__}'")
+            if not isinstance(self.inline_comment, str):
+                raise TypeError(
+                    "The inline_comment of a component of a StructureType "
+                    "must be a 'str' but got "
+                    f"'{type(self.inline_comment).__name__}'")
+
+        def __eq__(self, other: Any) -> bool:
+            '''
+            :param other: the object to check equality to.
+
+            :returns: whether this type is equal to the 'other' type.
+
+            '''
+            if type(other) is not type(self):
+                return False
+
+            if self.name != other.name:
+                return False
+
+            if self.datatype != other.datatype:
+                return False
+
+            if self.visibility != other.visibility:
+                return False
+
+            if self.initial_value != other.initial_value:
+                return False
+
+            # The _preceding_comment and _inline_comment are ignored
+            return True
 
     def __init__(self):
         self._components = OrderedDict()
+        self._procedure_components = OrderedDict()
+        self._extends = None
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "StructureType<>"
 
-    def __copy__(self):
+    def __copy__(self) -> 'StructureType':
         '''
         :returns: a copy of this StructureType.
         :rtype: :py:class:`psyclone.psyir.symbols.StructureType`
         '''
         new = StructureType()
 
-        for name, component in self.components.items():
-            new.add(name, component.datatype, component.visibility,
-                    component.initial_value, component.preceding_comment,
-                    component.inline_comment)
+        for component in self.components.values():
+            new.add(component)
+        for component in self.procedure_components.values():
+            new.add_procedure_component(component)
+        new._extends = self.extends
         return new
 
     @staticmethod
-    def create(components):
+    def create(
+        components: list[StructureType.ComponentType],
+        procedure_components: Optional[
+            list[StructureType.ComponentType]] = None,
+        extends: Optional[DataTypeSymbol] = None
+    ) -> 'StructureType':
         '''
-        Creates a StructureType from the supplied list of properties.
+        Creates a StructureType from the supplied lists of components.
 
-        :param components: the name, type, visibility (whether public or
-            private), initial value (if any), preceding comment (if any)
-            and inline comment (if any) of each component.
-        :type components: List[tuple[
-            str,
-            :py:class:`psyclone.psyir.symbols.DataType` |
-            :py:class:`psyclone.psyir.symbols.DataTypeSymbol`,
-            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`,
-            Optional[:py:class:`psyclone.psyir.symbols.DataNode`],
-            Optional[str],
-            Optional[str]
-            ]]
+        :param components: the data components of this type.
+        :param procedure_components: the procedure components of this type.
+        :param extends: the type extended by this type, if any.
 
         :returns: the new type object.
-        :rtype: :py:class:`psyclone.psyir.symbols.StructureType`
 
         '''
         stype = StructureType()
         for component in components:
-            if len(component) not in (3, 4, 5, 6):
-                raise TypeError(
-                    f"Each component must be specified using a 3 to 6-tuple "
-                    f"of (name, type, visibility, initial_value, "
-                    f"preceding_comment, inline_comment) but found a "
-                    f"tuple with {len(component)} members: {component}")
-            stype.add(*component)
+            stype.add(component)
+        if procedure_components:
+            for component in procedure_components:
+                stype.add_procedure_component(component)
+        if extends is not None:
+            stype.extends = extends
         return stype
 
     @property
-    def components(self):
+    def components(self) -> dict[str, 'StructureType.ComponentType']:
         '''
         :returns: Ordered dictionary of the components of this type.
-        :rtype: :py:class:`collections.OrderedDict`
         '''
         return self._components
 
-    def add(self, name: str, datatype, visibility, initial_value=None,
-            preceding_comment: str = "", inline_comment: str = ""):
+    @property
+    def procedure_components(self) -> dict[str, 'StructureType.ComponentType']:
         '''
-        Create a component with the supplied attributes and add it to
-        this StructureType.
+        :returns: ordered dictionary of the type-bound procedures of this
+            type.
+        '''
+        return self._procedure_components
 
-        :param name: the name of the new component.
-        :param datatype: the type of the new component.
-        :type datatype: :py:class:`psyclone.psyir.symbols.DataType` |
-            :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
-        :param visibility: whether this component is public or private.
-        :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
-        :param initial_value: the initial value of the new component.
-        :type initial_value: Optional[
-            :py:class:`psyclone.psyir.nodes.DataNode`]
-        :param preceding_comment: a comment that precedes this component.
-        :param inline_comment: a comment that follows this component on the
-                               same line.
+    @property
+    def extends(self) -> Optional[Symbol]:
+        '''
+        :returns: the type extended by this type, or None.
+        '''
+        return self._extends
 
-        :raises TypeError: if any of the supplied values are of the wrong type.
+    @extends.setter
+    def extends(self, value: Symbol) -> None:
+        '''Set the type extended by this type.
+
+        :param value: the type being extended.
+
+        :raises TypeError: if value is not a Symbol.
+        '''
+        if not isinstance(value, Symbol):
+            raise TypeError(
+                f"The type that a StructureType extends must be a "
+                f"Symbol but got '{type(value).__name__}'.")
+        self._extends = value
+
+    def add(self, component: 'StructureType.ComponentType') -> None:
+        '''
+        Add the supplied component to this StructureType.
+
+        :param component: the component to add.
+
+        :raises TypeError: if the supplied value is not a ComponentType or if
+            the component would make this StructureType recursive.
 
         '''
-        # This import must be placed here to avoid circular
-        # dependencies.
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import DataNode
-        if not isinstance(name, str):
+        if not isinstance(component, self.ComponentType):
             raise TypeError(
-                f"The name of a component of a StructureType must be a 'str' "
-                f"but got '{type(name).__name__}'")
-        if not isinstance(datatype, (DataType, DataTypeSymbol)):
-            raise TypeError(
-                f"The type of a component of a StructureType must be a "
-                f"'DataType' or 'DataTypeSymbol' but got "
-                f"'{type(datatype).__name__}'")
-        if not isinstance(visibility, Symbol.Visibility):
-            raise TypeError(
-                f"The visibility of a component of a StructureType must be "
-                f"an instance of 'Symbol.Visibility' but got "
-                f"'{type(visibility).__name__}'")
-        if datatype is self:
+                "The component added to a StructureType must be an instance "
+                "of 'StructureType.ComponentType' but got "
+                f"'{type(component).__name__}'")
+        if component.datatype is self:
             # A StructureType cannot contain a component of its own type
             raise TypeError(
-                f"Error attempting to add component '{name}' - a "
+                f"Error attempting to add component '{component.name}' - a "
                 f"StructureType definition cannot be recursive - i.e. it "
                 f"cannot contain components with the same type as itself.")
-        if (initial_value is not None and
-                not isinstance(initial_value, DataNode)):
-            raise TypeError(
-                f"The initial value of a component of a StructureType must "
-                f"be None or an instance of 'DataNode', but got "
-                f"'{type(initial_value).__name__}'.")
-        if not isinstance(preceding_comment, str):
-            raise TypeError(
-                f"The preceding_comment of a component of a StructureType "
-                f"must be a 'str' but got "
-                f"'{type(preceding_comment).__name__}'")
-        if not isinstance(inline_comment, str):
-            raise TypeError(
-                f"The inline_comment of a component of a StructureType must "
-                f"be a 'str' but got "
-                f"'{type(inline_comment).__name__}'")
 
-        key_name = name.lower()
-        self._components[key_name] = self.ComponentType(name, datatype,
-                                                        visibility,
-                                                        initial_value)
-        # Use object.__setattr__ due to the frozen nature of ComponentType
-        object.__setattr__(self._components[key_name],
-                           "_preceding_comment",
-                           preceding_comment)
-        object.__setattr__(self._components[key_name],
-                           "_inline_comment",
-                           inline_comment)
+        key_name = component.name.lower()
+        self._components[key_name] = component
 
-    def lookup(self, name):
+    def lookup(self, name: str) -> 'StructureType.ComponentType':
         '''
+        :param name: the name of a component.
+
         :returns: the ComponentType tuple describing the named member of this
                   StructureType.
-        :rtype: :py:class:`psyclone.psyir.symbols.StructureType.ComponentType`
         '''
-        return self._components[name.lower()]
+        lower_name = name.lower()
+        if lower_name in self._components:
+            return self._components[lower_name]
+        return self._procedure_components[lower_name]
 
-    def __eq__(self, other):
+    def add_procedure_component(
+        self, component: 'StructureType.ComponentType'
+    ) -> None:
+        '''Add a type-bound procedure to this StructureType.
+
+        :param component: the procedure component to add.
+
+        :raises TypeError: if the supplied value is not a ComponentType or is
+            not valid for a procedure component.
         '''
-        :param Any other: the object to check equality to.
+        # Imports here avoid circular dependencies.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Reference
+
+        if not isinstance(component, self.ComponentType):
+            raise TypeError(
+                "The procedure component added to a StructureType must be an "
+                "instance of 'StructureType.ComponentType' but got "
+                f"'{type(component).__name__}'")
+        if not isinstance(component.datatype, DataType):
+            raise TypeError(
+                f"The type of a procedure component of a StructureType must "
+                f"be a 'DataType' but got "
+                f"'{type(component.datatype).__name__}'")
+        if (component.initial_value is not None and
+                (not isinstance(component.initial_value, Reference) or
+                 not isinstance(component.initial_value.symbol, Symbol))):
+            raise TypeError(
+                "The initial value of a procedure component of a "
+                "StructureType must be None or a Reference to a "
+                f"Symbol but got '{type(component.initial_value).__name__}'.")
+
+        key_name = component.name.lower()
+        self._procedure_components[key_name] = component
+
+    def __eq__(self, other: Any) -> bool:
+        '''
+        :param other: the object to check equality to.
 
         :returns: whether this StructureType is equal to the 'other' type.
-        :rtype: bool
         '''
         if not super().__eq__(other):
             return False
@@ -1449,9 +1530,18 @@ class StructureType(DataType):
         if self.components != other.components:
             return False
 
+        if self.procedure_components != other.procedure_components:
+            return False
+
+        if self.extends is not other.extends:
+            return False
+
         return True
 
-    def replace_symbols_using(self, table_or_symbol):
+    def replace_symbols_using(
+        self,
+        table_or_symbol: Union[SymbolTable, Symbol]
+    ) -> None:
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable (or just the supplied Symbol instance) if they
@@ -1462,8 +1552,6 @@ class StructureType(DataType):
 
         :param table_or_symbol: the symbol table from which to get replacement
             symbols or a single, replacement Symbol.
-        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         # Since ComponentType is a frozen dataclass it is immutable, therefore
@@ -1493,10 +1581,34 @@ class StructureType(DataType):
 
             # Construct the new ComponentType
             key_name = component.name.lower()
-            self.add(key_name, new_type, component.visibility,
-                     initial_value,
-                     preceding_comment=component.preceding_comment,
-                     inline_comment=component.inline_comment)
+            self.add(self.ComponentType(
+                key_name, new_type, component.visibility, initial_value,
+                component.preceding_comment, component.inline_comment))
+
+        # Similarly, since procedure_components is also a frozen dataclass
+        # we need to replace the instance with a new one with updated values
+        for component in list(self.procedure_components.values()):
+            new_type = component.datatype.copy()
+            new_type.replace_symbols_using(table_or_symbol)
+
+            initial_value = component.initial_value
+            if initial_value:
+                initial_value = initial_value.copy()
+                initial_value.replace_symbols_using(table_or_symbol)
+
+            self.add_procedure_component(self.ComponentType(
+                component.name, new_type, component.visibility,
+                initial_value, component.preceding_comment,
+                component.inline_comment))
+
+        # Update reference in the extends attribute
+        if self.extends:
+            if isinstance(table_or_symbol, Symbol):
+                if table_or_symbol.name.lower() == self.extends.name.lower():
+                    self._extends = table_or_symbol
+            else:
+                self._extends = table_or_symbol.lookup(
+                    self.extends.name, otherwise=self.extends)
 
     def get_all_accessed_symbols(self) -> set[Symbol]:
         '''
@@ -1511,6 +1623,13 @@ class StructureType(DataType):
             if cmpt.initial_value:
                 symbols.update(
                     cmpt.initial_value.get_all_accessed_symbols())
+        for cmpt in self.procedure_components.values():
+            symbols.update(cmpt.datatype.get_all_accessed_symbols())
+            if cmpt.initial_value:
+                symbols.update(
+                    cmpt.initial_value.get_all_accessed_symbols())
+        if self.extends:
+            symbols.add(self.extends)
         return symbols
 
 

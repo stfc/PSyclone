@@ -126,17 +126,40 @@ def test_is_array_assignment():
     assert assignment.is_literal_assignment
 
     # Check when lhs consists of various forms of structure access
-    grid_type = StructureType.create([
-        ("dx", ScalarType.real_single_type(), Symbol.Visibility.PUBLIC, None),
-        ("dy", ScalarType.real_single_type(), Symbol.Visibility.PUBLIC, None)])
+    grid_type = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "dx",
+                ScalarType.real_single_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            StructureType.ComponentType(
+                "dy",
+                ScalarType.real_single_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
     grid_type_symbol = DataTypeSymbol("grid_type", grid_type)
     # Create the definition of the 'field_type', contains array of grid_types
     field_type_def = StructureType.create(
-        [("data", ArrayType(ScalarType.real_single_type(), [10]),
-          Symbol.Visibility.PUBLIC,
-          None),
-         ("sub_meshes", ArrayType(grid_type_symbol, [3]),
-          Symbol.Visibility.PUBLIC, None)])
+        [
+            StructureType.ComponentType(
+                "data",
+                ArrayType(ScalarType.real_single_type(), [10]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            StructureType.ComponentType(
+                "sub_meshes",
+                ArrayType(grid_type_symbol, [3]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
     field_type_symbol = DataTypeSymbol("field_type", field_type_def)
     field_symbol = DataSymbol("wind", field_type_symbol)
 
@@ -287,9 +310,22 @@ def test_is_not_array_assignment():
     assert assignment.is_array_assignment is False
 
     # lhs is a scalar member of a structure
-    grid_type = StructureType.create([
-        ("dx", ScalarType.real_single_type(), Symbol.Visibility.PUBLIC, None),
-        ("dy", ScalarType.real_single_type(), Symbol.Visibility.PUBLIC, None)])
+    grid_type = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "dx",
+                ScalarType.real_single_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            StructureType.ComponentType(
+                "dy",
+                ScalarType.real_single_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
     grid_type_symbol = DataTypeSymbol("grid_type", grid_type)
     grid_sym = DataSymbol("grid", grid_type_symbol)
     assignment = Assignment.create(StructureReference.create(grid_sym, ["dx"]),

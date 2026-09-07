@@ -2891,14 +2891,16 @@ def test_omp_serial_validate_task_dependencies_outout():
     # StructureType for Structure tests
     grid_type = StructureType.create(
         [
-            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-            (
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
                 "sub_grids",
                 ArrayType(ScalarType.integer_type(), [3]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
-            (
+            StructureType.ComponentType(
                 "data",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
@@ -3050,14 +3052,24 @@ def test_omp_serial_validate_task_dependencies_outout():
 
     # Check outout accesses to different structure member lengths
     sub_grid_type = StructureType.create(
-        [("array", ArrayType(ScalarType.real_type(), [128, 128]),
-          Symbol.Visibility.PUBLIC, None)]
+        [
+            StructureType.ComponentType(
+                "array",
+                ArrayType(ScalarType.real_type(), [128, 128]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            )
+        ]
     )
     grid_type = StructureType.create(
         [
-            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-            ("sub_grids", sub_grid_type, Symbol.Visibility.PUBLIC, None),
-            (
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
+                "sub_grids", sub_grid_type, Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
                 "data",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
@@ -3136,14 +3148,16 @@ def test_omp_serial_validate_task_dependencies_outout():
     # Check outout accesses to different structure members
     grid_type = StructureType.create(
         [
-            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-            (
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
                 "data2",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
-            (
+            StructureType.ComponentType(
                 "data",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
@@ -3436,14 +3450,16 @@ def test_omp_serial_validate_task_dependencies_inout():
     # StructureType for Structure tests
     grid_type = StructureType.create(
         [
-            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-            (
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
                 "sub_grids",
                 ArrayType(ScalarType.integer_type(), [3]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
-            (
+            StructureType.ComponentType(
                 "data",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
@@ -3599,15 +3615,24 @@ def test_omp_serial_validate_task_dependencies_inout():
 
     # Check inout accesses to different structure member lengths
     sub_grid_type = StructureType.create(
-        [("array", ArrayType(ScalarType.real_type(), [128, 128]),
-          Symbol.Visibility.PUBLIC,
-          None)]
+        [
+            StructureType.ComponentType(
+                "array",
+                ArrayType(ScalarType.real_type(), [128, 128]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            )
+        ]
     )
     grid_type = StructureType.create(
         [
-            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-            ("sub_grids", sub_grid_type, Symbol.Visibility.PUBLIC, None),
-            (
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
+                "sub_grids", sub_grid_type, Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
                 "data",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
@@ -3686,14 +3711,16 @@ def test_omp_serial_validate_task_dependencies_inout():
     # Check inout accesses to different structure members
     grid_type = StructureType.create(
         [
-            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-            (
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
                 "data2",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
-            (
+            StructureType.ComponentType(
                 "data",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
@@ -3989,14 +4016,16 @@ def test_omp_serial_validate_task_dependencies_outin():
     # StructureType for Structure tests
     grid_type = StructureType.create(
         [
-            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-            (
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
                 "sub_grids",
                 ArrayType(ScalarType.integer_type(), [3]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
-            (
+            StructureType.ComponentType(
                 "data",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
@@ -4152,15 +4181,24 @@ def test_omp_serial_validate_task_dependencies_outin():
 
     # Check outin accesses to different structure member lengths
     sub_grid_type = StructureType.create(
-        [("array", ArrayType(ScalarType.real_type(), [128, 128]),
-          Symbol.Visibility.PUBLIC,
-          None)]
+        [
+            StructureType.ComponentType(
+                "array",
+                ArrayType(ScalarType.real_type(), [128, 128]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            )
+        ]
     )
     grid_type = StructureType.create(
         [
-            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-            ("sub_grids", sub_grid_type, Symbol.Visibility.PUBLIC, None),
-            (
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
+                "sub_grids", sub_grid_type, Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
                 "data",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
@@ -4239,14 +4277,16 @@ def test_omp_serial_validate_task_dependencies_outin():
     # Check outin accesses to different structure members
     grid_type = StructureType.create(
         [
-            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-            (
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
                 "data2",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
-            (
+            StructureType.ComponentType(
                 "data",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
@@ -4687,18 +4727,39 @@ def test_omp_serial_check_dependency_valid_multiple_arraymixin():
     Tests the case where a StructureReference contains two ArrayMixin
     children.
     '''
-    region_type = StructureType.create([
-        ("startx", ArrayType(ScalarType.real_type(), [10]),
-         Symbol.Visibility.PUBLIC, None)
-    ])
+    region_type = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "startx",
+                ArrayType(ScalarType.real_type(), [10]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            )
+        ]
+    )
     region_type_symbol = DataTypeSymbol("region_type", region_type)
-    grid_type = StructureType.create([
-        ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        ("region", region_type_symbol, Symbol.Visibility.PRIVATE, None),
-        ("sub_grids", ArrayType(region_type_symbol, [3]),
-         Symbol.Visibility.PUBLIC, None),
-        ("data", ArrayType(ScalarType.real_type(), [10, 10]),
-         Symbol.Visibility.PUBLIC, None)])
+    grid_type = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
+                "region", region_type_symbol, Symbol.Visibility.PRIVATE, None
+            ),
+            StructureType.ComponentType(
+                "sub_grids",
+                ArrayType(region_type_symbol, [3]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            StructureType.ComponentType(
+                "data",
+                ArrayType(ScalarType.real_type(), [10, 10]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
     grid_type_symbol = DataTypeSymbol("grid_type", grid_type)
     ssym = DataSymbol("grid", grid_type_symbol)
     # Reference to scalar member of structure

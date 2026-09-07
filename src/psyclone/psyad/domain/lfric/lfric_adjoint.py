@@ -23,24 +23,26 @@ from psyclone.domain.lfric.utils import (
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad import AdjointVisitor
 from psyclone.psyad.domain.common import create_adjoint_name
-from psyclone.psyir.nodes import Routine
-from psyclone.psyir.symbols import ContainerSymbol, UnsupportedFortranType
-from psyclone.psyir.symbols.symbol import ArgumentInterface, ImportInterface
+from psyclone.psyir.nodes import Routine, Node
+from psyclone.psyir.symbols import ContainerSymbol, StructureType
+from psyclone.psyir.symbols.symbol import (
+    ArgumentInterface, ImportInterface, UnresolvedInterface)
 
 
 # pylint: disable=too-many-locals
-def generate_lfric_adjoint(tl_psyir, active_variables):
+def generate_lfric_adjoint(
+    tl_psyir: Node,
+    active_variables: list[str]
+) -> Node:
     '''Takes an LFRic tangent-linear kernel represented in language-level PSyIR
     and returns its adjoint represented in language-level PSyIR.
 
     :param tl_psyir: language-level PSyIR containing the LFRic
         tangent-linear kernel.
-    :type tl_psyir: :py:class:`psyclone.psyir.Node`
-    :param list[str] active_variables: names of the active variables.
+    :param active_variables: names of the active variables.
 
     :returns: language-level PSyIR containing the adjoint of the
         supplied tangent-linear kernel.
-    :rtype: :py:class:`psyclone.psyir.Node`
 
     :raises InternalError: if the PSyIR does not contain any kernel metadata.
     :raises InternalError: if the PSyIR does not contain any Routines.
@@ -52,8 +54,9 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
     # linear kernel.
     tl_container = find_container(tl_psyir)
     for sym in tl_container.symbol_table.datatypesymbols:
-        if (isinstance(sym.datatype, UnsupportedFortranType) and
-                "extends(kernel_type)" in sym.datatype.declaration.lower()):
+        if (isinstance(sym.datatype, StructureType) and
+                sym.datatype.extends and
+                sym.datatype.extends.name.lower() == "kernel_type"):
             tl_metadata_name = sym.name
             break
     else:
@@ -246,8 +249,12 @@ def _check_or_add_access_symbol(container, access):
     '''
     kernel = container.children[0]
     symbol_table = kernel.symbol_table
+    arg_mod_symbol = symbol_table.find_or_create(
+        "argument_mod", symbol_type=ContainerSymbol)
     try:
         argument_mod_symbol = symbol_table.lookup(access)
+        if isinstance(argument_mod_symbol.interface, UnresolvedInterface):
+            argument_mod_symbol.interface = ImportInterface(arg_mod_symbol)
         if not isinstance(argument_mod_symbol.interface, ImportInterface):
             raise GenerationError(
                 f"The existing symbol '{access}' is not imported from a use "
@@ -259,8 +266,6 @@ def _check_or_add_access_symbol(container, access):
                 f"'{argument_mod_symbol.interface.container_symbol.name}' but "
                 f"should be imported from 'argument_mod'.")
     except KeyError:
-        arg_mod_symbol = symbol_table.find_or_create(
-            "argument_mod", symbol_type=ContainerSymbol)
         symbol_table = arg_mod_symbol.find_symbol_table(kernel)
         symbol_table.new_symbol(
             root_name=access, interface=ImportInterface(arg_mod_symbol))
