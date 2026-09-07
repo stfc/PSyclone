@@ -747,7 +747,7 @@ class HaloExchange(Statement):
         :returns: an empty list.
         '''
         return []
-        #return super().next_accesses()
+        # return super().next_accesses()
         # FIXME
 
     def previous_accesses(self) -> list[Node]:
@@ -1160,7 +1160,7 @@ class Kern(Statement):
 
         :returns: an empty list.
         '''
-        return [] # FIXME
+        return []  # FIXME
         return super().next_accesses()
 
     def previous_accesses(self) -> list[Node]:
@@ -1170,7 +1170,7 @@ class Kern(Statement):
 
         :returns: an empty list.
         '''
-        return [] # FIXME
+        return []  # FIXME
         return super().previous_accesses()
 
 
