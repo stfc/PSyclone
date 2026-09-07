@@ -54,7 +54,7 @@ class Statement(Node, CommentableMixin, metaclass=abc.ABCMeta):
 
         :returns: an empty list.
         '''
-        return self._get_next_accesses(self.children[:])
+        return self._get_prev_accesses(self.children[:])
 
     def _merge_accesses(
         self, current_accesses: list[Node], new_accesses: list[Node]

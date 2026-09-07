@@ -148,22 +148,6 @@ class Directive(Statement, metaclass=abc.ABCMeta):
                         *base_args, members)
         return read_only, write_only, readwrites
 
-    def next_accesses(self) -> list[Node]:
-        '''
-        Directive classes don't have next_accesses to compute.
-
-        :returns: an empty list.
-        '''
-        return []
-
-    def previous_accesses(self) -> list[Node]:
-        '''
-        Directive classes don't have previous_accesses to compute.
-
-        :returns: an empty list.
-        '''
-        return []
-
 
 class RegionDirective(Directive):
     '''
@@ -231,6 +215,18 @@ class RegionDirective(Directive):
             return tuple(self.children[1:])
         return ()
 
+    def next_accesses(self) -> list[Node]:
+        '''
+        FIXME
+        '''
+        return self._get_next_accesses(self.dir_body.children[:])
+
+    def previous_accesses(self) -> list[Node]:
+        '''
+        FIXME
+        '''
+        return self._get_prev_accesses(self.dir_body.children[:])
+
 
 class StandaloneDirective(Directive):
     '''
@@ -266,6 +262,22 @@ class StandaloneDirective(Directive):
         :returns: the Clauses associated with this directive.
         '''
         return tuple(self.children)
+
+    def next_accesses(self) -> list[Node]:
+        '''
+        Standalone Directives have no next_accesses.
+
+        :returns: an empty list.
+        '''
+        return []
+
+    def previous_accesses(self) -> list[Node]:
+        '''
+        Standalone Directives have no previous_accesses.
+
+        :returns: an empty list.
+        '''
+        return []
 
 
 # For automatic API documentation generation

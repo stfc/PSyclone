@@ -772,6 +772,8 @@ def test_loop_next_accesses(fortran_reader):
 
     assigns = psyir.walk(Assignment)
     accesses = loop.next_accesses()
-    assert len(accesses) == 2
-    assert accesses[0] is assigns[1].lhs
-    assert accesses[1] is assigns[0].lhs
+    assert len(accesses) == 4
+    assert accesses[0] is assigns[2].rhs.children[0]
+    assert accesses[1] is assigns[2].lhs
+    assert accesses[2] is assigns[3].rhs.children[0]
+    assert accesses[3] is assigns[3].lhs

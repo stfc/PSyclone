@@ -232,30 +232,16 @@ class CodeBlock(Statement, DataNode):
         :returns: the next_accesses for the child References of this
             CodeBlock.
         '''
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools import DefinitionUseChain
-        next_accesses = []
-        chain = DefinitionUseChain(self.children)
-        accesses = chain.find_forward_accesses()
-        for access in accesses:
-            self._merge_accesses(next_accesses, accesses[access])
-        return next_accesses
+        # We can use the default implementation from Statement.
+        return super().next_accesses()
 
     def previous_accesses(self) -> list[Node]:
         '''
         :returns: the previous_accesses for the child References of this
             CodeBlock.
         '''
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools import DefinitionUseChain
-        prev_accesses = []
-        chain = DefinitionUseChain(self.children)
-        accesses = chain.find_backward_accesses()
-        for access in accesses:
-            self._merge_accesses(prev_accesses, accesses[access])
-        return prev_accesses
+        # We can use the default implementation from Statement.
+        return super().previous_accesses()
 
 
 class Fparser2CodeBlock(CodeBlock):

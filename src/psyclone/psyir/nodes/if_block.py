@@ -171,16 +171,18 @@ class IfBlock(Statement):
         '''
         :returns: the combined next_accesses for the children of this IfBlock.
         '''
-        next_accesses = []
+        access_nodes = []
+        for child in self.if_body:
+            access_nodes.append(child)
+        if self.else_body:
+            for child in self.else_body:
+                access_nodes.append(child)
+        next_accesses = self._get_next_accesses(access_nodes)
         # Find all the next_accesses for the References in the condition.
+        # FIXME We should do all the members of the condition at once.
         for ref in self.condition.walk(Reference):
             new_accesses = ref.next_accesses()
             self._merge_accesses(next_accesses, new_accesses)
-        for child in self.if_body:
-            self._merge_accesses(next_accesses, child.next_accesses())
-        if self.else_body:
-            for child in self.else_body:
-                self._merge_accesses(next_accesses, child.next_accesses())
 
         # FIXME Should we sort the output in some way?
         return next_accesses
@@ -190,16 +192,18 @@ class IfBlock(Statement):
         :returns: the combined previous_accesses for the children of this
             IfBlock.
         '''
-        prev_accesses = []
+        access_nodes = []
+        for child in self.if_body:
+            access_nodes.append(child)
+        if self.else_body:
+            for child in self.else_body:
+                access_nodes.append(child)
+        prev_accesses = self._get_prev_accesses(access_nodes)
         # Find all the next_accesses for the References in the condition.
+        # FIXME We should do all the members of the condition at once.
         for ref in self.condition.walk(Reference):
             new_accesses = ref.previous_accesses()
             self._merge_accesses(prev_accesses, new_accesses)
-        for child in self.if_body:
-            self._merge_accesses(prev_accesses, child.previous_accesses())
-        if self.else_body:
-            for child in self.else_body:
-                self._merge_accesses(prev_accesses, child.previous_accesses())
 
         # FIXME Should we sort the output in some way?
         return prev_accesses

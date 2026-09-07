@@ -522,6 +522,7 @@ class Loop(Statement):
         access_nodes = []
         # Find all the nodes contained in the loop that make up the Loop's
         # next accesses.
+        # FIXME Can these be combined into one DUC call?
         for child in self.children[0:4]:
             for ref in child.walk(Reference):
                 access_nodes.append(ref)
@@ -537,6 +538,7 @@ class Loop(Statement):
         # Find all the nodes contained in the loop that make up the Loop's
         # next accesses.
         access_nodes = []
+        # FIXME Can these be combined into one DUC call?
         for child in self.children[0:4]:
             for ref in child.walk(Reference):
                 access_nodes.append(ref)

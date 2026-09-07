@@ -704,16 +704,15 @@ class PSyDataNode(Statement):
 
     def next_accesses(self) -> list[Node]:
         '''
-        :returns: an empty list as next_accesses isn't needed for PSyDataNode.
+        :returns: the combined next_accesses of this nodes' children.
         '''
-        return []
+        return super().next_accesses()
 
     def previous_accesses(self) -> list[Node]:
         '''
-        :returns: an empty list as previous_accesses isn't needed for
-            PSyDataNode.
+        :returns: the combined previous_accesses of this nodes' children.
         '''
-        return []
+        return super().next_accesses()
 
 
 # For AutoAPI documentation generation

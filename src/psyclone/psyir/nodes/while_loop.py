@@ -133,24 +133,21 @@ class WhileLoop(Statement):
         :returns: the combined next_accesses for the children of this
             WhileLoop
         '''
-        next_accesses = []
+        next_accesses = self._get_next_accesses(self.loop_body[:])
+        # FIXME Can the References in the condition be merged?
         for ref in self.condition.walk(Reference):
             var_accesses = ref.next_accesses()
             self._merge_accesses(next_accesses, var_accesses)
-        for child in self.loop_body:
-            self._merge_accesses(next_accesses, child.next_accesses())
         return next_accesses
 
     def previous_accesses(self) -> list[Node]:
         '''
-        Abstract method for finding the previous_accesses of a statement.
-        Subclasses should override this according to their own structure to
-        return previous accesses to any References contained in the statement.
+        :returns: the combined previous_accesses for the children of this
+            WhileLoop
         '''
-        prev_accesses = []
+        prev_accesses = self._get_prev_accesses(self.loop_body[:])
+        # FIXME Can the References in the condition be merged?
         for ref in self.condition.walk(Reference):
             var_accesses = ref.previous_accesses()
             self._merge_accesses(prev_accesses, var_accesses)
-        for child in self.loop_body:
-            self._merge_accesses(prev_accesses, child.previous_accesses())
         return prev_accesses
