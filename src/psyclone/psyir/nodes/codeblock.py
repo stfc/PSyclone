@@ -227,6 +227,22 @@ class CodeBlock(Statement, DataNode):
             return []
         raise NotImplementedError("Use appropriate CodeBlock subclass")
 
+    def next_accesses(self) -> list[Node]:
+        '''
+        :returns: the next_accesses for the child References of this
+            CodeBlock.
+        '''
+        # We can use the default implementation from Statement.
+        return super().next_accesses()
+
+    def previous_accesses(self) -> list[Node]:
+        '''
+        :returns: the previous_accesses for the child References of this
+            CodeBlock.
+        '''
+        # We can use the default implementation from Statement.
+        return super().previous_accesses()
+
 
 class Fparser2CodeBlock(CodeBlock):
     ''' The fparser2 implementation of CodeBlock. '''

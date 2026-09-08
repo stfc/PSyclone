@@ -8,6 +8,7 @@
 ''' This module provides the GlobalReduction base class. '''
 
 import copy
+from typing import List
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
@@ -82,3 +83,21 @@ class GlobalReduction(Statement):
         ''':returns: the list of arguments associated with this node. Override
                      the base method and simply return our argument.'''
         return [self._scalar]
+
+    def next_accesses(self) -> List[Node]:
+        '''
+        next_accesses on base GlobalReduction class just uses the base
+        Statement implementation, returning an empty list.
+
+        :returns: an empty list.
+        '''
+        return super().next_accesses()
+
+    def previous_accesses(self) -> List[Node]:
+        '''
+        previous_accesses on base GlobalReduction class just uses the base
+        Statement implementation, returning an empty list.
+
+        :returns: an empty list.
+        '''
+        return super().previous_accesses()

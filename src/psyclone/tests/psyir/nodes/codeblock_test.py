@@ -12,7 +12,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Reference, Schedule
+from psyclone.psyir.nodes import Assignment, Reference, Schedule
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.frontend.fortran_treesitter_reader import \
     FortranTreeSitterReader
@@ -346,3 +346,47 @@ def test_codeblock_has_potential_control_flow_jump(fortran_reader):
     assert codeblocks[2].has_potential_control_flow_jump()
     # labelled statement
     assert codeblocks[3].has_potential_control_flow_jump()
+
+
+def test_codeblock_next_accesses(fortran_reader):
+    """Test that the next_accesses method works correctly for CodeBlocks."""
+    code = """subroutine test()
+    integer :: i, j, k
+    print *, i
+    k = 0 ! Extra assignment to separate the CodeBlocks.
+    print *, j, i
+    j = 3
+    i = 1
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    codeblocks = psyir.walk(CodeBlock)
+    assigns = psyir.walk(Assignment)
+    accesses = codeblocks[0].next_accesses()
+    assert len(accesses) == 1
+    assert accesses[0] is codeblocks[1].children[1]
+    accesses = codeblocks[1].next_accesses()
+    assert len(accesses) == 2
+    assert accesses[0] is assigns[1].lhs
+    assert accesses[1] is assigns[2].lhs
+
+
+def test_codeblock_previous_accesses(fortran_reader):
+    """Test that the previous_accesses method works correctly for
+    CodeBlocks."""
+    code = """subroutine test()
+    integer :: i, j, k
+    i = 1
+    j = 3
+    print *, j, i
+    k = 0 ! Extra assignment to separate the CodeBlocks.
+    print *, i
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    codeblocks = psyir.walk(CodeBlock)
+    assigns = psyir.walk(Assignment)
+    accesses = codeblocks[1].previous_accesses()
+    assert len(accesses) == 1
+    assert accesses[0] is codeblocks[0].children[1]
+    accesses = codeblocks[0].previous_accesses()
+    assert accesses[0] is assigns[1].lhs
+    assert accesses[1] is assigns[0].lhs

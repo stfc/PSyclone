@@ -691,3 +691,17 @@ def test_outer_scope_accesses_module_data(fortran_reader):
         rt1.check_outer_scope_accesses(call, "call")
     assert ("'second' contains accesses to 'vaar' which is declared in the "
             "callee module scope" in str(err.value))
+
+
+def test_routine_accesses(fortran_reader):
+    ''' Test that the next/previous_accesses methods on Routine return
+    an empty list.'''
+    code = """subroutine test
+        integer :: i
+        i = 3
+        i = 4
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    assert routine.next_accesses() == []
+    assert routine.previous_accesses() == []

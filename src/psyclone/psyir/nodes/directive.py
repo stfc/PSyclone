@@ -17,6 +17,7 @@ from psyclone.errors import InternalError
 from psyclone.psyir.nodes.array_of_structures_reference import (
     ArrayOfStructuresReference)
 from psyclone.psyir.nodes.clause import Clause
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.statement import Statement
@@ -214,6 +215,24 @@ class RegionDirective(Directive):
             return tuple(self.children[1:])
         return ()
 
+    def next_accesses(self) -> list[Node]:
+        '''
+        The next_accesses of a directive is the combined next_accesses
+        of the Nodes in the dir_body.
+
+        :returns: the next_accesses for this directive.
+        '''
+        return self._get_next_accesses(self.dir_body.children[:])
+
+    def previous_accesses(self) -> list[Node]:
+        '''
+        The next_accesses of a directive is the combined previous_accesses
+        of the Nodes in the dir_body.
+
+        :returns: the previous_accesses for this directive.
+        '''
+        return self._get_prev_accesses(self.dir_body.children[:])
+
 
 class StandaloneDirective(Directive):
     '''
@@ -249,6 +268,22 @@ class StandaloneDirective(Directive):
         :returns: the Clauses associated with this directive.
         '''
         return tuple(self.children)
+
+    def next_accesses(self) -> list[Node]:
+        '''
+        Standalone Directives have no next_accesses.
+
+        :returns: an empty list.
+        '''
+        return []
+
+    def previous_accesses(self) -> list[Node]:
+        '''
+        Standalone Directives have no previous_accesses.
+
+        :returns: an empty list.
+        '''
+        return []
 
 
 # For automatic API documentation generation

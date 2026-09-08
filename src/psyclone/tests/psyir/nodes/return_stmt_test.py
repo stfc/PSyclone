@@ -38,3 +38,19 @@ def test_return_children_validation():
         return_stmt.addchild(return_stmt1)
     assert ("Item 'Return' can't be child 0 of 'Return'. Return is a"
             " LeafNode and doesn't accept children.") in str(excinfo.value)
+
+
+def test_return_stmt_accesses(fortran_reader):
+    '''Test that the return statement next/previous_accesses return an empty
+    list.'''
+    code = """subroutine test
+    integer :: i
+    i = 1
+    return
+    i = 2
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    print(psyir.view())
+    stmt = psyir.walk(Return)[0]
+    assert stmt.next_accesses() == []
+    assert stmt.previous_accesses() == []
