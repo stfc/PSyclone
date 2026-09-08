@@ -19,7 +19,11 @@ class Statement(Node, CommentableMixin, metaclass=abc.ABCMeta):
     '''
 
     def _get_next_accesses(self, sub_nodelist: list[Node]) -> list[Node]:
-        '''TODO'''
+        '''
+        :param sub_nodelist: The list of nodes to compute the next_accesses
+            for.
+        :returns: The combined next_accesses of the input nodes.
+        '''
         next_accesses = []
         for node in sub_nodelist:
             var_accesses = node.next_accesses()
@@ -38,7 +42,11 @@ class Statement(Node, CommentableMixin, metaclass=abc.ABCMeta):
         return self._get_next_accesses(self.children[:])
 
     def _get_prev_accesses(self, sub_nodelist: list[Node]) -> list[Node]:
-        '''TODO'''
+        '''
+        :param sub_nodelist: The list of nodes to compute the
+            previous_accesses for.
+        :returns: The combined previous_accesses of the input nodes.
+        '''
         prev_accesses = []
         for node in sub_nodelist:
             var_accesses = node.previous_accesses()

@@ -520,28 +520,56 @@ class Loop(Statement):
         :returns: the combined next_accesses for the children of this Loop.
         '''
         access_nodes = []
-        # Find all the nodes contained in the loop that make up the Loop's
+        # Find all the nodes contained in the loop body that make up the Loop's
         # next accesses.
-        # FIXME Can these be combined into one DUC call?
-        for child in self.children[0:4]:
-            for ref in child.walk(Reference):
-                access_nodes.append(ref)
         for child in self.loop_body:
             access_nodes.append(child)
-        return self._get_next_accesses(access_nodes)
+        next_accesses = self._get_next_accesses(access_nodes)
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import DefinitionUseChain
+        refs = []
+        # Use a single call to the DUC's to compute any next_accesses
+        # from the loop's variable, start, stop and step.
+        for child in self.children[0:4]:
+            for ref in child.walk(Reference):
+                refs.append(ref)
+        chain = DefinitionUseChain(refs)
+        var_accesses = chain.find_forward_accesses()
+        results = []
+        for sig in var_accesses:
+            for access in var_accesses[sig]:
+                if all(x is not access for x in results):
+                    results.append(access)
+        self._merge_accesses(next_accesses, results)
+        return next_accesses
 
     def previous_accesses(self) -> list[Node]:
         '''
         :returns: the combined previous_accesses for the children of this
             Loop.
         '''
-        # Find all the nodes contained in the loop that make up the Loop's
-        # next accesses.
+        # Find all the nodes contained in the loop body that make up the
+        # Loop's previous accesses.
         access_nodes = []
-        # FIXME Can these be combined into one DUC call?
-        for child in self.children[0:4]:
-            for ref in child.walk(Reference):
-                access_nodes.append(ref)
         for child in self.loop_body:
             access_nodes.append(child)
-        return self._get_prev_accesses(access_nodes)
+        prev_accesses = self._get_prev_accesses(access_nodes)
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import DefinitionUseChain
+        refs = []
+        # Use a single call to the DUC's to compute any previous_accesses
+        # from the loop's variable, start, stop and step.
+        for child in self.children[0:4]:
+            for ref in child.walk(Reference):
+                refs.append(ref)
+        chain = DefinitionUseChain(refs)
+        var_accesses = chain.find_backward_accesses()
+        results = []
+        for sig in var_accesses:
+            for access in var_accesses[sig]:
+                if all(x is not access for x in results):
+                    results.append(access)
+        self._merge_accesses(prev_accesses, results)
+        return prev_accesses

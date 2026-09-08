@@ -179,12 +179,23 @@ class IfBlock(Statement):
                 access_nodes.append(child)
         next_accesses = self._get_next_accesses(access_nodes)
         # Find all the next_accesses for the References in the condition.
-        # FIXME We should do all the members of the condition at once.
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import DefinitionUseChain
+        refs = []
+        # Use a single call to the DUC's to compute any next_accesses
+        # from the loop's variable, start, stop and step.
         for ref in self.condition.walk(Reference):
-            new_accesses = ref.next_accesses()
-            self._merge_accesses(next_accesses, new_accesses)
+            refs.append(ref)
+        chain = DefinitionUseChain(refs)
+        var_accesses = chain.find_forward_accesses()
+        results = []
+        for sig in var_accesses:
+            for access in var_accesses[sig]:
+                if all(x is not access for x in results):
+                    results.append(access)
+        self._merge_accesses(next_accesses, results)
 
-        # FIXME Should we sort the output in some way?
         return next_accesses
 
     def previous_accesses(self) -> list[Node]:
@@ -199,11 +210,22 @@ class IfBlock(Statement):
             for child in self.else_body:
                 access_nodes.append(child)
         prev_accesses = self._get_prev_accesses(access_nodes)
-        # Find all the next_accesses for the References in the condition.
-        # FIXME We should do all the members of the condition at once.
+        # Find all the previous_accesses for the References in the condition.
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import DefinitionUseChain
+        refs = []
+        # Use a single call to the DUC's to compute any next_accesses
+        # from the loop's variable, start, stop and step.
         for ref in self.condition.walk(Reference):
-            new_accesses = ref.previous_accesses()
-            self._merge_accesses(prev_accesses, new_accesses)
+            refs.append(ref)
+        chain = DefinitionUseChain(refs)
+        var_accesses = chain.find_backward_accesses()
+        results = []
+        for sig in var_accesses:
+            for access in var_accesses[sig]:
+                if all(x is not access for x in results):
+                    results.append(access)
+        self._merge_accesses(prev_accesses, results)
 
-        # FIXME Should we sort the output in some way?
         return prev_accesses
