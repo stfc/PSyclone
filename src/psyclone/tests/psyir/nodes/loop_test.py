@@ -779,7 +779,7 @@ def test_loop_next_accesses(fortran_reader):
     assert accesses[3] is assigns[3].lhs
 
 
-def test_loop_next_accesses(fortran_reader):
+def test_loop_previous_accesses(fortran_reader):
     """Test that the previous_accesses function for a loop also finds accesses
     from a child RegionDirective"""
     code = """subroutine test
