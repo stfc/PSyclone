@@ -741,25 +741,19 @@ class HaloExchange(Statement):
 
     def next_accesses(self) -> list[Node]:
         '''
-        next_accesses on base HaloExchange class just uses the base Statement
-        implementation, returning an empty list.
+        next_accesses on base HaloExchange class returns an empty list.
 
         :returns: an empty list.
         '''
         return []
-        # return super().next_accesses()
-        # FIXME
 
     def previous_accesses(self) -> list[Node]:
         '''
-        previous_accesses on base HaloExchange class just uses the base
-        Statement implementation, returning an empty list.
+        previous_accesses on base HaloExchange class returns an empty list.
 
         :returns: an empty list.
         '''
         return []
-#        return super().previous_accesses()
-        # FIXME
 
 
 class Kern(Statement):
@@ -1155,23 +1149,19 @@ class Kern(Statement):
 
     def next_accesses(self) -> list[Node]:
         '''
-        next_accesses on base Kern class just uses the base Statement
-        implementation, returning an empty list.
+        next_accesses on base Kern class returns an empty list.
 
         :returns: an empty list.
         '''
-        return []  # FIXME
-        return super().next_accesses()
+        return []
 
     def previous_accesses(self) -> list[Node]:
         '''
-        previous_accesses on base Kern class just uses the base Statement
-        implementation, returning an empty list.
+        previous_accesses on base Kern class returns an empty list.
 
         :returns: an empty list.
         '''
-        return []  # FIXME
-        return super().previous_accesses()
+        return []
 
 
 class CodedKern(Kern):

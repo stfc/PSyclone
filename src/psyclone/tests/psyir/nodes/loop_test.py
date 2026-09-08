@@ -777,3 +777,34 @@ def test_loop_next_accesses(fortran_reader):
     assert accesses[1] is assigns[2].lhs
     assert accesses[2] is assigns[3].rhs.children[0]
     assert accesses[3] is assigns[3].lhs
+
+
+def test_loop_next_accesses(fortran_reader):
+    """Test that the previous_accesses function for a loop also finds accesses
+    from a child RegionDirective"""
+    code = """subroutine test
+    integer :: i, j, k, m
+    k = k + 3
+    j = j * 2
+    do i = 1, 100
+        do m = 1, 100
+            j = 4 * i
+            k = 3 + i
+        end do
+    end do
+    end subroutine test"""
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[0]
+    # Pull out the body.
+    loop_body = loop.loop_body.children[0].detach()
+    # Place the loop body into a directive and add the directive
+    # into the original loop.
+    direc = OMPParallelDoDirective()
+    direc.dir_body.addchild(loop_body)
+    loop.loop_body.addchild(direc)
+
+    assigns = psyir.walk(Assignment)
+    accesses = loop.previous_accesses()
+    assert len(accesses) == 2
+    assert accesses[0] is assigns[1].lhs
+    assert accesses[1] is assigns[0].lhs

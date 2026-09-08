@@ -128,7 +128,7 @@ def test_globalreduction_reference_accesses():
         pytest.xfail(reason="Issue #3346: the scalar to be updated by a "
                      "GlobalReduction is held in a bespoke '_scalar' "
                      "property.")
-    assert list(vam) == ["FIXME"]
+    assert list(vam) == ["TODO #3346"]
 
 
 def test_globalreduction_accesses():

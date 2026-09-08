@@ -217,13 +217,19 @@ class RegionDirective(Directive):
 
     def next_accesses(self) -> list[Node]:
         '''
-        FIXME
+        The next_accesses of a directive is the combined next_accesses
+        of the Nodes in the dir_body.
+
+        :returns: the next_accesses for this directive.
         '''
         return self._get_next_accesses(self.dir_body.children[:])
 
     def previous_accesses(self) -> list[Node]:
         '''
-        FIXME
+        The next_accesses of a directive is the combined previous_accesses
+        of the Nodes in the dir_body.
+
+        :returns: the previous_accesses for this directive.
         '''
         return self._get_prev_accesses(self.dir_body.children[:])
 
