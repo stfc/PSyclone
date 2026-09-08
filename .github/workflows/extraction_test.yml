@@ -101,7 +101,7 @@ jobs:
         # Checkout and install Fab:
         # -------------------------
         # For now hard-code a branch
-        git clone -b fab_for_lfric_apps_specific https://github.com/MetOffice/fab.git
+        git clone -b fab_for_psyclone_it https://github.com/MetOffice/fab.git
         pushd fab
         pip install .
         popd
