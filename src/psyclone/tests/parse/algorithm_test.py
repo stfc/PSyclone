@@ -20,6 +20,7 @@ from fparser.two.parser import ParserFactory
 from psyclone.parse.algorithm import Parser, get_invoke_label, \
     get_kernel, create_var_name, KernelCall, BuiltInCall, Arg, \
     parse, AlgFileInfo
+from psyclone.parse import ModuleManager
 from psyclone.parse.utils import ParseError, parse_fp2
 from psyclone.errors import InternalError
 from psyclone.domain.common.kernel import KernelInfo
@@ -54,8 +55,8 @@ def test_parse_kernel_paths():
     # Invalid path
     with pytest.raises(ParseError) as info:
         parse(alg_name, api="lfric", kernel_paths=["invalid"])
-    assert ("Supplied kernel search path does not exist or cannot be read"
-            in str(info.value))
+    assert "Directory 'invalid' does not exist or cannot be read" in str(
+        info.value)
     # Multiple kernel paths
     parse(alg_name, api="lfric", kernel_paths=[
         LFRIC_BASE_PATH, GOCEAN_BASE_PATH])
@@ -397,8 +398,8 @@ def test_parser_codedkernelcall_kernel_paths():
     parser._kernel_paths = ["invalid"]
     with pytest.raises(ParseError) as info:
         parser.create_coded_kernel_call(kernel_name, args)
-    assert ("Supplied kernel search path does not exist or cannot be read"
-            in str(info.value))
+    assert "Directory 'invalid' does not exist or cannot be read" in str(
+        info.value)
     # Multiple kernel paths
     paths = [LFRIC_BASE_PATH, GOCEAN_BASE_PATH]
     parser._kernel_paths = paths
@@ -438,26 +439,17 @@ def test_parser_caseinsensitive2(monkeypatch):
 
     '''
     parser = Parser("lfric")
+    parser._kernel_paths = [LFRIC_BASE_PATH]
     use = Use_Stmt("use testkern_mod, only : TESTKERN_TYPE")
     parser.update_arg_to_module_map(use)
 
-    def dummy_func(*_args):
-        '''A dummy function used by monkeypatch to override
-            find_kernel_file(). We don't care about the arguments as
-        we just want to raise an exception.
-
-        '''
+    def dummy_func(*_args, **_kwargs):
+        '''A dummy ModuleManager lookup that raises an exception.'''
         raise NotImplementedError("test_parser_caseinsensitive2")
-    monkeypatch.setattr(
-        "psyclone.parse.algorithm.find_kernel_file", dummy_func)
+    monkeypatch.setattr(ModuleManager, "get_module_info", dummy_func)
     with pytest.raises(NotImplementedError) as excinfo:
-        # We have monkeypatched 'find_kernel_file' to
-        # return 'NotImplementedError' with a string associated with
-        # this test so we know that we have got to this function if
-        # this exception is raised. The case insensitive test we
-        # really care about is before this function is called (and it
-        # raises a ParseError) so we know that if we don't get a
-        # ParseError then all is well.
+        # Reaching the module lookup proves that the case-insensitive use-map
+        # lookup succeeded.
         parser.create_coded_kernel_call("TestKern_Type", None)
     # Sanity check that the exception is the monkeypatched one.
     assert str(excinfo.value) == "test_parser_caseinsensitive2"

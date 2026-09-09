@@ -15,7 +15,6 @@ from psyclone.domain.lfric import (KernCallInvokeArgList, LFRicConstants,
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
 from psyclone.domain.lfric import LFRicKern
-from psyclone.domain.common.kernel import parse_fortran_file
 from psyclone.domain.lfric.kernel import LFRicKernelMetadata
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
@@ -58,7 +57,7 @@ class LFRicAlg:
         sub = cont.walk(Routine)[0]
         table = sub.symbol_table
 
-        kernel_psyir = parse_fortran_file(kernel_path)
+        kernel_psyir = FortranReader().psyir_from_file(kernel_path)
 
         # Get the name of the module that contains the kernel and create a
         # ContainerSymbol for it.

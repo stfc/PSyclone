@@ -245,6 +245,27 @@ def test_mod_manager_get_module_info() -> None:
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
+def test_mod_manager_scoped_module_lookup() -> None:
+    """A scoped lookup must not return a same-named module cached from a
+    different search path.
+    """
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path(Path("d1"))
+    mod_info = mod_man.get_module_info("a_mod")
+    assert mod_info.filename == "d1/a_mod.f90"
+
+    with pytest.raises(FileNotFoundError, match="directories 'd2'"):
+        mod_man.get_module_info("a_mod", search_paths=[Path("d2")])
+
+    Path("d2/a_mod.f90").write_text(
+        "module a_mod\nend module a_mod\n", encoding="utf-8")
+    mod_info = mod_man.get_module_info("a_mod", search_paths=[Path("d2")])
+    assert mod_info.filename == "d2/a_mod.f90"
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+                         "mod_man_test_setup_directories")
 def test_mod_manager_get_all_dependencies_recursively(capsys) -> None:
     '''Tests that dependencies are correctly collected recursively. We use
     the standard directory and file setup (see mod_man_test_setup_directories)

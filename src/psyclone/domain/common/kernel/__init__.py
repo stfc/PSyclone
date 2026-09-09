@@ -12,17 +12,8 @@ from psyclone.domain.common.kernel.metadata import (
     KernelMetadata,
     metadata_structure,
 )
-from psyclone.domain.common.kernel.source import (
-    find_kernel_file,
-    parse_fortran_file,
-    parse_fortran_source,
-)
-
 __all__ = [
-    "find_kernel_file",
     "KernelInfo",
     "KernelMetadata",
     "metadata_structure",
-    "parse_fortran_file",
-    "parse_fortran_source",
 ]

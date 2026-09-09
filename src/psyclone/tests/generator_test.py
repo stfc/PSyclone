@@ -296,8 +296,8 @@ def test_similar_kernel_name():
             api="lfric",
             kernel_paths=[str(LFRIC_BASE_PATH / "kernels" /
                               "dead_end" / "no_really")])
-    assert ("Kernel file 'testkern_mod.[fF]90' not found in"
-            in str(info.value))
+    assert "Could not find source file for module 'testkern_mod'" in str(
+        info.value)
     assert "kernels/dead_end/no_really" in str(info.value)
 
 

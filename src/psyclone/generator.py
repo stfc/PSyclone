@@ -32,7 +32,6 @@ from psyclone.configuration import (
     Config, ConfigurationError, LFRIC_API_NAMES, GOCEAN_API_NAMES)
 from psyclone.domain.common.algorithm.psyir import (
     AlgorithmInvokeCall, KernelFunctor)
-from psyclone.domain.common.kernel import find_kernel_file
 from psyclone.domain.common.transformations import AlgTrans
 from psyclone.domain.gocean.transformations import (
     RaisePSyIR2GOceanKernTrans, GOceanAlgInvoke2PSyCallTrans)
@@ -268,8 +267,7 @@ def generate(filename: str,
             raise IOError(
                 f"Kernel search path '{kernel_path}' not found")
 
-    # TODO #2011: investigate if kernel search path and module manager
-    # can be combined.
+    # Make explicitly supplied kernel paths available when resolving imports.
     ModuleManager.get().add_search_path(kernel_paths)
 
     ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
@@ -373,9 +371,11 @@ def generate(filename: str,
                     raise GenerationError(message)
                 container_symbol = kern.symbol.interface.container_symbol
 
-                # Find the kernel file containing the container
-                filepath = find_kernel_file(
-                    container_symbol.name, kernel_paths, filename)
+                search_paths = kernel_paths or [
+                    os.path.dirname(os.path.abspath(filename))]
+                module_info = ModuleManager.get().get_module_info(
+                    container_symbol.name, search_paths=search_paths)
+                filepath = module_info.filename
 
                 try:
                     # Create language-level PSyIR from the kernel file
