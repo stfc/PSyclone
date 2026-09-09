@@ -14,9 +14,6 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.common.kernel import (
-    parse_fortran_file as get_kernel_psyir_from_file,
-    parse_fortran_source as get_kernel_psyir)
 from psyclone.domain.lfric import (FunctionSpace,
                                    LFRicConstants, LFRicKern,
                                    LFRicKernelMetadata, LFRicLoop)
@@ -36,8 +33,19 @@ from psyclone.psyir.nodes import (colored, BinaryOperation, UnaryOperation,
 from psyclone.psyir.symbols import (ArrayType, ScalarType, DataTypeSymbol,
                                     UnsupportedFortranType)
 from psyclone.psyir.backend.visitor import VisitorError
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
+
+
+def get_kernel_psyir(source):
+    """Create PSyIR from the supplied Fortran source."""
+    return FortranReader().psyir_from_source(source)
+
+
+def get_kernel_psyir_from_file(filename):
+    """Create PSyIR from the supplied Fortran file."""
+    return FortranReader().psyir_from_file(filename)
 
 
 def create_kernel_metadata(psyir, name=None):
