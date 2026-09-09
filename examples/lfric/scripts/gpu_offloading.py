@@ -63,7 +63,10 @@ def _replace_matmuls(sched: Schedule):
         # routine) that we are not to mark this kernel for offload.
         if (isinstance(call, IntrinsicCall) and
                 call.intrinsic == IntrinsicCall.Intrinsic.MATMUL):
-            matrans.apply(call)
+            try:
+                matrans.apply(call)
+            except TransformationError as err:
+                print(f"Matmul2Code failed with: {err}")
 
 
 def trans(psyir):
@@ -158,31 +161,29 @@ def trans(psyir):
                     print(f"Module-inline failed for kernel "
                           f"'{kern.name}' due to:\n{err.value}")
 
-                # Request that the kernel be fully inlined during lowering.
+                # Ensure any MATMULs within the kernel are also inlined
+                for routine in kern.get_callees():
+                    _replace_matmuls(routine)
+
                 try:
-                    # Ensure any MATMULs within the kernel are also inlined
-                    for routine in kern.get_callees():
-                        _replace_matmuls(routine)
-
-                    inline_trans.apply(kern)
-                    print(f"Kernel '{kern.name}' marked for deferred "
-                          f"inlining")
-                    continue
-                except TransformationError as err:
-                    failed_inline.add(kern.name.lower())
-                    print(f"Inline failed for kernel "
-                          f"'{kern.name}' due to:\n{err.value}")
-
-                    # If it cannot be inlined, fallback to annotate the
-                    # kernel with GPU routine directives.
+                    # Attempt annotations first, since if inlining fails
+                    # during lowering we can't fallback at that point
+                    gpu_annotation_trans.apply(kern)
+                    print(f"Annotation successful for kernel "
+                          f"'{kern.name}'")
                     try:
-                        gpu_annotation_trans.apply(kern)
-                        print(f"Annotation successful for kernel "
-                              f"'{kern.name}'")
-                    except TransformationError as err:
-                        failed_to_offload.add(kern.name.lower())
-                        print(f"Annotation failed for kernel '{kern.name}' "
-                              f"due to:\n{err.value}")
+                        # For the kernels that can be on the GPU, attempt a
+                        # full inline to improve performance.
+                        inline_trans.apply(kern)
+                        print(f"Kernel '{kern.name}' marked for deferred "
+                              f"inlining")
+                    except TransformationError:
+                        # The full-Inline is optional, continue if it fails
+                        continue
+                except TransformationError as err:
+                    failed_to_offload.add(kern.name.lower())
+                    print(f"Annotation failed for kernel '{kern.name}' "
+                          f"due to:\n{err.value}")
 
         # Add GPU offloading to loops
         for loop in subroutine.walk(Loop):

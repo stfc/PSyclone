@@ -61,7 +61,8 @@ def _add_lfric_kernel_body(kern, use_map=False, statement_count=1):
 def test_kernel_inline_trans_str_and_invalid_target():
     """Test the transformation description and target-type validation."""
     trans = KernelInlineTrans()
-    assert str(trans) == "Mark a PSyKAl kernel for inlining when it is lowered."
+    assert str(trans) == (
+        "Mark a PSyKAl kernel for inlining when it is lowered.")
 
     with pytest.raises(TransformationError) as err:
         trans.apply(Node())

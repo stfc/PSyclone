@@ -9,6 +9,7 @@
 This module contains the InlineTrans transformation.
 
 '''
+from psyclone.psyir.backend.visitor import VisitorError
 
 from typing import Dict, List, Optional
 
@@ -19,7 +20,8 @@ from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, Assignment, BinaryOperation,
     Call, CodeBlock, DataNode, IfBlock, IntrinsicCall, Literal, Loop, Node,
     Range, Routine, Reference, Return, Schedule, ScopingNode, Statement,
-    StructureMember, StructureReference)
+    StructureMember, StructureReference, OMPDeclareTargetDirective,
+    ACCRoutineDirective)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArrayType,
@@ -195,6 +197,11 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         new_stmts = []
         refs = []
         for child in routine.pop_all_children():
+            if isinstance(child, (OMPDeclareTargetDirective,
+                                  ACCRoutineDirective)):
+                # Skip directives that apply to the routine, as this do not
+                # propagate to the caller routine.
+                continue
             new_stmts.append(child)
             refs.extend(new_stmts[-1].walk(Reference))
 
@@ -358,7 +365,10 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
 
             condition = if_block.condition
             # Ensure any expressions in the condition are simplified.
-            sym_maths.expand(condition)
+            try:
+                sym_maths.expand(condition)
+            except VisitorError:
+                continue
 
             # Make sure we only handle a Boolean Literal as a condition
             # TODO #2802

@@ -10,15 +10,13 @@
 from typing import Any, Optional
 
 from psyclone.psyGen import CodedKern, Transformation
-from psyclone.psyir.transformations.callee_transformation_mixin import (
-    CalleeTransformationMixin)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
 from psyclone.utils import transformation_documentation_wrapper
 
 
 @transformation_documentation_wrapper
-class KernelInlineTrans(Transformation, CalleeTransformationMixin):
+class KernelInlineTrans(Transformation):
     """Mark a PSyKAl kernel for inlining when it is lowered.
 
     A :class:`psyclone.psyGen.CodedKern` cannot be inlined immediately
@@ -26,10 +24,6 @@ class KernelInlineTrans(Transformation, CalleeTransformationMixin):
     This transformation therefore records the request on the kernel. Once
     lowering has constructed the complete Call, the standard
     :class:`psyclone.psyir.transformations.InlineTrans` is applied to it.
-
-    The implementation of the kernel must first have been copied into the
-    same Container as the call site, normally using
-    :class:`KernelModuleInlineTrans`.
 
     """
 
@@ -63,21 +57,6 @@ class KernelInlineTrans(Transformation, CalleeTransformationMixin):
             raise TransformationError(
                 f"Target of a {self.name} must be a sub-class of "
                 f"psyGen.CodedKern but got '{type(node).__name__}'")
-
-        try:
-            callees = node.get_callees()
-        except Exception as error:
-            raise TransformationError(
-                f"{self.name} failed to retrieve PSyIR for Kernel "
-                f"'{node.name}' due to: {error}") from error
-
-        if len(callees) != 1:
-            raise TransformationError(
-                f"Cannot apply {self.name} to Kernel '{node.name}' because "
-                f"it has {len(callees)} possible callees. Inlining "
-                f"polymorphic kernels is not supported.")
-
-        self._check_callee_implementation_is_local(node)
 
     def apply(self,
               node: CodedKern,

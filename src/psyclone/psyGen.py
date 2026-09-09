@@ -1358,19 +1358,23 @@ class CodedKern(Kern):
 
                 InlineTrans().apply(
                     call_node, use_first_callee_and_no_arg_check=True)
-            except TransformationError as err:
+            except (TransformationError, InternalError) as err:
                 # If inline failes, we still continue with the non-inlined
                 # version. We report the issues in stdout. Even if the most
                 # natural reporting would be to use logging, the lfric call
                 # to psyclone is hardcoded in their build system, but we
                 # want to count this errors in our gpu offloading report.
-                print(f"Inline failed for kernel '{self.name}' due to:\n"
-                      f"{err.value}")
+                message = (f"Deferred-Inline failed for kernel '{self.name}' "
+                           f"due to: {err.value}")
+                print(message)
+                call_node.append_preceding_comment(message)
                 return call_node
 
-            print(f"Inline successful for kernel '{self.name}'")
+            message = f"Deferred-Inline successful for kernel '{self.name}'"
+            print(message)
 
             if has_body:
+                parent.children[position].append_preceding_comment(message)
                 return parent.children[position]
             return None
 
