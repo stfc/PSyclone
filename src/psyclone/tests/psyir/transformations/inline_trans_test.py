@@ -52,6 +52,32 @@ def test_init():
     assert isinstance(inline_trans, InlineTrans)
 
 
+def test_validate_no_arg_check_requires_one_callee(fortran_reader,
+                                                   monkeypatch):
+    """Test that skipping argument checks requires exactly one callee."""
+    psyir = fortran_reader.psyir_from_source(
+        """module test_mod
+            contains
+              subroutine caller()
+                call callee()
+              end subroutine caller
+              subroutine callee()
+              end subroutine callee
+            end module test_mod""")
+    call = psyir.walk(Call)[0]
+    callee = psyir.walk(Routine)[1]
+    monkeypatch.setattr(call, "get_callees", lambda: [callee, callee])
+
+    with pytest.raises(TransformationError) as err:
+        InlineTrans().validate(
+            call, allow_no_args_check_if_only_one_callee=True)
+    assert str(err.value) == (
+        "Transformation Error: Cannot inline routine 'callee' because its "
+        "call has 2 possible callees. The "
+        "'allow_no_args_check_if_only_one_callee' option requires exactly one "
+        "callee.")
+
+
 # apply
 
 def test_apply_empty_routine(fortran_reader, fortran_writer, tmp_path):
@@ -245,7 +271,7 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmp_path):
     inline_trans = InlineTrans()
     for call in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(
-            call, use_first_callee_and_no_arg_check=True)
+            call, allow_no_args_check_if_only_one_callee=True)
 
     output = fortran_writer(psyir)
     assert ("    do i = 1, 5, 1\n"
@@ -330,7 +356,7 @@ def test_apply_unresolved_struct_arg(fortran_reader, fortran_writer):
     # Third one should be fine because it is a scalar argument.
     inline_trans.apply(
         calls[2],
-        use_first_callee_and_no_arg_check=True,
+        allow_no_args_check_if_only_one_callee=True,
     )
     # We can't do the fourth one.
     with pytest.raises(TransformationError) as err:
@@ -1278,7 +1304,7 @@ def test_apply_internal_error(fortran_reader, monkeypatch):
     inline_trans = InlineTrans()
     # Monkeypatch validate() so that it appears to pass.
     monkeypatch.setattr(inline_trans, "validate", lambda _a, routine=None,
-                        use_first_callee_and_no_arg_check=False,
+                        allow_no_args_check_if_only_one_callee=False,
                         permit_codeblocks=False,
                         permit_unsupported_type_args=False: None)
     with pytest.raises(InternalError) as err:
@@ -2859,5 +2885,5 @@ def test_apply_array_access_check_unresolved_override_option(
     call: Call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     inline_trans.apply(
-        call, use_first_callee_and_no_arg_check=True)
+        call, allow_no_args_check_if_only_one_callee=True)
     # TODO check results

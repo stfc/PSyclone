@@ -209,6 +209,7 @@ def test_kernel_inline_trans_rechecks_callees(monkeypatch, capsys):
     assert isinstance(lowered, Call)
     assert capsys.readouterr().out == (
         "Deferred-Inline failed for kernel 'testkern_code_inlined_' due to: "
-        "Transformation Error: Cannot inline Kernel "
-        "'testkern_code_inlined_' during lowering because it has 2 possible "
-        "callees. Inlining polymorphic kernels is not supported.\n")
+        "Transformation Error: Cannot inline routine "
+        "'testkern_code_inlined_' because its call has 2 possible callees. "
+        "The 'allow_no_args_check_if_only_one_callee' option requires exactly "
+        "one callee.\n")

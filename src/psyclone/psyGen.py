@@ -1332,32 +1332,31 @@ class CodedKern(Kern):
             # These imports are local to avoid a circular import: InlineTrans
             # uses CodedKern via CalleeTransformationMixin.
             # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.nodes import Return
             from psyclone.psyir.transformations import (
                 InlineTrans, TransformationError)
 
             try:
-                callees = call_node.get_callees()
-
                 # Argument matching often fails for LFRic kernels due to mixed
                 # precision symbols not being properly interconnected and other
                 # psy-layer objects having incomplete types. To proceed we set
-                # the 'use_first_callee_and_no_arg_check' InlineTrans option,
-                # but to make this safe we only allow it when the kernel has
-                # only one implementation.
-                if len(callees) != 1:
-                    raise TransformationError(
-                        f"Cannot inline Kernel '{self.name}' during lowering "
-                        f"because it has {len(callees)} possible callees. "
-                        f"Inlining polymorphic kernels is not supported.")
-
-                has_body = (bool(callees[0].children) and
-                            not isinstance(callees[0].children[0], Return))
+                # the 'allow_no_args_check_if_only_one_callee' InlineTrans
+                # option. InlineTrans validates that there is exactly one
+                # possible callee before it skips argument matching.
                 parent = call_node.parent
                 position = call_node.position
-
+                next_node = (parent.children[position + 1]
+                             if position + 1 < len(parent.children) else None)
                 InlineTrans().apply(
-                    call_node, use_first_callee_and_no_arg_check=True)
+                    call_node, allow_no_args_check_if_only_one_callee=True)
+
+                # An empty routine removes the Call, which moves its original
+                # next sibling into its position. Otherwise, the first
+                # inlined statement occupies that position.
+                inlined_node = None
+                if position < len(parent.children):
+                    candidate = parent.children[position]
+                    if candidate is not next_node:
+                        inlined_node = candidate
             except (TransformationError, InternalError) as err:
                 # If inline failes, we still continue with the non-inlined
                 # version. We report the issues in stdout. Even if the most
@@ -1373,10 +1372,9 @@ class CodedKern(Kern):
             message = f"Deferred-Inline successful for kernel '{self.name}'"
             print(message)
 
-            if has_body:
-                parent.children[position].append_preceding_comment(message)
-                return parent.children[position]
-            return None
+            if inlined_node:
+                inlined_node.append_preceding_comment(message)
+            return inlined_node
 
         return call_node
 
