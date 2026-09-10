@@ -240,11 +240,13 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             for child in dsharing_region.children:
                 if isinstance(child, OMPPrivateClause):
                     current_private_clause = child
-        for sym in routine_table.automatic_datasymbols:
-            # We mark them at the current clause (already inferred) and in
-            # the explicitly private list (for future inferance)
-            current_private_clause.addchild(Reference(sym))
-            dsharing_region.explicitly_private_symbols.add(sym)
+                    break
+            for sym in routine_table.automatic_datasymbols:
+                # We mark them at the current clause (already inferred) and in
+                # the explicitly private list (for future inferance)
+                if current_private_clause is not None:
+                    current_private_clause.addchild(Reference(sym))
+                dsharing_region.explicitly_private_symbols.add(sym)
 
         # Ensure any references to Symbols within the shape-specification of
         # other Symbols are updated. Note, we don't have to worry about

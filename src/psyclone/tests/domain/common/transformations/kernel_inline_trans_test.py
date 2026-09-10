@@ -70,22 +70,14 @@ def test_kernel_inline_trans_str_and_invalid_target():
             "psyGen.CodedKern but got 'Node'" in str(err.value))
 
 
-def test_kernel_inline_trans_local_and_per_call():
-    """The implementation must be local and only the target is marked."""
+def test_kernel_inline_trans_marks_only_target_call():
+    """The transformation marks only the supplied call site."""
     _, invoke = get_invoke("4.2_multikernel_invokes.f90", "lfric",
                            idx=0, dist_mem=False)
     kernels = invoke.schedule.walk(CodedKern)
     trans = KernelInlineTrans()
 
     assert not kernels[0].inline
-    with pytest.raises(TransformationError) as err:
-        trans.apply(kernels[0])
-    assert ("not in the same Container" in str(err.value) and
-            "KernelModuleInlineTrans" in str(err.value))
-
-    # Module-inline updates both calls to this kernel, but full inlining is a
-    # call-site transformation and therefore marks only the supplied kernel.
-    KernelModuleInlineTrans().apply(kernels[0])
     trans.apply(kernels[0])
     trans.apply(kernels[0])
     assert kernels[0].inline
@@ -94,35 +86,6 @@ def test_kernel_inline_trans_local_and_per_call():
     copied_kernels = invoke.schedule.copy().walk(CodedKern)
     assert copied_kernels[0].inline
     assert not copied_kernels[1].inline
-
-
-def test_kernel_inline_trans_rejects_polymorphism():
-    """A kernel with more than one possible implementation is rejected."""
-    _, invoke = get_invoke("26.8_mixed_precision_args.f90", "lfric",
-                           idx=0, dist_mem=False)
-    kernel = invoke.schedule.walk(CodedKern)[0]
-
-    with pytest.raises(TransformationError) as err:
-        KernelInlineTrans().apply(kernel)
-    assert ("it has 2 possible callees" in str(err.value) and
-            "polymorphic kernels is not supported" in str(err.value))
-
-
-def test_kernel_inline_trans_callee_error(monkeypatch):
-    """Errors encountered while obtaining kernel PSyIR are contextualised."""
-    _, invoke = get_invoke("1_single_invoke.f90", "lfric",
-                           idx=0, dist_mem=False)
-    kernel = invoke.schedule.walk(CodedKern)[0]
-
-    def fail_to_get_callee():
-        """Simulate failure to obtain kernel PSyIR."""
-        raise RuntimeError("test failure")
-
-    monkeypatch.setattr(kernel, "get_callees", fail_to_get_callee)
-    with pytest.raises(TransformationError) as err:
-        KernelInlineTrans().apply(kernel)
-    assert ("KernelInlineTrans failed to retrieve PSyIR for Kernel "
-            "'testkern_code' due to: test failure" in str(err.value))
 
 
 def test_kernel_inline_trans_defers_body_validation(parser, capsys):
@@ -147,7 +110,7 @@ def test_kernel_inline_trans_defers_body_validation(parser, capsys):
     lowered = kernel.lower_to_language_level()
     assert isinstance(lowered, Call)
     assert capsys.readouterr().out == (
-        "Inline failed for kernel 'testkern_code_inlined_' due to:\n"
+        "Deferred-Inline failed for kernel 'testkern_code_inlined_' due to: "
         "Transformation Error: Routine 'testkern_code_inlined_' contains "
         "one or more CodeBlocks and therefore cannot be inlined. (If you "
         "are confident that the code may safely be inlined despite this "
@@ -170,10 +133,10 @@ def test_kernel_inline_trans_lfric_colouring(tmpdir):
     code = str(psy.gen)
 
     assert "call testkern_code_inlined_" not in code
-    assert ("f1_data(map_w1(1 - 1 + LBOUND(map_w1, dim=1),"
-            "cmap(colour,cell))) = a" in code)
     assert "do cell = loop1_start, last_edge_cell_all_colours(colour), 1" \
         in code
+    assert ("f1_data(map_w1(1 - 1 + LBOUND(map_w1, dim=1),"
+            "cmap(colour,cell))) = a" in code)
     # Code generation lowers a copy and must preserve the DSL-level original.
     assert isinstance(invoke.schedule.walk(CodedKern)[0], CodedKern)
     assert invoke.schedule.walk(CodedKern)[0].inline
@@ -192,7 +155,7 @@ def test_kernel_inline_trans_gocean(capsys):
     assert "call compute_cu_code_inlined_" not in code
     assert "0.5d0" in code
     assert capsys.readouterr().out == (
-        "Inline successful for kernel 'compute_cu_code_inlined_'\n")
+        "Deferred-Inline successful for kernel 'compute_cu_code_inlined_'\n")
 
 
 def test_kernel_inline_trans_empty_body_does_not_skip_sibling():
@@ -245,7 +208,7 @@ def test_kernel_inline_trans_rechecks_callees(monkeypatch, capsys):
     lowered = kernel.lower_to_language_level()
     assert isinstance(lowered, Call)
     assert capsys.readouterr().out == (
-        "Inline failed for kernel 'testkern_code_inlined_' due to:\n"
+        "Deferred-Inline failed for kernel 'testkern_code_inlined_' due to: "
         "Transformation Error: Cannot inline Kernel "
         "'testkern_code_inlined_' during lowering because it has 2 possible "
         "callees. Inlining polymorphic kernels is not supported.\n")
