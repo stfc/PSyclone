@@ -90,7 +90,8 @@ def load_script(
 ) -> Tuple[Optional[Callable],
            List[str],
            Union[bool, List[str]],
-           dict[str, str]]:
+           dict[str, str],
+           str]:
     ''' Loads the specified script containing a PSyclone recipe. This is done
     without adding the imported symbol to the system list of all Python
     modules. This will allow later to import a potentially different script
@@ -99,8 +100,8 @@ def load_script(
 
     TODO #3514
     To avoid that sys.path keeps growing (if PSyclone is called more than
-    once), the caller must remove the first entry of sys.path after executing
-    the script.
+    once), the caller must remove the returned path from sys.path after
+    executing the script.
 
     :param script_name: name of the script to load.
     :param kwargs_str: the kwargs argument from the command line.
@@ -109,7 +110,8 @@ def load_script(
         False.
 
     :returns: callable recipe, list of files to skip, whether to resolve
-        modules (or which ones), the kwargs dictionary.
+        modules (or which ones), the kwargs dictionary, and the path that was
+        inserted into sys.path (to be removed by the caller).
 
     :raises IOError: if the file is not found.
     :raises GenerationError: if the file does not have .py extension.
@@ -179,9 +181,9 @@ def load_script(
         if callable(transformation_recipe):
             # Everything is good, return recipe and files_to_skip
             return (transformation_recipe, files_to_skip,
-                    imports_to_resolve, kwargs)
+                    imports_to_resolve, kwargs, filepath)
     elif is_optional:
-        return None, files_to_skip, imports_to_resolve, {}
+        return None, files_to_skip, imports_to_resolve, {}, filepath
     raise GenerationError(
         f"generator: attempted to use specified PSyclone "
         f"transformation module '{module_name}' but it does not "
@@ -286,10 +288,12 @@ def generate(filename: str,
             # Apply provided recipes to PSyIR. Note that trans_func is always
             # defined, otherwise an exception is raised.
             for script_name, kwargs_str in script_kwargs_pairs:
-                trans_func, _, _, kwargs = load_script(script_name, kwargs_str)
+                trans_func, _, _, kwargs, inserted_path = load_script(
+                    script_name, kwargs_str)
                 trans_func(psy.container.root, **kwargs)
                 # TODO #3514: proper cleanup using with
-                del sys.path[0]
+                if inserted_path in sys.path:
+                    sys.path.remove(inserted_path)
         alg_gen = None
 
     elif api in GOCEAN_API_NAMES or (api in LFRIC_API_NAMES and LFRIC_TESTING):
@@ -340,13 +344,14 @@ def generate(filename: str,
         if script_kwargs_pairs and len(script_kwargs_pairs) > 0:
             # Call the optimisation scripts for algorithm optimisations
             for script_name, kwargs_str in script_kwargs_pairs:
-                recipe, _, _, kwargs = load_script(
+                recipe, _, _, kwargs, inserted_path = load_script(
                     script_name, kwargs_str,
                     "trans_alg", is_optional=True)
                 if recipe:
                     recipe(psyir, **kwargs)
                 # TODO #3514: proper cleanup using with
-                del sys.path[0]
+                if inserted_path in sys.path:
+                    sys.path.remove(inserted_path)
 
         # For each kernel called from the algorithm layer
         kernels: dict[int, dict[int, Node]] = {}
@@ -438,10 +443,12 @@ def generate(filename: str,
             # that trans_func is always defined, otherwise an exception is
             # raised.
             for script_name, kwargs_str in script_kwargs_pairs:
-                trans_func, _, _, kwargs = load_script(script_name, kwargs_str)
+                trans_func, _, _, kwargs, inserted_path = load_script(
+                    script_name, kwargs_str)
                 trans_func(psy.container.root, **kwargs)
                 # TODO #3514: proper cleanup using with
-                del sys.path[0]
+                if inserted_path in sys.path:
+                    sys.path.remove(inserted_path)
 
     # TODO issue #1618 remove Alg class and tests from PSyclone
     if api in LFRIC_API_NAMES and not LFRIC_TESTING:
@@ -972,7 +979,8 @@ def code_transformation_mode(input_file: str,
     for script_name, kwargs_str in script_kwargs_pairs:
         if script_name:
             (trans_recipe, files_to_skip,
-             resolve_mods, kwargs) = load_script(script_name, kwargs_str)
+             resolve_mods, kwargs, inserted_path) = load_script(
+                 script_name, kwargs_str)
             if trans_recipe:
                 trans_recipes.append((trans_recipe, kwargs))
             all_files_to_skip.extend(files_to_skip)
@@ -980,8 +988,8 @@ def code_transformation_mode(input_file: str,
                 final_resolve_mods = resolve_mods
             # Clean up sys.path after loading each script
             # TODO #3514: proper cleanup using with
-            if sys.path and len(sys.path) > 0:
-                del sys.path[0]
+            if inserted_path in sys.path:
+                sys.path.remove(inserted_path)
 
     _, filename = os.path.split(input_file)
     if filename not in all_files_to_skip:
