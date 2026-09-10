@@ -68,7 +68,7 @@ def test_script_file_not_found():
     '''
     with pytest.raises(GenerationError) as error:
         _, _ = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
-                        api="lfric", script_name="non_existent.py")
+                        api="lfric", script_kwargs_pairs=[("non_existent.py", None)])
     assert "script file 'non_existent.py' not found" in str(error.value)
 
 
@@ -82,8 +82,8 @@ def test_script_file_no_extension():
     with pytest.raises(GenerationError) as error:
         _, _ = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
                         api="lfric",
-                        script_name=str(LFRIC_BASE_PATH /
-                                        "invalid_script_name"))
+                        script_kwargs_pairs=[(str(LFRIC_BASE_PATH /
+                                        "invalid_script_name"), None)])
     assert ("expected the script file 'invalid_script_name' to have the "
             "'.py' extension" in str(error.value))
 
@@ -99,7 +99,7 @@ def test_script_file_wrong_extension():
         _, _ = generate(
             str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
             api="lfric",
-            script_name=str(LFRIC_BASE_PATH / "1_single_invoke.f90"))
+            script_kwargs_pairs=[(str(LFRIC_BASE_PATH / "1_single_invoke.f90"), None)])
     assert ("expected the script file '1_single_invoke.f90' to have the '.py' "
             "extension" in str(error.value))
 
@@ -117,7 +117,7 @@ this is invalid python
     with pytest.raises(Exception) as err:
         _, _ = generate(
             str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
-            api="lfric", script_name=error_syntax)
+            api="lfric", script_kwargs_pairs=[(error_syntax, None)])
     assert "invalid syntax (test_script.py, line 2)" in str(err.value)
 
     error_import = script_factory(tmp_path, """
@@ -126,7 +126,7 @@ import non_existent
     with pytest.raises(Exception) as err:
         _, _ = generate(
             str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
-            api="lfric", script_name=error_import)
+            api="lfric", script_kwargs_pairs=[(error_import, None)])
     assert "No module named 'non_existent'" in str(err.value)
 
 
@@ -146,7 +146,7 @@ def trans(psyir):
     with pytest.raises(Exception) as error:
         _, _ = generate(
             str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
-            api="lfric", script_name=runtime_error)
+            api="lfric", script_kwargs_pairs=[(runtime_error, None)])
     assert "name 'b' is not defined" in str(error.value)
 
 
@@ -168,7 +168,7 @@ def tran():
     with pytest.raises(GenerationError) as error:
         _, _ = generate(
             str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
-            api="lfric", script_name=no_trans_script)
+            api="lfric", script_kwargs_pairs=[(no_trans_script, None)])
     assert ("attempted to use specified PSyclone transformation module "
             "'test_script' but it does not contain a callable 'trans' function"
             in str(error.value))
@@ -185,7 +185,7 @@ def test_script_no_trans_alg(capsys, tmp_path):
     '''
     no_alg_script = script_factory(tmp_path, "def trans(psyir):\n  pass")
     _, _ = generate(str(GOCEAN_BASE_PATH / "single_invoke.f90"),
-                    api="gocean", script_name=no_alg_script)
+                    api="gocean", script_kwargs_pairs=[(no_alg_script, None)])
 
     # The legacy script deprecation warning is not printed in this case
     captured = capsys.readouterr()
@@ -210,7 +210,7 @@ def trans(psy):
     return psy
 """)
     _, _ = generate(str(GOCEAN_BASE_PATH / "single_invoke.f90"),
-                    api="gocean", script_name=legacy_script)
+                    api="gocean", script_kwargs_pairs=[(legacy_script, None)])
 
     # The deprecation warning message was printed
     captured = capsys.readouterr()
@@ -353,8 +353,8 @@ def test_script_file_too_short():
     with pytest.raises(GenerationError) as err:
         _, _ = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
                         api="lfric",
-                        script_name=str(
-                            LFRIC_BASE_PATH / "testkern_xyz_mod.f90"))
+                        script_kwargs_pairs=[(str(
+                            LFRIC_BASE_PATH / "testkern_xyz_mod.f90"), None)])
     assert ("expected the script file 'testkern_xyz_mod.f90' to have the "
             "'.py' extension" in str(err.value))
 
@@ -385,7 +385,7 @@ def trans(psyir):
     """)
 
     _, _ = generate(str(GOCEAN_BASE_PATH / "single_invoke.f90"),
-                    api="gocean", script_name=alg_script)
+                    api="gocean", script_kwargs_pairs=[(alg_script, None)])
 
 
 def test_profile_gocean():
@@ -442,7 +442,7 @@ def trans(psyir):
 """)
     with pytest.raises(Exception) as excinfo:
         _, _ = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
-                        api="lfric", script_name=error_script)
+                        api="lfric", script_kwargs_pairs=[(error_script, None)])
     assert 'object has no attribute' in str(excinfo.value)
 
 
@@ -455,7 +455,7 @@ def test_script_null_trans(tmp_path):
     alg1, psy1 = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
                           api="lfric")
     alg2, psy2 = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
-                          api="lfric", script_name=empty_script)
+                          api="lfric", script_kwargs_pairs=[(empty_script, None)])
     # we need to remove the first line before comparing output as
     # this line is an instance specific header
     assert '\n'.join(str(alg1).split('\n')[1:]) == \
@@ -481,7 +481,7 @@ def test_script_null_trans_relative(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
 
     alg2, psy2 = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
-                          api="lfric", script_name=basename)
+                          api="lfric", script_kwargs_pairs=[(basename, None)])
 
     # we need to remove the first line before comparing output as
     # this line is an instance specific header
@@ -519,7 +519,7 @@ def trans(psyir):
     generated_code_1 = psy.gen
     # Second loop fuse using generator.py and a script
     _, generated_code_2 = generate(parse_file, api="lfric",
-                                   script_name=fuse_loop_script)
+                                   script_kwargs_pairs=[(fuse_loop_script, None)])
     # third - check that the results are the same ...
     assert str(generated_code_1) == str(generated_code_2)
 
@@ -1791,7 +1791,7 @@ def trans(psyir):
     """)
     monkeypatch.setattr(generator, "LFRIC_TESTING", True)
     alg, _ = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
-                      api="lfric", script_name=alg_script)
+                      api="lfric", script_kwargs_pairs=[(alg_script, None)])
     # new call replaces invoke
     assert "use single_invoke_psy, only : invoke_0_testkern_type" in alg
     assert "call invoke_0_testkern_type(a, f1, f2, m1, m2)" in alg
@@ -2100,3 +2100,143 @@ def test_script_args_with_no_script(capsys):
 
     assert ("The '--script-kwargs' argument is only valid if a script is "
             "specified using the '--script' option" in err)
+
+
+def test_multiple_scripts_basic(tmp_path):
+    '''Test that multiple transformation scripts can be specified and
+    are applied in order.'''
+    # Create two simple transformation scripts with different names
+    script1 = tmp_path / "test_script1.py"
+    with open(script1, 'w+', encoding="utf8") as f:
+        f.write("""def trans(psyir):
+    # Script 1 just passes through
+    print("Script 1 executed")
+    return psyir
+""")
+
+    script2 = tmp_path / "test_script2.py"
+    with open(script2, 'w+', encoding="utf8") as f:
+        f.write("""def trans(psyir):
+    # Script 2 just passes through
+    print("Script 2 executed")
+    return psyir
+""")
+
+    # Create a simple Fortran file
+    fortran_file = tmp_path / "test.f90"
+    with open(fortran_file, 'w', encoding='utf-8') as f:
+        f.write("program test\n  print *, 'Hello'\nend program test\n")
+
+    # Capture stdout to check that both scripts are executed
+    import io
+    from contextlib import redirect_stdout
+
+    f = io.StringIO()
+    with redirect_stdout(f):
+        try:
+            code_transformation_mode(
+                str(fortran_file),
+                [(str(script1), None), (str(script2), None)],
+                None, False, False, False, True, "off")
+        except SystemExit:
+            pass
+
+    output = f.getvalue()
+    assert "Script 1 executed" in output
+    assert "Script 2 executed" in output
+
+
+def test_multiple_scripts_with_kwargs(tmp_path):
+    '''Test that multiple scripts can each have their own kwargs.'''
+    # Create two transformation scripts that accept kwargs
+    script1 = tmp_path / "test_script1.py"
+    with open(script1, 'w+', encoding="utf8") as f:
+        f.write("""def trans(psyir, message="default"):
+    print(f"Script 1: {message}")
+    return psyir
+""")
+
+    script2 = tmp_path / "test_script2.py"
+    with open(script2, 'w+', encoding="utf8") as f:
+        f.write("""def trans(psyir, message="default"):
+    print(f"Script 2: {message}")
+    return psyir
+""")
+
+    # Create a simple Fortran file
+    fortran_file = tmp_path / "test.f90"
+    with open(fortran_file, 'w', encoding='utf-8') as f:
+        f.write("program test\n  print *, 'Hello'\nend program test\n")
+
+    # Capture stdout to check that both scripts get their own kwargs
+    import io
+    from contextlib import redirect_stdout
+
+    f = io.StringIO()
+    with redirect_stdout(f):
+        try:
+            code_transformation_mode(
+                str(fortran_file),
+                [
+                    (str(script1), "message: 'msg1'"),
+                    (str(script2), "message: 'msg2'")
+                ],
+                None, False, False, False, True, "off")
+        except SystemExit:
+            pass
+
+    output = f.getvalue()
+    assert "Script 1: msg1" in output
+    assert "Script 2: msg2" in output
+
+
+def test_more_kwargs_than_scripts_error(tmp_path, capsys):
+    '''Test that providing more --script-kwargs than -s scripts results
+    in an error.'''
+    # Create a simple Fortran file
+    fortran_file = tmp_path / "test.f90"
+    with open(fortran_file, 'w', encoding='utf-8') as f:
+        f.write("program test\nend program test\n")
+
+    # Create one script
+    script = script_factory(tmp_path, "def trans(psyir): return psyir")
+
+    # Try to run with more kwargs than scripts
+    with pytest.raises(SystemExit):
+        main([str(fortran_file), '-s', str(script),
+              '--script-kwargs', 'a:1', '--script-kwargs', 'b:2'])
+    _, err = capsys.readouterr()
+    assert "More --script-kwargs specified than -s scripts" in err
+
+
+def test_backward_compatibility_single_script(tmp_path):
+    '''Test that single script usage still works (backward compatibility).'''
+    # Create a transformation script
+    script = tmp_path / "test_single_script.py"
+    with open(script, 'w+', encoding="utf8") as f:
+        f.write("""def trans(psyir):
+    print("Single script executed")
+    return psyir
+""")
+
+    # Create a simple Fortran file
+    fortran_file = tmp_path / "test.f90"
+    with open(fortran_file, 'w', encoding='utf-8') as f:
+        f.write("program test\n  print *, 'Hello'\nend program test\n")
+
+    # Capture stdout to check that the script is executed
+    import io
+    from contextlib import redirect_stdout
+
+    f = io.StringIO()
+    with redirect_stdout(f):
+        try:
+            code_transformation_mode(
+                str(fortran_file),
+                [(str(script), None)],
+                None, False, False, False, True, "off")
+        except SystemExit:
+            pass
+
+    output = f.getvalue()
+    assert "Single script executed" in output
