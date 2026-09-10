@@ -20,15 +20,18 @@ GENERATED_FILES = single_invoke_alg.f90 single_invoke_psy.f90 \
 F90 ?= gfortran
 F90FLAGS ?= -g -O0
 
+KERNEL_FILES = $(shell find ../code/ -type f -name '*90')
+
 .PHONY: transform compile run
 
 # The '-d ../code' argument specifies that PSyclone should search the
-# '../code' directory when looking for user-supplied kernels.
+# '../code' directory when looking for user-supplied kernels. This is why
+# we set KERNEL_FILES to the result returned by the `find` command (above).
 transform: single_invoke_alg.f90
 	@echo "With distributed-memory support:"
 	${PSYCLONE} -api lfric -d ../code ./single_invoke.x90
 
-single_invoke_alg.f90 single_invoke_psy.f90: single_invoke.x90
+single_invoke_alg.f90 single_invoke_psy.f90: single_invoke.x90 ${KERNEL_FILES}
 	@echo "Sequential code:"
 	${PSYCLONE} -api lfric -d ../code -nodm ./single_invoke.x90 \
 		-oalg single_invoke_alg.f90 \
