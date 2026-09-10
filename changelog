@@ -1,3 +1,6 @@
+   50) Adds ArrayIntrinsic2LoopTrans and Intrinsic2CodeTrans
+   metatransformations. 
+
    49) Move 'colored' utility from psyclone.psyir.nodes.node to
    psyclone.utils.
 
