@@ -68,7 +68,8 @@ def test_script_file_not_found():
     '''
     with pytest.raises(GenerationError) as error:
         _, _ = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
-                        api="lfric", script_kwargs_pairs=[("non_existent.py", None)])
+                        api="lfric",
+                        script_kwargs_pairs=[("non_existent.py", None)])
     assert "script file 'non_existent.py' not found" in str(error.value)
 
 
@@ -83,7 +84,7 @@ def test_script_file_no_extension():
         _, _ = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
                         api="lfric",
                         script_kwargs_pairs=[(str(LFRIC_BASE_PATH /
-                                        "invalid_script_name"), None)])
+                                             "invalid_script_name"), None)])
     assert ("expected the script file 'invalid_script_name' to have the "
             "'.py' extension" in str(error.value))
 
@@ -99,7 +100,8 @@ def test_script_file_wrong_extension():
         _, _ = generate(
             str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
             api="lfric",
-            script_kwargs_pairs=[(str(LFRIC_BASE_PATH / "1_single_invoke.f90"), None)])
+            script_kwargs_pairs=[(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
+                                  None)])
     assert ("expected the script file '1_single_invoke.f90' to have the '.py' "
             "extension" in str(error.value))
 
@@ -442,7 +444,9 @@ def trans(psyir):
 """)
     with pytest.raises(Exception) as excinfo:
         _, _ = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
-                        api="lfric", script_kwargs_pairs=[(error_script, None)])
+                        api="lfric",
+                        script_kwargs_pairs=[(error_script, None)]
+                        )
     assert 'object has no attribute' in str(excinfo.value)
 
 
@@ -455,7 +459,8 @@ def test_script_null_trans(tmp_path):
     alg1, psy1 = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
                           api="lfric")
     alg2, psy2 = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
-                          api="lfric", script_kwargs_pairs=[(empty_script, None)])
+                          api="lfric",
+                          script_kwargs_pairs=[(empty_script, None)])
     # we need to remove the first line before comparing output as
     # this line is an instance specific header
     assert '\n'.join(str(alg1).split('\n')[1:]) == \
@@ -519,7 +524,8 @@ def trans(psyir):
     generated_code_1 = psy.gen
     # Second loop fuse using generator.py and a script
     _, generated_code_2 = generate(parse_file, api="lfric",
-                                   script_kwargs_pairs=[(fuse_loop_script, None)])
+                                   script_kwargs_pairs=[
+                                       (fuse_loop_script, None)])
     # third - check that the results are the same ...
     assert str(generated_code_1) == str(generated_code_2)
 
