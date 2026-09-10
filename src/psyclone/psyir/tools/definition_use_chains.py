@@ -1055,12 +1055,11 @@ class DefinitionUseChain:
                 if not self._defsout[sig]:
                     self._uses[sig].append(reference)
         elif reference.ancestor((Call, CodeBlock)):
-            # Otherwise we assume read/write access as PSyclone does not
-            # know information about intents or CodeBlock accesses.
-            if self._defsout[sig]:
-                self._killed[sig].extend(self._defsout[sig])
-                self._defsout[sig] = []
-            self._defsout[sig].append(reference)
+            if reference.is_write:
+                if self._defsout[sig]:
+                    self._killed[sig].extend(self._defsout[sig])
+                    self._defsout[sig] = []
+                self._defsout[sig].append(reference)
         else:
             # Reference outside an Assignment - read only. This could be
             # References inside a While loop condition for example.

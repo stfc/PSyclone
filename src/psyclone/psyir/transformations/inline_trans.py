@@ -21,7 +21,10 @@ from psyclone.psyir.nodes import (
     Call, CodeBlock, DataNode, IfBlock, IntrinsicCall, Literal, Loop, Node,
     Range, Routine, Reference, Return, Schedule, ScopingNode, Statement,
     StructureMember, StructureReference, OMPDeclareTargetDirective,
-    ACCRoutineDirective)
+    ACCRoutineDirective, OMPPrivateClause)
+from psyclone.psyir.nodes.data_sharing_attribute_mixin import (
+        DataSharingAttributeMixin,
+)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArrayType,
@@ -228,6 +231,20 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                 use_first_callee_and_no_arg_check=(
                     use_first_callee_and_no_arg_check)
             )
+
+        # If this is inside a region that differentiates between private
+        # and shared symbols, the ones inside the callee are definetely
+        # private
+        dsharing_region = node.ancestor(DataSharingAttributeMixin)
+        if dsharing_region is not None:
+            for child in dsharing_region.children:
+                if isinstance(child, OMPPrivateClause):
+                    current_private_clause = child
+        for sym in routine_table.automatic_datasymbols:
+            # We mark them at the current clause (already inferred) and in
+            # the explicitly private list (for future inferance)
+            current_private_clause.addchild(Reference(sym))
+            dsharing_region.explicitly_private_symbols.add(sym)
 
         # Ensure any references to Symbols within the shape-specification of
         # other Symbols are updated. Note, we don't have to worry about
