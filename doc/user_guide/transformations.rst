@@ -210,6 +210,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.ArrayIntrinsic2LoopTrans
+      :members: apply
+      :no-index:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.ChunkLoopTrans
     :members: apply
     :no-index:
@@ -270,9 +276,9 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.domain.common.transformations.KernelInlineTrans
-    :members: apply
-    :no-index:
+.. autoclass:: psyclone.psyir.transformations.Intrinsic2CodeTrans
+      :members: apply
+      :no-index:
 
 ####
 
@@ -280,6 +286,12 @@ can be found in the API-specific sections).
       :members: apply
       :no-index:
 
+####
+
+.. autoclass:: psyclone.domain.common.transformations.KernelInlineTrans
+    :members: apply
+    :no-index:
+    
 ####
 
 .. autoclass:: psyclone.domain.common.transformations.KernelModuleInlineTrans

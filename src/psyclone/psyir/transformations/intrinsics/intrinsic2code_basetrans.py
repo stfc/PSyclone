@@ -20,7 +20,7 @@ from psyclone.utils import transformation_documentation_wrapper
 
 
 @transformation_documentation_wrapper
-class Intrinsic2CodeTrans(Transformation, metaclass=abc.ABCMeta):
+class Intrinsic2CodeBaseTrans(Transformation, metaclass=abc.ABCMeta):
     '''Provides support for transformations from PSyIR IntrinsicCall
     nodes to equivalent PSyIR code in a PSyIR tree. Such
     transformations can be useful when the intrinsic is not supported
@@ -114,4 +114,4 @@ class Intrinsic2CodeTrans(Transformation, metaclass=abc.ABCMeta):
 
 
 # For AutoAPI auto-documentation generation.
-__all__ = ["Intrinsic2CodeTrans"]
+__all__ = ["Intrinsic2CodeBaseTrans"]

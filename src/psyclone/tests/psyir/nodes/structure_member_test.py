@@ -11,7 +11,7 @@ import pytest
 from psyclone.psyir import nodes
 from psyclone.psyir import symbols
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes.node import colored
+from psyclone.utils import colored
 
 
 def create_structure_symbol(table):

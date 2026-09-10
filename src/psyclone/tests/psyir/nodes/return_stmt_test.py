@@ -10,7 +10,7 @@
 import pytest
 from psyclone.psyir.nodes import Return
 from psyclone.errors import GenerationError
-from psyclone.psyir.nodes.node import colored
+from psyclone.utils import colored
 
 
 def test_return_node_str():
