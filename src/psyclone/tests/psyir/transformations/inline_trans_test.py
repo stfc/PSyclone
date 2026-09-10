@@ -11,13 +11,15 @@
 import pytest
 
 from psyclone.configuration import Config
+from psyclone.core import SymbolicMaths
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.errors import InternalError
 from psyclone.psyGen import Kern
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
-    Assignment, Call, IntrinsicCall, Loop, Node, Reference,
-    Routine, Statement, Literal)
+    Assignment, Call, IntrinsicCall, Loop, Node, OMPDeclareTargetDirective,
+    OMPParallelDirective, Reference, Routine, Statement, Literal)
 from psyclone.psyir.symbols import (
     AutomaticInterface, DataSymbol, ImportInterface, UnresolvedType,
     ScalarType)
@@ -102,6 +104,83 @@ def test_apply_empty_routine(fortran_reader, fortran_writer, tmp_path):
     assert ("    i = 10\n\n"
             "  end subroutine run_it\n" in output)
     assert Compile(tmp_path).string_compiles(output)
+
+
+def test_apply_ignores_routine_directives(fortran_reader):
+    """Test that directives applying to a callee are not inlined."""
+    psyir = fortran_reader.psyir_from_source(
+        """module test_mod
+            contains
+              subroutine caller()
+                integer :: value
+                call callee(value)
+              end subroutine caller
+              subroutine callee(value)
+                integer, intent(out) :: value
+                value = 1
+              end subroutine callee
+            end module test_mod""")
+    caller, callee = psyir.walk(Routine)
+    call = caller.walk(Call)[0]
+    callee.addchild(OMPDeclareTargetDirective(), 0)
+
+    InlineTrans().apply(call)
+
+    assert not caller.walk(OMPDeclareTargetDirective)
+
+
+def test_apply_in_omp_parallel_region(fortran_reader):
+    """Test that automatic callee variables are made OpenMP private."""
+    psyir = fortran_reader.psyir_from_source(
+        """module test_mod
+            contains
+              subroutine caller()
+                integer :: value
+                call callee(value)
+              end subroutine caller
+              subroutine callee(value)
+                integer, intent(out) :: value
+                integer :: work
+                work = 1
+                value = work
+              end subroutine callee
+            end module test_mod""")
+    caller, _ = psyir.walk(Routine)
+    call = caller.walk(Call)[0]
+    directive = OMPParallelDirective.create(children=[call.detach()])
+    caller.addchild(directive)
+
+    InlineTrans().apply(call)
+
+    assert [ref.name for ref in directive.private_clause.children] == ["work"]
+    private_symbols = {
+        symbol.name for symbol in directive.explicitly_private_symbols}
+    assert private_symbols == {"work"}
+
+
+def test_optional_arg_elimination_ignores_symbolic_maths_errors(
+        fortran_reader, monkeypatch):
+    """Test that a failed symbolic expansion leaves an IfBlock unchanged."""
+    psyir = fortran_reader.psyir_from_source(
+        """subroutine test()
+              logical :: flag
+              if (flag) then
+              end if
+            end subroutine test""")
+    routine = psyir.walk(Routine)[0]
+
+    class FailingSymbolicMaths:
+        """Raise a VisitorError for every attempted symbolic expansion."""
+
+        @staticmethod
+        def expand(_):
+            """Raise the error that InlineTrans handles."""
+            raise VisitorError("test failure")
+
+    monkeypatch.setattr(SymbolicMaths, "get", lambda: FailingSymbolicMaths())
+    InlineTrans()._optional_arg_eliminate_ifblock_if_const_condition(routine)
+
+    assert len(routine.children) == 1
 
 
 def test_apply_return_then_cb(fortran_reader, fortran_writer, tmp_path):
@@ -2632,6 +2711,10 @@ def test_validate_unknown_actual_array_arg(fortran_reader):
             call, call.arguments[0], routine, routine_arg)
     assert ("the type of the actual argument 'a' corresponding to an array"
             " formal argument ('x') is unknown." in str(err.value))
+
+    # With the no-argument-check override, an unknown rank is acceptable.
+    inline_trans._validate_inline_of_call_and_routine_argument_pairs(
+        call, call.arguments[0], routine, routine_arg, allow_unknown=True)
 
 
 def test_validate_automatic_array_sized_by_arg(fortran_reader, monkeypatch):
