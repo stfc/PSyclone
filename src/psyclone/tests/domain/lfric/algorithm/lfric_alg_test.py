@@ -260,9 +260,9 @@ module testkern_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_type
-     type(arg_type), dimension(2) :: meta_args =        &
-          (/ arg_type(gh_scalar, gh_real, gh_read),     &
-             arg_type(gh_field,  gh_real, gh_inc,  w1)  &
+     type(arg_type), dimension(2) :: meta_args =       &
+          (/ arg_type(gh_scalar, gh_real, gh_read),    &
+             arg_type(gh_field,  gh_real, gh_inc,  w1) &
            /)
      integer :: operates_on = cell_column
    contains
