@@ -172,6 +172,11 @@ def trans(psyir):
                     print(f"Annotation successful for kernel "
                           f"'{kern.name}'")
                     try:
+                        if OFFLOAD_DIRECTIVES.startswith("acc"):
+                            # TODO #423: PSyclone doesn't support the OpenACC
+                            # private clause yet, which we need for the inlined
+                            # version
+                            continue
                         # For the kernels that can be on the GPU, attempt a
                         # full inline to improve performance.
                         inline_trans.apply(kern)
