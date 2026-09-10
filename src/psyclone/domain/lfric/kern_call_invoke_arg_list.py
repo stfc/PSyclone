@@ -197,7 +197,7 @@ class KernCallInvokeArgList(ArgOrdering):
                     metadata_posn=arg.metadata_index)
 
     def stencil(self,
-                arg: LFRicKernelArgument,
+                arg: "LFRicKernelArgument",
                 var_accesses: VariablesAccessMap = None) -> None:
         '''Add general stencil information associated with the argument 'arg'
         to the argument list.
