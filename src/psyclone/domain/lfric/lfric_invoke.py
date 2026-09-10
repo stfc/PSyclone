@@ -285,7 +285,8 @@ class LFRicInvoke(Invoke):
                          self.cma_ops, self.boundary_conditions,
                          self.function_spaces, self.evaluators,
                          self.reference_element_properties,
-                         self.mesh_properties, self.loop_bounds]:
+                         self.mesh_properties, self.loop_bounds,
+                         self.scalar_array_args]:
             cursor = entities.initialise(cursor)
 
         if self.schedule.reductions(reprod=True):

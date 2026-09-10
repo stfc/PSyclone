@@ -7,7 +7,7 @@
 
 program single_invoke
 
-  ! Example of the LFRic domain with a single 'invoke()' that calls two
+  ! Example of the LFRic API with a single 'invoke()' that calls two
   ! kernels.
   use constants_mod, only: r_def
   use field_mod,     only: field_type
@@ -15,10 +15,17 @@ program single_invoke
 
   implicit none
 
-  type(field_type) :: f1, f2, m1, m2
-  real(r_def)      :: a
+  ! LFRic field objects.
+  type(field_type)               :: f1, f2, m1, m2
+  ! A simple scalar.
+  real(r_def)                    :: a
+  ! A 'scalar array'. The number of dimensions of this array must match
+  ! that specified in the kernel metadata. The extents of the dimensions
+  ! are queried in the generated PSy layer and passed to the kernel
+  ! subroutine. They are therefore not provided to the `invoke` call.
+  real(r_def), dimension(50,100) :: ascalar_array
 
   call invoke( setval_c(f1, 0.0_r_def), &
-               testkern_type(a, f1, f2, m1, m2) )
+               testkern_type(a, ascalar_array, f1, f2, m1, m2) )
 
 end program single_invoke

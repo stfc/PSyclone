@@ -18,10 +18,12 @@ Example 1: Basic Operation
 
 Basic operation of PSyclone with an ``invoke()`` containing two
 kernels, one :ref:`user-supplied <lfric-kernel>`, the other a
-:ref:`Built-in <lfric-built-ins>`. Code is generated both with and
+:ref:`Built-in <lfric-built-ins>`. The user-supplied kernel accepts
+field, scalar and scalar-array arguments. Code is generated both with and
 without distributed-memory support. Also demonstrates the use of the
 ``-d`` flag to specify where to search for user-supplied kernel code
-(see :ref:`psyclone_command` section for more details).
+(see :ref:`psyclone_command` section for more details). Generated
+code can be compiled (``make compile``) but not executed.
 
 Example 2: Applying Transformations
 -----------------------------------
