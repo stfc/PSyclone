@@ -1,3 +1,6 @@
+   49) Move 'colored' utility from psyclone.psyir.nodes.node to
+   psyclone.utils.
+
    48) PR #34584 for #3583. Fixes PSyclone losing the tag from a symbol when
    using SymbolTable.swap.
 
