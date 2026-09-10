@@ -576,6 +576,9 @@ def test_scalar_array(tmpdir, dist_mem):
                              dist_mem=dist_mem, idx=0)
 
     generated_code = str(psy.gen)
+    # Note that 'dims_integer_array' is a scalar argument, deliberately named
+    # to clash with the local array that PSyclone will create to hold the
+    # dimensions of the scalar-array argument named 'integer_array'.
     expected_subroutine = (
        "  subroutine invoke_0(f1, real_array, logical_array, integer_array, "
        "dims_integer_array, a, f2, f3, f4, b)\n"
