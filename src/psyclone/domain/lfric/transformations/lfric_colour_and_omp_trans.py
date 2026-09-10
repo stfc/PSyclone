@@ -12,7 +12,7 @@ from typing import Union
 
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import Routine, Loop, ProfileNode
+from psyclone.psyir.nodes import Directive, Loop, ProfileNode, Routine
 from psyclone.psyir.transformations.omp_parallel_trans import OMPParallelTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
@@ -74,6 +74,34 @@ class LFRicColourAndOMPTrans(Transformation):
                     not in const.VALID_DISCONTINUOUS_NAMES):
                 ctrans.apply(child, **colour_kwargs)
 
+    def _parallelise_loops(self, node: Routine,
+                           reprod: Union[bool, None] = None, **par_kwargs):
+        '''
+        Applies OpenMP parallelisation to every loop that is not a loop
+        over colours and it not already a directive.
+
+        :param node: the Routine whose loops are to be parallelised.
+        :param reprod: whether to use reproducible form of OpenMP reduction.
+        If none, the default value from the configuration is used.
+        :param par_kwargs: keyword arguments for the OMPParallelTrans.
+        '''
+        otrans = LFRicOMPLoopTrans()
+        oregtrans = OMPParallelTrans()
+
+        # TODO #2668: LFRicOMPLoopTrans has not yet been migrated to kwargs. It
+        # it gives options inherrited from OMPLoopTrans but discards any
+        # **kwargs it is given, so we need to build an options dict here.
+        # Remove once it accepts kwargs directly.
+        options = None if reprod is None else {"reprod": reprod}
+
+        for loop in node.walk(Loop):
+            if loop.loop_type in ["colours", "null"]:
+                continue  # Skip loops over colours and null loops
+            if loop.ancestor(Directive):
+                continue  # Skip if an outer loop is already parallelised
+            oregtrans.apply(loop, **par_kwargs)
+            otrans.apply(loop, options=options)
+
     def apply(self, node: Routine, reprod: Union[bool, None] = None, **kwargs):
         # pylint: disable=arguments-renamed
         '''
@@ -81,12 +109,13 @@ class LFRicColourAndOMPTrans(Transformation):
         :param reprod: whether to use reproducible form of OpenMP reduction.
         If none, the default value from the configuration is used.
         '''
-        local_kwargs, colour_kwargs, _, _ = self.split_kwargs(
+        local_kwargs, colour_kwargs, par_kwargs, _ = self.split_kwargs(
             reprod=reprod, **kwargs)
 
         self.validate(node, **local_kwargs)
 
         self._colour_loops(node, **colour_kwargs)
+        self._parallelise_loops(node, reprod=reprod, **par_kwargs)
 
 
 # For Sphinx AutoAPI documentation generation
