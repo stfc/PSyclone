@@ -2246,3 +2246,42 @@ def test_backward_compatibility_single_script(tmp_path):
 
     output = f.getvalue()
     assert "Single script executed" in output
+
+
+def test_multiple_scripts_via_main(tmp_path, capsys):
+    '''Test that multiple scripts can be specified via main().'''
+    # Create two simple transformation scripts
+    script1 = tmp_path / "test_script1_main.py"
+    with open(script1, 'w+', encoding="utf8") as f:
+        f.write("""def trans(psyir):
+    print("Script 1 via main")
+    return psyir
+""")
+
+    script2 = tmp_path / "test_script2_main.py"
+    with open(script2, 'w+', encoding="utf8") as f:
+        f.write("""def trans(psyir):
+    print("Script 2 via main")
+    return psyir
+""")
+
+    # Create a simple Fortran file
+    fortran_file = tmp_path / "test_main.f90"
+    with open(fortran_file, 'w', encoding='utf-8') as f:
+        f.write("program test\n  print *, 'Hello'\nend program test\n")
+
+    # Capture stdout to check that both scripts are executed
+    import io
+    from contextlib import redirect_stdout
+
+    f = io.StringIO()
+    with redirect_stdout(f):
+        try:
+            main([str(fortran_file), '-s', str(script1),
+                  '-s', str(script2)])
+        except SystemExit:
+            pass
+
+    output = f.getvalue()
+    assert "Script 1 via main" in output
+    assert "Script 2 via main" in output
