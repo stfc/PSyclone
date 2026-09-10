@@ -1017,7 +1017,7 @@ def test_loop_fuse_same_space_error():
     '''
     ftrans = LFRicLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
-        ftrans.apply(None, None, {"same_space": "foo"})
+        ftrans.validate(None, None, {"same_space": "foo"})
     assert ("The value of the 'same_space' flag must be either bool or "
             "None type, but the type of flag provided was 'str'."
             in str(excinfo.value))
@@ -3048,7 +3048,7 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
     else:  # not (distmem and annexed)
         otrans = LFRicOMPParallelLoopTrans()
         ftrans.apply(schedule.children[0], schedule.children[1],
-                     {"same_space": True})
+                     same_space=True)
         otrans.apply(schedule.children[0])
         result = str(psy.gen)
 
@@ -3206,18 +3206,72 @@ def test_multi_builtins_fuse_error():
             "reduction") in str(excinfo.value)
 
 
-def test_loop_fuse_error(dist_mem):
-    '''Test that we raise an exception in loop fusion if one or more of
+def test_loop_fuse_error(tmpdir, dist_mem):
+    '''Test that we conditionally fuse loops if one or more of
     the loops has an any_space iteration space.'''
-    _, invoke = get_invoke("15.14.2_multiple_set_kernels.f90",
-                           TEST_API, idx=0, dist_mem=dist_mem)
+    psy, invoke = get_invoke("15.14.2_multiple_set_kernels.f90",
+                             TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
-    with pytest.raises(TransformationError) as excinfo:
-        ftrans.apply(schedule.children[0], schedule.children[1])
-    assert ("One or more of the iteration spaces is unknown "
-            "('ANY_SPACE') so loop fusion might be "
-            "invalid") in str(excinfo.value)
+    ftrans.apply(schedule.children[0], schedule.children[1])
+    code = str(psy.gen)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    if dist_mem:
+        correct = """    ! Call kernels and communication routines
+    if (f1%which_function_space() == f2%which_function_space()) then
+      do df = loop0_start, loop0_stop, 1
+        ! Built-in: setval_c (set a real-valued field to a real scalar value)
+        f1_data(df) = fred
+
+        ! Built-in: setval_c (set a real-valued field to a real scalar value)
+        f2_data(df) = 3.0_r_def
+      enddo
+
+      ! Set halos dirty/clean for fields modified in the above loop(s)
+      call f1_proxy%set_dirty()
+      call f2_proxy%set_dirty()
+    else
+      do df = loop1_start, loop1_stop, 1
+        ! Built-in: setval_c (set a real-valued field to a real scalar value)
+        f1_data(df) = fred
+      enddo
+
+      ! Set halos dirty/clean for fields modified in the above loop(s)
+      call f1_proxy%set_dirty()
+      do df = loop2_start, loop2_stop, 1
+        ! Built-in: setval_c (set a real-valued field to a real scalar value)
+        f2_data(df) = 3.0_r_def
+      enddo
+
+      ! Set halos dirty/clean for fields modified in the above loop(s)
+      call f2_proxy%set_dirty()
+    end if"""
+    else:
+        correct = """    ! Call kernels
+    if (f1%which_function_space() == f2%which_function_space()) then
+      do df = loop0_start, loop0_stop, 1
+        ! Built-in: setval_c (set a real-valued field to a real scalar value)
+        f1_data(df) = fred
+
+        ! Built-in: setval_c (set a real-valued field to a real scalar value)
+        f2_data(df) = 3.0_r_def
+      enddo
+    else
+      do df = loop1_start, loop1_stop, 1
+        ! Built-in: setval_c (set a real-valued field to a real scalar value)
+        f1_data(df) = fred
+      enddo
+      do df = loop2_start, loop2_stop, 1
+        ! Built-in: setval_c (set a real-valued field to a real scalar value)
+        f2_data(df) = 3.0_r_def
+      enddo
+    end if
+    do df = loop3_start, loop3_stop, 1
+      ! Built-in: setval_c (set a real-valued field to a real scalar value)
+      f3_data(df) = ginger
+    enddo"""
+    assert correct in code
 
 
 # Repeat the reduction tests for the reproducible version
@@ -6446,7 +6500,7 @@ def test_all_loop_trans_base_validate(monkeypatch):
     # To ensure that we identify that the validate() method in the LoopTrans
     # base class has been called, we monkeypatch it to raise an exception.
 
-    def fake_validate(_1, _2, options=None):
+    def fake_validate(_1, _2, options=None, **kwargs):
         raise NotImplementedError("validate test exception")
     monkeypatch.setattr(LoopTrans, "validate", fake_validate)
 
