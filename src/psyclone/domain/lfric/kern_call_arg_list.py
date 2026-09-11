@@ -738,9 +738,8 @@ class KernCallArgList(ArgOrdering):
         for rule in self._kern.qr_rules.values():
             basis_name = function_space.get_basis_name(qr_var=rule.psy_name)
             sym = self.append_array_reference(
-                    basis_name, [":", ":", ":", ":"],
-                    LFRicTypes("LFRicRealScalarDataType")()
-                )
+                    "basis", [":", ":", ":", ":"],
+                    LFRicTypes("LFRicRealScalarDataType")(), tag=basis_name)
             self.append(sym.name, var_accesses)
 
         if "gh_evaluator" in self._kern.eval_shapes:
@@ -752,7 +751,9 @@ class KernCallArgList(ArgOrdering):
                 # function space
                 fspace = self._kern.eval_targets[fs_name][0]
                 basis_name = function_space.get_basis_name(on_space=fspace)
-                sym = self.append_array_reference(basis_name, [":", ":", ":"])
+                sym = self.append_array_reference("basis",
+                                                  [":", ":", ":"],
+                                                  tag=basis_name)
                 self.append(sym.name, var_accesses)
 
     def diff_basis(self, function_space,
@@ -772,9 +773,10 @@ class KernCallArgList(ArgOrdering):
             diff_basis_name = function_space.get_diff_basis_name(
                 qr_var=rule.psy_name)
             sym = self.append_array_reference(
-                    diff_basis_name,
+                    "diff_basis",
                     [":", ":", ":", ":"],
-                    LFRicTypes("LFRicRealScalarDataType")()
+                    LFRicTypes("LFRicRealScalarDataType")(),
+                tag=diff_basis_name
             )
             self.append(sym.name, var_accesses)
 
@@ -789,9 +791,10 @@ class KernCallArgList(ArgOrdering):
                 diff_basis_name = function_space.get_diff_basis_name(
                     on_space=fspace)
                 sym = self.append_array_reference(
-                                  diff_basis_name,
-                                  [":", ":", ":"],
-                                  LFRicTypes("LFRicRealScalarDataType")())
+                    "diff_basis",
+                    [":", ":", ":"],
+                    LFRicTypes("LFRicRealScalarDataType")(),
+                    tag=diff_basis_name)
                 self.append(sym.name, var_accesses)
 
     def field_bcs_kernel(self, function_space,

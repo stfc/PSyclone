@@ -224,7 +224,6 @@ class ArgOrdering:
                     [ArrayType.Extent.DEFERRED for _ in indices]))
         else:
             if symbol.name != array_name:
-                import pdb; pdb.set_trace()
                 raise InternalError(f"Specified symbol '{symbol.name}' has a "
                                     f"different name than the specified array "
                                     f"name '{array_name}'.")
@@ -243,7 +242,8 @@ class ArgOrdering:
         '''This function adds an array reference. If there is no symbol with
         the given tag, a new array symbol will be defined using the given
         intrinsic_type. If a symbol already exists but has no type, it will
-        be replaced. The created reference is added to the list of PSyIR
+        be replaced. The created reference is added to the list of PSy,
+                                                  tag=basis_nameIR
         expressions, and the symbol is returned to the user.
 
         :param str array_name: the name and tag of the array.

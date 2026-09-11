@@ -5650,20 +5650,19 @@ class LFRicKernelArgument(KernelArgument):
         fs1 = None
         fs2 = None
 
-        table = call.ancestor(LFRicInvokeSchedule).symbol_table
         if self.is_operator:
 
             fs1 = FunctionSpace(arg_meta_data.function_space_to,
                                 self._kernel_args, self._nlayers,
-                                self._ndata, table)
+                                self._ndata)
             fs2 = FunctionSpace(arg_meta_data.function_space_from,
                                 self._kernel_args, self._nlayers,
-                                self._ndata, table)
+                                self._ndata)
         else:
             if arg_meta_data.function_space:
                 fs1 = FunctionSpace(arg_meta_data.function_space,
                                     self._kernel_args, self._nlayers,
-                                    self._ndata, table)
+                                    self._ndata)
         self._function_spaces = [fs1, fs2]
 
         # Set the argument's intrinsic type from its descriptor's
