@@ -674,7 +674,9 @@ class KernCallArgList(ArgOrdering):
             # Dofmaps and `undf` are not required for DoF kernels
             return
 
-        sym = self.append_integer_reference(function_space.undf_name)
+        sym = self.append_integer_reference(
+            function_space.undf_name,
+            tag=f"undf:{function_space.mangled_name}")
         self.append(sym.name, var_accesses)
 
         map_name = function_space.map_name
@@ -683,12 +685,12 @@ class KernCallArgList(ArgOrdering):
         if self._kern.iterates_over == 'domain':
             # This kernel takes responsibility for iterating over cells so
             # pass the whole dofmap.
-            self.append_array_reference(map_name, [":", ":"], symbol=sym)
+            self.append_array_reference(sym.name, [":", ":"], symbol=sym)
             self.append(sym.name, var_accesses, var_access_name=sym.name)
         else:
             # Pass the dofmap for the cell column
             cell_name, cell_ref = self.cell_ref_name(var_accesses)
-            self.append_array_reference(map_name, [":", cell_ref], symbol=sym)
+            self.append_array_reference(sym.name, [":", cell_ref], symbol=sym)
             self.append(f"{sym.name}(:,{cell_name})",
                         var_accesses, var_access_name=sym.name)
 

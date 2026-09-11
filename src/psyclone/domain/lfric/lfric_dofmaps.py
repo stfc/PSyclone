@@ -61,70 +61,70 @@ class LFRicDofmaps(LFRicCollection):
         for call in self.kernel_calls:
             # We only need a dofmap if the kernel operates on cells
             # rather than dofs.
-            if call.iterates_over != "dof":
-                for unique_fs in call.arguments.unique_fss:
-                    # We only need a dofmap if there is a *field* on this
-                    # function space. If there is then we use it to look
-                    # up the dofmap.
-                    fld_arg = unique_fs.field_on_space(call.arguments)
-                    if fld_arg:
-                        map_name = unique_fs.map_name
-                        if map_name not in self._unique_fs_maps:
-                            self._unique_fs_maps[map_name] = fld_arg
-                if call.cma_operation == "assembly":
-                    # A kernel that assembles a CMA operator requires
-                    # column-banded dofmaps for its 'to' and 'from'
-                    # function spaces
-                    cma_args = psyGen.args_filter(
-                        call.arguments.args,
-                        arg_types=["gh_columnwise_operator"])
+            if call.iterates_over == "dof":
+                continue
+            for unique_fs in call.arguments.unique_fss:
+                # We only need a dofmap if there is a *field* on this function
+                # space. If there is then we use it to look up the dofmap.
+                fld_arg = unique_fs.field_on_space(call.arguments)
+                if fld_arg:
+                    map_name = unique_fs.map_name
+                    if map_name not in self._unique_fs_maps:
+                        self._unique_fs_maps[map_name] = fld_arg
+            if call.cma_operation == "assembly":
+                # A kernel that assembles a CMA operator requires
+                # column-banded dofmaps for its 'to' and 'from'
+                # function spaces
+                cma_args = psyGen.args_filter(
+                    call.arguments.args,
+                    arg_types=["gh_columnwise_operator"])
 
-                    # Sanity check - we expect only one CMA argument
-                    if len(cma_args) != 1:
-                        raise GenerationError(
-                            f"Internal error: there should only be one CMA "
-                            f"operator argument for a CMA assembly kernel but "
-                            f"found {len(cma_args)}")
+                # Sanity check - we expect only one CMA argument
+                if len(cma_args) != 1:
+                    raise GenerationError(
+                        f"Internal error: there should only be one CMA "
+                        f"operator argument for a CMA assembly kernel but "
+                        f"found {len(cma_args)}")
 
-                    map_name = \
-                        cma_args[0].function_space_to.cbanded_map_name
-                    if map_name not in self._unique_cbanded_maps:
-                        self._unique_cbanded_maps[map_name] = {
-                            "argument": cma_args[0],
-                            "direction": "to"}
-                    map_name = \
-                        cma_args[0].function_space_from.cbanded_map_name
-                    if map_name not in self._unique_cbanded_maps:
-                        self._unique_cbanded_maps[map_name] = {
-                            "argument": cma_args[0],
-                            "direction": "from"}
-                elif call.cma_operation == "apply":
-                    # A kernel that applies (or applies the inverse of) a
-                    # CMA operator requires the indirection dofmaps for the
-                    # to- and from-spaces of the operator.
-                    cma_args = psyGen.args_filter(
-                        call.arguments.args,
-                        arg_types=["gh_columnwise_operator"])
+                map_name = \
+                    cma_args[0].function_space_to.cbanded_map_name
+                if map_name not in self._unique_cbanded_maps:
+                    self._unique_cbanded_maps[map_name] = {
+                        "argument": cma_args[0],
+                        "direction": "to"}
+                map_name = \
+                    cma_args[0].function_space_from.cbanded_map_name
+                if map_name not in self._unique_cbanded_maps:
+                    self._unique_cbanded_maps[map_name] = {
+                        "argument": cma_args[0],
+                        "direction": "from"}
+            elif call.cma_operation == "apply":
+                # A kernel that applies (or applies the inverse of) a
+                # CMA operator requires the indirection dofmaps for the
+                # to- and from-spaces of the operator.
+                cma_args = psyGen.args_filter(
+                    call.arguments.args,
+                    arg_types=["gh_columnwise_operator"])
 
-                    # Sanity check - we expect only one CMA argument
-                    if len(cma_args) != 1:
-                        raise GenerationError(
-                            f"Internal error: there should only be one CMA "
-                            f"operator argument for a kernel that applies a "
-                            f"CMA operator but found {len(cma_args)}")
+                # Sanity check - we expect only one CMA argument
+                if len(cma_args) != 1:
+                    raise GenerationError(
+                        f"Internal error: there should only be one CMA "
+                        f"operator argument for a kernel that applies a "
+                        f"CMA operator but found {len(cma_args)}")
 
-                    map_name = cma_args[0].function_space_to\
-                        .cma_indirection_map_name
-                    if map_name not in self._unique_indirection_maps:
-                        self._unique_indirection_maps[map_name] = {
-                            "argument": cma_args[0],
-                            "direction": "to"}
-                    map_name = cma_args[0].function_space_from\
-                        .cma_indirection_map_name
-                    if map_name not in self._unique_indirection_maps:
-                        self._unique_indirection_maps[map_name] = {
-                            "argument": cma_args[0],
-                            "direction": "from"}
+                map_name = cma_args[0].function_space_to\
+                    .cma_indirection_map_name
+                if map_name not in self._unique_indirection_maps:
+                    self._unique_indirection_maps[map_name] = {
+                        "argument": cma_args[0],
+                        "direction": "to"}
+                map_name = cma_args[0].function_space_from\
+                    .cma_indirection_map_name
+                if map_name not in self._unique_indirection_maps:
+                    self._unique_indirection_maps[map_name] = {
+                        "argument": cma_args[0],
+                        "direction": "from"}
 
     def initialise(self, cursor: int) -> int:
         '''
@@ -138,7 +138,7 @@ class LFRicDofmaps(LFRicCollection):
         first = True
         for dmap, field in self._unique_fs_maps.items():
             stmt = Assignment.create(
-                    lhs=Reference(self.symtab.lookup(dmap)),
+                    lhs=Reference(self.symtab.lookup_with_tag(dmap)),
                     rhs=field.generate_method_call("get_whole_dofmap"),
                     is_pointer=True)
             if first:
@@ -200,15 +200,23 @@ class LFRicDofmaps(LFRicCollection):
         for dmap in sorted(self._unique_fs_maps):
             # TODO #2577 - once pointer assignments are supported then
             # we can remove the use of UnsupportedFortranType here.
-            dtype = UnsupportedFortranType(
-                f"{intrinsic_type.intrinsic.name.lower()}("
-                f"kind={intrinsic_type.precision.name}), pointer "
-                f":: {dmap}(:,:) => null()",
-                partial_datatype=atype.copy())
-            dmap_sym = self.symtab.find_or_create_tag(
-                dmap, symbol_type=DataSymbol, datatype=dtype,
-                initial_value=IntrinsicCall.create(
-                    IntrinsicCall.Intrinsic.NULL))
+            base_name = (
+                "map_" +
+                self._unique_fs_maps[dmap].function_space.short_mangled_name)
+            try:
+                dmap_sym = self.symtab.lookup_with_tag(dmap)
+            except KeyError:
+                name = self.symtab.next_available_name(base_name)
+                dtype = UnsupportedFortranType(
+                    f"{intrinsic_type.intrinsic.name.lower()}("
+                    f"kind={intrinsic_type.precision.name}), pointer "
+                    f":: {name}(:,:) => null()",
+                    partial_datatype=atype.copy())
+                dmap_sym = self.symtab.find_or_create_tag(
+                    tag=dmap, root_name=base_name, symbol_type=DataSymbol,
+                    datatype=dtype,
+                    initial_value=IntrinsicCall.create(
+                        IntrinsicCall.Intrinsic.NULL))
 
         # Column-banded dofmaps
         for dmap in sorted(self._unique_cbanded_maps):

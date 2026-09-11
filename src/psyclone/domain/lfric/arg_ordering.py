@@ -186,8 +186,9 @@ class ArgOrdering:
         self.psyir_append(Reference(sym))
         return sym
 
-    def get_array_reference(self, array_name, indices, intrinsic_type=None,
-                            tag=None, symbol=None):
+    def get_array_reference(self, array_name, indices,
+                            intrinsic_type: Optional[ScalarType] = None,
+                            tag: Optional[str] = None, symbol=None):
         # pylint: disable=too-many-arguments
         '''This function creates an array reference. If there is no symbol
         with the given tag, a new array symbol will be defined using the given
@@ -195,15 +196,12 @@ class ArgOrdering:
         be replaced.
 
         :param str array_name: the name and tag of the array.
-        :param indices: the indices to be used in the PSyIR reference. It \
+        :param indices: the indices to be used in the PSyIR reference. It
             must either be ":", or a PSyIR node.
         :type indices: List[Union[str, py:class:`psyclone.psyir.nodes.Node`]]
         :param intrinsic_type: the intrinsic type of the array. Defaults to
             LFRicIntegerScalarDataType.
-        :type intrinsic_type: \
-            Optional[:py:class:`psyclone.psyir.symbols.datatypes.ScalarType`]
         :param tag: optional tag for the symbol.
-        :type tag: Optional[str]
         :param symbol: optional the symbol to use.
         :type: Optional[:py:class:`psyclone.psyir.symbols.Symbol`]
 
@@ -226,6 +224,7 @@ class ArgOrdering:
                     [ArrayType.Extent.DEFERRED for _ in indices]))
         else:
             if symbol.name != array_name:
+                import pdb; pdb.set_trace()
                 raise InternalError(f"Specified symbol '{symbol.name}' has a "
                                     f"different name than the specified array "
                                     f"name '{array_name}'.")
@@ -783,7 +782,9 @@ class ArgOrdering:
 
         '''
         # There is currently one argument: "ndf"
-        sym = self.append_integer_reference(function_space.ndf_name)
+        sym = self.append_integer_reference(
+            function_space.ndf_name,
+            tag=f"ndf:{function_space.mangled_name}")
         self.append(sym.name, var_accesses)
 
     def fs_compulsory_field(self, function_space, var_accesses=None):

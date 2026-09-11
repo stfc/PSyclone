@@ -81,7 +81,7 @@ class LFRicArgDescriptor(Descriptor):
         self._mesh = None
         # No. of vertical layers associated with the argument. Defaults to
         # using that of the first field/operator argument to a kernel.
-        self._nlayers = None
+        self._nlayers = ""
         # No. of data values per dof - defaults to 1.
         self._ndata = "1"
         self._nargs = 0
@@ -776,12 +776,12 @@ class LFRicArgDescriptor(Descriptor):
                             f"'{self._argument_type}'.")
 
     @property
-    def nlayers(self) -> Optional[str]:
+    def nlayers(self) -> str:
         '''
         :returns: a label (or integer, encoded as a string) identifying the
-            number of vertical layers associated with this argument or None
-            if the default (the number of layers associated with the first
-            kernel argument) is to be used.
+            number of vertical layers associated with this argument or empty
+            string if the default (the number of layers associated with the
+            first kernel argument) is to be used.
         '''
         return self._nlayers
 

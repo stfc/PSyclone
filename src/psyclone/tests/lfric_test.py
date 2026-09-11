@@ -312,26 +312,26 @@ def test_any_space_1(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "integer(kind=i_def), pointer :: map_as1_a(:,:) => null()" in code
-    assert "integer(kind=i_def), pointer :: map_as2_b(:,:) => null()" in code
+    assert "integer(kind=i_def), pointer :: map_as1_a__1(:,:) => null()" in code
+    assert "integer(kind=i_def), pointer :: map_as2_b__1(:,:) => null()" in code
     assert "integer(kind=i_def), pointer :: map_w0(:,:) => null()" in code
-    assert "real(kind=r_def), allocatable :: basis_as1_a_qr(:,:,:,:)" in code
-    assert "real(kind=r_def), allocatable :: basis_as2_b_qr(:,:,:,:)" in code
-    assert ("ALLOCATE(basis_as1_a_qr(dim_as1_a,ndf_as1_a,"
+    assert "real(kind=r_def), allocatable :: basis_as1_a__1_qr(:,:,:,:)" in code
+    assert "real(kind=r_def), allocatable :: basis_as2_b__1_qr(:,:,:,:)" in code
+    assert ("ALLOCATE(basis_as1_a__1_qr(dim_as1_a__1,ndf_as1_a__1,"
             "np_xy_qr,np_z_qr))" in code), code
-    assert ("ALLOCATE(basis_as2_b_qr(dim_as2_b,ndf_as2_b,"
+    assert ("ALLOCATE(basis_as2_b__1_qr(dim_as2_b__1,ndf_as2_b__1,"
             "np_xy_qr,np_z_qr))" in code), code
-    assert "map_as1_a => a_proxy%vspace%get_whole_dofmap()" in code, code
-    assert "map_as2_b => b_proxy%vspace%get_whole_dofmap()" in code, code
+    assert "map_as1_a__1 => a_proxy%vspace%get_whole_dofmap()" in code, code
+    assert "map_as2_b__1 => b_proxy%vspace%get_whole_dofmap()" in code, code
     assert ("call testkern_any_space_1_code(nlayers_a, a_data, rdt, "
             "b_data, c_1_data, c_2_data, c_3_data, "
-            "ndf_as1_a, undf_as1_a, map_as1_a(:,cell), "
-            "basis_as1_a_qr, ndf_as2_b, undf_as2_b, "
-            "map_as2_b(:,cell), basis_as2_b_qr, ndf_w0, undf_w0, "
+            "ndf_as1_a__1, undf_as1_a__1, map_as1_a__1(:,cell), "
+            "basis_as1_a__1_qr, ndf_as2_b__1, undf_as2_b__1, "
+            "map_as2_b__1(:,cell), basis_as2_b__1_qr, ndf_w0, undf_w0, "
             "map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
             "weights_xy_qr, weights_z_qr)" in code), code
-    assert ("DEALLOCATE(basis_as1_a_qr, basis_as2_b_qr, diff_basis_w0_qr)"
-            in code), code
+    assert ("DEALLOCATE(basis_as1_a__1_qr, basis_as2_b__1_qr, "
+            "diff_basis_w0_qr)" in code), code
 
 
 def test_any_space_2(tmpdir):
@@ -348,17 +348,17 @@ def test_any_space_2(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert "integer(kind=i_def), intent(in) :: istp" in generated_code
-    assert ("integer(kind=i_def), pointer :: map_as1_a(:,:) => null()"
+    assert ("integer(kind=i_def), pointer :: map_as1_a__1(:,:) => null()"
             in generated_code)
-    assert "integer(kind=i_def) :: ndf_as1_a" in generated_code
-    assert "integer(kind=i_def) :: undf_as1_a" in generated_code
-    assert "ndf_as1_a = a_proxy%vspace%get_ndf()" in generated_code
-    assert "undf_as1_a = a_proxy%vspace%get_undf()" in generated_code
-    assert ("map_as1_a => a_proxy%vspace%get_whole_dofmap()"
+    assert "integer(kind=i_def) :: ndf_as1_a__1" in generated_code
+    assert "integer(kind=i_def) :: undf_as1_a__1" in generated_code
+    assert "ndf_as1_a__1 = a_proxy%vspace%get_ndf()" in generated_code
+    assert "undf_as1_a__1 = a_proxy%vspace%get_undf()" in generated_code
+    assert ("map_as1_a__1 => a_proxy%vspace%get_whole_dofmap()"
             in generated_code)
     assert ("call testkern_any_space_2_code(cell, nlayers_a, a_data, "
             "b_data, c_proxy%ncell_3d, c_local_stencil, istp, "
-            "ndf_as1_a, undf_as1_a, map_as1_a(:,cell))"
+            "ndf_as1_a__1, undf_as1_a__1, map_as1_a__1(:,cell))"
             in generated_code)
 
 
@@ -374,8 +374,8 @@ def test_op_any_space_different_space_1(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "ndf_as2_a = a_proxy%fs_from%get_ndf()" in generated_code
-    assert "ndf_as1_a = a_proxy%fs_to%get_ndf()" in generated_code
+    assert "ndf_as2_a__1 = a_proxy%fs_from%get_ndf()" in generated_code
+    assert "ndf_as1_a__1 = a_proxy%fs_to%get_ndf()" in generated_code
 
 
 def test_op_any_space_different_space_2(tmpdir):
@@ -390,25 +390,25 @@ def test_op_any_space_different_space_2(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "ndf_as1_b = b_proxy%fs_to%get_ndf()" in generated_code
-    assert "dim_as1_b = b_proxy%fs_to%get_dim_space()" in generated_code
-    assert "ndf_as2_b = b_proxy%fs_from%get_ndf()" in generated_code
-    assert "ndf_as3_c = c_proxy%fs_to%get_ndf()" in generated_code
-    assert ("ndf_a4_an_or_wh_a_vy_lg_ne = an_operator_with_a_very_long_name_"
+    assert "ndf_as1_b__1 = b_proxy%fs_to%get_ndf()" in generated_code
+    assert "dim_as1 = b_proxy%fs_to%get_dim_space()" in generated_code
+    assert "ndf_as2_b__1 = b_proxy%fs_from%get_ndf()" in generated_code
+    assert "ndf_as3_c__1 = c_proxy%fs_to%get_ndf()" in generated_code
+    assert ("ndf_a4_an_or_wh_a_vy_lg_ne_1 = an_operator_with_a_very_long_name_"
             "proxy%fs_from%get_ndf()" in generated_code)
-    assert ("undf_a4_an_or_wh_a_vy_lg_ne = an_operator_with_a_very_long_name_"
+    assert ("undf_a4_an_or_wh_a_vy_lg_ne_1 = an_operator_with_a_very_long_name_"
             "proxy%fs_from%get_undf()" in generated_code)
-    assert ("dim_a4_an_or_wh_a_vy_lg_ne = an_operator_with_a_very_long_name_"
+    assert ("dim_as4 = an_operator_with_a_very_long_name_"
             "proxy%fs_from%get_dim_space()" in generated_code)
-    assert "ndf_as5_a = a_proxy%vspace%get_ndf()" in generated_code
-    assert "undf_as5_a = a_proxy%vspace%get_undf()" in generated_code
+    assert "ndf_as5_a__1 = a_proxy%vspace%get_ndf()" in generated_code
+    assert "undf_as5_a__1 = a_proxy%vspace%get_undf()" in generated_code
     assert "call qr%compute_function(BASIS, b_proxy%fs_to, " in generated_code
     assert ("call qr%compute_function(BASIS, an_operator_with_a_very_long_"
             "name_proxy%fs_from, " in generated_code)
     assert ("call qr%compute_function(DIFF_BASIS, an_operator_with_a_very_"
             "long_name_proxy%fs_from, " in generated_code)
-    assert "map_as5_a => a_proxy%vspace%get_whole_dofmap()" in generated_code
-    assert ("map_a4_an_or_wh_a_vy_lg_ne => a_field_with_a_very_long_name_"
+    assert "map_as5_a__1 => a_proxy%vspace%get_whole_dofmap()" in generated_code
+    assert ("map_a4_an_or_wh_a_vy_lg_ne_1 => a_field_with_a_very_long_name_"
             "proxy%vspace%get_whole_dofmap()" in generated_code)
 
 
@@ -428,23 +428,23 @@ def test_op_any_discontinuous_space_1(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert "real(kind=r_def), intent(in) :: rdt" in generated_code
-    assert ("integer(kind=i_def), pointer :: map_ads1_f1(:,:) => null()"
+    assert ("integer(kind=i_def), pointer :: map_ads1_f1__1(:,:) => null()"
             in generated_code)
     assert "integer(kind=i_def) :: ndf_ads1_f1" in generated_code
     assert "integer(kind=i_def) :: undf_ads1_f1" in generated_code
-    assert "ndf_ads1_f1 = f1_proxy(1)%vspace%get_ndf()" in generated_code
-    assert "undf_ads1_f1 = f1_proxy(1)%vspace%get_undf()" in generated_code
-    assert ("map_ads1_f1 => f1_proxy(1)%vspace%get_whole_dofmap()"
+    assert "ndf_ads1_f1__1 = f1_proxy(1)%vspace%get_ndf()" in generated_code
+    assert "undf_ads1_f1__1 = f1_proxy(1)%vspace%get_undf()" in generated_code
+    assert ("map_ads1_f1__1 => f1_proxy(1)%vspace%get_whole_dofmap()"
             in generated_code)
-    assert "ndf_ads3_op4 = op4_proxy%fs_to%get_ndf()" in generated_code
-    assert "ndf_ads7_op4 = op4_proxy%fs_from%get_ndf()" in generated_code
+    assert "ndf_ads3_op4__1 = op4_proxy%fs_to%get_ndf()" in generated_code
+    assert "ndf_ads7_op4__1 = op4_proxy%fs_from%get_ndf()" in generated_code
     assert ("call testkern_any_discontinuous_space_op_1_code(cell, "
             "nlayers_f1, f1_1_data, f1_2_data, f1_3_data, "
             "f2_data, op3_proxy%ncell_3d, op3_local_stencil, "
             "op4_proxy%ncell_3d, op4_local_stencil, rdt, "
-            "ndf_ads1_f1, undf_ads1_f1, map_ads1_f1(:,cell), "
-            "ndf_ads2_f2, undf_ads2_f2, map_ads2_f2(:,cell), "
-            "ndf_ads3_op4, ndf_ads7_op4)" in generated_code)
+            "ndf_ads1_f1__1, undf_ads1_f1__1, map_ads1_f1__1(:,cell), "
+            "ndf_ads2_f2__1, undf_ads2_f2__1, map_ads2_f2__1(:,cell), "
+            "ndf_ads3_op4__1, ndf_ads7_op4__1)" in generated_code)
 
 
 def test_op_any_discontinuous_space_2(tmpdir):
