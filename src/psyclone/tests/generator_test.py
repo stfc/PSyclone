@@ -2233,8 +2233,9 @@ def test_backward_compatibility_single_script(tmp_path):
         code_transformation_mode(
             str(fortran_file),
             [
-                (str(script), None)],
-                None, False, False, False, True, "off")
+                (str(script), None)
+            ],
+            None, False, False, False, True, "off")
 
     output = f.getvalue()
     assert "Single script executed" in output
