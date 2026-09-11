@@ -5440,7 +5440,7 @@ class Fparser2Reader():
             # intrinsic, then it is shadowed by the declared RoutineSymbol and
             # we should instead create a Call.
             existing_symbol = parent.scope.symbol_table.lookup(
-                node.items[0].string, None
+                node.items[0].string, otherwise=None
             )
             if (existing_symbol is not None and
                     isinstance(existing_symbol, RoutineSymbol)):
