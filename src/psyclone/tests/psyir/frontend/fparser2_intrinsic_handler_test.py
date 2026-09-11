@@ -19,7 +19,9 @@ from fparser.two.Fortran2003 import Execution_Part
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader)
 from psyclone.psyir.nodes import (
-    Schedule, Assignment, Reference, IntrinsicCall, Literal, CodeBlock)
+     Assignment, Call, CodeBlock, IntrinsicCall,
+     Literal, Reference, Routine, Schedule
+)
 from psyclone.psyir.symbols import (
     ScalarType, DataSymbol, UnsupportedFortranType, SymbolTable,
     ArrayType, RoutineSymbol, AutomaticInterface)
@@ -318,3 +320,33 @@ def test_handling_nested_intrinsic():
     processor.process_nodes(fake_parent, fp2node.content)
     cblocks = fake_parent.children[1].walk(CodeBlock)
     assert not cblocks
+
+
+def test_handling_imported_shadowed_function(fortran_reader):
+    '''
+    Check that we correctly don't generate an IntrinsicCall when we have an
+    imported routine symbol that shadows an Intrinsic.
+    '''
+    code = """module mod_a
+    contains
+    integer function abs(a, b)
+       integer :: a, b
+       abs = a
+    end function abs
+    end module
+
+    module mod_b
+    contains
+    subroutine test
+        use mod_a, only: abs
+        integer:: a, b
+
+        b = abs(a, b)
+    end subroutine test
+    end module"""
+    psyir = fortran_reader.psyir_from_source(code)
+    # abs is imported from mod_a so we get a Call instead of an
+    # IntrinsicCall
+    assert len(psyir.walk(IntrinsicCall)) == 0
+    test = psyir.walk(Routine)[1]
+    assert type(test.children[0].rhs) is Call
