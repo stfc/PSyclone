@@ -2372,7 +2372,11 @@ class Transformation(metaclass=abc.ABCMeta):
                 if key in trans.get_valid_options():
                     other_dicts[idx][key] = kwargs[key]
                     if key not in type(self).get_valid_options():
-                        del first_dict[key]
+                        # Sometimes we may have the same option in multiple
+                        # subtransformations, so we only delete the key
+                        # from the first_dict if it's still present.
+                        if key in first_dict:
+                            del first_dict[key]
 
         return first_dict, *other_dicts
 

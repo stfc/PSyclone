@@ -20,8 +20,8 @@ from psyclone.psyir.nodes import (
     Loop, Literal, ArrayReference, Range, IntrinsicCall)
 from psyclone.psyir.symbols import (
     DataSymbol, ScalarType, TypedSymbol, UnsupportedType)
-from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
-    Intrinsic2CodeTrans)
+from psyclone.psyir.transformations.intrinsics.intrinsic2code_basetrans \
+    import Intrinsic2CodeBaseTrans
 from psyclone.utils import transformation_documentation_wrapper
 
 
@@ -65,7 +65,7 @@ def _create_array_ref(array_symbol, loop_idx_symbols, other_dims,
 
 
 @transformation_documentation_wrapper
-class Matmul2CodeTrans(Intrinsic2CodeTrans):
+class Matmul2CodeTrans(Intrinsic2CodeBaseTrans):
     '''Provides a transformation from a PSyIR MATMUL Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
     performed.
