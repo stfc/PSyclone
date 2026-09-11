@@ -76,10 +76,10 @@ SIMPLE = (
     "  public\n"
     "\n"
     "  contains\n"
-    "  subroutine simple_code(nlayers, field_1_w1, ndf_w1, undf_w1,"
+    "  subroutine simple_code(nlayers_field_1, field_1_w1, ndf_w1, undf_w1,"
     " map_w1)\n"
     "    use constants_mod\n"
-    "    integer(kind=i_def), intent(in) :: nlayers\n"
+    "    integer(kind=i_def), intent(in) :: nlayers_field_1\n"
     "    integer(kind=i_def), intent(in) :: ndf_w1\n"
     "    integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1\n"
     "    integer(kind=i_def), intent(in) :: undf_w1\n"
@@ -149,10 +149,10 @@ def test_intent(fortran_writer):
         "  public\n"
         "\n"
         "  contains\n"
-        "  subroutine dummy_code(nlayers, field_1_w3, field_2_w1, "
+        "  subroutine dummy_code(nlayers_field_1, field_1_w3, field_2_w1, "
         "field_3_w1, ndf_w3, undf_w3, map_w3, ndf_w1, undf_w1, map_w1)\n"
         "    use constants_mod\n"
-        "    integer(kind=i_def), intent(in) :: nlayers\n"
+        "    integer(kind=i_def), intent(in) :: nlayers_field_1\n"
         "    integer(kind=i_def), intent(in) :: ndf_w1\n"
         "    integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1\n"
         "    integer(kind=i_def), intent(in) :: ndf_w3\n"
@@ -217,7 +217,7 @@ def test_spaces(fortran_writer):
         "  public\n"
         "\n"
         "  contains\n"
-        "  subroutine dummy_code(nlayers, field_1_w0, field_2_w1, "
+        "  subroutine dummy_code(nlayers_field_1, field_1_w0, field_2_w1, "
         "field_3_w2, field_4_w2broken, field_5_w2trace, field_6_w3, "
         "field_7_wtheta, field_8_w2h, field_9_w2v, field_10_w2htrace, "
         "field_11_w2vtrace, field_12_wchi, "
@@ -229,7 +229,7 @@ def test_spaces(fortran_writer):
         "map_w2htrace, ndf_w2vtrace, undf_w2vtrace, map_w2vtrace, "
         "ndf_wchi, undf_wchi, map_wchi)\n"
         "    use constants_mod\n"
-        "    integer(kind=i_def), intent(in) :: nlayers\n"
+        "    integer(kind=i_def), intent(in) :: nlayers_field_1\n"
         "    integer(kind=i_def), intent(in) :: ndf_w0\n"
         "    integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0\n"
         "    integer(kind=i_def), intent(in) :: ndf_w1\n"
@@ -343,13 +343,13 @@ def test_any_spaces(fortran_writer):
         "  public\n"
         "\n"
         "  contains\n"
-        "  subroutine dummy_code(nlayers, field_1_ads1_field_1, "
+        "  subroutine dummy_code(nlayers_field_1, field_1_ads1_field_1, "
         "field_2_as7_field_2, field_3_ads4_field_3, "
         "ndf_ads1_field_1, undf_ads1_field_1, map_ads1_field_1, "
         "ndf_as7_field_2, undf_as7_field_2, map_as7_field_2, "
         "ndf_ads4_field_3, undf_ads4_field_3, map_ads4_field_3)\n"
         "    use constants_mod\n"
-        "    integer(kind=i_def), intent(in) :: nlayers\n"
+        "    integer(kind=i_def), intent(in) :: nlayers_field_1\n"
         "    integer(kind=i_def), intent(in) :: ndf_ads1_field_1\n"
         "    integer(kind=i_def), dimension("
         "ndf_ads1_field_1), intent(in) :: map_ads1_field_1\n"
@@ -406,10 +406,10 @@ def test_vectors(fortran_writer):
         "  public\n"
         "\n"
         "  contains\n"
-        "  subroutine dummy_code(nlayers, field_1_w0_v1, "
+        "  subroutine dummy_code(nlayers_field_1, field_1_w0_v1, "
         "field_1_w0_v2, field_1_w0_v3, ndf_w0, undf_w0, map_w0)\n"
         "    use constants_mod\n"
-        "    integer(kind=i_def), intent(in) :: nlayers\n"
+        "    integer(kind=i_def), intent(in) :: nlayers_field_1\n"
         "    integer(kind=i_def), intent(in) :: ndf_w0\n"
         "    integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0\n"
         "    integer(kind=i_def), intent(in) :: undf_w0\n"
@@ -461,11 +461,11 @@ def test_enforce_bc_kernel_stub_gen(fortran_writer):
         "  public\n"
         "\n"
         "  contains\n"
-        "  subroutine enforce_bc_code(nlayers, field_1_as1_field_1, "
+        "  subroutine enforce_bc_code(nlayers_field_1, field_1_as1_field_1, "
         "ndf_as1_field_1, undf_as1_field_1, map_as1_field_1, "
         "boundary_dofs_field_1)\n"
         "    use constants_mod\n"
-        "    integer(kind=i_def), intent(in) :: nlayers\n"
+        "    integer(kind=i_def), intent(in) :: nlayers_field_1\n"
         "    integer(kind=i_def), intent(in) :: ndf_as1_field_1\n"
         "    integer(kind=i_def), "
         "dimension(ndf_as1_field_1), intent(in) :: map_as1_field_1\n"
@@ -503,11 +503,11 @@ def test_enforce_op_bc_kernel_stub_gen(fortran_writer):
         "  public\n"
         "\n"
         "  contains\n"
-        "  subroutine enforce_operator_bc_code(cell, nlayers, "
+        "  subroutine enforce_operator_bc_code(cell, nlayers_op_1, "
         "op_1_ncell_3d, op_1, ndf_as1_op_1, ndf_as2_op_1, "
         "boundary_dofs_op_1)\n"
         "    use constants_mod\n"
-        "    integer(kind=i_def), intent(in) :: nlayers\n"
+        "    integer(kind=i_def), intent(in) :: nlayers_op_1\n"
         "    integer(kind=i_def), intent(in) :: ndf_as1_op_1\n"
         "    integer(kind=i_def), intent(in) :: ndf_as2_op_1\n"
         "    integer(kind=i_def), intent(in) :: cell\n"
@@ -534,8 +534,8 @@ def test_multi_qr_stub_gen(fortran_writer):
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
-    assert ("subroutine testkern_2qr_code(nlayers, field_1_w1, field_2_w2, "
-            "field_3_w2, field_4_w3, ndf_w1, undf_w1, map_w1, "
+    assert ("subroutine testkern_2qr_code(nlayers_field_1, field_1_w1, "
+            "field_2_w2, field_3_w2, field_4_w3, ndf_w1, undf_w1, map_w1, "
             "basis_w1_qr_face, basis_w1_qr_edge, ndf_w2, undf_w2, map_w2, "
             "diff_basis_w2_qr_face, diff_basis_w2_qr_edge, ndf_w3, undf_w3, "
             "map_w3, basis_w3_qr_face, basis_w3_qr_edge, "
@@ -583,7 +583,8 @@ def test_qr_plus_eval_stub_gen(fortran_writer):
     kernel.load_meta(metadata)
     code = fortran_writer(kernel.gen_stub)
     assert (
-        "subroutine testkern_qr_eval_code(nlayers, field_1_w1, field_2_w2,"
+        "subroutine testkern_qr_eval_code(nlayers_field_1, field_1_w1, "
+        "field_2_w2,"
         " field_3_w2, field_4_w3, ndf_w1, undf_w1, map_w1, basis_w1_qr_face, "
         "basis_w1_on_w1, ndf_w2, undf_w2, map_w2, diff_basis_w2_qr_face, "
         "diff_basis_w2_on_w1, ndf_w3, undf_w3, map_w3, basis_w3_qr_face, "
@@ -647,10 +648,10 @@ def test_sub_name(fortran_writer):
         "  public\n"
         "\n"
         "  contains\n"
-        "  subroutine dummy_code(nlayers, field_1_w1, "
+        "  subroutine dummy_code(nlayers_field_1, field_1_w1, "
         "ndf_w1, undf_w1, map_w1)\n"
         "    use constants_mod\n"
-        "    integer(kind=i_def), intent(in) :: nlayers\n"
+        "    integer(kind=i_def), intent(in) :: nlayers_field_1\n"
         "    integer(kind=i_def), intent(in) :: ndf_w1\n"
         "    integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1\n"
         "    integer(kind=i_def), intent(in) :: undf_w1\n"
@@ -662,3 +663,30 @@ def test_sub_name(fortran_writer):
         "\n"
         "end module dummy_mod\n")
     assert output == generated_code
+
+
+def test_nlayers_ndata_stub(fortran_writer):
+    '''Test the stub generation for a kernel that has arguments with custom
+    values for ndata and nlayers.
+    '''
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_nlayers_ndata_mod.F90"),
+                      ignore_comments=False)
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
+    kernel.load_meta(metadata)
+    code = fortran_writer(kernel.gen_stub)
+    expected = ("subroutine testkern_nlayers_ndata_code("
+                "nlayers_field_2, nlayers_shallow, ndata_precip, "
+                "rscalar_1, field_2_w1, field_3_w2, field_4_w2_shallow, "
+                "field_5_w2_shallow, field_6_w2_precip, "
+                "field_7_w2_shallow_precip, "
+                "ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, "
+                "ndf_w2_shallow, undf_w2_shallow, map_w2_shallow, "
+                "ndf_w2_precip, undf_w2_precip, map_w2_precip, "
+                "ndf_w2_shallow_precip, undf_w2_shallow_precip, "
+                "map_w2_shallow_precip)")
+    assert expected in code
+    assert "integer(kind=i_def), intent(in) :: nlayers_field_2" in code
+    assert "integer(kind=i_def), intent(in) :: nlayers_shallow" in code
+    assert "integer(kind=i_def), intent(in) :: ndata_precip" in code

@@ -21,12 +21,20 @@ class FunctionSpace():
     '''
     Manages the name of a function space. If it is an any_space or
     any_discontinuous_space then its name is mangled such that it is unique
-    within the scope of an Invoke.
+    within the scope of an Invoke. If the function space is associated with
+    a non-default number of layers and/or data values per dof then the
+    labels specifying those are also incorporated in the name.
 
     :param name: original name of function space.
     :param kernel_args: object encapsulating all arguments to the kernel,
                         one or more of which are on this function space.
+    :param nlayers: the label specifying the number of layers associated
+                    with this function space.
+    :param ndata: the label (or integer literal) specifying the number of
+                  data values per dof.
 
+    :raises TypeError: if the constructor is passed an argument of the wrong
+                       type.
     :raises InternalError: if an unrecognised function space is encountered.
 
     '''
@@ -34,9 +42,20 @@ class FunctionSpace():
     ## and field names.
     MAX_NAME_LEN = 21
 
-    def __init__(self, name: str, kernel_args: "LFRicKernelArguments"):
+    def __init__(self,
+                 name: str,
+                 kernel_args: "LFRicKernelArguments",
+                 nlayers: str = "",
+                 ndata: str = "1"):
+        if any(not isinstance(arg, str) for arg in [name, nlayers, ndata]):
+            raise TypeError(
+                f"The 'name', 'nlayers' and 'ndata' arguments to "
+                f"FunctionSpace must all be str but got '{arg}' of type "
+                f"'{type(arg).__name__}'")
         self._orig_name = name
         self._kernel_args = kernel_args
+        self._nlayers = nlayers
+        self._ndata = ndata
 
         const = LFRicConstants()
         # Check whether the function space name is a valid name
@@ -71,25 +90,46 @@ class FunctionSpace():
         :raises FieldNotFoundError: if no kernel argument was found on
                                     the specified function space.
         '''
-        # First check that the the function space is one of any_*_space
-        # spaces and then proceed with name-mangling.
         const = LFRicConstants()
         if (self._orig_name not in const.VALID_ANY_SPACE_NAMES +
                 const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES):
-            return self._orig_name
+            if (not self._nlayers) and self._ndata == "1":
+                # It's not any-space and doesn't have custom nlayers or ndata
+                # so we don't need to mangle it.
+                return self._orig_name
+            base_name = self._orig_name
+        else:
+            base_name = ""
+            # List kernel arguments
+            args = self._kernel_args.args
+            # Mangle the function space name for any_*_space
+            lorig_name = self._orig_name.lower()
+            for arg in args:
+                for fspace in arg.function_spaces:
+                    if (fspace and fspace.orig_name.lower() == lorig_name):
+                        base_name = f"{self.short_name}_{arg.name}"
+                        break
+                if base_name:
+                    break
+            else:
+                # Raise an error if there are no kernel arguments on this
+                # function space
+                raise FieldNotFoundError(
+                    f"No kernel argument found for function "
+                    f"space '{self._orig_name}'")
 
-        # List kernel arguments
-        args = self._kernel_args.args
-        # Mangle the function space name for any_*_space
-        lorig_name = self._orig_name.lower()
-        for arg in args:
-            for fspace in arg.function_spaces:
-                if (fspace and fspace.orig_name.lower() == lorig_name):
-                    return self._shorten_name(f"{self.short_name}_{arg.name}")
-        # Raise an error if there are no kernel arguments on this
-        # function space
-        raise FieldNotFoundError(f"No kernel argument found for function "
-                                 f"space '{self._orig_name}'")
+        # To avoid naming .collisions, we always include both nlayers and ndata
+        # in the result, even if they are empty (in which case we get a double
+        # underscore).
+        parts = [base_name, self._nlayers, self._ndata]
+        return "_".join(parts)
+
+    @property
+    def short_mangled_name(self) -> str:
+        '''
+        TODO
+        '''
+        return self._shorten_name(self.mangled_name)
 
     @staticmethod
     def _shorten_name(name: str) -> str:
@@ -108,6 +148,9 @@ class FunctionSpace():
             return name
         new_parts = []
         for part in name.split("_"):
+            if not part:
+                # Skip double underscores.
+                continue
             new_name = part[0]
             if len(part) > 1:
                 new_name += part[-1]
@@ -146,14 +189,14 @@ class FunctionSpace():
         '''
         :returns: a dofmap name for the supplied FunctionSpace.
         '''
-        return "map_" + self.mangled_name
+        return f"map:{self.mangled_name}"
 
     @property
     def cbanded_map_name(self) -> str:
         '''
         :returns: the name of a column-banded dofmap for this FunctionSpace.
         '''
-        return "cbanded_map_" + self.mangled_name
+        return "cbanded_map:" + self.mangled_name
 
     @property
     def cma_indirection_map_name(self) -> str:
@@ -161,21 +204,21 @@ class FunctionSpace():
         :returns: the name of a CMA indirection dofmap for the supplied
             FunctionSpace.
         '''
-        return "cma_indirection_map_" + self.mangled_name
+        return "cma_indirection_map:" + self.mangled_name
 
     @property
     def ndf_name(self) -> str:
         '''
         :returns: a ndf name for this FunctionSpace object.
         '''
-        return "ndf_" + self.mangled_name
+        return "ndf:" + self.mangled_name
 
     @property
     def undf_name(self) -> str:
         '''
         :returns: a undf name for this FunctionSpace object.
         '''
-        return "undf_" + self.mangled_name
+        return "undf:" + self.mangled_name
 
     def get_basis_name(self,
                        qr_var: str = None,
@@ -195,7 +238,7 @@ class FunctionSpace():
         :returns: name for the Fortran array holding the basis function
 
         '''
-        name = "_".join(["basis", self.mangled_name])
+        name = f"basis:{self.mangled_name}"
         if qr_var:
             name += "_" + qr_var
         if on_space:
@@ -221,7 +264,7 @@ class FunctionSpace():
                   function
 
         '''
-        name = "diff_basis_" + self.mangled_name
+        name = "diff_basis:" + self.mangled_name
         if qr_var:
             name += "_" + qr_var
         if on_space:
@@ -272,7 +315,7 @@ class FunctionSpace():
                 # First, test that argument is a field as some argument
                 # objects won't have function spaces, e.g. scalars
                 if arg.is_field and \
-                   arg.function_space.orig_name == self.orig_name:
+                   arg.function_space.mangled_name == self.mangled_name:
                     return arg
         return None
 

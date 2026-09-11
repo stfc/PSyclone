@@ -277,7 +277,7 @@ class LFRicTypes:
 
     # ------------------------------------------------------------------------
     @staticmethod
-    def _create_specific_scalars():
+    def _create_specific_scalars() -> None:
         '''This function creates all required specific scalar, which are
         derived from the corresponding generic classes (e.g.
         LFRicIntegerScalarData)
@@ -294,6 +294,7 @@ class LFRicTypes:
         specific_scalar_datatypes = [
             Scalar("CellPosition", "LFRicIntegerScalarData", []),
             Scalar("MeshHeight", "LFRicIntegerScalarData", []),
+            Scalar("NumberOfValuesPerDof", "LFRicIntegerScalarData", []),
             Scalar("NumberOfCells", "LFRicIntegerScalarData", []),
             Scalar("NumberOfDofs", "LFRicIntegerScalarData", ["fs"]),
             Scalar("NumberOfUniqueDofs", "LFRicIntegerScalarData", ["fs"]),
