@@ -76,5 +76,6 @@ count_uniq "Added inner loop nested parallelism"
 count_uniq "Added OMP threading"
 
 check_above "Module-inline successful" 283
+check_above "Deferred-Inline successful" 73
 check_above "Offload independent loop" 83
 check_above "Offload with cell colouring" 40

@@ -161,7 +161,7 @@ def trans(psyir):
                     print(f"Module-inline failed for kernel "
                           f"'{kern.name}' due to:\n{err.value}")
 
-                # Ensure any MATMULs within the kernel are also inlined
+                # Ensure MATMULs within the kernel are also inlined
                 for routine in kern.get_callees():
                     _replace_matmuls(routine)
 
@@ -177,13 +177,14 @@ def trans(psyir):
                             # private clause yet, which we need for the inlined
                             # version
                             continue
-                        # For the kernels that can be on the GPU, attempt a
-                        # full inline to improve performance.
+                        # For the kernels that can be on the GPU, attempt to
+                        # fully inline them to improve performance.
                         inline_trans.apply(kern)
                         print(f"Kernel '{kern.name}' marked for deferred "
                               f"inlining")
                     except TransformationError:
-                        # The full-Inline is optional, continue if it fails
+                        # If it fails continue as normal, as the kenrel will
+                        # still be in the GPU (just not inlined)
                         continue
                 except TransformationError as err:
                     failed_to_offload.add(kern.name.lower())

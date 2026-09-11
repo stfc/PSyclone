@@ -104,9 +104,11 @@ def test_kernel_inline_trans_defers_body_validation(parser, capsys):
     routine.addchild(Fparser2CodeBlock(
         statement, CodeBlock.Structure.STATEMENT))
 
-    # Setting the flag is intentionally a locality-only operation.
+    # The transformation only sets the flag
     KernelInlineTrans().apply(kernel)
     assert kernel.inline
+
+    # It is while lowering that the actual InlineTrans is attempted
     lowered = kernel.lower_to_language_level()
     assert isinstance(lowered, Call)
     assert capsys.readouterr().out == (
@@ -132,11 +134,14 @@ def test_kernel_inline_trans_lfric_colouring(tmpdir):
     LFRicColourTrans().apply(invoke.schedule.children[0])
     code = str(psy.gen)
 
+    # The code is inlined inside the LFRic loop
     assert "call testkern_code_inlined_" not in code
-    assert "do cell = loop1_start, last_edge_cell_all_colours(colour), 1" \
-        in code
-    assert ("f1_data(map_w1(1 - 1 + LBOUND(map_w1, dim=1),"
-            "cmap(colour,cell))) = a" in code)
+    assert """
+      do cell = loop1_start, last_edge_cell_all_colours(colour), 1
+        ! Deferred-Inline successful for kernel 'testkern_code_inlined_'
+        f1_data(map_w1(1 - 1 + LBOUND(map_w1, dim=1),cmap(colour,cell))) = a
+    """ in code
+
     # Code generation lowers a copy and must preserve the DSL-level original.
     assert isinstance(invoke.schedule.walk(CodedKern)[0], CodedKern)
     assert invoke.schedule.walk(CodedKern)[0].inline
@@ -151,9 +156,13 @@ def test_kernel_inline_trans_gocean(capsys):
     KernelModuleInlineTrans().apply(kernel)
     KernelInlineTrans().apply(kernel)
 
+    # The code is inlined inside the GOcean loop
     code = str(psy.gen)
     assert "call compute_cu_code_inlined_" not in code
-    assert "0.5d0" in code
+    assert """
+      do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1
+        ! Deferred-Inline successful for kernel 'compute_cu_code_inlined_'
+        cu_fld%data(i,j) = 0.5d0 * (p_fld%data(i + 1,j) + """ in code
     assert capsys.readouterr().out == (
         "Deferred-Inline successful for kernel 'compute_cu_code_inlined_'\n")
 
@@ -163,13 +172,18 @@ def test_kernel_inline_trans_empty_body_does_not_skip_sibling():
     _, invoke = get_invoke("4.2_multikernel_invokes.f90", "lfric",
                            idx=0, dist_mem=False)
     schedule = invoke.schedule
+    # This has to lfric loops with to kernels, fuse them in the first loop
+    # manually (no validation)
     second_loop = schedule.children[1].detach()
     second_kernel = second_loop.loop_body[0].detach()
     schedule.children[0].loop_body.addchild(second_kernel)
+
+    # Now inline the first kernel (which has en empty body)
     kernels = schedule.walk(CodedKern)
     KernelModuleInlineTrans().apply(kernels[0])
     KernelInlineTrans().apply(kernels[0])
 
+    # The resulting body only have one call, that of the second kernel
     schedule.lower_to_language_level()
     assert len(schedule.children[0].loop_body.children) == 1
     assert isinstance(schedule.children[0].loop_body[0], Call)

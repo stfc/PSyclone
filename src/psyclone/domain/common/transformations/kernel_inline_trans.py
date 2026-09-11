@@ -28,7 +28,9 @@ class KernelInlineTrans(Transformation):
     """
 
     def __str__(self) -> str:
-        """:returns: a description of this transformation."""
+        """
+        :returns: a description of this transformation.
+        """
         return "Mark a PSyKAl kernel for inlining when it is lowered."
 
     def validate(self,
@@ -69,9 +71,10 @@ class KernelInlineTrans(Transformation):
 
         """
         self.validate(node, options=options, **kwargs)
-        # This state is deliberately local to this call site. It is copied
-        # with the PSyIR when code generation makes its temporary tree.
         # pylint: disable=protected-access
+        # TODO #2216: This is a temporary solution, longer-term we could
+        # inline during transformation time (instead of deferring it) in
+        # keep the contents in an InlinedKern node that preserve the metadata
         node._inline = True
 
 
