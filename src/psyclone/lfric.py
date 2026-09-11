@@ -3200,8 +3200,9 @@ class LFRicBasisFunctions(LFRicCollection):
             tag_name = f"nodes_{fspace.short_mangled_name}"
             kind = api_config.default_kind["real"]
             LFRicTypes.add_precision_symbol(self.symtab, kind)
-            symbol = self.symtab.lookup_with_tag(nodes_name, otherwise=None)
-            if not symbol:
+            try:
+                symbol = self.symtab.lookup_with_tag(nodes_name)
+            except KeyError:
                 name = self.symtab.next_available_name(nodes_name)
                 symbol = self.symtab.find_or_create_tag(
                     nodes_name,
@@ -3265,6 +3266,10 @@ class LFRicBasisFunctions(LFRicCollection):
         # Allocate basis arrays
         for basis in basis_arrays:
             dims = "("+",".join([":"]*len(basis_arrays[basis]))+")"
+            # TODO - it would be better if we could keep some function-space
+            # info in the name but that means that the dict returned by
+            # _basis_fn_declns needs to hold a 2-tuple: one entry for the
+            # function space and one of the list of names.
             new_name = self.symtab.next_available_name(basis.split(":")[0])
             symbol = self.symtab.find_or_create_tag(
                 tag=basis, root_name=new_name, symbol_type=DataSymbol,
@@ -3324,7 +3329,7 @@ class LFRicBasisFunctions(LFRicCollection):
                 #if self._invoke:
                 sym = self.symtab.lookup_with_tag(
                         f"dim:{basis_fn['fspace'].mangled_name}")
-                first_dim = f"dim:{basis_fn['fspace'].mangled_name}"
+                first_dim = sym
                 #elif self._kernel:
                 #    first_dim = self.basis_first_dim_value(basis_fn["fspace"])
                 #else:
@@ -3336,7 +3341,7 @@ class LFRicBasisFunctions(LFRicCollection):
                 #if self._invoke:
                 sym = self.symtab.lookup_with_tag(
                     f"diff_dim:{basis_fn['fspace'].mangled_name}")
-                first_dim = f"diff_dim:{basis_fn['fspace'].mangled_name}"
+                first_dim = sym
                 #elif self._kernel:
                 #    first_dim = self.diff_basis_first_dim_value(
                 #        basis_fn["fspace"])
@@ -3393,8 +3398,10 @@ class LFRicBasisFunctions(LFRicCollection):
                     # need to store its dimensions
                     basis_arrays[op_name] = [
                         first_dim,
-                        f"ndf:{basis_fn['fspace'].mangled_name}",
-                        f"ndf:{target_space.mangled_name}"]
+                        self.symtab.lookup_with_tag(
+                            basis_fn['fspace'].ndf_name),
+                        self.symtab.lookup_with_tag(
+                            target_space.ndf_name)]
                         #target_space.ndf_name]
             else:
                 raise InternalError(
@@ -3696,7 +3703,7 @@ class LFRicBasisFunctions(LFRicCollection):
                         datatype=LFRicTypes("LFRicIntegerScalarDataType")())
                     loop = Loop.create(
                             symbol, Literal('1', ScalarType.integer_type()),
-                            Reference(self.symtab.lookup(space.ndf_name)),
+                            Reference(self.symtab.lookup_with_tag(space.ndf_name)),
                             Literal('1', ScalarType.integer_type()), [])
                     if first:
                         loop.preceding_comment = (
@@ -3716,7 +3723,7 @@ class LFRicBasisFunctions(LFRicCollection):
                         datatype=LFRicTypes("LFRicIntegerScalarDataType")())
                     inner_loop = Loop.create(
                             symbol, Literal('1', ScalarType.integer_type()),
-                            Reference(self.symtab.lookup(
+                            Reference(self.symtab.lookup_with_tag(
                                 basis_fn["fspace"].ndf_name)),
                             Literal('1', ScalarType.integer_type()), [])
                     loop.loop_body.addchild(inner_loop)

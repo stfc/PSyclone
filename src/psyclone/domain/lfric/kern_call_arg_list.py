@@ -738,8 +738,9 @@ class KernCallArgList(ArgOrdering):
         for rule in self._kern.qr_rules.values():
             basis_name = function_space.get_basis_name(qr_var=rule.psy_name)
             sym = self.append_array_reference(
-                    "basis", [":", ":", ":", ":"],
-                    LFRicTypes("LFRicRealScalarDataType")(), tag=basis_name)
+                f"basis_{function_space.short_mangled_name}",
+                [":", ":", ":", ":"],
+                LFRicTypes("LFRicRealScalarDataType")(), tag=basis_name)
             self.append(sym.name, var_accesses)
 
         if "gh_evaluator" in self._kern.eval_shapes:
@@ -751,9 +752,10 @@ class KernCallArgList(ArgOrdering):
                 # function space
                 fspace = self._kern.eval_targets[fs_name][0]
                 basis_name = function_space.get_basis_name(on_space=fspace)
-                sym = self.append_array_reference("basis",
-                                                  [":", ":", ":"],
-                                                  tag=basis_name)
+                sym = self.append_array_reference(
+                    f"basis_{fspace.short_mangled_name}",
+                    [":", ":", ":"],
+                    tag=basis_name)
                 self.append(sym.name, var_accesses)
 
     def diff_basis(self, function_space,
