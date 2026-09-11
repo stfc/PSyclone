@@ -759,7 +759,6 @@ def test_add_precision_symbol():
     # A precision symbol must be either local or imported
     arg_sym = DataSymbol("wrong", ScalarType.integer_type(),
                          interface=ArgumentInterface())
-    table.specify_argument_list([arg_sym])
     with pytest.raises(NotImplementedError) as err:
         _add_precision_symbol(arg_sym, table)
     assert ("One or more variables have a precision specified by symbol "

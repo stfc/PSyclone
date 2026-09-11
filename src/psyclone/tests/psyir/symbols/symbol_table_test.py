@@ -429,6 +429,30 @@ def test_add_imported_symbol():
             "table" in str(err.value))
 
 
+def test_add_is_transactional_and_validates_tags():
+    '''An unsuccessful add must not leave tag metadata behind. Tags must also
+    be usable strings and a Symbol must not acquire multiple tags.'''
+    table = symbols.SymbolTable()
+    csym = symbols.ContainerSymbol("missing_mod")
+    imported = symbols.Symbol(
+        "imported", interface=symbols.ImportInterface(csym))
+
+    with pytest.raises(symbols.SymbolError):
+        table.add(imported, tag="must_not_remain")
+    assert "must_not_remain" not in table.get_tags()
+    assert "imported" not in table
+
+    with pytest.raises(TypeError):
+        table.add(symbols.Symbol("bad_tag"), tag=1)
+    with pytest.raises(ValueError):
+        table.add(symbols.Symbol("empty_tag"), tag="")
+
+    tagged = symbols.Symbol("tagged")
+    table.add(tagged, tag="first")
+    with pytest.raises(ValueError):
+        table.add_tag(tagged, "second")
+
+
 def test_symbols_imported_from():
     ''' Test the Symbol Table symbols_imported_from() method. '''
     sym_table = symbols.SymbolTable()
@@ -958,6 +982,34 @@ def test_table_merge():
     table3.specify_argument_list([arg_sym])
     table1.merge(table3)
     assert table1.lookup("trillian") is arg_sym
+    assert table1.argument_list[-1] is arg_sym
+
+
+def test_merge_preserves_invariants_and_accepts_generators():
+    '''Check skipped symbols, argument metadata and tags when merging.'''
+    table1 = symbols.SymbolTable()
+    table2 = symbols.SymbolTable()
+    table1.add(symbols.DataSymbol(
+        "clash", symbols.ScalarType.integer_type()))
+    skipped = symbols.DataSymbol(
+        "clash", symbols.ScalarType.integer_type())
+    table2.add(skipped)
+
+    table1.merge(table2, symbols_to_skip=(sym for sym in [skipped]))
+    assert len(table1.symbols) == 1
+    assert table2.lookup("clash") is skipped
+
+    source = symbols.SymbolTable()
+    csym = symbols.ContainerSymbol("unused_mod")
+    source.add(csym)
+    table1.merge(source, symbols_to_skip=[csym])
+    assert "unused_mod" not in table1
+
+    tagged_source = symbols.SymbolTable()
+    tagged = symbols.Symbol("tagged")
+    tagged_source.add(tagged, tag="important")
+    table1.merge(tagged_source)
+    assert table1.lookup_with_tag("important") is tagged
 
 
 def test_merge_container_syms():
@@ -1820,6 +1872,44 @@ def test_specify_arg_list_errors():
     assert "has an interface of type '" in str(err.value)
 
 
+def test_argument_list_membership_uniqueness_and_encapsulation():
+    '''The formal argument list must contain each local Symbol exactly once
+    and callers must not be able to mutate it without validation.'''
+    table = symbols.SymbolTable()
+    argument = symbols.DataSymbol(
+        "arg", symbols.ScalarType.integer_type(),
+        interface=symbols.ArgumentInterface())
+
+    table.specify_argument_list([argument])
+    assert table.lookup("arg") is argument
+    with pytest.raises(ValueError, match="occurs more than once"):
+        table.specify_argument_list([argument, argument])
+
+    table.specify_argument_list([argument])
+    external_list = table.argument_list
+    external_list.clear()
+    assert table.argument_list == [argument]
+
+    table.remove(argument)
+    assert table.argument_list == []
+
+
+def test_insert_argument_failure_is_transactional():
+    '''A name clash while inserting an argument must not change the list.'''
+    table = symbols.SymbolTable()
+    existing = symbols.DataSymbol(
+        "arg", symbols.ScalarType.integer_type())
+    replacement = symbols.DataSymbol(
+        "arg", symbols.ScalarType.integer_type(),
+        interface=symbols.ArgumentInterface())
+    table.add(existing)
+
+    with pytest.raises(KeyError):
+        table.insert_argument(0, replacement)
+    assert table.argument_list == []
+    assert table.lookup("arg") is existing
+
+
 def test_argument_list_errors():
     ''' Tests the internal sanity checks of the SymbolTable.argument_list
     property. '''
@@ -2306,6 +2396,21 @@ def test_copy_external_import():
     symtab.copy_external_import(var6, "newtag")
     assert symtab.lookup_with_tag("newtag").name == "d"
 
+    # Import renaming and intrinsic-module metadata must survive the copy.
+    intrinsic = symbols.ContainerSymbol("iso_fortran_env", is_intrinsic=True)
+    renamed = symbols.DataSymbol(
+        "int32_kind", symbols.UnresolvedType(),
+        interface=symbols.ImportInterface(intrinsic, orig_name="int32"))
+    symtab.copy_external_import(renamed)
+    copied = symtab.lookup("int32_kind")
+    assert copied.interface.orig_name == "int32"
+    assert copied.interface.container_symbol.is_intrinsic
+
+    # A second tag for an existing Symbol would violate the one-to-one tag
+    # invariant.
+    with pytest.raises(ValueError, match="already associated with tag"):
+        symtab.copy_external_import(var6, "another_newtag")
+
 
 def test_normalization():
     ''' Tests the SymbolTable normalize method lower cases the strings '''
@@ -2623,8 +2728,13 @@ def test_symbols_tags_dict():
     symbol1 = symbols.DataSymbol("symbol1", symbols.ScalarType.integer_type())
     symbol1_tag = "symbol1_tag"
     schedule_symbol_table.add(symbol1, tag=symbol1_tag)
-    assert schedule_symbol_table.symbols_dict is schedule_symbol_table._symbols
-    assert schedule_symbol_table.tags_dict is schedule_symbol_table._tags
+    assert schedule_symbol_table.symbols_dict is not \
+        schedule_symbol_table._symbols
+    assert schedule_symbol_table.tags_dict is not schedule_symbol_table._tags
+    with pytest.raises(TypeError):
+        schedule_symbol_table.symbols_dict["other"] = symbols.Symbol("other")
+    with pytest.raises(TypeError):
+        schedule_symbol_table.tags_dict["other"] = symbol1
     rdict = schedule_symbol_table.get_reverse_tags_dict()
     assert rdict[symbol1] == symbol1_tag
 
@@ -3891,6 +4001,91 @@ def test_resolve_imports_with_renaming(monkeypatch, fortran_reader):
     assert isinstance(newname.datatype, symbols.ArrayType)
 
 
+def test_resolve_imports_targeted_rename_and_generator(fortran_reader):
+    '''A renamed target must be matched using its source name and a generator
+    of ContainerSymbols must not be consumed by validation.'''
+    external = fortran_reader.psyir_from_source('''
+        module source_mod
+          integer :: remote_name
+        end module source_mod
+        ''').walk(Container)[1]
+    routine = fortran_reader.psyir_from_source('''
+        subroutine test()
+          use source_mod, only: local_name => remote_name
+          print *, local_name
+        end subroutine test
+        ''').walk(Routine)[0]
+    csym = routine.symbol_table.lookup("source_mod")
+    csym._reference = external
+    target = routine.symbol_table.lookup("local_name")
+
+    routine.symbol_table.resolve_imports(
+        container_symbols=(item for item in [csym]), symbol_target=target)
+
+    assert isinstance(target, symbols.DataSymbol)
+    assert target.interface.orig_name == "remote_name"
+
+
+def test_resolve_imports_rejects_ambiguous_wildcards():
+    '''Two wildcard imports defining the same local name must not combine the
+    provenance of one Symbol with the properties of the other.'''
+    table = symbols.SymbolTable()
+    first_csym = symbols.ContainerSymbol("first", wildcard_import=True)
+    second_csym = symbols.ContainerSymbol("second", wildcard_import=True)
+    table.add(first_csym)
+    table.add(second_csym)
+
+    first = Container("first")
+    first.symbol_table.add(symbols.DataSymbol(
+        "value", symbols.ScalarType.integer_type()))
+    second = Container("second")
+    second.symbol_table.add(symbols.DataSymbol(
+        "value", symbols.ScalarType.real_type()))
+
+    table._import_symbols_from(first_csym, first)
+    with pytest.raises(symbols.SymbolError, match="also resolves to"):
+        table._import_symbols_from(second_csym, second)
+
+    value = table.lookup("value")
+    assert value.interface.container_symbol is first_csym
+    assert value.datatype == symbols.ScalarType.integer_type()
+
+
+def test_resolve_imports_preserves_sibling_shadowing(fortran_reader):
+    '''Resolving an outer import must not retarget a Reference to a local
+    Symbol in a sibling Routine.'''
+    external = fortran_reader.psyir_from_source('''
+        module source_mod
+          integer :: value
+        end module source_mod
+        ''').walk(Container)[1]
+    psyir = fortran_reader.psyir_from_source('''
+        module test_mod
+          use source_mod
+        contains
+          subroutine has_local()
+            integer :: value
+            value = 1
+          end subroutine has_local
+          subroutine uses_import()
+            value = 2
+          end subroutine uses_import
+        end module test_mod
+        ''')
+    container = psyir.walk(Container)[1]
+    has_local, uses_import = container.walk(Routine)
+    local_symbol = has_local.symbol_table.lookup("value")
+    unresolved = uses_import.symbol_table.lookup("value")
+    container.symbol_table.lookup("source_mod")._reference = external
+
+    container.symbol_table.resolve_imports()
+
+    imported = container.symbol_table.lookup("value")
+    assert has_local.walk(Reference)[0].symbol is local_symbol
+    assert uses_import.walk(Reference)[0].symbol is imported
+    assert unresolved not in uses_import.symbol_table.symbols
+
+
 def test_scope():
     ''' Test that the scope property returns the SymbolTable associated with
     the node. '''
@@ -3969,11 +4164,7 @@ def test_has_same_name():
 
 
 def test_equality():
-    ''' Test that we can compare the equality of 2 symbol tables.
-
-    TODO #1698: The current implementation is not sensitive to tags, order
-    of arguments and visibilities.
-    '''
+    '''Test that SymbolTable equality includes symbols and table metadata.'''
 
     # An empty symbol table is equal to other empty symbol tables
     symtab1 = symbols.SymbolTable()
@@ -4002,3 +4193,31 @@ def test_equality():
     symtab2 = symtab1.deep_copy()
     symtab2.new_symbol("s3")
     assert symtab1 != symtab2
+
+    # Default and per-Symbol visibility are semantically significant.
+    symtab2 = symtab1.deep_copy()
+    symtab2.default_visibility = symbols.Symbol.Visibility.PRIVATE
+    assert symtab1 != symtab2
+    symtab2 = symtab1.deep_copy()
+    symtab2.lookup("s1").visibility = symbols.Symbol.Visibility.PRIVATE
+    assert symtab1 != symtab2
+
+    # Tags and argument ordering are also part of table equality.
+    table1 = symbols.SymbolTable()
+    arg1 = symbols.DataSymbol(
+        "arg1", symbols.ScalarType.integer_type(),
+        interface=symbols.ArgumentInterface())
+    arg2 = symbols.DataSymbol(
+        "arg2", symbols.ScalarType.integer_type(),
+        interface=symbols.ArgumentInterface())
+    table1.add(arg1, tag="first")
+    table1.add(arg2)
+    table1.specify_argument_list([arg1, arg2])
+    table2 = table1.deep_copy()
+    table2.specify_argument_list(
+        [table2.lookup("arg2"), table2.lookup("arg1")])
+    assert table1 != table2
+    table2 = table1.deep_copy()
+    table2.remove_tag("first")
+    table2.add_tag(table2.lookup("arg1"), "different")
+    assert table1 != table2
