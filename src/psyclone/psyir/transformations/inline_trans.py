@@ -9,6 +9,7 @@
 This module contains the InlineTrans transformation.
 
 '''
+from psyclone.psyir.backend.visitor import VisitorError
 
 from typing import Dict, List, Optional
 
@@ -19,7 +20,11 @@ from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, Assignment, BinaryOperation,
     Call, CodeBlock, DataNode, IfBlock, IntrinsicCall, Literal, Loop, Node,
     Range, Routine, Reference, Return, Schedule, ScopingNode, Statement,
-    StructureMember, StructureReference)
+    StructureMember, StructureReference, OMPDeclareTargetDirective,
+    ACCRoutineDirective, OMPPrivateClause)
+from psyclone.psyir.nodes.data_sharing_attribute_mixin import (
+        DataSharingAttributeMixin,
+)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArrayType,
@@ -115,7 +120,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
     def apply(self,
               node: Call,
               routine: Optional[Routine] = None,
-              use_first_callee_and_no_arg_check: bool = False,
+              allow_no_args_check_if_only_one_callee: bool = False,
               permit_codeblocks: bool = False,
               permit_unsupported_type_args: bool = False,
               **kwargs
@@ -127,9 +132,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         :param node: the Call node to inline.
         :param routine: Optional Routine to be inlined. (By default, PSyclone
             will search for a target routine with a matching signature).
-        :param use_first_callee_and_no_arg_check: if True, simply use the
-            first potential callee routine. No argument type-checking is
-            performed.
+        :param allow_no_args_check_if_only_one_callee: if True, skip argument
+            type-checking, provided the Call has exactly one potential callee.
         :param permit_codeblocks: If `False` (the default), raise an Exception
             if the target routine contains a CodeBlock.
         :param permit_unsupported_type_args: If `True` then the target routine
@@ -142,8 +146,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         '''
         self.validate(
             node, routine=routine,
-            use_first_callee_and_no_arg_check=(
-                use_first_callee_and_no_arg_check),
+            allow_no_args_check_if_only_one_callee=(
+                allow_no_args_check_if_only_one_callee),
             permit_codeblocks=permit_codeblocks,
             permit_unsupported_type_args=permit_unsupported_type_args)
 
@@ -154,7 +158,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             # a matching signature.
             (orig_routine, arg_match_list) = node.get_callee(
                 use_first_callee_and_no_arg_check=(
-                    use_first_callee_and_no_arg_check))
+                    allow_no_args_check_if_only_one_callee))
         else:
             # Target Routine supplied to this transformation directly.
             orig_routine = routine
@@ -195,6 +199,11 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         new_stmts = []
         refs = []
         for child in routine.pop_all_children():
+            if isinstance(child, (OMPDeclareTargetDirective,
+                                  ACCRoutineDirective)):
+                # Skip directives that apply to the routine, as this do not
+                # propagate to the caller routine.
+                continue
             new_stmts.append(child)
             refs.extend(new_stmts[-1].walk(Reference))
 
@@ -218,9 +227,25 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         for ref in refs[:]:
             self._replace_formal_args_in_expr(
                 ref, node, formal_args, routine_node=routine,
-                use_first_callee_and_no_arg_check=(
-                    use_first_callee_and_no_arg_check)
+                allow_no_args_check_if_only_one_callee=(
+                    allow_no_args_check_if_only_one_callee)
             )
+
+        # If this is inside a region that differentiates between private
+        # and shared symbols, the ones inside the callee are definetely
+        # private
+        dsharing_region = node.ancestor(DataSharingAttributeMixin)
+        if dsharing_region is not None:
+            for child in dsharing_region.children:
+                if isinstance(child, OMPPrivateClause):
+                    current_private_clause = child
+                    break
+            for sym in routine_table.automatic_datasymbols:
+                # We mark them at the current clause (already inferred) and in
+                # the explicitly private list (for future inferance)
+                if current_private_clause is not None:
+                    current_private_clause.addchild(Reference(sym))
+                dsharing_region.explicitly_private_symbols.add(sym)
 
         # Ensure any references to Symbols within the shape-specification of
         # other Symbols are updated. Note, we don't have to worry about
@@ -237,14 +262,14 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                     lower = self._replace_formal_args_in_expr(
                         dim.lower, node, formal_args,
                         routine_node=routine,
-                        use_first_callee_and_no_arg_check=(
-                            use_first_callee_and_no_arg_check),
+                        allow_no_args_check_if_only_one_callee=(
+                            allow_no_args_check_if_only_one_callee),
                     )
                     upper = self._replace_formal_args_in_expr(
                         dim.upper, node, formal_args,
                         routine_node=routine,
-                        use_first_callee_and_no_arg_check=(
-                            use_first_callee_and_no_arg_check),
+                        allow_no_args_check_if_only_one_callee=(
+                            allow_no_args_check_if_only_one_callee),
                     )
                     new_shape.append(ArrayType.ArrayBounds(lower, upper))
             sym.datatype = ArrayType(sym.datatype.elemental_type, new_shape)
@@ -358,7 +383,10 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
 
             condition = if_block.condition
             # Ensure any expressions in the condition are simplified.
-            sym_maths.expand(condition)
+            try:
+                sym_maths.expand(condition)
+            except VisitorError:
+                continue
 
             # Make sure we only handle a Boolean Literal as a condition
             # TODO #2802
@@ -385,7 +413,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         call_node: Call,
         formal_args: List[DataSymbol],
         routine_node: Routine,
-        use_first_callee_and_no_arg_check: bool = False,
+        allow_no_args_check_if_only_one_callee: bool = False,
     ) -> Reference:
         '''
         Recursively combines any References to formal arguments in the supplied
@@ -406,8 +434,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             for child in expression.children[:]:
                 self._replace_formal_args_in_expr(
                     child, call_node, formal_args, routine_node,
-                    use_first_callee_and_no_arg_check=(
-                        use_first_callee_and_no_arg_check))
+                    allow_no_args_check_if_only_one_callee=(
+                        allow_no_args_check_if_only_one_callee))
             return expression
 
         ref = expression
@@ -418,7 +446,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         # Lookup index in routine argument
         routine_arg_idx = formal_args.index(ref.symbol)
 
-        if use_first_callee_and_no_arg_check:
+        if allow_no_args_check_if_only_one_callee:
             # We're not attempting to match argument types.
             actual_arg = call_node.arguments[routine_arg_idx]
 
@@ -448,8 +476,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         new_ref = self._generate_formal_arg_replacement(
             actual_arg, ref, call_node, formal_args,
             routine_node=routine_node,
-            use_first_callee_and_no_arg_check=(
-                use_first_callee_and_no_arg_check))
+            allow_no_args_check_if_only_one_callee=(
+                allow_no_args_check_if_only_one_callee))
 
         # If the local reference we are replacing has a parent then we must
         # ensure the parent's child list is updated. (It may not have a parent
@@ -466,7 +494,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         decln_start: DataNode,
         actual_start: DataNode,
         routine_node: Routine,
-        use_first_callee_and_no_arg_check: bool = False,
+        allow_no_args_check_if_only_one_callee: bool = False,
     ) -> DataNode:
         '''
         Utility that creates the PSyIR for an inlined array-index access
@@ -494,9 +522,10 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         :param actual_start: the lower bound of the corresponding array
             dimension, as defined at the call site.
         :param routine_node: the Routine that is being inlined.
-        :param use_first_callee_and_no_arg_check: use the first potential
-            callee that is found without checking for argument types. Defaults
-            to False.
+        :param allow_no_args_check_if_only_one_callee: whether the caller has
+            requested argument type-checking to be skipped. This is permitted
+            only when the Call has exactly one potential callee. Defaults to
+            False.
 
         :returns: PSyIR for the corresponding inlined array index.
 
@@ -509,8 +538,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                 decln_start,
                 actual_start,
                 routine_node=routine_node,
-                use_first_callee_and_no_arg_check=(
-                    use_first_callee_and_no_arg_check)
+                allow_no_args_check_if_only_one_callee=(
+                    allow_no_args_check_if_only_one_callee)
             )
             upper = self._create_inlined_idx(
                 call_node,
@@ -519,16 +548,16 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                 decln_start,
                 actual_start,
                 routine_node=routine_node,
-                use_first_callee_and_no_arg_check=(
-                    use_first_callee_and_no_arg_check)
+                allow_no_args_check_if_only_one_callee=(
+                    allow_no_args_check_if_only_one_callee)
             )
             step = self._replace_formal_args_in_expr(
                 local_idx.step,
                 call_node,
                 formal_args,
                 routine_node=routine_node,
-                use_first_callee_and_no_arg_check=(
-                    use_first_callee_and_no_arg_check)
+                allow_no_args_check_if_only_one_callee=(
+                    allow_no_args_check_if_only_one_callee)
             )
             return Range.create(lower.copy(), upper.copy(), step.copy())
 
@@ -537,7 +566,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             call_node,
             formal_args,
             routine_node=routine_node,
-            use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check
+            allow_no_args_check_if_only_one_callee=(
+                allow_no_args_check_if_only_one_callee)
         )
         if decln_start == actual_start:
             # If the starting indices in the actual and formal arguments are
@@ -549,7 +579,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             call_node,
             formal_args,
             routine_node=routine_node,
-            use_first_callee_and_no_arg_check=use_first_callee_and_no_arg_check
+            allow_no_args_check_if_only_one_callee=(
+                allow_no_args_check_if_only_one_callee)
         )
         start_sub = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                            uidx.copy(), ustart.copy())
@@ -563,7 +594,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         call_node: Call,
         formal_args: List[DataSymbol],
         routine_node: Routine,
-        use_first_callee_and_no_arg_check: bool = False,
+        allow_no_args_check_if_only_one_callee: bool = False,
     ) -> List[Node]:
         '''
         Create a new list of indices for the supplied actual argument
@@ -576,9 +607,10 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         :param call_node: the call site.
         :param formal_args: the formal arguments of the called routine.
         :param routine_node: the Routine being inlined.
-        :param use_first_callee_and_no_arg_check: use the first potential
-            callee that is found without checking for argument types. Defaults
-            to False.
+        :param allow_no_args_check_if_only_one_callee: whether the caller has
+            requested argument type-checking to be skipped. This is permitted
+            only when the Call has exactly one potential callee. Defaults to
+            False.
 
         :returns: new indices for the actual argument.
 
@@ -622,8 +654,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                             call_node,
                             formal_args,
                             routine_node=routine_node,
-                            use_first_callee_and_no_arg_check=(
-                                use_first_callee_and_no_arg_check),
+                            allow_no_args_check_if_only_one_callee=(
+                                allow_no_args_check_if_only_one_callee),
                         )
                 elif (local_decln_shape[local_idx_posn] ==
                       ArrayType.Extent.DEFERRED):
@@ -653,8 +685,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                         local_decln_start,
                         actual_start,
                         routine_node=routine_node,
-                        use_first_callee_and_no_arg_check=(
-                            use_first_callee_and_no_arg_check),
+                        allow_no_args_check_if_only_one_callee=(
+                            allow_no_args_check_if_only_one_callee),
                     )
             else:
                 # Otherwise, the local index expression replaces the Range.
@@ -665,8 +697,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                     local_decln_start,
                     actual_start,
                     routine_node=routine_node,
-                    use_first_callee_and_no_arg_check=(
-                        use_first_callee_and_no_arg_check),
+                    allow_no_args_check_if_only_one_callee=(
+                        allow_no_args_check_if_only_one_callee),
                 )
             # Each Range corresponds to one dimension of the formal argument.
             local_idx_posn += 1
@@ -679,7 +711,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         call_node: Call,
         formal_args: List[DataSymbol],
         routine_node: Routine,
-        use_first_callee_and_no_arg_check: bool = False,
+        allow_no_args_check_if_only_one_callee: bool = False,
     ) -> Reference:
         '''
         Called by _replace_formal_args_in_expr() whenever a reference to
@@ -715,8 +747,10 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         :param call_node: the call site.
         :param formal_args: the formal arguments of the called routine.
         :param routine_node: Routine node to be inlined.
-        :param use_first_callee_and_no_arg_check: Just use the first possible
-            callee and do not check argument types. Defaults to False.
+        :param allow_no_args_check_if_only_one_callee: whether the caller has
+            requested argument type-checking to be skipped. This is permitted
+            only when the Call has exactly one potential callee. Defaults to
+            False.
 
         :returns: the replacement reference.
 
@@ -766,8 +800,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                     call_node,
                     formal_args,
                     routine_node,
-                    use_first_callee_and_no_arg_check=(
-                        use_first_callee_and_no_arg_check),
+                    allow_no_args_check_if_only_one_callee=(
+                        allow_no_args_check_if_only_one_callee),
                 )
 
             return new_ref
@@ -799,8 +833,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                     call_node,
                     formal_args,
                     routine_node=routine_node,
-                    use_first_callee_and_no_arg_check=(
-                        use_first_callee_and_no_arg_check),
+                    allow_no_args_check_if_only_one_callee=(
+                        allow_no_args_check_if_only_one_callee),
                 )
                 members.append((cursor.name, new_indices))
             else:
@@ -822,8 +856,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                         call_node,
                         formal_args,
                         routine_node,
-                        use_first_callee_and_no_arg_check=(
-                            use_first_callee_and_no_arg_check),
+                        allow_no_args_check_if_only_one_callee=(
+                            allow_no_args_check_if_only_one_callee),
                     )
                 )
             # Replace the last entry in the `members` list with a new array
@@ -848,8 +882,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                             call_node,
                             formal_args,
                             routine_node=routine_node,
-                            use_first_callee_and_no_arg_check=(
-                                use_first_callee_and_no_arg_check),
+                            allow_no_args_check_if_only_one_callee=(
+                                allow_no_args_check_if_only_one_callee),
                         )
                     )
                 members.append((cursor.name, new_indices))
@@ -916,8 +950,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         '''
         self.validate_options(**kwargs)
         super().validate(node, **kwargs)
-        use_first_callee_and_no_arg_check = self.get_option(
-            "use_first_callee_and_no_arg_check", **kwargs)
+        allow_no_args_check_if_only_one_callee = self.get_option(
+            "allow_no_args_check_if_only_one_callee", **kwargs)
         permit_unsupported_type_args = self.get_option(
             "permit_unsupported_type_args", **kwargs)
         permit_codeblocks = self.get_option("permit_codeblocks", **kwargs)
@@ -934,6 +968,15 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                 f"Cannot inline an IntrinsicCall ('{node.routine.name}')")
         name = node.routine.name
 
+        if allow_no_args_check_if_only_one_callee:
+            callee_count = len(node.get_callees())
+            if callee_count != 1:
+                raise TransformationError(
+                    f"Cannot inline routine '{name}' because its call has "
+                    f"{callee_count} possible callees. The "
+                    "'allow_no_args_check_if_only_one_callee' option requires "
+                    "exactly one callee.")
+
         # The call site must be within a Routine (i.e. not detached)
         parent_routine = node.ancestor(Routine)
         if not parent_routine:
@@ -946,7 +989,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             try:
                 (routine, arg_match_list) = node.get_callee(
                     use_first_callee_and_no_arg_check=(
-                        use_first_callee_and_no_arg_check))
+                        allow_no_args_check_if_only_one_callee))
             except (
                 CallMatchingArgumentsNotFound,
                 NotImplementedError,
@@ -1076,7 +1119,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
                 call_node=node,
                 call_arg=actual_arg,
                 routine_node=routine,
-                routine_arg=routine_arg
+                routine_arg=routine_arg,
+                allow_unknown=allow_no_args_check_if_only_one_callee
             )
 
         # Check for dependencies within the SymbolTable of the target
@@ -1128,12 +1172,14 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
 
         return (routine, arg_match_list)
 
+    # pylint: disable=too-many-arguments
     def _validate_inline_of_call_and_routine_argument_pairs(
         self,
         call_node: Call,
         call_arg: DataNode,
         routine_node: Routine,
-        routine_arg: DataSymbol
+        routine_arg: DataSymbol,
+        allow_unknown: bool = False
     ):
         """This function performs tests to see whether the inlining can
         cope with the specified call and corresponding dummy argument pair.
@@ -1142,6 +1188,9 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         :param call_arg: The argument of a call
         :param routine: The routine to be inlined
         :param routine_arg: The argument of a routine
+        :param allow_unknown: whether to permit an actual argument with an
+            unknown type. If its rank is also unknown then no shape checks can
+            be performed for this argument.
 
         :raises TransformationError: if the type of an actual argument is
             unknown and it corresponds to a formal argument that is an array.
@@ -1164,16 +1213,24 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         # TODO #924. It would be useful if the `datatype` property was
         # a method that took an optional 'resolve' argument to indicate
         # that it should attempt to resolve any UnresolvedTypes.
-        if (isinstance(call_arg.datatype,
+        unknown_actual_type = (
+            isinstance(call_arg.datatype,
                        (UnresolvedType, UnsupportedType)) or
             (isinstance(call_arg.datatype, ArrayType) and
              isinstance(call_arg.datatype.intrinsic,
-                        (UnresolvedType, UnsupportedType)))):
-            raise TransformationError(
-                f"Routine '{routine_node.name}' cannot be inlined because "
-                f"the type of the actual argument "
-                f"'{call_arg.debug_string()}' corresponding to an array"
-                f" formal argument ('{routine_arg.name}') is unknown.")
+                        (UnresolvedType, UnsupportedType))))
+        if unknown_actual_type:
+            if not allow_unknown:
+                raise TransformationError(
+                    f"Routine '{routine_node.name}' cannot be inlined because "
+                    f"the type of the actual argument "
+                    f"'{call_arg.debug_string()}' corresponding to an array"
+                    f" formal argument ('{routine_arg.name}') is unknown.")
+            if not isinstance(call_arg.datatype, ArrayType):
+                # The override says that the caller has external knowledge of
+                # the interface but this PSyIR datatype does not even expose
+                # the rank, so no further checks are possible for this pair.
+                return
 
         formal_rank = 0
         actual_rank = 0

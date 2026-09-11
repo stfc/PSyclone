@@ -1168,6 +1168,8 @@ class CodedKern(Kern):
         self._schedules = None
         #: Whether or not this kernel has been transformed
         self._modified = False
+        #: Whether or not this kernel is to be fully inlined when lowered.
+        self._inline = False
         self._opencl_options = {'local_size': 64, 'queue_number': 1}
         self.arg_descriptors = call.ktype.arg_descriptors
 
@@ -1275,6 +1277,14 @@ class CodedKern(Kern):
         return self._module_name
 
     @property
+    def inline(self) -> bool:
+        '''
+        :returns: whether this kernel is marked for inlining when lowered.
+
+        '''
+        return self._inline
+
+    @property
     def dag_name(self):
         '''
         :returns: the name to use in the DAG for this node.
@@ -1295,13 +1305,14 @@ class CodedKern(Kern):
         return (self.coloured_name(colour) +
                 f" {self.name}({self.arguments.names})")
 
-    def lower_to_language_level(self) -> Node:
+    def lower_to_language_level(self) -> Optional[Node]:
         '''
         In-place replacement of CodedKern concept into language level
         PSyIR constructs. The CodedKern is implemented as a Call to a
         routine with the appropriate arguments.
 
-        :returns: the lowered version of this node.
+        :returns: the lowered Call, the first statement inserted by inlining,
+            or ``None`` if an empty kernel routine is inlined.
 
         '''
         symtab = self.ancestor(InvokeSchedule).symbol_table
@@ -1314,6 +1325,57 @@ class CodedKern(Kern):
 
         # Swap itself with the appropriate Call node
         self.replace_with(call_node)
+
+        # TODO #2216: Ideally InlineTrans should not be deferred and the
+        # reporting should be done in the trasformation script.
+        if self.inline:
+            # These imports are local to avoid a circular import: InlineTrans
+            # uses CodedKern via CalleeTransformationMixin.
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.transformations import (
+                InlineTrans, TransformationError)
+
+            try:
+                # Argument matching often fails for LFRic kernels due to mixed
+                # precision symbols not being properly interconnected and other
+                # psy-layer objects having incomplete types. To proceed we set
+                # the 'allow_no_args_check_if_only_one_callee' InlineTrans
+                # option. InlineTrans validates that there is exactly one
+                # possible callee before it skips argument matching.
+                parent = call_node.parent
+                position = call_node.position
+                next_node = (parent.children[position + 1]
+                             if position + 1 < len(parent.children) else None)
+                InlineTrans().apply(
+                    call_node, allow_no_args_check_if_only_one_callee=True)
+
+                # An empty routine removes the Call, which moves its original
+                # next sibling into its position. Otherwise, the first
+                # inlined statement occupies that position.
+                inlined_node = None
+                if position < len(parent.children):
+                    candidate = parent.children[position]
+                    if candidate is not next_node:
+                        inlined_node = candidate
+            except (TransformationError, InternalError) as err:
+                # If inline failes, we still continue with the non-inlined
+                # version. We report the issues in stdout. Even if the most
+                # natural reporting would be to use logging, the lfric call
+                # to psyclone is hardcoded in their build system, but we
+                # want to count this errors in our gpu offloading report.
+                message = (f"Deferred-Inline failed for kernel '{self.name}' "
+                           f"due to: {err.value}")
+                print(message)
+                call_node.append_preceding_comment(message)
+                return call_node
+
+            message = f"Deferred-Inline successful for kernel '{self.name}'"
+            print(message)
+
+            if inlined_node:
+                inlined_node.append_preceding_comment(message)
+            return inlined_node
+
         return call_node
 
     def incremented_arg(self) -> str:

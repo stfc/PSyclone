@@ -11,7 +11,8 @@ Also adds redundant computation to the level-1 halo for setval_* generically.
 '''
 import os
 import sys
-from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.domain.common.transformations import (
+    KernelInlineTrans, KernelModuleInlineTrans)
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric.transformations import (
@@ -20,7 +21,7 @@ from psyclone.psyir.nodes import (
     Call, Directive, IntrinsicCall, Loop, Routine, Schedule)
 from psyclone.psyir.transformations import (
     ACCKernelsTrans, Matmul2CodeTrans, OMPTargetTrans, TransformationError,
-    OMPDeclareTargetTrans, OMPParallelTrans, InlineTrans)
+    OMPDeclareTargetTrans, OMPParallelTrans)
 from psyclone.transformations import (
     LFRicColourTrans, LFRicOMPLoopTrans,
     ACCParallelTrans, ACCRoutineTrans,
@@ -62,7 +63,10 @@ def _replace_matmuls(sched: Schedule):
         # routine) that we are not to mark this kernel for offload.
         if (isinstance(call, IntrinsicCall) and
                 call.intrinsic == IntrinsicCall.Intrinsic.MATMUL):
-            matrans.apply(call)
+            try:
+                matrans.apply(call)
+            except TransformationError as err:
+                print(f"Matmul2Code failed with: {err}")
 
 
 def trans(psyir):
@@ -80,7 +84,7 @@ def trans(psyir):
     const = LFRicConstants()
     cpu_parallel = OMPParallelTrans()
     mod_inline_trans = KernelModuleInlineTrans()
-    inline_trans = InlineTrans()
+    inline_trans = KernelInlineTrans()
 
     if OFFLOAD_DIRECTIVES.startswith("omp"):
         # Use OpenMP offloading
@@ -157,31 +161,35 @@ def trans(psyir):
                     print(f"Module-inline failed for kernel "
                           f"'{kern.name}' due to:\n{err.value}")
 
-                # Attempt to fully inline the kernel
+                # Ensure MATMULs within the kernel are also inlined
+                for routine in kern.get_callees():
+                    _replace_matmuls(routine)
+
                 try:
-                    # Ensure any MATMULs within the kernel are also inlined
-                    for routine in kern.get_callees():
-                        _replace_matmuls(routine)
-
-                    inline_trans.apply(kern)
-                    print(f"Inline successful for kernel "
+                    # Attempt annotations first, since if inlining fails
+                    # during lowering we can't fallback at that point
+                    gpu_annotation_trans.apply(kern)
+                    print(f"Annotation successful for kernel "
                           f"'{kern.name}'")
-                    continue
-                except TransformationError as err:
-                    failed_inline.add(kern.name.lower())
-                    print(f"Inline failed for kernel "
-                          f"'{kern.name}' due to:\n{err.value}")
-
-                    # If it cannot be inlined, fallback to annotate the
-                    # kernel with GPU routine directives.
                     try:
-                        gpu_annotation_trans.apply(kern)
-                        print(f"Annotation successful for kernel "
-                              f"'{kern.name}'")
-                    except TransformationError as err:
-                        failed_to_offload.add(kern.name.lower())
-                        print(f"Annotation failed for kernel '{kern.name}' "
-                              f"due to:\n{err.value}")
+                        if OFFLOAD_DIRECTIVES.startswith("acc"):
+                            # TODO #423: PSyclone doesn't support the OpenACC
+                            # private clause yet, which we need for the inlined
+                            # version
+                            continue
+                        # For the kernels that can be on the GPU, attempt to
+                        # fully inline them to improve performance.
+                        inline_trans.apply(kern)
+                        print(f"Kernel '{kern.name}' marked for deferred "
+                              f"inlining")
+                    except TransformationError:
+                        # If it fails continue as normal, as the kenrel will
+                        # still be in the GPU (just not inlined)
+                        continue
+                except TransformationError as err:
+                    failed_to_offload.add(kern.name.lower())
+                    print(f"Annotation failed for kernel '{kern.name}' "
+                          f"due to:\n{err.value}")
 
         # Add GPU offloading to loops
         for loop in subroutine.walk(Loop):

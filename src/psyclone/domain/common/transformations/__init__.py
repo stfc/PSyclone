@@ -11,10 +11,13 @@ from psyclone.domain.common.transformations.alg_invoke_2_psy_call_trans \
 from psyclone.domain.common.transformations.alg_trans import AlgTrans
 from psyclone.domain.common.transformations.kernel_module_inline_trans import \
     KernelModuleInlineTrans
+from psyclone.domain.common.transformations.kernel_inline_trans import \
+    KernelInlineTrans
 
 __all__ = [
-        "AlgInvoke2PSyCallTrans",
-        "AlgTrans",
-        "KernelModuleInlineTrans",
-        "RaisePSyIR2AlgTrans",
-        ]
+    "AlgInvoke2PSyCallTrans",
+    "AlgTrans",
+    "KernelInlineTrans",
+    "KernelModuleInlineTrans",
+    "RaisePSyIR2AlgTrans",
+]
