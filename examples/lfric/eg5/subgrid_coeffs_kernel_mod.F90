@@ -39,15 +39,6 @@ use argument_mod,       only : arg_type,          &
                                STENCIL, CROSS, CELL_COLUMN
 use fs_continuity_mod,  only : W3
 use constants_mod,      only : r_def, i_def, l_def
-use subgrid_config_mod, only : subgrid_rho_approximation_constant_subgrid,     &
-                               subgrid_rho_approximation_constant_positive,    &
-                               subgrid_rho_approximation_linear_centered_diff, &
-                               subgrid_rho_approximation_linear_superbee,      &
-                               subgrid_rho_approximation_linear_minmod,        &
-                               subgrid_rho_approximation_ppm_no_limiter,       &
-                               subgrid_rho_approximation_ppm_positive_only,    &
-                               subgrid_rho_approximation_ppm_positive_monotone,&
-                               rho_stencil_length
 use kernel_mod,         only : kernel_type
 
 implicit none
@@ -102,9 +93,6 @@ subroutine subgrid_coeffs_code(                                               &
                                 map_w3                                        &
                                 )
 
-  use subgrid_rho_mod, only: return_ppm_output, minmod_function, maxmod_function, subgridrho_option
-
-
   implicit none
 
   ! Arguments
@@ -128,61 +116,9 @@ subroutine subgrid_coeffs_code(                                               &
 
   do k=0,nlayers-1
 
-    select case(subgridrho_option)
-      case (subgrid_rho_approximation_constant_subgrid)
-        a0(stencil_map(1,1)) = rho(stencil_map(1,1))
-        a1(stencil_map(1,1)) = 0.0_r_def
-        a2(stencil_map(1,1)) = 0.0_r_def
-
-      case (subgrid_rho_approximation_constant_positive)
-        a0(stencil_map(1,1)) = max(rho(stencil_map(1,1)),0.0_r_def)
-        a1(stencil_map(1,1)) = 0.0_r_def
-        a2(stencil_map(1,1)) = 0.0_r_def
-
-      case (subgrid_rho_approximation_linear_centered_diff)
-        a1(stencil_map(1,1)) = (rho(stencil_map(1,3))-rho(stencil_map(1,2)))/2.0_r_def
-        a0(stencil_map(1,1)) = rho(stencil_map(1,1))-a1(stencil_map(1,1))*0.5_r_def
-        a2(stencil_map(1,1)) = 0.0_r_def
-
-      case (subgrid_rho_approximation_linear_superbee)
-        sigma1 = minmod_function(                                             &
-                      rho(stencil_map(1,3))-rho(stencil_map(1,1)),            &
-                      2.0_r_def*(rho(stencil_map(1,1))-rho(stencil_map(1,2))) &
-                                )
-        sigma2 = minmod_function(                                             &
-                      2.0_r_def*(rho(stencil_map(1,3))-rho(stencil_map(1,1))),&
-                      rho(stencil_map(1,1))-rho(stencil_map(1,2)) )
-
-        a1(stencil_map(1,1)) = maxmod_function( sigma1, sigma2)
-        a0(stencil_map(1,1)) = rho(stencil_map(1,1))-a1(stencil_map(1,1))*0.5_r_def
-        a2(stencil_map(1,1)) = 0.0_r_def
-
-      case (subgrid_rho_approximation_linear_minmod)
-        a1(stencil_map(1,1)) = minmod_function(                               &
-                                rho(stencil_map(1,1))-rho(stencil_map(1,2)) , &
-                                rho(stencil_map(1,3))-rho(stencil_map(1,1)) )
-        a0(stencil_map(1,1)) = rho(stencil_map(1,1))-a1(stencil_map(1,1))*0.5_r_def
-        a2(stencil_map(1,1)) = 0.0_r_def
-
-      case (subgrid_rho_approximation_ppm_no_limiter)
-        positive=.false.
-        monotone=.false.
-        call return_ppm_output(rho(stencil_map(1,1:5)),coeffs,positive,monotone)
-        a0(stencil_map(1,1)) = coeffs(1)
-        a1(stencil_map(1,1)) = coeffs(2)
-        a2(stencil_map(1,1)) = coeffs(3)
-
-      case (subgrid_rho_approximation_ppm_positive_only, &
-            subgrid_rho_approximation_ppm_positive_monotone)
-        positive=.true.
-        monotone=.false.
-        if ( subgridrho_option == subgrid_rho_approximation_ppm_positive_monotone) monotone=.true.
-        call return_ppm_output(rho(stencil_map(1,1:5)),coeffs,positive,monotone)
-        a0(stencil_map(1,1)) = coeffs(1)
-        a1(stencil_map(1,1)) = coeffs(2)
-        a2(stencil_map(1,1)) = coeffs(3)
-
-    end select
+     a0(stencil_map(1,1)) = rho(stencil_map(1,1))
+     a1(stencil_map(1,1)) = 0.0_r_def
+     a2(stencil_map(1,1)) = 0.0_r_def
 
   end do
 

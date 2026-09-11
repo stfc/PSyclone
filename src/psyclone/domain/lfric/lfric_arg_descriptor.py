@@ -474,11 +474,6 @@ class LFRicArgDescriptor(Descriptor):
                     f"read-only ('{AccessType.READ.api_specific_name()}'), "
                     f"but found '{self._access_type.api_specific_name()}' in "
                     f"'{arg_type}'.")
-            if operates_on == "domain":
-                raise ParseError(
-                    f"In the LFRic API, kernels that operate on the domain "
-                    f"are not permitted to have arguments with a stencil "
-                    f"access but found: '{arg_type}'")
 
     def _init_operator(self, arg_type):
         '''

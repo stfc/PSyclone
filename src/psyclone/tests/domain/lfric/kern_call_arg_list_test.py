@@ -17,7 +17,8 @@ from psyclone.domain.lfric import (KernCallArgList,
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Literal, Loop, Reference, UnaryOperation
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.nodes import Literal, Loop, Node, Reference, UnaryOperation
 from psyclone.psyir.symbols import (
     ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol, ScalarType,
     SymbolTable, UnsupportedFortranType)
@@ -27,7 +28,9 @@ from psyclone.transformations import LFRicColourTrans
 TEST_API = "lfric"
 
 
-def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
+def check_psyir_results(create_arg_list: KernCallArgList,
+                        fortran_writer: FortranWriter,
+                        valid_classes: tuple[Node] = None):
     '''Helper function to check if the PSyIR representation of the arguments
     is identical to the old style textual representation. It checks that each
     member of the psyir_arglist is a Reference, and that the textual
@@ -35,13 +38,9 @@ def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
     verified).
 
     :param create_arg_list: a KernCallArgList instance.
-    :type create_arg_list: :py:class:`psyclone.domain.lfric.KernCallArgList`
     :param fortran_writer: a FortranWriter instance.
-    :type fortran_writer:
-        :py:class:`psyclone.psyir.backend.fortran.FortranWriter`
     :param valid_classes: a tuple of classes that are expected in the PSyIR
         argument list. Defaults to `(Reference)`.
-    :type valid_classes: Tuple[:py:class:`psyclone.psyir.nodes.node`]
 
     '''
     if not valid_classes:
@@ -166,8 +165,8 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
             array_1d)
     array_4d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
                          [ArrayType.Extent.DEFERRED]*4)
-    assert create_arg_list.psyir_arglist[15].datatype == array_4d
-    assert create_arg_list.psyir_arglist[16].datatype == array_4d
+    assert create_arg_list.psyir_arglist[15].symbol.datatype == array_4d
+    assert create_arg_list.psyir_arglist[16].symbol.datatype == array_4d
 
 
 def test_kerncallarglist_face_edge(dist_mem, fortran_writer):
@@ -338,7 +337,6 @@ def test_kerncallarglist_cross2d_stencil(fortran_writer):
 
     psy, _ = get_invoke("19.26_single_stencil_cross2d.f90", TEST_API,
                         dist_mem=False, idx=0)
-
     schedule = psy.invokes.invoke_list[0].schedule
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
@@ -350,6 +348,37 @@ def test_kerncallarglist_cross2d_stencil(fortran_writer):
         'ndf_w1', 'undf_w1', 'map_w1(:,cell)', 'ndf_w2', 'undf_w2',
         'map_w2(:,cell)', 'ndf_w3', 'undf_w3', 'map_w3(:,cell)'
     ]
+    check_psyir_results(create_arg_list, fortran_writer)
+
+
+def test_kerncallarglist_stencil_domain(fortran_writer):
+    """Check handling of stencils for a kernel that operates on the
+    entire domain. This should pass full stencil arrays rather than
+    column-indexed slices.
+    """
+    # Create a full Invoke so that LFRicProxies and LFRicStencils
+    # create the symbols/tags that the argument-list builder expects.
+    src = "1948_stencil_domain_invoke.f90"
+    psy, invoke = get_invoke(src, TEST_API, idx=0)
+    schedule = invoke.schedule
+    kernel = schedule.kernels()[0]
+
+    create_arg_list = KernCallArgList(kernel)
+    create_arg_list.generate()
+
+    # Expect full arrays passed without using colons.
+    arglist = create_arg_list._arglist
+    assert 'b_stencil_size' in arglist
+    assert 'b_max_branch_length' in arglist
+    assert 'b_stencil_dofmap' in arglist
+
+    assert 'c_stencil_size' in arglist
+    assert 'c_extent' in arglist
+    assert 'c_stencil_dofmap' in arglist
+
+    assert 'd_stencil_size' in arglist
+    assert 'd_stencil_dofmap' in arglist
+
     check_psyir_results(create_arg_list, fortran_writer)
 
 

@@ -107,16 +107,6 @@ subroutine conservative_flux_code( nlayers,              &
                                    undf_w3,              &
                                    map_w3)
 
-  use cosmic_flux_mod,    only : calc_stencil_ordering,                &
-                                 frac_and_int_part,                    &
-                                 calc_integration_limits,              &
-                                 populate_array,                       &
-                                 map_cell_index,                       &
-                                 return_part_mass
-  use flux_direction_mod, only : x_direction, y_direction
-
-  use timestepping_config_mod,      only: dt
-
   implicit none
 
   ! Arguments
@@ -144,6 +134,7 @@ subroutine conservative_flux_code( nlayers,              &
   integer(kind=i_def), intent(in)                       :: a2_stencil_map(1:a2_stencil_length)
 
   ! Internal variables
+  integer(kind=i_def) :: x_direction, y_direction
   real(kind=r_def) :: mass_total
   real(kind=r_def) :: departure_dist
   real(kind=r_def) :: rho_local(1:rho_stencil_length)
@@ -159,6 +150,7 @@ subroutine conservative_flux_code( nlayers,              &
 
   integer(kind=i_def), allocatable :: index_array(:)
   integer(kind=i_def), allocatable :: local_density_index(:)
+  integer(kind=i_def), allocatable :: map_cell_index(:, :)
 
   integer(kind=i_def) :: stencil_ordering(1:rho_stencil_length)
   integer(kind=i_def) :: k
@@ -170,7 +162,6 @@ subroutine conservative_flux_code( nlayers,              &
 
   direction = rho_direction
 
-  call calc_stencil_ordering(rho_stencil_length,stencil_ordering)
 
   if (direction == x_direction ) then
     edge_option = 0
@@ -194,19 +185,9 @@ subroutine conservative_flux_code( nlayers,              &
       a2_local(ii)  = a2_coeffs( rho_stencil_map(stencil_ordering(ii)) )
     end do
 
-    ! Calculates number of cells of interest and fraction of a cell to add.
-    call frac_and_int_part(departure_dist,n_cells_to_sum,fractional_distance)
-
-    ! Calculates the left and right integration limits for the fractional cell.
-    call calc_integration_limits( departure_dist,             &
-                                  fractional_distance,        &
-                                  left_integration_limit,     &
-                                  right_integration_limit )
 
     allocate(index_array(n_cells_to_sum))
     allocate(local_density_index(n_cells_to_sum))
-
-    call populate_array(n_cells_to_sum,index_array,departure_dist,edge_option)
 
     do ii=1,n_cells_to_sum
       local_density_index(ii) = map_cell_index(index_array(ii),rho_stencil_length)
@@ -218,11 +199,11 @@ subroutine conservative_flux_code( nlayers,              &
                         a1_local(local_density_index(n_cells_to_sum)), &
                         a2_local(local_density_index(n_cells_to_sum)) /)
 
-    mass_frac = return_part_mass(3,subgrid_coeffs,left_integration_limit,right_integration_limit)
+    mass_frac = 1.0
 
     mass_total = mass_from_whole_cells + mass_frac
 
-    flux( map_w2(df1) + k ) = sign(1.0_r_def,u_piola( map_w2(df1) + k ))*mass_total/dt
+    flux( map_w2(df1) + k ) = sign(1.0_r_def,u_piola( map_w2(df1) + k ))*mass_total
 
     if (allocated(index_array)) deallocate(index_array)
     if (allocated(local_density_index)) deallocate(local_density_index)
