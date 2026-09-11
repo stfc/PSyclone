@@ -5436,6 +5436,20 @@ class Fparser2Reader():
 
         '''
         try:
+            # If we already have a RoutineSymbol with the name of the supposed
+            # intrinsic, then it is shadowed by the declared RoutineSymbol and
+            # we should instead create a Call.
+            existing_symbol = parent.scope.symbol_table.lookup(
+                node.items[0].string, None
+            )
+            if (existing_symbol is not None and
+                    isinstance(existing_symbol, RoutineSymbol)):
+                call = Call(parent=parent)
+                call.addchild(Reference(existing_symbol))
+                call = self._process_args(node, call, False)
+                return call
+
+            # Otherwise we have an IntrinsicCall.
             intrinsic = IntrinsicCall.Intrinsic[node.items[0].string.upper()]
 
             call = IntrinsicCall(intrinsic, parent=parent)
