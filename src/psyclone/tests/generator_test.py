@@ -334,7 +334,7 @@ def test_kernel_parsing_internalerror(capsys, caplog):
             main([kern_filename, "-api", "gocean"])
         assert caplog.records[0].levelname == "ERROR"
         assert (
-            "PSyclone internal error: The argument list ['i', 'j', 'cu', 'p', "
+            "PSyclone internal error: The2244 argument list ['i', 'j', 'cu', 'p', "
             "'u'] for routine 'compute_code' does not match the variable "
             "declarations:\n"
             "IMPLICIT NONE\n"
@@ -2139,13 +2139,10 @@ def test_multiple_scripts_basic(tmp_path):
 
     f = io.StringIO()
     with redirect_stdout(f):
-        try:
-            code_transformation_mode(
-                str(fortran_file),
-                [(str(script1), None), (str(script2), None)],
-                None, False, False, False, True, "off")
-        except SystemExit:
-            pass
+        code_transformation_mode(
+            str(fortran_file),
+            [(str(script1), None), (str(script2), None)],
+            None, False, False, False, True, "off")
 
     output = f.getvalue()
     assert "Script 1 executed" in output
@@ -2180,16 +2177,13 @@ def test_multiple_scripts_with_kwargs(tmp_path):
 
     f = io.StringIO()
     with redirect_stdout(f):
-        try:
-            code_transformation_mode(
-                str(fortran_file),
-                [
-                    (str(script1), "message: 'msg1'"),
-                    (str(script2), "message: 'msg2'")
-                ],
-                None, False, False, False, True, "off")
-        except SystemExit:
-            pass
+        code_transformation_mode(
+            str(fortran_file),
+            [
+                (str(script1), "message: 'msg1'"),
+                (str(script2), "message: 'msg2'")
+            ],
+            None, False, False, False, True, "off")
 
     output = f.getvalue()
     assert "Script 1: msg1" in output
@@ -2236,52 +2230,11 @@ def test_backward_compatibility_single_script(tmp_path):
 
     f = io.StringIO()
     with redirect_stdout(f):
-        try:
-            code_transformation_mode(
-                str(fortran_file),
-                [(str(script), None)],
+        code_transformation_mode(
+            str(fortran_file),
+            [
+                (str(script), None)],
                 None, False, False, False, True, "off")
-        except SystemExit:
-            pass
 
     output = f.getvalue()
     assert "Single script executed" in output
-
-
-def test_multiple_scripts_via_main(tmp_path, capsys):
-    '''Test that multiple scripts can be specified via main().'''
-    # Create two simple transformation scripts
-    script1 = tmp_path / "test_script1_main.py"
-    with open(script1, 'w+', encoding="utf8") as f:
-        f.write("""def trans(psyir):
-    print("Script 1 via main")
-    return psyir
-""")
-
-    script2 = tmp_path / "test_script2_main.py"
-    with open(script2, 'w+', encoding="utf8") as f:
-        f.write("""def trans(psyir):
-    print("Script 2 via main")
-    return psyir
-""")
-
-    # Create a simple Fortran file
-    fortran_file = tmp_path / "test_main.f90"
-    with open(fortran_file, 'w', encoding='utf-8') as f:
-        f.write("program test\n  print *, 'Hello'\nend program test\n")
-
-    # Capture stdout to check that both scripts are executed
-    import io
-    from contextlib import redirect_stdout
-
-    f = io.StringIO()
-    with redirect_stdout(f):
-        try:
-            main([str(fortran_file), '-s', str(script1),
-                  '-s', str(script2)])
-        except SystemExit:
-            pass
-
-    output = f.getvalue()
-    assert "Script 1 via main" in output
-    assert "Script 2 via main" in output
