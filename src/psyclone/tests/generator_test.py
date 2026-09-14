@@ -334,8 +334,8 @@ def test_kernel_parsing_internalerror(capsys, caplog):
             main([kern_filename, "-api", "gocean"])
         assert caplog.records[0].levelname == "ERROR"
         assert (
-            "PSyclone internal error: The2244 argument list ['i', 'j', 'cu', 'p', "
-            "'u'] for routine 'compute_code' does not match the variable "
+            "PSyclone internal error: The2244 argument list ['i', 'j', 'cu', "
+            "'p', 'u'] for routine 'compute_code' does not match the variable "
             "declarations:\n"
             "IMPLICIT NONE\n"
             "INTEGER, INTENT(IN) :: I, J\n"
