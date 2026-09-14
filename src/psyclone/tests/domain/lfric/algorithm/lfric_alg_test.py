@@ -27,17 +27,10 @@ BASE_PATH = os.path.join(
     "test_files", "lfric")
 
 
-@pytest.fixture(scope="function", autouse=True)
-def setup():
-    '''Make sure that all tests here use lfric as API.'''
-    Config.get().api = "lfric"
-
-
 @pytest.fixture(name="prog", scope="function")
-def create_prog_fixture():
+def create_prog_fixture() -> Routine:
     '''
     :returns: a PSyIR Routine node representing a program.
-    :rtype: :py:class:`psyclone.psyir.nodes.Routine`
     '''
     Config.get().api = "lfric"
     prog = Routine.create("test_prog", is_program=True)
@@ -346,20 +339,28 @@ def test_create_from_kernel_invalid_field_type(monkeypatch):
 
 def test_create_from_kernel_with_scalar(fortran_writer):
     ''' Check that create_from_kernel() returns the expected Fortran for a
-    valid LFRic kernel that has a scalar argument. '''
+    valid LFRic kernel that has scalar and scalar-array arguments. '''
     psyir = LFRicAlg().create_from_kernel(
-        "test", os.path.join(BASE_PATH, "testkern_mod.F90"))
+        "test", os.path.join(BASE_PATH, "testkern_scalar_array_mod.f90"))
     code = fortran_writer(psyir)
     assert "module test_mod" in code
-    assert "use constants_mod, only : i_def, r_def" in code
-    assert "real(kind=r_def) :: rscalar_1" in code
-    assert ("    rscalar_1 = 1_i_def\n"
-            "    call invoke(setval_c(field_2, 1.0_r_def), "
-            "setval_c(field_3, 1.0_r_def), "
-            "setval_c(field_4, 1.0_r_def), "
-            "setval_c(field_5, 1.0_r_def), "
-            "testkern_type(rscalar_1, field_2, field_3, field_4, field_5))\n"
-            in code)
+    assert "use constants_mod, only : i_def, l_def, r_def" in code
+    assert "integer(kind=i_def) :: iscalar_5" in code
+    # The extent of each dimension of a scalar array is unknown so we
+    # arbirtrarily use a value of 3 to get something that compiles.
+    assert "real(kind=r_def), dimension(3,3) :: rscalar_array_2" in code
+
+    assert """
+    ! Since kernel metadata only specifies the *rank* of this 'scalar array' \
+argument, each dimension has been given the arbitrary extent of 3 in order to \
+create compilable code.
+    lscalar_array_3 = .true._l_def""" in code
+
+    assert ("    iscalar_array_4 = 1_i_def\n"
+            "    iscalar_5 = 1_i_def\n"
+            "    call invoke(setval_c(field_1, 1.0_r_def), "
+            "testkern_scalar_array_type(field_1, rscalar_array_2, "
+            "lscalar_array_3, iscalar_array_4, iscalar_5))\n" in code)
 
 
 def test_create_from_kernel_with_vector(fortran_writer):

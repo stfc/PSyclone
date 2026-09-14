@@ -17,9 +17,10 @@ from psyclone.domain.lfric.function_space import FunctionSpace
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.lfric_types import LFRicTypes
+from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import (
-    ArrayType, DataSymbol, DataTypeSymbol, UnresolvedType, SymbolTable,
-    ContainerSymbol, ImportInterface)
+    ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol, ImportInterface,
+    ScalarType, SymbolTable, UnresolvedType)
 if TYPE_CHECKING:
     from psyclone.lfric import LFRicKernelArgument
 
@@ -134,8 +135,13 @@ class KernCallInvokeArgList(ArgOrdering):
         LFRicTypes.add_precision_symbol(self._symtab, precision_name)
 
         if scalar_arg._array_ndims:
+            # We only know the rank of the 'scalar array' expected by the
+            # Kernel. In order to generate compilable code, we just give
+            # each dimension an extent of 3.
             datatype = ArrayType(
-                datatype, scalar_arg._array_ndims*[ArrayType.Extent.ATTRIBUTE])
+                datatype,
+                scalar_arg._array_ndims*[Literal("3",
+                                                 ScalarType.integer_type())])
 
         sym = self._symtab.find_or_create_tag(scalar_arg.name,
                                               symbol_type=DataSymbol,
