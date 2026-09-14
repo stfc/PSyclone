@@ -92,7 +92,7 @@ class LFRicColourAndOMPTrans(Transformation):
         oregtrans = OMPParallelTrans()
 
         # TODO #2668: LFRicOMPLoopTrans has not yet been migrated to kwargs. It
-        # it gives options inherrited from OMPLoopTrans but discards any
+        # it gives options inherited from OMPLoopTrans but discards any
         # **kwargs it is given, so we need to build an options dict here.
         # Remove once it accepts kwargs directly.
         options = None if reprod is None else {"reprod": reprod}
