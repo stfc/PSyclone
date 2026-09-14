@@ -4352,7 +4352,8 @@ def test_remaining_merge_paths():
         "imported", interface=symbols.ImportInterface(container))
     source.add(container)
     source.add(imported)
-    with pytest.raises(symbols.SymbolError, match="Cannot skip ContainerSymbol"):
+    with pytest.raises(symbols.SymbolError,
+                       match="Cannot skip ContainerSymbol"):
         symbols.SymbolTable().merge(source, symbols_to_skip=[container])
 
     # The same Symbol and tag may occur in both inputs when combining tables
