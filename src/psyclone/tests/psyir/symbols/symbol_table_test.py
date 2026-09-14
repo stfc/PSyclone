@@ -15,8 +15,8 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
-    BinaryOperation, CodeBlock, Container, IntrinsicCall, KernelSchedule,
-    Literal, Reference, Assignment, Routine, Schedule)
+    BinaryOperation, CodeBlock, Container, IfBlock, IntrinsicCall,
+    KernelSchedule, Literal, Reference, Assignment, Routine, Schedule)
 from psyclone.psyir import symbols
 from psyclone.tests.utilities import make_external_module
 
@@ -4221,3 +4221,360 @@ def test_equality():
     table2.remove_tag("first")
     table2.add_tag(table2.lookup("arg1"), "different")
     assert table1 != table2
+
+
+def test_remaining_name_tag_and_hierarchy_paths():
+    '''Cover name, tag and hierarchical lookup paths not exercised above.'''
+    inner_table, outer_table = create_hierarchy()
+
+    # An outer table does not check child tags when adding a tag. Therefore a
+    # lookup from the child must discard the duplicate inherited tag.
+    outer_duplicate = symbols.Symbol("outer_duplicate")
+    outer_table.add(outer_duplicate, tag="symbol1_tag")
+    assert inner_table.get_tags()["symbol1_tag"] is inner_table.lookup(
+        "symbol1")
+
+    # Finding the next enclosing table must walk through non-scoping Nodes.
+    ifblock = IfBlock.create(
+        Literal("true", symbols.ScalarType.boolean_type()), [])
+    routine = Routine.create("routine", children=[ifblock])
+    assert (ifblock.if_body.symbol_table.parent_symbol_table() is
+            routine.symbol_table)
+
+    table = symbols.SymbolTable()
+    table.new_symbol("name", interface=symbols.AutomaticInterface())
+    renamed = table.new_symbol(
+        "name", interface=symbols.AutomaticInterface())
+    assert renamed.name == "name_1"
+
+    tagged = symbols.DataSymbol(
+        "tagged", symbols.ScalarType.integer_type())
+    table.add(tagged, tag="tag")
+    assert table.find_or_create_tag(
+        "tag", symbol_type=symbols.DataSymbol) is tagged
+
+    # Reapplying the same association is harmless.
+    table.add_tag(tagged, "tag")
+    with pytest.raises(TypeError, match="symbol to tag must be a Symbol"):
+        table.add_tag("not a symbol", "new_tag")
+    with pytest.raises(KeyError, match="is not a local entry"):
+        table.add_tag(tagged.copy(), "new_tag")
+    with pytest.raises(TypeError, match="tag must be a str"):
+        table.remove_tag(1)
+    with pytest.raises(KeyError, match="is not defined locally"):
+        table.remove_tag("missing")
+
+
+def test_remaining_clash_paths():
+    '''Cover incompatible containers and the remaining intrinsic cases.'''
+    table1 = symbols.SymbolTable()
+    table2 = symbols.SymbolTable()
+    table1.add(symbols.ContainerSymbol("module", is_intrinsic=True))
+    table2.add(symbols.ContainerSymbol("module"))
+    with pytest.raises(symbols.SymbolError, match="incompatible intrinsic"):
+        table1.check_for_clashes(table2)
+
+    # If just one of two unresolved intrinsic names is already specialised,
+    # the other one is specialised too, irrespective of table order.
+    for intrinsic_in_first in (True, False):
+        table1 = symbols.SymbolTable()
+        table2 = symbols.SymbolTable()
+        intrinsic = symbols.IntrinsicSymbol(
+            "random_number", IntrinsicCall.Intrinsic.RANDOM_NUMBER,
+            interface=symbols.UnresolvedInterface())
+        unresolved = symbols.RoutineSymbol(
+            "random_number", interface=symbols.UnresolvedInterface())
+        first, second = ((intrinsic, unresolved) if intrinsic_in_first else
+                         (unresolved, intrinsic))
+        table1.add(first)
+        table2.add(second)
+        table1.check_for_clashes(table2)
+        assert isinstance(first, symbols.IntrinsicSymbol)
+        assert isinstance(second, symbols.IntrinsicSymbol)
+
+    # A resolved local Symbol can be renamed when it clashes with an
+    # unresolved Symbol.
+    table1 = symbols.SymbolTable()
+    table2 = symbols.SymbolTable()
+    table1.add(symbols.Symbol("local"))
+    table2.add(symbols.Symbol(
+        "local", interface=symbols.UnresolvedInterface()))
+    table1.check_for_clashes(table2)
+
+    # An imported Symbol explicitly excluded from the operation is skipped.
+    source = symbols.SymbolTable()
+    container = symbols.ContainerSymbol("source")
+    imported = symbols.Symbol(
+        "imported", interface=symbols.ImportInterface(container))
+    source.add(container)
+    source.add(imported)
+    destination = symbols.SymbolTable()
+    destination._add_container_symbols_from_table(
+        source, symbols_to_skip=[imported])
+    assert imported.interface.container_symbol is container
+
+
+def test_localise_non_imported_dependency():
+    '''A missing local dependency is added without import localisation.'''
+    table = symbols.SymbolTable()
+    bound = symbols.DataSymbol("bound", symbols.ScalarType.integer_type())
+    array_type = symbols.ArrayType(
+        symbols.ScalarType.real_type(), [Reference(bound)])
+    table.add(symbols.DataSymbol("array", array_type))
+
+    table.localise_all_symbol_dependencies()
+
+    assert table.lookup("bound") is bound
+
+
+def test_remaining_merge_paths():
+    '''Cover self-merges and merge validation of tags and dependencies.'''
+    table = symbols.SymbolTable()
+    table.merge(table)
+
+    first = symbols.SymbolTable()
+    second = symbols.SymbolTable()
+    first.add(symbols.Symbol("first"), tag="shared")
+    second.add(symbols.Symbol("second"), tag="shared")
+    with pytest.raises(symbols.SymbolError, match="Cannot merge tag 'shared'"):
+        first.merge(second)
+
+    first = symbols.SymbolTable()
+    second = symbols.SymbolTable()
+    first.add(symbols.ContainerSymbol("module"), tag="old")
+    second.add(symbols.ContainerSymbol("module"), tag="new")
+    with pytest.raises(symbols.SymbolError, match="already associated.*old"):
+        first.merge(second)
+
+    source = symbols.SymbolTable()
+    container = symbols.ContainerSymbol("source")
+    imported = symbols.Symbol(
+        "imported", interface=symbols.ImportInterface(container))
+    source.add(container)
+    source.add(imported)
+    with pytest.raises(symbols.SymbolError, match="Cannot skip ContainerSymbol"):
+        symbols.SymbolTable().merge(source, symbols_to_skip=[container])
+
+    # The same Symbol and tag may occur in both inputs when combining tables
+    # assembled from a common scope.
+    shared_container = symbols.ContainerSymbol("shared_module")
+    first = symbols.SymbolTable()
+    second = symbols.SymbolTable()
+    first.add(shared_container, tag="shared_tag")
+    second.add(shared_container, tag="shared_tag")
+    first.merge(second)
+    assert first.lookup_with_tag("shared_tag") is shared_container
+
+    # A skipped formal argument is excluded from the merged argument list.
+    source = symbols.SymbolTable()
+    argument = symbols.DataSymbol(
+        "argument", symbols.ScalarType.integer_type(),
+        interface=symbols.ArgumentInterface())
+    source.add(argument)
+    source.specify_argument_list([argument])
+    destination = symbols.SymbolTable()
+    destination.merge(source, symbols_to_skip=[argument])
+    assert destination.argument_list == []
+
+
+def test_specify_argument_list_rolls_back_added_symbols():
+    '''A late name clash rolls back symbols added earlier in the operation.'''
+    table = symbols.SymbolTable()
+    existing = symbols.DataSymbol(
+        "existing", symbols.ScalarType.integer_type())
+    table.add(existing)
+    added = symbols.DataSymbol(
+        "added", symbols.ScalarType.integer_type(),
+        interface=symbols.ArgumentInterface())
+    clashing = symbols.DataSymbol(
+        "existing", symbols.ScalarType.integer_type(),
+        interface=symbols.ArgumentInterface())
+
+    with pytest.raises(ValueError, match="different Symbol with that name"):
+        table.specify_argument_list([added, clashing])
+
+    assert "added" not in table
+    assert table.lookup("existing") is existing
+    assert table.argument_list == []
+
+
+def test_remaining_swap_paths():
+    '''Cover swap validation and replacement of a formal argument.'''
+    table = symbols.SymbolTable()
+    original = symbols.Symbol("name")
+    table.add(original)
+    with pytest.raises(KeyError, match="does not contain the supplied"):
+        table.swap(symbols.Symbol("name"), symbols.Symbol("name"))
+
+    missing_container = symbols.ContainerSymbol("missing")
+    imported = symbols.Symbol(
+        "name", interface=symbols.ImportInterface(missing_container))
+    with pytest.raises(symbols.SymbolError, match="not in scope"):
+        table.swap(original, imported)
+
+    table.add(missing_container, tag="unrelated")
+    table.swap(original, imported)
+    assert table.lookup("name") is imported
+
+    table = symbols.SymbolTable()
+    original = symbols.DataSymbol(
+        "arg", symbols.ScalarType.integer_type(),
+        interface=symbols.ArgumentInterface())
+    table.add(original)
+    table.specify_argument_list([original])
+    with pytest.raises(symbols.SymbolError, match="not a formal argument"):
+        table.swap(original, symbols.Symbol("arg"))
+
+    replacement = symbols.DataSymbol(
+        "arg", symbols.ScalarType.real_type(),
+        interface=symbols.ArgumentInterface())
+    table.swap(original, replacement)
+    assert table.argument_list == [replacement]
+
+    # Swapping properties when only the first Symbol is initially an argument
+    # transfers that argument-list position to the second Symbol.
+    other = symbols.DataSymbol("other", symbols.ScalarType.real_type())
+    table.add(other)
+    table.swap_symbol_properties(replacement, other)
+    assert table.argument_list == [other]
+
+
+def test_remove_routine_shadowed_in_parent_scope():
+    '''A distinct same-named RoutineSymbol in an outer scope is not reused.'''
+    outer_table = symbols.SymbolTable()
+    outer_table.add(symbols.RoutineSymbol("routine"))
+    inner_table = symbols.SymbolTable()
+    inner_symbol = symbols.RoutineSymbol("routine")
+    inner_table.add(inner_symbol)
+    routine = Routine.create("inner", symbol_table=inner_table)
+    Container.create("outer", outer_table, [routine])
+
+    inner_table.remove(inner_symbol)
+
+    assert "routine" not in inner_table
+    assert "routine" in outer_table
+
+
+def test_remaining_argument_rollback_paths(monkeypatch):
+    '''Cover rollback both before and after an argument has been added.'''
+    table = symbols.SymbolTable()
+    argument = symbols.DataSymbol(
+        "argument", symbols.ScalarType.integer_type(),
+        interface=symbols.ArgumentInterface())
+
+    def remove_and_fail(_):
+        '''Remove the new entry before simulating a consistency failure.'''
+        table._symbols.pop("argument")
+        raise ValueError("inconsistent")
+
+    monkeypatch.setattr(table, "_validate_non_args", remove_and_fail)
+    with pytest.raises(InternalError, match="inconsistent"):
+        table.insert_argument(0, argument)
+    assert "argument" not in table
+
+    table = symbols.SymbolTable()
+    argument = symbols.DataSymbol(
+        "argument", symbols.ScalarType.integer_type(),
+        interface=symbols.ArgumentInterface())
+    table.add(argument)
+    table.append_argument(argument)
+    assert table.argument_list == [argument]
+
+    # Fail while appending a Symbol that was already a local entry, so there
+    # is no newly-added entry to roll back.
+    table._argument_list = [symbols.DataSymbol(
+        "invalid", symbols.ScalarType.integer_type())]
+    second = symbols.DataSymbol(
+        "second", symbols.ScalarType.integer_type(),
+        interface=symbols.ArgumentInterface())
+    table.add(second)
+    with pytest.raises(InternalError):
+        table.append_argument(second)
+    assert table.lookup("second") is second
+
+
+def test_validate_argument_membership():
+    '''Arguments must be the exact corresponding local Symbol objects.'''
+    table = symbols.SymbolTable()
+    local = symbols.DataSymbol(
+        "argument", symbols.ScalarType.integer_type(),
+        interface=symbols.ArgumentInterface())
+    table.add(local)
+    different = symbols.DataSymbol(
+        "argument", symbols.ScalarType.integer_type(),
+        interface=symbols.ArgumentInterface())
+    with pytest.raises(ValueError, match="not the corresponding local entry"):
+        table._validate_arg_list([different])
+
+
+def test_copy_external_import_container_clashes():
+    '''Reject incompatible entries for an imported Symbol's container.'''
+    external = symbols.ContainerSymbol("module")
+    imported = symbols.DataSymbol(
+        "value", symbols.UnresolvedType(),
+        interface=symbols.ImportInterface(external))
+
+    table = symbols.SymbolTable()
+    table.add(symbols.Symbol("module"))
+    with pytest.raises(KeyError, match="already used by a Symbol"):
+        table.copy_external_import(imported)
+
+    table = symbols.SymbolTable()
+    table.add(symbols.ContainerSymbol("module", is_intrinsic=True))
+    with pytest.raises(KeyError, match="incompatible intrinsic-module"):
+        table.copy_external_import(imported)
+
+
+def test_import_symbols_skips_unresolved_external_symbol():
+    '''An unresolved external Symbol must not be re-exported.'''
+    table = symbols.SymbolTable()
+    container_symbol = symbols.ContainerSymbol("module", wildcard_import=True)
+    table.add(container_symbol)
+    external = Container("module")
+    external.symbol_table.add(symbols.Symbol(
+        "unresolved", interface=symbols.UnresolvedInterface()))
+
+    assert not table._import_symbols_from(container_symbol, external)
+    assert "unresolved" not in table
+
+
+def test_import_symbols_with_non_container_reexport_source():
+    '''A same-named non-Container entry cannot provide import provenance.'''
+    table = symbols.SymbolTable()
+    container_symbol = symbols.ContainerSymbol("module", wildcard_import=True)
+    table.add(container_symbol)
+    table.add(symbols.Symbol("upstream"))
+    local = symbols.Symbol(
+        "value", interface=symbols.UnresolvedInterface())
+    table.add(local)
+
+    external = Container("module")
+    upstream = symbols.ContainerSymbol("upstream")
+    external.symbol_table.add(upstream)
+    external.symbol_table.add(symbols.Symbol(
+        "value", interface=symbols.ImportInterface(upstream)))
+
+    imported = table._import_symbols_from(container_symbol, external)
+
+    assert imported == {local}
+    assert local.interface == symbols.ImportInterface(container_symbol)
+
+
+def test_remaining_display_and_detach_paths(caplog):
+    '''Cover unnamed scopes, detached tables and import logging without one.'''
+    schedule = Schedule()
+    assert "Symbol Table of Schedule" in str(schedule.symbol_table)
+
+    detached_table = symbols.SymbolTable()
+    assert detached_table.detach() is detached_table
+
+    container_symbol = symbols.ContainerSymbol("module", wildcard_import=True)
+    external = Container("module")
+    external.symbol_table.add(symbols.Symbol("value"))
+    container_symbol._reference = external
+    table = schedule.symbol_table
+    table.add(container_symbol)
+    with caplog.at_level(
+            logging.INFO, logger="psyclone.psyir.symbols.symbol_table"):
+        table.resolve_imports()
+    assert "Imported symbols ['value'] from module 'module'" in caplog.text
