@@ -8,7 +8,7 @@
 '''This module provides a meta-transformation that applies colouring and
 then OpenMP parallelisation to the loops in an LFRic routine.'''
 
-from typing import Union
+from typing import Any, Union
 
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.psyGen import Transformation
@@ -31,13 +31,15 @@ class LFRicColourAndOMPTrans(Transformation):
 
     def validate(self, node: Routine,
                  reprod: Union[bool, None] = None, **kwargs):
+        # TODO: #2668: this disable can be removed once the options dict
+        # has been removed from Transformation.validate/apply.
         # pylint: disable=arguments-renamed
         '''
         Validates the input options of the LFRicColourAndOMPTrans.
 
         :param node: the Routine node to transform
         :param reprod: whether to use reproducible form of OpenMP reduction.
-        If none, the default value from the configuration is used.
+            If none, the default value from the configuration is used.
         '''
         self.validate_options(reprod=reprod, **kwargs)
 
@@ -56,7 +58,7 @@ class LFRicColourAndOMPTrans(Transformation):
                 f"the supplied Routine '{node.name}' already contains a "
                 f"ProfileNode.")
 
-    def _colour_loops(self, node: Routine, **colour_kwargs):
+    def _colour_loops(self, node: Routine, **colour_kwargs: Any):
         '''
         Applies colouring to every loop over cell-columns that is on a
         continuous function space.
@@ -75,14 +77,15 @@ class LFRicColourAndOMPTrans(Transformation):
                 ctrans.apply(child, **colour_kwargs)
 
     def _parallelise_loops(self, node: Routine,
-                           reprod: Union[bool, None] = None, **par_kwargs):
+                           reprod: Union[bool, None] = None,
+                           **par_kwargs: Any):
         '''
         Applies OpenMP parallelisation to every loop that is not a loop
         over colours and it not already a directive.
 
         :param node: the Routine whose loops are to be parallelised.
         :param reprod: whether to use reproducible form of OpenMP reduction.
-        If none, the default value from the configuration is used.
+            If none, the default value from the configuration is used.
         :param par_kwargs: keyword arguments for the OMPParallelTrans.
         '''
         otrans = LFRicOMPLoopTrans()
@@ -103,11 +106,13 @@ class LFRicColourAndOMPTrans(Transformation):
             otrans.apply(loop, options=options)
 
     def apply(self, node: Routine, reprod: Union[bool, None] = None, **kwargs):
+        # TODO: #2668: this disable can be removed once the options dict
+        # has been removed from Transformation.validate/apply.
         # pylint: disable=arguments-renamed
         '''
         :param node: the Routine node to transform
         :param reprod: whether to use reproducible form of OpenMP reduction.
-        If none, the default value from the configuration is used.
+            If none, the default value from the configuration is used.
         '''
         local_kwargs, colour_kwargs, par_kwargs, _ = self.split_kwargs(
             reprod=reprod, **kwargs)
