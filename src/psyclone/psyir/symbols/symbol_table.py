@@ -659,22 +659,22 @@ class SymbolTable():
                     f"'{tag}'.")
 
     def add_tag(self, symbol: Symbol, tag: str) -> None:
-        '''Associate an existing, local Symbol with a tag.
+        '''Associate an existing, in-scope Symbol with a local tag.
 
         :param symbol: the Symbol to tag.
         :param tag: the tag to associate with it.
 
         :raises TypeError: if `symbol` is not a Symbol.
-        :raises KeyError: if `symbol` is not a local entry in this table.
+        :raises KeyError: if `symbol` is not in scope at this table.
         '''
         if not isinstance(symbol, Symbol):
             raise TypeError(
                 f"The symbol to tag must be a Symbol but found "
                 f"'{type(symbol).__name__}'.")
-        local_symbol = self._symbols.get(self._normalize(symbol.name))
-        if local_symbol is not symbol:
+        scoped_symbol = self.lookup(symbol.name, otherwise=None)
+        if scoped_symbol is not symbol:
             raise KeyError(
-                f"Symbol '{symbol.name}' is not a local entry in this "
+                f"Symbol '{symbol.name}' is not in scope at this "
                 f"SymbolTable.")
         self._validate_new_tag(tag, symbol)
         self._tags[tag] = symbol
@@ -724,6 +724,11 @@ class SymbolTable():
             raise TypeError(
                 f"check_for_clashes: 'symbols_to_skip' must be an instance of "
                 f"Iterable but got '{type(symbols_to_skip).__name__}'")
+
+        # This argument is queried for every clashing Symbol below. Materialise
+        # it once so generators and other one-shot Iterables behave like
+        # reusable collections.
+        symbols_to_skip = tuple(symbols_to_skip)
 
         if other_table is self:
             return
@@ -1132,7 +1137,7 @@ class SymbolTable():
                  local_match.interface == tagged_symbol.interface) or
                 (local_match.is_unresolved and tagged_symbol.is_unresolved))
             if combines_with_local:
-                for old_tag, old_symbol in self._tags.items():
+                for old_tag, old_symbol in visible_tags.items():
                     if old_symbol is local_match and old_tag != tag:
                         raise SymbolError(
                             f"Cannot merge tag '{tag}' because the matching "
@@ -1263,6 +1268,9 @@ class SymbolTable():
                         f"DataSymbol '{symbol.name}' is listed as a kernel "
                         f"argument but a different Symbol with that name is "
                         f"the local entry in this SymbolTable.")
+            # Validate the other half of the invariant before committing the
+            # new list: every local argument Symbol must be present in it.
+            self._validate_non_args(argument_symbols)
         except (InternalError, KeyError, SymbolError, TypeError, ValueError):
             for symbol in added_symbols:
                 self._symbols.pop(self._normalize(symbol.name), None)
@@ -1956,15 +1964,34 @@ class SymbolTable():
         external_container = imported_var.interface.container_symbol
         external_container_name = external_container.name
 
-        # If the Container is not yet in the SymbolTable we need to
-        # create one and add it.
-        if external_container_name not in self:
+        # Validate any existing local entry for the imported name before
+        # adding its ContainerSymbol. This keeps a failed copy transactional.
+        local_instance = self._symbols.get(
+            self._normalize(imported_var.name))
+        if local_instance is not None and not (
+                local_instance.is_import and
+                self._has_same_name(
+                    local_instance.interface.container_symbol,
+                    external_container_name) and
+                ((local_instance.interface.orig_name or
+                  local_instance.name).lower() ==
+                 (imported_var.interface.orig_name or
+                  imported_var.name).lower())):
+            raise KeyError(
+                f"Couldn't copy '{imported_var}' into the SymbolTable. The"
+                f" name '{imported_var.name}' is already used by another "
+                f"symbol.")
+
+        # Prepare a copy of the Container if it is not yet in scope, but do not
+        # add it until all validation has completed.
+        container_ref = self.lookup(external_container_name, otherwise=None)
+        container_is_new = container_ref is None
+        if container_is_new:
             container_copy = external_container.copy()
             # We are copying a specific import, not the wildcard import state
             # of its original scope.
             container_copy.wildcard_import = False
-            self.add(container_copy)
-        container_ref = self.lookup(external_container_name)
+            container_ref = container_copy
         if not isinstance(container_ref, ContainerSymbol):
             raise KeyError(
                 f"Couldn't copy '{imported_var}' into the SymbolTable because "
@@ -1976,43 +2003,37 @@ class SymbolTable():
                 f"the existing ContainerSymbol '{external_container_name}' "
                 f"has incompatible intrinsic-module information.")
 
-        # Copy the variable into the SymbolTable with the appropriate interface
-        if imported_var.name not in self:
+        if local_instance is None:
+            # Prepare and validate the variable and optional tag before
+            # committing either it or its ContainerSymbol.
             new_symbol = imported_var.copy()
-            # Update the interface of this new symbol
             new_symbol.interface = ImportInterface(
                 container_ref, orig_name=imported_var.interface.orig_name)
-            self.add(new_symbol, tag)
-        else:
-            # If it already exists it must refer to the same Container and have
-            # the same tag.
-            local_instance = self.lookup(imported_var.name)
-            if not (local_instance.is_import and
-                    self._has_same_name(
-                        local_instance.interface.container_symbol,
-                        external_container_name) and
-                    ((local_instance.interface.orig_name or
-                      local_instance.name).lower() ==
-                     (imported_var.interface.orig_name or
-                      imported_var.name).lower())):
-                raise KeyError(
-                    f"Couldn't copy '{imported_var}' into the SymbolTable. The"
-                    f" name '{imported_var.name}' is already used by another "
-                    f"symbol.")
-            if tag:
-                # If the symbol already exists and a tag is provided
-                try:
-                    self.lookup_with_tag(tag)
-                except KeyError:
-                    # If the tag was not used, it will now be attached
-                    # to the symbol.
-                    self.add_tag(local_instance, tag)
+            if tag is not None:
+                self._validate_new_tag(tag, new_symbol)
 
-                # The tag should not refer to a different symbol
-                if self.lookup(imported_var.name) != self.lookup_with_tag(tag):
+            if container_is_new:
+                self.add(container_ref)
+            try:
+                self.add(new_symbol, tag)
+            except (InternalError, KeyError, SymbolError, TypeError,
+                    ValueError):
+                if container_is_new:
+                    self.remove(container_ref)
+                raise
+        else:
+            # The existing entry has already been verified to describe the
+            # same import. Validate a requested tag before changing the table.
+            if tag is not None:
+                tagged_symbol = self.get_tags().get(tag)
+                if (tagged_symbol is not None and
+                        tagged_symbol is not local_instance):
                     raise KeyError(
                         f"Couldn't copy '{imported_var}' into the SymbolTable."
                         f" The tag '{tag}' is already used by another symbol.")
+                self._validate_new_tag(tag, local_instance)
+                if tag not in self.get_tags():
+                    self.add_tag(local_instance, tag)
 
     def _import_symbols_from(self, csymbol: ContainerSymbol,
                              container,
@@ -2579,10 +2600,10 @@ class SymbolTable():
                 [other._normalize(sym.name)
                  for sym in other._argument_list]):
             return False
-        if ([(tag, self._normalize(sym.name))
-             for tag, sym in self._tags.items()] !=
-                [(tag, other._normalize(sym.name))
-                 for tag, sym in other._tags.items()]):
+        if ({tag: self._normalize(sym.name)
+             for tag, sym in self._tags.items()} !=
+                {tag: other._normalize(sym.name)
+                 for tag, sym in other._tags.items()}):
             return False
         if ({name: sym.visibility for name, sym in self._symbols.items()} !=
                 {name: sym.visibility

@@ -4222,6 +4222,19 @@ def test_equality():
     table2.add_tag(table2.lookup("arg1"), "different")
     assert table1 != table2
 
+    # Tag insertion order is not semantically significant.
+    table1 = symbols.SymbolTable()
+    table1.add(symbols.Symbol("first"))
+    table1.add(symbols.Symbol("second"))
+    table1.add_tag(table1.lookup("first"), "first_tag")
+    table1.add_tag(table1.lookup("second"), "second_tag")
+    table2 = symbols.SymbolTable()
+    table2.add(symbols.Symbol("first"))
+    table2.add(symbols.Symbol("second"))
+    table2.add_tag(table2.lookup("second"), "second_tag")
+    table2.add_tag(table2.lookup("first"), "first_tag")
+    assert table1 == table2
+
 
 def test_remaining_name_tag_and_hierarchy_paths():
     '''Cover name, tag and hierarchical lookup paths not exercised above.'''
@@ -4257,7 +4270,7 @@ def test_remaining_name_tag_and_hierarchy_paths():
     table.add_tag(tagged, "tag")
     with pytest.raises(TypeError, match="symbol to tag must be a Symbol"):
         table.add_tag("not a symbol", "new_tag")
-    with pytest.raises(KeyError, match="is not a local entry"):
+    with pytest.raises(KeyError, match="is not in scope"):
         table.add_tag(tagged.copy(), "new_tag")
     with pytest.raises(TypeError, match="tag must be a str"):
         table.remove_tag(1)
@@ -4312,6 +4325,23 @@ def test_remaining_clash_paths():
     destination._add_container_symbols_from_table(
         source, symbols_to_skip=[imported])
     assert imported.interface.container_symbol is container
+
+    # A directly supplied generator must remain reusable for every clash,
+    # regardless of the order in which it yields skipped Symbols.
+    table1 = symbols.SymbolTable()
+    table2 = symbols.SymbolTable()
+    container1 = symbols.ContainerSymbol("first_module")
+    container2 = symbols.ContainerSymbol("second_module")
+    table1.add(container1)
+    table2.add(container2)
+    for name in ("first", "second"):
+        table1.add(symbols.Symbol(
+            name, interface=symbols.ImportInterface(container1)))
+        table2.add(symbols.Symbol(
+            name, interface=symbols.ImportInterface(container2)))
+    skip = (sym for sym in
+            [table2.lookup("second"), table2.lookup("first")])
+    table1.check_for_clashes(table2, symbols_to_skip=skip)
 
 
 def test_localise_non_imported_dependency():
@@ -4377,6 +4407,35 @@ def test_remaining_merge_paths():
     destination.merge(source, symbols_to_skip=[argument])
     assert destination.argument_list == []
 
+    # A tag merged into a nested scope may refer to an equivalent Symbol in
+    # an ancestor. The operation must succeed without duplicating that Symbol.
+    outer = Container.create(
+        "outer", symbols.SymbolTable(), [Routine.create("inner")])
+    destination = outer.children[0].symbol_table
+    ancestor_container = symbols.ContainerSymbol("module")
+    outer.symbol_table.add(ancestor_container)
+    source = symbols.SymbolTable()
+    source.add(symbols.ContainerSymbol(
+        "module", wildcard_import=True), tag="module_tag")
+    destination.merge(source)
+    assert destination.lookup_with_tag("module_tag") is ancestor_container
+    assert destination.symbols == []
+    assert ancestor_container.wildcard_import
+
+    # A conflicting tag must be rejected before wildcard state is propagated
+    # to the equivalent ancestor ContainerSymbol.
+    outer = Container.create(
+        "outer", symbols.SymbolTable(), [Routine.create("inner")])
+    destination = outer.children[0].symbol_table
+    ancestor_container = symbols.ContainerSymbol("module")
+    outer.symbol_table.add(ancestor_container, tag="existing_tag")
+    source = symbols.SymbolTable()
+    source.add(symbols.ContainerSymbol(
+        "module", wildcard_import=True), tag="new_tag")
+    with pytest.raises(symbols.SymbolError, match="already associated"):
+        destination.merge(source)
+    assert not ancestor_container.wildcard_import
+
 
 def test_specify_argument_list_rolls_back_added_symbols():
     '''A late name clash rolls back symbols added earlier in the operation.'''
@@ -4397,6 +4456,16 @@ def test_specify_argument_list_rolls_back_added_symbols():
     assert "added" not in table
     assert table.lookup("existing") is existing
     assert table.argument_list == []
+
+    # Omitting an existing argument must fail without adding the proposed one.
+    existing.interface = symbols.ArgumentInterface()
+    proposed = symbols.DataSymbol(
+        "proposed", symbols.ScalarType.integer_type(),
+        interface=symbols.ArgumentInterface())
+    with pytest.raises(ValueError, match="not listed as a kernel argument"):
+        table.specify_argument_list([proposed])
+    assert "proposed" not in table
+    assert table._argument_list == []
 
 
 def test_remaining_swap_paths():
@@ -4524,6 +4593,14 @@ def test_copy_external_import_container_clashes():
     table.add(symbols.ContainerSymbol("module", is_intrinsic=True))
     with pytest.raises(KeyError, match="incompatible intrinsic-module"):
         table.copy_external_import(imported)
+
+    # A name clash must be detected before the previously absent Container is
+    # added to the table.
+    table = symbols.SymbolTable()
+    table.add(symbols.Symbol("value"))
+    with pytest.raises(KeyError, match="already used by another symbol"):
+        table.copy_external_import(imported)
+    assert "module" not in table
 
 
 def test_import_symbols_skips_unresolved_external_symbol():
