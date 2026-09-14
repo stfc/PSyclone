@@ -14,18 +14,19 @@ better than the intrinsic.
 
 # pylint: disable=too-many-locals
 
-from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
-    Loop, Literal, ArrayReference, Range, Routine, IntrinsicCall
+from psyclone.psyir.nodes import (
+    BinaryOperation, Assignment, Reference, Loop, Literal, ArrayReference,
+    Range, Routine, IntrinsicCall)
 from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
-from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import \
-    Intrinsic2CodeTrans
+from psyclone.psyir.transformations.intrinsics.intrinsic2code_basetrans \
+    import Intrinsic2CodeBaseTrans
 from psyclone.utils import transformation_documentation_wrapper
 
 
 @transformation_documentation_wrapper
-class DotProduct2CodeTrans(Intrinsic2CodeTrans):
+class DotProduct2CodeTrans(Intrinsic2CodeBaseTrans):
     '''Provides a transformation from a PSyIR DOT_PRODUCT Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
     performed.

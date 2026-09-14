@@ -25,7 +25,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, BuiltIn
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
-    colored, Loop, Schedule, Literal, Directive, OMPDoDirective,
+    Loop, Schedule, Literal, Directive, OMPDoDirective,
     ACCEnterDataDirective, Assignment, Reference)
 from psyclone.psyir.symbols import AutomaticInterface, ScalarType, ArrayType
 from psyclone.psyir.transformations import (
@@ -38,6 +38,7 @@ from psyclone.transformations import (
     LFRicColourTrans, LFRicOMPLoopTrans, LFRicOMPParallelLoopTrans,
     LFRicAsyncHaloExchangeTrans, LFRicKernelConstTrans,
     ACCParallelTrans, ACCEnterDataTrans)
+from psyclone.utils import colored
 
 # The version of the API that the tests in this file
 # exercise.
