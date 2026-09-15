@@ -370,6 +370,7 @@ def test_fparser_codeblock_contains_stmt(fortran_reader):
     assert not codeblocks[0]._contains_stmt(Fortran2003.Print_Stmt, only=True)
     # The second CodeBlock only contains a Print Stmt
     assert codeblocks[1]._contains_stmt(Fortran2003.Print_Stmt, only=False)
+    assert codeblocks[1]._contains_stmt(Fortran2003.Print_Stmt, only=True)
 
 
 def test_fparser_codeblock_contains_goto_stmt(fortran_reader):
