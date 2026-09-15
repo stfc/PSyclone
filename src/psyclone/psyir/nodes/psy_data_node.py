@@ -702,6 +702,18 @@ class PSyDataNode(Statement):
         self.detach()
         return self.parent
 
+    def next_accesses(self) -> list[Node]:
+        '''
+        :returns: the combined next_accesses of this nodes' children.
+        '''
+        return super().next_accesses()
+
+    def previous_accesses(self) -> list[Node]:
+        '''
+        :returns: the combined previous_accesses of this nodes' children.
+        '''
+        return super().next_accesses()
+
 
 # For AutoAPI documentation generation
 __all__ = ['PSyDataNode']

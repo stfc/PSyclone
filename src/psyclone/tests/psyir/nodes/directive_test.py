@@ -170,3 +170,11 @@ def test_standalonedirective_children_validation():
         cdir.addchild(schedule)
     assert ("Item 'Schedule' can't be child 0 of 'StandaloneDirective'. The "
             "valid format is: 'Clause*'." in str(excinfo.value))
+
+
+def test_directive_accesses():
+    '''Test that the next_accesses and previous_accesses methods
+    of Directive return an empty list.'''
+    x = nodes.StandaloneDirective()
+    assert x.next_accesses() == []
+    assert x.previous_accesses() == []

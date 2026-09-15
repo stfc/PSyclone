@@ -739,6 +739,22 @@ class HaloExchange(Statement):
                 f"type='{self._halo_type}', depth={self._halo_depth}, "
                 f"check_dirty={self._check_dirty}]")
 
+    def next_accesses(self) -> list[Node]:
+        '''
+        next_accesses on base HaloExchange class returns an empty list.
+
+        :returns: an empty list.
+        '''
+        return []
+
+    def previous_accesses(self) -> list[Node]:
+        '''
+        previous_accesses on base HaloExchange class returns an empty list.
+
+        :returns: an empty list.
+        '''
+        return []
+
 
 class Kern(Statement):
     '''Base class representing a call to a sub-program unit from within the
@@ -1130,6 +1146,22 @@ class Kern(Statement):
         self.initialise_reduction_variable()
 
         return super().lower_to_language_level()
+
+    def next_accesses(self) -> list[Node]:
+        '''
+        next_accesses on base Kern class returns an empty list.
+
+        :returns: an empty list.
+        '''
+        return []
+
+    def previous_accesses(self) -> list[Node]:
+        '''
+        previous_accesses on base Kern class returns an empty list.
+
+        :returns: an empty list.
+        '''
+        return []
 
 
 class CodedKern(Kern):

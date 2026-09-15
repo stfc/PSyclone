@@ -405,11 +405,9 @@ def test_next_accesses(fortran_reader):
     assigns = psyir.walk(Assignment)
 
     reaches = assigns[0].next_accesses()
-    sig = assigns[0].lhs.get_signature_and_indices()[0]
-    assert len(reaches) == 1
-    assert len(reaches[sig]) == 2
-    assert reaches[sig][0] is assigns[1].rhs.children[0]
-    assert reaches[sig][1] is assigns[1].lhs
+    assert len(reaches) == 2
+    assert reaches[0] is assigns[1].rhs.children[0]
+    assert reaches[1] is assigns[1].lhs
 
     # Next test multiple References to different symbols in the
     # Assignment
@@ -424,14 +422,10 @@ def test_next_accesses(fortran_reader):
     )
     assigns = psyir.walk(Assignment)
     reaches = assigns[0].next_accesses()
-    a_sig = assigns[0].lhs.get_signature_and_indices()[0]
-    b_sig = assigns[0].rhs.get_signature_and_indices()[0]
-    assert len(reaches) == 2
-    assert len(reaches[a_sig]) == 2
-    assert reaches[a_sig][0] is assigns[1].rhs.children[0]
-    assert reaches[a_sig][1] is assigns[1].lhs
-    assert len(reaches[b_sig]) == 1
-    assert reaches[b_sig][0] is assigns[2].lhs
+    assert len(reaches) == 3
+    assert reaches[0] is assigns[1].rhs.children[0]
+    assert reaches[1] is assigns[1].lhs
+    assert reaches[2] is assigns[2].lhs
 
     # Test References inside an inquiry function are ignored
     psyir = fortran_reader.psyir_from_source(
@@ -445,11 +439,7 @@ def test_next_accesses(fortran_reader):
     )
     assigns = psyir.walk(Assignment)
     reaches = assigns[0].next_accesses()
-    a_sig = assigns[0].lhs.get_signature_and_indices()[0]
-    b_sig = assigns[0].rhs.children[0].get_signature_and_indices()[0]
-    assert len(reaches) == 2
-    assert len(reaches[a_sig]) == 0
-    assert len(reaches[b_sig]) == 0
+    assert len(reaches) == 0
 
 
 def test_previous_accesses(fortran_reader):
@@ -466,10 +456,8 @@ def test_previous_accesses(fortran_reader):
     assigns = psyir.walk(Assignment)
 
     reaches = assigns[1].previous_accesses()
-    sig = assigns[0].lhs.get_signature_and_indices()[0]
     assert len(reaches) == 1
-    assert len(reaches[sig]) == 1
-    assert reaches[sig][0] is assigns[0].lhs
+    assert reaches[0] is assigns[0].lhs
 
     # Next test multiple References to different symbols in the
     # Assignment
@@ -484,13 +472,9 @@ def test_previous_accesses(fortran_reader):
     )
     assigns = psyir.walk(Assignment)
     reaches = assigns[2].previous_accesses()
-    a_sig = assigns[2].lhs.get_signature_and_indices()[0]
-    b_sig = assigns[2].rhs.get_signature_and_indices()[0]
     assert len(reaches) == 2
-    assert len(reaches[a_sig]) == 1
-    assert reaches[a_sig][0] is assigns[1].lhs
-    assert len(reaches[b_sig]) == 1
-    assert reaches[b_sig][0] is assigns[0].lhs
+    assert reaches[0] is assigns[1].lhs
+    assert reaches[1] is assigns[0].lhs
 
     # Test References inside an inquiry function are ignored
     psyir = fortran_reader.psyir_from_source(
@@ -504,8 +488,4 @@ def test_previous_accesses(fortran_reader):
     )
     assigns = psyir.walk(Assignment)
     reaches = assigns[1].previous_accesses()
-    a_sig = assigns[1].lhs.get_signature_and_indices()[0]
-    b_sig = assigns[1].rhs.children[0].get_signature_and_indices()[0]
-    assert len(reaches) == 2
-    assert len(reaches[a_sig]) == 0
-    assert len(reaches[b_sig]) == 0
+    assert len(reaches) == 0
