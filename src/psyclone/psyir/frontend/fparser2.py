@@ -5420,7 +5420,7 @@ class Fparser2Reader():
         return zero_oprnd.detach()
 
     def _intrinsic_handler(self,
-                           node: Fortran2003.Intrinsic_Fucntion_Reference,
+                           node: Fortran2003.Intrinsic_Function_Reference,
                            parent: Node) -> IntrinsicCall:
         '''Transforms an fparser2 Intrinsic_Function_Reference to the PSyIR
         representation.
@@ -5442,6 +5442,8 @@ class Fparser2Reader():
             )
             if (existing_symbol is not None and
                     isinstance(existing_symbol, RoutineSymbol)):
+                # _call_handler can't handle the intrinsic node as
+                # an input, so we have to create it here instead.
                 call = Call(parent=parent)
                 call.addchild(Reference(existing_symbol))
                 call = self._process_args(node, call, False)
