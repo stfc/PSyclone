@@ -388,7 +388,7 @@ def _find_or_create_psyclone_internal_cmp(node):
             container.symbol_table.add(symbol)
             symbol = container.symbol_table.lookup(name_interface)
             # Add the appropriate tag to find it regardless of the name
-            container.symbol_table.tags_dict['psyclone_internal_cmp'] = symbol
+            container.symbol_table.add_tag(symbol, 'psyclone_internal_cmp')
             return symbol
 
     raise NotImplementedError(
