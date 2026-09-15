@@ -584,4 +584,5 @@ class TreeSitterCodeBlock(CodeBlock):
         raise NotImplementedError("Treesitter support is incomplete.")
 
 
+# For AutoAPI documentation generation.
 __all__ = ["CodeBlock", "Fparser2CodeBlock", "TreeSitterCodeBlock"]
