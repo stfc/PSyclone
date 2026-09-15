@@ -116,6 +116,7 @@ with ``GH_SCALAR`` metadata. Scalar arguments can have ``real``,
 ``integer`` or ``logical`` data type in :ref:`user-defined Kernels
 <lfric-kernel-valid-data-type>` (``logical`` data type is not supported
 in the :ref:`LFRic Built-ins <lfric-built-ins-dtype-access>`).
+See example ``examples/lfric/eg1``.
 
 .. _lfric-array:
 
@@ -127,6 +128,7 @@ least rank (number of dimensions) one. Scalar arrays are identified with
 ``GH_SCALAR_ARRAY`` metadata. As with scalars, array arguments can have
 ``real``, ``integer`` or ``logical`` data type in
 :ref:`user-defined Kernels <lfric-kernel-valid-data-type>`.
+See example ``examples/lfric/eg1``.
 
 .. _lfric-field:
 
@@ -1242,8 +1244,9 @@ has. More details about the supported function spaces are in subsection
 For example, the metadata for a kernel that applies a column-wise
 operator to a field might look like::
 
-  type(arg_type) :: meta_args(3) = (/                              &
+  type(arg_type) :: meta_args(4) = (/                              &
        arg_type(GH_FIELD, GH_REAL, GH_INC, W1),                    &
+       arg_type(GH_SCALAR_ARRAY, GH_INTEGER, GH_READ, 5),          &
        arg_type(GH_FIELD, GH_REAL, GH_READ, W2H),                  &
        arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, W1, W2H) &
        /)
