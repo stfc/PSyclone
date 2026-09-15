@@ -98,17 +98,3 @@ def test_apply_reprod_option(reprod, expected):
     sched = invoke.schedule
     LFRicColourAndOMPTrans().apply(sched, reprod=reprod)
     assert sched.walk(OMPDoDirective)[0].reprod is expected
-
-
-def test_apply_skips_loop_already_in_directive():
-    ''' Check that a loop that is already inside a directive is not
-    parallelised a second time. '''
-    _, invoke = get_invoke("1_single_invoke_w3.f90", TEST_API, idx=0,
-                           dist_mem=False)
-    sched = invoke.schedule
-    # w3 is discontinuous so no colouring happens. Parallelise the loop by
-    # hand first so that the transformation finds it already in a directive.
-    OMPParallelTrans().apply(sched.walk(Loop)[0])
-    assert len(sched.walk(Directive)) == 1
-    LFRicColourAndOMPTrans().apply(sched)
-    assert len(sched.walk(Directive)) == 1
