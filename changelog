@@ -1,3 +1,8 @@
+   52) PR #3574 for #3568. Removes references to fparser from the DUC
+   implementation (by extending the query functionality on CodeBlock).
+ 
+   51) PR #3520 for #1312. Fix psy-layer generation for LFRic scalar arrays.
+
    50) Adds ArrayIntrinsic2LoopTrans and Intrinsic2CodeTrans
    metatransformations. 
 
