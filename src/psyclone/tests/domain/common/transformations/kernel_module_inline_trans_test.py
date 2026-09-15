@@ -13,7 +13,6 @@ import re
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import CodedKern, Kern
@@ -829,7 +828,8 @@ def test_module_inline_lfric_kern_local_call(tmp_path, annexed, dist_mem):
     inline_trans = KernelModuleInlineTrans()
     inline_trans.apply(kern_call)
     gen = str(psy.gen)
-    assert 0
+    assert "subroutine kern_with_local_call_code_inlined_" in gen
+    assert "subroutine a_local_routine_inlined_" in gen
 
 
 @pytest.mark.parametrize("do_all", [True, False])
