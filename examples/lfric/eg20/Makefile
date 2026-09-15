@@ -7,13 +7,17 @@
 
 include ../lfric_common.mk
 
-GENERATED_FILES = test_alg_mod_psy.f90 testkern_mod.F90 test_alg_mod.[fx]90
+GENERATED_FILES = test_alg_mod_psy.f90 testkern_mod.F90 test_alg_mod.[fx]90 *.o *.mod
+
+OBJECTS = testkern_mod.o test_alg_mod_psy.o test_alg_mod.o driver.o
 
 run: compile
+	@echo "The compiled code for lfric/eg20 is not executable."
 
-compile: transform ${LFRIC_LIB}
-	@echo "#1770 Compilation is not supported: the generated code must be "
-	@echo "inserted into an LFRic mini-app."
+# Although we compile and link, the resulting binary will not execute (because the
+# driver does not do the necessary setup).
+compile: transform ${LFRIC_LIB} ${OBJECTS}
+	$(F90) $(F90FLAGS) -o will_not_run.exe ${OBJECTS} ${LDFLAGS}
 
 # Dependencies
 %.F90:
@@ -36,3 +40,9 @@ test_alg_mod_psy.f90 test_alg_mod.f90: test_alg_mod.x90
 
 allclean: clean
 	make -C $(LFRIC_PATH) allclean
+
+%.o: %.F90
+	$(F90) $(F90FLAGS) -c $<
+
+%.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
