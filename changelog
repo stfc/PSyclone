@@ -1,3 +1,5 @@
+   51) PR #3520 for #1312. Fix psy-layer generation for LFRic scalar arrays.
+
    50) Adds ArrayIntrinsic2LoopTrans and Intrinsic2CodeTrans
    metatransformations. 
 
