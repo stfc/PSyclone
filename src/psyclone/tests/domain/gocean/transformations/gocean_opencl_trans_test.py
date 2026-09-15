@@ -677,6 +677,7 @@ def test_psy_init_multiple_devices_per_node(kernel_outputdir, monkeypatch):
 def test_psy_init_with_options(kernel_outputdir):
     ''' Check that we create a psy_init() routine that sets-up the
     OpenCL environment with the provided non-default options. '''
+    # TODO 2668: Remove test when options dict removed.
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     # Currently, moving the boundaries inside the kernel is a prerequisite
@@ -692,6 +693,30 @@ def test_psy_init_with_options(kernel_outputdir):
     otrans = GOOpenCLTrans()
     otrans.apply(sched, options={"enable_profiling": True,
                                  "out_of_order": True})
+    generated_code = str(psy.gen)
+    assert "call ocl_env_init(5, ocl_device_num, .true., .true.)\n" \
+        in generated_code
+    assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
+
+
+def test_psy_init_with_kwargs_options(kernel_outputdir):
+    ''' Check that we create a psy_init() routine that sets-up the
+    OpenCL environment with the provided non-default options. '''
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    # Currently, moving the boundaries inside the kernel is a prerequisite
+    # for the GOcean gen_ocl() code generation.
+    trans = GOMoveIterationBoundariesInsideKernelTrans()
+    mod_inline_trans = KernelModuleInlineTrans()
+    for kernel in sched.coded_kernels():
+        mod_inline_trans.apply(kernel)
+        trans.apply(kernel)
+
+    # Use non-default kernel and transformation options
+    sched.coded_kernels()[0].set_opencl_options({'queue_number': 5})
+    otrans = GOOpenCLTrans()
+    otrans.apply(sched, enable_profiling=True,
+                 out_of_order=True)
     generated_code = str(psy.gen)
     assert "call ocl_env_init(5, ocl_device_num, .true., .true.)\n" \
         in generated_code
@@ -963,7 +988,7 @@ def test_opencl_options_effects():
     otrans = GOOpenCLTrans()
 
     # Remove barrier at the end of the Invoke
-    otrans.apply(sched, options={'end_barrier': False})
+    otrans.apply(sched, end_barrier=False)
     generated_code = str(psy.gen)
     assert "! Block until all kernels have finished" not in generated_code
     assert "ierr = clFinish(cmd_queues(1))" not in generated_code
@@ -1230,7 +1255,7 @@ def test_opencl_kernel_missing_boundary_symbol(monkeypatch):
 
     otrans = GOOpenCLTrans()
     # We skip validation as in this test we purposefully want to have the issue
-    monkeypatch.setattr(otrans, "validate", lambda x, y: None)
+    monkeypatch.setattr(otrans, "validate", lambda x, **kwargs: None)
     with pytest.raises(GenerationError) as err:
         otrans.apply(sched)
     assert ("Boundary symbol tag 'xstop_compute_cu_code' not found while "

@@ -13,27 +13,30 @@ invoke calls which uses specialised classes.
 from psyclone.domain.common.transformations import RaisePSyIR2AlgTrans
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicBuiltinFunctorFactory, LFRicKernelFunctor, LFRicAlgorithmInvokeCall)
+from psyclone.psyir.nodes import Call
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class RaisePSyIR2LFRicAlgTrans(RaisePSyIR2AlgTrans):
     '''Transform a generic PSyIR representation of an Algorithm-layer
     invoke call to an LFRic version with specialised domain-specific
     nodes.
 
     '''
-    def apply(self, call, index, options=None):
+    def apply(self, call: Call, index: int, options=None, **kwargs) -> None:
         ''' Apply the transformation to the supplied node.
 
-        :param call: a PSyIR call node capturing an invoke call in \
+        :param call: a PSyIR call node capturing an invoke call in
             generic PSyIR.
         :type call: :py:class:`psyclone.psyir.nodes.Call`
-        :param int index: the position of this invoke call relative to \
+        :param int index: the position of this invoke call relative to
             other invokes in the algorithm layer.
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(call, options=options)
+        self.validate(call, options=options, **kwargs)
 
         call_name = None
         calls = []
