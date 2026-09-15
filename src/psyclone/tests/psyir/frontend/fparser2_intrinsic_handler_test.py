@@ -358,8 +358,10 @@ def test_handling_imported_shadowed_function(tmp_path, monkeypatch):
     monkeypatch.setattr(Config.get(), "_include_paths", [tmp_path])
 
     psyir = fortran_reader.psyir_from_source(code)
-    # abs is imported from mod_a so we get a Call instead of an
+    # real is imported from mod_a so we get a Call instead of an
     # IntrinsicCall
     assert len(psyir.walk(IntrinsicCall)) == 0
     test = psyir.walk(Routine)[0]
     assert type(test.children[0].rhs) is Call
+    assert isinstance(test.children[0].rhs.children[0].symbol, RoutineSymbol)
+    assert test.children[0].rhs.children[0].symbol.name == "real"
