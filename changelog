@@ -1,3 +1,7 @@
+   53) PR #3599 for #3596 and #3195. Updates the fparser2 frontend to
+   create a Call rather than an IntrinsicCall when an imported Symbol
+   shadows an Intrinsic.
+ 
    52) PR #3574 for #3568. Removes references to fparser from the DUC
    implementation (by extending the query functionality on CodeBlock).
  
