@@ -7,7 +7,8 @@
 
 include ../lfric_common.mk
 
-GENERATED_FILES = test_alg_mod_psy.f90 testkern_mod.F90 test_alg_mod.[fx]90 *.o *.mod
+GENERATED_FILES = test_alg_mod_psy.f90 testkern_mod.F90 test_alg_mod.[fx]90 \
+    *.o *.mod *.exe
 
 OBJECTS = testkern_mod.o test_alg_mod_psy.o test_alg_mod.o driver.o
 
