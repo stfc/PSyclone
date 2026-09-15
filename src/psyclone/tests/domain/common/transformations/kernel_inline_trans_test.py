@@ -35,8 +35,8 @@ def _add_lfric_kernel_body(kern: CodedKern, use_map: bool = False,
     TODO #3602: Test LFRic kernels should use qualified imports.
 
     :param kern: the module-inlined LFRic kernel.
-    :param bool use_map: whether to index the output field using its dofmap.
-    :param int statement_count: number of assignments to add.
+    :param use_map: whether to index the output field using its dofmap.
+    :param statement_count: number of assignments to add.
 
     """
     routine = kern.get_callees()[0]
@@ -152,7 +152,7 @@ def test_kernel_inline_trans_lfric_colouring(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_kernel_inline_trans_gocean(capsys, tmpdir):
+def test_kernel_inline_trans_gocean(capsys, tmp_path):
     """The deferred transformation is generic across CodedKern APIs."""
     psy, invoke = get_invoke("single_invoke.f90", "gocean",
                              idx=0, dist_mem=False)
@@ -169,7 +169,7 @@ def test_kernel_inline_trans_gocean(capsys, tmpdir):
         cu_fld%data(i,j) = 0.5d0 * (p_fld%data(i + 1,j) + """ in code
     assert capsys.readouterr().out == (
         "Deferred-Inline successful for kernel 'compute_cu_code_inlined_'\n")
-    assert GOceanBuild(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmp_path).code_compiles(psy)
 
 
 def test_kernel_inline_trans_empty_body_does_not_skip_sibling():
@@ -177,7 +177,7 @@ def test_kernel_inline_trans_empty_body_does_not_skip_sibling():
     _, invoke = get_invoke("4.2_multikernel_invokes.f90", "lfric",
                            idx=0, dist_mem=False)
     schedule = invoke.schedule
-    # This has two lfric loops with to kernels, fuse them in the first loop
+    # This has two lfric loops with two kernels, fuse them in the first loop
     # manually (no validation)
     second_loop = schedule.children[1].detach()
     second_kernel = second_loop.loop_body[0].detach()

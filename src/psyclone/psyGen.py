@@ -1312,8 +1312,8 @@ class CodedKern(Kern):
         PSyIR constructs. The CodedKern is implemented as a Call to a
         routine with the appropriate arguments. If the CodedKern has the
         'inline' flag set, it signifies that a deferred InlineTrans for this
-        kernel was requested. It will be applied it here after converting the
-        kernel to a Call.
+        kernel was requested. It will be applied to it here after converting
+        the kernel into a Call.
 
         :returns: the lowered Call, the first statement inserted by inlining,
             or ``None`` if an empty kernel routine is inlined.
