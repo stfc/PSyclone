@@ -18,6 +18,7 @@ from psyclone.psyir.nodes import (
     Node, Reference)
 from psyclone.psyir.symbols import ImportInterface, ScalarType
 from psyclone.psyir.transformations import TransformationError
+from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import LFRicColourTrans
@@ -151,7 +152,7 @@ def test_kernel_inline_trans_lfric_colouring(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_kernel_inline_trans_gocean(capsys):
+def test_kernel_inline_trans_gocean(capsys, tmpdir):
     """The deferred transformation is generic across CodedKern APIs."""
     psy, invoke = get_invoke("single_invoke.f90", "gocean",
                              idx=0, dist_mem=False)
@@ -168,6 +169,7 @@ def test_kernel_inline_trans_gocean(capsys):
         cu_fld%data(i,j) = 0.5d0 * (p_fld%data(i + 1,j) + """ in code
     assert capsys.readouterr().out == (
         "Deferred-Inline successful for kernel 'compute_cu_code_inlined_'\n")
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_kernel_inline_trans_empty_body_does_not_skip_sibling():

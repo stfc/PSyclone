@@ -235,6 +235,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         # and shared symbols, the ones inside the callee are definitely
         # private
         dsharing_region = node.ancestor(DataSharingAttributeMixin)
+        current_private_clause = None
         if dsharing_region is not None:
             for child in dsharing_region.children:
                 if isinstance(child, OMPPrivateClause):
