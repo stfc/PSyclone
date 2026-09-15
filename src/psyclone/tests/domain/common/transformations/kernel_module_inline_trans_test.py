@@ -796,14 +796,11 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     assert "use external_mod, only : a" in result
 
 
-def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
+def test_module_inline_lfric(tmpdir, annexed, dist_mem):
     '''Tests that correct results are obtained when a kernel is inlined
     into the psy-layer in the LFRic API.
 
     '''
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke("4.6_multikernel_invokes.f90", "lfric",
                              name="invoke_0", dist_mem=dist_mem)
     kern_call = invoke.schedule.walk(CodedKern)[0]
@@ -821,6 +818,18 @@ def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
     assert "omp declare target" in gen
     # And it is valid code
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_module_inline_lfric_kern_local_call(tmp_path, annexed, dist_mem):
+    '''
+    '''
+    psy, invoke = get_invoke("1.15.1_invoke_kern_with_local_call.f90", "lfric",
+                             dist_mem=dist_mem, idx=0)
+    kern_call = invoke.schedule.walk(CodedKern)[0]
+    inline_trans = KernelModuleInlineTrans()
+    inline_trans.apply(kern_call)
+    gen = str(psy.gen)
+    assert 0
 
 
 @pytest.mark.parametrize("do_all", [True, False])
