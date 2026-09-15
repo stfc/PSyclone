@@ -10,12 +10,12 @@
 import os
 import pytest
 from psyclone.psyir.nodes import Schedule, Assignment, Range
-from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.algorithm import parse
 from psyclone.errors import GenerationError
 from psyclone.tests.test_files.dummy_statement import DummyStatement
+from psyclone.utils import colored
 
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
