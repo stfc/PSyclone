@@ -11,7 +11,7 @@ import pytest
 
 from psyclone.domain.lfric.transformations import LFRicColourAndOMPTrans
 from psyclone.psyir.nodes import Directive, Loop, OMPDoDirective
-from psyclone.psyir.transformations import (OMPParallelTrans, ProfileTrans,
+from psyclone.psyir.transformations import (ProfileTrans,
                                             TransformationError)
 from psyclone.tests.utilities import get_invoke
 
