@@ -4026,29 +4026,37 @@ def test_resolve_imports_targeted_rename_and_generator(fortran_reader):
     assert target.interface.orig_name == "remote_name"
 
 
-def test_resolve_imports_rejects_ambiguous_wildcards():
-    '''Two wildcard imports defining the same local name must not combine the
-    provenance of one Symbol with the properties of the other.'''
-    table = symbols.SymbolTable()
-    first_csym = symbols.ContainerSymbol("first", wildcard_import=True)
-    second_csym = symbols.ContainerSymbol("second", wildcard_import=True)
-    table.add(first_csym)
-    table.add(second_csym)
+def test_resolve_imports_accepts_multiple_provenances(fortran_reader):
+    '''A Fortran Symbol can be use-associated through multiple paths.'''
+    psyir = fortran_reader.psyir_from_source('''
+        module dep1
+          integer :: a
+        end module dep1
 
-    first = Container("first")
-    first.symbol_table.add(symbols.DataSymbol(
-        "value", symbols.ScalarType.integer_type()))
-    second = Container("second")
-    second.symbol_table.add(symbols.DataSymbol(
-        "value", symbols.ScalarType.real_type()))
+        module dep2
+          use dep1
+          integer :: b
+        end module dep2
 
-    table._import_symbols_from(first_csym, first)
-    with pytest.raises(symbols.SymbolError, match="also resolves to"):
-        table._import_symbols_from(second_csym, second)
+        module test
+          use dep2, only : a
+          use dep2
+          use dep1
+        end module test
+        ''')
+    test_container = next(container for container in psyir.children
+                          if container.name == "test")
+    table = test_container.symbol_table
 
-    value = table.lookup("value")
-    assert value.interface.container_symbol is first_csym
-    assert value.datatype == symbols.ScalarType.integer_type()
+    # 'a' comes from the test use statements 1 and 2
+    # 'b' comes from the test use statements 2 and 3
+    # but only one of each will be recorded, it doesn't matter which one
+    dep1 = table.lookup("dep1")
+    dep2 = table.lookup("dep2")
+    assert dep1.wildcard_import
+    assert dep2.wildcard_import
+    assert table.lookup("a").interface.container_symbol is dep2
+    assert table.lookup("b").interface.container_symbol is dep2
 
 
 def test_resolve_imports_preserves_sibling_shadowing(fortran_reader):
@@ -4577,7 +4585,7 @@ def test_validate_argument_membership():
         table._validate_arg_list([different])
 
 
-def test_copy_external_import_container_clashes():
+def test_copy_external_import_container_clashes(monkeypatch):
     '''Reject incompatible entries for an imported Symbol's container.'''
     external = symbols.ContainerSymbol("module")
     imported = symbols.DataSymbol(
@@ -4601,6 +4609,23 @@ def test_copy_external_import_container_clashes():
     with pytest.raises(KeyError, match="already used by another symbol"):
         table.copy_external_import(imported)
     assert "module" not in table
+
+    # If adding the imported Symbol fails after its previously absent
+    # ContainerSymbol has been added, that ContainerSymbol is rolled back.
+    table = symbols.SymbolTable()
+    original_add = table.add
+
+    def fail_adding_imported_symbol(symbol, tag=None):
+        '''Simulate an add failure after the ContainerSymbol is in scope.'''
+        if isinstance(symbol, symbols.DataSymbol):
+            raise symbols.SymbolError("simulated add failure")
+        original_add(symbol, tag)
+
+    monkeypatch.setattr(table, "add", fail_adding_imported_symbol)
+    with pytest.raises(symbols.SymbolError, match="simulated add failure"):
+        table.copy_external_import(imported)
+    assert "module" not in table
+    assert "value" not in table
 
 
 def test_import_symbols_skips_unresolved_external_symbol():

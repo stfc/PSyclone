@@ -2128,37 +2128,14 @@ class SymbolTable():
                 local_sym = self.lookup(local_name)
                 interface = local_sym.interface
 
-                expected = ImportInterface(csymbol, orig_name=orig_name)
-                source_interface = expected
-                if imported_sym.is_import:
-                    # The external Container may itself re-export this Symbol.
-                    # If its original Container is also directly in scope here,
-                    # use that as the canonical provenance. This distinguishes
-                    # a genuine ambiguity from two paths to the same Symbol.
-                    source_csym = self.lookup(
-                        imported_sym.interface.container_symbol.name,
-                        otherwise=None)
-                    if isinstance(source_csym, ContainerSymbol):
-                        source_interface = ImportInterface(
-                            source_csym,
-                            orig_name=imported_sym.interface.orig_name)
-
-                # Found a match, update the interface if necessary or raise
-                # an error if it is an ambiguous match
                 if isinstance(interface, UnresolvedInterface):
                     # Now we know where the symbol is coming from
-                    local_sym.interface = source_interface
+                    local_sym.interface = ImportInterface(
+                        csymbol, orig_name=orig_name)
                 elif isinstance(interface, ImportInterface):
-                    # It is only safe to refine an existing import if this
-                    # definition has exactly the same provenance. Otherwise
-                    # two wildcard imports can silently create a Symbol whose
-                    # interface names one Container but whose properties came
-                    # from another.
-                    if interface not in (expected, source_interface):
-                        raise SymbolError(
-                            f"Symbol '{local_sym.name}' is imported via "
-                            f"'{interface}' but also resolves to "
-                            f"'{expected}'.")
+                    # Fortran permits a Symbol to be use-associated through
+                    # more than one path. ImportInterface records the first one
+                    pass
                 else:
                     raise SymbolError(
                         f"Found a name clash with symbol '{imported_sym.name}'"
