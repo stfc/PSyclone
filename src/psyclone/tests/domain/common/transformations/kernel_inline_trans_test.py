@@ -23,12 +23,15 @@ from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import LFRicColourTrans
 
 
-def _add_lfric_kernel_body(kern, use_map=False, statement_count=1):
+def _add_lfric_kernel_body(kern: CodedKern, use_map: bool = False,
+                           statement_count: int = 1):
     """Add a simple executable body to an otherwise empty test kernel.
 
     The test kernel source uses wildcard imports for the LFRic kind symbols.
     Make these imports explicit so that InlineTrans can prove that the body
     has no unresolved outer-scope accesses.
+
+    TODO #3602: Test LFRic kernels should use qualified imports.
 
     :param kern: the module-inlined LFRic kernel.
     :param bool use_map: whether to index the output field using its dofmap.
@@ -172,7 +175,7 @@ def test_kernel_inline_trans_empty_body_does_not_skip_sibling():
     _, invoke = get_invoke("4.2_multikernel_invokes.f90", "lfric",
                            idx=0, dist_mem=False)
     schedule = invoke.schedule
-    # This has to lfric loops with to kernels, fuse them in the first loop
+    # This has two lfric loops with to kernels, fuse them in the first loop
     # manually (no validation)
     second_loop = schedule.children[1].detach()
     second_kernel = second_loop.loop_body[0].detach()

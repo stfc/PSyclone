@@ -14,6 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import inspect
 import os
+import sys
 from collections import OrderedDict
 import abc
 from typing import Any, Dict, Optional, Union
@@ -1309,7 +1310,10 @@ class CodedKern(Kern):
         '''
         In-place replacement of CodedKern concept into language level
         PSyIR constructs. The CodedKern is implemented as a Call to a
-        routine with the appropriate arguments.
+        routine with the appropriate arguments. If the CodedKern has the
+        'inline' flag set, it signifies that a deferred InlineTrans for this
+        kernel was requested. It will be applied it here after converting the
+        kernel to a Call.
 
         :returns: the lowered Call, the first statement inserted by inlining,
             or ``None`` if an empty kernel routine is inlined.
@@ -1365,12 +1369,12 @@ class CodedKern(Kern):
                 # want to count this errors in our gpu offloading report.
                 message = (f"Deferred-Inline failed for kernel '{self.name}' "
                            f"due to: {err.value}")
-                print(message)
+                print(message, file=sys.stdout)
                 call_node.append_preceding_comment(message)
                 return call_node
 
             message = f"Deferred-Inline successful for kernel '{self.name}'"
-            print(message)
+            print(message, file=sys.stdout)
 
             if inlined_node:
                 inlined_node.append_preceding_comment(message)

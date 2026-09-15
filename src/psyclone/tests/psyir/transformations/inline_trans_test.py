@@ -133,6 +133,7 @@ def test_apply_in_omp_parallel_region(fortran_reader):
     """Test that automatic callee variables are made OpenMP private."""
     psyir = fortran_reader.psyir_from_source(
         """module test_mod
+                integer :: global_var = 1
             contains
               subroutine caller()
                 integer :: value
@@ -141,6 +142,7 @@ def test_apply_in_omp_parallel_region(fortran_reader):
               subroutine callee(value)
                 integer, intent(out) :: value
                 integer :: work
+                global_var = 2
                 work = 1
                 value = work
               end subroutine callee

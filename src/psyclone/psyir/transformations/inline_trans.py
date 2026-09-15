@@ -201,7 +201,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         for child in routine.pop_all_children():
             if isinstance(child, (OMPDeclareTargetDirective,
                                   ACCRoutineDirective)):
-                # Skip directives that apply to the routine, as this do not
+                # Skip directives that apply to the routine, as these do not
                 # propagate to the caller routine.
                 continue
             new_stmts.append(child)
@@ -232,7 +232,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             )
 
         # If this is inside a region that differentiates between private
-        # and shared symbols, the ones inside the callee are definetely
+        # and shared symbols, the ones inside the callee are definitely
         # private
         dsharing_region = node.ancestor(DataSharingAttributeMixin)
         if dsharing_region is not None:

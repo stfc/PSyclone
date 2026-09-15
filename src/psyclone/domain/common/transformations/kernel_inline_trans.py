@@ -7,8 +7,6 @@
 
 """This module provides the KernelInlineTrans transformation."""
 
-from typing import Any, Optional
-
 from psyclone.psyGen import CodedKern, Transformation
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
@@ -35,7 +33,6 @@ class KernelInlineTrans(Transformation):
 
     def validate(self,
                  node: CodedKern,
-                 options: Optional[dict[str, Any]] = None,
                  **kwargs) -> None:
         """Validate that the supplied kernel may be marked for inlining.
 
@@ -43,17 +40,12 @@ class KernelInlineTrans(Transformation):
         deferred until the complete language-level Call is constructed.
 
         :param node: the kernel to mark for inlining.
-        :param options: a deprecated dictionary of transformation options.
 
         :raises TransformationError: if ``node`` is not a CodedKern.
-        :raises TransformationError: if the kernel PSyIR cannot be found.
-        :raises TransformationError: if the kernel is polymorphic.
-        :raises TransformationError: if the kernel implementation is not in
-            the same Container as the call site.
 
         """
-        if not options:
-            self.validate_options(**kwargs)
+        super().validate(node, **kwargs)
+        self.validate_options(**kwargs)
 
         if not isinstance(node, CodedKern):
             raise TransformationError(
@@ -62,18 +54,16 @@ class KernelInlineTrans(Transformation):
 
     def apply(self,
               node: CodedKern,
-              options: Optional[dict[str, Any]] = None,
               **kwargs) -> None:
         """Mark the supplied kernel to be inlined when it is lowered.
 
         :param node: the kernel to mark for inlining.
-        :param options: a deprecated dictionary of transformation options.
 
         """
-        self.validate(node, options=options, **kwargs)
+        self.validate(node, **kwargs)
         # pylint: disable=protected-access
         # TODO #2216: This is a temporary solution, longer-term we could
-        # inline during transformation time (instead of deferring it) in
+        # inline during transformation time (instead of deferring it) and
         # keep the contents in an InlinedKern node that preserve the metadata
         node._inline = True
 

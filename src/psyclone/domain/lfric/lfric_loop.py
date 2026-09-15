@@ -9,6 +9,8 @@
     base class from psyGen.py.
     '''
 
+from typing import Optional
+
 from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessMap, Signature
 from psyclone.domain.common.psylayer import PSyLoop
@@ -111,7 +113,7 @@ class LFRicLoop(PSyLoop):
         self._upper_bound_name = None
         self._upper_bound_halo_depth = None
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Optional[Node]:
         '''In-place replacement of DSL or high-level concepts into generic
         PSyIR constructs. This function replaces an LFRicLoop with a PSyLoop
         and inserts the loop boundaries into the new PSyLoop, or removes
@@ -120,8 +122,9 @@ class LFRicLoop(PSyLoop):
         the loop in the schedule, i.e. can change when transformations are
         applied), this function can likely be removed.
 
-        :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
+        :returns: the lowered version of this node (or the first node when
+            the lowered version are multiple top-level siblings, or None
+            if this produces no lowered nodes).
 
         '''
         if (not Config.get().distributed_memory and
