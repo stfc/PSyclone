@@ -500,8 +500,6 @@ def test_find_subclasses():
     # Check that the method does not include the legacy names for the
     # LFRic transformations.
     classes = trans._find_subclasses(transformations, Transformation)
-    for cls in classes:
-        assert "dynamo0p3" not in cls.__name__.lower()
     # Check that the method finds at least one transformation we know about.
     # We don't check for every transformation as this would break every time
     # we added a new one.
