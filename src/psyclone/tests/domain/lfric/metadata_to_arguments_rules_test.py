@@ -9,6 +9,8 @@
 module which contains the MetadataToArgumentsRules class.
 
 '''
+from types import SimpleNamespace
+
 import pytest
 
 from psyclone.domain.lfric import MetadataToArgumentsRules
@@ -17,6 +19,18 @@ from psyclone.domain.lfric.kernel import (
     InterGridArgMetadata, LFRicKernelMetadata, MetaMeshArgMetadata,
     MetaFuncsArgMetadata, OperatorArgMetadata, MetaRefElementArgMetadata,
     ScalarArgMetadata)
+from psyclone.errors import InternalError
+
+
+def test_generate_exception(monkeypatch):
+    """An unexpected record must raise the argument generator's own error."""
+    metadata = SimpleNamespace(
+        meta_args=(None,), meta_args_get=lambda _: [],
+        operates_on="cell_column", kernel_type="general-purpose")
+    monkeypatch.setattr(MetadataToArgumentsRules, "_metadata", metadata)
+    with pytest.raises(InternalError,
+                       match="Unexpected meta_arg type 'NoneType'"):
+        MetadataToArgumentsRules._generate()
 
 
 def check_called(monkeypatch, function, method_name, metadata):

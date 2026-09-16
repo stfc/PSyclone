@@ -275,6 +275,7 @@ def test_create_from_psyir_discovery_errors(fortran_reader):
 
 
 @pytest.mark.parametrize("expression, error, message", [
+    ("1", ParseError, "Expected a metadata constructor.*Literal"),
     ("other(go_read, go_cu, go_pointwise)", ParseError,
      "go_arg constructor"),
     ("go_arg(go_read)", ParseError, "two or three arguments"),

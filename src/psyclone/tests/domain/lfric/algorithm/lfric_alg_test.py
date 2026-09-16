@@ -14,6 +14,7 @@ from psyclone.configuration import Config
 from psyclone.domain.lfric import KernCallInvokeArgList, LFRicKern
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
 from psyclone.errors import InternalError
+from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.symbols import (
@@ -52,6 +53,18 @@ def create_prog_fixture() -> Routine:
                                  datatype=UnresolvedType(),
                                  interface=ImportInterface(fsc_mod))
     return prog
+
+
+@pytest.mark.parametrize("source", [
+    "subroutine test_code()\nend subroutine",
+    "module one_mod\nend module\nmodule two_mod\nend module",
+], ids=["no-module", "multiple-modules"])
+def test_create_from_kernel_module_count(tmp_path, source):
+    """Algorithm generation requires exactly one kernel module."""
+    kernel = tmp_path / "kernel.f90"
+    kernel.write_text(source, encoding="utf-8")
+    with pytest.raises(ParseError, match="must contain exactly one module"):
+        LFRicAlg().create_from_kernel("test_alg", str(kernel))
 
 
 def test_create_alg_routine_wrong_arg_type():

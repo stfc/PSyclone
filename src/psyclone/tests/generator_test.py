@@ -313,6 +313,29 @@ def test_recurse_correct_kernel_paths():
         kernel_paths=[str(LFRIC_BASE_PATH / "kernels")])
 
 
+def test_kernel_parsing_internalerror(tmp_path, capsys):
+    """A kernel PSyIR parsing error produces a diagnostic and failure exit."""
+    algorithm = tmp_path / "algorithm.f90"
+    algorithm.write_text((GOCEAN_BASE_PATH /
+                          "test30_invalid_kernel_declaration.f90").read_text(),
+                         encoding="utf-8")
+    kernel = tmp_path / "kernel_invalid_declaration.f90"
+    # Module discovery now uses the declared module name. Correct the old
+    # fixture's name mismatch while preserving its undeclared argument 'u'.
+    kernel.write_text((GOCEAN_BASE_PATH /
+                       "kernel_invalid_declaration.f90").read_text().replace(
+                           "kernel_invalid_fortran",
+                           "kernel_invalid_declaration"), encoding="utf-8")
+    with pytest.raises(SystemExit) as err:
+        main([str(algorithm), "-api", "gocean"])
+    assert err.value.code == 1
+    out, diagnostic = capsys.readouterr()
+    assert out == ""
+    assert f"Failed to parse kernel code '{kernel}'" in diagnostic
+    assert "Is the Fortran correct?" in diagnostic
+    assert "Traceback" not in diagnostic
+
+
 def test_script_file_too_short():
     '''Checks that generator.py raises an appropriate error when a script
     file name is too short to contain the '.py' extension.

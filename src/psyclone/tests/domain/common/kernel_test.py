@@ -10,8 +10,12 @@
 import pytest
 
 from psyclone.domain.common.kernel import KernelInfo
+from psyclone.domain.common.kernel.metadata import (
+    array_component_values, kernel_metadata_symbols)
 from psyclone.domain.gocean.kernel import GOceanKernelMetadata
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.nodes import Literal
+from psyclone.psyir.symbols import ArrayType, DataSymbol, ScalarType
 
 
 GOCEAN_SOURCE = """
@@ -29,6 +33,23 @@ contains
   end subroutine demo_code
 end module demo_mod
 """
+
+
+def test_metadata_array_noninteger_extent():
+    """A noninteger literal bound is diagnosed as invalid metadata."""
+    datatype = ArrayType(ScalarType.integer_type(), [
+        (Literal("1", ScalarType.integer_type()),
+         Literal("2.0", ScalarType.real_type()))])
+    component = DataSymbol("meta_args", datatype)
+    with pytest.raises(ParseError, match="must have a literal extent") as err:
+        array_component_values(component, "meta_args")
+    assert isinstance(err.value.__cause__, ValueError)
+
+
+def test_kernel_metadata_symbols_invalid_input():
+    """Metadata discovery requires a PSyIR node."""
+    with pytest.raises(TypeError, match="Expected PSyIR Node.*NoneType"):
+        kernel_metadata_symbols(None)
 
 
 def test_kernel_info_from_source():
