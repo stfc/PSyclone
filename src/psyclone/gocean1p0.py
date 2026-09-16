@@ -141,10 +141,22 @@ class GOInvoke(Invoke):
         self._schedule = GOInvokeSchedule.create('name')
         Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule, invokes)
 
-        if Config.get().distributed_memory:
-            # Insert halo exchange calls
-            for loop in self.schedule.loops():
-                loop.create_halo_exchanges()
+        # Add halo exchanges at the end of construction after all
+        # other initialization is complete
+        self._add_halo_exchanges()
+
+    def _add_halo_exchanges(self):
+        '''
+        Add halo exchanges to the schedule.
+        This is called at the end of Invoke construction after all
+        other initialization is complete, ensuring the complete dependency
+        graph is available for analysis.
+        '''
+        if not Config.get().distributed_memory:
+            return
+
+        for loop in self.schedule.loops():
+            loop.create_halo_exchanges()
 
 
 class GOInvokeSchedule(InvokeSchedule):
