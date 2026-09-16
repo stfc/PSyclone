@@ -186,4 +186,3 @@ def test_lfricinvoke_add_halo_exchanges(dist_mem):
     # The invoke should be constructed successfully regardless of dist_mem
     assert invoke is not None
     assert invoke.schedule is not None
-
