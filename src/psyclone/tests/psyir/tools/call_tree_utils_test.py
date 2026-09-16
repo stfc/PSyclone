@@ -301,6 +301,12 @@ def test_get_non_local_read_write_info(caplog):
     assert (('module_with_var_mod', Signature("module_const"))
             not in rw_info.read_list)
 
+    for call_info in [('module_with_var_mod', 'module_function'),
+                      ('module_with_var_mod', 'module_subroutine'),
+                      ('testkern_import_symbols_mod', 'local_func'),
+                      ('testkern_import_symbols_mod', 'local_subroutine')]:
+        assert call_info in rw_info.call_list
+
     # Check that we can ignore a module:
     mod_man.add_ignore_module("constants_mod")
     rw_info = ReadWriteInfo()

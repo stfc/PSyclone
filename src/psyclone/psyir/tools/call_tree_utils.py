@@ -372,8 +372,15 @@ class CallTreeUtils():
                 # Check that we find at least one valid routine (several
                 # could be found in case of a generic interface):
                 at_least_one_routine_found = False
-                for routine_name in cntr.resolve_routine(signature[0]):
-                    routine = cntr.find_routine_psyir(routine_name)
+                all_possible_routines = cntr.resolve_routine(signature[0])
+                # If there is more than one possible routine, we have a
+                # generic interface, in which case private routines would be
+                # accessible using the generic interface
+                allow_private = len(all_possible_routines) > 1
+                for routine_name in all_possible_routines:
+                    routine = cntr.find_routine_psyir(
+                        routine_name,
+                        allow_private=allow_private)
                     if not routine:
                         # TODO #2120: Handle error
                         logger.warning(
@@ -384,6 +391,7 @@ class CallTreeUtils():
                     # Add the list of non-locals to our todo list:
                     outstanding_nonlocals.extend(
                         self.get_non_local_symbols(routine))
+                    read_write_info.add_call(routine.name, cntr.name)
                     at_least_one_routine_found = True
 
                 if not at_least_one_routine_found:
