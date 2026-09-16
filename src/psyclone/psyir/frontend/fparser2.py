@@ -3015,6 +3015,19 @@ class Fparser2Reader():
             been declared yet or when it is not just the symbol name).
 
         '''
+        # This method may be called more than once for the same common block:
+        # common /name/ var1, var2
+        # common /name/ var3, var4
+        # So we initialise the next position for each block from any interfaces
+        # that have already been created in this symbol table.
+        next_positions = {}
+        for symbol in psyir_parent.symbol_table.symbols:
+            if symbol.is_commonblock:
+                block_name = symbol.interface.name.lower()
+                next_positions[block_name] = max(
+                    next_positions.get(block_name, 0),
+                    symbol.interface.position + 1)
+
         for node in nodes:
             if isinstance(node, Fortran2003.Common_Stmt):
                 # Get the names of the symbols accessed with the commonblock,
@@ -3025,7 +3038,7 @@ class Fparser2Reader():
                     for cb_object in node.children[0]:
                         # Get the name of the common block
                         name = cb_object[0]
-                        name_str = name.string if name is not None else ""
+                        nstr = name.string.lower() if name is not None else ""
 
                         for symbol_name in cb_object[1].items:
                             sym = psyir_parent.symbol_table.lookup(
@@ -3037,7 +3050,9 @@ class Fparser2Reader():
                                     f" ({sym.initial_value.debug_string()}) "
                                     f"but appears in a common block. This is "
                                     f"not valid Fortran.")
-                            sym.interface = CommonBlockInterface(name_str)
+                            sym.interface = CommonBlockInterface(
+                                nstr, next_positions.get(nstr, 0))
+                            next_positions[nstr] = (sym.interface.position + 1)
                 except KeyError as error:
                     raise NotImplementedError(
                         f"The symbol interface of a common block variable "
@@ -5404,23 +5419,37 @@ class Fparser2Reader():
         # original node to ensure that it has the correct precision.
         return zero_oprnd.detach()
 
-    def _intrinsic_handler(self, node, parent):
+    def _intrinsic_handler(self,
+                           node: Fortran2003.Intrinsic_Function_Reference,
+                           parent: Node) -> IntrinsicCall:
         '''Transforms an fparser2 Intrinsic_Function_Reference to the PSyIR
         representation.
 
         :param node: node in fparser2 Parse Tree.
-        :type node:
-            :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         :raises NotImplementedError: if an unsupported intrinsic is found.
 
         '''
         try:
+            # If we already have a RoutineSymbol with the name of the supposed
+            # intrinsic, then it is shadowed by the declared RoutineSymbol and
+            # we should instead create a Call.
+            existing_symbol = parent.scope.symbol_table.lookup(
+                node.items[0].string, otherwise=None
+            )
+            if (existing_symbol is not None and
+                    isinstance(existing_symbol, RoutineSymbol)):
+                # _call_handler can't handle the intrinsic node as
+                # an input, so we have to create it here instead.
+                call = Call(parent=parent)
+                call.addchild(Reference(existing_symbol))
+                call = self._process_args(node, call, False)
+                return call
+
+            # Otherwise we have an IntrinsicCall.
             intrinsic = IntrinsicCall.Intrinsic[node.items[0].string.upper()]
 
             call = IntrinsicCall(intrinsic, parent=parent)

@@ -71,17 +71,29 @@ class CommonBlockInterface(SymbolInterface):
     can be accessed by any scope referencing the same CommonBlock name.
 
     :param common_block_name: the name of the common block.
+    :param position: the position of the Symbol in the common block.
 
-    :raises TypeError: if the common_block_name is not a str
+    :raises TypeError: if the common_block_name is not a str or position is
+        not an int.
+    :raises ValueError: if position is negative.
     '''
 
-    def __init__(self, common_block_name: str):
+    def __init__(self, common_block_name: str, position: int):
         super().__init__()
         if not isinstance(common_block_name, str):
             raise TypeError(
                 f"The common block name should be a valid string, but"
                 f" found '{type(common_block_name).__name__}'")
+        if not isinstance(position, int):
+            raise TypeError(
+                f"The common block position should be an int, but found "
+                f"'{type(position).__name__}'")
+        if position < 0:
+            raise ValueError(
+                f"The common block position should be non-negative, but "
+                f"found '{position}'")
         self._name = common_block_name
+        self._position = position
 
     def __str__(self):
         return f"CommonBlock '{self._name}'"
@@ -89,7 +101,8 @@ class CommonBlockInterface(SymbolInterface):
     def __eq__(self, other: Any) -> bool:
         return (
             super().__eq__(other) and
-            self._name.lower() == other.name.lower()
+            self._name.lower() == other.name.lower() and
+            self._position == other.position
         )
 
     @property
@@ -100,11 +113,19 @@ class CommonBlockInterface(SymbolInterface):
         '''
         return self._name
 
+    @property
+    def position(self) -> int:
+        '''
+        :returns: the position of the Symbol in the common block.
+
+        '''
+        return self._position
+
     def copy(self) -> 'CommonBlockInterface':
         '''
         :returns: a copy of this object.
         '''
-        return self.__class__(self._name)
+        return self.__class__(self._name, self._position)
 
 
 class UnresolvedInterface(SymbolInterface):

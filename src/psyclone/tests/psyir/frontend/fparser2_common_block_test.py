@@ -33,10 +33,9 @@ def test_named_common_block():
     processor.process_declarations(routine, fparser2spec.content, [])
 
     # The variables have been updated to a common block interface
-    name1_cb = CommonBlockInterface('name1')
-    assert symtab.lookup("a").interface == name1_cb
-    assert symtab.lookup("b").interface == name1_cb
-    assert symtab.lookup("c").interface == name1_cb
+    assert symtab.lookup("a").interface == CommonBlockInterface('name1', 0)
+    assert symtab.lookup("b").interface == CommonBlockInterface('name1', 1)
+    assert symtab.lookup("c").interface == CommonBlockInterface('name1', 2)
 
     # The same common block can also bring other variables in a separate
     # statement
@@ -47,10 +46,10 @@ def test_named_common_block():
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(routine, fparser2spec.content, [])
 
-    assert symtab.lookup("d").interface == name1_cb
-    assert symtab.lookup("e").interface == name1_cb
+    assert symtab.lookup("d").interface == CommonBlockInterface('name1', 3)
+    assert symtab.lookup("e").interface == CommonBlockInterface('name1', 4)
     fsym = symtab.lookup("f")
-    assert isinstance(fsym.interface, CommonBlockInterface)
+    assert fsym.interface == CommonBlockInterface('name1', 5)
     assert fsym.datatype.intrinsic is ScalarType.Intrinsic.REAL
 
 
@@ -71,10 +70,9 @@ def test_unnamed_commonblock():
     processor.process_declarations(routine, fparser2spec.content, [])
 
     # The variables have been updated to the unnamed common block interface
-    unnamed_cb = CommonBlockInterface("")
-    assert symtab.lookup("a").interface == unnamed_cb
-    assert symtab.lookup("b").interface == unnamed_cb
-    assert symtab.lookup("c").interface == unnamed_cb
+    assert symtab.lookup("a").interface == CommonBlockInterface("", 0)
+    assert symtab.lookup("b").interface == CommonBlockInterface("", 1)
+    assert symtab.lookup("c").interface == CommonBlockInterface("", 2)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -101,12 +99,10 @@ def test_multiple_commonblocks_and_comments():
     processor.process_declarations(routine, fparser2spec.content, [])
 
     # The variables have been updated to a common block interface
-    name1_cb = CommonBlockInterface('name1')
-    name2_cb = CommonBlockInterface('name2')
-    assert symtab.lookup("a").interface == name1_cb
-    assert symtab.lookup("b").interface == name1_cb
-    assert symtab.lookup("c").interface == name2_cb
-    assert symtab.lookup("d").interface == name2_cb
+    assert symtab.lookup("a").interface == CommonBlockInterface('name1', 0)
+    assert symtab.lookup("b").interface == CommonBlockInterface('name1', 1)
+    assert symtab.lookup("c").interface == CommonBlockInterface('name2', 0)
+    assert symtab.lookup("d").interface == CommonBlockInterface('name2', 1)
 
     # The comments are currently discarded
     assert symtab.lookup("a").preceding_comment == ""
