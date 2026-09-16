@@ -330,6 +330,7 @@ def test_language_metadata_fortran_output():
 
 
 @pytest.mark.parametrize("expression, message", [
+    ("1", "Expected a metadata constructor.*Literal"),
     ("func_type(w0, gh_basis)", "arg_type constructor"),
     ("arg_type(gh_scalar, gh_real)", "at least three"),
     ("arg_type(gh_field, gh_real, gh_read, w0, w1, w2, w3, w4)",
@@ -384,6 +385,10 @@ def test_parse_arg_variants():
 
 
 @pytest.mark.parametrize("expression, message", [
+    ("1", "Expected a metadata constructor.*Literal"),
+    ("func_type(w0, 1)", "Invalid meta_funcs"),
+    ("func_type(w0, gh_basis + gh_diff_basis)",
+     "Expected a metadata name or literal.*BinaryOperation"),
     ("arg_type(w0, gh_basis)", "func_type constructor"),
     ("func_type(w0)", "requires a function space"),
     ("func_type(w0, gh_basis, gh_diff_basis, gh_basis)",
@@ -404,6 +409,24 @@ def test_create_language_metadata_from_psyir_errors():
     symbol = DataTypeSymbol("bad_type", ScalarType.real_type())
     with pytest.raises(TypeError, match="StructureType"):
         LFRicKernelMetadata.create_from_psyir(symbol)
+
+
+@pytest.mark.parametrize("component, constructor", [
+    ("meta_reference_element", "reference_element_data_type"),
+    ("meta_mesh", "mesh_data_type"),
+])
+def test_optional_metadata_requires_constructor(component, constructor):
+    """Optional metadata arrays must contain structure constructors."""
+    metadata = _kernel_metadata([FieldArgMetadata("gh_real", "gh_write", "w0")])
+    source = metadata.fortran_string().replace(
+        "  CONTAINS", f"  type({constructor}) :: {component}(1) = (/1/)\n"
+        "  CONTAINS")
+    with pytest.raises(ParseError,
+                       match="Expected a metadata constructor.*Literal"):
+        KernelInfo.create_from_source(
+            LFRicKernelMetadata,
+            f"module test_mod\n{source}\ncontains\n"
+            "subroutine test_code()\nend subroutine\nend module")
 
 
 def test_declaration_errors():

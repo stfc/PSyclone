@@ -11,9 +11,11 @@ psyad/domain/lfric/lfric_adjoint.py file.
 
 '''
 import logging
+from types import SimpleNamespace
 
 import pytest
 
+from psyclone.domain.lfric import ArgIndexToMetadataIndex
 from psyclone.domain.lfric.kernel import (
     LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata,
     OperatorArgMetadata)
@@ -325,6 +327,18 @@ def get_metadata_args():
                           interface=ArgumentInterface(
                               ArgumentInterface.Access.READWRITE))
     return (metadata, dummy, field_1, field_2, field_3, scalar, operator)
+
+
+def test_update_access_metadata_metaarg(monkeypatch):
+    """The adjoint consumer diagnoses an unexpected metadata record."""
+    metadata = SimpleNamespace(meta_args=(None,))
+    field = DataSymbol("field", ScalarType.real_type(),
+                       interface=ArgumentInterface(
+                           ArgumentInterface.Access.READWRITE))
+    monkeypatch.setattr(ArgIndexToMetadataIndex, "mapping", lambda _: {0: 0})
+    with pytest.raises(InternalError,
+                       match="Found unexpected meta arg class 'NoneType'"):
+        _update_access_metadata("field", [field], metadata)
 
 
 def test_update_access_metadata_none():

@@ -12,7 +12,10 @@ of the LFRic API.
 
 import pytest
 from psyclone.configuration import Config
+from psyclone.domain.common.kernel import KernelInfo
+from psyclone.domain.lfric.kernel import LFRicKernelMetadata
 from psyclone.errors import InternalError
+from psyclone.parse.utils import ParseError
 from psyclone.psyGen import Kern
 from psyclone.psyir.symbols import DataSymbol
 from psyclone.tests.lfric_build import LFRicBuild
@@ -37,7 +40,7 @@ module testkern_refelem_mod
      procedure, nopass :: code => testkern_refelem_code
   end type testkern_refelem_type
 contains
-  subroutine testkern_refelem_code(a, b)
+  subroutine testkern_refelem_code()
   end subroutine testkern_refelem_code
 end module testkern_refelem_mod
 '''
@@ -49,6 +52,37 @@ end module testkern_refelem_mod
 def setup():
     '''Make sure that all tests here use LFRic as API.'''
     Config.get().api = "lfric"
+
+
+def test_mdata_parse():
+    """Preserve the requested reference-element properties and their order."""
+    metadata = KernelInfo.create_from_source(
+        LFRicKernelMetadata, REF_ELEM_MDATA).metadata
+    assert [item.reference_element for item in metadata.meta_ref_element] == [
+        "outward_normals_to_faces", "normals_to_horizontal_faces",
+        "normals_to_vertical_faces"]
+
+
+@pytest.mark.parametrize("old, new, message", [
+    ("normals_to_vertical_faces", "not_a_property",
+     "reference-element property"),
+    ("element_data_type), dimension(3)", "element_data_type), dimension(4)",
+     "extent 4.*contains 3 values"),
+    ("meta_reference_element =", "meta_ref_elem =",
+     "Unexpected LFRic metadata component"),
+    ("reference_element_data_type(outward_normals_to",
+     "ref_element_data_type(outward_normals_to",
+     "must use the reference_element_data_type constructor"),
+    ("reference_element_data_type(normals_to_horizontal_faces)",
+     "reference_element_data_type(normals_to_vertical_faces)",
+     "must not contain duplicates"),
+], ids=["invalid-property", "extent", "component-name", "constructor",
+        "duplicate"])
+def test_mdata_invalid(old, new, message):
+    """Reject invalid reference-element declarations through the PSyIR API."""
+    with pytest.raises(ParseError, match=message):
+        KernelInfo.create_from_source(
+            LFRicKernelMetadata, REF_ELEM_MDATA.replace(old, new))
 
 
 def test_refelem_arglist_err():

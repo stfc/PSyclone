@@ -313,36 +313,27 @@ def test_recurse_correct_kernel_paths():
         kernel_paths=[str(LFRIC_BASE_PATH / "kernels")])
 
 
-def test_kernel_parsing_internalerror(capsys, caplog):
-    '''Checks that the expected output is provided if an internal error is
-    caught when parsing a kernel using fparser2.
-
-    '''
-    kern_filename = (str(
-        GOCEAN_BASE_PATH / "test30_invalid_kernel_declaration.f90"))
-    with pytest.raises(SystemExit):
-        main([kern_filename, "-api", "gocean"])
-    out, err = capsys.readouterr()
+def test_kernel_parsing_internalerror(tmp_path, capsys):
+    """A kernel PSyIR parsing error produces a diagnostic and failure exit."""
+    algorithm = tmp_path / "algorithm.f90"
+    algorithm.write_text((GOCEAN_BASE_PATH /
+                          "test30_invalid_kernel_declaration.f90").read_text(),
+                         encoding="utf-8")
+    kernel = tmp_path / "kernel_invalid_declaration.f90"
+    # Module discovery now uses the declared module name. Correct the old
+    # fixture's name mismatch while preserving its undeclared argument 'u'.
+    kernel.write_text((GOCEAN_BASE_PATH /
+                       "kernel_invalid_declaration.f90").read_text().replace(
+                           "kernel_invalid_fortran",
+                           "kernel_invalid_declaration"), encoding="utf-8")
+    with pytest.raises(SystemExit) as err:
+        main([str(algorithm), "-api", "gocean"])
+    assert err.value.code == 1
+    out, diagnostic = capsys.readouterr()
     assert out == ""
-    assert "Failed to create PSyIR from kernel file '" in str(err)
-    # Clear previous logging messages (primarily from fparser)
-    caplog.clear()
-    with caplog.at_level(logging.ERROR, "psyclone.generator"):
-        with pytest.raises(SystemExit):
-            main([kern_filename, "-api", "gocean"])
-        assert caplog.records[0].levelname == "ERROR"
-        assert (
-            "PSyclone internal error: The argument list ['i', 'j', 'cu', 'p', "
-            "'u'] for routine 'compute_code' does not match the variable "
-            "declarations:\n"
-            "IMPLICIT NONE\n"
-            "INTEGER, INTENT(IN) :: I, J\n"
-            "REAL(KIND = go_wp), INTENT(OUT), DIMENSION(:, :) :: cu\n"
-            "REAL(KIND = go_wp), INTENT(IN), DIMENSION(:, :) :: p\n"
-            "(Note that PSyclone does not support implicit declarations.) "
-            "Specific"
-            " PSyIR error is \"Could not find 'u' in the Symbol Table.\".\n"
-            in caplog.text)
+    assert f"Failed to parse kernel code '{kernel}'" in diagnostic
+    assert "Is the Fortran correct?" in diagnostic
+    assert "Traceback" not in diagnostic
 
 
 def test_kernel_parsing_with_fortran_error(capsys):

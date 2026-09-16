@@ -11,6 +11,7 @@ import os
 
 import pytest
 
+from psyclone.domain.common.kernel import KernelInfo
 from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
                                    LFRicKernelMetadata, LFRicStencils)
 from psyclone.lfric import LFRicKernelArguments
@@ -43,6 +44,27 @@ contains
   end subroutine stencil_code
 end module stencil_mod
 '''
+
+
+@pytest.mark.parametrize("stencil", [
+    "1", "stencil", "stenci(cross)", "stencil()", "stencil(,)",
+    "stencil(cross,1,1)", "stencil(1)", "stencil(cros)",
+    "stencil(x1d(xx))", "stencil(x1d,x1d)", "stencil(x1d,0)",
+    "stencil(x1d,-1)", "stencil(x1d,1.0)", "stencil(x1d,'2')",
+    "stencil(cross), extra",
+])
+def test_invalid_stencil_metadata(stencil):
+    """Malformed stencil specifications must not be silently discarded."""
+    code = STENCIL_CODE.replace("stencil(cross)", stencil)
+    with pytest.raises(ParseError):
+        KernelInfo.create_from_source(LFRicKernelMetadata, code)
+
+
+def test_fixed_stencil_extent():
+    """A valid fixed extent is recognised but remains unsupported."""
+    code = STENCIL_CODE.replace("stencil(cross)", "stencil(cross,2)")
+    with pytest.raises(NotImplementedError, match="fixed stencil extents"):
+        KernelInfo.create_from_source(LFRicKernelMetadata, code)
 
 
 def test_stencil_metadata(fortran_reader):

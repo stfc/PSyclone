@@ -18,7 +18,8 @@ from psyclone.core import Signature
 from psyclone.domain.common.kernel import KernelInfo
 from psyclone.domain.lfric import lfric_builtins
 from psyclone.domain.lfric.kernel import (
-    LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata)
+    LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata,
+    OperatorArgMetadata)
 from psyclone.domain.lfric.lfric_builtins import (
     LFRicBuiltInCallFactory, LFRicBuiltIn)
 from psyclone.errors import GenerationError, InternalError
@@ -175,6 +176,40 @@ def test_lfricbuiltin_validate_not_over_dofs(monkeypatch):
     assert ("built-in calls must operate on one of ['dof', 'owned_dof'] but "
             "found 'broken' for Built-in: setval_c (set a real-valued field "
             in str(err.value))
+
+
+@pytest.mark.parametrize("arg_specs, message", [
+    ([(FieldArgMetadata, "gh_real", "gh_write", "w0"),
+      (FieldArgMetadata, "gh_real", "gh_write", "w0")], "found 2"),
+    ([(FieldArgMetadata, "gh_real", "gh_write", "w0"),
+      (FieldArgMetadata, "gh_real", "gh_readwrite", "w0")], "found 2"),
+    ([(ScalarArgMetadata, "gh_real", "gh_reduction"),
+      (FieldArgMetadata, "gh_real", "gh_readwrite", "w0")], "found 2"),
+    ([(FieldArgMetadata, "gh_real", "gh_read", "w0")], "found 0"),
+    ([(ScalarArgMetadata, "gh_real", "gh_reduction")],
+     "at least one field.*has none"),
+    ([(OperatorArgMetadata, "gh_real", "gh_read", "w0", "w1")],
+     "argument of type 'gh_operator'"),
+    ([(ScalarArgMetadata, "gh_logical", "gh_read")],
+     "data type 'gh_logical'"),
+    ([(FieldArgMetadata, "gh_real", "gh_write", "w0"),
+      (FieldArgMetadata, "gh_real", "gh_read", "w1")], "same space"),
+    ([(FieldArgMetadata, "gh_real", "gh_write", "w0"),
+      (FieldArgMetadata, "gh_integer", "gh_read", "w0")],
+     "different data types"),
+], ids=["multiple-writes", "write-readwrite", "reduction-readwrite",
+        "zero-writes", "no-fields", "argument-type", "data-type",
+        "function-spaces", "field-data-types"])
+def test_builtin_invalid_metadata(arg_specs, message):
+    """Built-in constraints still apply to metadata supplied as typed records.
+
+    Replace the consumer's metadata to isolate its validation from the earlier
+    checks performed when loading an algorithm and constructing its arguments.
+    """
+    kern = builtin_from_file("15.12.3_single_pointwise_builtin.f90")
+    kern.arg_metadata = tuple(cls(*args) for cls, *args in arg_specs)
+    with pytest.raises(ParseError, match=message):
+        kern._validate()
 
 
 def test_lfricbuiltincallfactory_str():

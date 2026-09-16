@@ -10,6 +10,7 @@
 import copy
 import os
 from dataclasses import FrozenInstanceError, replace
+from types import SimpleNamespace
 import pytest
 
 from psyclone.configuration import Config
@@ -1397,6 +1398,33 @@ def test_arg_ref_name_method_error2():
         _ = first_argument.ref_name()
     assert ("LFRicKernelArgument.ref_name(fs): Found unsupported argument "
             "type 'gh_funky_instigator'" in str(excinfo.value))
+
+
+def test_kernel_argument_invalid_metadata_datatype():
+    """The argument consumer diagnoses an unsupported metadata data type."""
+    metadata = SimpleNamespace(form="gh_scalar", datatype="gh_triple")
+    with pytest.raises(InternalError,
+                       match="Found unsupported data type 'gh_triple'") as err:
+        LFRicKernelArgument(None, metadata, None, None, metadata_index=0)
+    assert isinstance(err.value.__cause__, KeyError)
+
+
+def test_arg_ref_name_method_error3(monkeypatch):
+    """Reject inconsistent operator function-space accessors."""
+    _, invoke = get_invoke("10_operator.f90", TEST_API,
+                           dist_mem=True, idx=0)
+    argument = invoke.schedule.coded_kernels()[0].arguments.args[0]
+    # Keep the original list but make both endpoint accessors inconsistent.
+    unrelated = FunctionSpace("wtheta", None)
+    assert unrelated.orig_name not in [
+        space.orig_name for space in argument.function_spaces]
+    monkeypatch.setattr(LFRicKernelArgument, "function_space_from",
+                        property(lambda self: unrelated))
+    monkeypatch.setattr(LFRicKernelArgument, "function_space_to",
+                        property(lambda self: unrelated))
+    with pytest.raises(GenerationError,
+                       match="is one of the 'gh_operator' function spaces"):
+        argument.ref_name(argument.function_spaces[0])
 
 
 def test_arg_ref_name_method_operator():

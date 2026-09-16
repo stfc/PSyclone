@@ -10,6 +10,7 @@ pytest. At the moment the tests here do not fully cover LFRicKern as
 tests for other classes end up covering the rest.'''
 
 from dataclasses import replace
+from types import SimpleNamespace
 import os
 import pytest
 
@@ -79,6 +80,15 @@ def test_scalar_kernel_load_meta_err(fortran_reader):
     const = LFRicConstants()
     assert (f"Expected scalar datatype descriptor to be one of "
             f"{const.VALID_SCALAR_DATA_TYPES}" in str(err.value))
+
+
+@pytest.mark.parametrize("form", ["gh_scalar", "gh_scalar_array"])
+def test_load_meta_invalid_scalar_record(form):
+    """Loading kernel metadata independently checks scalar data types."""
+    metadata = SimpleNamespace(meta_args=(
+        SimpleNamespace(form=form, datatype="gh_triple"),))
+    with pytest.raises(InternalError, match="scalar argument.*gh_triple"):
+        LFRicKern().load_meta(metadata)
 
 
 def test_kern_getter_errors():

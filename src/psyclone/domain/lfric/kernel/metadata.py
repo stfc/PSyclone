@@ -32,6 +32,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     DataTypeSymbol,
     GenericInterfaceSymbol,
+    ScalarType,
 )
 
 # Metadata records naturally contain more state than behavioural classes.
@@ -1500,15 +1501,29 @@ def _parse_arg(
         if name is None
     ]
     stencil = None
-    if len(positional) > 4 and isinstance(positional[4], Call):
-        if positional[4].routine.symbol.name.lower() != "stencil":
+    if form == "gh_field" and len(positional) > 4:
+        if len(positional) > 5:
+            raise ParseError("Unexpected positional field metadata argument.")
+        stencil_node = positional[4]
+        if (not isinstance(stencil_node, Call) or
+                stencil_node.routine.symbol.name.lower() != "stencil"):
             raise ParseError("Expected stencil(type) metadata.")
-        if len(positional[4].arguments) != 1:
+        if len(stencil_node.arguments) not in (1, 2):
+            raise ParseError("Expected stencil(type[, extent]) metadata.")
+        stencil = _normalise(
+            value_name(stencil_node.arguments[0]), "stencil type",
+            LFRicConstants().VALID_STENCIL_TYPES)
+        if len(stencil_node.arguments) == 2:
+            extent = stencil_node.arguments[1]
+            if (not isinstance(extent, Literal) or
+                    extent.datatype.intrinsic !=
+                    ScalarType.Intrinsic.INTEGER or
+                    not extent.value.isdecimal() or int(extent.value) < 1):
+                raise ParseError(
+                    "Stencil extent must be a positive integer literal.")
             raise NotImplementedError(
                 "Kernels with fixed stencil extents are not currently "
-                "supported."
-            )
-        stencil = value_name(positional[4].arguments[0])
+                "supported.")
         if access != "gh_read":
             raise ParseError(
                 "In the LFRic API a field with a stencil access must be "

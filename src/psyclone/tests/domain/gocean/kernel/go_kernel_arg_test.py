@@ -9,6 +9,7 @@
 '''
 
 from dataclasses import FrozenInstanceError, replace
+from types import SimpleNamespace
 
 import pytest
 from psyclone.configuration import Config
@@ -17,6 +18,7 @@ from psyclone.domain.gocean.kernel import GOceanScalarArgMetadata
 from psyclone.errors import InternalError, GenerationError
 from psyclone.gocean1p0 import GOKernelArgument, GOKernelArguments
 from psyclone.parse.algorithm import Arg
+from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import (Node, StructureReference, Member,
                                   StructureMember, Reference, Literal)
 from psyclone.psyir.symbols import (SymbolTable, UnresolvedType, DataSymbol,
@@ -32,6 +34,16 @@ API = "gocean"
 def setup():
     '''Make sure that all tests here use gocean as API.'''
     Config.get().api = API
+
+
+def test_gokernelargument_invalid_type():
+    """The argument consumer rejects an unexpected metadata record type."""
+    # Bypass metadata construction to exercise the consumer's own guard.
+    call = SimpleNamespace(kernel=SimpleNamespace(
+        metadata=SimpleNamespace(meta_args=(None,))))
+    with pytest.raises(ParseError,
+                       match="Invalid kernel argument type.*NoneType"):
+        GOKernelArguments(call, None)
 
 
 def test_gokernelarguments_append():
