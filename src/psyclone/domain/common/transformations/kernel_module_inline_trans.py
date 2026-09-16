@@ -22,7 +22,7 @@ from psyclone.psyir.symbols import (
     SymbolError)
 from psyclone.psyir.nodes import (
     Call, Container, FileContainer, IntrinsicCall, Reference, Routine,
-    ScopingNode)
+    Schedule, ScopingNode)
 from psyclone.utils import transformation_documentation_wrapper
 
 
@@ -167,17 +167,18 @@ class KernelModuleInlineTrans(Transformation):
         for kernel_schedule in kernels:
             self._validate_schedule(node, kname, kern_or_call, kernel_schedule)
 
-    def _validate_schedule(self, node, kname, kern_or_call, kernel_schedule):
+    def _validate_schedule(self,
+                           node: Union[CodedKern, Call],
+                           kname: str,
+                           kern_or_call: str,
+                           kernel_schedule: Schedule):
         '''
         Validates that the supplied schedule can be module-inlined.
 
         :param node: the candidate kernel/routine call to inline.
-        :type node: :py:class:`psyclone.psyGen.CodedKern` |
-                    :py:class:`psyclone.psyir.nodes.Call`
-        :param str kname: the name of the kernel/routine.
-        :param str kern_or_call: text for readable error messages.
+        :param kname: the name of the kernel/routine.
+        :param kern_or_call: text for readable error messages.
         :param kernel_schedule: the schedule of the routine to inline.
-        :type kernel_schedule: :py:class:`psyclone.psyir.nodes.Schedule`
 
         :raises TransformationError: if the called routine contains accesses
              to data declared in the same module scope or of unknown origin.
@@ -189,16 +190,31 @@ class KernelModuleInlineTrans(Transformation):
         # declared in their own parent module (we would need to add new imports
         # from this module at the call site, and we don't do this yet).
         try:
-            kernel_schedule.check_outer_scope_accesses(node, kern_or_call)
+            kernel_schedule.check_outer_scope_accesses(
+                node, kern_or_call, ignore_non_data_accesses=True)
         except SymbolError as err:
             raise TransformationError(
                 f"Cannot apply {self.name} to {kern_or_call} '{kname}' "
                 f"because it accesses data from its outer scope: "
                 f"{err.value}") from err
 
-        # We can't transform subroutines that shadow top-level symbol module
-        # names, because we won't be able to bring them into the subroutine.
-        # (We could attempt to rename the local symbol.)
+        # If this Schedule itself contains Calls to local routines then
+        # we can only module-inline it if the targets of those Calls can
+        # also be module inlined.
+        container = kernel_schedule.ancestor(Container)
+        for call in kernel_schedule.walk(Call):
+            local_routines = container.resolve_routine(call.symbol.name)
+            for lrt in local_routines:
+                rt_psyir = container.find_routine_psyir(
+                    lrt, allow_private=True)
+                self._validate_schedule(call, lrt, "routine", rt_psyir)
+
+        # We handle cases where the target routine accesses symbols that
+        # are imported into an outer scope by bringing those imports inside
+        # the target routine. However, if the target routine already contains
+        # a symbol that shadows the name of the source module of such an
+        # import then we cannot do this. (We could attempt to rename the local
+        # symbol.)
         symtab = kernel_schedule.ancestor(Container).symbol_table
         ctr_names = [sym.name.lower() for sym in symtab.containersymbols]
         for scope in kernel_schedule.walk(ScopingNode):

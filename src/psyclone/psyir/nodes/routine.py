@@ -172,7 +172,8 @@ class Routine(Schedule, CommentableMixin):
         '''
         return self.coloured_name(colour) + "[name:'" + self.name + "']"
 
-    def check_outer_scope_accesses(self, call,
+    def check_outer_scope_accesses(self,
+                                   call: Union[CodedKern, Call],
                                    kern_or_call: str,
                                    permit_unresolved: bool = True,
                                    ignore_non_data_accesses: bool = False):
@@ -182,7 +183,6 @@ class Routine(Schedule, CommentableMixin):
 
         :param call: the node representing the call to the routine that is to
             be inlined.
-        :type call: Union[CodedKern, Call]
         :param kern_or_call: text appropriate to whether we have a PSyKAl
             Kernel or a generic routine.
         :param permit_unresolved: whether or not the presence of unresolved
@@ -225,7 +225,15 @@ class Routine(Schedule, CommentableMixin):
                     f"{[sym.name for sym in routine_wildcards]}. It may be"
                     f" resolved by adding these to RESOLVE_IMPORTS in the "
                     f"transformation script.")
+
             if not symbol.is_import and symbol.name not in table:
+                # This is a local Symbol.
+                if (ignore_non_data_accesses and
+                        not vam[sig].has_data_access()):
+                    continue
+                # The only option would be to make this Symbol public
+                # but that would risk namespace collisions in the generated
+                # code.
                 sym_at_call_site = call.scope.symbol_table.lookup(
                     sig.var_name, otherwise=None)
                 if sym_at_call_site is not symbol:
