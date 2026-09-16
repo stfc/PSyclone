@@ -8,7 +8,7 @@
 ''' This module contains the Routine node implementation.'''
 
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, Union, TYPE_CHECKING
 
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
@@ -23,6 +23,9 @@ from psyclone.psyir.symbols import (
     DataSymbol, DefaultModuleInterface,
     RoutineSymbol, SymbolError, UnresolvedInterface)
 from psyclone.psyir.symbols.symbol_table import SymbolTable
+if TYPE_CHECKING:
+    from psyclone.psyGen import CodedKern
+    from psyclone.psyir.nodes.call import Call
 
 
 class Routine(Schedule, CommentableMixin):
@@ -173,7 +176,7 @@ class Routine(Schedule, CommentableMixin):
         return self.coloured_name(colour) + "[name:'" + self.name + "']"
 
     def check_outer_scope_accesses(self,
-                                   call: Union[CodedKern, Call],
+                                   call: Union["CodedKern", "Call"],
                                    kern_or_call: str,
                                    permit_unresolved: bool = True,
                                    ignore_non_data_accesses: bool = False):
