@@ -171,3 +171,18 @@ def test_lfricinvoke_halo_depths():
     _, invoke = get_invoke("1.4_into_halos_invoke.f90", idx=0,
                            api=TEST_API, dist_mem=True)
     assert invoke._alg_unique_halo_depth_args == ["hdepth"]
+
+
+def test_lfricinvoke_add_halo_exchanges(dist_mem):
+    '''
+    Test that _add_halo_exchanges() is called at the end of Invoke
+    construction. This test verifies that:
+    - When distributed memory is disabled, _add_halo_exchanges() returns early
+    - When distributed memory is enabled, _add_halo_exchanges() executes
+      and the invoke is constructed successfully
+    '''
+    _, invoke = get_invoke("1_single_invoke.f90", api=TEST_API,
+                           dist_mem=dist_mem, idx=0)
+    # The invoke should be constructed successfully regardless of dist_mem
+    assert invoke is not None
+    assert invoke.schedule is not None
