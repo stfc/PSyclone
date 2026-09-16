@@ -1,0 +1,10 @@
+<map id="psyclone.psyir.nodes.acc_directives.ACCKernelsDirective.__eq__" name="psyclone.psyir.nodes.acc_directives.ACCKernelsDirective.__eq__">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,99,284,144"/>
+<area shape="poly" id="edge1_Node000001_Node000001" title=" " alt="" coords="83,99,81,89,92,80,113,74,145,73,180,75,200,81,199,87,179,80,144,78,114,80,94,85,86,91,88,98"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCKernelsDirective.html#a84a3196ef1cfaeb98ffa936fdb5a5ad8" title=" " alt="" coords="332,5,612,67"/>
+<area shape="poly" id="edge2_Node000001_Node000002" title=" " alt="" coords="233,96,336,69,337,74,234,101"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCParallelDirective.html#a723b45037d485aef4bb9642e695c2d80" title=" " alt="" coords="332,91,612,152"/>
+<area shape="poly" id="edge3_Node000001_Node000003" title=" " alt="" coords="284,119,316,119,316,124,284,124"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCParallelDirective.html#a1455c37ba589cb74031e0b06ee5b4e42" title=" " alt="" coords="332,176,612,238"/>
+<area shape="poly" id="edge4_Node000001_Node000004" title=" " alt="" coords="234,142,337,169,336,174,233,147"/>
+</map>

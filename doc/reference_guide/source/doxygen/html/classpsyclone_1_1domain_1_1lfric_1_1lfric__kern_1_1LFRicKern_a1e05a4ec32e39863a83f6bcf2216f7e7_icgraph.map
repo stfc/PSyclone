@@ -1,0 +1,9 @@
+<map id="psyclone.domain.lfric.lfric_kern.LFRicKern.is_intergrid" name="psyclone.domain.lfric.lfric_kern.LFRicKern.is_intergrid">
+<area shape="rect" id="Node000001" title=" " alt="" coords="265,83,466,127"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1domain_1_1lfric_1_1lfric__kern_1_1LFRicKern.html#a02c30647dd36204f068870b44323e6cb" title=" " alt="" coords="12,5,210,50"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="274,80,186,53,188,48,276,75"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1domain_1_1lfric_1_1lfric__kern_1_1LFRicKern.html#a364034d0a35fe8417600bc928fee478a" title=" " alt="" coords="16,74,206,136"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="249,108,207,108,207,102,249,102"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1domain_1_1lfric_1_1lfric__kern_1_1LFRicKern.html#a400527ef6940895be180e6a997dc1f67" title=" " alt="" coords="5,160,217,205"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="276,135,188,162,186,157,274,130"/>
+</map>

@@ -1,0 +1,10 @@
+<map id="psyclone.psyir.nodes.directive.Directive.create_data_movement_deep_copy_refs" name="psyclone.psyir.nodes.directive.Directive.create_data_movement_deep_copy_refs">
+<area shape="rect" id="Node000001" title=" " alt="" coords="807,21,1047,82"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCDataDirective.html#ab7f21b9ce21f8c03c378431eb2ac0784" title=" " alt="" coords="516,21,759,82"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="792,54,760,54,760,49,792,49"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCDataDirective.html#ad9f594e238d441a8bf543ec6461d62ae" title=" " alt="" coords="251,21,468,82"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="500,54,468,54,468,49,500,49"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html#a51d128217cfba0cd48a1c71703ff2fa9" title=" " alt="" coords="5,29,203,74"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="235,54,203,54,203,49,235,49"/>
+<area shape="poly" id="edge4_Node000004_Node000004" title=" " alt="" coords="146,17,130,10,104,8,80,10,65,15,59,21,61,28,55,29,54,19,62,10,79,5,104,3,132,5,148,12"/>
+</map>

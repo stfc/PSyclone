@@ -1,0 +1,9 @@
+<map id="psyclone.psyir.nodes.psy_data_node.PSyDataNode.type_name" name="psyclone.psyir.nodes.psy_data_node.PSyDataNode.type_name">
+<area shape="rect" id="Node000001" title=" " alt="" coords="584,52,850,97"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1nodes_1_1psy__data__node_1_1PSyDataNode.html#a9a2e88aeba6bcf95cd71dfb44b9018b4" title=" " alt="" coords="304,5,513,67"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="569,59,513,52,514,47,569,54"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1nodes_1_1psy__data__node_1_1PSyDataNode.html#a58f60cc8736392db948ebf6ae814f851" title=" " alt="" coords="281,91,536,136"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="569,96,537,100,536,95,568,91"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyGen_1_1Invoke.html#a693cfcb9175b42f6bd381e61d4f42bc6" title=" " alt="" coords="5,91,233,136"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="265,116,233,116,233,111,265,111"/>
+</map>

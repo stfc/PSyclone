@@ -1,0 +1,13 @@
+<map id="psyclone.psyir.transformations.scalarisation_trans.ScalarisationTrans" name="psyclone.psyir.transformations.scalarisation_trans.ScalarisationTrans">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,249,315,294"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1transformations_1_1loop__trans_1_1LoopTrans.html" title=" " alt="" coords="33,157,287,201"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="163,217,163,249,157,249,157,217"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyGen_1_1Transformation.html" title=" " alt="" coords="43,81,277,109"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="163,125,163,156,157,156,157,125"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="46,5,135,33"/>
+<area shape="poly" id="edge5_Node000002_Node000004" title=" " alt="" coords="60,45,46,59,34,75,29,91,33,107,58,134,90,154,87,158,54,139,28,110,24,91,29,73,42,56,57,41"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="116,43,150,79,146,82,112,46"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="175,5,284,33"/>
+<area shape="poly" id="edge6_Node000002_Node000005" title=" " alt="" coords="263,41,278,56,291,73,296,91,292,110,266,139,233,158,230,154,262,134,287,107,291,91,286,75,274,59,260,45"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="208,46,174,82,170,79,204,43"/>
+</map>

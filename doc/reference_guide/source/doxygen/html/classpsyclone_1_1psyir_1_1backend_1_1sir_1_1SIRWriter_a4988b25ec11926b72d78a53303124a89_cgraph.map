@@ -1,0 +1,8 @@
+<map id="psyclone.psyir.backend.sir.SIRWriter.unaryoperation_node" name="psyclone.psyir.backend.sir.SIRWriter.unaryoperation_node">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,29,229,74"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1backend_1_1visitor_1_1PSyIRVisitor.html#a33a90ad621b81ce9170da0968c704d5b" title=" " alt="" coords="277,29,497,74"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="229,49,261,49,261,54,229,54"/>
+<area shape="poly" id="edge3_Node000002_Node000002" title=" " alt="" coords="336,29,334,19,343,10,361,5,387,3,416,5,433,12,431,17,415,10,387,8,362,10,346,15,340,21,341,28"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1backend_1_1visitor_1_1PSyIRVisitor.html#aed55ed732a94e3261538945813e641ba" title=" " alt="" coords="545,29,765,74"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="497,49,530,49,530,54,497,54"/>
+</map>

@@ -1,0 +1,10 @@
+<map id="psyclone.psyir.nodes.node.Node.forward_dependence" name="psyclone.psyir.nodes.node.Node.forward_dependence">
+<area shape="rect" id="Node000001" title=" " alt="" coords="496,64,693,109"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html#a3a0bd46e16e7c4f3b7a194582d799b65" title=" " alt="" coords="251,29,448,74"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="480,73,448,68,449,63,481,68"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html#ae6bdb529ba7e28c0ee5833d99b30b965" title=" " alt="" coords="251,99,448,143"/>
+<area shape="poly" id="edge4_Node000001_Node000004" title=" " alt="" coords="481,105,449,110,448,104,480,100"/>
+<area shape="poly" id="edge3_Node000002_Node000002" title=" " alt="" coords="390,17,375,10,349,8,326,10,312,15,306,21,308,28,303,29,301,19,309,10,325,5,349,3,376,5,392,12"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html#a33f8cb56d361e70e8127655499767e72" title=" " alt="" coords="5,29,203,74"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="235,54,203,54,203,49,235,49"/>
+</map>

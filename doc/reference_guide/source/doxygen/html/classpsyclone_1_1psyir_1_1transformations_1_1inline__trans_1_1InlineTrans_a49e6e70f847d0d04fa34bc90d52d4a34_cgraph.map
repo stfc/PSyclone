@@ -1,0 +1,14 @@
+<map id="psyclone.psyir.transformations.inline_trans.InlineTrans._replace_formal_struc_arg" name="psyclone.psyir.transformations.inline_trans.InlineTrans._replace_formal_struc_arg">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,5,268,67"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1transformations_1_1inline__trans_1_1InlineTrans.html#aa7ff3af71ea4fde63e7517c445ef8883" title=" " alt="" coords="968,46,1241,90"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="268,44,607,58,953,67,953,73,607,63,268,50"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1transformations_1_1inline__trans_1_1InlineTrans.html#a4c93f1e5c64b24135aa5e01e0c5e2a21" title=" " alt="" coords="316,86,607,130"/>
+<area shape="poly" id="edge4_Node000001_Node000003" title=" " alt="" coords="269,63,343,79,342,84,267,68"/>
+<area shape="poly" id="edge3_Node000002_Node000001" title=" " alt="" coords="968,60,627,46,283,37,283,32,627,41,968,55"/>
+<area shape="poly" id="edge2_Node000002_Node000002" title=" " alt="" coords="1045,46,1043,36,1053,27,1074,21,1105,19,1138,22,1159,28,1157,33,1137,27,1104,24,1075,26,1056,31,1048,37,1050,45"/>
+<area shape="poly" id="edge8_Node000003_Node000002" title=" " alt="" coords="607,96,953,75,953,80,608,102"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1transformations_1_1inline__trans_1_1InlineTrans.html#af3eaf5577995331c0a90cb5a6683357c" title=" " alt="" coords="655,160,920,205"/>
+<area shape="poly" id="edge5_Node000003_Node000004" title=" " alt="" coords="563,128,673,154,671,159,561,134"/>
+<area shape="poly" id="edge7_Node000004_Node000002" title=" " alt="" coords="851,157,1025,94,1027,99,853,162"/>
+<area shape="poly" id="edge6_Node000004_Node000004" title=" " alt="" coords="728,161,726,150,736,141,757,136,788,134,822,136,842,143,840,148,821,142,788,139,758,141,739,146,731,152,733,159"/>
+</map>

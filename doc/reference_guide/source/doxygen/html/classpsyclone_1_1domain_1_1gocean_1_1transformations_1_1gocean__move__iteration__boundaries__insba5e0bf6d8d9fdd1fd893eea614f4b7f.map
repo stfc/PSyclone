@@ -1,0 +1,9 @@
+<map id="psyclone.domain.gocean.transformations.gocean_move_iteration_boundaries_inside_kernel_trans.GOMoveIterationBoundariesInsideKernelTrans" name="psyclone.domain.gocean.transformations.gocean_move_iteration_boundaries_inside_kernel_trans.GOMoveIterationBoundariesInsideKernelTrans">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,157,348,235"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyGen_1_1Transformation.html" title=" " alt="" coords="59,81,294,109"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="179,124,179,156,174,156,174,124"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="71,5,159,33"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="138,43,168,79,164,82,134,47"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="184,5,292,33"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="219,47,189,82,185,79,215,43"/>
+</map>

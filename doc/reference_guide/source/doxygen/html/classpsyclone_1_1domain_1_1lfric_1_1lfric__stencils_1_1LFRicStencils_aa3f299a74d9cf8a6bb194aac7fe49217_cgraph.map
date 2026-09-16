@@ -1,0 +1,24 @@
+<map id="psyclone.domain.lfric.lfric_stencils.LFRicStencils._stub_declarations" name="psyclone.domain.lfric.lfric_stencils.LFRicStencils._stub_declarations">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,241,196,303"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1domain_1_1lfric_1_1lfric__stencils_1_1LFRicStencils.html#aaf03c2c835fd3684b09701e22573dff4" title=" " alt="" coords="262,74,452,136"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="148,238,293,143,296,147,151,243"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1domain_1_1lfric_1_1lfric__stencils_1_1LFRicStencils.html#a05ed1be115f782e0e03ac34a9143faa9" title=" " alt="" coords="244,198,470,260"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="196,253,228,248,229,253,197,258"/>
+<area shape="rect" id="Node000008" href="$classpsyclone_1_1domain_1_1lfric_1_1lfric__stencils_1_1LFRicStencils.html#a67f1ad6adf11c26c77df0d09a777c552" title=" " alt="" coords="251,284,462,345"/>
+<area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="197,285,236,292,235,297,196,290"/>
+<area shape="rect" id="Node000010" href="$classpsyclone_1_1domain_1_1lfric_1_1lfric__stencils_1_1LFRicStencils.html#a815bfc1265d48560cf9e19a9f41ce08e" title=" " alt="" coords="250,370,464,448"/>
+<area shape="poly" id="edge10_Node000001_Node000010" title=" " alt="" coords="152,301,245,355,256,360,253,365,242,359,150,305"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1domain_1_1lfric_1_1lfric__stencils_1_1LFRicStencils.html#afeec9885537d5b51fef47218580d2165" title=" " alt="" coords="843,130,1066,192"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="410,71,461,47,517,29,595,12,658,4,720,8,796,29,832,46,865,68,919,117,915,121,862,72,829,51,794,34,720,13,658,9,596,17,519,34,463,52,412,76"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1domain_1_1lfric_1_1lfric__stencils_1_1LFRicStencils.html#af324fad953c46b3f00a7a747932aee80" title=" " alt="" coords="518,44,795,89"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="452,90,502,84,503,89,453,95"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1domain_1_1lfric_1_1lfric__stencils_1_1LFRicStencils.html#a275c5a515d3da660f7c4a12f13fcf75d" title=" " alt="" coords="556,113,757,175"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="453,115,541,126,540,131,452,120"/>
+<area shape="rect" id="Node000007" href="$classpsyclone_1_1domain_1_1lfric_1_1lfric__stencils_1_1LFRicStencils.html#a6d8ac8bbcb1591dcf0c1006d0ea19747" title=" " alt="" coords="562,198,752,260"/>
+<area shape="poly" id="edge6_Node000006_Node000007" title=" " alt="" coords="471,226,546,226,546,232,471,232"/>
+<area shape="rect" id="Node000009" href="$classpsyclone_1_1domain_1_1lfric_1_1lfric__stencils_1_1LFRicStencils.html#a66485ab2f366b54e602befe4d6e535b9" title=" " alt="" coords="562,284,752,345"/>
+<area shape="poly" id="edge8_Node000008_Node000009" title=" " alt="" coords="463,312,546,312,546,317,463,317"/>
+<area shape="poly" id="edge9_Node000009_Node000003" title=" " alt="" coords="751,287,794,269,852,236,902,199,905,204,854,240,797,274,753,292"/>
+<area shape="rect" id="Node000011" href="$classpsyclone_1_1domain_1_1lfric_1_1lfric__stencils_1_1LFRicStencils.html#a3a376b6941c57fc762c108bc198b79a9" title=" " alt="" coords="536,378,778,440"/>
+<area shape="poly" id="edge11_Node000010_Node000011" title=" " alt="" coords="465,406,520,406,520,412,465,412"/>
+</map>

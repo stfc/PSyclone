@@ -1,0 +1,21 @@
+<map id="psyclone.domain.lfric.lfric_psy.LFRicPSy.orig_name" name="psyclone.domain.lfric.lfric_psy.LFRicPSy.orig_name">
+<area shape="rect" id="Node000001" title=" " alt="" coords="628,265,818,310"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1domain_1_1lfric_1_1function__space_1_1FunctionSpace.html#af4db3626b7b452a009daee6e6f88eb40" title=" " alt="" coords="308,5,572,50"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="706,251,687,208,659,157,623,107,578,64,559,53,562,48,582,60,627,103,664,154,692,205,711,249"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1symbols_1_1interfaces_1_1ImportInterface.html#a2163664af39f2da26bafc5c9eb985115" title=" " alt="" coords="317,99,563,143"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="690,256,640,209,610,185,579,165,537,146,539,142,581,160,614,181,644,205,694,252"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1symbols_1_1interfaces_1_1ImportInterface.html#a04d93982c816b55d477c1b4f1a70d993" title=" " alt="" coords="5,129,252,174"/>
+<area shape="poly" id="edge5_Node000001_Node000004" title=" " alt="" coords="677,259,631,232,579,209,496,186,410,171,327,161,252,156,252,151,327,156,411,166,497,181,581,204,633,227,680,254"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1domain_1_1lfric_1_1function__space_1_1FunctionSpace.html#a6352b0bdd76ace28be18afd5a7da0575" title=" " alt="" coords="331,218,549,280"/>
+<area shape="poly" id="edge6_Node000001_Node000005" title=" " alt="" coords="612,275,549,267,550,261,613,270"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1domain_1_1lfric_1_1function__space_1_1FunctionSpace.html#acc2e4cca321b5c0283368e32e58c6df6" title=" " alt="" coords="301,304,579,349"/>
+<area shape="poly" id="edge7_Node000001_Node000006" title=" " alt="" coords="613,305,580,310,579,305,612,300"/>
+<area shape="rect" id="Node000007" href="$classpsyclone_1_1domain_1_1lfric_1_1function__space_1_1FunctionSpace.html#a00d545416162ae34c57e3e533f39ae92" title=" " alt="" coords="321,373,558,434"/>
+<area shape="poly" id="edge8_Node000001_Node000007" title=" " alt="" coords="670,320,581,363,551,375,549,370,579,359,668,315"/>
+<area shape="rect" id="Node000008" href="$classpsyclone_1_1domain_1_1lfric_1_1function__space_1_1FunctionSpace.html#a1417bc5d52355381802553314de35dbf" title=" " alt="" coords="300,459,580,503"/>
+<area shape="poly" id="edge9_Node000001_Node000008" title=" " alt="" coords="702,325,652,388,619,421,581,449,557,461,555,456,579,444,615,417,648,385,698,321"/>
+<area shape="rect" id="Node000009" href="$classpsyclone_1_1domain_1_1lfric_1_1function__space_1_1FunctionSpace.html#a36bb225b07fe88336b64884bdc6ba11a" title=" " alt="" coords="320,528,560,589"/>
+<area shape="poly" id="edge10_Node000001_Node000009" title=" " alt="" coords="711,325,692,369,664,421,627,473,582,518,561,531,559,526,578,514,623,470,659,418,687,367,706,323"/>
+<area shape="poly" id="edge3_Node000003_Node000003" title=" " alt="" coords="486,86,469,80,440,77,413,79,396,84,390,90,392,98,386,99,385,88,394,79,412,74,440,72,470,74,488,81"/>
+<area shape="poly" id="edge4_Node000003_Node000004" title=" " alt="" coords="301,137,252,142,252,137,301,132"/>
+</map>

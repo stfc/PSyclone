@@ -1,0 +1,11 @@
+<map id="psyclone.parse.algorithm.Parser.create_kernel_call" name="psyclone.parse.algorithm.Parser.create_kernel_call">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,75,196,119"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1parse_1_1algorithm_1_1Parser.html#a6943d6e64556bdf67c751c45431e8563" title=" " alt="" coords="244,5,474,50"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="186,71,258,52,259,57,187,77"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1parse_1_1algorithm_1_1Parser.html#ad7e32750668d9d1866d8a76b0fede7b9" title=" " alt="" coords="245,75,473,119"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="196,94,229,94,229,100,196,100"/>
+<area shape="rect" id="Node000004" href="$namespacepsyclone_1_1parse_1_1algorithm.html#af20c097d1ea4d96589aec9a13fdab316" title=" " alt="" coords="253,144,464,189"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="187,117,259,137,258,142,186,123"/>
+<area shape="rect" id="Node000005" href="$namespacepsyclone_1_1parse_1_1algorithm.html#a01fa0425f8bb064eccb58eeaebc904e0" title=" " alt="" coords="522,144,753,189"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="465,164,506,164,506,169,465,169"/>
+</map>

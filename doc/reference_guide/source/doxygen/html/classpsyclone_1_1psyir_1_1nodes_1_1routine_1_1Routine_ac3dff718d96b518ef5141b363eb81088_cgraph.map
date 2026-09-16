@@ -1,0 +1,7 @@
+<map id="psyclone.psyir.nodes.routine.Routine.return_symbol" name="psyclone.psyir.nodes.routine.Routine.return_symbol">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,40,217,85"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyGen_1_1InvokeSchedule.html#a9465454a1cec2e5179a9c17441d161c7" title=" " alt="" coords="265,5,555,50"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="217,47,249,44,250,49,217,53"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1nodes_1_1scoping__node_1_1ScopingNode.html#a4431efe764e4e70fe270c10efa13c5f6" title=" " alt="" coords="289,75,530,119"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="217,72,274,79,273,84,217,77"/>
+</map>

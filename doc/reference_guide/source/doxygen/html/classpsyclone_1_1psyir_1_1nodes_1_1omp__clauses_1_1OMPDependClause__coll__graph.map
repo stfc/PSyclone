@@ -1,0 +1,15 @@
+<map id="psyclone.psyir.nodes.omp_clauses.OMPDependClause" name="psyclone.psyir.nodes.omp_clauses.OMPDependClause">
+<area shape="rect" id="Node000001" title=" " alt="" coords="131,266,336,311"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1nodes_1_1clause_1_1OperandClause.html" title=" " alt="" coords="130,174,337,218"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="236,234,236,266,231,266,231,234"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1nodes_1_1clause_1_1Clause.html" title=" " alt="" coords="130,81,337,126"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="236,141,236,173,231,173,231,141"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html" title=" " alt="" coords="118,5,349,33"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="236,49,236,80,231,80,231,49"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="5,5,94,33"/>
+<area shape="poly" id="edge6_Node000002_Node000005" title=" " alt="" coords="64,46,88,85,119,124,153,150,188,171,185,175,150,154,116,128,83,88,60,48"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="94,37,186,78,184,83,92,42"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="373,5,481,33"/>
+<area shape="poly" id="edge7_Node000002_Node000006" title=" " alt="" coords="414,48,387,87,351,128,316,154,280,176,277,171,313,150,348,124,383,84,410,45"/>
+<area shape="poly" id="edge5_Node000003_Node000006" title=" " alt="" coords="383,42,286,83,284,78,381,37"/>
+</map>

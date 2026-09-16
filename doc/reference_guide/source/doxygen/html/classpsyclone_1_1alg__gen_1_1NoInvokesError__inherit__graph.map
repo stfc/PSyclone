@@ -1,0 +1,7 @@
+<map id="psyclone.alg_gen.NoInvokesError" name="psyclone.alg_gen.NoInvokesError">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,174,212,218"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1errors_1_1PSycloneError.html" title=" " alt="" coords="16,81,201,126"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="111,141,111,173,106,173,106,141"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="66,5,151,33"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="111,49,111,80,106,80,106,49"/>
+</map>

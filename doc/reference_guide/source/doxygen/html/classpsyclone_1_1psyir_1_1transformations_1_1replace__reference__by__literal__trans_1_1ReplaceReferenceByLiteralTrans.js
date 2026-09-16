@@ -1,0 +1,8 @@
+var classpsyclone_1_1psyir_1_1transformations_1_1replace__reference__by__literal__trans_1_1ReplaceReferenceByLiteralTrans =
+[
+    [ "_replace_bounds", "classpsyclone_1_1psyir_1_1transformations_1_1replace__reference__by__literal__trans_1_1ReplaceReferenceByLiteralTrans.html#ab31c4462e815fc689489d4cacca3c702", null ],
+    [ "_update_param_table", "classpsyclone_1_1psyir_1_1transformations_1_1replace__reference__by__literal__trans_1_1ReplaceReferenceByLiteralTrans.html#abfb5d3a3fbedd1e630e2b159c5f4b29f", null ],
+    [ "apply", "classpsyclone_1_1psyir_1_1transformations_1_1replace__reference__by__literal__trans_1_1ReplaceReferenceByLiteralTrans.html#a7618af2d915b14cbc2d43b22ee36f99b", null ],
+    [ "validate", "classpsyclone_1_1psyir_1_1transformations_1_1replace__reference__by__literal__trans_1_1ReplaceReferenceByLiteralTrans.html#a158f9609f7bacbf3163ca51f6db5fda2", null ],
+    [ "_param_table", "classpsyclone_1_1psyir_1_1transformations_1_1replace__reference__by__literal__trans_1_1ReplaceReferenceByLiteralTrans.html#ac7626325ba267dbcae45219b9f31782b", null ]
+];

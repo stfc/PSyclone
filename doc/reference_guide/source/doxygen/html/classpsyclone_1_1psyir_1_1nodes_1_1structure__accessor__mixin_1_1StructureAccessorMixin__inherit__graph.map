@@ -1,0 +1,19 @@
+<map id="psyclone.psyir.nodes.structure_accessor_mixin.StructureAccessorMixin" name="psyclone.psyir.nodes.structure_accessor_mixin.StructureAccessorMixin">
+<area shape="rect" id="Node000001" title=" " alt="" coords="162,75,448,119"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1nodes_1_1array__of__structures__mixin_1_1ArrayOfStructuresMixin.html" title=" " alt="" coords="496,75,809,119"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="464,94,496,94,496,100,464,100"/>
+<area shape="rect" id="Node000007" href="$classpsyclone_1_1psyir_1_1nodes_1_1structure__member_1_1StructureMember.html" title=" " alt="" coords="543,5,762,50"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="435,68,542,47,543,52,436,74"/>
+<area shape="rect" id="Node000008" href="$classpsyclone_1_1psyir_1_1nodes_1_1structure__reference_1_1StructureReference.html" title=" " alt="" coords="543,144,762,189"/>
+<area shape="poly" id="edge8_Node000001_Node000008" title=" " alt="" coords="436,120,543,142,542,147,435,126"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="15,56,104,84"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="120,74,161,79,161,84,119,79"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="5,108,114,136"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="129,113,161,109,161,115,129,118"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1psyir_1_1nodes_1_1array__of__structures__member_1_1ArrayOfStructuresMember.html" title=" " alt="" coords="857,10,1152,72"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="812,69,857,62,857,67,812,74"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1psyir_1_1nodes_1_1array__of__structures__reference_1_1ArrayOfStructuresReference.html" title=" " alt="" coords="886,109,1123,170"/>
+<area shape="poly" id="edge5_Node000004_Node000006" title=" " alt="" coords="825,115,886,123,886,128,824,121"/>
+<area shape="poly" id="edge7_Node000007_Node000005" title=" " alt="" coords="778,30,857,33,857,38,778,35"/>
+<area shape="poly" id="edge9_Node000008_Node000006" title=" " alt="" coords="777,154,886,146,886,151,778,160"/>
+</map>

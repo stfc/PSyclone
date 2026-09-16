@@ -1,0 +1,10 @@
+<map id="psyclone.domain.lfric.arg_ordering.ArgOrdering.append_integer_reference" name="psyclone.domain.lfric.arg_ordering.ArgOrdering.append_integer_reference">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,32,222,93"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1domain_1_1lfric_1_1arg__ordering_1_1ArgOrdering.html#a1aa95fd045e3e6337cd77bf5f98a3b8f" title=" " alt="" coords="285,5,510,50"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="222,46,269,41,270,46,222,52"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1domain_1_1lfric_1_1arg__ordering_1_1ArgOrdering.html#a0338677ac8aa99d430213bb8912d194e" title=" " alt="" coords="270,75,525,119"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="222,73,255,77,254,82,222,78"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1domain_1_1lfric_1_1arg__ordering_1_1ArgOrdering.html#a72d025367a24c6666e431e901eac95eb" title=" " alt="" coords="573,75,789,119"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="525,94,557,94,557,100,525,100"/>
+<area shape="poly" id="edge4_Node000004_Node000004" title=" " alt="" coords="628,75,626,64,635,55,653,50,681,48,711,50,729,57,728,62,710,56,681,53,654,55,638,60,631,66,633,74"/>
+</map>

@@ -1,0 +1,5 @@
+var classpsyclone_1_1psyir_1_1transformations_1_1replace__induction__variables__trans_1_1ReplaceInductionVariablesTrans =
+[
+    [ "apply", "classpsyclone_1_1psyir_1_1transformations_1_1replace__induction__variables__trans_1_1ReplaceInductionVariablesTrans.html#aacca1f15cf152a80563ce73c052672a1", null ],
+    [ "validate", "classpsyclone_1_1psyir_1_1transformations_1_1replace__induction__variables__trans_1_1ReplaceInductionVariablesTrans.html#a4798a1bea87a97d4dd38b2b7c3b1e32f", null ]
+];

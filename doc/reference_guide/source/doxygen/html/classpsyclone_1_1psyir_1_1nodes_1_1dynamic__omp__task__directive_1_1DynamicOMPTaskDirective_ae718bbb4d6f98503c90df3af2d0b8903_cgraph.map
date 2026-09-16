@@ -1,0 +1,7 @@
+<map id="psyclone.psyir.nodes.dynamic_omp_task_directive.DynamicOMPTaskDirective._handle_index_binop" name="psyclone.psyir.nodes.dynamic_omp_task_directive.DynamicOMPTaskDirective._handle_index_binop">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,62,283,124"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#a7d09ee25273885dadf6538d7622d0f67" title=" " alt="" coords="331,5,608,84"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="283,70,315,65,316,70,284,75"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#a957b44b276b7144f2fdc9392aba4c669" title=" " alt="" coords="331,108,608,170"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="283,110,316,115,315,120,283,115"/>
+</map>

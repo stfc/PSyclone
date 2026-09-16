@@ -1,0 +1,6 @@
+<map id="psyclone.psyir.transformations.hoist_local_arrays_trans.HoistLocalArraysTrans.validate" name="psyclone.psyir.transformations.hoist_local_arrays_trans.HoistLocalArraysTrans.validate">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,29,358,74"/>
+<area shape="poly" id="edge2_Node000001_Node000001" title=" " alt="" coords="112,29,110,19,121,10,145,5,182,3,221,5,245,12,244,17,220,10,181,8,146,10,124,15,115,21,117,28"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1transformations_1_1hoist__local__arrays__trans_1_1HoistLocalArraysTrans.html#a7d098d6aa99718e6fa45ea197348564e" title=" " alt="" coords="406,21,705,82"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="358,49,390,49,390,54,358,54"/>
+</map>

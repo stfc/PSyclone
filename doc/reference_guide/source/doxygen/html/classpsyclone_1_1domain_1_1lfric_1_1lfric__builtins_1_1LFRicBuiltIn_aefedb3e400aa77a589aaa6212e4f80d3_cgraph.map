@@ -1,0 +1,20 @@
+<map id="psyclone.domain.lfric.lfric_builtins.LFRicBuiltIn._replace_with_assignment" name="psyclone.domain.lfric.lfric_builtins.LFRicBuiltIn._replace_with_assignment">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,102,200,164"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html#a331e932d6c9f6e9935f5b4677a34552b" title=" " alt="" coords="248,140,445,185"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="201,142,233,146,232,151,200,147"/>
+<area shape="rect" id="Node000007" href="$classpsyclone_1_1psyir_1_1nodes_1_1routine_1_1Routine.html#a4b87c78ef15df85374e7fcb4e6146d46" title=" " alt="" coords="515,29,726,74"/>
+<area shape="poly" id="edge8_Node000001_Node000007" title=" " alt="" coords="200,115,499,68,500,73,201,120"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1f2pygen_1_1BaseGen.html#aa79db0ed8d9e767f2e8e5785774789a4" title=" " alt="" coords="796,208,1041,236"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="374,183,427,222,459,241,494,254,542,265,591,271,641,272,690,269,782,256,856,238,857,243,783,261,691,274,641,277,591,276,541,271,492,260,457,246,424,227,371,187"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html#ac3fa3eb9225138e40e8d6db6122f46ed" title=" " alt="" coords="820,89,1017,134"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="445,141,493,134,656,120,804,112,804,118,656,125,493,140,446,146"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1f2pygen_1_1Directive.html#ac005467c752991d505b02041f0849371" title=" " alt="" coords="493,148,748,176"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="445,160,477,160,477,165,445,165"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html#ae35796481d79cebabef066865f7027b2" title=" " alt="" coords="522,200,719,245"/>
+<area shape="poly" id="edge5_Node000002_Node000006" title=" " alt="" coords="446,181,507,195,506,200,445,187"/>
+<area shape="poly" id="edge6_Node000006_Node000003" title=" " alt="" coords="720,220,781,220,781,225,720,225"/>
+<area shape="poly" id="edge7_Node000006_Node000004" title=" " alt="" coords="711,197,747,185,857,139,859,144,749,190,713,202"/>
+<area shape="poly" id="edge9_Node000007_Node000003" title=" " alt="" coords="663,72,880,198,878,203,660,77"/>
+<area shape="poly" id="edge10_Node000007_Node000004" title=" " alt="" coords="727,70,805,86,804,91,726,76"/>
+<area shape="poly" id="edge11_Node000007_Node000007" title=" " alt="" coords="569,29,567,19,576,10,594,5,621,3,650,5,667,11,666,16,649,10,621,8,595,10,579,15,572,21,574,28"/>
+</map>

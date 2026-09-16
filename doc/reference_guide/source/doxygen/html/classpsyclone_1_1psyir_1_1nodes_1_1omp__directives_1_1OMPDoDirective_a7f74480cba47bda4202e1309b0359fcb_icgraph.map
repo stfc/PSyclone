@@ -1,0 +1,27 @@
+<map id="psyclone.psyir.nodes.omp_directives.OMPDoDirective.collapse" name="psyclone.psyir.nodes.omp_directives.OMPDoDirective.collapse">
+<area shape="rect" id="Node000001" title=" " alt="" coords="987,169,1249,214"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCLoopDirective.html#ae698070d8d7d1b1ec6c5df7319f9b672" title=" " alt="" coords="660,29,921,74"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="1071,162,1010,124,938,89,904,77,906,72,940,84,1012,119,1074,158"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1nodes_1_1omp__directives_1_1OMPDoDirective.html#a5f06d137b6e29a89f7529f8a803e95a3" title=" " alt="" coords="665,123,916,167"/>
+<area shape="poly" id="edge3_Node000001_Node000003" title=" " alt="" coords="972,174,916,166,917,160,973,168"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1nodes_1_1omp__directives_1_1OMPLoopDirective.html#a7e13a6a18924a19c0d4b9ae7872680bb" title=" " alt="" coords="658,216,923,261"/>
+<area shape="poly" id="edge5_Node000001_Node000004" title=" " alt="" coords="972,215,923,222,923,217,972,210"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCLoopDirective.html#a39722ea4c4cd5a47ca8832e9e9a19653" title=" " alt="" coords="642,285,939,330"/>
+<area shape="poly" id="edge7_Node000001_Node000005" title=" " alt="" coords="1061,224,1003,251,940,276,901,287,900,282,938,270,1001,246,1059,219"/>
+<area shape="poly" id="edge2_Node000002_Node000002" title=" " alt="" coords="845,17,825,10,791,8,760,10,740,15,732,21,734,28,729,29,727,19,738,10,759,5,791,3,826,5,846,12"/>
+<area shape="poly" id="edge4_Node000003_Node000003" title=" " alt="" coords="845,110,825,104,791,101,760,103,740,108,732,114,734,122,729,123,727,112,738,103,759,98,791,96,826,98,846,105"/>
+<area shape="poly" id="edge6_Node000004_Node000004" title=" " alt="" coords="845,203,825,197,791,195,760,197,740,202,732,207,734,215,729,216,727,206,738,197,759,191,791,189,826,192,846,198"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCEnterDataDirective.html#a1f43723bbddd9ffec27297740fb383fd" title=" " alt="" coords="281,181,594,226"/>
+<area shape="poly" id="edge8_Node000005_Node000006" title=" " alt="" coords="657,282,641,275,616,258,593,241,562,229,564,224,595,236,620,253,643,271,659,277"/>
+<area shape="rect" id="Node000008" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCKernelsDirective.html#a20f7f6a41eb334b609e310ebea0c0e95" title=" " alt="" coords="289,251,586,295"/>
+<area shape="poly" id="edge10_Node000005_Node000008" title=" " alt="" coords="627,294,585,290,586,285,627,289"/>
+<area shape="rect" id="Node000009" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCLoopDirective.html#a3d3d21564b4ce3125ae824d8581f7460" title=" " alt="" coords="298,320,577,365"/>
+<area shape="poly" id="edge12_Node000005_Node000009" title=" " alt="" coords="627,326,578,331,577,326,626,321"/>
+<area shape="rect" id="Node000010" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCParallelDirective.html#ae38988340828202b1bd174cbd3ec1d09" title=" " alt="" coords="289,389,586,434"/>
+<area shape="poly" id="edge14_Node000005_Node000010" title=" " alt="" coords="717,338,595,380,550,391,549,386,593,374,716,333"/>
+<area shape="rect" id="Node000007" href="$classpsyclone_1_1psyGen_1_1Invoke.html#a693cfcb9175b42f6bd381e61d4f42bc6" title=" " alt="" coords="5,285,233,330"/>
+<area shape="poly" id="edge9_Node000006_Node000007" title=" " alt="" coords="308,233,282,241,222,263,168,287,166,282,220,258,280,236,307,228"/>
+<area shape="poly" id="edge11_Node000008_Node000007" title=" " alt="" coords="274,293,234,298,233,293,274,288"/>
+<area shape="poly" id="edge13_Node000009_Node000007" title=" " alt="" coords="282,328,233,323,234,317,282,323"/>
+<area shape="poly" id="edge15_Node000010_Node000007" title=" " alt="" coords="307,388,280,380,220,357,166,333,168,328,222,352,282,374,308,382"/>
+</map>

@@ -1,0 +1,8 @@
+<map id="psyclone.psyir.nodes.assignment.Assignment.__eq__" name="psyclone.psyir.nodes.assignment.Assignment.__eq__">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,40,247,85"/>
+<area shape="poly" id="edge1_Node000001_Node000001" title=" " alt="" coords="71,40,70,30,79,21,98,15,126,13,157,16,175,22,173,27,156,21,126,19,99,21,82,25,75,31,77,39"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1nodes_1_1assignment_1_1Assignment.html#aab9d2f13d2c7ddfade503eddd01ca41e" title=" " alt="" coords="295,5,536,50"/>
+<area shape="poly" id="edge2_Node000001_Node000002" title=" " alt="" coords="247,45,279,41,279,47,248,50"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1nodes_1_1assignment_1_1Assignment.html#a257f421d51816b3716ba3af231064337" title=" " alt="" coords="295,75,536,119"/>
+<area shape="poly" id="edge3_Node000001_Node000003" title=" " alt="" coords="248,74,279,78,279,83,247,79"/>
+</map>

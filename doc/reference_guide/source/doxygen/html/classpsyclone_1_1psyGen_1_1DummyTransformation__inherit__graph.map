@@ -1,0 +1,9 @@
+<map id="psyclone.psyGen.DummyTransformation" name="psyclone.psyGen.DummyTransformation">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,157,292,184"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyGen_1_1Transformation.html" title=" " alt="" coords="31,81,266,109"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="151,124,151,156,146,156,146,124"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="43,5,131,33"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="110,43,140,79,136,82,106,47"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="156,5,264,33"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="191,47,161,82,157,79,187,43"/>
+</map>

@@ -1,0 +1,8 @@
+<map id="psyclone.psyir.backend.language_writer.LanguageWriter.clause_node" name="psyclone.psyir.backend.language_writer.LanguageWriter.clause_node">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,29,262,74"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1backend_1_1visitor_1_1PSyIRVisitor.html#a33a90ad621b81ce9170da0968c704d5b" title=" " alt="" coords="310,29,530,74"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="262,49,294,49,294,54,262,54"/>
+<area shape="poly" id="edge3_Node000002_Node000002" title=" " alt="" coords="369,29,367,19,376,10,394,5,420,3,449,5,466,12,464,17,448,10,420,8,395,10,379,15,373,21,374,28"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1backend_1_1visitor_1_1PSyIRVisitor.html#aed55ed732a94e3261538945813e641ba" title=" " alt="" coords="578,29,798,74"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="530,49,563,49,563,54,530,54"/>
+</map>

@@ -1,0 +1,7 @@
+<map id="psyclone.parse.kernel.KernelType" name="psyclone.parse.kernel.KernelType">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,48,244,76"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1domain_1_1lfric_1_1lfric__kern__metadata_1_1LFRicKernMetadata.html" title=" " alt="" coords="292,5,548,50"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="259,44,291,40,292,45,259,49"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1gocean1p0_1_1GOKernelType1p0.html" title=" " alt="" coords="310,75,530,119"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="259,75,310,81,309,87,259,81"/>
+</map>

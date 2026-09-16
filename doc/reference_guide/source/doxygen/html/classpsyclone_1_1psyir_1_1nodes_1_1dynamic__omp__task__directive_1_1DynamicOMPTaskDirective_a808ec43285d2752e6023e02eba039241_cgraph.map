@@ -1,0 +1,15 @@
+<map id="psyclone.psyir.nodes.dynamic_omp_task_directive.DynamicOMPTaskDirective._array_for_clause_combination_helper" name="psyclone.psyir.nodes.dynamic_omp_task_directive.DynamicOMPTaskDirective._array_for_clause_combination_helper">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,56,341,118"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html#a331e932d6c9f6e9935f5b4677a34552b" title=" " alt="" coords="389,65,586,110"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="341,85,373,85,373,90,341,90"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1f2pygen_1_1BaseGen.html#aa79db0ed8d9e767f2e8e5785774789a4" title=" " alt="" coords="937,13,1182,41"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="526,62,576,38,633,19,711,8,790,3,866,4,935,9,935,14,866,9,790,8,711,13,635,24,578,43,528,67"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html#ac3fa3eb9225138e40e8d6db6122f46ed" title=" " alt="" coords="961,90,1158,135"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="537,108,584,126,634,139,715,148,797,148,875,142,945,133,946,138,875,148,797,154,715,154,634,145,582,131,536,113"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1f2pygen_1_1Directive.html#ac005467c752991d505b02041f0849371" title=" " alt="" coords="634,103,889,130"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="587,95,619,99,618,104,586,100"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html#ae35796481d79cebabef066865f7027b2" title=" " alt="" coords="663,34,860,79"/>
+<area shape="poly" id="edge5_Node000002_Node000006" title=" " alt="" coords="586,74,648,67,648,72,587,79"/>
+<area shape="poly" id="edge6_Node000006_Node000003" title=" " alt="" coords="861,44,922,38,922,43,861,49"/>
+<area shape="poly" id="edge7_Node000006_Node000004" title=" " alt="" coords="861,73,946,89,945,94,860,78"/>
+</map>

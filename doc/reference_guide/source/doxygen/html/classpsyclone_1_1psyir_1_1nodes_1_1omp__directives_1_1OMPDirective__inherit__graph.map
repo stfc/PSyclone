@@ -1,0 +1,46 @@
+<map id="psyclone.psyir.nodes.omp_directives.OMPDirective" name="psyclone.psyir.nodes.omp_directives.OMPDirective">
+<area shape="rect" id="Node000001" title=" " alt="" coords="162,491,352,535"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1nodes_1_1omp__directives_1_1OMPRegionDirective.html" title=" " alt="" coords="414,317,644,362"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="305,480,491,360,494,365,308,484"/>
+<area shape="rect" id="Node000020" href="$classpsyclone_1_1psyir_1_1nodes_1_1omp__directives_1_1OMPStandaloneDirective.html" title=" " alt="" coords="400,629,658,674"/>
+<area shape="poly" id="edge20_Node000001_Node000020" title=" " alt="" coords="317,540,484,626,482,631,315,545"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="15,472,104,500"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="119,492,161,497,161,503,119,497"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="5,524,114,552"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="129,527,161,523,162,528,129,532"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1psyir_1_1nodes_1_1omp__directives_1_1OMPAtomicDirective.html" title=" " alt="" coords="729,5,959,50"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="541,302,564,247,599,182,646,116,674,86,705,60,727,47,730,52,708,65,677,90,650,119,604,185,569,250,546,304"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1psyir_1_1nodes_1_1omp__directives_1_1OMPDoDirective.html" title=" " alt="" coords="742,75,946,119"/>
+<area shape="poly" id="edge5_Node000004_Node000006" title=" " alt="" coords="549,303,575,262,611,215,655,169,705,129,741,113,743,117,708,134,658,173,615,219,579,265,553,306"/>
+<area shape="rect" id="Node000010" href="$classpsyclone_1_1psyir_1_1nodes_1_1omp__directives_1_1OMPLoopDirective.html" title=" " alt="" coords="736,144,952,189"/>
+<area shape="poly" id="edge9_Node000004_Node000010" title=" " alt="" coords="562,304,625,250,664,222,705,199,734,187,736,191,708,203,667,227,628,254,565,308"/>
+<area shape="rect" id="Node000011" href="$classpsyclone_1_1psyir_1_1nodes_1_1omp__directives_1_1OMPParallelDirective.html" title=" " alt="" coords="727,213,961,258"/>
+<area shape="poly" id="edge10_Node000004_Node000011" title=" " alt="" coords="596,309,705,268,745,256,747,261,707,273,598,314"/>
+<area shape="rect" id="Node000012" href="$classpsyclone_1_1psyir_1_1nodes_1_1omp__directives_1_1OMPSerialDirective.html" title=" " alt="" coords="733,283,955,327"/>
+<area shape="poly" id="edge12_Node000004_Node000012" title=" " alt="" coords="660,323,732,315,733,320,660,328"/>
+<area shape="rect" id="Node000015" href="$classpsyclone_1_1psyir_1_1nodes_1_1omp__directives_1_1OMPSimdDirective.html" title=" " alt="" coords="735,352,953,397"/>
+<area shape="poly" id="edge15_Node000004_Node000015" title=" " alt="" coords="660,351,735,360,734,365,660,357"/>
+<area shape="rect" id="Node000016" href="$classpsyclone_1_1psyir_1_1nodes_1_1omp__directives_1_1OMPTargetDirective.html" title=" " alt="" coords="731,421,957,466"/>
+<area shape="poly" id="edge16_Node000004_Node000016" title=" " alt="" coords="598,366,707,406,747,418,745,423,705,412,596,371"/>
+<area shape="rect" id="Node000017" href="$classpsyclone_1_1psyir_1_1nodes_1_1omp__directives_1_1OMPTaskloopDirective.html" title=" " alt="" coords="723,491,965,535"/>
+<area shape="poly" id="edge17_Node000004_Node000017" title=" " alt="" coords="565,371,628,425,667,453,708,476,736,488,734,493,705,481,664,457,625,429,562,375"/>
+<area shape="rect" id="Node000018" href="$classpsyclone_1_1psyir_1_1nodes_1_1omp__task__directive_1_1OMPTaskDirective.html" title=" " alt="" coords="723,560,965,605"/>
+<area shape="poly" id="edge18_Node000004_Node000018" title=" " alt="" coords="553,374,579,414,615,461,658,507,708,545,730,557,728,562,705,550,655,511,611,464,575,417,549,377"/>
+<area shape="rect" id="Node000007" href="$classpsyclone_1_1psyir_1_1nodes_1_1omp__directives_1_1OMPParallelDoDirective.html" title=" " alt="" coords="1043,109,1294,154"/>
+<area shape="poly" id="edge6_Node000006_Node000007" title=" " alt="" coords="962,107,1042,116,1042,121,961,112"/>
+<area shape="rect" id="Node000008" href="$classpsyclone_1_1psyir_1_1nodes_1_1omp__directives_1_1OMPTeamsDistributeParallelDoDirective.html" title=" " alt="" coords="1368,62,1600,124"/>
+<area shape="poly" id="edge7_Node000007_Node000008" title=" " alt="" coords="1309,112,1367,105,1368,110,1310,117"/>
+<area shape="rect" id="Node000009" href="$classpsyclone_1_1psyir_1_1nodes_1_1omp__directives_1_1OMPTeamsLoopDirective.html" title=" " alt="" coords="1355,148,1613,193"/>
+<area shape="poly" id="edge8_Node000007_Node000009" title=" " alt="" coords="1310,146,1355,152,1354,157,1309,152"/>
+<area shape="poly" id="edge11_Node000011_Node000007" title=" " alt="" coords="955,206,981,198,1110,152,1112,157,982,204,957,211"/>
+<area shape="rect" id="Node000013" href="$classpsyclone_1_1psyir_1_1nodes_1_1omp__directives_1_1OMPMasterDirective.html" title=" " alt="" coords="1053,248,1284,293"/>
+<area shape="poly" id="edge13_Node000012_Node000013" title=" " alt="" coords="971,289,1052,280,1053,285,971,294"/>
+<area shape="rect" id="Node000014" href="$classpsyclone_1_1psyir_1_1nodes_1_1omp__directives_1_1OMPSingleDirective.html" title=" " alt="" coords="1056,317,1281,362"/>
+<area shape="poly" id="edge14_Node000012_Node000014" title=" " alt="" coords="971,316,1056,325,1055,330,970,321"/>
+<area shape="rect" id="Node000019" href="$classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html" title=" " alt="" coords="1030,552,1307,613"/>
+<area shape="poly" id="edge19_Node000018_Node000019" title=" " alt="" coords="981,580,1029,580,1029,585,981,585"/>
+<area shape="rect" id="Node000021" href="$classpsyclone_1_1psyir_1_1nodes_1_1omp__directives_1_1OMPDeclareTargetDirective.html" title=" " alt="" coords="706,629,982,674"/>
+<area shape="poly" id="edge21_Node000020_Node000021" title=" " alt="" coords="674,649,706,649,706,654,674,654"/>
+<area shape="rect" id="Node000022" href="$classpsyclone_1_1psyir_1_1nodes_1_1omp__directives_1_1OMPTaskwaitDirective.html" title=" " alt="" coords="723,699,965,743"/>
+<area shape="poly" id="edge22_Node000020_Node000022" title=" " alt="" coords="650,675,740,695,739,701,648,681"/>
+</map>

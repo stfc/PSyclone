@@ -1,0 +1,15 @@
+<map id="psyclone.psyir.backend.fortran.FortranWriter.gen_vardecl" name="psyclone.psyir.backend.fortran.FortranWriter.gen_vardecl">
+<area shape="rect" id="Node000001" title=" " alt="" coords="855,65,1080,110"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1backend_1_1fortran_1_1FortranWriter.html#a85eccc4fe1f0b01d6efed41b55f3407c" title=" " alt="" coords="550,5,807,50"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="842,64,789,53,790,48,843,59"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1backend_1_1fortran_1_1FortranWriter.html#ac6b425fb6b71e7ebcc658037415f883a" title=" " alt="" coords="278,65,502,110"/>
+<area shape="poly" id="edge5_Node000001_Node000003" title=" " alt="" coords="840,90,503,90,503,85,840,85"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1psyir_1_1backend_1_1fortran_1_1FortranWriter.html#a944c3fab45bd4bab6674a24634719846" title=" " alt="" coords="566,125,791,170"/>
+<area shape="poly" id="edge6_Node000001_Node000006" title=" " alt="" coords="843,116,790,127,789,122,842,111"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="554,56,501,67,500,62,553,51"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1backend_1_1fortran_1_1FortranWriter.html#a6b6c0635ceb6b42cbce35fbe350110c0" title=" " alt="" coords="5,31,230,75"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="262,74,230,70,231,65,263,69"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1psyir_1_1backend_1_1fortran_1_1FortranWriter.html#a346bd4f236f3b9369ec014fef9f90e0c" title=" " alt="" coords="5,100,230,145"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="263,107,231,111,230,105,262,101"/>
+<area shape="poly" id="edge7_Node000006_Node000003" title=" " alt="" coords="553,124,500,113,501,108,554,119"/>
+</map>

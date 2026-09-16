@@ -1,0 +1,13 @@
+<map id="psyclone.domain.lfric.lfric_builtins.LFRicBuiltIn.get_dof_loop_index_symbol" name="psyclone.domain.lfric.lfric_builtins.LFRicBuiltIn.get_dof_loop_index_symbol">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,54,196,115"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html#a6855d095739bb64e4cd21d4ea5afb44b" title=" " alt="" coords="258,28,455,72"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="196,69,242,63,243,68,196,74"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1psyir_1_1symbols_1_1symbol__table_1_1SymbolTable.html#a72f273b760d638cecbc7ab65b701953e" title=" " alt="" coords="244,97,469,142"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="196,95,228,99,228,104,196,100"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html#ab32f7871d595911108ae58dbc77a0919" title=" " alt="" coords="517,28,714,72"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="455,47,501,47,501,52,455,52"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1f2pygen_1_1BaseGen.html#aa79db0ed8d9e767f2e8e5785774789a4" title=" " alt="" coords="762,5,1007,33"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="715,36,746,32,747,38,715,41"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html#ac3fa3eb9225138e40e8d6db6122f46ed" title=" " alt="" coords="786,57,983,102"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="715,58,770,64,770,69,715,63"/>
+</map>

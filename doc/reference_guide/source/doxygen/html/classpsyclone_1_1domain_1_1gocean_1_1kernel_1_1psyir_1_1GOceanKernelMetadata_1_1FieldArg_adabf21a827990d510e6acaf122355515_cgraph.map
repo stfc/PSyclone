@@ -1,0 +1,9 @@
+<map id="psyclone.domain.gocean.kernel.psyir.GOceanKernelMetadata.FieldArg.access" name="psyclone.domain.gocean.kernel.psyir.GOceanKernelMetadata.FieldArg.access">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,99,286,144"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1domain_1_1gocean_1_1kernel_1_1psyir_1_1GOceanKernelMetadata_1_1FieldArg.html#a8264df92166530589ed6711bc8f41388" title=" " alt="" coords="334,5,600,67"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="232,96,333,69,335,74,233,101"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1domain_1_1gocean_1_1kernel_1_1psyir_1_1GOceanKernelMetadata_1_1GridArg.html#ad842477f649cc9543f610896cc4cddfd" title=" " alt="" coords="334,91,600,152"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="286,119,318,119,318,124,286,124"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1domain_1_1gocean_1_1kernel_1_1psyir_1_1GOceanKernelMetadata_1_1ScalarArg.html#ac23aaf59ccf3009a834d85adde5985fc" title=" " alt="" coords="334,176,600,238"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="233,142,335,169,333,174,232,147"/>
+</map>

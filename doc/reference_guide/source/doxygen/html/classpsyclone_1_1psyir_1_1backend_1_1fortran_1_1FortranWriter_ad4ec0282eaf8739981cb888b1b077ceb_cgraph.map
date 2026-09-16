@@ -1,0 +1,8 @@
+<map id="psyclone.psyir.backend.fortran.FortranWriter.assignment_node" name="psyclone.psyir.backend.fortran.FortranWriter.assignment_node">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,29,231,74"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1backend_1_1visitor_1_1PSyIRVisitor.html#a33a90ad621b81ce9170da0968c704d5b" title=" " alt="" coords="279,29,499,74"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="231,49,263,49,263,54,231,54"/>
+<area shape="poly" id="edge3_Node000002_Node000002" title=" " alt="" coords="338,29,336,19,345,10,363,5,389,3,418,5,435,12,433,17,417,10,389,8,364,10,348,15,342,21,343,28"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1backend_1_1visitor_1_1PSyIRVisitor.html#aed55ed732a94e3261538945813e641ba" title=" " alt="" coords="547,29,767,74"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="499,49,532,49,532,54,499,54"/>
+</map>

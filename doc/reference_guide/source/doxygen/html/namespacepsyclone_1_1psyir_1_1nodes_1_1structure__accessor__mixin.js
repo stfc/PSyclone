@@ -1,0 +1,4 @@
+var namespacepsyclone_1_1psyir_1_1nodes_1_1structure__accessor__mixin =
+[
+    [ "StructureAccessorMixin", "classpsyclone_1_1psyir_1_1nodes_1_1structure__accessor__mixin_1_1StructureAccessorMixin.html", "classpsyclone_1_1psyir_1_1nodes_1_1structure__accessor__mixin_1_1StructureAccessorMixin" ]
+];

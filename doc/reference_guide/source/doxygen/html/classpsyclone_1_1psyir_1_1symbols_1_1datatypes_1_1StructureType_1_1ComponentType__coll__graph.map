@@ -1,0 +1,10 @@
+<map id="psyclone.psyir.symbols.datatypes.StructureType.ComponentType" name="psyclone.psyir.symbols.datatypes.StructureType.ComponentType">
+<area shape="rect" id="Node000001" title=" " alt="" coords="602,35,849,79"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1commentable__mixin_1_1CommentableMixin.html" title=" " alt="" coords="5,5,214,50"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="229,20,263,20,378,16,493,20,536,25,579,32,602,35,602,41,578,37,535,30,492,25,378,22,263,25,229,26"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html" title=" " alt="" coords="263,35,492,79"/>
+<area shape="poly" id="edge4_Node000004_Node000002" title=" " alt="" coords="230,38,263,42,262,47,229,43"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="348,103,407,131"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="422,107,601,76,602,81,423,112"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="508,54,602,54,602,60,508,60"/>
+</map>

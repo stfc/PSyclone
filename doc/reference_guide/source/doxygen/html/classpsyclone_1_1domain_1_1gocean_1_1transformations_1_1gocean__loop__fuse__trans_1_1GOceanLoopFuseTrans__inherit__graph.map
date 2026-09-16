@@ -1,0 +1,15 @@
+<map id="psyclone.domain.gocean.transformations.gocean_loop_fuse_trans.GOceanLoopFuseTrans" name="psyclone.domain.gocean.transformations.gocean_loop_fuse_trans.GOceanLoopFuseTrans">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,342,348,387"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1transformations_1_1loop__fuse__trans_1_1LoopFuseTrans.html" title=" " alt="" coords="49,249,304,294"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="179,310,179,342,174,342,174,310"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1transformations_1_1loop__trans_1_1LoopTrans.html" title=" " alt="" coords="49,157,304,201"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="179,217,179,249,174,249,174,217"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyGen_1_1Transformation.html" title=" " alt="" coords="59,81,294,109"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="179,125,179,156,174,156,174,125"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="63,5,151,33"/>
+<area shape="poly" id="edge6_Node000003_Node000005" title=" " alt="" coords="77,45,62,59,51,75,45,91,50,107,74,134,106,154,103,158,71,139,45,110,40,91,46,73,58,56,73,41"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="132,43,166,79,162,82,128,46"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="192,5,300,33"/>
+<area shape="poly" id="edge7_Node000003_Node000006" title=" " alt="" coords="280,41,295,56,307,73,313,91,308,110,282,139,250,158,247,154,279,134,303,107,308,91,302,75,291,59,276,45"/>
+<area shape="poly" id="edge5_Node000004_Node000006" title=" " alt="" coords="225,46,191,82,187,79,221,43"/>
+</map>

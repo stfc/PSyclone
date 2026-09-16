@@ -1,0 +1,103 @@
+\begin{sphinxtheindex}
+\let\bigletter\sphinxstyleindexlettergroup
+\let\spxpagem \sphinxstyleindexpagemain
+\let\spxentry \sphinxstyleindexentry
+\let\spxextra \sphinxstyleindexextra
+
+  \bigletter A
+  \item \spxentry{abs\_position()}\spxextra{psyclone.psyir.nodes.Node method}, \hyperpage{40}
+  \item \spxentry{ancestor()}\spxextra{psyclone.psyir.nodes.Node method}, \hyperpage{39}
+  \item \spxentry{ArgumentInterface}\spxextra{class in psyclone.psyir.symbols}, \hyperpage{48}
+  \item \spxentry{AutomaticInterface}\spxextra{class in psyclone.psyir.symbols}, \hyperpage{48}
+
+  \indexspace
+  \bigletter C
+  \item \spxentry{children()}\spxextra{psyclone.psyir.nodes.Node method}, \hyperpage{37}
+  \item \spxentry{clauses()}\spxextra{psyclone.psyir.nodes.RegionDirective method}, \hyperpage{42}
+  \item \spxentry{CommonBlockInterface}\spxextra{class in psyclone.psyir.symbols}, \hyperpage{48}
+  \item \spxentry{condition()}\spxextra{psyclone.psyir.nodes.IfBlock method}, \hyperpage{41}
+  \item \spxentry{condition()}\spxextra{psyclone.psyir.nodes.WhileLoop method}, \hyperpage{42}
+  \item \spxentry{ContainerSymbol}\spxextra{class in psyclone.psyir.symbols}, \hyperpage{46}
+
+  \indexspace
+  \bigletter D
+  \item \spxentry{DataSymbol}\spxextra{class in psyclone.psyir.symbols}, \hyperpage{46}
+  \item \spxentry{DataTypeSymbol}\spxextra{class in psyclone.psyir.symbols}, \hyperpage{46}
+  \item \spxentry{DefaultModuleInterface}\spxextra{class in psyclone.psyir.symbols}, \hyperpage{48}
+  \item \spxentry{dir\_body()}\spxextra{psyclone.psyir.nodes.RegionDirective method}, 
+		\hyperpage{42}
+
+  \indexspace
+  \bigletter E
+  \item \spxentry{else\_body()}\spxextra{psyclone.psyir.nodes.IfBlock method}, \hyperpage{41}
+
+  \indexspace
+  \bigletter G
+  \item \spxentry{GenericInterfaceSymbol}\spxextra{class in psyclone.psyir.symbols}, \hyperpage{47}
+  \item \spxentry{get\_sibling\_lists()}\spxextra{psyclone.psyir.nodes.Node method}, \hyperpage{38}
+  \item \spxentry{get\_trans\_name()}\spxextra{psyclone.psyGen.TransInfo method}, \hyperpage{57}
+  \item \spxentry{get\_trans\_num()}\spxextra{psyclone.psyGen.TransInfo method}, \hyperpage{57}
+
+  \indexspace
+  \bigletter I
+  \item \spxentry{if\_body()}\spxextra{psyclone.psyir.nodes.IfBlock method}, \hyperpage{41}
+  \item \spxentry{immediately\_follows()}\spxextra{psyclone.psyir.nodes.Node method}, 
+		\hyperpage{40}
+  \item \spxentry{immediately\_precedes()}\spxextra{psyclone.psyir.nodes.Node method}, 
+		\hyperpage{40}
+  \item \spxentry{ImportInterface}\spxextra{class in psyclone.psyir.symbols}, \hyperpage{48}
+  \item \spxentry{indices()}\spxextra{psyclone.psyir.nodes.ArrayReference method}, \hyperpage{42}
+  \item \spxentry{IntrinsicSymbol}\spxextra{class in psyclone.psyir.symbols}, \hyperpage{47}
+
+  \indexspace
+  \bigletter L
+  \item \spxentry{lhs()}\spxextra{psyclone.psyir.nodes.Assignment method}, \hyperpage{41}
+  \item \spxentry{list}\spxextra{psyclone.psyGen.TransInfo property}, \hyperpage{57}
+  \item \spxentry{loop\_body()}\spxextra{psyclone.psyir.nodes.Loop method}, \hyperpage{42}
+  \item \spxentry{loop\_body()}\spxextra{psyclone.psyir.nodes.WhileLoop method}, \hyperpage{42}
+
+  \indexspace
+  \bigletter M
+  \item \spxentry{member()}\spxextra{psyclone.psyir.nodes.StructureReference method}, 
+		\hyperpage{43}
+
+  \indexspace
+  \bigletter N
+  \item \spxentry{num\_trans}\spxextra{psyclone.psyGen.TransInfo property}, \hyperpage{57}
+
+  \indexspace
+  \bigletter P
+  \item \spxentry{parent()}\spxextra{psyclone.psyir.nodes.Node method}, \hyperpage{38}
+  \item \spxentry{path\_from()}\spxextra{psyclone.psyir.nodes.Node method}, \hyperpage{39}
+  \item \spxentry{position()}\spxextra{psyclone.psyir.nodes.Node method}, \hyperpage{40}
+  \item \spxentry{PreprocessorInterface}\spxextra{class in psyclone.psyir.symbols}, \hyperpage{48}
+
+  \indexspace
+  \bigletter R
+  \item \spxentry{rhs()}\spxextra{psyclone.psyir.nodes.Assignment method}, \hyperpage{41}
+  \item \spxentry{root()}\spxextra{psyclone.psyir.nodes.Node method}, \hyperpage{38}
+  \item \spxentry{RoutineSymbol}\spxextra{class in psyclone.psyir.symbols}, \hyperpage{47}
+
+  \indexspace
+  \bigletter S
+  \item \spxentry{sameParent()}\spxextra{psyclone.psyir.nodes.Node method}, \hyperpage{41}
+  \item \spxentry{scope()}\spxextra{psyclone.psyir.nodes.Node method}, \hyperpage{39}
+  \item \spxentry{siblings()}\spxextra{psyclone.psyir.nodes.Node method}, \hyperpage{38}
+  \item \spxentry{StaticInterface}\spxextra{class in psyclone.psyir.symbols}, \hyperpage{48}
+  \item \spxentry{Symbol}\spxextra{class in psyclone.psyir.symbols}, \hyperpage{45}
+  \item \spxentry{SymbolTable}\spxextra{class in psyclone.psyir.symbols}, \hyperpage{45}
+
+  \indexspace
+  \bigletter T
+  \item \spxentry{TransInfo}\spxextra{class in psyclone.psyGen}, \hyperpage{56}
+
+  \indexspace
+  \bigletter U
+  \item \spxentry{UnknownInterface}\spxextra{class in psyclone.psyir.symbols}, \hyperpage{48}
+  \item \spxentry{UnresolvedInterface}\spxextra{class in psyclone.psyir.symbols}, \hyperpage{48}
+
+  \indexspace
+  \bigletter W
+  \item \spxentry{walk()}\spxextra{psyclone.psyir.nodes.Node method}, \hyperpage{38}
+
+\end{sphinxtheindex}

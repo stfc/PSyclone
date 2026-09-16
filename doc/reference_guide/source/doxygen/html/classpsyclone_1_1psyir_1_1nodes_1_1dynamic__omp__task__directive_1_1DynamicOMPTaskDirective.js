@@ -1,0 +1,26 @@
+var classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective =
+[
+    [ "_add_dependencies_from_index_list", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#a040db00359103fe1c64aab0db48fe394", null ],
+    [ "_array_for_clause_combination_helper", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#a808ec43285d2752e6023e02eba039241", null ],
+    [ "_compute_clauses", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#a08f1dda224b2b9cfadfcd7e01deea459", null ],
+    [ "_create_binops_from_step_and_divisors", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#a7d09ee25273885dadf6538d7622d0f67", null ],
+    [ "_evaluate_assignment", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#af8dc81a308fc900d72986362934a8f8e", null ],
+    [ "_evaluate_ifblock", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#aeeba47912b92924a1116282712e5969e", null ],
+    [ "_evaluate_intrinsic", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#ac807ff59ddac5325dc9989a229c841c3", null ],
+    [ "_evaluate_loop", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#ac1a26236b7a68e91124c6a9f2e44add8", null ],
+    [ "_evaluate_node", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#a7d244380e1a084dc83b5c654bce10461", null ],
+    [ "_evaluate_readonly_arrayref", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#a2d6c92c7a731493d5fb540209120f677", null ],
+    [ "_evaluate_readonly_baseref", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#ad657bd0755271cfe3697afa19c488506", null ],
+    [ "_evaluate_readonly_reference", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#ad32514939bb97a051216a181dbe5bb40", null ],
+    [ "_evaluate_structure_with_array_reference_indexlist", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#a621d23337458b4435eb60e3968756682", null ],
+    [ "_evaluate_structure_with_array_reference_read", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#af74562bb0b7f22cd27f6ecf2ae566e10", null ],
+    [ "_evaluate_structure_with_array_reference_write", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#a4586748c58daf34b10d43b57aeb29aa4", null ],
+    [ "_evaluate_write_arrayref", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#a2678e65fac8bf3f0534068b919a5b0ad", null ],
+    [ "_evaluate_write_baseref", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#a3721ccf4dd7acf75daeaf12a244af154", null ],
+    [ "_evaluate_write_reference", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#ab8f74638b726a079a4c537aad69c01c6", null ],
+    [ "_find_parent_loop_vars", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#aaeb9b22ff629f550b40987ae819e05f8", null ],
+    [ "_handle_index_binop", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#ae718bbb4d6f98503c90df3af2d0b8903", null ],
+    [ "_handle_proxy_loop_index", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#a202349f1c4bf99d85b9e8b5f2b78f2c2", null ],
+    [ "_is_reference_private", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#a957b44b276b7144f2fdc9392aba4c669", null ],
+    [ "lower_to_language_level", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html#afefa0093c581f14c65a8d7285f89f37b", null ]
+];

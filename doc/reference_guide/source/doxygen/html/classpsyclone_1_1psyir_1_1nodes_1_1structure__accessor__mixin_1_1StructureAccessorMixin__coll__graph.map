@@ -1,0 +1,7 @@
+<map id="psyclone.psyir.nodes.structure_accessor_mixin.StructureAccessorMixin" name="psyclone.psyir.nodes.structure_accessor_mixin.StructureAccessorMixin">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,81,292,126"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="43,5,131,33"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="108,44,134,79,130,82,104,47"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="156,5,264,33"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="193,47,167,82,163,79,189,44"/>
+</map>

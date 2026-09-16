@@ -1,0 +1,7 @@
+<map id="psyclone.domain.common.transformations.raise_psyir_2_alg_trans.RaisePSyIR2AlgTrans._specialise_symbol" name="psyclone.domain.common.transformations.raise_psyir_2_alg_trans.RaisePSyIR2AlgTrans._specialise_symbol">
+<area shape="rect" id="Node000001" title=" " alt="" coords="391,36,728,97"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1domain_1_1common_1_1transformations_1_1raise__psyir__2__alg__trans_1_1RaisePSyIR2AlgTrans.html#aa9aaa4d1342fdf3722a848885c779381" title=" " alt="" coords="5,5,343,50"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="375,51,343,47,343,42,375,45"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1domain_1_1lfric_1_1transformations_1_1raise__psyir__2__lfric__alg__trans_1_1RaisePSyIR2LFRicAlgTrans.html#aee4e2fd4b8cba154c6849b1443a4f85d" title=" " alt="" coords="16,74,332,136"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="375,87,332,92,332,87,375,82"/>
+</map>

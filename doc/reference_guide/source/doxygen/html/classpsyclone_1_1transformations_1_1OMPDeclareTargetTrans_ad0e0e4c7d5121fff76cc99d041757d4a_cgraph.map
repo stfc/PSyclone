@@ -1,0 +1,6 @@
+<map id="psyclone.transformations.OMPDeclareTargetTrans.validate" name="psyclone.transformations.OMPDeclareTargetTrans.validate">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,29,238,74"/>
+<area shape="poly" id="edge1_Node000001_Node000001" title=" " alt="" coords="67,29,66,19,75,10,94,5,122,3,152,5,170,11,168,16,151,10,121,8,94,10,78,15,71,21,73,28"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1transformations_1_1MarkRoutineForGPUMixin.html#a457c6b4c36a0211cbc5f5896ec13a474" title=" " alt="" coords="286,21,531,82"/>
+<area shape="poly" id="edge2_Node000001_Node000002" title=" " alt="" coords="238,49,270,49,270,54,238,54"/>
+</map>

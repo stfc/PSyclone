@@ -1,0 +1,8 @@
+<map id="psyclone.psyir.nodes.codeblock.CodeBlock.__eq__" name="psyclone.psyir.nodes.codeblock.CodeBlock.__eq__">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,40,237,85"/>
+<area shape="poly" id="edge1_Node000001_Node000001" title=" " alt="" coords="68,40,67,30,76,21,94,15,121,13,151,16,168,22,167,27,150,21,121,19,95,21,78,25,72,31,73,39"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1nodes_1_1codeblock_1_1CodeBlock.html#abd35c24d765d5a8d0596a9f9736129f2" title=" " alt="" coords="285,5,516,50"/>
+<area shape="poly" id="edge2_Node000001_Node000002" title=" " alt="" coords="237,45,269,41,270,47,238,51"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1nodes_1_1codeblock_1_1CodeBlock.html#ad2b8cddc328810f76d1f657b801e376d" title=" " alt="" coords="285,75,516,119"/>
+<area shape="poly" id="edge3_Node000001_Node000003" title=" " alt="" coords="238,74,270,78,269,83,237,79"/>
+</map>

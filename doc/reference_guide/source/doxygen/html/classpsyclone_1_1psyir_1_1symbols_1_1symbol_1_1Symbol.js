@@ -1,0 +1,27 @@
+var classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol =
+[
+    [ "Visibility", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol_1_1Visibility.html", null ],
+    [ "_process_arguments", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#aa82fbed37bfcdf1ba1258ee7f75aa7e3", null ],
+    [ "copy", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#aab423817dc60f8ba9ab4e7cf386fe775", null ],
+    [ "copy_properties", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#afcfbb7c92c17d36b5ddcf8540dc08162", null ],
+    [ "find_symbol_table", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#ad6f7e981940ec057a64ac1d28c457c79", null ],
+    [ "get_external_symbol", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#a918997b383b6bdb411f499ed87b835a5", null ],
+    [ "interface", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#a7836bdd9ce86baf2f6651e84046372ff", null ],
+    [ "interface", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#ab5f4c71f68cfb871feed196c4f16c9d6", null ],
+    [ "is_argument", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#ad94001bd0fc28f4a110cc6ae6d8b65d0", null ],
+    [ "is_array", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#aa522448e73d818a141a08b44ccc463e7", null ],
+    [ "is_array_access", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#a1a4c2991d6f8028f1e8533f226ce40c1", null ],
+    [ "is_automatic", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#ae659cd87e9ef0b00d49ae482a141f6fe", null ],
+    [ "is_commonblock", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#af455982996a830f368d02f01b31e5fcb", null ],
+    [ "is_import", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#a5a41adbef66f480bc68846b48443eb84", null ],
+    [ "is_modulevar", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#aff728ea99708727b9636f01efd5168ec", null ],
+    [ "is_static", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#add9aad3ed7cc87b0c1bd4ea874b2760e", null ],
+    [ "is_unknown_interface", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#ae9cab6780d7dfe928ca5defa7e1506b2", null ],
+    [ "is_unresolved", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#aaaa87d0be24650ee9f88d3601c7d7c38", null ],
+    [ "name", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#a02fca7eea97f98494deaabd2a65ab9dc", null ],
+    [ "replace_symbols_using", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#a2f13b29072b8661c15a4a30485e416b5", null ],
+    [ "resolve_type", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#a7ba275b7c582f3c7b039833fd080677e", null ],
+    [ "specialise", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#a5de85e7c167babfe226e01c465e0df66", null ],
+    [ "visibility", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#a8e2337595280effe54733e63a01d0820", null ],
+    [ "visibility", "classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#aaef91b5fd7abea456ecf4a21b63cbcda", null ]
+];

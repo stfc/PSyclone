@@ -1,0 +1,7 @@
+<map id="psyclone.psyir.nodes.loop.Loop.replace_symbols_using" name="psyclone.psyir.nodes.loop.Loop.replace_symbols_using">
+<area shape="rect" id="Node000001" title=" " alt="" coords="289,29,497,74"/>
+<area shape="poly" id="edge3_Node000001_Node000001" title=" " alt="" coords="437,16,420,10,393,8,367,10,352,15,345,21,347,28,342,29,340,19,349,10,366,5,393,3,422,5,439,11"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1nodes_1_1scoping__node_1_1ScopingNode.html#a1a311aae9bfbe8b2af9fec063c4d7f4f" title=" " alt="" coords="5,29,241,74"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="273,54,241,54,241,49,273,49"/>
+<area shape="poly" id="edge2_Node000002_Node000002" title=" " alt="" coords="167,16,151,10,123,8,98,10,82,15,75,21,77,28,72,29,70,19,79,10,97,5,123,3,152,5,169,11"/>
+</map>

@@ -1,0 +1,33 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="Node000000" title=" " alt="" coords="5,464,91,492"/>
+<area shape="rect" id="Node000001" href="$classpsyclone_1_1errors_1_1PSycloneError.html" title=" " alt="" coords="139,456,323,501"/>
+<area shape="poly" id="edge402_Node000000_Node000001" title=" " alt="" coords="106,476,138,476,138,481,106,481"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1alg__gen_1_1NoInvokesError.html" title=" " alt="" coords="430,5,636,50"/>
+<area shape="poly" id="edge403_Node000001_Node000002" title=" " alt="" coords="230,440,238,361,259,258,276,204,300,151,331,103,369,60,397,42,428,31,430,36,399,47,373,64,335,106,305,154,281,206,264,259,243,361,236,441"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1configuration_1_1ConfigurationError.html" title=" " alt="" coords="403,75,662,119"/>
+<area shape="poly" id="edge404_Node000001_Node000003" title=" " alt="" coords="233,440,245,373,269,288,286,245,309,202,336,163,369,130,401,110,404,115,373,134,340,167,313,205,291,247,274,290,250,374,239,441"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1errors_1_1FieldNotFoundError.html" title=" " alt="" coords="443,144,622,189"/>
+<area shape="poly" id="edge405_Node000001_Node000004" title=" " alt="" coords="237,440,253,385,279,320,317,254,341,225,369,199,404,180,442,169,443,174,406,185,373,203,345,228,322,257,284,322,258,387,243,441"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1errors_1_1GenerationError.html" title=" " alt="" coords="434,213,631,258"/>
+<area shape="poly" id="edge406_Node000001_Node000005" title=" " alt="" coords="244,440,263,400,291,353,326,307,369,268,400,252,433,242,434,247,402,257,373,273,330,310,295,356,268,402,249,443"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1errors_1_1InternalError.html" title=" " alt="" coords="445,283,620,327"/>
+<area shape="poly" id="edge407_Node000001_Node000006" title=" " alt="" coords="255,442,304,387,335,360,370,337,406,322,444,312,445,317,408,327,372,342,339,364,308,391,259,446"/>
+<area shape="rect" id="Node000007" href="$classpsyclone_1_1errors_1_1UnresolvedDependencyError.html" title=" " alt="" coords="433,352,632,397"/>
+<area shape="poly" id="edge408_Node000001_Node000007" title=" " alt="" coords="283,446,325,425,370,406,432,389,433,394,372,412,327,430,286,451"/>
+<area shape="rect" id="Node000008" href="$classpsyclone_1_1parse_1_1file__info_1_1FileInfoFParserError.html" title=" " alt="" coords="440,421,625,466"/>
+<area shape="poly" id="edge409_Node000001_Node000008" title=" " alt="" coords="338,463,440,452,440,457,339,469"/>
+<area shape="rect" id="Node000009" href="$classpsyclone_1_1parse_1_1module__info_1_1ModuleInfoError.html" title=" " alt="" coords="446,491,619,535"/>
+<area shape="poly" id="edge410_Node000001_Node000009" title=" " alt="" coords="339,488,446,500,446,506,338,493"/>
+<area shape="rect" id="Node000010" href="$classpsyclone_1_1parse_1_1utils_1_1ParseError.html" title=" " alt="" coords="438,560,628,605"/>
+<area shape="poly" id="edge411_Node000001_Node000010" title=" " alt="" coords="286,506,327,527,372,545,438,563,436,569,370,550,325,532,283,511"/>
+<area shape="rect" id="Node000011" href="$classpsyclone_1_1psyad_1_1transformations_1_1tangent__linear__error_1_1TangentLinearError.html" title=" " alt="" coords="390,629,675,674"/>
+<area shape="poly" id="edge412_Node000001_Node000011" title=" " alt="" coords="259,511,308,565,339,592,372,615,398,626,396,631,370,619,335,597,304,569,255,515"/>
+<area shape="rect" id="Node000012" href="$classpsyclone_1_1psyir_1_1backend_1_1visitor_1_1VisitorError.html" title=" " alt="" coords="422,699,643,743"/>
+<area shape="poly" id="edge413_Node000001_Node000012" title=" " alt="" coords="249,514,268,555,295,601,330,646,373,684,396,697,423,707,421,712,394,702,369,689,326,650,291,604,263,557,244,516"/>
+<area shape="rect" id="Node000013" href="$classpsyclone_1_1psyir_1_1nodes_1_1call_1_1CallMatchingArgumentsNotFound.html" title=" " alt="" coords="413,768,652,813"/>
+<area shape="poly" id="edge414_Node000001_Node000013" title=" " alt="" coords="243,515,258,569,284,634,322,699,345,728,373,754,392,766,414,775,411,780,390,771,369,758,341,732,317,702,279,637,253,571,237,517"/>
+<area shape="rect" id="Node000014" href="$classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1SymbolError.html" title=" " alt="" coords="418,837,647,882"/>
+<area shape="poly" id="edge415_Node000001_Node000014" title=" " alt="" coords="239,516,250,583,274,667,291,710,313,751,340,790,373,823,394,837,418,847,416,852,392,842,369,827,336,793,309,754,286,712,269,668,245,584,233,517"/>
+<area shape="rect" id="Node000015" href="$classpsyclone_1_1psyir_1_1transformations_1_1transformation__error_1_1TransformationError.html" title=" " alt="" coords="371,907,694,951"/>
+<area shape="poly" id="edge416_Node000001_Node000015" title=" " alt="" coords="236,516,243,595,264,697,281,751,305,803,335,851,373,892,389,904,386,908,369,896,331,854,300,805,276,753,259,699,238,596,230,516"/>
+</map>

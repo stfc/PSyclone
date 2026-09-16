@@ -1,0 +1,7 @@
+<map id="psyclone.domain.lfric.kernel.field_arg_metadata.FieldArgMetadata.stencil" name="psyclone.domain.lfric.kernel.field_arg_metadata.FieldArgMetadata.stencil">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,56,291,101"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1domain_1_1lfric_1_1arg__index__to__metadata__index_1_1ArgIndexToMetadataIndex.html#a53c062ff1be39d2b66f66a8bf32790c1" title=" " alt="" coords="363,5,622,67"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="291,59,347,51,348,57,291,64"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1domain_1_1lfric_1_1metadata__to__arguments__rules_1_1MetadataToArgumentsRules.html#a3f36f708b3008bebdbb69d28170c3056" title=" " alt="" coords="339,91,647,152"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="291,94,323,98,323,103,291,99"/>
+</map>

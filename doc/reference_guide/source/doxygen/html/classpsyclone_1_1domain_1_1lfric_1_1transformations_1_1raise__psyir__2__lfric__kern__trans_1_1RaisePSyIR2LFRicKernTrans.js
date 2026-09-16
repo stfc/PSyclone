@@ -1,0 +1,5 @@
+var classpsyclone_1_1domain_1_1lfric_1_1transformations_1_1raise__psyir__2__lfric__kern__trans_1_1RaisePSyIR2LFRicKernTrans =
+[
+    [ "apply", "classpsyclone_1_1domain_1_1lfric_1_1transformations_1_1raise__psyir__2__lfric__kern__trans_1_1RaisePSyIR2LFRicKernTrans.html#a9a7cc561041318461b015a2dfa9956eb", null ],
+    [ "validate", "classpsyclone_1_1domain_1_1lfric_1_1transformations_1_1raise__psyir__2__lfric__kern__trans_1_1RaisePSyIR2LFRicKernTrans.html#aa2bd9b1c7b0186169da081add28bdfed", null ]
+];

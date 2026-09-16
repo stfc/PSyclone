@@ -1,0 +1,11 @@
+<map id="psyclone.domain.gocean.kernel.psyir.GOceanContainer" name="psyclone.domain.gocean.kernel.psyir.GOceanContainer">
+<area shape="rect" id="Node000001" title=" " alt="" coords="817,40,1084,85"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1nodes_1_1container_1_1Container.html" title=" " alt="" coords="544,40,769,85"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="785,60,817,60,817,65,785,65"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1nodes_1_1scoping__node_1_1ScopingNode.html" title=" " alt="" coords="285,5,496,50"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="512,41,544,45,543,50,511,46"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html" title=" " alt="" coords="5,14,237,42"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="252,25,284,25,284,30,252,30"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1psyir_1_1commentable__mixin_1_1CommentableMixin.html" title=" " alt="" coords="286,75,494,119"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="510,79,543,74,544,80,510,84"/>
+</map>

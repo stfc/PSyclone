@@ -1,0 +1,29 @@
+<map id="psyclone.parse.module_info.ModuleInfo" name="psyclone.parse.module_info.ModuleInfo">
+<area shape="rect" id="Node000001" title=" " alt="" coords="1900,305,2072,350"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1parse_1_1file__info_1_1FileInfo.html" title=" " alt="" coords="1549,168,1692,212"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="1701,216,1877,281,1930,302,1928,307,1875,286,1699,221"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="878,190,946,217"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="962,207,1146,222,1263,225,1380,222,1468,212,1548,200,1549,206,1468,218,1381,227,1263,231,1146,227,962,212"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1parse_1_1file__info_1_1__CacheFileInfo.html" title=" " alt="" coords="1222,150,1374,195"/>
+<area shape="poly" id="edge5_Node000005_Node000003" title=" " alt="" coords="962,199,1068,194,1191,184,1221,181,1222,186,1192,190,1068,199,962,204"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="862,116,962,144"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="976,113,1083,96,1221,84,1297,83,1375,88,1451,99,1526,118,1566,139,1598,165,1595,169,1563,143,1524,123,1450,104,1374,93,1297,88,1222,89,1084,101,977,118"/>
+<area shape="poly" id="edge6_Node000005_Node000004" title=" " alt="" coords="978,135,1222,162,1221,167,977,140"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="1390,185,1405,186,1548,189,1548,195,1405,191,1390,190"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1psyir_1_1nodes_1_1file__container_1_1FileContainer.html" title=" " alt="" coords="821,37,1003,82"/>
+<area shape="poly" id="edge12_Node000002_Node000006" title=" " alt="" coords="1018,36,1129,23,1193,20,1260,21,1328,27,1397,39,1463,58,1526,86,1551,103,1573,124,1606,165,1602,169,1569,128,1548,108,1523,91,1461,63,1396,44,1328,32,1260,26,1193,25,1129,28,1019,41"/>
+<area shape="poly" id="edge7_Node000005_Node000006" title=" " alt="" coords="1019,74,1104,94,1193,120,1256,147,1254,152,1191,125,1103,99,1018,80"/>
+<area shape="rect" id="Node000007" href="$classpsyclone_1_1psyir_1_1nodes_1_1container_1_1Container.html" title=" " alt="" coords="547,264,772,308"/>
+<area shape="poly" id="edge13_Node000001_Node000007" title=" " alt="" coords="788,295,911,299,1622,299,1769,305,1900,315,1899,321,1769,310,1622,305,911,305,787,300"/>
+<area shape="poly" id="edge8_Node000006_Node000007" title=" " alt="" coords="683,249,741,178,779,138,820,103,856,80,859,84,823,107,783,142,745,181,687,253"/>
+<area shape="rect" id="Node000008" href="$classpsyclone_1_1psyir_1_1nodes_1_1scoping__node_1_1ScopingNode.html" title=" " alt="" coords="286,210,497,255"/>
+<area shape="poly" id="edge9_Node000007_Node000008" title=" " alt="" coords="513,254,547,261,546,266,512,259"/>
+<area shape="rect" id="Node000009" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html" title=" " alt="" coords="5,219,237,247"/>
+<area shape="poly" id="edge10_Node000008_Node000009" title=" " alt="" coords="252,230,285,230,285,235,252,235"/>
+<area shape="rect" id="Node000010" href="$classpsyclone_1_1psyir_1_1commentable__mixin_1_1CommentableMixin.html" title=" " alt="" coords="288,280,496,324"/>
+<area shape="poly" id="edge11_Node000007_Node000010" title=" " alt="" coords="511,292,546,290,546,295,512,298"/>
+<area shape="rect" id="Node000011" title=" " alt="" coords="1598,339,1642,367"/>
+<area shape="poly" id="edge14_Node000001_Node000011" title=" " alt="" coords="1658,348,1876,335,1900,333,1900,338,1876,340,1658,354"/>
+<area shape="rect" id="Node000012" title=" " alt="" coords="1597,398,1644,425"/>
+<area shape="poly" id="edge15_Node000001_Node000012" title=" " alt="" coords="1659,410,1758,406,1817,398,1875,384,1915,368,1950,348,1953,352,1917,373,1877,389,1818,403,1759,411,1659,415"/>
+</map>

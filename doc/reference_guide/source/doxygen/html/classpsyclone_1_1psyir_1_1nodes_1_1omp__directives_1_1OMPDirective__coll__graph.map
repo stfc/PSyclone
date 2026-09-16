@@ -1,0 +1,7 @@
+<map id="psyclone.psyir.nodes.omp_directives.OMPDirective" name="psyclone.psyir.nodes.omp_directives.OMPDirective">
+<area shape="rect" id="Node000001" title=" " alt="" coords="16,81,206,126"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,5,94,33"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="70,44,97,79,92,82,66,47"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="118,5,226,33"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="155,47,129,82,125,79,151,44"/>
+</map>

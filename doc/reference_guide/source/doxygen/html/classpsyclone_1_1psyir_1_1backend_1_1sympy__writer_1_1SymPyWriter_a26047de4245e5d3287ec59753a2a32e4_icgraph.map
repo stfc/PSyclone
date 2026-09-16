@@ -1,0 +1,8 @@
+<map id="psyclone.psyir.backend.sympy_writer.SymPyWriter.type_map" name="psyclone.psyir.backend.sympy_writer.SymPyWriter.type_map">
+<area shape="rect" id="Node000001" title=" " alt="" coords="542,5,764,50"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1backend_1_1sympy__writer_1_1SymPyWriter.html#aa0ab478fe5961d1288d342963317ae5e" title=" " alt="" coords="274,5,494,50"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="526,30,495,30,495,25,526,25"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1backend_1_1sympy__writer_1_1SymPyWriter.html#a73d65b7e1f35fe99b4b4e390196d0b47" title=" " alt="" coords="5,5,226,50"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="258,39,226,39,226,34,258,34"/>
+<area shape="poly" id="edge3_Node000003_Node000002" title=" " alt="" coords="241,16,273,16,273,21,241,21"/>
+</map>

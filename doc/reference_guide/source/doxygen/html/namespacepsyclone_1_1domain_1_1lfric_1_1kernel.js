@@ -1,0 +1,26 @@
+var namespacepsyclone_1_1domain_1_1lfric_1_1kernel =
+[
+    [ "columnwise_operator_arg_metadata", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1columnwise__operator__arg__metadata.html", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1columnwise__operator__arg__metadata" ],
+    [ "common_arg_metadata", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1common__arg__metadata.html", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1common__arg__metadata" ],
+    [ "common_declaration_metadata", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1common__declaration__metadata.html", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1common__declaration__metadata" ],
+    [ "common_meta_arg_metadata", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1common__meta__arg__metadata.html", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1common__meta__arg__metadata" ],
+    [ "common_metadata", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1common__metadata.html", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1common__metadata" ],
+    [ "evaluator_targets_metadata", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1evaluator__targets__metadata.html", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1evaluator__targets__metadata" ],
+    [ "field_arg_metadata", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1field__arg__metadata.html", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1field__arg__metadata" ],
+    [ "field_vector_arg_metadata", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1field__vector__arg__metadata.html", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1field__vector__arg__metadata" ],
+    [ "inter_grid_arg_metadata", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1inter__grid__arg__metadata.html", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1inter__grid__arg__metadata" ],
+    [ "inter_grid_vector_arg_metadata", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1inter__grid__vector__arg__metadata.html", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1inter__grid__vector__arg__metadata" ],
+    [ "lfric_kernel_metadata", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1lfric__kernel__metadata.html", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1lfric__kernel__metadata" ],
+    [ "meta_args_metadata", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1meta__args__metadata.html", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1meta__args__metadata" ],
+    [ "meta_funcs_arg_metadata", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1meta__funcs__arg__metadata.html", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1meta__funcs__arg__metadata" ],
+    [ "meta_funcs_metadata", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1meta__funcs__metadata.html", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1meta__funcs__metadata" ],
+    [ "meta_mesh_arg_metadata", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1meta__mesh__arg__metadata.html", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1meta__mesh__arg__metadata" ],
+    [ "meta_mesh_metadata", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1meta__mesh__metadata.html", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1meta__mesh__metadata" ],
+    [ "meta_ref_element_arg_metadata", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1meta__ref__element__arg__metadata.html", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1meta__ref__element__arg__metadata" ],
+    [ "meta_ref_element_metadata", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1meta__ref__element__metadata.html", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1meta__ref__element__metadata" ],
+    [ "operates_on_metadata", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1operates__on__metadata.html", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1operates__on__metadata" ],
+    [ "operator_arg_metadata", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1operator__arg__metadata.html", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1operator__arg__metadata" ],
+    [ "psyir", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1psyir.html", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1psyir" ],
+    [ "scalar_arg_metadata", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1scalar__arg__metadata.html", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1scalar__arg__metadata" ],
+    [ "shapes_metadata", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1shapes__metadata.html", "namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1shapes__metadata" ]
+];

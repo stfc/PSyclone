@@ -1,0 +1,13 @@
+<map id="psyclone.domain.lfric.algorithm.psyir.lfric_kernel_functor.LFRicKernelFunctor" name="psyclone.domain.lfric.algorithm.psyir.lfric_kernel_functor.LFRicKernelFunctor">
+<area shape="rect" id="Node000001" title=" " alt="" coords="9,452,301,496"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1domain_1_1lfric_1_1algorithm_1_1psyir_1_1lfric__kernel__functor_1_1LFRicFunctor.html" title=" " alt="" coords="9,359,301,404"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="158,419,158,451,152,451,152,419"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1domain_1_1common_1_1algorithm_1_1psyir_1_1KernelFunctor.html" title=" " alt="" coords="5,266,305,311"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="158,327,158,359,152,359,152,327"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1nodes_1_1reference_1_1Reference.html" title=" " alt="" coords="41,174,269,218"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="158,234,158,266,152,266,152,234"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1psyir_1_1nodes_1_1datanode_1_1DataNode.html" title=" " alt="" coords="42,81,268,126"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="158,141,158,173,152,173,152,141"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html" title=" " alt="" coords="39,5,271,33"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="158,49,158,80,152,80,152,49"/>
+</map>

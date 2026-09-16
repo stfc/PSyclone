@@ -1,0 +1,5 @@
+var namespacepsyclone_1_1domain_1_1lfric_1_1algorithm_1_1psyir =
+[
+    [ "lfric_alg_invoke_call", "namespacepsyclone_1_1domain_1_1lfric_1_1algorithm_1_1psyir_1_1lfric__alg__invoke__call.html", "namespacepsyclone_1_1domain_1_1lfric_1_1algorithm_1_1psyir_1_1lfric__alg__invoke__call" ],
+    [ "lfric_kernel_functor", "namespacepsyclone_1_1domain_1_1lfric_1_1algorithm_1_1psyir_1_1lfric__kernel__functor.html", "namespacepsyclone_1_1domain_1_1lfric_1_1algorithm_1_1psyir_1_1lfric__kernel__functor" ]
+];

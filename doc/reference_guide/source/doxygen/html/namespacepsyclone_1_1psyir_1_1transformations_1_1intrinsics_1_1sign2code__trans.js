@@ -1,0 +1,4 @@
+var namespacepsyclone_1_1psyir_1_1transformations_1_1intrinsics_1_1sign2code__trans =
+[
+    [ "Sign2CodeTrans", "classpsyclone_1_1psyir_1_1transformations_1_1intrinsics_1_1sign2code__trans_1_1Sign2CodeTrans.html", "classpsyclone_1_1psyir_1_1transformations_1_1intrinsics_1_1sign2code__trans_1_1Sign2CodeTrans" ]
+];

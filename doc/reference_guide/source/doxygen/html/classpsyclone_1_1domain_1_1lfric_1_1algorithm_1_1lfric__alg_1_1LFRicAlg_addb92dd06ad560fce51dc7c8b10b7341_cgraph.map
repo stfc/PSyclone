@@ -1,0 +1,17 @@
+<map id="psyclone.domain.lfric.algorithm.lfric_alg.LFRicAlg.create_from_kernel" name="psyclone.domain.lfric.algorithm.lfric_alg.LFRicAlg.create_from_kernel">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,179,263,223"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1domain_1_1lfric_1_1algorithm_1_1lfric__alg_1_1LFRicAlg.html#a9e3e33f4c0ec28c7fb84953fbf63ef8b" title=" " alt="" coords="312,109,570,154"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="236,175,323,155,325,161,237,181"/>
+<area shape="rect" id="Node000007" href="$classpsyclone_1_1domain_1_1lfric_1_1algorithm_1_1lfric__alg_1_1LFRicAlg.html#a1a5e18f91e83528d2cfbad635c21accb" title=" " alt="" coords="312,179,570,223"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="263,198,296,198,296,204,263,204"/>
+<area shape="rect" id="Node000008" href="$classpsyclone_1_1domain_1_1lfric_1_1algorithm_1_1lfric__alg_1_1LFRicAlg.html#adbb7c2a86f982dc590f938346767a111" title=" " alt="" coords="311,248,571,293"/>
+<area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="237,221,325,241,323,247,236,227"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1domain_1_1lfric_1_1algorithm_1_1lfric__alg_1_1LFRicAlg.html#abb5954976aa0cec703ab0e747ac92a81" title=" " alt="" coords="619,5,891,50"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="495,106,618,60,643,52,645,57,620,65,497,111"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1domain_1_1lfric_1_1algorithm_1_1lfric__alg_1_1LFRicAlg.html#a37068af1cd8e35fe6c1ca0a10523a30f" title=" " alt="" coords="626,75,884,119"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="570,115,611,110,611,116,570,120"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1domain_1_1lfric_1_1algorithm_1_1lfric__alg_1_1LFRicAlg.html#abbaec38f5a47038cc847af6034ae678f" title=" " alt="" coords="626,144,884,189"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="570,143,611,148,611,153,570,149"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1domain_1_1lfric_1_1algorithm_1_1lfric__alg_1_1LFRicAlg.html#a294bd3512bae6f7ec12db485450ceb03" title=" " alt="" coords="626,213,884,258"/>
+<area shape="poly" id="edge5_Node000002_Node000006" title=" " alt="" coords="543,152,572,164,597,182,620,199,636,205,633,210,618,203,593,186,570,169,541,157"/>
+</map>

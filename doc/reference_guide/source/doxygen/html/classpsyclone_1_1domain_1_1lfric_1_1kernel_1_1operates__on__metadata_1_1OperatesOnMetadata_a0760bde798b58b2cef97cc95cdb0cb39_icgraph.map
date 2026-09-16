@@ -1,0 +1,7 @@
+<map id="psyclone.domain.lfric.kernel.operates_on_metadata.OperatesOnMetadata.fortran_string" name="psyclone.domain.lfric.kernel.operates_on_metadata.OperatesOnMetadata.fortran_string">
+<area shape="rect" id="Node000001" title=" " alt="" coords="374,44,723,89"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1domain_1_1gocean_1_1kernel_1_1psyir_1_1GOceanKernelMetadata.html#abaf0e1bcb36e2d9ee2d1530fcdbd5c7d" title=" " alt="" coords="28,5,303,50"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="358,50,303,44,303,39,358,44"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1domain_1_1lfric_1_1kernel_1_1lfric__kernel__metadata_1_1LFRicKernelMetadata.html#a8658015df5384a37776bd93d23c15039" title=" " alt="" coords="5,74,326,136"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="358,88,326,91,326,86,358,83"/>
+</map>

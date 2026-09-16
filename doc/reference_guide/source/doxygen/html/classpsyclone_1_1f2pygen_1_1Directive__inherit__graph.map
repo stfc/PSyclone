@@ -1,0 +1,9 @@
+<map id="psyclone.f2pygen.Directive" name="psyclone.f2pygen.Directive">
+<area shape="rect" id="Node000001" title=" " alt="" coords="144,81,344,109"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1f2pygen_1_1ACCDirective.html" title=" " alt="" coords="5,157,232,184"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="210,119,142,159,139,154,207,114"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1f2pygen_1_1OMPDirective.html" title=" " alt="" coords="256,157,485,184"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="281,114,349,154,347,159,278,119"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="201,5,286,33"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="246,49,246,81,241,81,241,49"/>
+</map>

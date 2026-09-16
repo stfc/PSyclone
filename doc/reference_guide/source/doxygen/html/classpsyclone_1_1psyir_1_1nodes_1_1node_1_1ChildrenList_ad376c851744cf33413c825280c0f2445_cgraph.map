@@ -1,0 +1,8 @@
+<map id="psyclone.psyir.nodes.node.ChildrenList.pop" name="psyclone.psyir.nodes.node.ChildrenList.pop">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,40,203,85"/>
+<area shape="poly" id="edge3_Node000001_Node000001" title=" " alt="" coords="56,40,55,30,63,21,79,15,104,13,131,16,147,22,145,27,130,21,104,19,80,21,66,25,60,31,61,39"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1ChildrenList.html#a3ce6727101b2b6800447add5072c6c8f" title=" " alt="" coords="251,5,460,50"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="203,46,235,42,235,47,204,51"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1ChildrenList.html#a791eb8a600e77cae429405aa38aa3504" title=" " alt="" coords="256,75,455,119"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="204,73,241,79,240,84,203,79"/>
+</map>

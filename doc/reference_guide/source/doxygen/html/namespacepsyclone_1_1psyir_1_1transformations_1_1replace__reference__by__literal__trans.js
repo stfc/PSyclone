@@ -1,0 +1,4 @@
+var namespacepsyclone_1_1psyir_1_1transformations_1_1replace__reference__by__literal__trans =
+[
+    [ "ReplaceReferenceByLiteralTrans", "classpsyclone_1_1psyir_1_1transformations_1_1replace__reference__by__literal__trans_1_1ReplaceReferenceByLiteralTrans.html", "classpsyclone_1_1psyir_1_1transformations_1_1replace__reference__by__literal__trans_1_1ReplaceReferenceByLiteralTrans" ]
+];

@@ -1,0 +1,10 @@
+<map id="psyclone.psyir.frontend.fparser2._get_arg_names" name="psyclone.psyir.frontend.fparser2._get_arg_names">
+<area shape="rect" id="Node000001" title=" " alt="" coords="862,5,1098,50"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1frontend_1_1fparser2_1_1Fparser2Reader.html#a01d25137e7f31f9d9e3d14b392b0d6ae" title=" " alt="" coords="579,5,814,50"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="846,30,815,30,815,25,846,25"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1frontend_1_1fparser2_1_1Fparser2Reader.html#a0b8fd41683cef794fa4f26f3f06e008e" title=" " alt="" coords="5,5,241,50"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="564,26,531,25,289,25,241,26,241,21,289,20,531,20,564,20"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1frontend_1_1fparser2_1_1Fparser2Reader.html#a9eb921eab96a268dfa8ffe6817a6078d" title=" " alt="" coords="289,35,531,79"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="564,44,532,47,531,42,563,39"/>
+<area shape="poly" id="edge4_Node000004_Node000003" title=" " alt="" coords="273,46,241,42,242,37,274,40"/>
+</map>

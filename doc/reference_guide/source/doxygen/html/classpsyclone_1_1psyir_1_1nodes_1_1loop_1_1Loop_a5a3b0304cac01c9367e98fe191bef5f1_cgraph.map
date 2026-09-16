@@ -1,0 +1,16 @@
+<map id="psyclone.psyir.nodes.loop.Loop.node_str" name="psyclone.psyir.nodes.loop.Loop.node_str">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,75,199,119"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1domain_1_1common_1_1psylayer_1_1psyloop_1_1PSyLoop.html#a64f79bb51608a10c1bbb12b687d7ce1f" title=" " alt="" coords="247,5,558,50"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="197,71,246,60,282,51,283,57,247,65,198,77"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1domain_1_1common_1_1psylayer_1_1psyloop_1_1PSyLoop.html#aa4e5f040fac6e142b78128238c9cabd3" title=" " alt="" coords="247,75,558,119"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="199,94,231,94,231,100,199,100"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1nodes_1_1loop_1_1Loop.html#a54f62db31bb00e52d995c96c240d8b48" title=" " alt="" coords="306,144,499,189"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="198,117,247,129,291,139,290,144,246,134,197,123"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1psyir_1_1nodes_1_1loop_1_1Loop.html#ae1d1518fd9227e1ebadad8d99c4c744c" title=" " alt="" coords="606,109,799,154"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="499,153,590,142,591,147,500,158"/>
+<area shape="rect" id="Node000007" href="$classpsyclone_1_1psyir_1_1nodes_1_1loop_1_1Loop.html#a9fce909ca355832cf8b9d7e6985f7b2c" title=" " alt="" coords="606,179,799,223"/>
+<area shape="poly" id="edge6_Node000004_Node000007" title=" " alt="" coords="500,175,591,185,590,191,499,180"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1psyir_1_1nodes_1_1loop_1_1Loop.html#ab133bc8eb61635a123ddea45e8c059ee" title=" " alt="" coords="847,144,1041,189"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="800,143,832,148,831,153,799,148"/>
+<area shape="poly" id="edge7_Node000007_Node000006" title=" " alt="" coords="799,184,831,180,832,185,800,190"/>
+</map>

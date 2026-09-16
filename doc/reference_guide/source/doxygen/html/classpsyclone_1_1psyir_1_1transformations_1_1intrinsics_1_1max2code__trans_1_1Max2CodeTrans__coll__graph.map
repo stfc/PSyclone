@@ -1,0 +1,15 @@
+<map id="psyclone.psyir.transformations.intrinsics.max2code_trans.Max2CodeTrans" name="psyclone.psyir.transformations.intrinsics.max2code_trans.Max2CodeTrans">
+<area shape="rect" id="Node000001" title=" " alt="" coords="1316,34,1673,79"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1transformations_1_1intrinsics_1_1minormax2code__trans_1_1MinOrMax2CodeTrans.html" title=" " alt="" coords="872,34,1268,79"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="1283,54,1316,54,1316,59,1283,59"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1transformations_1_1intrinsics_1_1intrinsic2code__trans_1_1Intrinsic2CodeTrans.html" title=" " alt="" coords="444,34,824,79"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="840,54,872,54,872,59,840,59"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyGen_1_1Transformation.html" title=" " alt="" coords="162,43,396,70"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="412,54,444,54,444,59,412,59"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="15,5,104,33"/>
+<area shape="poly" id="edge6_Node000003_Node000005" title=" " alt="" coords="120,17,247,21,396,29,444,32,443,38,396,34,246,26,119,23"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="120,27,194,39,193,45,119,32"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="5,69,114,97"/>
+<area shape="poly" id="edge7_Node000003_Node000006" title=" " alt="" coords="129,82,254,83,396,79,443,76,444,81,396,84,254,88,129,88"/>
+<area shape="poly" id="edge5_Node000004_Node000006" title=" " alt="" coords="129,72,161,68,162,73,129,77"/>
+</map>

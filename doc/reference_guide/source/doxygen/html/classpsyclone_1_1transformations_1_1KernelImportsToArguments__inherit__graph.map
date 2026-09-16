@@ -1,0 +1,9 @@
+<map id="psyclone.transformations.KernelImportsToArguments" name="psyclone.transformations.KernelImportsToArguments">
+<area shape="rect" id="Node000001" title=" " alt="" coords="24,157,221,201"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyGen_1_1Transformation.html" title=" " alt="" coords="5,81,240,109"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="125,125,125,156,120,156,120,125"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="17,5,105,33"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="84,43,114,79,110,82,80,47"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="130,5,238,33"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="165,47,135,82,131,79,161,43"/>
+</map>

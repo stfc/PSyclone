@@ -1,0 +1,6 @@
+<map id="psyclone.psyir.transformations.omp_task_trans.OMPTaskTrans._inline_kernels" name="psyclone.psyir.transformations.omp_task_trans.OMPTaskTrans._inline_kernels">
+<area shape="rect" id="Node000001" title=" " alt="" coords="309,29,603,74"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1transformations_1_1omp__task__trans_1_1OMPTaskTrans.html#a325276637e720f7ed30c89fb0705e86a" title=" " alt="" coords="5,29,261,74"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="293,54,261,54,261,49,293,49"/>
+<area shape="poly" id="edge2_Node000002_Node000002" title=" " alt="" coords="186,17,167,10,133,8,102,10,83,15,76,21,78,28,72,29,71,19,81,10,102,5,133,3,168,5,188,12"/>
+</map>

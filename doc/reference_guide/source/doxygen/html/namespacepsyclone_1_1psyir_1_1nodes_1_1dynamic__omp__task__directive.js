@@ -1,0 +1,4 @@
+var namespacepsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive =
+[
+    [ "DynamicOMPTaskDirective", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective.html", "classpsyclone_1_1psyir_1_1nodes_1_1dynamic__omp__task__directive_1_1DynamicOMPTaskDirective" ]
+];

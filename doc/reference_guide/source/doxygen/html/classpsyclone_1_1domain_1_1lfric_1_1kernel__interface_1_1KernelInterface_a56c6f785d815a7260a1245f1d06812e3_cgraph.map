@@ -1,0 +1,8 @@
+<map id="psyclone.domain.lfric.kernel_interface.KernelInterface.fs_compulsory_field" name="psyclone.domain.lfric.kernel_interface.KernelInterface.fs_compulsory_field">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,44,211,105"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1domain_1_1lfric_1_1arg__ordering_1_1ArgOrdering.html#a1aa95fd045e3e6337cd77bf5f98a3b8f" title=" " alt="" coords="259,5,483,50"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="211,53,243,48,244,53,212,59"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1domain_1_1lfric_1_1arg__ordering_1_1ArgOrdering.html#a72d025367a24c6666e431e901eac95eb" title=" " alt="" coords="263,99,479,143"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="212,90,248,96,247,102,211,95"/>
+<area shape="poly" id="edge3_Node000003_Node000003" title=" " alt="" coords="321,99,319,88,328,80,345,74,371,72,399,74,416,81,414,86,398,80,371,77,346,79,331,84,325,90,326,98"/>
+</map>

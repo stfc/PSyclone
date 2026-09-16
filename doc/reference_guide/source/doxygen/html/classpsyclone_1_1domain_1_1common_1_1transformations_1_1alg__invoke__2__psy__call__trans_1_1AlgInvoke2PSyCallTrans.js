@@ -1,0 +1,6 @@
+var classpsyclone_1_1domain_1_1common_1_1transformations_1_1alg__invoke__2__psy__call__trans_1_1AlgInvoke2PSyCallTrans =
+[
+    [ "apply", "classpsyclone_1_1domain_1_1common_1_1transformations_1_1alg__invoke__2__psy__call__trans_1_1AlgInvoke2PSyCallTrans.html#aaebfae621cc4b559ecbe5046a57448c1", null ],
+    [ "get_arguments", "classpsyclone_1_1domain_1_1common_1_1transformations_1_1alg__invoke__2__psy__call__trans_1_1AlgInvoke2PSyCallTrans.html#a6a7ac506832d201d3a78af532108d4ae", null ],
+    [ "validate", "classpsyclone_1_1domain_1_1common_1_1transformations_1_1alg__invoke__2__psy__call__trans_1_1AlgInvoke2PSyCallTrans.html#af729cc479ee386e820abdf3d2dae519d", null ]
+];

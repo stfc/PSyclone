@@ -1,0 +1,9 @@
+<map id="psyclone.psyGen.Kern.is_coloured" name="psyclone.psyGen.Kern.is_coloured">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,28,186,72"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html#ab32f7871d595911108ae58dbc77a0919" title=" " alt="" coords="234,28,431,72"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="186,47,218,47,218,52,186,52"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1f2pygen_1_1BaseGen.html#aa79db0ed8d9e767f2e8e5785774789a4" title=" " alt="" coords="479,5,723,33"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="431,36,463,32,464,38,432,41"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html#ac3fa3eb9225138e40e8d6db6122f46ed" title=" " alt="" coords="502,57,700,102"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="432,58,487,64,487,69,431,63"/>
+</map>

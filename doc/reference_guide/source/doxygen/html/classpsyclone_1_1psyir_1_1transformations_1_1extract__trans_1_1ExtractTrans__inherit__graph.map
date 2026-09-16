@@ -1,0 +1,19 @@
+<map id="psyclone.psyir.transformations.extract_trans.ExtractTrans" name="psyclone.psyir.transformations.extract_trans.ExtractTrans">
+<area shape="rect" id="Node000001" title=" " alt="" coords="1057,40,1329,85"/>
+<area shape="rect" id="Node000007" href="$classpsyclone_1_1domain_1_1gocean_1_1transformations_1_1gocean__extract__trans_1_1GOceanExtractTrans.html" title=" " alt="" coords="1377,5,1719,50"/>
+<area shape="poly" id="edge8_Node000001_Node000007" title=" " alt="" coords="1344,45,1376,42,1377,47,1345,50"/>
+<area shape="rect" id="Node000008" href="$classpsyclone_1_1domain_1_1lfric_1_1transformations_1_1lfric__extract__trans_1_1LFRicExtractTrans.html" title=" " alt="" coords="1399,75,1697,119"/>
+<area shape="poly" id="edge9_Node000001_Node000008" title=" " alt="" coords="1345,74,1399,80,1398,85,1344,80"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1transformations_1_1psy__data__trans_1_1PSyDataTrans.html" title=" " alt="" coords="759,40,1009,85"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="1024,60,1056,60,1056,65,1024,65"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1transformations_1_1region__trans_1_1RegionTrans.html" title=" " alt="" coords="444,40,711,85"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="727,60,759,60,759,65,727,65"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyGen_1_1Transformation.html" title=" " alt="" coords="162,48,396,76"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="411,60,444,60,444,65,411,65"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="15,11,104,39"/>
+<area shape="poly" id="edge6_Node000003_Node000005" title=" " alt="" coords="120,23,247,26,396,34,444,39,443,45,396,40,247,31,119,28"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="120,32,194,45,193,50,119,38"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="5,75,114,103"/>
+<area shape="poly" id="edge7_Node000003_Node000006" title=" " alt="" coords="129,89,254,90,396,85,443,80,444,86,396,90,254,95,129,94"/>
+<area shape="poly" id="edge5_Node000004_Node000006" title=" " alt="" coords="129,78,161,74,162,79,129,83"/>
+</map>

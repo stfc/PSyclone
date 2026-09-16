@@ -1,0 +1,9 @@
+<map id="psyclone.domain.lfric.function_space.FunctionSpace.has_scalar_diff_basis" name="psyclone.domain.lfric.function_space.FunctionSpace.has_scalar_diff_basis">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,66,243,128"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1domain_1_1lfric_1_1function__space_1_1FunctionSpace.html#a4e32eb998d8b7af2c1924cb213544dab" title=" " alt="" coords="295,5,532,50"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="242,66,302,52,303,57,244,71"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1domain_1_1lfric_1_1lfric__psy_1_1LFRicPSy.html#a56e726c1518e0b84eb4a7899b63af291" title=" " alt="" coords="319,75,509,119"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="243,94,303,94,303,100,243,100"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1symbols_1_1interfaces_1_1ImportInterface.html#a3e357e937259bb2d10f53998156e81a4" title=" " alt="" coords="291,144,537,189"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="244,123,303,137,302,142,242,128"/>
+</map>

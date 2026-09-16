@@ -1,0 +1,4 @@
+var classpsyclone_1_1domain_1_1lfric_1_1transformations_1_1raise__psyir__2__lfric__alg__trans_1_1RaisePSyIR2LFRicAlgTrans =
+[
+    [ "apply", "classpsyclone_1_1domain_1_1lfric_1_1transformations_1_1raise__psyir__2__lfric__alg__trans_1_1RaisePSyIR2LFRicAlgTrans.html#aee4e2fd4b8cba154c6849b1443a4f85d", null ]
+];

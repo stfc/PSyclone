@@ -1,0 +1,6 @@
+<map id="psyclone.psyir.transformations.intrinsics.array_reduction_base_trans.ArrayReductionBaseTrans._loop_body" name="psyclone.psyir.transformations.intrinsics.array_reduction_base_trans.ArrayReductionBaseTrans._loop_body">
+<area shape="rect" id="Node000001" title=" " alt="" coords="431,29,846,74"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1transformations_1_1intrinsics_1_1array__reduction__base__trans_1_1ArrayReductionBaseTrans.html#a5b4c9130260cf5fd543b576feceb99a7" title=" " alt="" coords="5,29,383,74"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="415,54,383,54,383,49,415,49"/>
+<area shape="poly" id="edge2_Node000002_Node000002" title=" " alt="" coords="268,17,241,10,194,8,152,10,125,15,114,21,117,28,112,30,109,19,123,10,151,5,194,3,242,5,270,12"/>
+</map>

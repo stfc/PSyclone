@@ -1,0 +1,4 @@
+var classpsyclone_1_1psyir_1_1transformations_1_1intrinsics_1_1minormax2code__trans_1_1MinOrMax2CodeTrans =
+[
+    [ "apply", "classpsyclone_1_1psyir_1_1transformations_1_1intrinsics_1_1minormax2code__trans_1_1MinOrMax2CodeTrans.html#a9172269d0c51aac0eee01914ebde45ca", null ]
+];

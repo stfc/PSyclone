@@ -1,0 +1,15 @@
+<map id="psyclone.psyir.nodes.node.Node.immediately_precedes" name="psyclone.psyir.nodes.node.Node.immediately_precedes">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,57,214,102"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1f2pygen_1_1Directive.html#ac005467c752991d505b02041f0849371" title=" " alt="" coords="262,5,517,33"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="208,54,261,42,299,34,300,39,262,47,209,59"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html#ae35796481d79cebabef066865f7027b2" title=" " alt="" coords="291,126,488,171"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="203,100,282,119,281,124,202,105"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html#a87485e6fdb698b580c0e11b284a61708" title=" " alt="" coords="291,57,488,102"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="214,76,275,76,275,82,214,82"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1f2pygen_1_1BaseGen.html#aa79db0ed8d9e767f2e8e5785774789a4" title=" " alt="" coords="565,68,809,96"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="488,124,606,97,608,102,489,129"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html#ac3fa3eb9225138e40e8d6db6122f46ed" title=" " alt="" coords="588,122,786,167"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="489,145,573,143,573,149,489,150"/>
+<area shape="poly" id="edge6_Node000006_Node000004" title=" " alt="" coords="489,77,550,78,550,83,489,83"/>
+<area shape="poly" id="edge7_Node000006_Node000005" title=" " alt="" coords="489,98,574,117,573,122,488,103"/>
+</map>

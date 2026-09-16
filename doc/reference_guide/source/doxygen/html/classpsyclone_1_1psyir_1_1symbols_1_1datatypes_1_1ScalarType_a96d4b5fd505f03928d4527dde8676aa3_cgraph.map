@@ -1,0 +1,9 @@
+<map id="psyclone.psyir.symbols.datatypes.ScalarType.__str__" name="psyclone.psyir.symbols.datatypes.ScalarType.__str__">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,57,252,102"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyGen_1_1Argument.html#ab8d2399f9339220fcef62b96c9f780d9" title=" " alt="" coords="300,5,563,33"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="241,54,299,42,339,34,340,39,300,47,242,59"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1symbols_1_1datatypes_1_1ArrayType.html#aa7ef3bb9ea5f083cda64a4934318475e" title=" " alt="" coords="308,57,554,102"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="252,76,292,76,292,82,252,82"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1symbols_1_1datatypes_1_1ScalarType.html#ae122412cb626f93082b81caef998198e" title=" " alt="" coords="308,126,554,171"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="230,100,317,120,315,125,229,105"/>
+</map>

@@ -147,38 +147,6 @@ class LFRicInvoke(Invoke):
                 if rule.psy_name not in self._psy_unique_qr_vars:
                     self._psy_unique_qr_vars.append(rule.psy_name)
 
-        # Lastly, add in halo exchange calls and global sums if
-        # required. We only need to add halo exchange calls for fields
-        # since operators are assembled in place and scalars don't
-        # have halos. We only need to add global reduction calls for scalars
-        # which have a 'gh_reduction' access.
-        if Config.get().distributed_memory:
-            # Halo exchange calls
-            for loop in self.schedule.loops():
-                loop.create_halo_exchanges()
-            # Global reductions
-            from psyclone.domain.lfric.lfric_global_reductions import (
-                LFRicGlobalMax, LFRicGlobalMin, LFRicGlobalSum)
-            for kern in self.schedule.walk(LFRicBuiltIn):
-                if not kern.is_reduction:
-                    continue
-                loop = kern.ancestor(LFRicLoop)
-                global_red: GlobalReduction
-                if kern.reduction_type == LFRicBuiltIn.ReductionType.SUM:
-                    global_red = LFRicGlobalSum(kern.reduction_arg,
-                                                parent=loop.parent)
-                elif kern.reduction_type == LFRicBuiltIn.ReductionType.MIN:
-                    global_red = LFRicGlobalMin(kern.reduction_arg,
-                                                parent=loop.parent)
-                elif kern.reduction_type == LFRicBuiltIn.ReductionType.MAX:
-                    global_red = LFRicGlobalMax(kern.reduction_arg,
-                                                parent=loop.parent)
-                else:
-                    raise InternalError(
-                        f"Unrecognised reduction '{kern.reduction_type}' "
-                        f"found for kernel '{kern.name}'.")
-                loop.parent.children.insert(loop.position+1, global_red)
-
         # Add the halo depth(s) for any kernel(s) that operate in the halos
         self._alg_unique_halo_depth_args: list[str] = []
         if Config.get().distributed_memory:
@@ -203,6 +171,52 @@ class LFRicInvoke(Invoke):
                          self.mesh_properties, self.loop_bounds,
                          self.run_time_checks]:
             entities.invoke_declarations()
+
+        # Add halo exchanges at the end of construction after all
+        # other initialization is complete
+        self._add_halo_exchanges()
+
+    def _add_halo_exchanges(self):
+        '''
+        Add halo exchanges and global reductions to the schedule.
+        This is called at the end of Invoke construction after all
+        other initialization is complete, ensuring the complete dependency
+        graph is available for analysis.
+
+        We only need to add halo exchange calls for fields since
+        operators are assembled in place and scalars don't have halos.
+        We only need to add global reduction calls for scalars which
+        have a 'gh_reduction' access.
+        '''
+        if not Config.get().distributed_memory:
+            return
+
+        # Add halo exchange calls
+        for loop in self.schedule.loops():
+            loop.create_halo_exchanges()
+
+        # Add global reductions
+        from psyclone.domain.lfric.lfric_global_reductions import (
+            LFRicGlobalMax, LFRicGlobalMin, LFRicGlobalSum)
+        for kern in self.schedule.walk(LFRicBuiltIn):
+            if not kern.is_reduction:
+                continue
+            loop = kern.ancestor(LFRicLoop)
+            global_red: GlobalReduction
+            if kern.reduction_type == LFRicBuiltIn.ReductionType.SUM:
+                global_red = LFRicGlobalSum(kern.reduction_arg,
+                                            parent=loop.parent)
+            elif kern.reduction_type == LFRicBuiltIn.ReductionType.MIN:
+                global_red = LFRicGlobalMin(kern.reduction_arg,
+                                            parent=loop.parent)
+            elif kern.reduction_type == LFRicBuiltIn.ReductionType.MAX:
+                global_red = LFRicGlobalMax(kern.reduction_arg,
+                                            parent=loop.parent)
+            else:
+                raise InternalError(
+                    f"Unrecognised reduction '{kern.reduction_type}' "
+                    f"found for kernel '{kern.name}'.")
+            loop.parent.children.insert(loop.position+1, global_red)
 
     def arg_for_funcspace(self, fspace):
         '''

@@ -1,0 +1,53 @@
+<map id="psyclone.psyir.transformations.loop_trans.LoopTrans" name="psyclone.psyir.transformations.loop_trans.LoopTrans">
+<area shape="rect" id="Node000001" title=" " alt="" coords="444,283,698,327"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1psyir_1_1transformations_1_1chunk__loop__trans_1_1ChunkLoopTrans.html" title=" " alt="" coords="790,5,1055,50"/>
+<area shape="poly" id="edge6_Node000001_Node000005" title=" " alt="" coords="586,267,610,219,645,162,690,107,716,82,745,60,788,40,791,45,748,65,720,86,694,110,649,166,615,222,590,269"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1psyir_1_1transformations_1_1hoist__loop__bound__expr__trans_1_1HoistLoopBoundExprTrans.html" title=" " alt="" coords="746,75,1099,119"/>
+<area shape="poly" id="edge7_Node000001_Node000006" title=" " alt="" coords="595,268,657,197,699,160,745,129,771,118,774,122,748,134,702,164,661,200,599,272"/>
+<area shape="rect" id="Node000007" href="$classpsyclone_1_1psyir_1_1transformations_1_1loop__fuse__trans_1_1LoopFuseTrans.html" title=" " alt="" coords="795,144,1050,189"/>
+<area shape="poly" id="edge8_Node000001_Node000007" title=" " alt="" coords="614,272,674,233,745,199,794,183,796,188,747,203,677,238,616,276"/>
+<area shape="rect" id="Node000010" href="$classpsyclone_1_1psyir_1_1transformations_1_1loop__swap__trans_1_1LoopSwapTrans.html" title=" " alt="" coords="795,213,1050,258"/>
+<area shape="poly" id="edge11_Node000001_Node000010" title=" " alt="" coords="702,276,746,268,805,256,806,261,747,273,703,282"/>
+<area shape="rect" id="Node000011" href="$classpsyclone_1_1psyir_1_1transformations_1_1loop__tiling__2d__trans_1_1LoopTiling2DTrans.html" title=" " alt="" coords="795,283,1050,327"/>
+<area shape="poly" id="edge12_Node000001_Node000011" title=" " alt="" coords="714,302,795,302,795,308,714,308"/>
+<area shape="rect" id="Node000012" href="$classpsyclone_1_1psyir_1_1transformations_1_1parallel__loop__trans_1_1ParallelLoopTrans.html" title=" " alt="" coords="785,352,1060,397"/>
+<area shape="poly" id="edge13_Node000001_Node000012" title=" " alt="" coords="703,328,747,337,806,349,805,354,746,342,702,334"/>
+<area shape="rect" id="Node000022" href="$classpsyclone_1_1psyir_1_1transformations_1_1scalarisation__trans_1_1ScalarisationTrans.html" title=" " alt="" coords="768,421,1077,466"/>
+<area shape="poly" id="edge23_Node000001_Node000022" title=" " alt="" coords="616,334,677,372,747,407,783,418,782,423,745,411,674,377,614,338"/>
+<area shape="rect" id="Node000023" href="$classpsyclone_1_1transformations_1_1ColourTrans.html" title=" " alt="" coords="827,491,1018,535"/>
+<area shape="poly" id="edge24_Node000001_Node000023" title=" " alt="" coords="599,338,661,410,702,446,748,476,786,492,827,502,826,507,785,497,745,481,699,450,657,413,595,342"/>
+<area shape="rect" id="Node000025" href="$classpsyclone_1_1transformations_1_1LFRicRedundantComputationTrans.html" title=" " alt="" coords="800,560,1045,605"/>
+<area shape="poly" id="edge26_Node000001_Node000025" title=" " alt="" coords="590,341,615,388,649,444,694,500,720,524,748,545,773,559,801,568,799,573,771,564,745,550,716,528,690,503,645,448,610,391,586,343"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyGen_1_1Transformation.html" title=" " alt="" coords="162,291,396,319"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="411,302,444,302,444,308,411,308"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="15,254,104,282"/>
+<area shape="poly" id="edge4_Node000001_Node000003" title=" " alt="" coords="120,265,247,268,396,277,444,282,443,288,396,282,247,273,119,271"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="120,275,194,288,193,293,119,280"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="5,318,114,346"/>
+<area shape="poly" id="edge5_Node000001_Node000004" title=" " alt="" coords="129,332,254,333,396,328,444,323,444,328,396,333,254,338,129,337"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="129,321,161,317,162,322,129,326"/>
+<area shape="rect" id="Node000008" href="$classpsyclone_1_1domain_1_1gocean_1_1transformations_1_1gocean__loop__fuse__trans_1_1GOceanLoopFuseTrans.html" title=" " alt="" coords="1147,75,1489,119"/>
+<area shape="poly" id="edge9_Node000007_Node000008" title=" " alt="" coords="1065,139,1186,117,1187,123,1066,144"/>
+<area shape="rect" id="Node000009" href="$classpsyclone_1_1domain_1_1lfric_1_1transformations_1_1lfric__loop__fuse__trans_1_1LFRicLoopFuseTrans.html" title=" " alt="" coords="1169,144,1467,189"/>
+<area shape="poly" id="edge10_Node000007_Node000009" title=" " alt="" coords="1065,164,1168,164,1168,169,1065,169"/>
+<area shape="rect" id="Node000013" href="$classpsyclone_1_1psyir_1_1transformations_1_1omp__loop__trans_1_1OMPLoopTrans.html" title=" " alt="" coords="1190,213,1446,258"/>
+<area shape="poly" id="edge14_Node000012_Node000013" title=" " alt="" coords="1074,350,1097,338,1113,322,1120,304,1128,286,1145,268,1189,248,1191,253,1148,273,1133,288,1125,306,1117,325,1100,342,1076,355"/>
+<area shape="rect" id="Node000019" href="$classpsyclone_1_1psyir_1_1transformations_1_1omp__task__trans_1_1OMPTaskTrans.html" title=" " alt="" coords="1190,283,1446,327"/>
+<area shape="poly" id="edge20_Node000012_Node000019" title=" " alt="" coords="1069,346,1190,325,1190,330,1070,351"/>
+<area shape="rect" id="Node000020" href="$classpsyclone_1_1transformations_1_1ACCLoopTrans.html" title=" " alt="" coords="1222,352,1414,397"/>
+<area shape="poly" id="edge21_Node000012_Node000020" title=" " alt="" coords="1076,372,1222,372,1222,377,1076,377"/>
+<area shape="rect" id="Node000021" href="$classpsyclone_1_1transformations_1_1OMPTaskloopTrans.html" title=" " alt="" coords="1222,421,1414,466"/>
+<area shape="poly" id="edge22_Node000012_Node000021" title=" " alt="" coords="1069,397,1223,424,1222,430,1069,403"/>
+<area shape="rect" id="Node000014" href="$classpsyclone_1_1transformations_1_1Dynamo0p3OMPLoopTrans.html" title=" " alt="" coords="1537,144,1732,189"/>
+<area shape="poly" id="edge15_Node000013_Node000014" title=" " alt="" coords="1448,207,1488,198,1539,187,1540,192,1490,204,1450,212"/>
+<area shape="rect" id="Node000015" href="$classpsyclone_1_1transformations_1_1GOceanOMPLoopTrans.html" title=" " alt="" coords="1539,213,1730,258"/>
+<area shape="poly" id="edge16_Node000013_Node000015" title=" " alt="" coords="1461,233,1538,233,1538,238,1461,238"/>
+<area shape="rect" id="Node000016" href="$classpsyclone_1_1transformations_1_1OMPParallelLoopTrans.html" title=" " alt="" coords="1539,283,1730,327"/>
+<area shape="poly" id="edge17_Node000013_Node000016" title=" " alt="" coords="1450,259,1490,268,1540,279,1539,285,1488,273,1448,264"/>
+<area shape="rect" id="Node000017" href="$classpsyclone_1_1transformations_1_1DynamoOMPParallelLoopTrans.html" title=" " alt="" coords="1780,248,2000,293"/>
+<area shape="poly" id="edge18_Node000016_Node000017" title=" " alt="" coords="1746,287,1779,283,1780,288,1746,293"/>
+<area shape="rect" id="Node000018" href="$classpsyclone_1_1transformations_1_1GOceanOMPParallelLoopTrans.html" title=" " alt="" coords="1782,317,1998,362"/>
+<area shape="poly" id="edge19_Node000016_Node000018" title=" " alt="" coords="1746,317,1782,322,1782,328,1745,323"/>
+<area shape="rect" id="Node000024" href="$classpsyclone_1_1transformations_1_1Dynamo0p3ColourTrans.html" title=" " alt="" coords="1222,491,1414,535"/>
+<area shape="poly" id="edge25_Node000023_Node000024" title=" " alt="" coords="1034,510,1222,510,1222,516,1034,516"/>
+</map>

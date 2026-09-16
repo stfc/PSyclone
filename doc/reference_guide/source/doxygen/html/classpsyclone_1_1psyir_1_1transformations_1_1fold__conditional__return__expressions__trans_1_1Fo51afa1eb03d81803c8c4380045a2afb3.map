@@ -1,0 +1,9 @@
+<map id="psyclone.psyir.transformations.fold_conditional_return_expressions_trans.FoldConditionalReturnExpressionsTrans" name="psyclone.psyir.transformations.fold_conditional_return_expressions_trans.FoldConditionalReturnExpressionsTrans">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,157,327,218"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyGen_1_1Transformation.html" title=" " alt="" coords="49,81,283,109"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="169,124,169,156,163,156,163,124"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="60,5,149,33"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="127,43,157,79,153,82,123,47"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="173,5,282,33"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="209,47,179,82,175,79,205,43"/>
+</map>

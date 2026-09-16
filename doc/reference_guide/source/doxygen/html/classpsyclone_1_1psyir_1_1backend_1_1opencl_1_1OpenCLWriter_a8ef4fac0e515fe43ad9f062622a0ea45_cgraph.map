@@ -1,0 +1,22 @@
+<map id="psyclone.psyir.backend.opencl.OpenCLWriter.kernelschedule_node" name="psyclone.psyir.backend.opencl.OpenCLWriter.kernelschedule_node">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,224,256,269"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1backend_1_1visitor_1_1PSyIRVisitor.html#aed55ed732a94e3261538945813e641ba" title=" " alt="" coords="578,108,798,153"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="139,222,162,179,197,124,244,71,272,49,303,31,363,8,415,4,467,13,531,30,564,43,596,59,650,96,647,100,593,64,562,48,529,35,466,18,414,9,364,13,305,35,275,53,248,75,201,128,167,181,144,225"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1backend_1_1visitor_1_1PSyIRVisitor.html#a33a90ad621b81ce9170da0968c704d5b" title=" " alt="" coords="307,69,527,114"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="157,221,221,173,261,147,302,124,316,118,318,123,305,129,264,151,224,177,160,226"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1backend_1_1opencl_1_1OpenCLWriter.html#a18289d3f755f32420cd62e944b2d70fc" title=" " alt="" coords="304,138,530,200"/>
+<area shape="poly" id="edge5_Node000001_Node000004" title=" " alt="" coords="215,221,288,201,289,206,217,226"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1psyir_1_1backend_1_1c_1_1CWriter.html#a843a4c880dad239451063c6495f1c436" title=" " alt="" coords="323,224,510,269"/>
+<area shape="poly" id="edge7_Node000001_Node000005" title=" " alt="" coords="256,244,308,244,308,249,256,249"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1psyir_1_1backend_1_1opencl_1_1OpenCLWriter.html#a3e08e846a0a7931745fc1567d783a982" title=" " alt="" coords="305,317,528,362"/>
+<area shape="poly" id="edge8_Node000001_Node000006" title=" " alt="" coords="202,267,333,310,331,315,201,272"/>
+<area shape="rect" id="Node000007" href="$classpsyclone_1_1psyir_1_1backend_1_1opencl_1_1OpenCLWriter.html#a73205ffd02d7227628cf97261f6f938d" title=" " alt="" coords="305,387,528,431"/>
+<area shape="poly" id="edge10_Node000001_Node000007" title=" " alt="" coords="158,267,222,319,263,347,305,372,318,378,315,383,302,377,260,352,219,324,155,271"/>
+<area shape="rect" id="Node000008" href="$classpsyclone_1_1psyir_1_1backend_1_1c_1_1CWriter.html#a420b6522942360c9e89fd2201efe8527" title=" " alt="" coords="319,456,514,501"/>
+<area shape="poly" id="edge12_Node000001_Node000008" title=" " alt="" coords="148,267,173,305,209,352,254,400,305,441,313,446,311,451,302,446,250,404,205,356,169,308,143,270"/>
+<area shape="poly" id="edge3_Node000003_Node000002" title=" " alt="" coords="528,105,563,110,562,115,527,110"/>
+<area shape="poly" id="edge4_Node000003_Node000003" title=" " alt="" coords="365,69,364,59,373,50,390,45,417,43,446,45,463,51,461,56,445,50,417,48,391,50,375,55,369,61,371,68"/>
+<area shape="poly" id="edge6_Node000004_Node000002" title=" " alt="" coords="530,150,562,146,563,151,531,155"/>
+<area shape="poly" id="edge9_Node000006_Node000006" title=" " alt="" coords="365,317,364,307,373,298,390,293,417,291,446,293,463,299,461,304,445,298,417,296,391,298,375,303,369,309,371,316"/>
+<area shape="poly" id="edge11_Node000007_Node000002" title=" " alt="" coords="510,384,528,372,554,350,578,325,618,269,649,213,670,166,675,169,654,216,622,272,582,328,558,354,532,376,512,388"/>
+</map>

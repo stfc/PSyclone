@@ -1,0 +1,4 @@
+var namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1operates__on__metadata =
+[
+    [ "OperatesOnMetadata", "classpsyclone_1_1domain_1_1lfric_1_1kernel_1_1operates__on__metadata_1_1OperatesOnMetadata.html", "classpsyclone_1_1domain_1_1lfric_1_1kernel_1_1operates__on__metadata_1_1OperatesOnMetadata" ]
+];

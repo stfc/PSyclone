@@ -1,0 +1,31 @@
+<map id="psyclone.psyir.nodes.acc_directives.ACCDirective" name="psyclone.psyir.nodes.acc_directives.ACCDirective">
+<area shape="rect" id="Node000001" title=" " alt="" coords="162,317,345,362"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCRegionDirective.html" title=" " alt="" coords="407,179,634,223"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="310,307,474,222,477,226,313,312"/>
+<area shape="rect" id="Node000010" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCStandaloneDirective.html" title=" " alt="" coords="393,387,648,431"/>
+<area shape="poly" id="edge9_Node000001_Node000010" title=" " alt="" coords="358,364,432,383,431,389,356,369"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="15,299,104,327"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="120,319,162,324,161,330,119,324"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="5,351,114,379"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="129,353,161,349,162,354,129,359"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCAtomicDirective.html" title=" " alt="" coords="706,5,934,50"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="553,166,616,112,654,84,695,60,723,48,725,53,698,65,657,88,619,116,557,170"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCDataDirective.html" title=" " alt="" coords="713,75,927,119"/>
+<area shape="poly" id="edge5_Node000004_Node000006" title=" " alt="" coords="588,170,695,129,733,117,734,122,697,134,590,175"/>
+<area shape="rect" id="Node000007" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCKernelsDirective.html" title=" " alt="" coords="705,144,935,189"/>
+<area shape="poly" id="edge6_Node000004_Node000007" title=" " alt="" coords="649,183,704,177,705,182,650,189"/>
+<area shape="rect" id="Node000008" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCLoopDirective.html" title=" " alt="" coords="713,213,927,258"/>
+<area shape="poly" id="edge7_Node000004_Node000008" title=" " alt="" coords="650,213,713,221,713,226,649,219"/>
+<area shape="rect" id="Node000009" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCParallelDirective.html" title=" " alt="" coords="705,283,935,327"/>
+<area shape="poly" id="edge8_Node000004_Node000009" title=" " alt="" coords="590,227,697,268,734,280,733,285,695,273,588,232"/>
+<area shape="rect" id="Node000011" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCEnterDataDirective.html" title=" " alt="" coords="696,352,944,397"/>
+<area shape="poly" id="edge10_Node000010_Node000011" title=" " alt="" coords="663,390,695,386,696,391,664,395"/>
+<area shape="rect" id="Node000014" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCRoutineDirective.html" title=" " alt="" coords="704,421,936,466"/>
+<area shape="poly" id="edge13_Node000010_Node000014" title=" " alt="" coords="664,423,704,428,703,433,663,428"/>
+<area shape="rect" id="Node000015" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCUpdateDirective.html" title=" " alt="" coords="705,491,935,535"/>
+<area shape="poly" id="edge14_Node000010_Node000015" title=" " alt="" coords="590,435,697,476,734,488,733,493,695,481,588,440"/>
+<area shape="rect" id="Node000012" href="$classpsyclone_1_1dynamo0p3_1_1DynACCEnterDataDirective.html" title=" " alt="" coords="992,317,1243,362"/>
+<area shape="poly" id="edge11_Node000011_Node000012" title=" " alt="" coords="959,355,991,352,992,357,960,361"/>
+<area shape="rect" id="Node000013" href="$classpsyclone_1_1gocean1p0_1_1GOACCEnterDataDirective.html" title=" " alt="" coords="998,387,1237,431"/>
+<area shape="poly" id="edge12_Node000011_Node000013" title=" " alt="" coords="959,388,997,392,997,398,959,393"/>
+</map>

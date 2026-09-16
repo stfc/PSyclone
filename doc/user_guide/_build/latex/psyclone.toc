@@ -1,0 +1,379 @@
+\babel@toc {english}{}\relax 
+\contentsline {chapter}{\numberline {1}Getting Going}{3}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Installation}{3}{section.1.1}%
+\contentsline {subsection}{\numberline {1.1.1}Installation location}{4}{subsection.1.1.1}%
+\contentsline {section}{\numberline {1.2}Configuration}{4}{section.1.2}%
+\contentsline {section}{\numberline {1.3}Running PSyclone}{4}{section.1.3}%
+\contentsline {subsection}{\numberline {1.3.1}PSyclone for Code Transformation}{5}{subsection.1.3.1}%
+\contentsline {subsection}{\numberline {1.3.2}PSyclone for PSyKAl DSLs}{6}{subsection.1.3.2}%
+\contentsline {chapter}{\numberline {2}The psyclone command}{9}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Basic Use}{10}{section.2.1}%
+\contentsline {section}{\numberline {2.2}Transformation script}{10}{section.2.2}%
+\contentsline {section}{\numberline {2.3}Fortran INCLUDE Files and Modules}{11}{section.2.3}%
+\contentsline {subsection}{\numberline {2.3.1}C Pre\sphinxhyphen {}processor \#include Files}{11}{subsection.2.3.1}%
+\contentsline {section}{\numberline {2.4}Fortran line length}{11}{section.2.4}%
+\contentsline {section}{\numberline {2.5}Backend Options}{12}{section.2.5}%
+\contentsline {section}{\numberline {2.6}Automatic Profiling Instrumentation}{12}{section.2.6}%
+\contentsline {section}{\numberline {2.7}Using PSyclone for PSyKAL DSLs}{12}{section.2.7}%
+\contentsline {subsection}{\numberline {2.7.1}PSyKAl file output}{13}{subsection.2.7.1}%
+\contentsline {subsection}{\numberline {2.7.2}Algorithm files with no invokes}{13}{subsection.2.7.2}%
+\contentsline {subsection}{\numberline {2.7.3}Kernel search directory}{13}{subsection.2.7.3}%
+\contentsline {subsection}{\numberline {2.7.4}Transforming PSyKAl Kernels}{14}{subsection.2.7.4}%
+\contentsline {chapter}{\numberline {3}Configuration}{15}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Options}{15}{section.3.1}%
+\contentsline {subsection}{\numberline {3.1.1}\sphinxstyleliteralintitle {\sphinxupquote {DEFAULT}} Section}{17}{subsection.3.1.1}%
+\contentsline {subsection}{\numberline {3.1.2}Common Sections}{17}{subsection.3.1.2}%
+\contentsline {subsection}{\numberline {3.1.3}\sphinxstyleliteralintitle {\sphinxupquote {lfric}} Section}{17}{subsection.3.1.3}%
+\contentsline {subsection}{\numberline {3.1.4}\sphinxstyleliteralintitle {\sphinxupquote {gocean}} Section}{18}{subsection.3.1.4}%
+\contentsline {chapter}{\numberline {4}Tutorial and Examples}{19}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Tutorial}{19}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Examples}{19}{section.4.2}%
+\contentsline {subsection}{\numberline {4.2.1}Compilation}{20}{subsection.4.2.1}%
+\contentsline {subsection}{\numberline {4.2.2}Supported Compilers}{20}{subsection.4.2.2}%
+\contentsline {subsection}{\numberline {4.2.3}Dependencies}{20}{subsection.4.2.3}%
+\contentsline {subsubsection}{NetCDF}{21}{subsubsection*.3}%
+\contentsline {section}{\numberline {4.3}PSyIR Examples}{21}{section.4.3}%
+\contentsline {subsection}{\numberline {4.3.1}Example 1: Constructing PSyIR and Generating Code}{21}{subsection.4.3.1}%
+\contentsline {subsection}{\numberline {4.3.2}Example 2: Creating PSyIR for Structure Types}{21}{subsection.4.3.2}%
+\contentsline {section}{\numberline {4.4}GOcean Examples}{21}{section.4.4}%
+\contentsline {subsection}{\numberline {4.4.1}Example 1: Loop transformations}{21}{subsection.4.4.1}%
+\contentsline {subsection}{\numberline {4.4.2}Example 2: OpenACC}{21}{subsection.4.4.2}%
+\contentsline {subsection}{\numberline {4.4.3}Example 3: OpenCL}{22}{subsection.4.4.3}%
+\contentsline {subsection}{\numberline {4.4.4}Example 4: Kernels containing use statements}{22}{subsection.4.4.4}%
+\contentsline {subsection}{\numberline {4.4.5}Example 5: PSyData}{22}{subsection.4.4.5}%
+\contentsline {subsubsection}{Example 5.1: Kernel data extraction}{22}{subsubsection*.4}%
+\contentsline {subsubsection}{Example 5.2: Profiling}{22}{subsubsection*.5}%
+\contentsline {subsubsection}{Example 5.3: Read\sphinxhyphen {}only\sphinxhyphen {}verification}{23}{subsubsection*.6}%
+\contentsline {subsubsection}{Example 5.4: Value Range Check}{23}{subsubsection*.7}%
+\contentsline {subsection}{\numberline {4.4.6}Example 6: PSy\sphinxhyphen {}layer Code Creation using PSyIR}{24}{subsection.4.4.6}%
+\contentsline {section}{\numberline {4.5}LFRic Examples}{24}{section.4.5}%
+\contentsline {subsection}{\numberline {4.5.1}Example 1: Basic Operation}{24}{subsection.4.5.1}%
+\contentsline {subsection}{\numberline {4.5.2}Example 2: Applying Transformations}{24}{subsection.4.5.2}%
+\contentsline {subsection}{\numberline {4.5.3}Example 3: Distributed and Shared Memory}{24}{subsection.4.5.3}%
+\contentsline {subsection}{\numberline {4.5.4}Example 4: Multiple Built\sphinxhyphen {}ins, Named Invokes and Boundary Conditions}{24}{subsection.4.5.4}%
+\contentsline {subsection}{\numberline {4.5.5}Example 5: Stencils}{25}{subsection.4.5.5}%
+\contentsline {subsection}{\numberline {4.5.6}Example 6: Reductions}{25}{subsection.4.5.6}%
+\contentsline {subsection}{\numberline {4.5.7}Example 7: Column\sphinxhyphen {}Matrix Assembly Operators}{25}{subsection.4.5.7}%
+\contentsline {subsection}{\numberline {4.5.8}Example 8: Redundant Computation}{25}{subsection.4.5.8}%
+\contentsline {subsection}{\numberline {4.5.9}Example 9: Writing to Discontinuous Fields}{25}{subsection.4.5.9}%
+\contentsline {subsection}{\numberline {4.5.10}Example 10: Inter\sphinxhyphen {}grid Kernels}{25}{subsection.4.5.10}%
+\contentsline {subsection}{\numberline {4.5.11}Example 11: Asynchronous Halo Exchanges}{25}{subsection.4.5.11}%
+\contentsline {subsection}{\numberline {4.5.12}Example 12: Code Extraction}{25}{subsection.4.5.12}%
+\contentsline {subsection}{\numberline {4.5.13}Example 13 : Kernel Transformation}{26}{subsection.4.5.13}%
+\contentsline {subsection}{\numberline {4.5.14}Example 14: OpenACC}{26}{subsection.4.5.14}%
+\contentsline {subsection}{\numberline {4.5.15}Example 15: CPU Optimisation of Matvec}{27}{subsection.4.5.15}%
+\contentsline {subsection}{\numberline {4.5.16}Example 16: Generating LFRic Code Using LFRic\sphinxhyphen {}specific PSyIR}{27}{subsection.4.5.16}%
+\contentsline {subsection}{\numberline {4.5.17}Example 17: Runnable Simplified Examples}{27}{subsection.4.5.17}%
+\contentsline {subsubsection}{Example 17.1: A Simple Runnable Example}{27}{subsubsection*.8}%
+\contentsline {subsubsection}{Example 17.2: A Simple Runnable Example With NetCDF}{27}{subsubsection*.9}%
+\contentsline {subsubsection}{Example 17.3: Kernel Data Extraction}{28}{subsubsection*.10}%
+\contentsline {subsection}{\numberline {4.5.18}Example 18: Special Accesses of Continuous Fields \sphinxhyphen {} Incrementing After Reading and Writing Before (Potentially) Reading}{28}{subsection.4.5.18}%
+\contentsline {subsection}{\numberline {4.5.19}Example 19: Mixed Precision}{28}{subsection.4.5.19}%
+\contentsline {subsection}{\numberline {4.5.20}Example 20: Algorithm Generation}{28}{subsection.4.5.20}%
+\contentsline {section}{\numberline {4.6}NEMO Examples}{29}{section.4.6}%
+\contentsline {subsection}{\numberline {4.6.1}Example 1: OpenMP parallelisation of tra\_adv}{29}{subsection.4.6.1}%
+\contentsline {subsection}{\numberline {4.6.2}Example 2: OpenMP parallelisation of traldf\_iso}{29}{subsection.4.6.2}%
+\contentsline {subsection}{\numberline {4.6.3}Example 3: OpenACC parallelisation of tra\_adv}{29}{subsection.4.6.3}%
+\contentsline {subsection}{\numberline {4.6.4}Example 4: Transforming Fortran code to the SIR}{29}{subsection.4.6.4}%
+\contentsline {subsection}{\numberline {4.6.5}Example 5: Kernel Data Extraction}{29}{subsection.4.6.5}%
+\contentsline {subsection}{\numberline {4.6.6}Example 6: Read\sphinxhyphen {}only Verification}{29}{subsection.4.6.6}%
+\contentsline {subsection}{\numberline {4.6.7}Scripts}{30}{subsection.4.6.7}%
+\contentsline {chapter}{\numberline {5}Libraries}{31}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Available libraries}{31}{section.5.1}%
+\contentsline {subsection}{\numberline {5.1.1}Profiling}{31}{subsection.5.1.1}%
+\contentsline {subsection}{\numberline {5.1.2}Kernel Data Extraction}{31}{subsection.5.1.2}%
+\contentsline {subsection}{\numberline {5.1.3}Access Verification}{32}{subsection.5.1.3}%
+\contentsline {subsection}{\numberline {5.1.4}Value Range Check}{32}{subsection.5.1.4}%
+\contentsline {section}{\numberline {5.2}Dependencies}{32}{section.5.2}%
+\contentsline {section}{\numberline {5.3}Compilation}{32}{section.5.3}%
+\contentsline {chapter}{\numberline {6}PSyIR: the PSyclone Intermediate Representation}{35}{chapter.6}%
+\contentsline {section}{\numberline {6.1}PSyIR Nodes}{35}{section.6.1}%
+\contentsline {section}{\numberline {6.2}Available language\sphinxhyphen {}level nodes}{35}{section.6.2}%
+\contentsline {section}{\numberline {6.3}Text Representation}{36}{section.6.3}%
+\contentsline {section}{\numberline {6.4}Tree Navigation}{37}{section.6.4}%
+\contentsline {section}{\numberline {6.5}DataTypes}{43}{section.6.5}%
+\contentsline {subsection}{\numberline {6.5.1}Scalar DataType}{43}{subsection.6.5.1}%
+\contentsline {subsection}{\numberline {6.5.2}Array DataType}{44}{subsection.6.5.2}%
+\contentsline {subsection}{\numberline {6.5.3}Structure Datatype}{44}{subsection.6.5.3}%
+\contentsline {subsection}{\numberline {6.5.4}Unknown DataType}{45}{subsection.6.5.4}%
+\contentsline {subsection}{\numberline {6.5.5}NoType}{45}{subsection.6.5.5}%
+\contentsline {section}{\numberline {6.6}Symbols and Symbol Tables}{45}{section.6.6}%
+\contentsline {subsection}{\numberline {6.6.1}Symbol Interfaces}{48}{subsection.6.6.1}%
+\contentsline {section}{\numberline {6.7}Creating PSyIR}{49}{section.6.7}%
+\contentsline {subsection}{\numberline {6.7.1}Symbol names}{49}{subsection.6.7.1}%
+\contentsline {subsection}{\numberline {6.7.2}Nodes}{50}{subsection.6.7.2}%
+\contentsline {section}{\numberline {6.8}Comparing PSyIR nodes}{51}{section.6.8}%
+\contentsline {section}{\numberline {6.9}Modifying the PSyIR}{52}{section.6.9}%
+\contentsline {subsection}{\numberline {6.9.1}Renaming symbols}{52}{subsection.6.9.1}%
+\contentsline {subsection}{\numberline {6.9.2}Specialising symbols}{52}{subsection.6.9.2}%
+\contentsline {subsection}{\numberline {6.9.3}Replacing PSyIR nodes}{53}{subsection.6.9.3}%
+\contentsline {subsection}{\numberline {6.9.4}Detaching PSyIR nodes}{53}{subsection.6.9.4}%
+\contentsline {subsection}{\numberline {6.9.5}Copying nodes}{53}{subsection.6.9.5}%
+\contentsline {subsection}{\numberline {6.9.6}Named arguments}{54}{subsection.6.9.6}%
+\contentsline {chapter}{\numberline {7}Transformations}{55}{chapter.7}%
+\contentsline {section}{\numberline {7.1}PSyclone User Scripts}{55}{section.7.1}%
+\contentsline {subsection}{\numberline {7.1.1}Script Global Variables}{56}{subsection.7.1.1}%
+\contentsline {subsection}{\numberline {7.1.2}PSyKAl algorithm code transformations}{56}{subsection.7.1.2}%
+\contentsline {section}{\numberline {7.2}Finding transformations}{56}{section.7.2}%
+\contentsline {section}{\numberline {7.3}Validating and Applying transformations}{57}{section.7.3}%
+\contentsline {subsection}{\numberline {7.3.1}Validation}{57}{subsection.7.3.1}%
+\contentsline {subsection}{\numberline {7.3.2}Application}{58}{subsection.7.3.2}%
+\contentsline {section}{\numberline {7.4}Available transformations}{58}{section.7.4}%
+\contentsline {section}{\numberline {7.5}Algorithm\sphinxhyphen {}layer}{104}{section.7.5}%
+\contentsline {section}{\numberline {7.6}Kernels}{105}{section.7.6}%
+\contentsline {subsection}{\numberline {7.6.1}Rules}{105}{subsection.7.6.1}%
+\contentsline {subsection}{\numberline {7.6.2}Available Kernel Transformations}{106}{subsection.7.6.2}%
+\contentsline {section}{\numberline {7.7}OpenMP}{109}{section.7.7}%
+\contentsline {subsection}{\numberline {7.7.1}Reductions}{109}{subsection.7.7.1}%
+\contentsline {subsection}{\numberline {7.7.2}Restrictions}{110}{subsection.7.7.2}%
+\contentsline {subsection}{\numberline {7.7.3}OpenMP Tasking}{110}{subsection.7.7.3}%
+\contentsline {section}{\numberline {7.8}OpenCL}{110}{section.7.8}%
+\contentsline {section}{\numberline {7.9}OpenACC}{112}{section.7.9}%
+\contentsline {section}{\numberline {7.10}SIR}{113}{section.7.10}%
+\contentsline {chapter}{\numberline {8}Introduction to PSyKAl}{115}{chapter.8}%
+\contentsline {section}{\numberline {8.1}Usage}{115}{section.8.1}%
+\contentsline {section}{\numberline {8.2}Algorithm layer}{116}{section.8.2}%
+\contentsline {subsection}{\numberline {8.2.1}Limitations}{116}{subsection.8.2.1}%
+\contentsline {section}{\numberline {8.3}Kernel layer}{117}{section.8.3}%
+\contentsline {section}{\numberline {8.4}Built\sphinxhyphen {}ins}{118}{section.8.4}%
+\contentsline {subsection}{\numberline {8.4.1}Example}{118}{subsection.8.4.1}%
+\contentsline {section}{\numberline {8.5}PSy layer}{119}{section.8.5}%
+\contentsline {chapter}{\numberline {9}LFRic API}{121}{chapter.9}%
+\contentsline {section}{\numberline {9.1}Algorithm}{121}{section.9.1}%
+\contentsline {section}{\numberline {9.2}Algorithm Argument Types}{122}{section.9.2}%
+\contentsline {subsection}{\numberline {9.2.1}Scalar}{122}{subsection.9.2.1}%
+\contentsline {subsection}{\numberline {9.2.2}Field}{122}{subsection.9.2.2}%
+\contentsline {subsection}{\numberline {9.2.3}Field Vector}{122}{subsection.9.2.3}%
+\contentsline {subsection}{\numberline {9.2.4}Operator}{122}{subsection.9.2.4}%
+\contentsline {subsection}{\numberline {9.2.5}Column\sphinxhyphen {}wise Operator}{123}{subsection.9.2.5}%
+\contentsline {subsection}{\numberline {9.2.6}Quadrature}{123}{subsection.9.2.6}%
+\contentsline {subsection}{\numberline {9.2.7}Halo Depth}{124}{subsection.9.2.7}%
+\contentsline {subsection}{\numberline {9.2.8}Stencil Extent}{124}{subsection.9.2.8}%
+\contentsline {section}{\numberline {9.3}Mixed Precision}{126}{section.9.3}%
+\contentsline {subsection}{\numberline {9.3.1}Fields}{128}{subsection.9.3.1}%
+\contentsline {subsection}{\numberline {9.3.2}Field Vectors}{128}{subsection.9.3.2}%
+\contentsline {subsection}{\numberline {9.3.3}Scalars}{129}{subsection.9.3.3}%
+\contentsline {subsection}{\numberline {9.3.4}LMA Operators}{129}{subsection.9.3.4}%
+\contentsline {subsection}{\numberline {9.3.5}Column\sphinxhyphen {}wise Operators}{130}{subsection.9.3.5}%
+\contentsline {subsection}{\numberline {9.3.6}Consistency}{130}{subsection.9.3.6}%
+\contentsline {section}{\numberline {9.4}PSy\sphinxhyphen {}layer}{130}{section.9.4}%
+\contentsline {subsection}{\numberline {9.4.1}Module name}{130}{subsection.9.4.1}%
+\contentsline {subsubsection}{Argument Intents}{130}{subsubsection*.61}%
+\contentsline {section}{\numberline {9.5}Kernel}{130}{section.9.5}%
+\contentsline {subsection}{\numberline {9.5.1}Rules for all User\sphinxhyphen {}Supplied Kernels that Operate on Cell\sphinxhyphen {}Columns}{131}{subsection.9.5.1}%
+\contentsline {subsection}{\numberline {9.5.2}Rules specific to General\sphinxhyphen {}Purpose Kernels without CMA Operators}{131}{subsection.9.5.2}%
+\contentsline {subsection}{\numberline {9.5.3}Rules for Kernels that work with CMA Operators}{132}{subsection.9.5.3}%
+\contentsline {subsubsection}{Assembly}{132}{subsubsection*.62}%
+\contentsline {subsubsection}{Application and Inverse Application}{132}{subsubsection*.63}%
+\contentsline {subsubsection}{Matrix\sphinxhyphen {}Matrix}{132}{subsubsection*.64}%
+\contentsline {subsection}{\numberline {9.5.4}Rules for Inter\sphinxhyphen {}Grid Kernels}{133}{subsection.9.5.4}%
+\contentsline {subsection}{\numberline {9.5.5}Rules for User\sphinxhyphen {}Supplied Kernels that Operate on the Domain}{133}{subsection.9.5.5}%
+\contentsline {subsection}{\numberline {9.5.6}Rules for all User\sphinxhyphen {}Supplied Kernels that Operate on DoFs (DoF Kernels)}{133}{subsection.9.5.6}%
+\contentsline {subsection}{\numberline {9.5.7}Metadata}{134}{subsection.9.5.7}%
+\contentsline {subsubsection}{meta\_args}{134}{subsubsection*.65}%
+\contentsline {paragraph}{Valid Data Types}{137}{paragraph*.66}%
+\contentsline {paragraph}{Valid Access Modes}{137}{paragraph*.67}%
+\contentsline {paragraph}{Supported Function Spaces}{138}{paragraph*.68}%
+\contentsline {paragraph}{Read\sphinxhyphen {}Only Function Spaces}{140}{paragraph*.69}%
+\contentsline {paragraph}{Optional Field Metadata}{140}{paragraph*.70}%
+\contentsline {subparagraph}{Stencil Metadata}{140}{subparagraph*.71}%
+\contentsline {subparagraph}{Inter\sphinxhyphen {}Grid Metadata}{142}{subparagraph*.72}%
+\contentsline {paragraph}{Column\sphinxhyphen {}wise Operators (CMA)}{142}{paragraph*.73}%
+\contentsline {subsubsection}{meta\_funcs}{143}{subsubsection*.74}%
+\contentsline {subsubsection}{meta\_reference\_element}{144}{subsubsection*.75}%
+\contentsline {subsubsection}{meta\_mesh}{144}{subsubsection*.76}%
+\contentsline {subsubsection}{gh\_shape and gh\_evaluator\_targets}{145}{subsubsection*.77}%
+\contentsline {subsubsection}{operates\_on}{145}{subsubsection*.78}%
+\contentsline {subsubsection}{procedure}{146}{subsubsection*.79}%
+\contentsline {subsection}{\numberline {9.5.8}Subroutine}{146}{subsection.9.5.8}%
+\contentsline {subsubsection}{Rules for General\sphinxhyphen {}Purpose Kernels}{146}{subsubsection*.80}%
+\contentsline {paragraph}{Examples}{148}{paragraph*.81}%
+\contentsline {subsubsection}{Rules for CMA Kernels}{150}{subsubsection*.82}%
+\contentsline {paragraph}{Assembly}{150}{paragraph*.83}%
+\contentsline {paragraph}{Application/Inverse\sphinxhyphen {}Application}{151}{paragraph*.84}%
+\contentsline {paragraph}{Matrix\sphinxhyphen {}Matrix}{152}{paragraph*.85}%
+\contentsline {subsubsection}{Rules for Inter\sphinxhyphen {}Grid Kernels}{152}{subsubsection*.86}%
+\contentsline {subsubsection}{Rules for Domain Kernels}{153}{subsubsection*.87}%
+\contentsline {subsubsection}{Rules for DoF Kernels}{153}{subsubsection*.88}%
+\contentsline {subsubsection}{Argument Intents}{153}{subsubsection*.89}%
+\contentsline {subsection}{\numberline {9.5.9}Kernel Naming Conventions}{154}{subsection.9.5.9}%
+\contentsline {section}{\numberline {9.6}Built\sphinxhyphen {}ins}{154}{section.9.6}%
+\contentsline {subsection}{\numberline {9.6.1}Metadata}{155}{subsection.9.6.1}%
+\contentsline {subsubsection}{Valid Data Types and Access Modes}{156}{subsubsection*.90}%
+\contentsline {subsection}{\numberline {9.6.2}Naming scheme}{156}{subsection.9.6.2}%
+\contentsline {subsection}{\numberline {9.6.3}Built\sphinxhyphen {}in operations on \sphinxstyleliteralintitle {\sphinxupquote {real}}\sphinxhyphen {}valued fields}{157}{subsection.9.6.3}%
+\contentsline {subsubsection}{Addition}{157}{subsubsection*.91}%
+\contentsline {paragraph}{X\_plus\_Y}{157}{paragraph*.92}%
+\contentsline {paragraph}{inc\_X\_plus\_Y}{157}{paragraph*.93}%
+\contentsline {paragraph}{a\_plus\_X}{158}{paragraph*.94}%
+\contentsline {paragraph}{inc\_a\_plus\_X}{158}{paragraph*.95}%
+\contentsline {paragraph}{aX\_plus\_Y}{158}{paragraph*.96}%
+\contentsline {paragraph}{inc\_aX\_plus\_Y}{158}{paragraph*.97}%
+\contentsline {paragraph}{inc\_X\_plus\_bY}{158}{paragraph*.98}%
+\contentsline {paragraph}{aX\_plus\_bY}{158}{paragraph*.99}%
+\contentsline {paragraph}{inc\_aX\_plus\_bY}{159}{paragraph*.100}%
+\contentsline {paragraph}{aX\_plus\_aY}{159}{paragraph*.101}%
+\contentsline {subsubsection}{Subtraction}{159}{subsubsection*.102}%
+\contentsline {paragraph}{X\_minus\_Y}{159}{paragraph*.103}%
+\contentsline {paragraph}{inc\_X\_minus\_Y}{159}{paragraph*.104}%
+\contentsline {paragraph}{a\_minus\_X}{159}{paragraph*.105}%
+\contentsline {paragraph}{inc\_a\_minus\_X}{160}{paragraph*.106}%
+\contentsline {paragraph}{X\_minus\_a}{160}{paragraph*.107}%
+\contentsline {paragraph}{inc\_X\_minus\_a}{160}{paragraph*.108}%
+\contentsline {paragraph}{aX\_minus\_Y}{160}{paragraph*.109}%
+\contentsline {paragraph}{X\_minus\_bY}{160}{paragraph*.110}%
+\contentsline {paragraph}{inc\_X\_minus\_bY}{160}{paragraph*.111}%
+\contentsline {paragraph}{aX\_minus\_bY}{161}{paragraph*.112}%
+\contentsline {subsubsection}{Multiplication}{161}{subsubsection*.113}%
+\contentsline {paragraph}{X\_times\_Y}{161}{paragraph*.114}%
+\contentsline {paragraph}{inc\_X\_times\_Y}{161}{paragraph*.115}%
+\contentsline {paragraph}{inc\_aX\_times\_Y}{161}{paragraph*.116}%
+\contentsline {subsubsection}{Scaling}{161}{subsubsection*.117}%
+\contentsline {paragraph}{a\_times\_X}{162}{paragraph*.118}%
+\contentsline {paragraph}{inc\_a\_times\_X}{162}{paragraph*.119}%
+\contentsline {subsubsection}{Division}{162}{subsubsection*.120}%
+\contentsline {paragraph}{X\_divideby\_Y}{162}{paragraph*.121}%
+\contentsline {paragraph}{inc\_X\_divideby\_Y}{162}{paragraph*.122}%
+\contentsline {paragraph}{X\_divideby\_a}{162}{paragraph*.123}%
+\contentsline {paragraph}{inc\_X\_divideby\_a}{163}{paragraph*.124}%
+\contentsline {subsubsection}{Inverse scaling}{163}{subsubsection*.125}%
+\contentsline {paragraph}{a\_divideby\_X}{163}{paragraph*.126}%
+\contentsline {paragraph}{inc\_a\_divideby\_X}{163}{paragraph*.127}%
+\contentsline {subsubsection}{Setting to a value}{163}{subsubsection*.128}%
+\contentsline {paragraph}{setval\_c}{163}{paragraph*.129}%
+\contentsline {paragraph}{setval\_X}{164}{paragraph*.130}%
+\contentsline {paragraph}{setval\_random}{164}{paragraph*.131}%
+\contentsline {subsubsection}{Raising to power}{164}{subsubsection*.132}%
+\contentsline {paragraph}{inc\_X\_powreal\_a}{164}{paragraph*.133}%
+\contentsline {paragraph}{inc\_X\_powint\_n}{164}{paragraph*.134}%
+\contentsline {subsubsection}{Inner product}{165}{subsubsection*.135}%
+\contentsline {paragraph}{X\_innerproduct\_Y}{165}{paragraph*.136}%
+\contentsline {paragraph}{X\_innerproduct\_X}{165}{paragraph*.137}%
+\contentsline {subsubsection}{Sum of elements}{165}{subsubsection*.138}%
+\contentsline {paragraph}{sum\_X}{166}{paragraph*.139}%
+\contentsline {subsubsection}{Sign of elements}{166}{subsubsection*.140}%
+\contentsline {paragraph}{sign\_X}{166}{paragraph*.141}%
+\contentsline {subsubsection}{DoF\sphinxhyphen {}wise maximum of elements}{166}{subsubsection*.142}%
+\contentsline {paragraph}{max\_aX}{166}{paragraph*.143}%
+\contentsline {paragraph}{inc\_max\_aX}{166}{paragraph*.144}%
+\contentsline {subsubsection}{DoF\sphinxhyphen {}wise minimum of elements}{167}{subsubsection*.145}%
+\contentsline {paragraph}{min\_aX}{167}{paragraph*.146}%
+\contentsline {paragraph}{inc\_min\_aX}{167}{paragraph*.147}%
+\contentsline {subsubsection}{Conversion of \sphinxstyleliteralintitle {\sphinxupquote {real}} field elements}{167}{subsubsection*.148}%
+\contentsline {paragraph}{real\_to\_int\_X}{167}{paragraph*.149}%
+\contentsline {paragraph}{real\_to\_real\_X}{167}{paragraph*.150}%
+\contentsline {subsection}{\numberline {9.6.4}Built\sphinxhyphen {}in operations on \sphinxstyleliteralintitle {\sphinxupquote {integer}}\sphinxhyphen {}valued fields}{168}{subsection.9.6.4}%
+\contentsline {subsubsection}{Addition}{168}{subsubsection*.151}%
+\contentsline {paragraph}{int\_X\_plus\_Y}{168}{paragraph*.152}%
+\contentsline {paragraph}{int\_inc\_X\_plus\_Y}{168}{paragraph*.153}%
+\contentsline {paragraph}{int\_a\_plus\_X}{168}{paragraph*.154}%
+\contentsline {paragraph}{int\_inc\_a\_plus\_X}{169}{paragraph*.155}%
+\contentsline {subsubsection}{Subtraction}{169}{subsubsection*.156}%
+\contentsline {paragraph}{int\_X\_minus\_Y}{169}{paragraph*.157}%
+\contentsline {paragraph}{int\_inc\_X\_minus\_Y}{169}{paragraph*.158}%
+\contentsline {paragraph}{int\_a\_minus\_X}{169}{paragraph*.159}%
+\contentsline {paragraph}{int\_inc\_a\_minus\_X}{169}{paragraph*.160}%
+\contentsline {paragraph}{int\_X\_minus\_a}{170}{paragraph*.161}%
+\contentsline {paragraph}{int\_inc\_X\_minus\_a}{170}{paragraph*.162}%
+\contentsline {subsubsection}{Multiplication}{170}{subsubsection*.163}%
+\contentsline {paragraph}{int\_X\_times\_Y}{170}{paragraph*.164}%
+\contentsline {paragraph}{int\_inc\_X\_times\_Y}{170}{paragraph*.165}%
+\contentsline {subsubsection}{Scaling}{170}{subsubsection*.166}%
+\contentsline {paragraph}{int\_a\_times\_X}{171}{paragraph*.167}%
+\contentsline {paragraph}{int\_inc\_a\_times\_X}{171}{paragraph*.168}%
+\contentsline {subsubsection}{Setting to a value}{171}{subsubsection*.169}%
+\contentsline {paragraph}{int\_setval\_c}{171}{paragraph*.170}%
+\contentsline {paragraph}{int\_setval\_X}{171}{paragraph*.171}%
+\contentsline {subsubsection}{Sign of elements}{171}{subsubsection*.172}%
+\contentsline {paragraph}{int\_sign\_X}{172}{paragraph*.173}%
+\contentsline {subsubsection}{DoF\sphinxhyphen {}wise maximum of elements}{172}{subsubsection*.174}%
+\contentsline {paragraph}{int\_max\_aX}{172}{paragraph*.175}%
+\contentsline {paragraph}{int\_inc\_max\_aX}{172}{paragraph*.176}%
+\contentsline {subsubsection}{DoF\sphinxhyphen {}wise minimum of elements}{172}{subsubsection*.177}%
+\contentsline {paragraph}{int\_min\_aX}{172}{paragraph*.178}%
+\contentsline {paragraph}{int\_inc\_min\_aX}{173}{paragraph*.179}%
+\contentsline {subsubsection}{Conversion of \sphinxstyleliteralintitle {\sphinxupquote {integer}} to \sphinxstyleliteralintitle {\sphinxupquote {real}} field elements}{173}{subsubsection*.180}%
+\contentsline {paragraph}{int\_to\_real\_X}{173}{paragraph*.181}%
+\contentsline {section}{\numberline {9.7}Boundary Conditions}{173}{section.9.7}%
+\contentsline {section}{\numberline {9.8}Conventions}{174}{section.9.8}%
+\contentsline {section}{\numberline {9.9}Configuration}{174}{section.9.9}%
+\contentsline {subsection}{\numberline {9.9.1}Annexed DoFs}{174}{subsection.9.9.1}%
+\contentsline {subsection}{\numberline {9.9.2}Run\sphinxhyphen {}time Checks}{174}{subsection.9.9.2}%
+\contentsline {subsection}{\numberline {9.9.3}Supported Data Types and Default Kind}{175}{subsection.9.9.3}%
+\contentsline {subsection}{\numberline {9.9.4}Precision Map}{175}{subsection.9.9.4}%
+\contentsline {subsection}{\numberline {9.9.5}Number of Generalised \sphinxstyleliteralintitle {\sphinxupquote {ANY\_*\_SPACE}} Function Spaces}{175}{subsection.9.9.5}%
+\contentsline {section}{\numberline {9.10}Transformations}{176}{section.9.10}%
+\contentsline {chapter}{\numberline {10}GOcean1.0 API}{187}{chapter.10}%
+\contentsline {section}{\numberline {10.1}Introduction}{187}{section.10.1}%
+\contentsline {section}{\numberline {10.2}The GOcean Infrastructure Library \sphinxhyphen {} dl\_esm\_inf}{187}{section.10.2}%
+\contentsline {subsection}{\numberline {10.2.1}Grid}{187}{subsection.10.2.1}%
+\contentsline {subsubsection}{The \sphinxstyleliteralintitle {\sphinxupquote {grid\_init}} Routine}{188}{subsubsection*.182}%
+\contentsline {subsection}{\numberline {10.2.2}Fields}{189}{subsection.10.2.2}%
+\contentsline {subsection}{\numberline {10.2.3}Example}{189}{subsection.10.2.3}%
+\contentsline {section}{\numberline {10.3}Algorithm}{191}{section.10.3}%
+\contentsline {subsection}{\numberline {10.3.1}Invokes}{191}{subsection.10.3.1}%
+\contentsline {section}{\numberline {10.4}Kernel}{192}{section.10.4}%
+\contentsline {subsection}{\numberline {10.4.1}Metadata}{192}{subsection.10.4.1}%
+\contentsline {subsubsection}{Argument Metadata: meta\_args}{193}{subsubsection*.183}%
+\contentsline {subsubsection}{Iterates Over}{195}{subsubsection*.185}%
+\contentsline {subsubsection}{Index Offset}{197}{subsubsection*.186}%
+\contentsline {subsubsection}{Procedure}{197}{subsubsection*.187}%
+\contentsline {subsection}{\numberline {10.4.2}Subroutine}{197}{subsection.10.4.2}%
+\contentsline {subsubsection}{Rules}{197}{subsubsection*.188}%
+\contentsline {section}{\numberline {10.5}Built\sphinxhyphen {}ins}{198}{section.10.5}%
+\contentsline {section}{\numberline {10.6}Conventions}{198}{section.10.6}%
+\contentsline {section}{\numberline {10.7}Configuration}{199}{section.10.7}%
+\contentsline {subsection}{\numberline {10.7.1}Iteration\sphinxhyphen {}spaces}{199}{subsection.10.7.1}%
+\contentsline {subsection}{\numberline {10.7.2}Grid Properties}{200}{subsection.10.7.2}%
+\contentsline {subsection}{\numberline {10.7.3}Debug Mode}{200}{subsection.10.7.3}%
+\contentsline {section}{\numberline {10.8}Transformations}{201}{section.10.8}%
+\contentsline {chapter}{\numberline {11}PSyclone Kernel Tools}{207}{chapter.11}%
+\contentsline {section}{\numberline {11.1}The psyclone\sphinxhyphen {}kern Command}{207}{section.11.1}%
+\contentsline {section}{\numberline {11.2}Kernel\sphinxhyphen {}stub Generator}{208}{section.11.2}%
+\contentsline {subsection}{\numberline {11.2.1}Quick Start}{208}{subsection.11.2.1}%
+\contentsline {subsection}{\numberline {11.2.2}Introduction}{208}{subsection.11.2.2}%
+\contentsline {subsection}{\numberline {11.2.3}Kernels}{209}{subsection.11.2.3}%
+\contentsline {subsection}{\numberline {11.2.4}Example}{209}{subsection.11.2.4}%
+\contentsline {subsection}{\numberline {11.2.5}Errors}{213}{subsection.11.2.5}%
+\contentsline {section}{\numberline {11.3}Algorithm Generator}{214}{section.11.3}%
+\contentsline {subsection}{\numberline {11.3.1}Quick Start}{214}{subsection.11.3.1}%
+\contentsline {subsection}{\numberline {11.3.2}Introduction}{214}{subsection.11.3.2}%
+\contentsline {subsubsection}{Mapping of Function Spaces}{214}{subsubsection*.190}%
+\contentsline {subsection}{\numberline {11.3.3}Example}{215}{subsection.11.3.3}%
+\contentsline {subsection}{\numberline {11.3.4}Limitations}{216}{subsection.11.3.4}%
+\contentsline {chapter}{\numberline {12}Line length}{217}{chapter.12}%
+\contentsline {section}{\numberline {12.1}Script}{217}{section.12.1}%
+\contentsline {section}{\numberline {12.2}Interactive}{217}{section.12.2}%
+\contentsline {section}{\numberline {12.3}Limitations}{218}{section.12.3}%
+\contentsline {chapter}{\numberline {13}Fortran Naming Conventions}{219}{chapter.13}%
+\contentsline {chapter}{\numberline {14}PSyData API}{221}{chapter.14}%
+\contentsline {section}{\numberline {14.1}Read\sphinxhyphen {}Only Verification}{222}{section.14.1}%
+\contentsline {subsection}{\numberline {14.1.1}Read\sphinxhyphen {}Only Verification Library for LFRic}{222}{subsection.14.1.1}%
+\contentsline {subsection}{\numberline {14.1.2}Read\sphinxhyphen {}Only\sphinxhyphen {}Verification Library for GOcean}{223}{subsection.14.1.2}%
+\contentsline {subsection}{\numberline {14.1.3}Read\sphinxhyphen {}Only\sphinxhyphen {}Verification Library for Generic Fortran}{223}{subsection.14.1.3}%
+\contentsline {section}{\numberline {14.2}Value Range Check}{223}{section.14.2}%
+\contentsline {section}{\numberline {14.3}Integrating PSyData Libraries into the LFRic Build Environment}{225}{section.14.3}%
+\contentsline {chapter}{\numberline {15}Profiling}{227}{chapter.15}%
+\contentsline {section}{\numberline {15.1}Interface to Third Party Profiling Tools}{227}{section.15.1}%
+\contentsline {section}{\numberline {15.2}Required Modifications to the Program}{228}{section.15.2}%
+\contentsline {subsection}{\numberline {15.2.1}profile\_PSyDataInit()}{228}{subsection.15.2.1}%
+\contentsline {subsection}{\numberline {15.2.2}profile\_PSyDataShutdown()}{229}{subsection.15.2.2}%
+\contentsline {section}{\numberline {15.3}Profiling Command\sphinxhyphen {}Line Options}{229}{section.15.3}%
+\contentsline {section}{\numberline {15.4}Profiling in Scripts \sphinxhyphen {} \sphinxstyleliteralintitle {\sphinxupquote {ProfileTrans}}}{232}{section.15.4}%
+\contentsline {section}{\numberline {15.5}Naming Profiling Regions}{233}{section.15.5}%
+\contentsline {chapter}{\numberline {16}PSy Kernel Extractor (PSyKE)}{237}{chapter.16}%
+\contentsline {section}{\numberline {16.1}Introduction}{237}{section.16.1}%
+\contentsline {subsection}{\numberline {16.1.1}Mechanism}{237}{subsection.16.1.1}%
+\contentsline {subsection}{\numberline {16.1.2}Restrictions}{238}{subsection.16.1.2}%
+\contentsline {subsubsection}{General}{238}{subsubsection*.191}%
+\contentsline {subsubsection}{Distributed memory}{238}{subsubsection*.192}%
+\contentsline {subsubsection}{Shared memory and API\sphinxhyphen {}specific}{239}{subsubsection*.193}%
+\contentsline {section}{\numberline {16.2}Use}{239}{section.16.2}%
+\contentsline {section}{\numberline {16.3}Extraction Libraries}{242}{section.16.3}%
+\contentsline {subsection}{\numberline {16.3.1}Extraction for GOcean}{242}{subsection.16.3.1}%
+\contentsline {subsection}{\numberline {16.3.2}Extraction for LFRic}{243}{subsection.16.3.2}%
+\contentsline {subsubsection}{Restrictions of Kernel Extraction and Driver Creation}{244}{subsubsection*.194}%
+\contentsline {subsection}{\numberline {16.3.3}Extraction for generic Fortran}{244}{subsection.16.3.3}%
+\contentsline {section}{\numberline {16.4}Driver Summary Statistics}{245}{section.16.4}%
+\contentsline {chapter}{Bibliography}{247}{chapter*.195}%
+\contentsline {chapter}{Index}{249}{section*.196}%

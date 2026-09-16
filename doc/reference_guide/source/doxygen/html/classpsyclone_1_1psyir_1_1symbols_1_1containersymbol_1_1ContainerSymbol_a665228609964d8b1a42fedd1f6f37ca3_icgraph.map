@@ -1,0 +1,12 @@
+<map id="psyclone.psyir.symbols.containersymbol.ContainerSymbol.wildcard_import" name="psyclone.psyir.symbols.containersymbol.ContainerSymbol.wildcard_import">
+<area shape="rect" id="Node000001" title=" " alt="" coords="898,64,1189,109"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1symbols_1_1containersymbol_1_1ContainerSymbol.html#a785fb76e8101ea658b25ccde6fcfc9ef" title=" " alt="" coords="560,29,850,74"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="882,73,850,69,851,64,883,67"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1psyir_1_1symbols_1_1containersymbol_1_1ContainerSymbol.html#a6c4f3ff1601fd8a92f4abe9f0527dd50" title=" " alt="" coords="560,99,850,143"/>
+<area shape="poly" id="edge5_Node000001_Node000005" title=" " alt="" coords="883,105,851,109,850,103,882,100"/>
+<area shape="poly" id="edge2_Node000002_Node000002" title=" " alt="" coords="756,17,737,10,705,8,676,10,658,15,651,21,652,28,647,29,645,19,655,10,675,5,705,3,738,5,758,12"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#a5de85e7c167babfe226e01c465e0df66" title=" " alt="" coords="283,29,512,74"/>
+<area shape="poly" id="edge3_Node000002_Node000003" title=" " alt="" coords="544,54,512,54,512,49,544,49"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html#a7ba275b7c582f3c7b039833fd080677e" title=" " alt="" coords="5,29,235,74"/>
+<area shape="poly" id="edge4_Node000003_Node000004" title=" " alt="" coords="267,54,235,54,235,49,267,49"/>
+</map>

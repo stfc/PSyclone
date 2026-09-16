@@ -1,0 +1,12 @@
+<map id="psyclone.domain.lfric.lfric_loop.LFRicLoop._add_field_component_halo_exchange" name="psyclone.domain.lfric.lfric_loop.LFRicLoop._add_field_component_halo_exchange">
+<area shape="rect" id="Node000001" title=" " alt="" coords="810,44,1017,106"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1domain_1_1lfric_1_1lfric__loop_1_1LFRicLoop.html#a85e0e1cdbc600b83948f8629bf442646" title=" " alt="" coords="566,44,762,106"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="795,78,763,78,763,72,795,72"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1domain_1_1lfric_1_1lfric__loop_1_1LFRicLoop.html#a6fcfb212b1683b82698374abc0936c50" title=" " alt="" coords="288,5,494,67"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="550,61,494,53,495,48,551,56"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1gocean1p0_1_1GOLoop.html#a36430274ba18511df7883abcb22d61bd" title=" " alt="" coords="264,91,518,136"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="551,94,519,98,518,93,550,88"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1domain_1_1lfric_1_1lfric__loop_1_1LFRicLoop.html#a1a18149241c9e510d5462ae4de0fbb47" title=" " alt="" coords="5,44,216,106"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="273,55,217,63,216,58,272,50"/>
+<area shape="poly" id="edge5_Node000005_Node000004" title=" " alt="" coords="248,96,216,92,217,87,248,91"/>
+</map>

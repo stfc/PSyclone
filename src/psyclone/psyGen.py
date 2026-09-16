@@ -579,6 +579,17 @@ class Invoke():
                 declns["inout"].append(arg)
         return declns
 
+    def _add_halo_exchanges(self):
+        '''
+        Add halo exchanges to the schedule. This method is called at the
+        end of Invoke construction after all other initialization is complete.
+        Domain-specific Invoke subclasses should override this method to add
+        their halo exchange logic.
+
+        The default implementation does nothing (for domains that don't support
+        halo exchanges or distributed memory).
+        '''
+
 
 class InvokeSchedule(Routine):
     '''

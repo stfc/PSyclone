@@ -1,0 +1,4 @@
+var namespacepsyclone_1_1psyir_1_1symbols_1_1generic__interface__symbol =
+[
+    [ "GenericInterfaceSymbol", "classpsyclone_1_1psyir_1_1symbols_1_1generic__interface__symbol_1_1GenericInterfaceSymbol.html", "classpsyclone_1_1psyir_1_1symbols_1_1generic__interface__symbol_1_1GenericInterfaceSymbol" ]
+];

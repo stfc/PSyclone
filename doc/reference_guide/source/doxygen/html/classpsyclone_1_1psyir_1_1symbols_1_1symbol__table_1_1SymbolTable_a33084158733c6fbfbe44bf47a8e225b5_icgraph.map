@@ -1,0 +1,19 @@
+<map id="psyclone.psyir.symbols.symbol_table.SymbolTable._validate_non_args" name="psyclone.psyir.symbols.symbol_table.SymbolTable._validate_non_args">
+<area shape="rect" id="Node000001" title=" " alt="" coords="901,95,1127,156"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1symbols_1_1symbol__table_1_1SymbolTable.html#afa9635edc4893d8b158550e868fb10be" title=" " alt="" coords="620,17,845,79"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="885,93,845,82,846,77,887,88"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1symbols_1_1symbol__table_1_1SymbolTable.html#afd9b1e601d9ad306f4eb6af23a14d4b3" title=" " alt="" coords="611,103,853,148"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="886,128,854,128,854,123,886,123"/>
+<area shape="rect" id="Node000008" href="$classpsyclone_1_1psyir_1_1symbols_1_1symbol__table_1_1SymbolTable.html#ad9646a2fe8b45e35e03a27e93c303b44" title=" " alt="" coords="620,172,845,234"/>
+<area shape="poly" id="edge9_Node000001_Node000008" title=" " alt="" coords="887,163,846,174,845,169,885,158"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1domain_1_1gocean_1_1go__symbol__table_1_1GOSymbolTable.html#af7d2d7de187a60c2acf2ed3de4a005ed" title=" " alt="" coords="336,60,563,122"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="595,111,563,107,564,102,596,106"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1domain_1_1gocean_1_1go__symbol__table_1_1GOSymbolTable.html#a9649ff8f52527f9445b08b13383cb583" title=" " alt="" coords="18,5,275,67"/>
+<area shape="poly" id="edge6_Node000003_Node000005" title=" " alt="" coords="621,99,610,93,595,82,586,70,576,59,562,51,491,30,416,19,343,17,275,21,275,15,343,12,417,14,492,25,564,46,580,55,590,67,599,78,612,89,624,94"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1domain_1_1gocean_1_1go__symbol__table_1_1GOSymbolTable.html#a3ff2cb7434a8806652cbf1a59e1040b0" title=" " alt="" coords="5,103,288,164"/>
+<area shape="poly" id="edge8_Node000003_Node000006" title=" " alt="" coords="596,135,563,136,288,138,288,132,563,131,596,130"/>
+<area shape="rect" id="Node000007" href="$classpsyclone_1_1psyir_1_1symbols_1_1symbol__table_1_1SymbolTable.html#ac2e36ce589e99ca51ca8dc74bd7fbd13" title=" " alt="" coords="337,196,562,241"/>
+<area shape="poly" id="edge7_Node000003_Node000007" title=" " alt="" coords="635,155,612,163,514,198,512,193,610,158,634,150"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="320,70,275,62,276,57,321,65"/>
+<area shape="poly" id="edge5_Node000004_Node000006" title=" " alt="" coords="321,112,288,116,288,111,320,106"/>
+</map>

@@ -1,0 +1,15 @@
+<map id="psyclone.dynamo0p3.LFRicHaloExchange" name="psyclone.dynamo0p3.LFRicHaloExchange">
+<area shape="rect" id="Node000001" title=" " alt="" coords="143,266,342,311"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1dynamo0p3_1_1LFRicHaloExchangeEnd.html" title=" " alt="" coords="31,359,230,404"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="206,323,159,361,155,356,202,319"/>
+<area shape="rect" id="Node000007" href="$classpsyclone_1_1dynamo0p3_1_1LFRicHaloExchangeStart.html" title=" " alt="" coords="255,359,454,404"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="282,319,329,356,326,361,279,323"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyGen_1_1HaloExchange.html" title=" " alt="" coords="128,191,357,218"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="245,234,245,266,240,266,240,234"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1nodes_1_1statement_1_1Statement.html" title=" " alt="" coords="126,98,358,143"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="245,158,245,190,240,190,240,158"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html" title=" " alt="" coords="5,14,237,42"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="152,49,215,95,212,100,149,53"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1psyir_1_1commentable__mixin_1_1CommentableMixin.html" title=" " alt="" coords="261,5,469,50"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="326,61,273,100,270,95,322,57"/>
+</map>

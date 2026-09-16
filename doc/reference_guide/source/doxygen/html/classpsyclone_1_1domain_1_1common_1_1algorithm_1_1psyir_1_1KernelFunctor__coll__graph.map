@@ -1,0 +1,9 @@
+<map id="psyclone.domain.common.algorithm.psyir.KernelFunctor" name="psyclone.domain.common.algorithm.psyir.KernelFunctor">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,266,305,311"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1nodes_1_1reference_1_1Reference.html" title=" " alt="" coords="41,174,269,218"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="158,234,158,266,152,266,152,234"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1nodes_1_1datanode_1_1DataNode.html" title=" " alt="" coords="42,81,268,126"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="158,141,158,173,152,173,152,141"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html" title=" " alt="" coords="39,5,271,33"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="158,49,158,80,152,80,152,49"/>
+</map>

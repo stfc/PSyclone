@@ -1,0 +1,15 @@
+<map id="psyclone.psyir.transformations.extract_trans.ExtractTrans" name="psyclone.psyir.transformations.extract_trans.ExtractTrans">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,342,278,387"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1transformations_1_1psy__data__trans_1_1PSyDataTrans.html" title=" " alt="" coords="17,249,266,294"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="144,310,144,342,139,342,139,310"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1transformations_1_1region__trans_1_1RegionTrans.html" title=" " alt="" coords="8,157,275,201"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="144,217,144,249,139,249,139,217"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyGen_1_1Transformation.html" title=" " alt="" coords="24,81,259,109"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="144,125,144,156,139,156,139,125"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="28,5,116,33"/>
+<area shape="poly" id="edge6_Node000003_Node000005" title=" " alt="" coords="42,45,27,59,16,75,10,91,15,107,39,134,71,154,68,158,36,139,10,110,5,91,11,73,23,56,38,41"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="97,43,131,79,127,82,93,46"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="157,5,265,33"/>
+<area shape="poly" id="edge7_Node000003_Node000006" title=" " alt="" coords="245,41,260,56,272,73,278,91,273,110,247,139,215,158,212,154,244,134,268,107,273,91,267,75,256,59,241,45"/>
+<area shape="poly" id="edge5_Node000004_Node000006" title=" " alt="" coords="190,46,156,82,152,79,186,43"/>
+</map>

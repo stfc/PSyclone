@@ -1,0 +1,33 @@
+<map id="psyclone.psyir.nodes.acc_directives.ACCRegionDirective" name="psyclone.psyir.nodes.acc_directives.ACCRegionDirective">
+<area shape="rect" id="Node000001" title=" " alt="" coords="1106,144,1333,189"/>
+<area shape="rect" id="Node000010" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCAtomicDirective.html" title=" " alt="" coords="1382,5,1610,50"/>
+<area shape="poly" id="edge13_Node000001_Node000010" title=" " alt="" coords="1261,133,1316,95,1380,60,1409,48,1411,53,1382,65,1319,100,1264,137"/>
+<area shape="rect" id="Node000011" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCDataDirective.html" title=" " alt="" coords="1390,75,1603,119"/>
+<area shape="poly" id="edge14_Node000001_Node000011" title=" " alt="" coords="1325,137,1404,117,1405,123,1327,142"/>
+<area shape="rect" id="Node000012" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCKernelsDirective.html" title=" " alt="" coords="1381,144,1611,189"/>
+<area shape="poly" id="edge15_Node000001_Node000012" title=" " alt="" coords="1348,164,1380,164,1380,169,1348,169"/>
+<area shape="rect" id="Node000013" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCLoopDirective.html" title=" " alt="" coords="1390,213,1603,258"/>
+<area shape="poly" id="edge16_Node000001_Node000013" title=" " alt="" coords="1327,190,1405,210,1404,215,1325,196"/>
+<area shape="rect" id="Node000014" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCParallelDirective.html" title=" " alt="" coords="1381,283,1611,327"/>
+<area shape="poly" id="edge17_Node000001_Node000014" title=" " alt="" coords="1264,196,1319,233,1382,268,1411,280,1409,285,1380,273,1316,237,1261,200"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1nodes_1_1acc__directives_1_1ACCDirective.html" title=" " alt="" coords="584,113,768,158"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="783,139,1105,157,1105,163,783,144"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="357,122,445,150"/>
+<area shape="poly" id="edge11_Node000001_Node000003" title=" " alt="" coords="460,118,511,107,565,98,704,88,812,92,920,106,1058,129,1120,141,1119,146,1057,134,920,111,812,97,704,94,565,104,512,112,461,123"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="461,133,584,133,584,138,461,138"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1psyir_1_1nodes_1_1directive_1_1Directive.html" title=" " alt="" coords="565,233,787,278"/>
+<area shape="poly" id="edge9_Node000006_Node000003" title=" " alt="" coords="461,148,518,168,583,199,639,230,636,235,580,204,516,173,459,153"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="347,182,455,210"/>
+<area shape="poly" id="edge12_Node000001_Node000004" title=" " alt="" coords="470,191,1105,168,1105,173,470,196"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="470,178,584,153,585,158,471,183"/>
+<area shape="poly" id="edge10_Node000006_Node000004" title=" " alt="" coords="471,208,571,230,570,235,470,213"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1psyir_1_1nodes_1_1directive_1_1RegionDirective.html" title=" " alt="" coords="835,233,1058,278"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="1031,225,1148,187,1149,192,1032,230"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="803,253,835,253,835,258,803,258"/>
+<area shape="rect" id="Node000007" href="$classpsyclone_1_1psyir_1_1nodes_1_1statement_1_1Statement.html" title=" " alt="" coords="285,233,517,278"/>
+<area shape="poly" id="edge6_Node000006_Node000007" title=" " alt="" coords="532,253,564,253,564,258,532,258"/>
+<area shape="rect" id="Node000008" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html" title=" " alt="" coords="5,211,237,239"/>
+<area shape="poly" id="edge7_Node000007_Node000008" title=" " alt="" coords="252,237,285,240,284,246,252,242"/>
+<area shape="rect" id="Node000009" href="$classpsyclone_1_1psyir_1_1commentable__mixin_1_1CommentableMixin.html" title=" " alt="" coords="17,263,225,307"/>
+<area shape="poly" id="edge8_Node000007_Node000009" title=" " alt="" coords="240,270,284,265,284,271,241,275"/>
+</map>

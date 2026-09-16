@@ -1,0 +1,19 @@
+<map id="psyclone.psyir.symbols.typed_symbol.TypedSymbol" name="psyclone.psyir.symbols.typed_symbol.TypedSymbol">
+<area shape="rect" id="Node000001" title=" " alt="" coords="539,65,753,110"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1psyir_1_1symbols_1_1datasymbol_1_1DataSymbol.html" title=" " alt="" coords="810,31,1068,75"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="769,71,809,66,810,71,769,76"/>
+<area shape="rect" id="Node000007" href="$classpsyclone_1_1psyir_1_1symbols_1_1routinesymbol_1_1RoutineSymbol.html" title=" " alt="" coords="801,100,1077,145"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="769,100,801,103,801,109,769,105"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1symbols_1_1symbol_1_1Symbol.html" title=" " alt="" coords="262,5,491,50"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="495,51,543,62,542,67,494,56"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1commentable__mixin_1_1CommentableMixin.html" title=" " alt="" coords="5,5,214,50"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="229,25,261,25,261,30,229,30"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="332,74,420,102"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="436,85,539,85,539,90,436,90"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="322,126,430,154"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="446,124,538,106,539,111,447,129"/>
+<area shape="rect" id="Node000008" href="$classpsyclone_1_1psyir_1_1symbols_1_1generic__interface__symbol_1_1GenericInterfaceSymbol.html" title=" " alt="" coords="1125,65,1427,110"/>
+<area shape="poly" id="edge7_Node000007_Node000008" title=" " alt="" coords="1092,104,1124,101,1125,106,1092,109"/>
+<area shape="rect" id="Node000009" href="$classpsyclone_1_1psyir_1_1symbols_1_1intrinsic__symbol_1_1IntrinsicSymbol.html" title=" " alt="" coords="1161,135,1390,179"/>
+<area shape="poly" id="edge8_Node000007_Node000009" title=" " alt="" coords="1093,135,1161,143,1160,148,1092,141"/>
+</map>

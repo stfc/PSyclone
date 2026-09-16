@@ -1,0 +1,7 @@
+<map id="psyclone.psyir.nodes.node.Node.coded_kernels" name="psyclone.psyir.nodes.node.Node.coded_kernels">
+<area shape="rect" id="Node000001" title=" " alt="" coords="624,14,821,58"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1domain_1_1common_1_1psylayer_1_1psyloop_1_1PSyLoop.html#a3c33922aa82a203ccaec88e22a6dba34" title=" " alt="" coords="265,14,576,58"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="608,39,576,39,576,34,608,34"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1domain_1_1lfric_1_1lfric__loop_1_1LFRicLoop.html#a79121d5925b719226d4b5671d6131e28" title=" " alt="" coords="5,5,217,67"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="249,39,217,39,217,34,249,34"/>
+</map>

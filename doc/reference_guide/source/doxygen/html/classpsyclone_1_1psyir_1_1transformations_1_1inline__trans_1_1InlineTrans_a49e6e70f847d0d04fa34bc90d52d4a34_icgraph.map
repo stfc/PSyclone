@@ -1,0 +1,16 @@
+<map id="psyclone.psyir.transformations.inline_trans.InlineTrans._replace_formal_struc_arg" name="psyclone.psyir.transformations.inline_trans.InlineTrans._replace_formal_struc_arg">
+<area shape="rect" id="Node000001" title=" " alt="" coords="978,112,1241,173"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1transformations_1_1inline__trans_1_1InlineTrans.html#aa7ff3af71ea4fde63e7517c445ef8883" title=" " alt="" coords="658,120,930,165"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="963,154,931,154,931,149,963,149"/>
+<area shape="poly" id="edge7_Node000002_Node000001" title=" " alt="" coords="946,131,978,131,978,136,946,136"/>
+<area shape="poly" id="edge6_Node000002_Node000002" title=" " alt="" coords="846,107,827,101,794,99,764,101,746,105,738,111,740,119,735,120,733,110,743,101,764,95,794,93,828,96,848,102"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1transformations_1_1inline__trans_1_1InlineTrans.html#af3eaf5577995331c0a90cb5a6683357c" title=" " alt="" coords="345,29,610,74"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="698,118,558,77,559,72,700,113"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1transformations_1_1inline__trans_1_1InlineTrans.html#a4c93f1e5c64b24135aa5e01e0c5e2a21" title=" " alt="" coords="5,89,297,134"/>
+<area shape="poly" id="edge8_Node000002_Node000004" title=" " alt="" coords="642,138,297,121,297,116,642,132"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1psyir_1_1transformations_1_1inline__trans_1_1InlineTrans.html#a592dc52f12dd8fc1135712cff0708697" title=" " alt="" coords="346,149,608,194"/>
+<area shape="poly" id="edge9_Node000002_Node000005" title=" " alt="" coords="643,159,609,162,609,157,642,154"/>
+<area shape="poly" id="edge3_Node000003_Node000003" title=" " alt="" coords="530,17,510,10,477,8,447,10,429,15,421,21,423,28,418,29,416,19,426,10,447,5,477,3,511,5,531,12"/>
+<area shape="poly" id="edge4_Node000003_Node000004" title=" " alt="" coords="338,80,277,91,276,86,337,75"/>
+<area shape="poly" id="edge5_Node000004_Node000001" title=" " alt="" coords="201,140,268,176,306,192,345,204,432,219,520,226,609,226,697,221,860,199,993,171,994,176,861,204,697,226,609,231,520,231,431,224,344,209,304,197,265,181,198,145"/>
+</map>

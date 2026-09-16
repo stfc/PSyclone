@@ -1,0 +1,15 @@
+<map id="psyclone.psyir.symbols.symbol_table.SymbolTable.rename_symbol" name="psyclone.psyir.symbols.symbol_table.SymbolTable.rename_symbol">
+<area shape="rect" id="Node000001" title=" " alt="" coords="851,82,1109,126"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1symbols_1_1symbol__table_1_1SymbolTable.html#ab846d7da5b14086adebcd0aea8e08f19" title=" " alt="" coords="279,5,530,67"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="882,80,803,64,662,49,530,41,530,36,662,43,804,59,883,75"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1symbols_1_1symbol__table_1_1SymbolTable.html#a1e2fd8cc14558a01eace343413043d16" title=" " alt="" coords="578,73,803,135"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="836,107,804,107,804,102,836,102"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1psyir_1_1symbols_1_1symbol__table_1_1SymbolTable.html#a54af3ceb6e97dc8e8d93ec735ae23b3f" title=" " alt="" coords="578,159,803,220"/>
+<area shape="poly" id="edge6_Node000001_Node000006" title=" " alt="" coords="888,134,798,161,797,156,886,129"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1symbols_1_1symbol__table_1_1SymbolTable.html#a9771f7901146f4b6049a090eb4e64b44" title=" " alt="" coords="5,99,231,144"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="285,75,196,101,195,96,283,69"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1psyir_1_1symbols_1_1symbol__table_1_1SymbolTable.html#ae476cd424ba3b310677bb2decc864e08" title=" " alt="" coords="282,91,527,152"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="563,115,528,117,527,111,562,109"/>
+<area shape="poly" id="edge5_Node000005_Node000003" title=" " alt="" coords="266,124,231,124,231,119,266,119"/>
+<area shape="poly" id="edge7_Node000006_Node000003" title=" " alt="" coords="562,191,425,184,278,167,192,147,193,142,279,162,426,178,563,186"/>
+</map>

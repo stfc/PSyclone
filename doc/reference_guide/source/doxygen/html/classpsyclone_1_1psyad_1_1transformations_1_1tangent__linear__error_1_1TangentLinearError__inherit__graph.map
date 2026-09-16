@@ -1,0 +1,7 @@
+<map id="psyclone.psyad.transformations.tangent_linear_error.TangentLinearError" name="psyclone.psyad.transformations.tangent_linear_error.TangentLinearError">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,174,290,218"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1errors_1_1PSycloneError.html" title=" " alt="" coords="55,81,240,126"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="150,141,150,173,145,173,145,141"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="105,5,190,33"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="150,49,150,80,145,80,145,49"/>
+</map>

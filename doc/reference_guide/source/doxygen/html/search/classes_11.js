@@ -1,0 +1,22 @@
+var searchData=
+[
+  ['raisepsyir2algtrans_0',['RaisePSyIR2AlgTrans',['../classpsyclone_1_1domain_1_1common_1_1transformations_1_1raise__psyir__2__alg__trans_1_1RaisePSyIR2AlgTrans.html',1,'psyclone::domain::common::transformations::raise_psyir_2_alg_trans']]],
+  ['raisepsyir2goceankerntrans_1',['RaisePSyIR2GOceanKernTrans',['../classpsyclone_1_1domain_1_1gocean_1_1transformations_1_1raise__psyir__2__gocean__kern__trans_1_1RaisePSyIR2GOceanKernTrans.html',1,'psyclone::domain::gocean::transformations::raise_psyir_2_gocean_kern_trans']]],
+  ['raisepsyir2lfricalgtrans_2',['RaisePSyIR2LFRicAlgTrans',['../classpsyclone_1_1domain_1_1lfric_1_1transformations_1_1raise__psyir__2__lfric__alg__trans_1_1RaisePSyIR2LFRicAlgTrans.html',1,'psyclone::domain::lfric::transformations::raise_psyir_2_lfric_alg_trans']]],
+  ['raisepsyir2lfrickerntrans_3',['RaisePSyIR2LFRicKernTrans',['../classpsyclone_1_1domain_1_1lfric_1_1transformations_1_1raise__psyir__2__lfric__kern__trans_1_1RaisePSyIR2LFRicKernTrans.html',1,'psyclone::domain::lfric::transformations::raise_psyir_2_lfric_kern_trans']]],
+  ['range_4',['Range',['../classpsyclone_1_1psyir_1_1nodes_1_1ranges_1_1Range.html',1,'psyclone::psyir::nodes::ranges']]],
+  ['readonlyverifynode_5',['ReadOnlyVerifyNode',['../classpsyclone_1_1psyir_1_1nodes_1_1read__only__verify__node_1_1ReadOnlyVerifyNode.html',1,'psyclone::psyir::nodes::read_only_verify_node']]],
+  ['readonlyverifytrans_6',['ReadOnlyVerifyTrans',['../classpsyclone_1_1psyir_1_1transformations_1_1read__only__verify__trans_1_1ReadOnlyVerifyTrans.html',1,'psyclone::psyir::transformations::read_only_verify_trans']]],
+  ['readwriteinfo_7',['ReadWriteInfo',['../classpsyclone_1_1psyir_1_1tools_1_1read__write__info_1_1ReadWriteInfo.html',1,'psyclone::psyir::tools::read_write_info']]],
+  ['refelementmetadata_8',['RefElementMetaData',['../classpsyclone_1_1dynamo0p3_1_1RefElementMetaData.html',1,'psyclone::dynamo0p3']]],
+  ['reference_9',['Reference',['../classpsyclone_1_1psyir_1_1nodes_1_1reference_1_1Reference.html',1,'psyclone::psyir::nodes::reference']]],
+  ['reference2arrayrangetrans_10',['Reference2ArrayRangeTrans',['../classpsyclone_1_1psyir_1_1transformations_1_1reference2arrayrange__trans_1_1Reference2ArrayRangeTrans.html',1,'psyclone::psyir::transformations::reference2arrayrange_trans']]],
+  ['regiondirective_11',['RegionDirective',['../classpsyclone_1_1psyir_1_1nodes_1_1directive_1_1RegionDirective.html',1,'psyclone::psyir::nodes::directive']]],
+  ['regiontrans_12',['RegionTrans',['../classpsyclone_1_1psyir_1_1transformations_1_1region__trans_1_1RegionTrans.html',1,'psyclone::psyir::transformations::region_trans']]],
+  ['replaceinductionvariablestrans_13',['ReplaceInductionVariablesTrans',['../classpsyclone_1_1psyir_1_1transformations_1_1replace__induction__variables__trans_1_1ReplaceInductionVariablesTrans.html',1,'psyclone::psyir::transformations::replace_induction_variables_trans']]],
+  ['replacereferencebyliteraltrans_14',['ReplaceReferenceByLiteralTrans',['../classpsyclone_1_1psyir_1_1transformations_1_1replace__reference__by__literal__trans_1_1ReplaceReferenceByLiteralTrans.html',1,'psyclone::psyir::transformations::replace_reference_by_literal_trans']]],
+  ['return_15',['Return',['../classpsyclone_1_1psyir_1_1nodes_1_1return__stmt_1_1Return.html',1,'psyclone::psyir::nodes::return_stmt']]],
+  ['routine_16',['Routine',['../classpsyclone_1_1psyir_1_1nodes_1_1routine_1_1Routine.html',1,'psyclone::psyir::nodes::routine']]],
+  ['routineinfo_17',['RoutineInfo',['../classpsyclone_1_1psyir_1_1symbols_1_1generic__interface__symbol_1_1GenericInterfaceSymbol_1_1RoutineInfo.html',1,'psyclone::psyir::symbols::generic_interface_symbol::GenericInterfaceSymbol']]],
+  ['routinesymbol_18',['RoutineSymbol',['../classpsyclone_1_1psyir_1_1symbols_1_1routinesymbol_1_1RoutineSymbol.html',1,'psyclone::psyir::symbols::routinesymbol']]]
+];

@@ -1,0 +1,9 @@
+<map id="psyclone.domain.common.transformations.kernel_module_inline_trans.KernelModuleInlineTrans" name="psyclone.domain.common.transformations.kernel_module_inline_trans.KernelModuleInlineTrans">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,157,351,201"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyGen_1_1Transformation.html" title=" " alt="" coords="61,81,295,109"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="181,125,181,156,175,156,175,125"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="72,5,161,33"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="139,43,169,79,165,82,135,47"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="185,5,294,33"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="221,47,191,82,187,79,217,43"/>
+</map>

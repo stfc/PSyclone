@@ -1,0 +1,29 @@
+<map id="psyclone.dynamo0p3.DynBasisFunctions.initialise" name="psyclone.dynamo0p3.DynBasisFunctions.initialise">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,209,231,254"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1dynamo0p3_1_1DynBasisFunctions.html#a0c22dffe13e9fdf7b8b9c1660f30ccd8" title=" " alt="" coords="279,171,504,215"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="231,213,263,209,263,214,231,218"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1dynamo0p3_1_1DynBasisFunctions.html#ab95e063ede222b914e6cb63a9622c117" title=" " alt="" coords="552,16,781,61"/>
+<area shape="poly" id="edge14_Node000001_Node000003" title=" " alt="" coords="127,208,149,168,182,119,224,72,250,52,278,36,310,23,344,14,415,4,484,4,548,10,548,16,484,9,415,9,345,19,312,28,280,41,253,56,228,76,186,123,153,170,132,210"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1dynamo0p3_1_1DynBasisFunctions.html#ac641d5997a2f7bd1e5b2312edc2b21c1" title=" " alt="" coords="554,85,779,147"/>
+<area shape="poly" id="edge15_Node000001_Node000005" title=" " alt="" coords="158,207,214,179,278,156,344,140,411,129,538,117,539,122,412,134,345,146,279,161,216,184,160,211"/>
+<area shape="rect" id="Node000008" href="$classpsyclone_1_1dynamo0p3_1_1DynBasisFunctions.html#a54764bfa240c1e7ac389ed0e6c68f72e" title=" " alt="" coords="279,51,504,95"/>
+<area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="144,207,203,160,277,112,304,99,307,104,280,117,206,164,147,211"/>
+<area shape="rect" id="Node000009" href="$classpsyclone_1_1dynamo0p3_1_1DynBasisFunctions.html#a4c9829dc6944139768d627ddcef485b9" title=" " alt="" coords="279,240,504,301"/>
+<area shape="poly" id="edge10_Node000001_Node000009" title=" " alt="" coords="231,245,263,250,263,255,231,250"/>
+<area shape="rect" id="Node000010" href="$classpsyclone_1_1dynamo0p3_1_1DynBasisFunctions.html#a72519a49247825b8ca125e9f2820b2ef" title=" " alt="" coords="279,325,504,370"/>
+<area shape="poly" id="edge11_Node000001_Node000010" title=" " alt="" coords="160,252,216,281,280,311,297,317,295,322,278,315,214,286,158,257"/>
+<area shape="rect" id="Node000011" href="$classpsyclone_1_1dynamo0p3_1_1DynBasisFunctions.html#abe8f6b0091cc20a06ab39d4f42a4a7f6" title=" " alt="" coords="279,395,504,439"/>
+<area shape="poly" id="edge12_Node000001_Node000011" title=" " alt="" coords="139,253,198,316,237,350,280,380,290,385,288,390,277,385,234,354,194,320,136,256"/>
+<area shape="rect" id="Node000012" href="$classpsyclone_1_1dynamo0p3_1_1DynBasisFunctions.html#ad0658ced1a2a500fb2692d7635fb9c18" title=" " alt="" coords="279,464,504,509"/>
+<area shape="poly" id="edge13_Node000001_Node000012" title=" " alt="" coords="132,253,154,295,186,348,229,403,280,450,287,454,284,459,277,454,225,406,182,351,149,298,127,256"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="421,168,551,71,564,64,566,69,553,75,424,172"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1dynamo0p3_1_1DynBasisFunctions.html#a0de82b7004013859bc41dcf3e289e910" title=" " alt="" coords="552,171,781,215"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="504,190,537,190,537,196,504,196"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="473,167,539,149,540,154,474,173"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1dynamo0p3_1_1DynBasisFunctions.html#ac16c0de67145aacd501e06e16c721926" title=" " alt="" coords="554,240,779,301"/>
+<area shape="poly" id="edge5_Node000002_Node000006" title=" " alt="" coords="474,213,540,232,539,237,473,219"/>
+<area shape="rect" id="Node000007" href="$namespacepsyclone_1_1dynamo0p3.html#a47f3be9945f202eb6b037fe7964ecbc3" title=" " alt="" coords="578,325,755,370"/>
+<area shape="poly" id="edge6_Node000002_Node000007" title=" " alt="" coords="487,214,506,226,523,247,531,270,537,291,554,311,566,319,563,324,550,315,533,293,525,271,519,250,502,230,485,218"/>
+<area shape="poly" id="edge8_Node000008_Node000003" title=" " alt="" coords="504,56,536,52,537,57,505,61"/>
+<area shape="poly" id="edge9_Node000008_Node000005" title=" " alt="" coords="505,88,539,93,538,98,504,93"/>
+</map>

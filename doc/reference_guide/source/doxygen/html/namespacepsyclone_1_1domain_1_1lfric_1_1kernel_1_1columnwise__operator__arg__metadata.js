@@ -1,0 +1,4 @@
+var namespacepsyclone_1_1domain_1_1lfric_1_1kernel_1_1columnwise__operator__arg__metadata =
+[
+    [ "ColumnwiseOperatorArgMetadata", "classpsyclone_1_1domain_1_1lfric_1_1kernel_1_1columnwise__operator__arg__metadata_1_1ColumnwiseOperatorArgMetadata.html", null ]
+];

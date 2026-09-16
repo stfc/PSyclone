@@ -1,0 +1,9 @@
+<map id="psyclone.psyGen.Kern.reprod_reduction" name="psyclone.psyGen.Kern.reprod_reduction">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,28,217,72"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html#ab32f7871d595911108ae58dbc77a0919" title=" " alt="" coords="265,28,462,72"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="217,47,249,47,249,52,217,52"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1f2pygen_1_1BaseGen.html#aa79db0ed8d9e767f2e8e5785774789a4" title=" " alt="" coords="510,5,754,33"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="462,36,494,32,495,38,463,41"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html#ac3fa3eb9225138e40e8d6db6122f46ed" title=" " alt="" coords="534,57,731,102"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="463,58,518,64,518,69,462,63"/>
+</map>

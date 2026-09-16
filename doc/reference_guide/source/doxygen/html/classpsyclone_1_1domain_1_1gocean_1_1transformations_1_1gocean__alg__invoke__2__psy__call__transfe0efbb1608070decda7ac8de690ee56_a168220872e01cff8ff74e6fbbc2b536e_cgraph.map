@@ -1,0 +1,7 @@
+<map id="psyclone.domain.gocean.transformations.gocean_alg_invoke_2_psy_call_trans.GOceanAlgInvoke2PSyCallTrans.get_arguments" name="psyclone.domain.gocean.transformations.gocean_alg_invoke_2_psy_call_trans.GOceanAlgInvoke2PSyCallTrans.get_arguments">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,48,348,110"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1domain_1_1common_1_1transformations_1_1alg__invoke__2__psy__call__trans_1_1AlgInvoke2PSyCallTrans.html#a7e778c3df5607ad2d61d04a10180effb" title=" " alt="" coords="396,5,721,67"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="348,57,380,53,381,59,348,62"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1domain_1_1lfric_1_1arg__index__to__metadata__index_1_1ArgIndexToMetadataIndex.html#a4602d6ceb350f234c2e2ebac7c6836c6" title=" " alt="" coords="429,91,688,152"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="348,95,414,103,413,108,348,101"/>
+</map>

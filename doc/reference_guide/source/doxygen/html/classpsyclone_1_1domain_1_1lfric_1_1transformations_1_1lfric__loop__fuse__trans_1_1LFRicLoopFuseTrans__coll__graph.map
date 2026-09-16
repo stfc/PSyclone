@@ -1,0 +1,15 @@
+<map id="psyclone.domain.lfric.transformations.lfric_loop_fuse_trans.LFRicLoopFuseTrans" name="psyclone.domain.lfric.transformations.lfric_loop_fuse_trans.LFRicLoopFuseTrans">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,342,304,387"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1transformations_1_1loop__fuse__trans_1_1LoopFuseTrans.html" title=" " alt="" coords="27,249,282,294"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="157,310,157,342,152,342,152,310"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1transformations_1_1loop__trans_1_1LoopTrans.html" title=" " alt="" coords="27,157,282,201"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="157,217,157,249,152,249,152,217"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyGen_1_1Transformation.html" title=" " alt="" coords="37,81,272,109"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="157,125,157,156,152,156,152,125"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="41,5,129,33"/>
+<area shape="poly" id="edge6_Node000003_Node000005" title=" " alt="" coords="55,45,40,59,29,75,23,91,28,107,52,134,84,154,81,158,49,139,23,110,18,91,24,73,36,56,51,41"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="110,43,144,79,140,82,106,46"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="170,5,278,33"/>
+<area shape="poly" id="edge7_Node000003_Node000006" title=" " alt="" coords="258,41,273,56,285,73,291,91,286,110,260,139,228,158,225,154,257,134,281,107,286,91,280,75,269,59,254,45"/>
+<area shape="poly" id="edge5_Node000004_Node000006" title=" " alt="" coords="203,46,169,82,165,79,199,43"/>
+</map>

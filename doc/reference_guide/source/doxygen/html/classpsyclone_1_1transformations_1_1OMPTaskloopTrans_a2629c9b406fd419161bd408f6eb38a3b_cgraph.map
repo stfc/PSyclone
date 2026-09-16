@@ -1,0 +1,10 @@
+<map id="psyclone.transformations.OMPTaskloopTrans.omp_num_tasks" name="psyclone.transformations.OMPTaskloopTrans.omp_num_tasks">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,75,259,119"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1transformations_1_1OMPTaskloopTrans.html#a5f9d72abff6723a1f53486055e339720" title=" " alt="" coords="307,5,548,50"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="230,71,314,51,315,57,231,77"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1transformations_1_1OMPTaskloopTrans.html#acd64b852a9e45b303153efeebfe9da24" title=" " alt="" coords="307,75,548,119"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="259,103,291,103,291,109,259,109"/>
+<area shape="poly" id="edge4_Node000003_Node000001" title=" " alt="" coords="306,91,274,91,274,85,306,85"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1transformations_1_1OMPTaskloopTrans.html#a321b48db170597ca4887aecabde91075" title=" " alt="" coords="596,75,849,119"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="549,94,580,94,580,100,549,100"/>
+</map>

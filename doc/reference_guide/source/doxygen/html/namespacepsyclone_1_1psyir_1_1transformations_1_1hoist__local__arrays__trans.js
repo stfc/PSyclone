@@ -1,0 +1,4 @@
+var namespacepsyclone_1_1psyir_1_1transformations_1_1hoist__local__arrays__trans =
+[
+    [ "HoistLocalArraysTrans", "classpsyclone_1_1psyir_1_1transformations_1_1hoist__local__arrays__trans_1_1HoistLocalArraysTrans.html", "classpsyclone_1_1psyir_1_1transformations_1_1hoist__local__arrays__trans_1_1HoistLocalArraysTrans" ]
+];

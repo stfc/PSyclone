@@ -1,0 +1,7 @@
+<map id="psyclone.parse.kernel.Descriptor" name="psyclone.parse.kernel.Descriptor">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,48,240,76"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1domain_1_1lfric_1_1lfric__arg__descriptor_1_1LFRicArgDescriptor.html" title=" " alt="" coords="288,5,536,50"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="255,44,287,40,287,45,255,49"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1gocean1p0_1_1GO1p0Descriptor.html" title=" " alt="" coords="311,75,513,119"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="255,76,311,82,310,88,255,81"/>
+</map>

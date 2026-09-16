@@ -1,0 +1,11 @@
+<map id="psyclone.domain.lfric.kernel.lfric_kernel_metadata.LFRicKernelMetadata.operator_meta_args_on_fs" name="psyclone.domain.lfric.kernel.lfric_kernel_metadata.LFRicKernelMetadata.operator_meta_args_on_fs">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,66,345,128"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1domain_1_1lfric_1_1kernel_1_1lfric__kernel__metadata_1_1LFRicKernelMetadata.html#a082e8c9d1a8138817b40b24f1a88aa1c" title=" " alt="" coords="393,66,711,128"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="345,94,377,94,377,100,345,100"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1domain_1_1gocean_1_1kernel_1_1psyir_1_1GOceanKernelMetadata.html#a82792fe54783c0145d4e676b042b2e9e" title=" " alt="" coords="802,5,1069,50"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="711,66,793,51,794,56,712,71"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1domain_1_1lfric_1_1kernel_1_1lfric__kernel__metadata_1_1LFRicKernelMetadata.html#a2f30f7e09e1522ae80d3780544510df9" title=" " alt="" coords="759,75,1112,119"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="712,94,743,94,743,100,712,100"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1domain_1_1lfric_1_1kernel_1_1lfric__kernel__metadata_1_1LFRicKernelMetadata.html#a7562c5848c46745bd8dfcacfaa99316e" title=" " alt="" coords="759,144,1112,189"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="712,123,794,138,793,143,711,128"/>
+</map>

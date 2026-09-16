@@ -1,0 +1,11 @@
+<map id="psyclone.psyad.transformations.assignment_trans.AssignmentTrans" name="psyclone.psyad.transformations.assignment_trans.AssignmentTrans">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,249,316,294"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyad_1_1transformations_1_1adjoint__trans_1_1AdjointTransformation.html" title=" " alt="" coords="21,157,300,201"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="163,217,163,249,158,249,158,217"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyGen_1_1Transformation.html" title=" " alt="" coords="43,81,278,109"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="163,125,163,156,158,156,158,125"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="55,5,143,33"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="122,43,152,79,148,82,118,47"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="168,5,276,33"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="203,47,173,82,169,79,199,43"/>
+</map>

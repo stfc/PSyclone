@@ -1,0 +1,14 @@
+<map id="psyclone.parse.file_info.FileInfo.get_fparser_tree" name="psyclone.parse.file_info.FileInfo.get_fparser_tree">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,91,222,135"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1parse_1_1file__info_1_1FileInfo.html#a644a8203bfb23752fff27f0b2e585e09" title=" " alt="" coords="271,60,460,105"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="222,97,255,93,256,98,222,102"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1parse_1_1file__info_1_1FileInfo.html#a6cae3c76fbf7bfe73f03d84deae71297" title=" " alt="" coords="510,5,728,50"/>
+<area shape="poly" id="edge6_Node000001_Node000003" title=" " alt="" coords="156,88,209,64,269,45,326,34,384,27,494,22,495,27,385,33,327,40,270,50,211,69,159,93"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1parse_1_1module__info_1_1ModuleInfo.html#ad2c1d63873747bee1b2fc3b5c094db35" title=" " alt="" coords="533,102,705,164"/>
+<area shape="poly" id="edge7_Node000001_Node000004" title=" " alt="" coords="222,115,518,126,517,132,222,120"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1parse_1_1file__info_1_1FileInfo.html#a1196d79e43ad6a7b38f86b9388c54bbe" title=" " alt="" coords="270,180,462,225"/>
+<area shape="poly" id="edge5_Node000001_Node000005" title=" " alt="" coords="179,133,287,172,286,177,178,138"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="460,59,497,51,498,57,461,65"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="461,99,518,110,517,115,460,104"/>
+<area shape="poly" id="edge4_Node000004_Node000004" title=" " alt="" coords="569,102,571,92,580,83,596,77,619,76,646,78,662,85,660,90,644,83,619,81,597,83,583,88,576,94,575,102"/>
+</map>

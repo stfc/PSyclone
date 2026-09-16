@@ -1,0 +1,4 @@
+var namespacepsyclone_1_1domain_1_1common_1_1transformations_1_1raise__psyir__2__alg__trans =
+[
+    [ "RaisePSyIR2AlgTrans", "classpsyclone_1_1domain_1_1common_1_1transformations_1_1raise__psyir__2__alg__trans_1_1RaisePSyIR2AlgTrans.html", "classpsyclone_1_1domain_1_1common_1_1transformations_1_1raise__psyir__2__alg__trans_1_1RaisePSyIR2AlgTrans" ]
+];

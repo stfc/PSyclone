@@ -1,0 +1,7 @@
+<map id="psyclone.psyir.transformations.transformation_error.TransformationError" name="psyclone.psyir.transformations.transformation_error.TransformationError">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,174,329,218"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1errors_1_1PSycloneError.html" title=" " alt="" coords="75,81,259,126"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="170,141,170,173,164,173,164,141"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="124,5,210,33"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="170,49,170,80,164,80,164,49"/>
+</map>

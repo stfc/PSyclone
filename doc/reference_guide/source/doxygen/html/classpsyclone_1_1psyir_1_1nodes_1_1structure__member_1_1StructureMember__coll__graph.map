@@ -1,0 +1,13 @@
+<map id="psyclone.psyir.nodes.structure_member.StructureMember" name="psyclone.psyir.nodes.structure_member.StructureMember">
+<area shape="rect" id="Node000001" title=" " alt="" coords="619,40,838,85"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1psyir_1_1nodes_1_1member_1_1Member.html" title=" " alt="" coords="318,5,538,50"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="553,39,619,47,618,52,553,45"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html" title=" " alt="" coords="5,14,237,42"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="252,25,318,25,318,30,252,30"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyir_1_1nodes_1_1structure__accessor__mixin_1_1StructureAccessorMixin.html" title=" " alt="" coords="285,75,571,119"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="586,76,618,72,619,78,586,81"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="77,74,165,102"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="181,87,284,90,284,95,180,92"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="67,126,175,154"/>
+<area shape="poly" id="edge5_Node000004_Node000006" title=" " alt="" coords="190,127,284,114,285,120,191,133"/>
+</map>

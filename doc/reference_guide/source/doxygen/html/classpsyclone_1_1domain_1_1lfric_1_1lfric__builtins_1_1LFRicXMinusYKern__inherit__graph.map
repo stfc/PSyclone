@@ -1,0 +1,21 @@
+<map id="psyclone.domain.lfric.lfric_builtins.LFRicXMinusYKern" name="psyclone.domain.lfric.lfric_builtins.LFRicXMinusYKern">
+<area shape="rect" id="Node000001" title=" " alt="" coords="300,435,500,479"/>
+<area shape="rect" id="Node000010" href="$classpsyclone_1_1domain_1_1lfric_1_1lfric__builtins_1_1LFRicIntXMinusYKern.html" title=" " alt="" coords="291,527,508,572"/>
+<area shape="poly" id="edge9_Node000001_Node000010" title=" " alt="" coords="402,495,402,527,397,527,397,495"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1domain_1_1lfric_1_1lfric__builtins_1_1LFRicBuiltIn.html" title=" " alt="" coords="304,342,495,387"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="402,402,402,434,397,434,397,402"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1psyGen_1_1BuiltIn.html" title=" " alt="" coords="153,266,332,294"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="282,299,359,339,357,344,280,304"/>
+<area shape="rect" id="Node000004" href="$classpsyclone_1_1psyGen_1_1Kern.html" title=" " alt="" coords="160,191,325,218"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="245,234,245,266,240,266,240,234"/>
+<area shape="rect" id="Node000005" href="$classpsyclone_1_1psyir_1_1nodes_1_1statement_1_1Statement.html" title=" " alt="" coords="126,98,358,143"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="245,158,245,190,240,190,240,158"/>
+<area shape="rect" id="Node000006" href="$classpsyclone_1_1psyir_1_1nodes_1_1node_1_1Node.html" title=" " alt="" coords="5,14,237,42"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="152,49,215,95,212,100,149,53"/>
+<area shape="rect" id="Node000007" href="$classpsyclone_1_1psyir_1_1commentable__mixin_1_1CommentableMixin.html" title=" " alt="" coords="261,5,469,50"/>
+<area shape="poly" id="edge6_Node000005_Node000007" title=" " alt="" coords="326,61,273,100,270,95,322,57"/>
+<area shape="rect" id="Node000008" title=" " alt="" coords="356,266,444,294"/>
+<area shape="poly" id="edge7_Node000002_Node000008" title=" " alt="" coords="402,310,402,341,397,341,397,310"/>
+<area shape="rect" id="Node000009" title=" " alt="" coords="468,266,580,294"/>
+<area shape="poly" id="edge8_Node000002_Node000009" title=" " alt="" coords="492,305,434,344,431,339,489,301"/>
+</map>

@@ -1,0 +1,5 @@
+var classpsyclone_1_1domain_1_1gocean_1_1transformations_1_1raise__psyir__2__gocean__kern__trans_1_1RaisePSyIR2GOceanKernTrans =
+[
+    [ "apply", "classpsyclone_1_1domain_1_1gocean_1_1transformations_1_1raise__psyir__2__gocean__kern__trans_1_1RaisePSyIR2GOceanKernTrans.html#a824ffa34dff56e9901c94278041e8cef", null ],
+    [ "validate", "classpsyclone_1_1domain_1_1gocean_1_1transformations_1_1raise__psyir__2__gocean__kern__trans_1_1RaisePSyIR2GOceanKernTrans.html#a445c148819bb1bdc141bbda4d5cdc625", null ]
+];

@@ -1,0 +1,4 @@
+var namespacepsyclone_1_1psyir_1_1transformations_1_1intrinsics_1_1minormax2code__trans =
+[
+    [ "MinOrMax2CodeTrans", "classpsyclone_1_1psyir_1_1transformations_1_1intrinsics_1_1minormax2code__trans_1_1MinOrMax2CodeTrans.html", "classpsyclone_1_1psyir_1_1transformations_1_1intrinsics_1_1minormax2code__trans_1_1MinOrMax2CodeTrans" ]
+];

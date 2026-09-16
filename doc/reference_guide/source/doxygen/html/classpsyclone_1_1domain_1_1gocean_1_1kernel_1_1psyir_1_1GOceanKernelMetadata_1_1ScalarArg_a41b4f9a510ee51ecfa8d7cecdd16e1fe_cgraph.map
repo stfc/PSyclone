@@ -1,0 +1,7 @@
+<map id="psyclone.domain.gocean.kernel.psyir.GOceanKernelMetadata.ScalarArg.form" name="psyclone.domain.gocean.kernel.psyir.GOceanKernelMetadata.ScalarArg.form">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,56,282,101"/>
+<area shape="rect" id="Node000002" href="$classpsyclone_1_1domain_1_1gocean_1_1kernel_1_1psyir_1_1GOceanKernelMetadata_1_1FieldArg.html#a12de4136cf50c89fb5be25ae3a6d1639" title=" " alt="" coords="330,5,596,67"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="282,58,314,53,314,59,282,63"/>
+<area shape="rect" id="Node000003" href="$classpsyclone_1_1domain_1_1gocean_1_1kernel_1_1psyir_1_1GOceanKernelMetadata_1_1ScalarArg.html#a849908ab3b2adc870b6baee1b1cf0e96" title=" " alt="" coords="330,91,596,152"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="282,95,314,99,314,104,282,100"/>
+</map>
