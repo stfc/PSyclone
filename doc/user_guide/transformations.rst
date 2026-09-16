@@ -294,6 +294,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.domain.lfric.transformations.LFRicColourAndOMPTrans
+    :members: apply
+    :no-index:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.LoopFuseTrans
     :members: apply
     :no-index:
