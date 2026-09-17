@@ -574,11 +574,7 @@ class SymbolTable():
                     tag is given.
 
         :raises InternalError: if the new_symbol argument is not a symbol.
-        :raises TypeError: if the tag is not a string.
-        :raises ValueError: if the tag is empty or `new_symbol` is already
-                            associated with another tag.
         :raises KeyError: if the symbol name is already in use.
-        :raises KeyError: if a tag is supplied and it is already in use.
         :raises SymbolError: if the supplied symbol has an ImportInterface that
                              refers to a ContainerSymbol that is not in scope.
 

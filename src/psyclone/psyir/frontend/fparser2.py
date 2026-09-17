@@ -6257,15 +6257,18 @@ class Fparser2Reader():
         try:
             subprog_part = _first_type_match(
                 node.children, Fortran2003.Module_Subprogram_Part)
+        except ValueError:
+            pass
+        else:
             module_subprograms = \
                 [subprogram for subprogram in subprog_part.children
                  if not isinstance(subprogram, Fortran2003.Contains_Stmt)]
             if module_subprograms:
-                self.process_nodes(parent=container, nodes=module_subprograms)
-        except SymbolError as err:
-            raise NotImplementedError(str(err.value))
-        except ValueError:
-            pass
+                try:
+                    self.process_nodes(parent=container,
+                                       nodes=module_subprograms)
+                except SymbolError as err:
+                    raise NotImplementedError(str(err.value)) from err
 
         return container
 
