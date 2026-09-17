@@ -825,13 +825,18 @@ def test_module_inline_lfric_kern_local_call(tmp_path, annexed, dist_mem):
     psy, invoke = get_invoke("1.15.1_invoke_kern_with_local_call.f90", "lfric",
                              dist_mem=dist_mem, idx=0)
     kern_call = invoke.schedule.walk(CodedKern)[0]
-    inline_trans = KernelModuleInlineTrans()
-    inline_trans.apply(kern_call)
+    mod_inline_trans = KernelModuleInlineTrans()
+    mod_inline_trans.apply(kern_call)
     gen = str(psy.gen)
     assert "subroutine testkern_with_local_call_code_inlined_" in gen
     assert "subroutine a_local_routine_inlined_" in gen
+    assert "subroutine local1_inlined_" in gen
+    assert "subroutine local2_inlined_" in gen
+    assert "interface a_local_polymorph_inlined_" in gen
     assert "call a_local_routine_inlined_(" in gen
     assert "call a_local_routine(" not in gen
+    assert "call a_local_polymorph_inlined_(" in gen
+    assert "call a_local_polymorph(" not in gen
     assert LFRicBuild(tmp_path).code_compiles(psy)
 
 

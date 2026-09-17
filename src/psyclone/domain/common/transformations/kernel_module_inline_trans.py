@@ -260,10 +260,13 @@ class KernelModuleInlineTrans(Transformation):
         all_routines_to_inline: list[Routine] = []
         for orig_routine in routines_to_inline:
             for call in orig_routine.walk(Call):
+                if call.symbol.name == "a_local_polymorph":
+                    import pdb; pdb.set_trace()
                 if call.symbol.is_modulevar and not call.symbol.is_import:
-                    # TODO need to allow for calls to inverfaces here.
-                    all_routines_to_inline.append(
-                        new_routines[call.symbol.name])
+                    names = source_container.resolve_routine(call.symbol.name)
+                    for name in names:
+                        all_routines_to_inline.append(
+                            new_routines[name])
         all_routines_to_inline.extend(routines_to_inline)
 
         copied_routines = []

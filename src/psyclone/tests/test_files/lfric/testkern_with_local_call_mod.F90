@@ -31,14 +31,29 @@ module testkern_with_local_call_mod
      procedure, nopass :: code => testkern_with_local_call_code
   end type testkern_with_local_call_type
 
-  private :: a_local_routine
+  interface a_local_polymorph
+     module procedure local1, local2
+  end interface
+
+  private :: a_local_routine, a_local_polymorph, local1, local2
 
 contains
 
   subroutine a_local_routine(g)
     real(kind=r_def), intent(inout) :: g
     g = g + 1.0_r_def
+    call a_local_polymorph(g)
   end subroutine a_local_routine
+
+  subroutine local1(arg)
+    integer(kind=i_def), intent(inout) :: arg
+    arg = arg + 1_i_def
+  end subroutine local1
+
+  subroutine local2(arg)
+    real(kind=r_def), intent(inout) :: arg
+    arg = arg + 1.0_r_def
+  end subroutine local2
 
   subroutine testkern_with_local_call_code(nlayers, phi, chi_1, chi_2, chi_3, &
        gravity, planet_radius, ndf_w3, undf_w3, map_w3, &
