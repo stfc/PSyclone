@@ -4181,10 +4181,9 @@ LFRic API. This is because the properties that it makes constant
 are API specific.
 
 The LFRic API-specific transformations currently available
-are given below. Early transformations include "Dynamo0p3" or "Dynamo"
-in their name to indicate that these transformations are only valid
-for this particular API. More recent transformations typically include
-"LFRic" in their name to indicate the same restriction. However, more
+are given below. These transformations typically include "LFRic" in 
+their name to indicate that these transformations are only valid
+for this particular API. However, more
 importantly, transformations that are specific to LFRic reside in the
 LFRic-specific "psyclone.domain/lfric/transformations"
 directory. Note, the early LFRic API-specific
