@@ -255,15 +255,15 @@ class KernelModuleInlineTrans(Transformation):
         for routine in source_container.walk(Routine):
             new_routines[routine.name] = routine
 
-        # First identify any local routines that the target routines call.
-        #callees: list[str] = []
+        # First identify any local routines that the target routines themselves
+        # call.
         all_routines_to_inline: list[Routine] = []
         for orig_routine in routines_to_inline:
             for call in orig_routine.walk(Call):
                 if call.symbol.is_modulevar and not call.symbol.is_import:
-                    #callees.append(call.symbol.name)
                     # TODO need to allow for calls to inverfaces here.
-                    all_routines_to_inline.append(new_routines[call.symbol.name])
+                    all_routines_to_inline.append(
+                        new_routines[call.symbol.name])
         all_routines_to_inline.extend(routines_to_inline)
 
         copied_routines = []
