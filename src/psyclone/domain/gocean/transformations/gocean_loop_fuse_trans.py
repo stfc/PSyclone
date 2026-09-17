@@ -67,7 +67,6 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
 
         super().validate(nodes, options=options, **kwargs)
 
-
     def apply(self, nodes: tuple[GOLoop, GOLoop],
               options=None, **kwargs):
         '''Applies the GoceanLoopFuseTrans to the provided nodes.
