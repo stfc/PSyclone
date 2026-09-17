@@ -47,13 +47,12 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         return ("Fuse two adjacent loops together with LFRic-specific "
                 "validity checks")
 
-    def validate(self, node1: LFRicLoop, node2: LFRicLoop,
+    def validate(self, nodes: tuple[LFRicLoop, LFRicLoop],
                  options=None, **kwargs):
         ''' Performs various checks to ensure that it is valid to apply
         the LFRicLoopFuseTrans transformation to the supplied loops.
 
-        :param node1: the first Loop to fuse.
-        :param node2: the second Loop to fuse.
+        :param nodes: the two loops to fuse.
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
@@ -100,13 +99,14 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         # check that a variable with a stencil read-access is written, then
         # the test could be enabled for LFRic as well, so the force option
         # can be removed.
-
         if same_space and not isinstance(same_space, bool):
             raise TransformationError(
                 f"Error in {self.name} transformation: The value of the "
                 f"'same_space' flag must be either bool or None type, but the "
                 f"type of flag provided was '{type(same_space).__name__}'.")
-        super().validate(node1, node2, force=force, options=my_options)
+        super().validate(nodes, force=force, options=my_options)
+        node1 = nodes[0]
+        node2 = nodes[1]
         # Now test for LFRic-specific constraints
 
         # 1) Check that we don't have an inter-grid kernel
@@ -199,11 +199,12 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                             f"the second loop reads the result of the "
                             f"reduction.")
 
-    def apply(self, node1: LFRicLoop, node2: LFRicLoop,
-              options=None, same_space: bool = False,  **kwargs):
+    def apply(self, nodes: tuple[LFRicLoop, LFRicLoop],
+              options=None, same_space: bool = False,
+              conditional_fusion: bool = False, **kwargs):
         ''' Applies the LFricLoopFuseTrans to the provided nodes.
-        :param node1: the first Loop to fuse.
-        :param node2: the second Loop to fuse.
+
+        :param nodes: the two loops to fuse.
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param same_space: this optional flag, set to `True`,
@@ -211,13 +212,20 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
             matches the other iteration space. This is set at the user's own
             risk. If both iteration spaces are discontinuous the loops can be
             fused without having to use the `same_space` flag.
+        :param conditional_fusion: if PSyclone can't be sure whether fusion is
+            possible during processing (e.g. two user-defined kernels are on
+            `ANY_SPACE` and PSyclone can't find other metadata to determine
+            the spaces), this option tells PSyclone whether to add a runtime
+            check to determine whether the loops should be fused or not.
         '''
         # TODO #2668: Deprecate options dict. This function exists for
         # the purposes of documentation required by 2668.
-        self.validate(node1, node2, options=options, same_space=same_space,
-                      **kwargs)
+        self.validate(nodes, options=options, same_space=same_space,
+                      conditional_fusion=conditional_fusion, **kwargs)
         if options:
             same_space = options.get("same_space", False)
+        node1 = nodes[0]
+        node2 = nodes[1]
         # Get function space names
         node1_fs_name = node1.field_space.orig_name
         node2_fs_name = node2.field_space.orig_name
@@ -253,7 +261,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
             # keyword argument.
             if "force" in kwargs:
                 del kwargs["force"]
-            super().apply(node1, node2,
+            super().apply((node1, node2),
                           same_space=same_space, force=True, **kwargs)
             return
 
@@ -300,7 +308,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         # keyword argument.
         if "force" in kwargs:
             del kwargs["force"]
-        super().apply(node1, node2, same_space=True, force=True, **kwargs)
+        super().apply((node1, node2), same_space=True, force=True, **kwargs)
 
 
 # For automatic documentation generation

@@ -39,13 +39,12 @@ class LoopFuseTrans(LoopTrans):
         return "Fuse two adjacent loops together"
 
     # pylint: disable=arguments-renamed
-    def validate(self, node1: Node, node2: Node, options=None,
+    def validate(self, nodes: tuple[Node], options=None,
                  **kwargs):
         ''' Performs various checks to ensure that it is valid to apply
         the LoopFuseTrans transformation to the supplied Nodes.
 
-        :param node1: the first Node that is being checked.
-        :param node2: the second Node that is being checked.
+        :param nodes: the nodes to be fused.
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
@@ -71,6 +70,13 @@ class LoopFuseTrans(LoopTrans):
         else:
             self.validate_options(**kwargs)
             ignore_dep_analysis = self.get_option("force", **kwargs)
+        if not isinstance(nodes, tuple) or len(nodes) != 2:
+            raise TransformationError(
+                f"{self.name} expected a tuple of 2 input nodes but was "
+                f"provided {nodes}."
+            )
+        node1 = nodes[0]
+        node2 = nodes[1]
         # Check that the supplied Nodes are Loops
         super().validate(node1, options=options, **kwargs)
         super().validate(node2, options=options, **kwargs)
@@ -126,7 +132,7 @@ class LoopFuseTrans(LoopTrans):
                 raise TransformationError(f"{self.name}. {messages[0]}")
 
     # -------------------------------------------------------------------------
-    def apply(self, node1: Node, node2: Node, options=None,
+    def apply(self, nodes: tuple[Node, Node], options=None,
               force: bool = False, **kwargs):
         # pylint: disable=arguments-differ
         ''' Fuses two loops represented by `psyclone.psyir.nodes.Node` objects
@@ -138,10 +144,7 @@ class LoopFuseTrans(LoopTrans):
         side effect that the second loop's variable will no longer have its
         value modified, with the expectation that that value isn't used after.
 
-        :param node1: the first Node that is being checked.
-        :type node1: :py:class:`psyclone.psyir.nodes.Node`
-        :param node2: the second Node that is being checked.
-        :type node2: :py:class:`psyclone.psyir.nodes.Node`
+        :param nodes: the nodes to be fused.
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param force: whether to force fusion of the target loop
@@ -150,8 +153,10 @@ class LoopFuseTrans(LoopTrans):
 
         '''
         # Validity checks for the supplied nodes
-        self.validate(node1, node2, options=options, force=force, **kwargs)
+        self.validate(nodes, options=options, force=force, **kwargs)
 
+        node1 = nodes[0]
+        node2 = nodes[1]
         # Remove node2 from the parent
         node2.detach()
 

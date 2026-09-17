@@ -35,14 +35,13 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         return ("Fuse two adjacent loops together with GOcean-specific "
                 "validity checks")
 
-    def validate(self, node1: GOLoop, node2: GOLoop, options=None, **kwargs):
+    def validate(self, nodes: tuple[GOLoop, GOLoop], options=None, **kwargs):
         '''Checks if it is valid to apply the GOceanLoopFuseTrans
         transform. It ensures that the fused loops are over
         the same grid-point types, before calling the normal
         LoopFuseTrans validation function.
 
-        :param node1: the first Node representing a GOLoop.
-        :param node2: the second Node representing a GOLoop.
+        :param nodes: the GOLoops to fuse.
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
@@ -52,6 +51,8 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         :raises TransformationError: if invalid parameters are passed in.
 
         '''
+        node1 = nodes[0]
+        node2 = nodes[1]
         if not (isinstance(node1, GOLoop) and
                 isinstance(node2, GOLoop)):
             raise TransformationError(f"Error in {self.name} transformation. "
@@ -64,16 +65,17 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
                 f"fuse loops that are over different grid-point types: "
                 f"{node1.field_space} and {node2.field_space}")
 
-        super().validate(node1, node2, options=options, **kwargs)
+        super().validate(nodes, options=options, **kwargs)
 
-    def apply(self, node1: GOLoop, node2: GOLoop,
+
+    def apply(self, nodes: tuple[GOLoop, GOLoop],
               options=None, **kwargs):
         '''Applies the GoceanLoopFuseTrans to the provided nodes.
-        :param node1: the first Node representing a GOLoop.
-        :param node2: the second Node representing a GOLoop.
+
+        :param nodes: the GOLoops to fuse.
         '''
         # This function is used for documentation purposes.
-        super().apply(node1, node2, options=options, **kwargs)
+        super().apply(nodes, options=options, **kwargs)
 
 
 # For automatic documentation generation

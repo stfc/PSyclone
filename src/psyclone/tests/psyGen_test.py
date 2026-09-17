@@ -966,7 +966,7 @@ def test_args_filter():
     # fuse our loops so we have more than one Kernel in a loop
     schedule = psy.invokes.invoke_list[0].schedule
     ftrans = LFRicLoopFuseTrans()
-    ftrans.apply(schedule.children[0], schedule.children[1])
+    ftrans.apply((schedule.children[0], schedule.children[1]))
     # get our loop and call our method ...
     loop = schedule.children[0]
     args = loop.args_filter(unique=True)
@@ -1563,7 +1563,7 @@ def test_call_forward_dependence():
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
     for _ in range(6):
-        ftrans.apply(schedule.children[0], schedule.children[1],
+        ftrans.apply((schedule.children[0], schedule.children[1]),
                      {"same_space": True})
     read4 = schedule.children[0].loop_body[4]
     # 1: returns none if none found
@@ -1592,7 +1592,7 @@ def test_call_backward_dependence():
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
     for _ in range(6):
-        ftrans.apply(schedule.children[0], schedule.children[1],
+        ftrans.apply((schedule.children[0], schedule.children[1]),
                      {"same_space": True})
     # 1: loop no backwards dependence
     call3 = schedule.children[0].loop_body[2]

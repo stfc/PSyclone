@@ -504,7 +504,7 @@ def trans(psyir):
     loop1 = schedule.children[4]
     loop2 = schedule.children[5]
     transform = LFRicLoopFuseTrans()
-    transform.apply(loop1, loop2)
+    transform.apply((loop1, loop2))
 """)
     # First loop fuse explicitly (without using generator.py)
     parse_file = str(LFRIC_BASE_PATH / "4_multikernel_invokes.f90")
@@ -515,7 +515,7 @@ def trans(psyir):
     loop1 = schedule.children[4]
     loop2 = schedule.children[5]
     trans = LFRicLoopFuseTrans()
-    trans.apply(loop1, loop2)
+    trans.apply((loop1, loop2))
     generated_code_1 = psy.gen
     # Second loop fuse using generator.py and a script
     _, generated_code_2 = generate(parse_file, api="lfric",
