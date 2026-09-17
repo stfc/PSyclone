@@ -88,8 +88,11 @@ class KernelModuleInlineTrans(Transformation):
         attempts to move routines that access private data in the
         original Container.
 
-    '''
+    If the target routine itself contains calls to other routines within
+    the same module, this transformation will first module-inline those
+    routines in order to permit the target one to be inlined.
 
+    '''
     def __str__(self):
         return ("Copy the routine associated with a (Kernel) call into the "
                 "Container of the call site.")
@@ -233,7 +236,7 @@ class KernelModuleInlineTrans(Transformation):
         '''Prepare the PSyIR tree to inline by bringing in to the subroutine
         all referenced symbols so that the implementation is self contained.
 
-        The provided routines are copied so that the original PSyIR is left
+        The supplied routines are copied so that the original PSyIR is left
         unmodified.
 
         :param routines_to_inline: the routine(s) to module-inline.
@@ -246,12 +249,25 @@ class KernelModuleInlineTrans(Transformation):
         # Since we will be detaching Routines, we work with a copy of
         # the Container that encapsulates them.
         source_container = orig_container.copy()
+        # Make a dict containing all Routines in the Container, keyed by
+        # routine name.
         new_routines = {}
         for routine in source_container.walk(Routine):
             new_routines[routine.name] = routine
 
-        copied_routines = []
+        # First identify any local routines that the target routines call.
+        #callees: list[str] = []
+        all_routines_to_inline: list[Routine] = []
         for orig_routine in routines_to_inline:
+            for call in orig_routine.walk(Call):
+                if call.symbol.is_modulevar and not call.symbol.is_import:
+                    #callees.append(call.symbol.name)
+                    # TODO need to allow for calls to inverfaces here.
+                    all_routines_to_inline.append(new_routines[call.symbol.name])
+        all_routines_to_inline.extend(routines_to_inline)
+
+        copied_routines = []
+        for orig_routine in all_routines_to_inline:
             code_to_inline = new_routines[orig_routine.name]
             copied_routines.append(code_to_inline)
 
@@ -432,6 +448,14 @@ class KernelModuleInlineTrans(Transformation):
             code_to_inline = code_to_inline.detach()
             code_to_inline.symbol = new_sym
             container.addchild(code_to_inline)
+            # Update any calls to other routines within this module-inlined
+            # routine as they may now also point to module-inlined (and thus
+            # renamed) routines.
+            for call in code_to_inline.walk(Call):
+                if isinstance(call, IntrinsicCall):
+                    continue
+                if call.symbol.name in name_map:
+                    call.routine.symbol = name_map[call.symbol.name]
 
         if interface_sym:
             # Deal with the interface symbol - create a new, local

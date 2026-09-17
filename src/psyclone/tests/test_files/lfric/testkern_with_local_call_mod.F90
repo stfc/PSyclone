@@ -9,9 +9,10 @@
 ! the same module.
 module testkern_with_local_call_mod
 
-  use argument_mod, only: arg_type
-  use fs_continuity_mod, only: w3, any_space_9
-  use kernel_mod
+  use argument_mod, only: arg_type, func_type, GH_FIELD, GH_SCALAR, GH_REAL, &
+       GH_WRITE, GH_READ, GH_EVALUATOR, GH_BASIS, ANY_SPACE_9, CELL_COLUMN
+  use fs_continuity_mod, only: w3
+  use kernel_mod, only: kernel_type
   use constants_mod, only: r_def, i_def
 
   implicit none
