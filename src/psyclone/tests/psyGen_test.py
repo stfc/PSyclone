@@ -497,8 +497,6 @@ def test_valid_return_object_from_name():
 def test_find_subclasses():
     '''Test for the _find_subclasses() method.'''
     trans = TransInfo()
-    # Check that the method does not include the legacy names for the
-    # LFRic transformations.
     classes = trans._find_subclasses(transformations, Transformation)
     # Check that the method finds at least one transformation we know about.
     # We don't check for every transformation as this would break every time
