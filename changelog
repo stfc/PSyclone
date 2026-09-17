@@ -1,3 +1,6 @@
+   57) PR #3593 for #3503. Adds a LFRicColourAndOMPTrans metatransformation
+   to perform both colouring and OpenMP to loops in the LFRic domain.
+
    56) PR #3607. Removes the support for the "Dynamo0p3" prefix on
    LFRic-specific transformations. 
 
