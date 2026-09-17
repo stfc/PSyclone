@@ -210,6 +210,7 @@ class KernelModuleInlineTrans(Transformation):
             for lrt in local_routines:
                 rt_psyir = container.find_routine_psyir(
                     lrt, allow_private=True)
+                # Recursively check the schedule of the target routine.
                 self._validate_schedule(call, lrt, "routine", rt_psyir)
 
         # We handle cases where the target routine accesses symbols that
@@ -249,25 +250,17 @@ class KernelModuleInlineTrans(Transformation):
         # Since we will be detaching Routines, we work with a copy of
         # the Container that encapsulates them.
         source_container = orig_container.copy()
-        # Make a dict containing all Routines in the Container, keyed by
+        # Make a dict containing *all* Routines in the Container, keyed by
         # routine name.
         new_routines = {}
         for routine in source_container.walk(Routine):
             new_routines[routine.name] = routine
 
-        # First identify any local routines that the target routines themselves
-        # call.
-        all_routines_to_inline: list[Routine] = []
-        for orig_routine in routines_to_inline:
-            for call in orig_routine.walk(Call):
-                if call.symbol.name == "a_local_polymorph":
-                    import pdb; pdb.set_trace()
-                if call.symbol.is_modulevar and not call.symbol.is_import:
-                    names = source_container.resolve_routine(call.symbol.name)
-                    for name in names:
-                        all_routines_to_inline.append(
-                            new_routines[name])
-        all_routines_to_inline.extend(routines_to_inline)
+        # Recursively collect any local routines that the target routines
+        # themselves call.
+        all_routines_to_inline, all_interfaces = (
+            KernelModuleInlineTrans._get_all_routines_to_inline(
+                source_container, new_routines, routines_to_inline))
 
         copied_routines = []
         for orig_routine in all_routines_to_inline:
@@ -323,7 +316,43 @@ class KernelModuleInlineTrans(Transformation):
                         symbol.interface.container_symbol = \
                             code_to_inline.symbol_table.lookup(
                                 module_symbol.name)
-        return copied_routines
+        return copied_routines, all_interfaces
+
+    @staticmethod
+    def _get_all_routines_to_inline(
+            container,
+            routine_map: dict[str, Routine],
+            routines_to_inline: list[Routine]
+    ) -> tuple[list[Routine], dict[str, list[str]]]:
+        '''
+        :returns: a 2-tuple containing a list of all Routines and a dict of
+            interfaces that must be module inlined. The dict of interfaces
+            is keyed by interface name with each entry consisting of a list of
+            the names of the member routines.
+        '''
+        all_routines_to_inline = []
+        inlined_interfaces = {}
+        for routine in routines_to_inline:
+            for call in routine.walk(Call):
+                if isinstance(call, IntrinsicCall):
+                    continue
+                # An interface symbol will be 'automatic'.
+                if ((call.symbol.is_modulevar or call.symbol.is_automatic) and
+                        not call.symbol.is_import):
+                    names = container.resolve_routine(call.symbol.name)
+                    if len(names) > 1:
+                        inlined_interfaces[call.symbol.name] = names
+                    # Add any local routines called by the target(s) of this
+                    # call.
+                    new_routines, new_interfaces = (
+                        KernelModuleInlineTrans._get_all_routines_to_inline(
+                            container,
+                            routine_map,
+                            [routine_map[name] for name in names]))
+                    all_routines_to_inline.extend(new_routines)
+                    inlined_interfaces.update(new_interfaces)
+            all_routines_to_inline.append(routine)
+        return all_routines_to_inline, inlined_interfaces
 
     def _target_is_local(self, node: Union[Call, CodedKern]) -> bool:
         '''
@@ -403,37 +432,42 @@ class KernelModuleInlineTrans(Transformation):
         # that if it exists it is only valid when it references the exact same
         # implementation.
         codes_to_inline = node.get_callees()
-        interface_sym = None
+#        interface_sym = None
+        inlined_interfaces = {}
         if len(codes_to_inline) > 1:
-            interface_sym = codes_to_inline[0].symbol_table.lookup(
-                external_callee_name)
+            inlined_interfaces[external_callee_name] = [
+                rt.symbol.name for rt in codes_to_inline]
+#            interface_sym = codes_to_inline[0].symbol_table.lookup(
+#                external_callee_name)
 
         if self._target_is_local(node):
             return
 
-        callsite_table = node.scope.symbol_table
+#        callsite_table = node.scope.symbol_table
 
-        if interface_sym:
-            called_sym = callsite_table.lookup(caller_name, otherwise=None)
-        else:
-            for routine in codes_to_inline:
-                # N.B. in a PSyKAl DSL, we won't have a RoutineSymbol for the
-                # Kernel that is being called, so we look it up instead of
-                # using node.symbol.
-                called_sym = callsite_table.lookup(caller_name,
-                                                   otherwise=None)
-                if (not called_sym or called_sym is not routine.symbol or
-                        (called_sym.is_import or called_sym.is_unresolved)):
-                    # This routine is not module-inlined.
-                    break
+#        if interface_sym:
+#            called_sym = callsite_table.lookup(caller_name, otherwise=None)
+#        else:
+#            for routine in codes_to_inline:
+#                # N.B. in a PSyKAl DSL, we won't have a RoutineSymbol for the
+#                # Kernel that is being called, so we look it up instead of
+#                # using node.symbol.
+#                called_sym = callsite_table.lookup(caller_name,
+#                                                   otherwise=None)
+#                if (not called_sym or called_sym is not routine.symbol or
+#                        (called_sym.is_import or called_sym.is_unresolved)):
+#                    # This routine is not module-inlined.
+#                    break
 
-        updated_routines = self._prepare_code_to_inline(codes_to_inline)
+        updated_routines, interfaces = self._prepare_code_to_inline(
+            codes_to_inline)
+        inlined_interfaces.update(interfaces)
 
         # The Container into which we will inline the Routine(s).
         container = node.ancestor(Container)
 
         # Mapping from original name to new RoutineSymbol.
-        name_map: dict[str, RoutineSymbol] = {}
+        name_map: dict+[str, RoutineSymbol] = {}
 
         for code_to_inline in updated_routines:
             # Create a new name for the routine.
@@ -451,24 +485,35 @@ class KernelModuleInlineTrans(Transformation):
             code_to_inline = code_to_inline.detach()
             code_to_inline.symbol = new_sym
             container.addchild(code_to_inline)
-            # Update any calls to other routines within this module-inlined
-            # routine as they may now also point to module-inlined (and thus
-            # renamed) routines.
+
+        for iface_name, member_names in inlined_interfaces.items():
+            # Create a new name for the interface
+            new_name = f"{iface_name}_inlined_"
+            new_sym = container.symbol_table.new_symbol(
+                new_name, symbol_type=GenericInterfaceSymbol,
+                routines=[(name_map[name], True) for name in member_names],
+                visibility=Symbol.Visibility.PRIVATE)
+            name_map[iface_name] = new_sym
+
+        # Update any calls to other routines within this module-inlined
+        # routine as they may now also point to module-inlined (and thus
+        # renamed) routines.
+        for code_to_inline in updated_routines:
             for call in code_to_inline.walk(Call):
                 if isinstance(call, IntrinsicCall):
                     continue
                 if call.symbol.name in name_map:
                     call.routine.symbol = name_map[call.symbol.name]
-
-        if interface_sym:
-            # Deal with the interface symbol - create a new, local
-            # private version.
-            new_sym = container.symbol_table.new_symbol(
-                interface_sym.name+"_inlined_",
-                symbol_type=GenericInterfaceSymbol,
-                routines=[(sym, True) for sym in name_map.values()],
-                visibility=Symbol.Visibility.PRIVATE)
-            name_map[interface_sym.name] = new_sym
+#
+#        if interface_sym:
+#            # Deal with the interface symbol - create a new, local
+#            # private version.
+#            new_sym = container.symbol_table.new_symbol(
+#                interface_sym.name+"_inlined_",
+#                symbol_type=GenericInterfaceSymbol,
+#                routines=[(sym, True) for sym in name_map.values()],
+#                visibility=Symbol.Visibility.PRIVATE)
+#            name_map[interface_sym.name] = new_sym
 
         if update_all:
             # We will update all Calls/Kernels associated with the
