@@ -116,6 +116,7 @@ with ``GH_SCALAR`` metadata. Scalar arguments can have ``real``,
 ``integer`` or ``logical`` data type in :ref:`user-defined Kernels
 <lfric-kernel-valid-data-type>` (``logical`` data type is not supported
 in the :ref:`LFRic Built-ins <lfric-built-ins-dtype-access>`).
+See example ``examples/lfric/eg1``.
 
 .. _lfric-array:
 
@@ -127,6 +128,7 @@ least rank (number of dimensions) one. Scalar arrays are identified with
 ``GH_SCALAR_ARRAY`` metadata. As with scalars, array arguments can have
 ``real``, ``integer`` or ``logical`` data type in
 :ref:`user-defined Kernels <lfric-kernel-valid-data-type>`.
+See example ``examples/lfric/eg1``.
 
 .. _lfric-field:
 
@@ -1242,8 +1244,9 @@ has. More details about the supported function spaces are in subsection
 For example, the metadata for a kernel that applies a column-wise
 operator to a field might look like::
 
-  type(arg_type) :: meta_args(3) = (/                              &
+  type(arg_type) :: meta_args(4) = (/                              &
        arg_type(GH_FIELD, GH_REAL, GH_INC, W1),                    &
+       arg_type(GH_SCALAR_ARRAY, GH_INTEGER, GH_READ, 5),          &
        arg_type(GH_FIELD, GH_REAL, GH_READ, W2H),                  &
        arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, W1, W2H) &
        /)
@@ -4178,10 +4181,9 @@ LFRic API. This is because the properties that it makes constant
 are API specific.
 
 The LFRic API-specific transformations currently available
-are given below. Early transformations include "Dynamo0p3" or "Dynamo"
-in their name to indicate that these transformations are only valid
-for this particular API. More recent transformations typically include
-"LFRic" in their name to indicate the same restriction. However, more
+are given below. These transformations typically include "LFRic" in 
+their name to indicate that these transformations are only valid
+for this particular API. However, more
 importantly, transformations that are specific to LFRic reside in the
 LFRic-specific "psyclone.domain/lfric/transformations"
 directory. Note, the early LFRic API-specific

@@ -1,3 +1,20 @@
+   56) PR #3607. Removes the support for the "Dynamo0p3" prefix on
+   LFRic-specific transformations. 
+
+   55) PR #3603 for #1770. Make lfric/eg20 compile.
+
+   54) PR #3587 towards #2216. Adds a new KernelInlineTrans to do
+   a deferred InlineTrans on Kernels after lower the PSy layer.
+ 
+   53) PR #3599 for #3596 and #3195. Updates the fparser2 frontend to
+   create a Call rather than an IntrinsicCall when an imported Symbol
+   shadows an Intrinsic.
+ 
+   52) PR #3574 for #3568. Removes references to fparser from the DUC
+   implementation (by extending the query functionality on CodeBlock).
+ 
+   51) PR #3520 for #1312. Fix psy-layer generation for LFRic scalar arrays.
+
    50) Adds ArrayIntrinsic2LoopTrans and Intrinsic2CodeTrans
    metatransformations. 
 
