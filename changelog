@@ -1,3 +1,6 @@
+   56) PR #3607. Removes the support for the "Dynamo0p3" prefix on
+   LFRic-specific transformations. 
+
    55) PR #3603 for #1770. Make lfric/eg20 compile.
 
    54) PR #3587 towards #2216. Adds a new KernelInlineTrans to do
