@@ -77,6 +77,8 @@ contains
     fld1(1) = module_function()
     call module_subroutine()
     call local_subroutine()
+    ! TODO #3142 `unknown_subroutine` should be declared EXTERNAL but
+    ! this is not yet supported in the PSyIR.
     call unknown_subroutine()
     module_var_a = 1
 

@@ -471,7 +471,7 @@ class KernelModuleInlineTrans(Transformation):
 
         for code_to_inline in updated_routines:
             # Create a new name for the routine.
-            new_name = code_to_inline.name+"_inlined_"
+            new_name = f"{code_to_inline.name}_inlined_"
             new_sym = container.symbol_table.new_symbol(
                 new_name, symbol_type=RoutineSymbol)
             new_sym.copy_properties(code_to_inline.symbol,
@@ -486,6 +486,11 @@ class KernelModuleInlineTrans(Transformation):
             code_to_inline.symbol = new_sym
             container.addchild(code_to_inline)
 
+        # TODO #3142 - once we have support for giving Symbols an 'EXTERNAL'
+        # interface then we should do this if `container` is a FileContainer.
+
+        # We have to create new interface symbols for any interfaces that we
+        # are module inlining.
         for iface_name, member_names in inlined_interfaces.items():
             # Create a new name for the interface
             new_name = f"{iface_name}_inlined_"
