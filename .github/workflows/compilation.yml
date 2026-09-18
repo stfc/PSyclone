@@ -95,6 +95,10 @@ jobs:
         . .runner_venv/bin/activate
         module load gcc/${GFORTRAN_VERSION} openmpi/${OPENMPI_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
+        # TODO #3142 it would be good to check for implicitly-declared
+        # procedures (-Werror=implicit-procedure) but we can't until PSyclone
+        # has support for the EXTERNAL statement.
+        # check for procedures with an implicit interface.
         pytest -n ${NUM_PARALLEL} --f90=gfortran --f90flags="-ffree-line-length-none" --compile --compileopencl src/psyclone/tests
     - name: Unit tests with compilation - nvfortran
       run: |

@@ -13,7 +13,6 @@ import re
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import CodedKern, Kern
@@ -22,7 +21,8 @@ from psyclone.psyir.nodes import (
     Container, Routine, CodeBlock, Call, IntrinsicCall, Fparser2CodeBlock)
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, GenericInterfaceSymbol, ImportInterface,
-    RoutineSymbol, ScalarType, Symbol, SymbolError, UnresolvedInterface)
+    RoutineSymbol, ScalarType, StaticInterface, Symbol, SymbolError,
+    UnresolvedInterface)
 from psyclone.psyir.transformations import (
     TransformationError, OMPDeclareTargetTrans)
 from psyclone.transformations import ACCRoutineTrans
@@ -334,6 +334,63 @@ def test_validate_already_existing_local_routine(fortran_reader, caplog):
             "local scope." in caplog.text)
 
 
+def test_validate_rejects_local_data_access_in_sub_call(fortran_reader,
+                                                        monkeypatch):
+    '''
+    Test that validation catches an unsupported access to local module state
+    when it occurs down the call stack from the target kernel.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        implicit none
+        integer, parameter :: r_def = kind(1.0d0)
+        integer, private :: some_state
+        contains
+        subroutine compute_cv_code()
+            real(kind=r_def) :: a
+            call do_something()
+        end subroutine compute_cv_code
+        subroutine do_something()
+          some_state = 1
+        end subroutine do_something
+    end module my_mod
+    ''')
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
+                           idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    kern_call = schedule.walk(Kern)[1]
+
+    # Manually set the kernel to the desired problematic code
+    routine = psyir.walk(Routine)[0]
+    assert routine.symbol.name == "compute_cv_code"
+    monkeypatch.setattr(kern_call, "_schedules", [routine])
+
+    inline_trans = KernelModuleInlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(kern_call)
+    assert ("apply KernelModuleInlineTrans to routine 'compute_cv_code->"
+            "do_something' because it accesses" in str(err.value))
+    assert ("routine 'do_something' contains accesses to 'some_state' which "
+            "is declared" in str(err.value))
+
+    # Repeat the test but for the case where the routine at the bottom of
+    # the stack has a static symbol (which might therefore accumulate state
+    # from calls other than the one we are looking at).
+    do_something = psyir.walk(Routine)[1]
+    assert do_something.symbol.name == "do_something"
+    # Remove the assignment to the module variable
+    do_something[0].detach()
+    # Add a static symbol
+    do_something.symbol_table.add(
+        DataSymbol("trouble", ScalarType.integer_type(),
+                   interface=StaticInterface()))
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(kern_call)
+    assert ("->do_something' because it contains static data symbol(s): "
+            "'trouble'" in str(err.value))
+
+
 def test_validate_fail_to_get_psyir(fortran_reader, config_instance):
     '''
     Test that the validate() method raises the expected error if the
@@ -602,7 +659,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    new_routines = inline_trans._prepare_code_to_inline([routine])
+    new_routines, new_interfaces = inline_trans._prepare_code_to_inline(
+        [routine])
     result = fortran_writer(new_routines[0])
     assert "use external_mod1" in result
     assert "use external_mod2" in result
@@ -624,7 +682,8 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    new_routines = inline_trans._prepare_code_to_inline([routine])
+    new_routines, new_interfaces = inline_trans._prepare_code_to_inline(
+        [routine])
     result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : a" in result
     assert "use external_mod2, only : b=>var1, c=>var2" in result
@@ -648,7 +707,7 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    new_routines = inline_trans._prepare_code_to_inline([routine])
+    new_routines, _ = inline_trans._prepare_code_to_inline([routine])
     result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : a, d" in result
     assert "use external_mod2, only : b=>var1, c=>var2, var1" in result
@@ -674,7 +733,7 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    new_routines = inline_trans._prepare_code_to_inline([routine])
+    new_routines, _ = inline_trans._prepare_code_to_inline([routine])
     result = fortran_writer(new_routines[0])
     # The code_to_inline will contain the needed module imports, but
     # will ignore the non-used imports
@@ -699,7 +758,7 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    new_routines = inline_trans._prepare_code_to_inline([routine])
+    new_routines, _ = inline_trans._prepare_code_to_inline([routine])
     result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : r_def" in result
     assert "use not_needed" not in result
@@ -720,7 +779,7 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    new_routines = inline_trans._prepare_code_to_inline([routine])
+    new_routines, _ = inline_trans._prepare_code_to_inline([routine])
     result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : my_sub" in result
 
@@ -737,7 +796,7 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    new_routines = inline_trans._prepare_code_to_inline([routine])
+    new_routines, _ = inline_trans._prepare_code_to_inline([routine])
     result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : a, b" in result
 
@@ -757,7 +816,7 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    new_routines = inline_trans._prepare_code_to_inline([routine])
+    new_routines, _ = inline_trans._prepare_code_to_inline([routine])
     result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : c" in result
 
@@ -775,7 +834,7 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
-    new_routines = inline_trans._prepare_code_to_inline([routine])
+    new_routines, _ = inline_trans._prepare_code_to_inline([routine])
     result = fortran_writer(new_routines[0])
     assert "use external_mod\n" in result
     assert "use external_mod, only : r_def" not in result
@@ -791,19 +850,16 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
-    new_routines = inline_trans._prepare_code_to_inline([routine])
+    new_routines, _ = inline_trans._prepare_code_to_inline([routine])
     result = fortran_writer(new_routines[0])
     assert "use external_mod, only : a" in result
 
 
-def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
+def test_module_inline_lfric(tmpdir, annexed, dist_mem):
     '''Tests that correct results are obtained when a kernel is inlined
     into the psy-layer in the LFRic API.
 
     '''
-    config = Config.get()
-    lfric_config = config.api_conf("lfric")
-    monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke("4.6_multikernel_invokes.f90", "lfric",
                              name="invoke_0", dist_mem=dist_mem)
     kern_call = invoke.schedule.walk(CodedKern)[0]
@@ -821,6 +877,27 @@ def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
     assert "omp declare target" in gen
     # And it is valid code
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_module_inline_lfric_kern_local_call(tmp_path, annexed, dist_mem):
+    '''
+    '''
+    psy, invoke = get_invoke("1.15.1_invoke_kern_with_local_call.f90", "lfric",
+                             dist_mem=dist_mem, idx=0)
+    kern_call = invoke.schedule.walk(CodedKern)[0]
+    mod_inline_trans = KernelModuleInlineTrans()
+    mod_inline_trans.apply(kern_call)
+    gen = str(psy.gen)
+    assert "subroutine testkern_with_local_call_code_inlined_" in gen
+    assert "subroutine a_local_routine_inlined_" in gen
+    assert "subroutine local1_inlined_" in gen
+    assert "subroutine local2_inlined_" in gen
+    assert "interface a_local_polymorph_inlined_" in gen
+    assert "call a_local_routine_inlined_(" in gen
+    assert "call a_local_routine(" not in gen
+    assert "call a_local_polymorph_inlined_(" in gen
+    assert "call a_local_polymorph(" not in gen
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
 @pytest.mark.parametrize("do_all", [True, False])
@@ -1082,7 +1159,11 @@ def test_mod_inline_no_container(fortran_reader, fortran_writer, tmpdir,
     # The original import is unchanged
     assert "use my_mod, only : my_sub" in output
     # but we remove it so that we can check compilation
-    fixed = output.replace("use my_mod, only : my_sub\n", "")
+    # TODO #3142 - we also have to manually add an `external` statement as
+    # we often run the compilation tests with a flag that rejects procedures
+    # with an implicit interface.
+    fixed = output.replace("use my_mod, only : my_sub\n",
+                           "external :: my_sub_inlined_\n")
 
     assert Compile(tmpdir).string_compiles(fixed)
 
@@ -1140,7 +1221,11 @@ subroutine my_sub_inlined_(arg)''' in output)
     assert "subroutine my_sub_inlined__1" in output
     assert "call my_sub_inlined__1(" in output
     # Remove the use statement so we can test compilation.
-    fixed = output.replace("use my_mod\n", "")
+    # TODO #3142 - we also have to manually add an `external` statement as
+    # we often run the compilation tests with a flag that rejects procedures
+    # with an implicit interface.
+    fixed = output.replace("use my_mod\n",
+                           "external :: my_sub_inlined_, my_sub_inlined__1\n")
     assert Compile(tmp_path).string_compiles(fixed)
 
 
