@@ -5,12 +5,17 @@
 # See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
+''' This module contains the ACCLoopTrans transformation.'''
+
+from typing import Union
 
 from psyclone.psyir.transformations.parallel_loop_trans import (
     ParallelLoopTrans)
-from psyclone.psyir.nodes import (ACCLoopDirective, PSyDataNode)
+from psyclone.psyir.nodes import (ACCLoopDirective, Loop, PSyDataNode)
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class ACCLoopTrans(ParallelLoopTrans):
     '''
     Adds an OpenACC loop directive to a loop. This directive must be within
@@ -52,7 +57,9 @@ class ACCLoopTrans(ParallelLoopTrans):
     def __str__(self):
         return "Adds an 'OpenACC loop' directive to a loop"
 
-    def _directive(self, children, collapse=None):
+    def _directive(
+        self, children, collapse: Union[int, None] = None
+    ) -> ACCLoopDirective:
         '''
         Creates the ACCLoopDirective needed by this sub-class of
         transformation.
@@ -70,7 +77,11 @@ class ACCLoopTrans(ParallelLoopTrans):
                                      vector=self._vector)
         return directive
 
-    def apply(self, node, options=None):
+    def apply(self, node: Loop, options=None,
+              independent: bool = True,
+              sequential: bool = False,
+              gang: bool = False, vector: bool = False,
+              **kwargs) -> None:
         '''
         Apply the ACCLoop transformation to the specified node. This node
         must be a Loop since this transformation corresponds to
@@ -88,32 +99,41 @@ class ACCLoopTrans(ParallelLoopTrans):
 
         :param node: the supplied node to which we will apply the
                      Loop transformation.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param int options["collapse"]: number of nested loops to collapse.
-        :param bool options["independent"]: whether to add the "independent"
+        :param independent: whether to add the "independent"
                 clause to the directive (not strictly necessary within
                 PARALLEL regions).
-        :param bool options["sequential"]: whether to add the "seq" clause to
+        :param sequential: whether to add the "seq" clause to
                 the directive.
-        :param bool options["gang"]: whether to add the "gang" clause to the
+        :param gang: whether to add the "gang" clause to the
                 directive.
-        :param bool options["vector"]: whether to add the "vector" clause to
+        :param vector: whether to add the "vector" clause to
                 the directive.
 
         '''
         # Store sub-class specific options. These are used when
         # creating the directive (in the _directive() method).
-        if not options:
-            options = {}
-        self._independent = options.get("independent", True)
-        self._sequential = options.get("sequential", False)
-        self._gang = options.get("gang", False)
-        self._vector = options.get("vector", False)
+        # TODO 2668: Deprecate options dict.
+        if options:
+            self._independent = options.get("independent", True)
+            self._sequential = options.get("sequential", False)
+            self._gang = options.get("gang", False)
+            self._vector = options.get("vector", False)
+        else:
+            self.validate_options(independent=independent,
+                                  sequential=sequential,
+                                  gang=gang, vector=vector,
+                                  **kwargs)
+            self._independent = independent
+            self._sequential = sequential
+            self._gang = gang
+            self._vector = vector
 
         # Call the apply() method of the base class
-        super().apply(node, options)
+        super().apply(node, options, independent=independent,
+                      sequential=sequential, gang=gang, vector=vector,
+                      **kwargs)
 
 
 # For Sphinx AutoAPI documentation generation
