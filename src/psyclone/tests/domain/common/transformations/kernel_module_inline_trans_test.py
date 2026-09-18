@@ -21,7 +21,8 @@ from psyclone.psyir.nodes import (
     Container, Routine, CodeBlock, Call, IntrinsicCall, Fparser2CodeBlock)
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, GenericInterfaceSymbol, ImportInterface,
-    RoutineSymbol, ScalarType, Symbol, SymbolError, UnresolvedInterface)
+    RoutineSymbol, ScalarType, StaticInterface, Symbol, SymbolError,
+    UnresolvedInterface)
 from psyclone.psyir.transformations import (
     TransformationError, OMPDeclareTargetTrans)
 from psyclone.transformations import ACCRoutineTrans
@@ -331,6 +332,63 @@ def test_validate_already_existing_local_routine(fortran_reader, caplog):
         inline_trans.apply(call)
     assert ("The target of 'call do_something(a)' is already present in the "
             "local scope." in caplog.text)
+
+
+def test_validate_rejects_local_data_access_in_sub_call(fortran_reader,
+                                                        monkeypatch):
+    '''
+    Test that validation catches an unsupported access to local module state
+    when it occurs down the call stack from the target kernel.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        implicit none
+        integer, parameter :: r_def = kind(1.0d0)
+        integer, private :: some_state
+        contains
+        subroutine compute_cv_code()
+            real(kind=r_def) :: a
+            call do_something()
+        end subroutine compute_cv_code
+        subroutine do_something()
+          some_state = 1
+        end subroutine do_something
+    end module my_mod
+    ''')
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
+                           idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    kern_call = schedule.walk(Kern)[1]
+
+    # Manually set the kernel to the desired problematic code
+    routine = psyir.walk(Routine)[0]
+    assert routine.symbol.name == "compute_cv_code"
+    monkeypatch.setattr(kern_call, "_schedules", [routine])
+
+    inline_trans = KernelModuleInlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(kern_call)
+    assert ("apply KernelModuleInlineTrans to routine 'compute_cv_code->"
+            "do_something' because it accesses" in str(err.value))
+    assert ("routine 'do_something' contains accesses to 'some_state' which "
+            "is declared" in str(err.value))
+
+    # Repeat the test but for the case where the routine at the bottom of
+    # the stack has a static symbol (which might therefore accumulate state
+    # from calls other than the one we are looking at).
+    do_something = psyir.walk(Routine)[1]
+    assert do_something.symbol.name == "do_something"
+    # Remove the assignment to the module variable
+    do_something[0].detach()
+    # Add a static symbol
+    do_something.symbol_table.add(
+        DataSymbol("trouble", ScalarType.integer_type(),
+                   interface=StaticInterface()))
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(kern_call)
+    assert ("->do_something' because it contains static data symbol(s): "
+            "'trouble'" in str(err.value))
 
 
 def test_validate_fail_to_get_psyir(fortran_reader, config_instance):
