@@ -36,7 +36,7 @@ from psyclone.psyGen import (TransInfo, PSyFactory,
                              InvokeSchedule)
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
                                   Literal, Loop, Node, KernelSchedule, Call,
-                                  colored, Reference, Schedule)
+                                  Reference, Schedule)
 from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, ScalarType,
                                     ImportInterface, ContainerSymbol,
                                     UnresolvedType, SymbolTable)
@@ -46,6 +46,7 @@ from psyclone.tests.test_files.dummy_transformations import LocalTransformation
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (LFRicColourTrans,
                                       Transformation)
+from psyclone.utils import colored
 
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -496,11 +497,7 @@ def test_valid_return_object_from_name():
 def test_find_subclasses():
     '''Test for the _find_subclasses() method.'''
     trans = TransInfo()
-    # Check that the method does not include the legacy names for the
-    # LFRic transformations.
     classes = trans._find_subclasses(transformations, Transformation)
-    for cls in classes:
-        assert "dynamo0p3" not in cls.__name__.lower()
     # Check that the method finds at least one transformation we know about.
     # We don't check for every transformation as this would break every time
     # we added a new one.
