@@ -30,7 +30,7 @@ def trans(psyir):
 
         try:
             while True:
-                ftrans.apply(subroutine[0], subroutine[1])
+                ftrans.apply((subroutine[0], subroutine[1]))
         except TransformationError as info:
             print(str(info.value))
 

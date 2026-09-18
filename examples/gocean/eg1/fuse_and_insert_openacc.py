@@ -33,16 +33,16 @@ def trans(psyir: FileContainer):
     for invoke in invokes:
         if invoke.name == "invoke_0":
             # fuse all outer loops
-            fuse_trans.apply(invoke.children[0], invoke.children[1])
-            fuse_trans.apply(invoke.children[0], invoke.children[1])
-            fuse_trans.apply(invoke.children[0], invoke.children[1])
+            fuse_trans.apply((invoke.children[0], invoke.children[1]))
+            fuse_trans.apply((invoke.children[0], invoke.children[1]))
+            fuse_trans.apply((invoke.children[0], invoke.children[1]))
             # fuse all inner loops
-            fuse_trans.apply(invoke.children[0].loop_body[0],
-                             invoke.children[0].loop_body[1])
-            fuse_trans.apply(invoke.children[0].loop_body[0],
-                             invoke.children[0].loop_body[1])
-            fuse_trans.apply(invoke.children[0].loop_body[0],
-                             invoke.children[0].loop_body[1])
+            fuse_trans.apply((invoke.children[0].loop_body[0],
+                             invoke.children[0].loop_body[1]))
+            fuse_trans.apply((invoke.children[0].loop_body[0],
+                             invoke.children[0].loop_body[1]))
+            fuse_trans.apply((invoke.children[0].loop_body[0],
+                             invoke.children[0].loop_body[1]))
             # Apply an OpenACC loop directive to the loop
             ltrans.apply(invoke.children[0], {"collapse": 2})
 

@@ -30,7 +30,7 @@ def test_fusetrans_error_incomplete():
 
     # Check first loop
     with pytest.raises(TransformationError) as err:
-        fuse.validate(loop1, loop2)
+        fuse.validate((loop1, loop2))
     assert ("Error in LoopFuseTrans transformation. The target loop must have "
             "five children but found: " in str(err.value))
 
@@ -42,7 +42,7 @@ def test_fusetrans_error_incomplete():
 
     # Check second loop
     with pytest.raises(TransformationError) as err:
-        fuse.validate(loop1, loop2)
+        fuse.validate((loop1, loop2))
     assert ("Error in LoopFuseTrans transformation. The target loop must have "
             "five children but found: " in str(err.value))
 
@@ -53,7 +53,7 @@ def test_fusetrans_error_incomplete():
     loop2.loop_body.addchild(Return())
 
     # Validation should now pass
-    fuse.validate(loop1, loop2)
+    fuse.validate((loop1, loop2))
 
 
 # ----------------------------------------------------------------------------
@@ -80,7 +80,7 @@ def test_fusetrans_error_not_same_parent():
 
     # Try to fuse loops with different parents
     with pytest.raises(TransformationError) as err:
-        fuse.validate(loop1, loop2)
+        fuse.validate((loop1, loop2))
     assert ("Error in LoopFuseTrans transformation. Loops do not have the "
             "same parent" in str(err.value))
 
@@ -109,7 +109,7 @@ def fuse_loops(fortran_code, fortran_reader, fortran_writer):
     # Raise the language-level PSyIR to NEMO PSyIR
     loop1 = psyir.children[0].children[0]
     loop2 = psyir.children[0].children[1]
-    fuse.apply(loop1, loop2)
+    fuse.apply((loop1, loop2))
 
     return fortran_writer(psyir), psyir
 
@@ -140,7 +140,7 @@ def test_fuse_dependency_tools_called(fortran_reader):
     fuse = LoopFuseTrans()
     with mock.patch("psyclone.psyir.tools.dependency_tools.DependencyTools."
                     "can_loops_be_fused", result=True) as dep_fuse_check:
-        fuse.apply(loop1, loop2)
+        fuse.apply((loop1, loop2))
     dep_fuse_check.assert_called_once_with(loop1, loop2)
 
 
@@ -179,8 +179,8 @@ def test_fuse_ok(tmpdir, fortran_reader, fortran_writer):
 
     # Then fuse the inner ji loops
     fuse = LoopFuseTrans()
-    fuse.apply(psyir.children[0][0].loop_body[0],
-               psyir.children[0][0].loop_body[1])
+    fuse.apply((psyir.children[0][0].loop_body[0],
+               psyir.children[0][0].loop_body[1]))
 
     out = fortran_writer(psyir)
     expected = """
@@ -248,11 +248,11 @@ def test_fuse_removes_unused_symbols(
     # Monkeypatch to mimic the case where these are fine to fuse (e.g.
     # because of additional DSL knowledge)
     monkeypatch.setattr(fuse, "validate",
-                        lambda _1, _2, options, **kwargs: True)
+                        lambda _1, options, **kwargs: True)
 
     loop1 = psyir.children[0].children[0]
     loop2 = psyir.children[0].children[1]
-    fuse.apply(loop1, loop2)
+    fuse.apply((loop1, loop2))
 
     out = fortran_writer(psyir)
     # The unused symbol n1 now should not be declared
@@ -549,7 +549,7 @@ def test_fuse_no_symbol(fortran_reader, fortran_writer):
     # two children which are the two loops:
     loop1 = psyir.children[0].children[0][0]
     loop2 = psyir.children[0].children[0][1]
-    fuse.apply(loop1, loop2)
+    fuse.apply((loop1, loop2))
 
     out = fortran_writer(psyir)
     assert """
@@ -576,7 +576,7 @@ def test_loop_fuse_different_iterates_over(fortran_reader):
     # generic loop bounds would be enough. Otherwise this should be moved
     # into a PSyLoopFuseTrans specialization.
     with pytest.raises(TransformationError) as err:
-        fuse.apply(schedule.children[0], schedule.children[1])
+        fuse.apply((schedule.children[0], schedule.children[1]))
     assert "Loops do not have the same iteration space" in str(err.value)
 
     # Generic loops compare the loop bounds
@@ -598,7 +598,7 @@ def test_loop_fuse_different_iterates_over(fortran_reader):
     loop1 = psyir.children[0].children[0]
     loop2 = psyir.children[0].children[1]
     with pytest.raises(TransformationError) as err:
-        fuse.apply(loop1, loop2)
+        fuse.apply((loop1, loop2))
     assert ("Error in LoopFuseTrans transformation. Loops do not have "
             "the same iteration space" in str(err.value))
 
@@ -621,7 +621,7 @@ def test_loop_fuse_different_iterates_over(fortran_reader):
     loop1 = psyir.children[0].children[0]
     loop2 = psyir.children[0].children[1]
     # TODO #2668 deprecate options dict. This is to keep current coverage.
-    fuse.apply(loop1, loop2, options={"force": False})
+    fuse.apply((loop1, loop2), options={"force": False})
 
 
 def test_loop_fuse_different_variables(fortran_reader, fortran_writer):
@@ -642,7 +642,7 @@ def test_loop_fuse_different_variables(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.children[0].walk(Loop)
     fuse = LoopFuseTrans()
-    fuse.apply(loops[1], loops[2])
+    fuse.apply((loops[1], loops[2]))
     out = fortran_writer(psyir)
     correct = '''subroutine sub()
   integer :: ji
@@ -668,7 +668,7 @@ end subroutine sub'''
     loops = psyir.children[0].walk(Loop)
     fuse = LoopFuseTrans()
     with pytest.raises(TransformationError) as err:
-        fuse.apply(loops[2], loops[1])
+        fuse.apply((loops[2], loops[1]))
     assert ("Error in LoopFuseTrans transformation. The second loop does not "
             "immediately follow the first loop" in str(err.value))
 
@@ -693,7 +693,7 @@ def test_loop_fuse_different_variables_with_access(fortran_reader):
     loops = psyir.children[0].walk(Loop)
     fuse = LoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
-        fuse.apply(loops[1], loops[2])
+        fuse.apply((loops[1], loops[2]))
     assert ("LoopFuseTrans. Error: Second loop contains "
             "accesses to the first loop's variable: ji." in str(excinfo.value))
 
@@ -714,7 +714,7 @@ def test_loop_fuse_different_variables_with_access(fortran_reader):
     loops = psyir.children[0].walk(Loop)
     fuse = LoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
-        fuse.apply(loops[1], loops[2])
+        fuse.apply((loops[1], loops[2]))
     assert ("LoopFuseTrans. Error: First loop contains "
             "accesses to the second loop's variable: jk."
             in str(excinfo.value))

@@ -53,7 +53,7 @@ def trans(psyir: FileContainer) -> None:
     #   do i
     # do j combine
     # Fuse the three inner loops: first the first two
-    fuse.apply(schedule[0].loop_body[0], ...)
+    fuse.apply((schedule[0].loop_body[0], ...))
     # Then merge in the previous third, now second) loop
     fuse.apply(...)
     schedule.view()

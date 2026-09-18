@@ -39,10 +39,10 @@ def trans(psyir: FileContainer) -> None:
 
     fuse = GOceanLoopFuseTrans()
     # First merge 2nd and 3rd loops
-    fuse.apply(schedule[1], schedule[2])
+    fuse.apply((schedule[1], schedule[2]))
     # Then merge the (previous fourth, now third) loop to the
     # fused loop
-    fuse.apply(schedule[1], schedule[2])
+    fuse.apply((schedule[1], schedule[2]))
     # Now we have:
     # do j count_neighbours
     # do j
@@ -50,6 +50,6 @@ def trans(psyir: FileContainer) -> None:
     #   do i
     #   do i
     # Fuse the three inner loops:
-    fuse.apply(schedule[1].loop_body[0], schedule[1].loop_body[1])
-    fuse.apply(schedule[1].loop_body[0], schedule[1].loop_body[1])
+    fuse.apply((schedule[1].loop_body[0], schedule[1].loop_body[1]))
+    fuse.apply((schedule[1].loop_body[0], schedule[1].loop_body[1]))
     print(schedule.view())
