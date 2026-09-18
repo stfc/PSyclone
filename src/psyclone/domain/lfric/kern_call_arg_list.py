@@ -763,11 +763,11 @@ class KernCallArgList(ArgOrdering):
 
         '''
         for rule in self._kern.qr_rules.values():
-            basis_name = function_space.get_basis_name(qr_var=rule.psy_name)
+            basis_name, basis_tag = function_space.get_basis_name(
+                qr_var=rule.psy_name)
             sym = self.append_array_reference(
-                f"basis_{function_space.short_mangled_name}",
-                [":", ":", ":", ":"],
-                LFRicTypes("LFRicRealScalarDataType")(), tag=basis_name)
+                basis_name, [":", ":", ":", ":"],
+                LFRicTypes("LFRicRealScalarDataType")(), tag=basis_tag)
             self.append(sym.name, var_accesses)
 
         if "gh_evaluator" in self._kern.eval_shapes:
@@ -778,11 +778,11 @@ class KernCallArgList(ArgOrdering):
                 # the tuple dict entry associated with the name of the target
                 # function space
                 fspace = self._kern.eval_targets[fs_name][0]
-                basis_name = function_space.get_basis_name(on_space=fspace)
+                basis_name, basis_tag = function_space.get_basis_name(
+                    on_space=fspace)
                 sym = self.append_array_reference(
-                    f"basis_{fspace.short_mangled_name}",
-                    [":", ":", ":"],
-                    tag=basis_name)
+                    basis_name, [":", ":", ":"],
+                    tag=basis_tag)
                 self.append(sym.name, var_accesses)
 
     def diff_basis(self, function_space,
@@ -799,13 +799,12 @@ class KernCallArgList(ArgOrdering):
 
         '''
         for rule in self._kern.qr_rules.values():
-            diff_basis_name = function_space.get_diff_basis_name(
+            diff_basis_name, dbasis_tag = function_space.get_diff_basis_name(
                 qr_var=rule.psy_name)
             sym = self.append_array_reference(
-                    "diff_basis",
-                    [":", ":", ":", ":"],
-                    LFRicTypes("LFRicRealScalarDataType")(),
-                tag=diff_basis_name
+                diff_basis_name, [":", ":", ":", ":"],
+                LFRicTypes("LFRicRealScalarDataType")(),
+                tag=dbasis_tag
             )
             self.append(sym.name, var_accesses)
 
@@ -817,13 +816,12 @@ class KernCallArgList(ArgOrdering):
                 # the tuple dict entry associated with the name of the target
                 # function space
                 fspace = self._kern.eval_targets[fs_name][0]
-                diff_basis_name = function_space.get_diff_basis_name(
+                dbasis_name, dbasis_tag = function_space.get_diff_basis_name(
                     on_space=fspace)
                 sym = self.append_array_reference(
-                    "diff_basis",
-                    [":", ":", ":"],
+                    dbasis_name, [":", ":", ":"],
                     LFRicTypes("LFRicRealScalarDataType")(),
-                    tag=diff_basis_name)
+                    tag=dbasis_tag)
                 self.append(sym.name, var_accesses)
 
     def field_bcs_kernel(self, function_space,

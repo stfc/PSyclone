@@ -238,12 +238,15 @@ class FunctionSpace():
         :returns: name for the Fortran array holding the basis function
 
         '''
-        name = f"basis:{self.mangled_name}"
+        tag = f"basis:{self.mangled_name}"
+        name = f"basis_{self.short_mangled_name}"
         if qr_var:
+            tag += "_" + qr_var
             name += "_" + qr_var
         if on_space:
-            name += "_on_" + on_space.mangled_name
-        return name
+            tag += "_on_" + on_space.mangled_name
+            name += "_on_" + on_space.short_mangled_name
+        return name, tag
 
     def get_diff_basis_name(self,
                             qr_var: str = None,
@@ -264,12 +267,15 @@ class FunctionSpace():
                   function
 
         '''
-        name = "diff_basis:" + self.mangled_name
+        tag = f"diff_basis:{self.mangled_name}"
+        name = f"diff_basis_{self.mangled_name}"
         if qr_var:
+            tag += "_" + qr_var
             name += "_" + qr_var
         if on_space:
-            name += "_on_" + on_space.mangled_name
-        return name
+            tag += f"_on_{on_space.mangled_name}"
+            name += f"_on_{on_space.short_mangled_name}"
+        return name, tag
 
     def get_operator_name(self,
                           operator_name: str,

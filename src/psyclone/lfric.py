@@ -3265,12 +3265,12 @@ class LFRicBasisFunctions(LFRicCollection):
 
         # Allocate basis arrays
         for basis in basis_arrays:
-            dims = "("+",".join([":"]*len(basis_arrays[basis]))+")"
+            dims = "("+",".join([":"]*(len(basis_arrays[basis])-1))+")"
             # TODO - it would be better if we could keep some function-space
             # info in the name but that means that the dict returned by
             # _basis_fn_declns needs to hold a 2-tuple: one entry for the
             # function space and one of the list of names.
-            new_name = self.symtab.next_available_name(basis.split(":")[0])
+            new_name = self.symtab.next_available_name(basis_arrays[basis][0])
             symbol = self.symtab.find_or_create_tag(
                 tag=basis, root_name=new_name, symbol_type=DataSymbol,
                 datatype=UnsupportedFortranType(
@@ -3280,7 +3280,7 @@ class LFRicBasisFunctions(LFRicCollection):
                 IntrinsicCall.Intrinsic.ALLOCATE,
                 [ArrayReference.create(
                     symbol,
-                    [Reference(bn) for bn in basis_arrays[basis]]
+                    [Reference(bn) for bn in basis_arrays[basis][1:]]
                 )])
             self._invoke.schedule.addchild(alloc, cursor)
             cursor += 1
@@ -3367,9 +3367,9 @@ class LFRicBasisFunctions(LFRicCollection):
                         f"Quadrature '{basis_fn['''shape''']}' is required but"
                         f" have no name for the associated Quadrature object.")
 
-                op_name = basis_fn["fspace"].get_operator_name(basis_name,
-                                                               qr_var=qr_var)
-                if op_name in basis_arrays:
+                op_name, op_tag = basis_fn["fspace"].get_operator_name(
+                    basis_name, qr_var=qr_var)
+                if op_tag in basis_arrays:
                     # We've already seen a basis with this name so skip
                     continue
 
@@ -3380,29 +3380,30 @@ class LFRicBasisFunctions(LFRicCollection):
                     # In a kernel stub the first dimension of the array is
                     # a numerical value so make sure we don't try and declare
                     # it as a variable.
-                    if not isinstance(arg, Literal) and arg.name not in var_dim_list:
+                    if not isinstance(arg, Literal) and (arg.name not in
+                                                         var_dim_list):
                         var_dim_list.append(arg.name)
-                basis_arrays[op_name] = alloc_args
+                basis_arrays[op_tag] = [op_name] + alloc_args
 
             elif basis_fn["shape"].lower() == "gh_evaluator":
                 # This is an evaluator and thus may be required on more than
                 # one function space
                 for target_space in basis_fn["nodal_fspaces"]:
-                    op_name = basis_fn["fspace"].\
+                    op_name, op_tag = basis_fn["fspace"].\
                         get_operator_name(basis_name,
                                           qr_var=basis_fn["qr_var"],
                                           on_space=target_space)
-                    if op_name in basis_arrays:
+                    if op_tag in basis_arrays:
                         continue
                     # We haven't seen a basis with this name before so
                     # need to store its dimensions
-                    basis_arrays[op_name] = [
+                    basis_arrays[op_tag] = [
+                        op_name,
                         first_dim,
                         self.symtab.lookup_with_tag(
                             basis_fn['fspace'].ndf_name),
                         self.symtab.lookup_with_tag(
                             target_space.ndf_name)]
-                        #target_space.ndf_name]
             else:
                 raise InternalError(
                     f"Unrecognised evaluator shape: '{basis_fn['''shape''']}'."
@@ -3656,12 +3657,12 @@ class LFRicBasisFunctions(LFRicCollection):
                     f"'{basis_fn['''type''']}'. Expected one of 'basis' or "
                     f"'diff-basis'.")
             if basis_fn["shape"] in const.VALID_QUADRATURE_SHAPES:
-                op_name = basis_fn["fspace"].\
+                op_name, op_tag = basis_fn["fspace"].\
                     get_operator_name(basis_name, qr_var=basis_fn["qr_var"])
-                if op_name in op_name_list:
+                if op_tag in op_name_list:
                     # Jump over any basis arrays we've seen before
                     continue
-                op_name_list.append(op_name)
+                op_name_list.append(op_tag)
 
                 ndf_sym = self.symtab.lookup_with_tag(f"ndf:{mangled_name}")
                 # Create the argument list
@@ -3669,7 +3670,7 @@ class LFRicBasisFunctions(LFRicCollection):
                         basis_fn["arg"].generate_accessor(basis_fn["fspace"]),
                         Reference(first_dim_sym),
                         Reference(ndf_sym),
-                        Reference(self.symtab.lookup_with_tag(op_name))]
+                        Reference(self.symtab.lookup_with_tag(op_tag))]
 
                 # insert the basis array call
                 call = Call.create(
@@ -3686,12 +3687,12 @@ class LFRicBasisFunctions(LFRicCollection):
                 # We have an evaluator. We may need this on more than one
                 # function space.
                 for space in basis_fn["nodal_fspaces"]:
-                    op_name = basis_fn["fspace"].\
+                    op_name, op_tag = basis_fn["fspace"].\
                         get_operator_name(basis_name, on_space=space)
-                    if op_name in op_name_list:
+                    if op_tag in op_name_list:
                         # Jump over any basis arrays we've seen before
                         continue
-                    op_name_list.append(op_name)
+                    op_name_list.append(op_tag)
 
                     nodal_loop_var = "df_nodal"
                     loop_var_list.add(nodal_loop_var)
@@ -3728,7 +3729,7 @@ class LFRicBasisFunctions(LFRicCollection):
                             Literal('1', ScalarType.integer_type()), [])
                     loop.loop_body.addchild(inner_loop)
 
-                    symbol = self.symtab.lookup_with_tag(op_name)
+                    symbol = self.symtab.lookup_with_tag(op_tag)
                     rhs = basis_fn['arg'].generate_method_call(
                         "call_function", function_space=basis_fn['fspace'])
                     rhs.addchild(Reference(self.symtab.lookup(basis_type)))
@@ -3775,11 +3776,11 @@ class LFRicBasisFunctions(LFRicCollection):
                     f"'{basis_fn['''type''']}'. Should be one of 'basis' or "
                     f"'diff-basis'.")
             for fspace in basis_fn["nodal_fspaces"]:
-                op_name = basis_fn["fspace"].\
+                op_name, op_tag = basis_fn["fspace"].\
                     get_operator_name(basis_name,
                                       qr_var=basis_fn["qr_var"],
                                       on_space=fspace)
-                func_space_var_names.add(op_name)
+                func_space_var_names.add(op_tag)
 
         first = True
         if func_space_var_names:

@@ -549,24 +549,24 @@ def test_two_identical_qr(tmpdir):
         "    diff_dim_w2 = f2_proxy%vspace%get_dim_space_diff()\n"
         "    dim_w3 = m2_proxy%vspace%get_dim_space()\n"
         "    diff_dim_w3 = m2_proxy%vspace%get_dim_space_diff()\n"
-        "    ALLOCATE(basis_1(dim_w1,ndf_w1,np_xy_qr,np_z_qr))\n"
-        "    ALLOCATE(diff_basis_1(diff_dim_w2,ndf_w2,np_xy_qr,"
+        "    ALLOCATE(basis_w1_qr(dim_w1,ndf_w1,np_xy_qr,np_z_qr))\n"
+        "    ALLOCATE(diff_basis_w2_qr(diff_dim_w2,ndf_w2,np_xy_qr,"
         "np_z_qr))\n"
-        "    ALLOCATE(basis_2(dim_w3,ndf_w3,np_xy_qr,np_z_qr))\n"
-        "    ALLOCATE(diff_basis_2(diff_dim_w3,ndf_w3,np_xy_qr,"
+        "    ALLOCATE(basis_w3_qr(dim_w3,ndf_w3,np_xy_qr,np_z_qr))\n"
+        "    ALLOCATE(diff_basis_w3_qr(diff_dim_w3,ndf_w3,np_xy_qr,"
         "np_z_qr))\n"
         "\n")
     assert expected_alloc in code
     expected_basis_init = (
         "\n"
         "    call qr%compute_function(BASIS, f1_proxy%vspace, "
-        "dim_w1, ndf_w1, basis_1)\n"
+        "dim_w1, ndf_w1, basis_w1_qr)\n"
         "    call qr%compute_function(DIFF_BASIS, f2_proxy%vspace, "
-        "diff_dim_w2, ndf_w2, diff_basis_1)\n"
+        "diff_dim_w2, ndf_w2, diff_basis_w2_qr)\n"
         "    call qr%compute_function(BASIS, m2_proxy%vspace, "
-        "dim_w3, ndf_w3, basis_2)\n"
+        "dim_w3, ndf_w3, basis_w3_qr)\n"
         "    call qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
-        "diff_dim_w3, ndf_w3, diff_basis_2)\n"
+        "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n"
         "\n")
     assert expected_basis_init in code
     assert ("    loop0_stop = f1_proxy%vspace%get_ncell()\n"
@@ -991,24 +991,24 @@ def test_two_eval_same_var_same_space(tmpdir):
     # We should only get one set of basis and diff-basis functions in the
     # generated code
     assert code.count(
-        "ndf_ads1_f0 = f0_proxy%vspace%get_ndf()") == 1
+        "ndf_ads1_f0__1 = f0_proxy%vspace%get_ndf()") == 1
     assert code.count(
-        "    do df_nodal = 1, ndf_ads1_f0, 1\n"
+        "    do df_nodal = 1, ndf_ads1_f0__1, 1\n"
         "      do df_w0 = 1, ndf_w0, 1\n"
-        "        basis_w0_on_ads1_f0(:,df_w0,df_nodal) = f1_proxy%vspace"
-        "%call_function(BASIS, df_w0, nodes_ads1_f0(:,df_nodal))\n"
+        "        basis_w0_on_ads1_f0__1(:,df_w0,df_nodal) = f1_proxy%vspace"
+        "%call_function(BASIS, df_w0, nodes_ads1_f0__1(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n") == 1
     assert code.count(
-        "    do df_nodal = 1, ndf_ads1_f0, 1\n"
+        "    do df_nodal = 1, ndf_ads1_f0__1, 1\n"
         "      do df_w1 = 1, ndf_w1, 1\n"
-        "        diff_basis_w1_on_ads1_f0(:,df_w1,df_nodal) = f2_proxy"
-        "%vspace%call_function(DIFF_BASIS, df_w1, nodes_ads1_f0(:,"
+        "        diff_basis_w1_on_ads1_f0__1(:,df_w1,df_nodal) = f2_proxy"
+        "%vspace%call_function(DIFF_BASIS, df_w1, nodes_ads1_f0__1(:,"
         "df_nodal))\n"
         "      enddo\n"
         "    enddo\n") == 1
     assert code.count(
-        "DEALLOCATE(basis_w0_on_ads1_f0, diff_basis_w1_on_ads1_f0)") == 1
+        "DEALLOCATE(basis_w0_on_ads1_f0__1, diff_basis_w1_on_ads1_f0__1)") == 1
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
