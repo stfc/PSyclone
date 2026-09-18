@@ -231,10 +231,10 @@ module argument_mod
      !> Optional metadata (fields only) specifying how many data values
      !! there are at each DoF. Defaults to 1.
      character(len=METADATA_CHAR_LENGTH) :: ndata = "1"
-     !> Optional metadata specifying how many vertical levels
+     !> Optional metadata specifying how many vertical layers
      !! the field has. Default is to use the number associated with the
      !! first field/operator kernel argument.
-     character(len=METADATA_CHAR_LENGTH) :: nlevels = ""
+     character(len=METADATA_CHAR_LENGTH) :: nlayers = ""
   end type arg_type
 
   !> Optional metadata for the basis/differential basis functions required with

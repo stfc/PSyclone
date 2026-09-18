@@ -30,35 +30,60 @@ class KernStubArgList(ArgOrdering):
     :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
 
     :raises NotImplementedError: if the kernel is inter-grid.
-    :raises NotImplementedError: if the kernel requires properties of the \
+    :raises NotImplementedError: if the kernel requires properties of the
                                  reference element.
     '''
     def __init__(self, kern):
         ArgOrdering.__init__(self, kern)
 
-    def cell_position(self, var_accesses=None):
+    def cell_position(self,
+                      var_accesses: Optional[VariablesAccessMap] = None
+                      ) -> None:
         '''Adds a cell argument to the argument list and if supplied stores
         this access in var_accesses.
 
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         self.append("cell", var_accesses)
 
-    def mesh_height(self, var_accesses=None):
-        '''Add mesh height (nlayers) to the argument list and if supplied
-        stores this access in var_accesses.
+    def mesh_height(self,
+                    var_accesses: Optional[VariablesAccessMap] = None) -> None:
+        '''Add the distinct arguments for mesh height (nlayers) to the list
+        and, if supplied, stores these accesses in var_accesses.
 
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
-        self.append("nlayers", var_accesses)
+        first_arg: LFRicKernelArgument = (
+            self._kern.arguments.first_field_or_operator)
+        self.append(f"nlayers_{first_arg.name}", var_accesses)
+        nlayers_names = set()
+        for arg in self._kern.arguments.args:
+            if arg.nlayers and not arg.nlayers.isnumeric():
+                if arg.nlayers in nlayers_names:
+                    continue
+                nlayers_names.add(arg.nlayers)
+                self.append(f"nlayers_{arg.nlayers}", var_accesses)
+
+    def field_ndata(self,
+                    var_accesses: Optional[VariablesAccessMap] = None) -> None:
+        '''Add to the argument list any distinct and unknown values of ndata
+        (number of data values per dof) required by field arguments. Also add
+        these accesses to `var_accesses` if supplied.
+
+        :param var_accesses: optional VariablesAccessMap instance to store
+            the information about variable accesses.
+        '''
+        ndata_names = set()
+        for arg in self._kern.arguments.args:
+            if arg.ndata and not arg.ndata.isnumeric():
+                if arg.ndata in ndata_names:
+                    continue
+                ndata_names.add(arg.ndata)
+                self.append(f"ndata_{arg.ndata}", var_accesses)
 
     def _mesh_ncell2d(self, var_accesses=None):
         '''Add the number of columns in the mesh to the argument list and if

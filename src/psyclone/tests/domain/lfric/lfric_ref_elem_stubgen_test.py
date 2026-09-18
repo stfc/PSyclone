@@ -62,12 +62,12 @@ module testkern_ref_elem_mod
   public
 
   contains
-  subroutine testkern_ref_elem_code(nlayers, rscalar_1, field_2_w1, \
+  subroutine testkern_ref_elem_code(nlayers_field_2, rscalar_1, field_2_w1, \
 field_3_w2, field_4_w2, field_5_w3, ndf_w1, undf_w1, map_w1, ndf_w2, \
 undf_w2, map_w2, ndf_w3, undf_w3, map_w3, nfaces_re_h, nfaces_re_v, \
 normals_to_horiz_faces, normals_to_vert_faces)
     use constants_mod
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers_field_2
     integer(kind=i_def), intent(in) :: ndf_w1
     integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
     integer(kind=i_def), intent(in) :: ndf_w2
@@ -107,14 +107,14 @@ def test_refelem_quad_stub_gen(fortran_writer):
     gen = fortran_writer(kernel.gen_stub)
 
     output1 = (
-        "  subroutine testkern_refelem_quad_code(nlayers, field_1_w1, "
+        "  subroutine testkern_refelem_quad_code(nlayers_field_1, field_1_w1, "
         "field_2_wtheta, ndf_w1, undf_w1, map_w1, basis_w1_qr_xyoz, "
         "ndf_wtheta, undf_wtheta, map_wtheta, basis_wtheta_qr_xyoz, "
         "nfaces_re, normals_to_faces, out_normals_to_faces, np_xy_qr_xyoz, "
         "np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)")
     assert output1 in gen
     assert """\
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers_field_1
     integer(kind=i_def), intent(in) :: ndf_w1
     integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
     integer(kind=i_def), intent(in) :: ndf_wtheta
