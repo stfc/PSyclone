@@ -42,7 +42,6 @@ contains
     integer(kind=i_def), intent(in) :: ncell_2d
     integer(kind=i_def), intent(in) :: ndf_w3
     integer(kind=i_def), intent(in) :: undf_w3
-    integer(kind=i_def), intent(in) :: b_st_size, c_st_sice, d_st_size
     integer(kind=i_def), intent(in) :: c_direction
     integer(kind=i_def), intent(in), dimension(ndf_w3, ncell_2d) :: map_w3
     real(kind=r_def), intent(inout) :: a(:)

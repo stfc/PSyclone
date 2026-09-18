@@ -14,7 +14,7 @@ program invoke_test
   implicit none
   ! Declare minimal variables used in the invoke call
   type(field_type) :: a, b, c, d
-  integer(kind=i_def) :: b_extent, c_extent, d_extent
+  integer(kind=i_def) :: b_extent, c_extent, d_extent, c_direction
 
   call invoke( &
        testkern_domain_stencil_type(a, b, b_extent,           &
