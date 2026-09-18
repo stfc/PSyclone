@@ -1,3 +1,11 @@
+   57) PR #3593 for #3503. Adds a LFRicColourAndOMPTrans metatransformation
+   to perform both colouring and OpenMP to loops in the LFRic domain.
+
+   56) PR #3607. Removes the support for the "Dynamo0p3" prefix on
+   LFRic-specific transformations. 
+
+   55) PR #3603 for #1770. Make lfric/eg20 compile.
+
    54) PR #3587 towards #2216. Adds a new KernelInlineTrans to do
    a deferred InlineTrans on Kernels after lower the PSy layer.
  

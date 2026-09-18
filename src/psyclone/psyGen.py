@@ -2359,9 +2359,6 @@ class TransInfo():
         Return a list of classes defined within the specified module that
         are a subclass of the specified baseclass.
 
-        Takes care to exclude the 'Dynamo0p3' wrapper classes that are only
-        there for backwards compatibility.
-
         :param module: the module in which to look for classes.
         :param base_class: the base class which classes must subclass.
 
@@ -2370,8 +2367,7 @@ class TransInfo():
         '''
         return [cls for name, cls in inspect.getmembers(module)
                 if inspect.isclass(cls) and not inspect.isabstract(cls) and
-                issubclass(cls, base_class) and cls is not base_class
-                and name[:9] != "Dynamo0p3"]
+                issubclass(cls, base_class) and cls is not base_class]
 
 
 @dataclass
