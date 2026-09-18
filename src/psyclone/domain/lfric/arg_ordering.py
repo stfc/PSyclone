@@ -10,6 +10,7 @@ kernel calls.
 '''
 
 import abc
+from typing import Optional, Union
 
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature, VariablesAccessMap
@@ -19,8 +20,9 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.metadata_to_arguments_rules import (
     MetadataToArgumentsRules)
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import ArrayReference, Reference
-from psyclone.psyir.symbols import DataSymbol, ArrayType, SymbolTable
+from psyclone.psyir.nodes import ArrayReference, Node, Reference
+from psyclone.psyir.symbols import (
+    ArrayType, DataSymbol, ScalarType, Symbol, SymbolTable)
 
 
 class ArgOrdering:
@@ -237,8 +239,12 @@ class ArgOrdering:
             ref = ArrayReference.create(symbol, indices)
         return ref
 
-    def append_array_reference(self, array_name, indices, intrinsic_type=None,
-                               tag=None, symbol=None):
+    def append_array_reference(self,
+                               array_name: str,
+                               indices: list[Union[str, Node]],
+                               intrinsic_type: Optional[ScalarType] = None,
+                               tag: Optional[str] = None,
+                               symbol: Optional[Symbol] = None) -> Symbol:
         # pylint: disable=too-many-arguments
         '''This function adds an array reference. If there is no symbol with
         the given tag, a new array symbol will be defined using the given
@@ -246,23 +252,16 @@ class ArgOrdering:
         be replaced. The created reference is added to the list of PSyIR
         expressions, and the symbol is returned to the user.
 
-        :param str array_name: the name and tag of the array.
-        :param indices: the indices to be used in the PSyIR reference. It \
+        :param array_name: the name and tag of the array.
+        :param indices: the indices to be used in the PSyIR reference. It
             must either be ":", or a PSyIR node.
-        :type indices: List[Union[str, py:class:`psyclone.psyir.nodes.Node`]]
         :param intrinsic_type: the intrinsic type of the array.
-        :type intrinsic_type: \
-            Optional[:py:class:`psyclone.psyir.symbols.datatypes.ScalarType`]
         :param tag: optional tag for the symbol.
-        :type tag: Optional[str]
         :param symbol: optional the symbol to use.
-        :type symbol: Optional[:py:class:`psyclone.psyir.symbols.Symbol`]
 
         :returns: the symbol used in the added reference.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-
         ref = self.get_array_reference(array_name, indices, intrinsic_type,
                                        tag=tag, symbol=symbol)
         self.psyir_append(ref)
