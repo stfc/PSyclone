@@ -43,7 +43,8 @@ contains
   subroutine a_local_routine(g)
     real(kind=r_def), intent(inout) :: g
     real(kind=r_def) :: lon, lat, radius
-    g = g + 1.0_r_def
+    real(kind=r_def), parameter :: unity = 1.0_r_def
+    g = g + unity
     ! Call to a local interface.
     call a_local_polymorph(g)
     ! Call to a routine imported from external module.

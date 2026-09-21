@@ -202,11 +202,11 @@ class KernelModuleInlineTrans(Transformation):
                 f"because it accesses data from its outer scope: "
                 f"{err.value}") from err
 
-        # Check for any static Symbols. We can't permit these because if the
-        # target routine is called from other places then we'll change the
-        # results.
+        # Check for any static Symbols that are not compile-time constants. We
+        # can't permit these because if the target routine is called from other
+        # places then we'll change the results.
         static_syms = [sym for sym in kernel_schedule.symbol_table.datasymbols
-                       if sym.is_static]
+                       if (sym.is_static and not sym.is_constant)]
         if static_syms:
             names = ", ".join(f"'{sym.name}'" for sym in static_syms)
             raise TransformationError(
