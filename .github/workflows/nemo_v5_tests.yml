@@ -209,7 +209,7 @@ jobs:
         export PSYCLONE_COMPILER=$MPIF90
         export MPIF90=psyclonefc
         export PARALLEL_DIRECTIVES="omp_threading"
-        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py"
+        export PSYCLONE_OPTS="--keep-comments --enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py"
         export FCFLAGS="-fdefault-real-8 -O2 -mno-fma -fno-tree-vectorize -fcray-pointer -ffree-line-length-none -g -fopenmp"
 
         # Clean up and compile
@@ -253,7 +253,7 @@ jobs:
         export PSYCLONE_COMPILER=$MPIF90
         export MPIF90=psyclonefc
         export PARALLEL_DIRECTIVES="omp_offloading+omp_threading"
-        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py"
+        export PSYCLONE_OPTS="--keep-comments --enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py"
         # Clean up and compile
         rm -rf tests/${TEST_DIR}
         ./makenemo -r BENCH -m linux_spack_profile -n ${TEST_DIR} -j ${NUM_PARALLEL} -v 1
