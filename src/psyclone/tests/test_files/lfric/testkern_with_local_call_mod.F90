@@ -57,7 +57,12 @@ contains
 
   subroutine local2(arg)
     real(kind=r_def), intent(inout) :: arg
+    integer(kind=i_def) :: ilocal
     arg = arg + 1.0_r_def
+    ilocal = NINT(arg)
+    ! Repeatedly call the same local routine.
+    call local1(ilocal)
+    call local1(ilocal)
   end subroutine local2
 
   subroutine testkern_with_local_call_code(nlayers, phi, chi_1, chi_2, chi_3, &
