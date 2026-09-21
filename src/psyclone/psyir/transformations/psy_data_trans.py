@@ -8,13 +8,13 @@
 '''Contains the PSyData transformation.
 '''
 
-from typing import Union
+from typing import Any, Optional, Union
 import warnings
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyGen import InvokeSchedule, Kern
-from psyclone.psyir.nodes import PSyDataNode, Schedule, Return, \
+from psyclone.psyir.nodes import Node, PSyDataNode, Schedule, Return, \
     OMPDoDirective, ACCDirective, ACCLoopDirective, Routine
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
@@ -141,7 +141,9 @@ class PSyDataTrans(RegionTrans):
         return (module_name, region_name)
 
     # ------------------------------------------------------------------------
-    def validate(self, nodes, options=None, **kwargs):
+    def validate(self, nodes: Union[Node, list[Node]],
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         '''
         Checks that the supplied list of nodes is valid, that the location
         for this node is valid (not between a loop-directive and its loop),
@@ -151,15 +153,12 @@ class PSyDataTrans(RegionTrans):
 
         :param nodes: a node or list of nodes to be instrumented with \
             PSyData API calls.
-        :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Loop`
-
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param str options["prefix"]: a prefix to use for the PSyData module \
+        :param prefix: a prefix to use for the PSyData module \
             name (``PREFIX_psy_data_mod``) and the PSyDataType \
             (``PREFIX_PSYDATATYPE``) - a "_" will be added automatically. \
             It defaults to "".
-        :param (str,str) options["region_name"]: an optional name to \
+        :param region_name: an optional name to \
             use for this PSyData area, provided as a 2-tuple containing a \
             location name followed by a local name. The pair of strings \
             should uniquely identify a region unless aggregate information \
@@ -256,8 +255,11 @@ class PSyDataTrans(RegionTrans):
         super().validate(node_list, options, **kwargs)
 
     # ------------------------------------------------------------------------
-    def apply(self, nodes, options=None, prefix: Union[str, None] = None,
-              region_name: Union[tuple[str, str], None] = None, **kwargs):
+    def apply(self, nodes: Union[Node, list[Node]],
+              options: Optional[dict[str, Any]] = None,
+              prefix: Optional[str] = None,
+              region_name: Optional[tuple[str, str]] = None,
+              **kwargs: Any) -> None:
         # pylint: disable=arguments-renamed
         '''Apply this transformation to a subset of the nodes within a
         schedule - i.e. enclose the specified Nodes in the
@@ -267,15 +269,12 @@ class PSyDataTrans(RegionTrans):
         `pure` attribute, this attribute is removed.
 
         :param nodes: can be a single node or a list of nodes.
-        :type nodes: :py:obj:`psyclone.psyir.nodes.Node` or list of \
-                     :py:obj:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param str options["prefix"]: a prefix to use for the PSyData module \
+        :param prefix: a prefix to use for the PSyData module \
             name (``PREFIX_psy_data_mod``) and the PSyDataType \
             (``PREFIX_PSYDATATYPE``) - a "_" will be added automatically. \
             It defaults to "".
-        :param (str,str) options["region_name"]: an optional name to \
+        :param region_name: an optional name to \
             use for this PSyData area, provided as a 2-tuple containing a \
             location name followed by a local name. The pair of strings \
             should uniquely identify a region unless aggregate information \

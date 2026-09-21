@@ -8,8 +8,10 @@
 '''This module contains the GOcean-specific extract transformation.
 '''
 
+from typing import Any, Optional, Union
+
 from psyclone.gocean1p0 import GOLoop
-from psyclone.psyir.nodes import ExtractNode
+from psyclone.psyir.nodes import ExtractNode, Node
 from psyclone.psyir.symbols import ScalarType
 from psyclone.domain.gocean import GOceanDriverCreator
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
@@ -34,21 +36,21 @@ class GOceanExtractTrans(ExtractTrans):
     '''
 
     # ------------------------------------------------------------------------
-    def validate(self, node_list, options=None, **kwargs):
+    def validate(self, node_list: list[Node],
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         ''' Perform GOcean API specific validation checks before applying
         the transformation.
 
         :param node_list: the list of Node(s) we are checking.
-        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["create_driver"]: whether or not to create a \
+        :param options["create_driver"]: whether or not to create a \
             driver program at code-generation time. If set, the driver will \
             be created in the current working directory with the name \
             "driver-MODULE-REGION.f90" where MODULE and REGION will be the \
             corresponding values for this region. This flag is forwarded to \
             the ExtractNode. Its default value is False.
-        :param (str,str) options["region_name"]: an optional name to \
+        :param options["region_name"]: an optional name to \
             use for this data-extraction region, provided as a 2-tuple \
             containing a module name followed by a local name. The pair of \
             strings should uniquely identify a region unless aggregate \
@@ -79,8 +81,9 @@ class GOceanExtractTrans(ExtractTrans):
                     f"allowed.")
 
     # ------------------------------------------------------------------------
-    def apply(self, nodes, options=None, create_driver: bool = False,
-              **kwargs):
+    def apply(self, nodes: Union[Node, list[Node]],
+              options: Optional[dict[str, Any]] = None,
+              create_driver: bool = False, **kwargs: Any) -> None:
         # pylint: disable=arguments-differ
         '''Apply this transformation to a subset of the nodes within a
         schedule - i.e. enclose the specified Nodes in the schedule within
@@ -91,21 +94,18 @@ class GOceanExtractTrans(ExtractTrans):
         ExtractNode instance that will be inserted.).
 
         :param nodes: can be a single node or a list of nodes.
-        :type nodes: :py:class:`psyclone.psyir.nodes.Node` or list of \
-                     :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param str options["prefix"]: a prefix to use for the PSyData module \
+        :param options["prefix"]: a prefix to use for the PSyData module \
             name (``prefix_psy_data_mod``) and the PSyDataType \
             (``prefix_PSyDataType``) - a "_" will be added automatically. \
             It defaults to "extract", resulting in e.g. \
             ``extract_psy_data_mod``.
-        :param bool options["create_driver"]: whether or not to create a \
+        :param create_driver: whether or not to create a \
             driver program at code-generation time. If set, the driver will \
             be created in the current working directory with the name \
             "driver-MODULE-REGION.f90" where MODULE and REGION will be the \
             corresponding values for this region. Defaults to False.
-        :param (str,str) options["region_name"]: an optional name to \
+        :param options["region_name"]: an optional name to \
             use for this PSyData area, provided as a 2-tuple containing a \
             location name followed by a local name. The pair of strings \
             should uniquely identify a region unless aggregate information \

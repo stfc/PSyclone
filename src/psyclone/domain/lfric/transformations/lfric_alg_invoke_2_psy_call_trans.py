@@ -10,6 +10,8 @@ to the corresponding PSy-layer routine.
 
 '''
 
+from typing import Any, Optional
+
 from psyclone.domain.common.transformations import AlgInvoke2PSyCallTrans
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.algorithm.psyir import (
@@ -18,10 +20,9 @@ from psyclone.domain.lfric.kernel import (
     FieldArgMetadata, FieldVectorArgMetadata, InterGridArgMetadata,
     InterGridVectorArgMetadata, LFRicKernelContainer)
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
-from typing import Optional
 from psyclone.errors import GenerationError
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.nodes import Literal, Container
+from psyclone.psyir.nodes import Literal, Container, Node
 from psyclone.utils import transformation_documentation_wrapper
 
 
@@ -40,19 +41,16 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
 
     '''
 
-    def validate(self, node, options=None, kernels: Optional[dict] = None,
-                 **kwargs):
+    def validate(self, node: LFRicAlgorithmInvokeCall,
+                 options: Optional[dict[str, Any]] = None,
+                 kernels: Optional[dict[int, Container]] = None,
+                 **kwargs: Any) -> None:
         '''Validate the node argument.
 
         :param node: a PSyIR node capturing an LFRicinvoke call.
-        :type node: \
-          :py:class:`psyclone.domain.lfric.algorithm.LFRicAlgorithmInvokeCall`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
         :param options["kernels"]: this option provides a list of \
             LFRic kernels for this LFRic Algorithm Invoke call.
-        :type options["kernels"]: \
-            List[:py:class:`psyclone.psyir.nodes.Container`]
 
         :raises TransformationError: if the supplied call argument is \
             not a PSyIR AlgorithmInvokeCall node.
@@ -138,8 +136,11 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
 
     # pylint: disable=too-many-branches
     # pylint: disable=too-many-locals
-    def get_arguments(self, node, options=None, kernels: Optional[dict] = None,
-                      check_args=False, **kwargs):
+    def get_arguments(
+            self, node: LFRicAlgorithmInvokeCall,
+            options: Optional[dict[str, Any]] = None,
+            kernels: Optional[dict[int, Container]] = None,
+            check_args: bool = False, **kwargs: Any) -> list[Node]:
         '''By default this method creates the LFRic processed (lowered)
         argument list from the argument lists of the kernel functors
         within the invoke call and the kernel metadata.
@@ -154,20 +155,14 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
         of expected and actual arguments can cause an index error.
 
         :param node: an LFRic algorithm invoke call.
-        :type node: :py:class:`psyclone.domain.lfric.algorithm.psyir.\
-            LFRicAlgorithmInvokeCall`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
         :param options["kernels"]: this option provides a list of \
             LFRic kernels for this LFRic Algorithm Invoke call.
-        :type options["kernels"]: \
-            List[:py:class:`psyclone.psyir.nodes.Container`]
-        :param bool check_args: if True, checks the number of kernel \
+        :param check_args: if True, checks the number of kernel \
             functor arguments matches the number expected by the kernel \
             metadata. Defaults to False.
 
         :returns: the processed (lowered) argument list.
-        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
 
         :raises GenerationError: if the number of arguments in the \
             invoke does not match the expected number of arguments \
@@ -271,22 +266,19 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
 
         return arguments
 
-    def apply(self, node, options=None, kernels: Optional[dict] = None,
-              **kwargs):
+    def apply(self, node: LFRicAlgorithmInvokeCall,
+              options: Optional[dict[str, Any]] = None,
+              kernels: Optional[dict[int, Container]] = None,
+              **kwargs: Any) -> None:
         ''' Apply the transformation to the supplied LFRicAlgorithmInvokeCall
         node. That node is replaced by a Call to the corresponding PSy-layer
         routine with appropriate arguments. The symbols representing any
         LFRic Builtins that are now no longer referred to are removed.
 
         :param node: a PSyIR algorithm invoke call node.
-        :type node: \
-        :py:class:`psyclone.domain.lfric.algorithm.LFRicAlgorithmInvokeCall`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
         :param options["kernels"]: this option provides a list of \
             LFRic kernels for this LFRic Algorithm Invoke call.
-        :type options["kernels"]: \
-            List[:py:class:`psyclone.psyir.nodes.Container`]
 
         '''
         self.validate(node, options=options, kernels=kernels, **kwargs)

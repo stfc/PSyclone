@@ -10,8 +10,10 @@ transformations.
 
 '''
 import abc
+from typing import Any
 
 from psyclone.psyGen import Transformation
+from psyclone.psyir.nodes import Node
 from psyclone.psyir.symbols import DataSymbol
 from psyclone.utils import transformation_documentation_wrapper
 
@@ -34,13 +36,11 @@ class AdjointTransformation(Transformation):
     class. Also supports an optional writer argument.
 
     :param active_variables: a list of names of the active variables.
-    :type active_variables: list of \
-        :py:class:`psyclone.psyir.symbols.DataSymbol`
 
     :raises TypeError: if the active_variables are of the wrong type.
 
     '''
-    def __init__(self, active_variables):
+    def __init__(self, active_variables: list[DataSymbol]) -> None:
         super(AdjointTransformation, self).__init__()
 
         if not isinstance(active_variables, list):
@@ -61,7 +61,8 @@ class AdjointTransformation(Transformation):
         self._active_variables = active_variables
 
     @abc.abstractmethod
-    def apply(self, node, options=None, **kwargs):
+    def apply(self, node: Node, options: dict[str, Any] | None = None,
+              **kwargs: Any) -> None:
         '''Apply an adjoint transformation to the supplied node.
 
         :param node: the node to transform.

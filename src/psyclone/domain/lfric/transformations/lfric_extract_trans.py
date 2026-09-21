@@ -9,8 +9,10 @@
 transformation.
 '''
 
+from typing import Any, Optional, Union
+
 from psyclone.domain.lfric import LFRicDriverCreator, LFRicLoop
-from psyclone.psyir.nodes import ExtractNode
+from psyclone.psyir.nodes import ExtractNode, Node
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
 from psyclone.utils import transformation_documentation_wrapper
 
@@ -25,14 +27,14 @@ class LFRicExtractTrans(ExtractTrans):
     def __init__(self):
         super().__init__(ExtractNode)
 
-    def validate(self, node_list, options=None, **kwargs):
+    def validate(self, node_list: list[Node],
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         ''' Perform LFRic API specific validation checks before applying
         the transformation.
 
         :param node_list: the list of Node(s) we are checking.
-        :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if transformation is applied to a Loop \
                                      over cells in a colour without its \
@@ -57,8 +59,9 @@ class LFRicExtractTrans(ExtractTrans):
                     f"over colours is not allowed.")
 
     # ------------------------------------------------------------------------
-    def apply(self, nodes, options=None, create_driver: bool = False,
-              **kwargs):
+    def apply(self, nodes: Union[Node, list[Node]],
+              options: Optional[dict[str, Any]] = None,
+              create_driver: bool = False, **kwargs: Any) -> None:
         # pylint: disable=arguments-differ
         '''Apply this transformation to a subset of the nodes within a
         schedule - i.e. enclose the specified Nodes in the schedule within
@@ -68,21 +71,18 @@ class LFRicExtractTrans(ExtractTrans):
         Then it will call apply of the base class.
 
         :param nodes: can be a single node or a list of nodes.
-        :type nodes: :py:class:`psyclone.psyir.nodes.Node` or \
-                     List[:py:class:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param str options["prefix"]: a prefix to use for the PSyData module \
+        :param options["prefix"]: a prefix to use for the PSyData module \
             name (``prefix_psy_data_mod``) and the PSyDataType \
             (``prefix_PSyDataType``) - a "_" will be added automatically. \
             It defaults to "extract", resulting in e.g. \
             ``extract_psy_data_mod``.
-        :param bool options["create_driver"]: whether or not to create a \
+        :param create_driver: whether or not to create a \
             driver program at code-generation time. If set, the driver will \
             be created in the current working directory with the name \
             "driver-MODULE-REGION.f90" where MODULE and REGION will be the \
             corresponding values for this region. Defaults to False.
-        :param Tuple[str,str] options["region_name"]: an optional name to \
+        :param options["region_name"]: an optional name to \
             use for this PSyData area, provided as a 2-tuple containing a \
             location name followed by a local name. The pair of strings \
             should uniquely identify a region unless aggregate information \

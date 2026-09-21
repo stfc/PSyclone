@@ -8,7 +8,9 @@
 '''This module provides the LoopTiling2DTrans, which transforms a 2D Loop
 construct into a tiled implementation of the construct.'''
 
+from typing import Any, Optional
 import warnings
+from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations.loop_tiling_trans import LoopTilingTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
@@ -63,16 +65,16 @@ class LoopTiling2DTrans(LoopTrans):
     def __str__(self):
         return "Tile the loop construct using 2D blocks"
 
-    def validate(self, node, options=None, **kwargs):
+    def validate(self, node: Loop,
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         '''
         Validates that the given Loop node can have a LoopTiling2DTrans
         applied.
 
         :param node: the loop to validate.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformation.
-        :type options: Optional[Dict[str, Any]]
-        :param int options["tilesize"]: The size of the resulting tile, \
+        :param tilesize: The size of the resulting tile, \
             currently square tiles are always used. If not specified, the \
             value 32 is used.
 
@@ -115,16 +117,15 @@ class LoopTiling2DTrans(LoopTrans):
             tilesize = options.get("tilesize", 32)
         LoopTilingTrans().validate(node, tiledims=[tilesize, tilesize])
 
-    def apply(self, node, options=None, tilesize: int = 32, **kwargs):
+    def apply(self, node: Loop, options: Optional[dict[str, Any]] = None,
+              tilesize: int = 32, **kwargs: Any) -> None:
         '''
         Converts the given 2D Loop construct into a tiled version of the nested
         loops.
 
         :param node: the loop to transform.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param int options["tilesize"]: The size of the resulting tile, \
+        :param tilesize: The size of the resulting tile, \
                 currently square tiles are always used. If not \
                 specified, the value 32 is used.
 

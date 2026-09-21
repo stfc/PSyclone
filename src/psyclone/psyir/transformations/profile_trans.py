@@ -8,8 +8,10 @@
 '''This module provides the Profile transformation.
 '''
 
+from typing import Any, Optional, Union
+
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.nodes import CodeBlock, ProfileNode, Return, Routine
+from psyclone.psyir.nodes import CodeBlock, Node, ProfileNode, Return, Routine
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.utils import transformation_documentation_wrapper
 
@@ -41,16 +43,16 @@ class ProfileTrans(PSyDataTrans):
     def __init__(self):
         super().__init__(ProfileNode)
 
-    def validate(self, nodes, options=None, **kwargs):
+    def validate(self, nodes: Union[Node, list[Node]],
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         '''
         Checks that the supplied list of nodes is valid for profiling
         callipers.
 
         :param nodes: a node or list of nodes to be instrumented with
                       profiling.
-        :type nodes: :py:class:`psyclone.psyir.nodes.Node` or
-                     list[:py:class:`psyclone.psyir.nodes.Node`]
-        :param bool options["force"]: whether to ignore potential control
+        :param force: whether to ignore potential control
                                       flow jumps when applying this
                                       transformation. Default is False.
 
@@ -90,7 +92,9 @@ class ProfileTrans(PSyDataTrans):
                         f"could skip the end of profiling caliper. "
                         f"Found:\n'{block.debug_string()}'")
 
-    def apply(self, nodes, options=None, force: bool = False, **kwargs):
+    def apply(self, nodes: Union[Node, list[Node]],
+              options: Optional[dict[str, Any]] = None, force: bool = False,
+              **kwargs: Any) -> None:
         '''Apply this profiling transformation.
 
         :param nodes: nodes to enclose in the profiling region.

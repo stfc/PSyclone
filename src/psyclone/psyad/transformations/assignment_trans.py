@@ -9,6 +9,7 @@
 assignment node with its adjoint form.
 
 '''
+from typing import Any, Optional
 
 from psyclone.core import SymbolicMaths
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
@@ -31,15 +32,15 @@ class AssignmentTrans(AdjointTransformation):
     assignment to its Adjoint form.
 
     '''
-    def apply(self, node, options=None, **kwargs):
+    def apply(self, node: Assignment,
+              options: Optional[dict[str, Any]] = None,
+              **kwargs: Any) -> None:
         '''Apply the Assignment transformation to the specified node. The node
         must be a valid tangent-linear assignment. The assignment is
         replaced with its adjoint version.
 
         :param node: an Assignment node.
-        :type node: :py:class:`psyclone.psyir.nodes.Assignment`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node, options, **kwargs)
@@ -180,14 +181,14 @@ class AssignmentTrans(AdjointTransformation):
                     f"accessed on the LHS and RHS of an assignment: "
                     f"'{assign.debug_string()}'. This is not supported.")
 
-    def validate(self, node, options=None, **kwargs):
+    def validate(self, node: Assignment,
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         '''Perform various checks to ensure that it is valid to apply the
         AssignmentTrans transformation to the supplied PSyIR Node.
 
         :param node: the node that is being checked.
-        :type node: :py:class:`psyclone.psyir.nodes.Assignment`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the node argument is not an \
             Assignment.

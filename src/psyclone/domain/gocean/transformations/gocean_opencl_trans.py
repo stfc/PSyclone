@@ -9,7 +9,7 @@
 '''
 
 import os
-from typing import Union
+from typing import Any, Optional
 import warnings
 
 from psyclone.configuration import Config
@@ -89,15 +89,15 @@ class GOOpenCLTrans(Transformation):
         '''
         return "GOOpenCLTrans"
 
-    def validate(self, node: GOInvokeSchedule, options=None,
-                 **kwargs) -> None:
+    def validate(self, node: GOInvokeSchedule,
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         '''
         Checks that the supplied InvokeSchedule is valid and that an OpenCL
         version of it can be generated.
 
         :param node: the Schedule to check.
         :param options: a dictionary with options for transformations.
-        :type options: dict of str:value or None
 
         :raises TransformationError: if the InvokeSchedule is not for the
                                      GOcean API.
@@ -211,10 +211,11 @@ class GOOpenCLTrans(Transformation):
                     f"the GOMoveIterationBoundariesInsideKernelTrans to each "
                     f"kernel before the GOOpenCLTrans.")
 
-    def apply(self, node: GOInvokeSchedule, options=None,
-              enable_profiling: Union[bool, None] = None,
-              out_of_order: Union[bool, None] = None,
-              end_barrier: bool = True, **kwargs) -> None:
+    def apply(self, node: GOInvokeSchedule,
+              options: Optional[dict[str, Any]] = None,
+              enable_profiling: Optional[bool] = None,
+              out_of_order: Optional[bool] = None,
+              end_barrier: bool = True, **kwargs: Any) -> None:
         '''
         Apply the OpenCL transformation to the supplied GOInvokeSchedule. This
         causes PSyclone to generate an OpenCL version of the corresponding
@@ -223,9 +224,7 @@ class GOOpenCLTrans(Transformation):
         OpenCL device directly from Fortran.
 
         :param node: the InvokeSchedule to transform.
-        :type node: :py:class:`psyclone.psyGen.GOInvokeSchedule`
         :param options: set of option to tune the OpenCL generation.
-        :type options: dict of str:value or None
         :param enable_profiling: whether or not to set up the
                 OpenCL environment with the profiling option enabled.
         :param out_of_order: whether or not to set up the

@@ -11,6 +11,7 @@ PSy-layer routine.
 
 '''
 import abc
+from typing import Any, Optional
 
 from psyclone.core import SymbolicMaths
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, KernelFunctor
@@ -71,13 +72,12 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
                 "one AlgorithmInvokeCall node present.")
 
     @abc.abstractmethod
-    def get_arguments(self, node, options=None, **kwargs):
+    def get_arguments(self, node: AlgorithmInvokeCall,
+                      options: Optional[dict[str, Any]] = None,
+                      **kwargs: Any) -> list[Node]:
         '''
         :param node: a PSyIR algorithm invoke call node.
-        :type node: \
-            :py:class:`psyclone.domain.common.psyir.AlgorithmInvokeCall`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
         '''
 
     @staticmethod
@@ -169,17 +169,16 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
                 # so can not be removed.
                 pass
 
-    def apply(self, node, options=None, **kwargs):
+    def apply(self, node: AlgorithmInvokeCall,
+              options: Optional[dict[str, Any]] = None,
+              **kwargs: Any) -> None:
         ''' Apply the transformation to the supplied AlgorithmInvokeCall.
         The supplied node will be replaced with a Call node with appropriate
         arguments. If there are no more invoke calls in the scope of the symbol
         table containing the 'invoke' symbol then that symbol is removed.
 
         :param node: a PSyIR algorithm invoke call node.
-        :type node: \
-            :py:class:`psyclone.domain.common.psyir.AlgorithmInvokeCall`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node, options=options, **kwargs)
