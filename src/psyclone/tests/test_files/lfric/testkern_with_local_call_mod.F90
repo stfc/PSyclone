@@ -14,6 +14,7 @@ module testkern_with_local_call_mod
   use fs_continuity_mod, only: w3
   use kernel_mod, only: kernel_type
   use constants_mod, only: r_def, i_def
+  use coord_transform_mod, only: xyz2llr
 
   implicit none
 
@@ -41,8 +42,12 @@ contains
 
   subroutine a_local_routine(g)
     real(kind=r_def), intent(inout) :: g
+    real(kind=r_def) :: lon, lat, radius
     g = g + 1.0_r_def
+    ! Call to a local interface.
     call a_local_polymorph(g)
+    ! Call to a routine imported from external module.
+    call xyz2llr(1.0_r_def, 1.0_r_def, 1.0_r_def, lon, lat, radius)
   end subroutine a_local_routine
 
   subroutine local1(arg)

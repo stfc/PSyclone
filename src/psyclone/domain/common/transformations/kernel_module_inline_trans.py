@@ -218,7 +218,10 @@ class KernelModuleInlineTrans(Transformation):
         # also be module inlined.
         container = kernel_schedule.ancestor(Container)
         for call in kernel_schedule.walk(Call):
-            local_routines = container.resolve_routine(call.symbol.name)
+            symbol = call.routine.symbol
+            if symbol.is_import or symbol.is_unresolved:
+                continue
+            local_routines = container.resolve_routine(symbol.name)
             for lrt in local_routines:
                 rt_psyir = container.find_routine_psyir(
                     lrt, allow_private=True)
