@@ -84,6 +84,7 @@ def check_intergrid(node):
                 f" is such a kernel.")
 
 
+@transformation_documentation_wrapper
 class LFRicOMPLoopTrans(OMPLoopTrans):
 
     ''' LFRic specific orphan OpenMP loop transformation. Adds
@@ -267,6 +268,7 @@ class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
         super().apply(node, options=options, **kwargs)
 
 
+@transformation_documentation_wrapper
 class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
 
     '''GOcean specific OpenMP Do loop transformation. Adds GOcean
@@ -288,7 +290,7 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
     def __str__(self):
         return "Add an OpenMP Parallel Do directive to a GOcean loop"
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         ''' Perform GOcean-specific loop validity checks then call
         :py:meth:`OMPParallelLoopTrans.apply`.
 
@@ -302,7 +304,7 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
             outer loop.
 
         '''
-        self.validate(node, options=options)
+        self.validate(node, options=options, **kwargs)
 
         # Check we are either an inner or outer loop
         if node.loop_type not in ["inner", "outer"]:
@@ -310,9 +312,10 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
                 "Error in "+self.name+" transformation.  The requested loop"
                 " is not of type inner or outer.")
 
-        OMPParallelLoopTrans.apply(self, node)
+        OMPParallelLoopTrans.apply(self, node, options=options, **kwargs)
 
 
+@transformation_documentation_wrapper
 class GOceanOMPLoopTrans(OMPLoopTrans):
 
     ''' GOcean-specific orphan OpenMP loop transformation. Adds GOcean
@@ -347,7 +350,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
                                      not "inner" or "outer".
 
         '''
-        super().validate(node, options=options)
+        super().validate(node, options=options, **kwargs)
 
         # Check we are either an inner or outer loop
         if node.loop_type not in ["inner", "outer"]:
@@ -355,7 +358,17 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
                                       " The requested loop is not of type "
                                       "inner or outer.")
 
+    def apply(self, node, options=None, **kwargs):
+        '''Apply this transformation to a GOcean loop.
 
+        :param node: the loop to transform.
+        :param options: a dictionary with options for transformations.
+
+        '''
+        super().apply(node, options=options, **kwargs)
+
+
+@transformation_documentation_wrapper
 class ColourTrans(LoopTrans):
     '''
     Apply a colouring transformation to a loop (in order to permit a
@@ -666,6 +679,7 @@ class LFRicColourTrans(ColourTrans):
         return colours_loop
 
 
+@transformation_documentation_wrapper
 class OMPSingleTrans(ParallelRegionTrans):
     '''
     Create an OpenMP SINGLE region by inserting directives. The most
@@ -762,7 +776,8 @@ class OMPSingleTrans(ParallelRegionTrans):
                                         nowait=self.omp_nowait)
         return _directive
 
-    def apply(self, node_list, options=None):
+    def apply(self, node_list, options=None,
+              nowait: Optional[bool] = None, **kwargs):
         # pylint: disable=arguments-renamed
         '''Apply the OMPSingleTrans transformation to the specified node in a
         Schedule.
@@ -785,14 +800,18 @@ class OMPSingleTrans(ParallelRegionTrans):
                 single region.
 
         '''
-        if not options:
-            options = {}
-        if options.get("nowait") is not None:
-            self.omp_nowait = options.get("nowait")
+        if options:
+            nowait = options.get("nowait", self.omp_nowait)
+        elif nowait is None:
+            nowait = self.omp_nowait
+        else:
+            self.validate_options(nowait=nowait, **kwargs)
+        self.omp_nowait = nowait
 
-        super().apply(node_list, options)
+        super().apply(node_list, options=options, **kwargs)
 
 
+@transformation_documentation_wrapper
 class OMPMasterTrans(ParallelRegionTrans):
     '''
     Create an OpenMP MASTER region by inserting directives. The most
@@ -833,6 +852,15 @@ class OMPMasterTrans(ParallelRegionTrans):
     def __str__(self):
         return "Insert an OpenMP Master region"
 
+    def apply(self, nodes, options=None, **kwargs):
+        '''Apply this transformation to the supplied nodes.
+
+        :param nodes: the nodes to enclose in the master region.
+        :param options: a dictionary with options for transformations.
+
+        '''
+        super().apply(nodes, options=options, **kwargs)
+
     @property
     def name(self):
         '''
@@ -842,6 +870,7 @@ class OMPMasterTrans(ParallelRegionTrans):
         return "OMPMasterTrans"
 
 
+@transformation_documentation_wrapper
 class ACCParallelTrans(ParallelRegionTrans):
     '''
     Create an OpenACC parallel region by inserting an 'acc parallel'
@@ -895,7 +924,7 @@ class ACCParallelTrans(ParallelRegionTrans):
     def __str__(self):
         return "Insert an OpenACC Parallel region"
 
-    def validate(self, node_list, options=None):
+    def validate(self, node_list, options=None, **kwargs):
         '''
         Validate this transformation.
 
@@ -918,10 +947,13 @@ class ACCParallelTrans(ParallelRegionTrans):
 
         '''
         node_list = self.get_node_list(node_list)
-        verbose = options.get("verbose", False) if options else False
-        device_string = options.get("device_string", "") if options else ""
-        allow_strings = options.get("allow_strings", "") if options else False
-        super().validate(node_list, options)
+        if not options:
+            self.validate_options(**kwargs)
+            options = kwargs
+        verbose = options.get("verbose", False)
+        device_string = options.get("device_string", "")
+        allow_strings = options.get("allow_strings", False)
+        super().validate(node_list, options, **kwargs)
         if options is not None and "default_present" in options:
             if not isinstance(options["default_present"], bool):
                 raise TransformationError(
@@ -966,7 +998,10 @@ class ACCParallelTrans(ParallelRegionTrans):
                         f"accelerator device, and therefore it cannot "
                         f"be called from within an ACC parallel region.")
 
-    def apply(self, target_nodes, options=None):
+    def apply(self, target_nodes, options=None,
+              default_present: Optional[bool] = None,
+              allow_strings: bool = False, device_string: str = "",
+              verbose: bool = False, **kwargs):
         '''
         Encapsulate given nodes with the ACCParallelDirective.
 
@@ -986,12 +1021,17 @@ class ACCParallelTrans(ParallelRegionTrans):
 
         '''
         if not options:
-            options = {}
+            if default_present is None:
+                default_present = self._default_present
+            options = {"default_present": default_present,
+                       "allow_strings": allow_strings,
+                       "device_string": device_string, "verbose": verbose,
+                       **kwargs}
         # Check whether we've been passed a list of nodes or just a
         # single node. If the latter then we create ourselves a
         # list containing just that node.
         node_list = self.get_node_list(target_nodes)
-        self.validate(node_list, options)
+        self.validate(node_list, options, **kwargs)
 
         # Keep a reference to the parent of the nodes that are to be
         # enclosed within a parallel region. Also keep the index of
@@ -1012,6 +1052,7 @@ class ACCParallelTrans(ParallelRegionTrans):
         node_parent.addchild(directive, index=node_position)
 
 
+@transformation_documentation_wrapper
 class LFRicAsyncHaloExchangeTrans(Transformation):
     '''Splits a synchronous halo exchange into a halo exchange start and
     halo exchange end.
@@ -1029,7 +1070,7 @@ class LFRicAsyncHaloExchangeTrans(Transformation):
         '''
         return "LFRicAsyncHaloExchangeTrans"
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''Transforms a synchronous halo exchange, represented by a
         HaloExchange node, into an asynchronous halo exchange,
         represented by HaloExchangeStart and HaloExchangeEnd nodes.
@@ -1040,7 +1081,7 @@ class LFRicAsyncHaloExchangeTrans(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node, options)
+        self.validate(node, options, **kwargs)
 
         # add asynchronous start and end halo exchanges and initialise
         # them using information from the existing synchronous halo
@@ -1060,7 +1101,7 @@ class LFRicAsyncHaloExchangeTrans(Transformation):
         # remove the existing synchronous halo exchange
         node.detach()
 
-    def validate(self, node, options):
+    def validate(self, node, options=None, **kwargs):
         # pylint: disable=signature-differs
         '''Internal method to check whether the node is valid for this
         transformation.
@@ -1074,6 +1115,8 @@ class LFRicAsyncHaloExchangeTrans(Transformation):
                          HaloExchange (or subclass thereof)
 
         '''
+        if not options:
+            self.validate_options(**kwargs)
         if not isinstance(node, psyGen.HaloExchange) or \
            isinstance(node, (LFRicHaloExchangeStart, LFRicHaloExchangeEnd)):
             raise TransformationError(
@@ -1082,6 +1125,7 @@ class LFRicAsyncHaloExchangeTrans(Transformation):
                 f"'{type(node)}'.")
 
 
+@transformation_documentation_wrapper
 class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
     '''Modifies a kernel so that the number of dofs, number of layers and
     number of quadrature points are fixed in the kernel rather than
@@ -1137,7 +1181,11 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
         '''
         return "LFRicKernelConstTrans"
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, cellshape: str = "quadrilateral",
+              element_order_h: Optional[int] = None,
+              element_order_v: Optional[int] = None,
+              number_of_layers: Optional[int] = None,
+              quadrature: bool = False, **kwargs):
         # pylint: disable=too-many-statements, too-many-locals
         '''Transforms a kernel so that the values for the number of degrees of
         freedom (if valid values for the element_order_h and element_order_v
@@ -1246,10 +1294,14 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
                       f" value {value}.")
         # --------------------------------------------------------------------
 
-        self.validate(node, options)
-
         if not options:
-            options = {}
+            options = {"cellshape": cellshape,
+                       "element_order_h": element_order_h,
+                       "element_order_v": element_order_v,
+                       "number_of_layers": number_of_layers,
+                       "quadrature": quadrature, **kwargs}
+        self.validate(node, options, **kwargs)
+
         number_of_layers = options.get("number_of_layers", None)
         quadrature = options.get("quadrature", False)
         element_order_h = options.get("element_order_h", None)
@@ -1309,7 +1361,7 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
                     make_constant(symbol_table, info.position, ndofs,
                                   function_space=info.function_space)
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''This method checks whether the input arguments are valid for
         this transformation.
 
@@ -1344,8 +1396,7 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
 
         self._check_callee_implementation_is_local(node)
 
-        if not options:
-            options = {}
+        options = options or {}
         cellshape = options.get("cellshape", "quadrilateral")
         element_order_h = options.get("element_order_h", None)
         element_order_v = options.get("element_order_v", None)
@@ -1404,6 +1455,7 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
                 "former are derived from the latter.")
 
 
+@transformation_documentation_wrapper
 class ACCEnterDataTrans(Transformation):
     '''
     Adds an OpenACC "enter data" directive to a Schedule.
@@ -1442,7 +1494,8 @@ class ACCEnterDataTrans(Transformation):
         '''
         return "ACCEnterDataTrans"
 
-    def apply(self, node: Schedule, options: Optional[Dict[str, Any]] = {}):
+    def apply(self, node: Schedule, options=None, async_queue=False,
+              **kwargs):
         '''Adds an OpenACC "enter data" directive to the invoke associated
         with the supplied Schedule. Any fields accessed by OpenACC kernels
         within this schedule will be added to this data region in
@@ -1457,7 +1510,9 @@ class ACCEnterDataTrans(Transformation):
         '''
         sched = node
         # Ensure that the proposed transformation is valid
-        self.validate(sched, options)
+        if not options:
+            options = {"async_queue": async_queue, **kwargs}
+        self.validate(sched, options, **kwargs)
 
         # pylint: disable=import-outside-toplevel
         if isinstance(sched, LFRicInvokeSchedule):
@@ -1513,7 +1568,7 @@ class ACCEnterDataTrans(Transformation):
                     'Try to make an ACCEnterDataTrans with async_queue '
                     'different than the one in child kernels !')
 
-    def validate(self, sched, options={}):
+    def validate(self, sched, options=None, **kwargs):
         # pylint: disable=arguments-differ, arguments-renamed
         '''
         Check that we can safely apply the OpenACC enter-data transformation
@@ -1528,7 +1583,9 @@ class ACCEnterDataTrans(Transformation):
             (subclass of) :py:class:`psyclone.psyir.nodes.Schedule`.
 
         '''
-        super().validate(sched, options)
+        not options and self.validate_options(**kwargs)
+        options = options or kwargs
+        super().validate(sched, options, **kwargs)
 
         if not isinstance(sched, Schedule):
             raise TransformationError("Cannot apply an OpenACC enter data "
@@ -1668,6 +1725,7 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin,
                 f"{ACCRoutineDirective.SUPPORTED_PARALLELISM}")
 
 
+@transformation_documentation_wrapper
 class ACCDataTrans(RegionTrans):
     '''
     Add an OpenACC data region around a list of nodes in the PSyIR.
@@ -1730,7 +1788,7 @@ class ACCDataTrans(RegionTrans):
         '''
         return "ACCDataTrans"
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''
         Put the supplied node or list of nodes within an OpenACC data region.
 
@@ -1744,7 +1802,7 @@ class ACCDataTrans(RegionTrans):
         # one was supplied via the `node` argument.
         node_list = self.get_node_list(node)
 
-        self.validate(node_list, options)
+        self.validate(node_list, options, **kwargs)
 
         parent = node_list[0].parent
         start_index = node_list[0].position
@@ -1755,7 +1813,7 @@ class ACCDataTrans(RegionTrans):
 
         parent.children.insert(start_index, directive)
 
-    def validate(self, nodes, options):
+    def validate(self, nodes, options=None, **kwargs):
         # pylint: disable=signature-differs
         '''
         Check that we can safely add a data region around the supplied list
@@ -1779,7 +1837,7 @@ class ACCDataTrans(RegionTrans):
         # one was supplied via the `nodes` argument.
         node_list = self.get_node_list(nodes)
 
-        super().validate(node_list, options)
+        super().validate(node_list, options, **kwargs)
 
         # Check that the Schedule to which the nodes belong does not already
         # have an 'enter data' directive.
@@ -1831,6 +1889,7 @@ class ACCDataTrans(RegionTrans):
                             f"component is the one being iterated over.")
 
 
+@transformation_documentation_wrapper
 class KernelImportsToArguments(Transformation, CalleeTransformationMixin):
     '''
     Transformation that removes any accesses of imported data from the supplied
@@ -1850,7 +1909,7 @@ class KernelImportsToArguments(Transformation, CalleeTransformationMixin):
                 "into arguments and modify the InvokeSchedule to pass them"
                 " in the kernel call.")
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''
         Check that the supplied node is a valid target for this transformation.
 
@@ -1868,6 +1927,8 @@ class KernelImportsToArguments(Transformation, CalleeTransformationMixin):
             imports of symbols from one or more containers (e.g. a USE without
             an ONLY clause in Fortran).
         '''
+        if not options:
+            self.validate_options(**kwargs)
         if not isinstance(node, CodedKern):
             raise TransformationError(
                 f"The {self.name} transformation can only be applied to "
@@ -1898,7 +1959,7 @@ class KernelImportsToArguments(Transformation, CalleeTransformationMixin):
                     f"because it accesses data from its outer scope: "
                     f"{err.value}") from err
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''
         Convert the imported variables used inside the kernel into arguments
         and modify the InvokeSchedule to pass the same imported variables to
@@ -1912,7 +1973,7 @@ class KernelImportsToArguments(Transformation, CalleeTransformationMixin):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node, options)
+        self.validate(node, options, **kwargs)
 
         kernels = node.get_callees()
         # validate() has ensured that there is only one kernel routine.

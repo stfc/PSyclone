@@ -17,8 +17,10 @@ from psyclone.psyir.nodes import (CodeBlock, ExtractNode, Loop, Schedule,
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class ExtractTrans(PSyDataTrans):
     '''This transformation inserts an ExtractNode or a node derived
     from ExtractNode into the PSyIR of a schedule. At code creation
@@ -51,7 +53,7 @@ class ExtractTrans(PSyDataTrans):
         super().__init__(node_class=node_class)
 
     # -------------------------------------------------------------------------
-    def validate(self, node_list, options=None):
+    def validate(self, node_list, options=None, **kwargs):
         # pylint: disable=arguments-renamed
         '''Performs validation checks specific to extract-based
         transformations.
@@ -108,4 +110,13 @@ class ExtractTrans(PSyDataTrans):
 
         # Performs validation checks specific to PSyData-based
         # transformations.
-        super().validate(node_list, options)
+        super().validate(node_list, options, **kwargs)
+
+    def apply(self, nodes, options=None, **kwargs):
+        '''Apply this extraction transformation.
+
+        :param nodes: nodes to enclose in the extraction region.
+        :param options: a dictionary with options for transformations.
+
+        '''
+        super().apply(nodes, options=options, **kwargs)

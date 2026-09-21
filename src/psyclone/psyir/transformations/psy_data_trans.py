@@ -8,6 +8,9 @@
 '''Contains the PSyData transformation.
 '''
 
+from typing import Union
+import warnings
+
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyGen import InvokeSchedule, Kern
@@ -16,8 +19,10 @@ from psyclone.psyir.nodes import PSyDataNode, Schedule, Return, \
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class PSyDataTrans(RegionTrans):
     ''' Create a PSyData region around a list of statements. For
     example:
@@ -136,7 +141,7 @@ class PSyDataTrans(RegionTrans):
         return (module_name, region_name)
 
     # ------------------------------------------------------------------------
-    def validate(self, nodes, options=None):
+    def validate(self, nodes, options=None, **kwargs):
         '''
         Checks that the supplied list of nodes is valid, that the location
         for this node is valid (not between a loop-directive and its loop),
@@ -191,8 +196,16 @@ class PSyDataTrans(RegionTrans):
             raise TransformationError("A PSyData node cannot be inserted "
                                       "inside an OpenACC region.")
 
-        if options is None:
+        if options:
+            # TODO #2668: Deprecate options dictionary.
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
+        else:
+            self.validate_options(**kwargs)
             options = {}
+            for name in ("prefix", "region_name"):
+                value = self.get_option(name, **kwargs)
+                if value is not None and (name != "prefix" or value):
+                    options[name] = value
         if "region_name" in options:
             name = options["region_name"]
             # pylint: disable=too-many-boolean-expressions
@@ -240,10 +253,11 @@ class PSyDataTrans(RegionTrans):
                 f"'{parent_routine.symbol.name}' because it would change its "
                 f"semantics.")
 
-        super().validate(node_list, options)
+        super().validate(node_list, options, **kwargs)
 
     # ------------------------------------------------------------------------
-    def apply(self, nodes, options=None):
+    def apply(self, nodes, options=None, prefix: Union[str, None] = None,
+              region_name: Union[tuple[str, str], None] = None, **kwargs):
         # pylint: disable=arguments-renamed
         '''Apply this transformation to a subset of the nodes within a
         schedule - i.e. enclose the specified Nodes in the
@@ -271,7 +285,21 @@ class PSyDataTrans(RegionTrans):
         node_list = self.get_node_list(nodes)
 
         # Perform validation checks
-        self.validate(node_list, options)
+        validate_kwargs = dict(kwargs)
+        if prefix is not None:
+            validate_kwargs["prefix"] = prefix
+        if region_name is not None:
+            validate_kwargs["region_name"] = region_name
+        self.validate(node_list, options, **validate_kwargs)
+
+        # The PSyData node API still takes a dictionary. Construct one from
+        # the keyword arguments once they have been validated.
+        if not options:
+            options = {}
+            if prefix:
+                options["prefix"] = prefix
+            if region_name is not None:
+                options["region_name"] = region_name
 
         # Get useful references
         parent = node_list[0].parent

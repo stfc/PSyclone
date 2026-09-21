@@ -757,7 +757,7 @@ def test_ompsingle_nested():
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
-    single.apply(schedule[0])
+    single.apply(schedule[0], nowait=False)
     with pytest.raises(TransformationError) as err:
         single.apply(schedule[0])
     assert ("Nodes of type 'OMPSingleDirective' cannot be enclosed by a "

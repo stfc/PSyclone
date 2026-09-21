@@ -9,8 +9,11 @@
 transformations.
 
 '''
+import abc
+
 from psyclone.psyGen import Transformation
 from psyclone.psyir.symbols import DataSymbol
+from psyclone.utils import transformation_documentation_wrapper
 
 # AdjointTransformation is purposefully abstract. It does not
 # implement the validate or apply methods and instead provides
@@ -24,6 +27,7 @@ from psyclone.psyir.symbols import DataSymbol
 # pylint: disable=super-with-arguments
 
 
+@transformation_documentation_wrapper
 class AdjointTransformation(Transformation):
     '''An abstract class for Adjoint transformations. Requires a list of
     active variables to be passed when creating an instance of the
@@ -55,6 +59,16 @@ class AdjointTransformation(Transformation):
 
         # A list of active variables.
         self._active_variables = active_variables
+
+    @abc.abstractmethod
+    def apply(self, node, options=None, **kwargs):
+        '''Apply an adjoint transformation to the supplied node.
+
+        :param node: the node to transform.
+        :param options: a dictionary with options for transformations.
+
+        '''
+        super().apply(node, options=options, **kwargs)  # pragma: no cover
 
 
 # =============================================================================

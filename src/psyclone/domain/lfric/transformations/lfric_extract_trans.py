@@ -12,8 +12,10 @@ transformation.
 from psyclone.domain.lfric import LFRicDriverCreator, LFRicLoop
 from psyclone.psyir.nodes import ExtractNode
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class LFRicExtractTrans(ExtractTrans):
     ''' LFRic API application of ExtractTrans transformation
     to extract code into a stand-alone program.
@@ -23,7 +25,7 @@ class LFRicExtractTrans(ExtractTrans):
     def __init__(self):
         super().__init__(ExtractNode)
 
-    def validate(self, node_list, options=None):
+    def validate(self, node_list, options=None, **kwargs):
         ''' Perform LFRic API specific validation checks before applying
         the transformation.
 
@@ -39,7 +41,7 @@ class LFRicExtractTrans(ExtractTrans):
 
         # First check constraints on Nodes in the node_list inherited from
         # the parent classes (ExtractTrans and RegionTrans)
-        super().validate(node_list, options)
+        super().validate(node_list, options, **kwargs)
 
         # Check LFRicExtractTrans specific constraints
         for node in node_list:
@@ -55,7 +57,8 @@ class LFRicExtractTrans(ExtractTrans):
                     f"over colours is not allowed.")
 
     # ------------------------------------------------------------------------
-    def apply(self, nodes, options=None):
+    def apply(self, nodes, options=None, create_driver: bool = False,
+              **kwargs):
         # pylint: disable=arguments-differ
         '''Apply this transformation to a subset of the nodes within a
         schedule - i.e. enclose the specified Nodes in the schedule within
@@ -86,16 +89,19 @@ class LFRicExtractTrans(ExtractTrans):
             is required (and is supported by the runtime library).
 
         '''
-        if options is None:
-            my_options = {}
-        else:
+        if options:
             # We will add a default prefix, so create a copy to avoid
             # changing the user's options:
             my_options = options.copy()
+            create_driver = my_options.get("create_driver", False)
+        else:
+            my_options = {}
 
         nodes = self.get_node_list(nodes)
-        super().apply(nodes, my_options)
+        super().apply(nodes, options=options, create_driver=create_driver,
+                      **kwargs)
         new_node = nodes[0].ancestor(ExtractNode)
-        if my_options.get("create_driver", False):
-            region_name = my_options.get("region_name", None)
+        if create_driver:
+            region_name = (my_options.get("region_name", None) if options
+                           else self.get_option("region_name", **kwargs))
             new_node._driver_creator = LFRicDriverCreator(region_name)

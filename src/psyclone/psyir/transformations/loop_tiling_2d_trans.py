@@ -13,8 +13,10 @@ from psyclone.psyir.transformations.loop_tiling_trans import LoopTilingTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class LoopTiling2DTrans(LoopTrans):
     '''
     Apply a 2D loop tiling transformation to a loop.  This is a special
@@ -61,7 +63,7 @@ class LoopTiling2DTrans(LoopTrans):
     def __str__(self):
         return "Tile the loop construct using 2D blocks"
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''
         Validates that the given Loop node can have a LoopTiling2DTrans
         applied.
@@ -79,16 +81,20 @@ class LoopTiling2DTrans(LoopTrans):
         :raises TransformationError: if the provided tilesize is not a \
             integer.
         '''
-        if options is None:
-            options = {}
-        super(LoopTiling2DTrans, self).validate(node, options=options)
+        if options:
+            # TODO #2668: Deprecate options dictionary.
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
+        else:
+            self.validate_options(**kwargs)
+            tilesize = self.get_option("tilesize", **kwargs)
+        super().validate(node, options=options, **kwargs)
 
         # Validate options map
         # TODO #2668: Hardcoding the valid_options does not allow for
         # subclassing this transformation and adding new options, this
         # should be fixed.
         valid_options = ['tilesize']
-        for key, value in options.items():
+        for key, value in (options or {}).items():
             if key in valid_options:
                 if key == "tilesize" and not isinstance(value, int):
                     raise TransformationError(
@@ -105,10 +111,11 @@ class LoopTiling2DTrans(LoopTrans):
                     f"transformation option '{key}', the supported options "
                     f"are: {valid_options}.")
 
-        tilesize = options.get("tilesize", 32)
+        if options:
+            tilesize = options.get("tilesize", 32)
         LoopTilingTrans().validate(node, tiledims=[tilesize, tilesize])
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, tilesize: int = 32, **kwargs):
         '''
         Converts the given 2D Loop construct into a tiled version of the nested
         loops.
@@ -125,8 +132,7 @@ class LoopTiling2DTrans(LoopTrans):
         warnings.warn("LoopTiling2DTrans is deprecated. "
                       "Use LoopTilingTrans instead.",
                       DeprecationWarning, 2)
-        self.validate(node, options)
-        if options is None:
-            options = {}
-        tilesize = options.get("tilesize", 32)
+        self.validate(node, options, tilesize=tilesize, **kwargs)
+        if options:
+            tilesize = options.get("tilesize", 32)
         LoopTilingTrans().apply(node, tiledims=[tilesize, tilesize])

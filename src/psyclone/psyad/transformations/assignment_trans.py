@@ -16,6 +16,7 @@ from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.transformations import TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 from psyclone.psyad.transformations import TangentLinearError
 from psyclone.psyad.transformations.adjoint_trans import AdjointTransformation
@@ -24,12 +25,13 @@ from psyclone.psyad.transformations.adjoint_trans import AdjointTransformation
 # pylint: disable=too-many-branches
 
 
+@transformation_documentation_wrapper
 class AssignmentTrans(AdjointTransformation):
     '''Implements a transformation to translate a Tangent-Linear
     assignment to its Adjoint form.
 
     '''
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''Apply the Assignment transformation to the specified node. The node
         must be a valid tangent-linear assignment. The assignment is
         replaced with its adjoint version.
@@ -40,7 +42,7 @@ class AssignmentTrans(AdjointTransformation):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node, options)
+        self.validate(node, options, **kwargs)
 
         # Split the RHS of the assignment into [-]<term> +- <term> +- ...
         rhs_terms = self._split_nodes(
@@ -178,7 +180,7 @@ class AssignmentTrans(AdjointTransformation):
                     f"accessed on the LHS and RHS of an assignment: "
                     f"'{assign.debug_string()}'. This is not supported.")
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''Perform various checks to ensure that it is valid to apply the
         AssignmentTrans transformation to the supplied PSyIR Node.
 
@@ -193,6 +195,9 @@ class AssignmentTrans(AdjointTransformation):
             to the required tangent-linear structure.
 
         '''
+        if not options:
+            self.validate_options(**kwargs)
+
         # Check node argument is an assignment node
         if not isinstance(node, Assignment):
             raise TransformationError(

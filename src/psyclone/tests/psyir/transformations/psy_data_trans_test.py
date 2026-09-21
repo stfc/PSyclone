@@ -55,6 +55,19 @@ def test_psy_data_trans_basic():
         children[0] is node
 
 
+def test_psy_data_trans_keyword_options():
+    '''Check that PSyData options can be provided as keyword arguments.'''
+    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                           "gocean", idx=0, dist_mem=False)
+    trans = PSyDataTrans()
+    trans.apply(invoke.schedule, prefix="profile",
+                region_name=("module_name", "region_name"))
+
+    node = invoke.schedule[0]
+    assert node.prefix == "profile_"
+    assert node.region_name == "region_name"
+
+
 def test_psy_data_trans_validate_not_inside_loop_directive(fortran_reader):
     '''
     Check that the transformation refuses to add caliper nodes between

@@ -72,7 +72,7 @@ def test_profile_basic():
     # This tests that we find the subroutine node even
     # if it is not the immediate parent.
     node = invoke.schedule[0].psy_data_body[0].loop_body[0]
-    prt.apply(node)
+    prt.apply(node, force=True)
 
     assert isinstance(invoke.schedule[0].psy_data_body[0].loop_body[0],
                       ProfileNode)

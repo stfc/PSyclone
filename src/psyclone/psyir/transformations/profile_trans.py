@@ -11,8 +11,10 @@
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import CodeBlock, ProfileNode, Return, Routine
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class ProfileTrans(PSyDataTrans):
     ''' Create a profile region around a list of statements. For
     example:
@@ -39,7 +41,7 @@ class ProfileTrans(PSyDataTrans):
     def __init__(self):
         super().__init__(ProfileNode)
 
-    def validate(self, nodes, options=None):
+    def validate(self, nodes, options=None, **kwargs):
         '''
         Checks that the supplied list of nodes is valid for profiling
         callipers.
@@ -57,10 +59,12 @@ class ProfileTrans(PSyDataTrans):
                                      result in skipping the end of profiling
                                      caliper, e.g. EXIT or GOTO.
         '''
-        if not options:
-            options = {}
-        forced = options.get("force", False)
-        super().validate(nodes, options)
+        if options:
+            forced = options.get("force", False)
+        else:
+            self.validate_options(**kwargs)
+            forced = self.get_option("force", **kwargs)
+        super().validate(nodes, options, **kwargs)
         if forced:
             return
         node_list = self.get_node_list(nodes)
@@ -85,3 +89,15 @@ class ProfileTrans(PSyDataTrans):
                         f"containing a potential control flow jump, as these "
                         f"could skip the end of profiling caliper. "
                         f"Found:\n'{block.debug_string()}'")
+
+    def apply(self, nodes, options=None, force: bool = False, **kwargs):
+        '''Apply this profiling transformation.
+
+        :param nodes: nodes to enclose in the profiling region.
+        :param options: a dictionary with options for transformations.
+        :param force: ignore potential control-flow jumps in the region.
+
+        '''
+        if force:
+            kwargs["force"] = force
+        super().apply(nodes, options=options, **kwargs)

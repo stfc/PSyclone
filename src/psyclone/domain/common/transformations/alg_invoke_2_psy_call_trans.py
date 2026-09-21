@@ -71,7 +71,7 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
                 "one AlgorithmInvokeCall node present.")
 
     @abc.abstractmethod
-    def get_arguments(self, node, options=None):
+    def get_arguments(self, node, options=None, **kwargs):
         '''
         :param node: a PSyIR algorithm invoke call node.
         :type node: \
@@ -182,9 +182,9 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node, options=options)
+        self.validate(node, options=options, **kwargs)
         node.create_psylayer_symbol_root_names()
-        arguments = self.get_arguments(node, options=options)
+        arguments = self.get_arguments(node, options=options, **kwargs)
         symbol_table = node.ancestor(Routine).symbol_table
 
         # Remove functor symbols that are no longer used.

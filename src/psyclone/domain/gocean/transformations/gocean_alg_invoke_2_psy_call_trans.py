@@ -11,8 +11,10 @@ into a call to the corresponding PSy-layer routine.
 '''
 
 from psyclone.domain.common.transformations import AlgInvoke2PSyCallTrans
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class GOceanAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
     '''Transforms a GOceanAlgorithmInvokeCall into a standard Call to a
     generated PSy-layer routine.
@@ -25,6 +27,15 @@ class GOceanAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
     transformation.
 
     '''
+    def apply(self, node, options=None, **kwargs):
+        '''Apply the transformation to the supplied algorithm invoke call.
+
+        :param node: a GOcean algorithm invoke call.
+        :param options: a dictionary with options for transformations.
+
+        '''
+        super().apply(node, options=options, **kwargs)
+
     def get_arguments(self, node, options=None):
         '''Creates the GOcean processed (lowered) argument list from the
         argument lists of the kernels within the invoke call and the

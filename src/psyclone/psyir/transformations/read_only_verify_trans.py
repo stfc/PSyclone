@@ -17,8 +17,10 @@ from psyclone.psyir.nodes import (Literal, Loop, ReadOnlyVerifyNode, Directive,
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class ReadOnlyVerifyTrans(PSyDataTrans):
     '''This transformation inserts a ReadOnlyVerifyNode or a node derived
     from ReadOnlyVerifyNode into the PSyIR of a schedule. At code creation
@@ -44,7 +46,7 @@ class ReadOnlyVerifyTrans(PSyDataTrans):
         super().__init__(node_class=node_class)
 
     # -------------------------------------------------------------------------
-    def validate(self, node_list, options=None):
+    def validate(self, node_list, options=None, **kwargs):
         # pylint: disable=arguments-renamed
         '''Performs validation checks specific to read-only-based
         transformations.
@@ -89,7 +91,16 @@ class ReadOnlyVerifyTrans(PSyDataTrans):
 
         # Performs validation checks specific to PSyData-based
         # transformations.
-        super().validate(node_list, options)
+        super().validate(node_list, options, **kwargs)
+
+    def apply(self, nodes, options=None, **kwargs):
+        '''Apply this read-only verification transformation.
+
+        :param nodes: nodes to enclose in the verification region.
+        :param options: a dictionary with options for transformations.
+
+        '''
+        super().apply(nodes, options=options, **kwargs)
 
 
 # ============================================================================
