@@ -58,14 +58,13 @@ class ACCLoopTrans(ParallelLoopTrans):
         return "Adds an 'OpenACC loop' directive to a loop"
 
     def _directive(
-        self, children, collapse: Union[int, None] = None
+        self, children: list[Node], collapse: Union[int, None] = None
     ) -> ACCLoopDirective:
         '''
         Creates the ACCLoopDirective needed by this sub-class of
         transformation.
 
         :param children: list of child nodes of the new directive Node.
-        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
         :param int collapse: number of nested loops to collapse or None if
                              no collapse attribute is required.
         '''

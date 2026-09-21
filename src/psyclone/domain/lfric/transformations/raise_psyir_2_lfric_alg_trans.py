@@ -29,7 +29,6 @@ class RaisePSyIR2LFRicAlgTrans(RaisePSyIR2AlgTrans):
 
         :param call: a PSyIR call node capturing an invoke call in
             generic PSyIR.
-        :type call: :py:class:`psyclone.psyir.nodes.Call`
         :param int index: the position of this invoke call relative to
             other invokes in the algorithm layer.
         :param options: a dictionary with options for transformations.
