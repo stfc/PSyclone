@@ -10,6 +10,7 @@
 from typing import Optional
 
 from psyclone.core import AccessType, Signature, VariablesAccessMap
+from psyclone.errors import PSycloneError
 # We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.node import Node
@@ -93,12 +94,11 @@ class Reference(DataNode):
         # For user-defined calls, if we can find the intents we use them,
         # otherwise we assume readwrite
         if isinstance(parent, Call):
-            from psyclone.psyir.nodes import CallMatchingArgumentsNotFound
             try:
                 callee, _ = parent.get_callee()
                 # Get the matching argument (-1 to skip the routine at child 0)
                 arg_idx = parent.get_argument_map(callee)[self.position - 1]
-            except NotImplementedError, CallMatchingArgumentsNotFound:
+            except (NotImplementedError, PSycloneError):
                 return True
 
             # Use the intent access pattern
