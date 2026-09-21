@@ -513,9 +513,9 @@ class KernelModuleInlineTrans(Transformation):
                 visibility=Symbol.Visibility.PRIVATE)
             name_map[iface_name] = new_sym
 
-        # Update any calls to other routines the routines we have moved into
-        # this Container as they may now also point to local copies (renamed)
-        # of the routines.
+        # Update any calls to other routines inside the routines we have moved
+        # into this Container as they may now also point to local copies
+        # (renamed) of the routines.
         for code_to_inline in updated_routines:
             for call in code_to_inline.walk(Call):
                 if isinstance(call, IntrinsicCall):
