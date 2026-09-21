@@ -338,48 +338,52 @@ class KernelModuleInlineTrans(Transformation):
 
     @staticmethod
     def _get_all_routines_to_inline(
-            routines_to_inline: dict[str, Routine],
-            interfaces_to_inline: dict[str, list[str]],
+            routines_to_copy: dict[str, Routine],
+            interfaces_to_copy: dict[str, list[str]],
             container: Container,
             routine_map: dict[str, Routine],
             routines_to_examine: list[Routine]
-    ) -> tuple[list[Routine], dict[str, list[str]]]:
+    ) -> None:
         '''
-        Examine each Routine in the supplied list `routines_to_examine` and add
-        the *local* targets of any Calls to the list of routines to inline.
+        Recursively examine each Routine in the supplied list
+        `routines_to_examine` and add the *local* targets of any Calls to the
+        list of routines/interfaces to copy into the Container of the call
+        site.
 
-        :param container: the container holding the routines.
-        :param routine_map: dict holding the Routines in the current Container,
-                            indexed by name.
+        :param routines_to_copy: the Routines that need to be copied to the
+            call site. Keys are routine names, values are the Routine objects.
+        :param interfaces_to_copy: the generic interfaces that need to be
+            copied to the call site. Keys are interface names, corresponding
+            value is a list of the routine names in the interface.
+        :param container: the Container holding the routines.
+        :param routine_map: dict holding all of the Routines in the current
+            Container, indexed by name.
         :param routines_to_examine: the list of Routines to check for calls to
                                     local Routines.
-
-        :returns: a 2-tuple containing a list of all Routines and a dict of
-            interfaces that must be module inlined. The dict of interfaces
-            is keyed by interface name with each entry consisting of a list of
-            the names of the member routines.
         '''
         for routine in routines_to_examine:
             for call in routine.walk(Call):
                 if isinstance(call, IntrinsicCall):
                     continue
-                # An interface symbol will be 'automatic'.
+                # Is this a Call of a 'local' routine? (Allow for interface
+                # symbols which will have an 'automatic' interface.)
                 if ((call.symbol.is_modulevar or call.symbol.is_automatic) and
                         not call.symbol.is_import):
                     names = container.resolve_routine(call.symbol.name)
                     if len(names) > 1:
-                        # This is a call to an interface.
-                        interfaces_to_inline[call.symbol.name] = names
+                        # This is a call to an interface. Add its name and
+                        # constituent routine (names) to the dict.
+                        interfaces_to_copy[call.symbol.name] = names
                     # Add any local routines called by the target(s) of this
                     # call.
                     KernelModuleInlineTrans._get_all_routines_to_inline(
-                        routines_to_inline,
-                        interfaces_to_inline,
+                        routines_to_copy,
+                        interfaces_to_copy,
                         container,
                         routine_map,
                         [routine_map[name] for name in names])
-            # Add this routine to the dict of routines to be inlined.
-            routines_to_inline[routine.symbol.name] = routine
+            # Add this routine to the dict of routines to be copied.
+            routines_to_copy[routine.symbol.name] = routine
 
     def _target_is_local(self, node: Union[Call, CodedKern]) -> bool:
         '''

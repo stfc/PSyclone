@@ -881,6 +881,9 @@ def test_module_inline_lfric(tmpdir, annexed, dist_mem):
 
 def test_module_inline_lfric_kern_local_call(tmp_path, annexed, dist_mem):
     '''
+    Test that we correctly copy in a kernel plus all the local (to its
+    originating module) routines that it calls.
+
     '''
     psy, invoke = get_invoke("1.15.1_invoke_kern_with_local_call.f90", "lfric",
                              dist_mem=dist_mem, idx=0)
@@ -888,16 +891,25 @@ def test_module_inline_lfric_kern_local_call(tmp_path, annexed, dist_mem):
     mod_inline_trans = KernelModuleInlineTrans()
     mod_inline_trans.apply(kern_call)
     gen = str(psy.gen)
+    # Import for call to external routine.
+    assert "use coord_transform_mod, only : xyz2llr" in gen
+    # Kernel copied in and renamed.
     assert "subroutine testkern_with_local_call_code_inlined_(" in gen
+    # The routines that it calls have been copied in and renamed.
     assert "subroutine a_local_routine_inlined_(" in gen
     assert "subroutine local1_inlined_(" in gen
     assert "subroutine local2_inlined_(" in gen
+    # An interface called from down the stack is copied in too.
     assert "interface a_local_polymorph_inlined_" in gen
+    # Calls have been updated.
     assert "call a_local_routine_inlined_(" in gen
     assert "call a_local_routine(" not in gen
     assert "call a_local_polymorph_inlined_(" in gen
     assert "call a_local_polymorph(" not in gen
     assert "call local1_inlined_(" in gen
+    assert "call local1(" not in gen
+    # Multiple calls to the same routine shouldn't result in repeated
+    # renaming.
     assert "inlined_inlined" not in gen
     assert LFRicBuild(tmp_path).code_compiles(psy)
 
