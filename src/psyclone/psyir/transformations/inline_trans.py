@@ -9,6 +9,7 @@
 This module contains the InlineTrans transformation.
 
 '''
+from psyclone.domain.lfric.lfric_loop import LFRicLoop
 from psyclone.psyir.backend.visitor import VisitorError
 
 from typing import Dict, List, Optional
@@ -21,7 +22,7 @@ from psyclone.psyir.nodes import (
     Call, CodeBlock, DataNode, IfBlock, IntrinsicCall, Literal, Loop, Node,
     Range, Routine, Reference, Return, Schedule, ScopingNode, Statement,
     StructureMember, StructureReference, OMPDeclareTargetDirective,
-    ACCRoutineDirective, OMPPrivateClause)
+    ACCRoutineDirective, OMPPrivateClause, Directive)
 from psyclone.psyir.nodes.data_sharing_attribute_mixin import (
         DataSharingAttributeMixin,
 )
@@ -285,16 +286,27 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             if convert_to_allocatable:
                 cursor = node
 
-                # Try to hoist the allocation statements out of loops
-                loop = cursor.ancestor(Loop)
-                write_to_a_shape_symbol = False
-                for ref in loop.walk(Reference):
-                    if ref in [dim.upper for dim in new_shape]:
-                        if ref.is_write:
-                            write_to_a_shape_symbol = True
-                            break
-                if not write_to_a_shape_symbol:
-                    cursor = loop
+                # Try to hoist the allocations out of loops/directives
+                while True:
+                    loop = cursor.ancestor(Loop)
+                    if not loop:
+                        break
+                    writes_to_a_shape_symbol = False
+                    for ref in loop.walk(Reference):
+                        if ref in [dim.upper for dim in new_shape]:
+                            if ref.is_write:
+                                writes_to_a_shape_symbol = True
+                                break
+                    # LFRicLoops kernels do not contain the kernels arguments
+                    # as references with appropriate access patterns
+                    if (isinstance(loop, LFRicLoop) or
+                            not writes_to_a_shape_symbol):
+                        cursor = loop
+                    else:
+                        break
+                # If it is inside a RegionDirective->Schedule->cursor, hoist it
+                while isinstance(cursor.parent.parent, Directive):
+                    cursor = cursor.parent.parent
 
                 # Update the shape to DEFERRED to make the symbol allocatable
                 sym.datatype = ArrayType(
