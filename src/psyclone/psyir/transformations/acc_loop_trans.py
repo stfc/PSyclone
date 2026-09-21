@@ -11,7 +11,7 @@ from typing import Union
 
 from psyclone.psyir.transformations.parallel_loop_trans import (
     ParallelLoopTrans)
-from psyclone.psyir.nodes import (ACCLoopDirective, Loop, PSyDataNode)
+from psyclone.psyir.nodes import (ACCLoopDirective, Loop, Node, PSyDataNode)
 from psyclone.utils import transformation_documentation_wrapper
 
 
