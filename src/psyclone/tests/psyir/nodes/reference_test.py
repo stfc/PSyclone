@@ -13,7 +13,7 @@ import pytest
 from psyclone.psyGen import GenerationError
 from psyclone.psyir.nodes import (
     ArrayReference, Assignment, CodeBlock,
-    KernelSchedule, Literal, Reference, Loop)
+    KernelSchedule, Literal, Reference, Loop, Call)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
                                     UnresolvedType, ImportInterface,
@@ -613,6 +613,51 @@ def test_reference_is_write(fortran_reader):
     assert not references[11].is_write
     # Loop control variable
     assert references[12].is_write
+
+
+def test_reference_is_read_write_with_intents(fortran_reader):
+    '''Test the reference is_read and is_write property when they are
+    part of a Call where intents can be found.'''
+    code = """
+    module tests
+    contains
+    subroutine my_subroutine()
+       integer :: a,b,c,d,e
+       call somecall(a,b,c)
+       call somenamedcall(name2=d, name1=e)
+    end subroutine
+    subroutine somecall(a,b,c)
+        integer, intent(in) :: a
+        integer, intent(out) :: b
+        integer, intent(inout) :: c
+    end subroutine
+    subroutine somenamedcall(name1, name2)
+        integer, intent(in), optional :: name1
+        integer, intent(out), optional :: name2
+    end subroutine
+    end module
+   """
+    psyir = fortran_reader.psyir_from_source(code)
+    print(psyir.view())
+    calls = psyir.walk(Call)
+    assert calls[0].arguments[0].symbol.name == "a"
+    assert calls[0].arguments[0].is_read
+    assert not calls[0].arguments[0].is_write
+    assert calls[0].arguments[1].symbol.name == "b"
+    assert not calls[0].arguments[1].is_read
+    assert calls[0].arguments[1].is_write
+    assert calls[0].arguments[2].symbol.name == "c"
+    assert calls[0].arguments[2].is_read
+    assert calls[0].arguments[2].is_write
+
+    # The named arguments are out of order, but we currently can't match
+    # the caller-callee, so we assume worst-case: readwrite
+    assert calls[1].arguments[0].symbol.name == "d"
+    assert calls[1].arguments[0].is_read
+    assert calls[1].arguments[0].is_write
+    assert calls[1].arguments[1].symbol.name == "e"
+    assert calls[1].arguments[1].is_read
+    assert calls[1].arguments[1].is_write
 
 
 def test_reference_component_indices(fortran_reader):

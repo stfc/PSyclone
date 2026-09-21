@@ -17,7 +17,7 @@ from psyclone.psyir.symbols import (
     Symbol,
     AutomaticInterface,
     RoutineSymbol,
-    IntrinsicSymbol
+    IntrinsicSymbol, ArgumentInterface
 )
 from psyclone.psyir.symbols.datatypes import UnresolvedType
 
@@ -68,6 +68,7 @@ class Reference(DataNode):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.assignment import Assignment
         from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
+        from psyclone.psyir.nodes.call import Call
 
         # If the symbol is a RoutineSymbol or IntrinsicSymbol we don't read
         # the symbol.
@@ -84,6 +85,27 @@ class Reference(DataNode):
         if isinstance(parent, IntrinsicCall):
             if parent.arguments[0] is self and parent.is_inquiry:
                 return False
+
+        # For all other Intrinsic arguments we assume the worst-case
+        if isinstance(parent, IntrinsicCall):
+            return True
+
+        # For user-defined calls, if we can find the intents we use them,
+        # otherwise we assume readwrite
+        if isinstance(parent, Call):
+            from psyclone.psyir.nodes import CallMatchingArgumentsNotFound
+            try:
+                callee, _ = parent.get_callee()
+                # Get the matching argument (-1 to skip the routine at child 0)
+                arg_idx = parent.get_argument_map(callee)[self.position - 1]
+            except NotImplementedError, CallMatchingArgumentsNotFound:
+                return True
+
+            # Use the intent access pattern
+            arg = callee.symbol_table.argument_list[arg_idx]
+            if arg.interface.access == ArgumentInterface.Access.WRITE:
+                return False
+            return True
 
         # All references other than LHS of assignments represent a read. This
         # can be improved in the future by looking at Call intents.
@@ -106,10 +128,25 @@ class Reference(DataNode):
         if (isinstance(parent, IntrinsicCall) and (parent.is_inquiry or
                                                    parent.is_pure)):
             return False
-        # All other arguments of all other Calls are assumed to write to their
-        # arguments. This could be improved in the future by looking at
-        # intents where available.
+        # For all other Intrinsic arguments we assume the worst-case
+        if isinstance(parent, IntrinsicCall):
+            return True
+
+        # For user-defined calls, if we can find the intents we use them,
+        # otherwise we assume readwrite
         if isinstance(parent, Call):
+            from psyclone.psyir.nodes import CallMatchingArgumentsNotFound
+            try:
+                callee, _ = parent.get_callee()
+                # Get the matching argument (-1 to skip the routine at child 0)
+                arg_idx = parent.get_argument_map(callee)[self.position - 1]
+            except NotImplementedError, CallMatchingArgumentsNotFound:
+                return True
+
+            # Use the intent access pattern
+            arg = callee.symbol_table.argument_list[arg_idx]
+            if arg.interface.access == ArgumentInterface.Access.READ:
+                return False
             return True
         # The reference that is the LHS of an assignment is a write.
         if isinstance(parent, Assignment) and parent.lhs is self:
