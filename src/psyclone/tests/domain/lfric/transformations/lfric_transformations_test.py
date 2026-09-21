@@ -3212,7 +3212,8 @@ def test_loop_fuse_error(tmpdir, dist_mem):
                              TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
-    ftrans.apply((schedule.children[0], schedule.children[1]))
+    ftrans.apply((schedule.children[0], schedule.children[1]),
+                 conditional_fusion=True)
     code = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -3270,6 +3271,7 @@ def test_loop_fuse_error(tmpdir, dist_mem):
       ! Built-in: setval_c (set a real-valued field to a real scalar value)
       f3_data(df) = ginger
     enddo"""
+    print(code)
     assert correct in code
 
 

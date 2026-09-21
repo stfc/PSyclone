@@ -10,7 +10,7 @@
 
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import LFRicConstants, LFRicLoop
-from psyclone.psyGen import BuiltInCall
+from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.nodes import (
     ArrayOfStructuresReference, BinaryOperation, Call, IfBlock,
     StructureReference, Literal
@@ -235,43 +235,120 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
             node1_fs_name in const.VALID_ANY_SPACE_NAMES or
             node2_fs_name in const.VALID_ANY_SPACE_NAMES
         )
-        # Find the field from node1.
-        for arg in node1.args:
-            if arg.is_field:
-                arg1 = arg
-                arg1_field = arg
-                break
-        # Find the field from node2.
-        for arg in node2.args:
-            if arg.is_field:
-                arg2_field = arg
-                break
-
-        kern1 = node1.kernel
-        kern2 = node2.kernel
-        has_a_builtin = (
-            isinstance(kern1, BuiltInCall) or isinstance(kern2, BuiltInCall)
-        )
-        # If same_space is set, neither loop is on any space, or they
-        # operate on the same field and one is a builtin then we can just use
-        # normal loop fusion for these nodes.
-        if (same_space or not node_on_any_space or
-                (arg1_field.name == arg2_field.name and has_a_builtin)):
+        loop1_type = node1.loop_type
+        loop2_type = node2.loop_type
+        # If both loops are colour loops then just try to fuse them.
+        if loop1_type == "colours" and loop2_type == "colours":
             # We always add force so need to make sure its not a duplicated
             # keyword argument.
             if "force" in kwargs:
                 del kwargs["force"]
-            super().apply((node1, node2),
-                          same_space=same_space, force=True, **kwargs)
+            super().apply((node1, node2), same_space=same_space, force=True,
+                          **kwargs)
             return
+
+        # If same space is set and at least one of the nodes is on ANY_SPACE
+        # then we try to fuse.
+        if same_space and node_on_any_space:
+            # We always add force so need to make sure its not a duplicated
+            # keyword argument.
+            if "force" in kwargs:
+                del kwargs["force"]
+            super().apply((node1, node2), same_space=same_space, force=True,
+                          **kwargs)
+            return
+
+        # Otherwise we need to find the iteration space arg.
+        arg1_field = node1.kernel.arguments.iteration_space_arg()
+        arg2_field = node2.kernel.arguments.iteration_space_arg()
+
+        kern1 = node1.kernel
+        kern2 = node2.kernel
+
+        # Both need to have the same iteration_space (dof or otherwise)
+        if kern1.iterates_over != kern2.iterates_over:
+            print(kern1.iterates_over, kern2.iterates_over)
+            assert False  # FIXME transformation error?
+
+        # If neither is a built in we check the iteration space and they
+        # can only be fused if the space of their fields is the same.
+        if not node_on_any_space:
+            fs1 = arg1_field.function_space.undf_name
+            fs2 = arg2_field.function_space.undf_name
+            if fs1 == fs2:
+                # We always add force so need to make sure its not a
+                # duplicated keyword argument.
+                if "force" in kwargs:
+                    del kwargs["force"]
+                super().apply((node1, node2), force=True,
+                              **kwargs)
+                return
+
+        # If one or more is on any space then we need to search for the space.
+        found_space1 = node1.field_space
+        invokeschedule = node1.ancestor(InvokeSchedule)
+        # Find all the Kerns in the InvokeSchedule
+        kerns = invokeschedule.walk(Kern)
+        if node1_fs_name in const.VALID_ANY_SPACE_NAMES:
+            it_space_arg = node1.kernel.arguments.iteration_space_arg()
+            found_space1 = None
+            # Check if the it_space_arg appears in any of the other kernels
+            for kern in kerns:
+                for arg in kern.arguments.args:
+                    if arg.name == it_space_arg.name:
+                        # If it does, check the iteration space of it.
+                        fs = arg.function_space
+                        fs_name = fs.orig_name
+                        if fs_name not in const.VALID_ANY_SPACE_NAMES:
+                            found_space1 = fs
+                            break
+                if found_space1 is not None:
+                    break
+        found_space2 = node1.field_space
+        if node2_fs_name in const.VALID_ANY_SPACE_NAMES:
+            it_space_arg2 = node2.kernel.arguments.iteration_space_arg()
+            found_space2 = None
+            # Check if the it_space_arg appears in any of the other kernels
+            for kern in kerns:
+                for arg in kern.arguments.args:
+                    if arg.name == it_space_arg2.name:
+                        # If it does, check the iteration space of it.
+                        fs = arg.function_space
+                        fs_name = fs.orig_name
+                        if fs_name not in const.VALID_ANY_SPACE_NAMES:
+                            found_space2 = fs
+                            break
+                if found_space2 is not None:
+                    break
+
+        if ((found_space1 is None or found_space2 is None) and
+                not conditional_fusion):
+            # Couldn't work out the space and aren't doing conditional fusion
+            # so we should stop.
+            return  # FIXME Should this raise an Error?
+
+        if (found_space1 is not None and found_space2 is not None and
+                found_space1.orig_name == found_space2.orig_name):
+            # They are on the same space so we can fuse them.
+            # We always add force so need to make sure its not a
+            # duplicated keyword argument.
+            if "force" in kwargs:
+                del kwargs["force"]
+            super().apply((node1, node2), force=True,
+                          **kwargs)
+            return
+
+        # =======================FIXME BELOW==============================
 
         # Otherwise we have at least one node on any space, and have met
         # all other criteria for fusion, so we can fuse with a runtime check.
+        if not conditional_fusion:
+            return
         arg1_sym = node1.scope.symbol_table.lookup(arg1_field.name)
         arg2_sym = node2.scope.symbol_table.lookup(arg2_field.name)
 
         # Create the test call for node1
-        if arg1.vector_size > 1:
+        if arg1_field.vector_size > 1:
             call1 = Call.create(ArrayOfStructuresReference.create(
                         arg1_sym,
                         [Literal('1', ScalarType.integer_type())],
@@ -281,7 +358,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                 arg1_sym, ["which_function_space"]))
 
         # Create the test call for node2
-        if arg1.vector_size > 1:
+        if arg1_field.vector_size > 1:
             call2 = Call.create(ArrayOfStructuresReference.create(
                         arg2_sym,
                         [Literal('1', ScalarType.integer_type())],
@@ -308,7 +385,8 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         # keyword argument.
         if "force" in kwargs:
             del kwargs["force"]
-        super().apply((node1, node2), same_space=True, force=True, **kwargs)
+        super().apply((node1, node2), same_space=same_space, force=True,
+                      **kwargs)
 
 
 # For automatic documentation generation
