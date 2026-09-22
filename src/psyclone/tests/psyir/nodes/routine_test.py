@@ -605,10 +605,16 @@ def test_outer_scope_accesses_unresolved(fortran_reader):
       subroutine call_it()
         call a_routine()
       end subroutine call_it
+      subroutine a_routine()
+        write(*,*) "This is not a problem"
+      end subroutine
     end module my_mod
     ''')
     rt0 = psyir.children[0].children[0]
     call = rt0.children[0]
+    # A *call* to a local Routine is not flagged as it is possible to solve
+    # this (provided that it then doesn't access module-scope data).
+    rt0.check_outer_scope_accesses(call, "call")
 
     # Mistakenly add symbols without adding them to the symbol table
     rt0.addchild(Assignment.create(Reference(Symbol("a")),

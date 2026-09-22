@@ -8,7 +8,7 @@
 ''' This module contains the Routine node implementation.'''
 
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, Union, TYPE_CHECKING
 
 from fparser.two import Fortran2003
 from fparser.two.utils import walk
@@ -23,6 +23,9 @@ from psyclone.psyir.symbols import (
     DataSymbol, DefaultModuleInterface,
     RoutineSymbol, SymbolError, UnresolvedInterface)
 from psyclone.psyir.symbols.symbol_table import SymbolTable
+if TYPE_CHECKING:
+    from psyclone.psyGen import CodedKern
+    from psyclone.psyir.nodes.call import Call
 
 
 class Routine(Schedule, CommentableMixin):
@@ -172,7 +175,8 @@ class Routine(Schedule, CommentableMixin):
         '''
         return self.coloured_name(colour) + "[name:'" + self.name + "']"
 
-    def check_outer_scope_accesses(self, call,
+    def check_outer_scope_accesses(self,
+                                   call: Union["CodedKern", "Call"],
                                    kern_or_call: str,
                                    permit_unresolved: bool = True,
                                    ignore_non_data_accesses: bool = False):
@@ -182,7 +186,6 @@ class Routine(Schedule, CommentableMixin):
 
         :param call: the node representing the call to the routine that is to
             be inlined.
-        :type call: Union[CodedKern, Call]
         :param kern_or_call: text appropriate to whether we have a PSyKAl
             Kernel or a generic routine.
         :param permit_unresolved: whether or not the presence of unresolved
@@ -225,7 +228,15 @@ class Routine(Schedule, CommentableMixin):
                     f"{[sym.name for sym in routine_wildcards]}. It may be"
                     f" resolved by adding these to RESOLVE_IMPORTS in the "
                     f"transformation script.")
+
             if not symbol.is_import and symbol.name not in table:
+                # This is Symbol local to the Container.
+                if isinstance(symbol, RoutineSymbol):
+                    # Calls to local Routines can be OK so we don't flag
+                    # them here.
+                    continue
+                # The only option would be to make this Symbol public but
+                # that would risk namespace collisions in the generated code.
                 sym_at_call_site = call.scope.symbol_table.lookup(
                     sig.var_name, otherwise=None)
                 if sym_at_call_site is not symbol:
