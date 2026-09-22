@@ -10,7 +10,7 @@ transformations.
 
 '''
 import abc
-from typing import Any
+from typing import Any, Optional
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Node
@@ -61,7 +61,7 @@ class AdjointTransformation(Transformation):
         self._active_variables = active_variables
 
     @abc.abstractmethod
-    def apply(self, node: Node, options: dict[str, Any] | None = None,
+    def apply(self, node: Node, options: Optional[dict[str, Any]] = None,
               **kwargs: Any) -> None:
         '''Apply an adjoint transformation to the supplied node.
 
