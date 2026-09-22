@@ -181,6 +181,47 @@ def test_validate_no_inline_global_var(parser):
     inline_trans.validate(kernels[0])
 
 
+def test_validate_call_includes_interface_call(monkeypatch, fortran_reader):
+    '''
+    '''
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
+                           idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    kern_call = schedule.children[1].loop_body[0].loop_body[0]
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+      use another_mod, only: sub3, sub4
+      implicit none
+      private
+      interface an_interface
+        module procedure sub1, sub2
+      end interface
+      ! An interface to routines defined in an external module
+      interface a_2nd_interface
+        procedure sub3, sub4
+      end interface
+      public code
+    contains
+      subroutine code()
+        ! Subroutine body containing two calls to the interface defined
+        ! within the Container.
+        call an_interface(1)
+        call a_2nd_interface(1.0)
+      end subroutine code
+      subroutine sub1(iarg)
+        integer, intent(in) :: iarg
+      end subroutine sub1
+      subroutine sub2(rarg)
+        real, intent(in) :: rarg
+      end subroutine sub2
+    end module my_mod
+    ''')
+    routine = psyir.walk(Routine)[0]
+    monkeypatch.setattr(kern_call, "_schedules", [routine])
+    trans = KernelModuleInlineTrans()
+    trans.apply(kern_call)
+
+
 def test_apply_name_clashes():
     ''' Test that if the module-inline transformation finds the kernel name
     already used in the Container scope it renames the copy appropriately.
@@ -658,7 +699,7 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     ''')
 
     routine = psyir.walk(Routine)[0]
-    new_routines, new_interfaces = inline_trans._prepare_code_to_inline(
+    new_routines, _ = inline_trans._prepare_code_to_inline(
         [routine])
     result = fortran_writer(new_routines[0])
     assert "use external_mod1" in result
@@ -683,6 +724,7 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     routine = psyir.walk(Routine)[0]
     new_routines, new_interfaces = inline_trans._prepare_code_to_inline(
         [routine])
+    assert new_interfaces == {}
     result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : a" in result
     assert "use external_mod2, only : b=>var1, c=>var2" in result
@@ -819,8 +861,15 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : c" in result
 
-    # Another shadowing example where the local module should be
-    # promoted to a wildcard import
+
+def test_prepare_code_to_inline_import_to_wildcard(fortran_reader,
+                                                   fortran_writer):
+    '''Local module import should be promoted to a wildcard import.
+
+    TODO #3144 - this is unsafe as e.g. `code` may define a Symbol
+    which shadows another one from `external_mod`.
+
+    '''
     psyir = fortran_reader.psyir_from_source('''
     module my_mod
         use external_mod
@@ -833,12 +882,15 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
+    inline_trans = KernelModuleInlineTrans()
     new_routines, _ = inline_trans._prepare_code_to_inline([routine])
     result = fortran_writer(new_routines[0])
     assert "use external_mod\n" in result
     assert "use external_mod, only : r_def" not in result
 
-    # Routine References (in Calls) are also brought into the subroutine
+
+def test_prepare_code_to_inline_routine_refs(fortran_reader, fortran_writer):
+    '''Routine References (in Calls) are also brought into the subroutine.'''
     psyir = fortran_reader.psyir_from_source('''
     module my_mod
         use external_mod, only: a
@@ -849,9 +901,53 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     end module my_mod
     ''')
     routine = psyir.walk(Routine)[0]
+    inline_trans = KernelModuleInlineTrans()
     new_routines, _ = inline_trans._prepare_code_to_inline([routine])
     result = fortran_writer(new_routines[0])
     assert "use external_mod, only : a" in result
+
+
+def test_prepare_code_to_inline_call_to_interface(fortran_reader,
+                                                  fortran_writer):
+    '''
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+      use another_mod, only: sub3, sub4
+      implicit none
+      interface an_interface
+        module procedure sub1, sub2
+      end interface
+      ! An interface to routines defined in an external module
+      interface a_2nd_interface
+        procedure sub3, sub4
+      end interface
+    contains
+      subroutine code()
+        ! Subroutine body containing two calls to the interface defined
+        ! within the Container.
+        call an_interface(1)
+        call an_interface(1.0)
+      end subroutine code
+      subroutine sub1(iarg)
+        integer, intent(in) :: iarg
+      end subroutine sub1
+      subroutine sub2(rarg)
+        real, intent(in) :: rarg
+        call a_2nd_interface(rarg)
+      end subroutine sub2
+    end module my_mod
+    ''')
+    routine = psyir.walk(Routine)[0]
+    inline_trans = KernelModuleInlineTrans()
+    new_routines, interfaces = inline_trans._prepare_code_to_inline([routine])
+    assert len(new_routines) == 3
+    assert sorted(list(interfaces.keys())) == ["a_2nd_interface",
+                                               "an_interface"]
+    assert interfaces["an_interface"] == ["sub1", "sub2"]
+    assert interfaces["a_2nd_interface"] == ["sub3", "sub4"]
+    result = fortran_writer(new_routines[0])
+    assert 0
 
 
 def test_module_inline_lfric(tmpdir, annexed, dist_mem):

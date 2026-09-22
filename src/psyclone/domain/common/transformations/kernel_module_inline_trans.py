@@ -221,20 +221,30 @@ class KernelModuleInlineTrans(Transformation):
             symbol = call.routine.symbol
             if symbol.is_import or symbol.is_unresolved:
                 continue
-            local_routines = container.resolve_routine(symbol.name)
-            for lrt in local_routines:
+            # Allow for calls to interfaces. If an interface includes one
+            # or more external routines, they won't be returned by
+            # 'resolve_routine' (as they aren't in the Container). Since
+            # interfaces must be added at Container scope, it must be
+            # possible to make such external routines available in Container
+            # scope at the call site.
+            #if symbol.name == "a_2nd_interface":
+            # if isinstance(symbol, GenericInterfaceSymbol):
+            import pdb; pdb.set_trace()
+            routine_names = container.resolve_routine(symbol.name)
+            for lrt in routine_names:
                 rt_psyir = container.find_routine_psyir(
                     lrt, allow_private=True)
+                if not rt_psyir:
+                    container.symbol_table.lookup(lrt) # ARPDBG
                 # Recursively check the schedule of the target routine.
                 self._validate_schedule(node, f"{kname}->{lrt}",
                                         "routine", rt_psyir)
 
-        # We handle cases where the target routine accesses symbols that
-        # are imported into an outer scope by bringing those imports inside
-        # the target routine. However, if the target routine already contains
-        # a symbol that shadows the name of the source module of such an
-        # import then we cannot do this. (We could attempt to rename the local
-        # symbol.)
+        # We handle cases where the target routine accesses symbols that are
+        # imported into an outer scope by bringing those imports inside the
+        # target routine. However, if the target routine already contains a
+        # symbol that shadows the name of the source module of such an import
+        # then we cannot do this (we could attempt to rename the local symbol).
         symtab = kernel_schedule.ancestor(Container).symbol_table
         ctr_names = [sym.name.lower() for sym in symtab.containersymbols]
         for scope in kernel_schedule.walk(ScopingNode):
@@ -249,16 +259,20 @@ class KernelModuleInlineTrans(Transformation):
 
     @staticmethod
     def _prepare_code_to_inline(
-            routines_to_inline: list[Routine]) -> list[Routine]:
-        '''Prepare the PSyIR tree to inline by bringing in to the subroutine
-        all referenced symbols so that the implementation is self contained.
+            routines_to_inline: list[Routine]) -> tuple[list[Routine],
+                                                        dict[str, list[str]]]:
+        '''Prepare the PSyIR tree(s) for copying to the call site by bringing
+        into each subroutine all referenced symbols so that the implementation
+        is self contained.
 
         The supplied routines are copied so that the original PSyIR is left
-        unmodified.
+        unmodified. Any other local routines that are called by the supplied
+        routines are included in the preparation.
 
         :param routines_to_inline: the routine(s) to module-inline.
 
-        :returns: the updated routine(s) to module-inline.
+        :returns: a tuple holding the updated routine(s) plus any interfaces
+                  to add to the call-site scope.
 
         '''
         # pylint: disable=too-many-branches
@@ -272,15 +286,17 @@ class KernelModuleInlineTrans(Transformation):
         for routine in source_container.walk(Routine):
             new_routines[routine.name] = routine
 
-        # Recursively collect any local routines that the target routines
-        # themselves call.
+        # Recursively collect any local routines and generic interfaces that
+        # the target routines themselves call.
         all_routines_to_inline: dict[str, Routine] = {}
         all_interfaces: dict[str, list[str]] = {}
         KernelModuleInlineTrans._get_all_routines_to_inline(
             all_routines_to_inline, all_interfaces,
             source_container, new_routines, routines_to_inline)
 
-        copied_routines = []
+        # Loop through all the routines we've found and copy them over.
+        copied_routines: list[Routine] = []
+
         for orig_routine in all_routines_to_inline.values():
             code_to_inline = new_routines[orig_routine.name]
             copied_routines.append(code_to_inline)
@@ -375,13 +391,17 @@ class KernelModuleInlineTrans(Transformation):
                         # constituent routine (names) to the dict.
                         interfaces_to_copy[call.symbol.name] = names
                     # Add any local routines called by the target(s) of this
-                    # call.
-                    KernelModuleInlineTrans._get_all_routines_to_inline(
-                        routines_to_copy,
-                        interfaces_to_copy,
-                        container,
-                        routine_map,
-                        [routine_map[name] for name in names])
+                    # call. It's possibly for an interface to include routines
+                    # that are not local (i.e. imported) so we skip those.
+                    local_routines = [routine_map[name] for name in names
+                                      if name in routine_map]
+                    if local_routines:
+                        KernelModuleInlineTrans._get_all_routines_to_inline(
+                            routines_to_copy,
+                            interfaces_to_copy,
+                            container,
+                            routine_map,
+                            local_routines)
             # Add this routine to the dict of routines to be copied.
             routines_to_copy[routine.symbol.name] = routine
 
