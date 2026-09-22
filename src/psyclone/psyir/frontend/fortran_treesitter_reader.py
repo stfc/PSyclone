@@ -471,7 +471,8 @@ class FortranTreeSitterReader():
     ) -> TreeSitterCodeBlock:
         '''Create a CodeBlock for unsupported valid Fortran.
 
-        :param tsnode: tree-sitter node or list of consecutive unsupported nodes.
+        :param tsnode: tree-sitter node or list of consecutive unsupported
+            nodes.
         :param reason: human-readable explanation of the limitation.
         :param structure: whether the unsupported code is a statement or an
             expression.
@@ -581,13 +582,16 @@ class FortranTreeSitterReader():
         # currently: "subroutine", "function" and "program". Get the exact
         # node type
         routine_kind = tsnode.type
+        if (routine_kind == "program" and
+                tsnode.children[0].type != "program_statement"):
+            raise NotImplementedError(
+                "Main programs without a PROGRAM statement are not supported")
         signature, *routine_body, _end_routine_statement = tsnode.children
         signature_children = {}
         for child in signature.children:
             signature_children.setdefault(child.type, []).append(child)
-        name_nodes = signature_children.get("name", [])
-        name_node = name_nodes[0] if name_nodes else None
-        name = to_str(name_node) if name_node else routine_kind
+        name_node, = signature_children["name"]
+        name = to_str(name_node)
         parameter_nodes = signature_children.get("parameters", [])
         parameters = parameter_nodes[0] if parameter_nodes else None
         argument_names = tuple(
@@ -1422,12 +1426,12 @@ class FortranTreeSitterReader():
             raise InternalError(
                 "Unexpected 'derived_type_definition' tree-sitter children: "
                 f"{[child.type for child in tsnode.children]}")
-        type_name_nodes = [child for child in statement.children
-                           if child.type == "type_name"]
-        name_node = type_name_nodes[0] if type_name_nodes else None
+        name_node, = [child for child in statement.children
+                      if child.type == "type_name"]
         name = to_str(name_node)
         unsupported = (
-            any(child.type == "derived_type_procedures" for child in components) or
+            any(child.type == "derived_type_procedures" for child in
+                components) or
             any(child.type in ("base_type_specifier", "language_binding")
                 for child in statement.children) or
             any(child.type == "sequence_statement" for child in components))
@@ -2169,9 +2173,10 @@ class FortranTreeSitterReader():
             self._process_nodes(condition, _NodeExpectation.EXPRESSION),
             body, other)
         result.annotations.extend(
-            ["was_where"] if any(child.type == "end_where_statement"
-                                  for child in tsnode.children) else
-            ["was_where", "was_single_stmt"])
+            ["was_where"] if any(
+                child.type == "end_where_statement"
+                for child in tsnode.children
+            ) else ["was_where", "was_single_stmt"])
         return result
 
     def _select_case_statement_handler(
@@ -2188,8 +2193,8 @@ class FortranTreeSitterReader():
 
         :raises NotImplementedError: if no conditional CASE can be produced.
         '''
-        selector_syntax, = [child for child in tsnode.children
-                           if child.type == "selector"]
+        selector_syntax, = [
+            child for child in tsnode.children if child.type == "selector"]
         identifier_nodes = [child for child in selector_syntax.children
                             if child.type == "identifier"]
         selector_node = identifier_nodes[0] if identifier_nodes else None

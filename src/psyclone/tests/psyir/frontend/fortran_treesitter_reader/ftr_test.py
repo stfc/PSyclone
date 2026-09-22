@@ -89,7 +89,8 @@ def test_keyword_arguments_fall_back(fortran_writer):
     '''Alternate RETURN arguments must not be lost or cause an unpack error.'''
     reader = FortranTreeSitterReader()
     source = "subroutine test()\nreturn 1\nend subroutine test\n"
-    root = reader.generate_psyir(reader.generate_parse_tree_from_source(source))
+    root = reader.generate_psyir(
+        reader.generate_parse_tree_from_source(source))
     assert isinstance(root.children[0].children[0], psyir_nodes.CodeBlock)
     assert "return 1" in fortran_writer(root)
 
@@ -113,7 +114,8 @@ def test_contiguous_codeblocks(separator, block_sizes, fortran_writer):
       print *, 'last'
     end subroutine example
     """
-    root = reader.generate_psyir(reader.generate_parse_tree_from_source(source))
+    root = reader.generate_psyir(
+        reader.generate_parse_tree_from_source(source))
     blocks = root.walk(psyir_nodes.CodeBlock)
     assert [len(block.parse_tree_nodes) for block in blocks] == block_sizes
     output = fortran_writer(root)
@@ -236,6 +238,24 @@ def test_program():
     assert isinstance(routine, psyir_nodes.Routine)
     assert routine.is_program
     assert routine.name == "main"
+
+
+@pytest.mark.parametrize("body", [
+    "", "implicit none\n", "integer :: value\nvalue = 1\n"])
+def test_unnamed_program(body, fortran_writer):
+    '''Preserve the whole unnamed main program in a CodeBlock.'''
+    processor = FortranTreeSitterReader()
+    valid_code = body + "end\n"
+    root = processor.generate_psyir(
+        processor.generate_parse_tree_from_source(valid_code))
+    assert len(root.children) == 1
+    codeblock = root.children[0]
+    assert isinstance(codeblock, psyir_nodes.CodeBlock)
+    assert len(codeblock.parse_tree_nodes) == 1
+    assert codeblock.parse_tree_nodes[0].type == "program"
+    output = fortran_writer(root)
+    assert valid_code in output
+    assert "Main programs without a PROGRAM statement" in output
 
 
 def test_routines_nodes():
