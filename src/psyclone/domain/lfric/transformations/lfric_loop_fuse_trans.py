@@ -278,6 +278,8 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         arg2_field = node2.kernel.arguments.iteration_space_arg()
 
         # If the iteration space argument has the same name then we can fuse.
+        # FIXME We should only do this if we don't need a halo exchange
+        # between them.
         if arg1_field.name == arg2_field.name:
             # We always add force so need to make sure its not a duplicated
             # keyword argument.
