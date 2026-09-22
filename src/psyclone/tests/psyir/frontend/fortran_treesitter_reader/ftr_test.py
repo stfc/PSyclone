@@ -1849,14 +1849,18 @@ def test_existing_routine_and_local_type_calls():
     assert isinstance(caller.children[1].rhs, psyir_nodes.Call)
 
 
-def test_later_contained_routine_is_predeclared():
-    '''A call to a later contained routine uses its container symbol.'''
-    valid_code = """
+@pytest.mark.parametrize("comment", ["", "! Between contained procedures"])
+def test_later_contained_routine_is_predeclared(comment):
+    '''A call to a later contained routine uses its container symbol, even
+    when non-procedure nodes occur in the internal-procedures children.
+    '''
+    valid_code = f"""
         module routines
         contains
           subroutine caller()
             call later()
           end subroutine caller
+          {comment}
           pure subroutine later()
           end subroutine later
         end module routines
