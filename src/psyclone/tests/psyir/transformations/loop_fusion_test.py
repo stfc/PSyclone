@@ -56,6 +56,31 @@ def test_fusetrans_error_incomplete():
     fuse.validate((loop1, loop2))
 
 
+def test_fusetrans_error_not_enough_inputs():
+    ''' Check that the LoopFuseTrans rejects the input if there aren't exactly
+    two input loops.'''
+    loop1 = Loop.create(DataSymbol("i", ScalarType.integer_type()),
+                        Literal("1", ScalarType.integer_type()),
+                        Literal("10", ScalarType.integer_type()),
+                        Literal("1", ScalarType.integer_type()), [Return()])
+    sch1 = Schedule()
+    sch1.addchild(loop1)
+
+    fuse = LoopFuseTrans()
+    # Check the input if its not a Tuple.
+    with pytest.raises(TransformationError) as err:
+        fuse.validate(loop1)
+    assert ("LoopFuseTrans expected a tuple of 2 input nodes but was "
+            "provided Loop[variable:'i']" in str(err.value))
+
+    # CHeck the input if its not got 2 elements.
+    with pytest.raises(TransformationError) as err:
+        fuse.validate((loop1, ))
+    assert ("Transformation Error: LoopFuseTrans expected a tuple of 2 input "
+            "nodes but was provided (<psyclone.psyir.nodes.loop.Loop"
+            in str(err.value))
+
+
 # ----------------------------------------------------------------------------
 def test_fusetrans_error_not_same_parent():
     ''' Check that we reject attempts to fuse loops which don't share the
