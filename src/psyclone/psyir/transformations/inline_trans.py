@@ -10,7 +10,6 @@ This module contains the InlineTrans transformation.
 
 '''
 from psyclone.domain.lfric.lfric_loop import LFRicLoop
-from psyclone.psyir.backend.visitor import VisitorError
 
 from typing import Dict, List, Optional
 
