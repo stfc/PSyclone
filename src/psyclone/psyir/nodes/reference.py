@@ -98,7 +98,7 @@ class Reference(DataNode):
                 callee, _ = parent.get_callee()
                 # Get the matching argument (-1 to skip the routine at child 0)
                 arg_idx = parent.get_argument_map(callee)[self.position - 1]
-            except (NotImplementedError, PSycloneError):
+            except (NotImplementedError, PSycloneError, AttributeError):
                 return True
 
             # Use the intent access pattern
@@ -139,7 +139,7 @@ class Reference(DataNode):
                 callee, _ = parent.get_callee()
                 # Get the matching argument (-1 to skip the routine at child 0)
                 arg_idx = parent.get_argument_map(callee)[self.position - 1]
-            except (NotImplementedError, PSycloneError):
+            except (NotImplementedError, PSycloneError, AttributeError):
                 return True
 
             # Use the intent access pattern
