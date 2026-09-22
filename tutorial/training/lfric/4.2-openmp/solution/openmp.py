@@ -48,7 +48,7 @@ def trans(psyir: FileContainer) -> None:
         # boundaries!
         fuse = LFRicLoopFuseTrans()
         try:
-            fuse.apply(all_loops[0], all_loops[1])
+            fuse.apply((all_loops[0], all_loops[1]))
         except IndexError:
             # We have two invokes, the second one has only one loop
             print(f"There is only one loop in {str(invoke.name)}")
