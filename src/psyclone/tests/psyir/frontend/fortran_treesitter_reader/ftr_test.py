@@ -7,6 +7,7 @@
 
 ''' Performs tests on the treesitter PSyIR front-end '''
 import logging
+from types import SimpleNamespace
 import pytest
 
 from tree_sitter import Node as TSNode
@@ -1511,6 +1512,40 @@ def test_binary_operation():
         processor.generate_parse_tree_from_source(valid_code))
     expression = root.children[0].children[0].rhs
     assert expression.operator == psyir_nodes.BinaryOperation.Operator.ADD
+
+
+def test_operation_unexpected_child_shape():
+    '''An operation node must have a unary or binary grammar shape.'''
+    processor = FortranTreeSitterReader()
+    malformed_node = SimpleNamespace(
+        type="math_expression",
+        children=[SimpleNamespace(type="identifier")])
+
+    with pytest.raises(InternalError, match="Unexpected 'math_expression'"):
+        processor._operation(malformed_node)
+
+
+@pytest.mark.parametrize("source, node_type, child_types", [
+    ("value = -other", "unary_expression", ["-", "identifier"]),
+    ("value = other + 1", "math_expression",
+     ["identifier", "+", "number_literal"]),
+    ("value = other", "assignment_statement",
+     ["identifier", "=", "identifier"]),
+    ("pointer => target", "pointer_association_statement",
+     ["identifier", "=>", "identifier"]),
+    ("value = procedure(other)", "call_expression",
+     ["identifier", "argument_list"]),
+    ("value = object%member", "derived_type_member_expression",
+     ["identifier", "%", "type_member"]),
+])
+def test_fixed_child_shapes(source, node_type, child_types):
+    '''Check the fixed grammar shapes unpacked by the reader.'''
+    processor = FortranTreeSitterReader()
+    parse_tree = processor.generate_parse_tree_from_source(
+        f"program shapes\n{source}\nend program shapes")
+
+    tsnode = _first_tsnode(parse_tree, node_type)
+    assert [child.type for child in tsnode.children] == child_types
 
 
 def test_unsupported_expression_codeblock():

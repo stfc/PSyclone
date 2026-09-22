@@ -477,11 +477,11 @@ class FortranTreeSitterReader():
 
         # If at this point we still don't have a handler, it is unsupported
         raise NotImplementedError(
-            f"Unsupported '{tsnode.type}' tree-sitter node.") from None
+            f"Unsupported '{tsnode.type}' tree-sitter node.")
 
     def _translation_unit_handler(
         self, tsnode: 'TSNode'
-    ) -> nodes.Node:
+    ) -> nodes.FileContainer:
         ''' Handle treesitter 'translation_unit' node.
 
         :param tsnode: the treesitter node the process.
@@ -497,7 +497,7 @@ class FortranTreeSitterReader():
 
     def _module_handler(
         self, tsnode: 'TSNode'
-    ) -> nodes.Node:
+    ) -> nodes.Container:
         ''' Handle a treesitter 'module' node.
 
         :param tsnode: the treesitter node the process.
@@ -1035,9 +1035,8 @@ class FortranTreeSitterReader():
         '''
         symtab = self._current_scope
         if tsnode.type == "derived_type":
-            keyword = tsnode.children[0].type
-            name_node = next(
-                children_of_type(tsnode, "type_name"), None)
+            keyword_node, _open, name_node, _close = tsnode.children
+            keyword = keyword_node.type
             name = to_str(name_node)
             if keyword == "class":
                 raise NotImplementedError(
@@ -1050,7 +1049,8 @@ class FortranTreeSitterReader():
                 symtab.add(datatype)
                 return datatype
 
-        intrinsic = tsnode.children[0].type
+        intrinsic_node, *_kind = tsnode.children
+        intrinsic = intrinsic_node.type
         mapping = {
             "integer": symbols.ScalarType.Intrinsic.INTEGER,
             "real": symbols.ScalarType.Intrinsic.REAL,
@@ -1070,13 +1070,13 @@ class FortranTreeSitterReader():
                       if child.type not in ("(", ")", ",")]
             for value in values:
                 if value.type == "keyword_argument":
-                    key = to_str(value.children[0]).lower()
-                    value = value.children[-1]
+                    key_node, _equals, value_node = value.children
+                    key = to_str(key_node).lower()
                     if key == "len":
                         length = self._process_nodes(
-                            value, _NodeExpectation.EXPRESSION)
+                            value_node, _NodeExpectation.EXPRESSION)
                     else:
-                        precision = self._precision(value)
+                        precision = self._precision(value_node)
                 elif intrinsic == "character":
                     length = self._process_nodes(
                         value, _NodeExpectation.EXPRESSION)
@@ -1375,10 +1375,11 @@ class FortranTreeSitterReader():
                     self._apply_visibility(visibility_map)
                     datatype = symbols.StructureType()
                     for component in self._current_scope.datasymbols:
-                        datatype.add(
+                        datatype.add(symbols.StructureType.ComponentType(
                             component.name, component.datatype,
-                            component.visibility,
-                            component.initial_value)
+                            component.visibility, component.initial_value,
+                            component.preceding_comment,
+                            component.inline_comment))
                 except (NotImplementedError, TypeError, ValueError):
                     datatype = None
         if datatype is None:
@@ -1498,8 +1499,8 @@ class FortranTreeSitterReader():
         '''
         content = [child for child in tsnode.children
                    if child.type not in ("(", ")")]
-        return self._process_nodes(
-            content[0], _NodeExpectation.EXPRESSION)
+        expression, = content
+        return self._process_nodes(expression, _NodeExpectation.EXPRESSION)
 
     def _operation(
         self, tsnode: 'TSNode'
@@ -1511,19 +1512,23 @@ class FortranTreeSitterReader():
         :returns: PSyIR UnaryOperation or BinaryOperation.
 
         '''
-        if len(tsnode.children) == 2:
-            operator = to_str(tsnode.children[0]).lower()
+        children = tsnode.children
+        if len(children) == 2:
+            operator_node, argument = children
+            operator = to_str(operator_node).lower()
             return nodes.UnaryOperation.create(
                 self._UNARY_OPERATORS[operator],
-                self._process_nodes(
-                    tsnode.children[1], _NodeExpectation.EXPRESSION))
-        operator = to_str(tsnode.children[1]).lower()
-        return nodes.BinaryOperation.create(
-            self._BINARY_OPERATORS[operator],
-            self._process_nodes(
-                tsnode.children[0], _NodeExpectation.EXPRESSION),
-            self._process_nodes(
-                tsnode.children[2], _NodeExpectation.EXPRESSION))
+                self._process_nodes(argument, _NodeExpectation.EXPRESSION))
+        if len(children) == 3:
+            left, operator_node, right = children
+            operator = to_str(operator_node).lower()
+            return nodes.BinaryOperation.create(
+                self._BINARY_OPERATORS[operator],
+                self._process_nodes(left, _NodeExpectation.EXPRESSION),
+                self._process_nodes(right, _NodeExpectation.EXPRESSION))
+        raise InternalError(
+            f"Unexpected '{tsnode.type}' tree-sitter children: "
+            f"{[child.type for child in children]}")
 
     def _call_expression_handler(
         self, tsnode: 'TSNode'
@@ -1544,15 +1549,12 @@ class FortranTreeSitterReader():
             or its argument form is unsupported.
         '''
         symtab = self._current_scope
-        name_node = tsnode.children[0]
+        name_node, argument_list = tsnode.children
         if name_node.type == "derived_type_member_expression":
             return self._structure_reference(
                 name_node,
-                trailing_arguments=next(
-                    children_of_type(tsnode, "argument_list"), None))
+                trailing_arguments=argument_list)
         name = to_str(name_node).lower()
-        argument_list = next(
-            children_of_type(tsnode, "argument_list"), None)
         try:
             symbol = self._current_scope.lookup(name)
         except KeyError:
@@ -1626,9 +1628,10 @@ class FortranTreeSitterReader():
                 continue
             dimension += 1
             if child.type == "keyword_argument":
-                key = to_str(child.children[0])
+                key_node, _equals, value = child.children
+                key = to_str(key_node)
                 result.append((key, self._process_nodes(
-                    child.children[-1], _NodeExpectation.EXPRESSION)))
+                    value, _NodeExpectation.EXPRESSION)))
             elif child.type == "extent_specifier":
                 if array_symbol is None:
                     raise NotImplementedError(
@@ -1754,10 +1757,9 @@ class FortranTreeSitterReader():
         if tsnode.type == "identifier":
             return to_str(tsnode).lower(), [], []
         if tsnode.type == "call_expression":
-            base = tsnode.children[0]
+            base, argument_list = tsnode.children
             name, indices, members = self._decompose_structure(base)
-            arguments = self._arguments(
-                next(children_of_type(tsnode, "argument_list"), None))
+            arguments = self._arguments(argument_list)
             if any(isinstance(arg, tuple) for arg in arguments):
                 raise NotImplementedError(
                     "Named arguments in structure accesses are not supported")
@@ -1766,9 +1768,8 @@ class FortranTreeSitterReader():
             else:
                 indices = arguments
             return name, indices, members
-        name, indices, members = self._decompose_structure(
-            tsnode.children[0])
-        member = next(children_of_type(tsnode, "type_member"), None)
+        base, _percent, member = tsnode.children
+        name, indices, members = self._decompose_structure(base)
         members.append(to_str(member).lower())
         return name, indices, members
 
@@ -1816,11 +1817,10 @@ class FortranTreeSitterReader():
         :returns: PSyIR Assignment.
 
         '''
+        left, _equals, right = tsnode.children
         return nodes.Assignment.create(
-            self._process_nodes(
-                tsnode.children[0], _NodeExpectation.EXPRESSION),
-            self._process_nodes(
-                tsnode.children[2], _NodeExpectation.EXPRESSION))
+            self._process_nodes(left, _NodeExpectation.EXPRESSION),
+            self._process_nodes(right, _NodeExpectation.EXPRESSION))
 
     def _pointer_association_statement_handler(
         self, tsnode: 'TSNode'
@@ -1832,12 +1832,11 @@ class FortranTreeSitterReader():
         :returns: pointer-annotated PSyIR Assignment.
 
         '''
+        left, _arrow, right = tsnode.children
         assignment = nodes.Assignment(is_pointer=True)
         assignment.children = [
-            self._process_nodes(
-                tsnode.children[0], _NodeExpectation.EXPRESSION),
-            self._process_nodes(
-                tsnode.children[2], _NodeExpectation.EXPRESSION)]
+            self._process_nodes(left, _NodeExpectation.EXPRESSION),
+            self._process_nodes(right, _NodeExpectation.EXPRESSION)]
         return assignment
 
     def _subroutine_call_handler(
@@ -1886,7 +1885,8 @@ class FortranTreeSitterReader():
 
         :raises NotImplementedError: if the keyword has no PSyIR node.
         '''
-        keyword = tsnode.children[0].type
+        keyword_node, = tsnode.children
+        keyword = keyword_node.type
         if keyword == "return":
             return nodes.Return()
         raise NotImplementedError(
@@ -2201,9 +2201,10 @@ class FortranTreeSitterReader():
                     "allocate", "deallocate", "nullify", "(", ")", ","):
                 continue
             if child.type == "keyword_argument":
-                args.append((to_str(child.children[0]),
+                key, _equals, value = child.children
+                args.append((to_str(key),
                              self._process_nodes(
-                                 child.children[-1],
+                                 value,
                                  _NodeExpectation.EXPRESSION)))
             elif child.type == "sized_allocation":
                 args.append(self._allocation_reference(child))
