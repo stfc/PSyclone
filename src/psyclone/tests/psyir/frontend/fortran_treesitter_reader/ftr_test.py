@@ -63,6 +63,67 @@ def test_constructor():
     # TODO #3083: Typecheck arguments
 
 
+@pytest.mark.parametrize("option, value", [
+    ("ignore_directives", False),
+    ("last_comments_as_codeblocks", True),
+    ("resolve_modules", True),
+    ("resolve_modules", ["some_module"]),
+    ("ignore_comments", False),
+    ("free_form", False),
+    ("conditional_openmp", False),
+])
+def test_unsupported_options_warning(option, value, caplog):
+    '''Requested unsupported behaviour is reported without breaking callers.'''
+    with caplog.at_level(
+            logging.WARNING,
+            "psyclone.psyir.frontend.fortran_treesitter_reader"):
+        FortranTreeSitterReader()
+        assert not caplog.records
+        FortranTreeSitterReader(**{option: value})
+    assert len(caplog.records) == 1
+    assert option in caplog.text
+    assert "They are ignored" in caplog.text
+
+
+def test_keyword_arguments_fall_back(fortran_writer):
+    '''Alternate RETURN arguments must not be lost or cause an unpack error.'''
+    reader = FortranTreeSitterReader()
+    source = "subroutine test()\nreturn 1\nend subroutine test\n"
+    root = reader.generate_psyir(reader.generate_parse_tree_from_source(source))
+    assert isinstance(root.children[0].children[0], psyir_nodes.CodeBlock)
+    assert "return 1" in fortran_writer(root)
+
+
+@pytest.mark.parametrize("separator, block_sizes", [
+    ("", [3]),
+    ("value = 1", [1, 2]),
+    ("! An ignored comment", [1, 2]),
+])
+def test_contiguous_codeblocks(separator, block_sizes, fortran_writer):
+    '''Only contiguous unsupported statements merge, preserving source and
+    distinct explanations in the generated Fortran.
+    '''
+    reader = FortranTreeSitterReader()
+    source = f"""
+    subroutine example()
+      integer :: value
+      print *, 'first'
+      {separator}
+      stop
+      print *, 'last'
+    end subroutine example
+    """
+    root = reader.generate_psyir(reader.generate_parse_tree_from_source(source))
+    blocks = root.walk(psyir_nodes.CodeBlock)
+    assert [len(block.parse_tree_nodes) for block in blocks] == block_sizes
+    output = fortran_writer(root)
+    assert output.index("print *, 'first'") < output.index("\n  stop\n")
+    assert output.index("\n  stop\n") < output.index("print *, 'last'")
+    if not separator:
+        assert blocks[0].preceding_comment.count("print_statement") == 1
+        assert blocks[0].preceding_comment.count("stop_statement") == 1
+
+
 def test_generate_parse_tree(tmpdir_factory, caplog):
     '''
     Test that generate_parse_tree returns treesitter trees or appropriate
@@ -325,32 +386,20 @@ def test_argument_intent(intent, access):
     assert value.interface.access == access
 
 
-def test_pure_function():
-    '''Test the PURE function qualifier.'''
+@pytest.mark.parametrize("qualifier, elemental", [
+    ("pure", False), ("elemental", True)])
+def test_function_qualifier(qualifier, elemental):
+    '''PURE and ELEMENTAL functions are pure; only ELEMENTAL is elemental.'''
     processor = FortranTreeSitterReader()
-    valid_code = """
-        pure real function identity(value)
+    valid_code = f"""
+        {qualifier} real function identity(value)
           real :: value
           identity = value
         end function identity
     """
     root = processor.generate_psyir(
         processor.generate_parse_tree_from_source(valid_code))
-    assert root.children[0].symbol.is_pure is True
-
-
-def test_elemental_function():
-    '''Test the ELEMENTAL function qualifier.'''
-    processor = FortranTreeSitterReader()
-    valid_code = """
-        elemental real function identity(value)
-          real :: value
-          identity = value
-        end function identity
-    """
-    root = processor.generate_psyir(
-        processor.generate_parse_tree_from_source(valid_code))
-    assert root.children[0].symbol.is_elemental is True
+    assert root.children[0].symbol.is_elemental is elemental
     assert root.children[0].symbol.is_pure is True
 
 
@@ -1274,13 +1323,18 @@ def test_use_conflicts_with_preceding_declaration():
             processor.generate_parse_tree_from_source(valid_code))
 
 
-def test_derived_type_definition():
-    '''Test a simple derived-type definition.'''
+@pytest.mark.parametrize("access, visibility", [
+    ("", psyir_symbols.Symbol.Visibility.PUBLIC),
+    ("private", psyir_symbols.Symbol.Visibility.PRIVATE),
+])
+def test_derived_type_definition(access, visibility):
+    '''Test derived-type components with default and explicit visibility.'''
     processor = FortranTreeSitterReader()
-    valid_code = """
+    valid_code = f"""
         module geometry
           implicit none
           type :: point
+            {access}
             real :: x
           end type point
         end module geometry
@@ -1293,6 +1347,7 @@ def test_derived_type_definition():
     assert list(point.datatype.components) == ["x"]
     assert point.datatype.components["x"].datatype == \
         psyir_symbols.ScalarType.real_type()
+    assert point.datatype.components["x"].visibility is visibility
 
 
 def test_derived_type_component_host_association():
@@ -2491,14 +2546,18 @@ def test_select_case_call_selector_is_preserved():
     assert isinstance(selection, psyir_nodes.CodeBlock)
 
 
-def test_select_case_with_only_default_is_unsupported():
+@pytest.mark.parametrize("selector, reason", [
+    ("next_value()", "SELECT CASE selectors containing calls"),
+    ("value", "only a default clause"),
+])
+def test_select_case_with_only_default_is_unsupported(selector, reason):
     '''A default-only SELECT CASE remains a CodeBlock so evaluation of an
     impure selector is not discarded.
     '''
-    valid_code = """
+    valid_code = f"""
         subroutine selection(value)
           integer :: value
-          select case(next_value())
+          select case({selector})
           case default
             value = 1
           end select
@@ -2510,28 +2569,7 @@ def test_select_case_with_only_default_is_unsupported():
 
     codeblock = root.children[0].children[0]
     assert isinstance(codeblock, psyir_nodes.CodeBlock)
-    assert "SELECT CASE selectors containing calls" in \
-        codeblock.preceding_comment
-
-
-def test_select_case_with_only_default_and_simple_selector():
-    '''A default-only SELECT CASE with a simple selector is unsupported.'''
-    valid_code = """
-        subroutine selection(value)
-          integer :: value
-          select case(value)
-          case default
-            value = 1
-          end select
-        end subroutine selection
-    """
-    processor = FortranTreeSitterReader()
-    root = processor.generate_psyir(
-        processor.generate_parse_tree_from_source(valid_code))
-
-    codeblock = root.children[0].children[0]
-    assert isinstance(codeblock, psyir_nodes.CodeBlock)
-    assert "only a default clause" in codeblock.preceding_comment
+    assert reason in codeblock.preceding_comment
 
 
 def test_invalid_memory_intrinsic_signature(monkeypatch):
@@ -2554,6 +2592,48 @@ def test_invalid_memory_intrinsic_signature(monkeypatch):
                         invalid_intrinsic)
     with pytest.raises(NotImplementedError, match="Unsupported operands"):
         processor._memory_statement(allocate)
+
+
+@pytest.mark.parametrize("node_type, child_types", [
+    ("use_statement", ["identifier"]),
+    ("derived_type_definition", ["derived_type_statement", "identifier"]),
+    ("interface", ["interface_statement", "identifier"]),
+])
+def test_unexpected_statement_children(node_type, child_types):
+    '''Existing boundary checks reject malformed parser nodes before using
+    their contents. Valid Fortran cannot produce these shapes.
+    '''
+    processor = FortranTreeSitterReader()
+    malformed = SimpleNamespace(type=node_type, children=[
+        SimpleNamespace(type=kind) for kind in child_types])
+    with pytest.raises(InternalError) as err:
+        processor._get_handler(malformed)(malformed)
+    assert f"Unexpected '{node_type}' tree-sitter children" in str(err.value)
+    assert str(child_types) in str(err.value)
+
+
+@pytest.mark.parametrize("context, message", [
+    ("declaration", "An extent-specifier must contain a colon"),
+    ("section", "A range must contain a colon"),
+    ("case", "A CASE extent-specifier must contain a colon"),
+    ("allocation", "An allocation extent must contain a colon"),
+])
+def test_extent_requires_colon(context, message):
+    '''All extent consumers reject a malformed extent without a colon.'''
+    processor = FortranTreeSitterReader()
+    extent = SimpleNamespace(type="extent_specifier", children=[])
+    containing_node = SimpleNamespace(children=[extent])
+    symbol = psyir_symbols.DataSymbol(
+        "values", psyir_symbols.ScalarType.integer_type())
+    selector = psyir_nodes.Reference(symbol)
+    handler, arguments = {
+        "declaration": (processor._shape_from_node, (containing_node,)),
+        "section": (processor._range, (extent, symbol, 1)),
+        "case": (processor._case_condition, (selector, containing_node)),
+        "allocation": (processor._allocation_extent, (extent,)),
+    }[context]
+    with pytest.raises(InternalError, match=message):
+        handler(*arguments)
 
 
 def test_scope_and_handler_defensive_errors():

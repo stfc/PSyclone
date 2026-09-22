@@ -20,13 +20,13 @@ To interpret the treesitter DSL read:
 https://tree-sitter.github.io/tree-sitter/creating-parsers/
 2-the-grammar-dsl.html
 
-But to make it easy to follow the rules from this reader, all destructuting
+But to make it easy to follow the rules from this reader, all destructuring
 of ``tsnode.children`` is done using its grammar order and exact names. Starred
 names collect optional or repeated children, underscored captures are ignored.
 For instance, a Routine node can be destructured as:
 `signature, *routine_body, _end_routine_statement = tsnode.children`
 Which means that it has a mandatory Signature node, followed by a list of zero
-or more nodes that formt he routine_body, and a mandatory EndRoutineStatement
+or more nodes that form the routine_body, and a mandatory EndRoutineStatement
 that we will ignore.
 
 '''
@@ -139,6 +139,9 @@ class FortranTreeSitterReader():
     fparser is still paid when using treesitter.
     - the coverage of Fortran supported is more limited than in fparser.
 
+    Non-default requests for unsupported options are logged as warnings.
+    The options are retained for API compatibility but do not change parsing.
+
     :param ignore_directives: Whether directives should be ignored or not
         (default True). Currently ignored.
     :param last_comments_as_codeblocks: Whether the last comments in the a
@@ -148,8 +151,11 @@ class FortranTreeSitterReader():
         for more precise control it also accepts a list of module names.
         Defaults to False. Currently ignored.
     :param ignore_comments: whether to let the parser ignore comments.
+        Currently ignored.
     :param free_form: whether to parse using Fortran free_form syntax.
+        Currently ignored.
     :param conditional_openmp: whether to parse conditional OpenMP statements.
+        Currently ignored.
     '''
 
     _UNARY_OPERATORS = {
@@ -221,6 +227,20 @@ class FortranTreeSitterReader():
         self._ignore_comments = ignore_comments
         self._free_form = free_form
         self._conditional_openmp = conditional_openmp
+        unsupported_options = {
+            "ignore_directives": not ignore_directives,
+            "last_comments_as_codeblocks": last_comments_as_codeblocks,
+            "resolve_modules": resolve_modules,
+            "ignore_comments": not ignore_comments,
+            "free_form": not free_form,
+            "conditional_openmp": not conditional_openmp,
+        }
+        requested = [name for name, enabled in unsupported_options.items()
+                     if enabled]
+        if requested:
+            logging.getLogger(__name__).warning(
+                "FortranTreeSitterReader does not implement these requested "
+                "options: %s. They are ignored.", ", ".join(requested))
         # Keep a reference to the symbol table currently in scope, instead of
         # having it as argument everywhere. The initial one here is a
         # disposable instance (but prevents having to deal with the None type)
@@ -370,15 +390,27 @@ class FortranTreeSitterReader():
 
         :returns: PSyIR nodes produced from the supplied tree-sitter nodes.
         '''
-        if expect not in _NodeExpectation:
+        if not isinstance(expect, _NodeExpectation):
             raise InternalError(
                     f"Unsupported node expectation '{expect}'")
         list_of_nodes = tsnodes if isinstance(tsnodes, Iterable) else [tsnodes]
         children = []
+        pending_nodes = []
+        pending_reasons = []
+
+        def flush_codeblock():
+            '''Emit the pending run of unsupported statements in order.'''
+            if pending_nodes:
+                children.append(self._create_codeblock(
+                    pending_nodes[:], "\n- ".join(pending_reasons)))
+                pending_nodes.clear()
+                pending_reasons.clear()
+
         for tsnode in list_of_nodes:
             try:
                 handler = self._get_handler(tsnode)
                 result = handler(tsnode)
+                flush_codeblock()
                 if result is not None:
                     children.append(result)
             except NotImplementedError as err:
@@ -395,13 +427,19 @@ class FortranTreeSitterReader():
                     # remove the Fparser2 logic from that class
                     symbol.datatype._type_text = to_str(tsnode)
                 else:
-                    # Everything else we store as Codeblocks
-                    # TODO #3083: Aggregate contiguous CodeBlocks.
+                    # Only statement lists may combine separate source nodes.
+                    if expect is _NodeExpectation.LIST:
+                        pending_nodes.append(tsnode)
+                        if str(err) not in pending_reasons:
+                            pending_reasons.append(str(err))
+                        continue
                     structure = (CodeBlock.Structure.EXPRESSION
                                  if expect is _NodeExpectation.EXPRESSION
                                  else CodeBlock.Structure.STATEMENT)
                     children.append(
                         self._create_codeblock(tsnode, str(err), structure))
+
+        flush_codeblock()
 
         # Validate that the parsed nodes match the expectations of the caller
         if expect in (_NodeExpectation.ONE, _NodeExpectation.EXPRESSION):
@@ -428,12 +466,12 @@ class FortranTreeSitterReader():
 
     @staticmethod
     def _create_codeblock(
-        tsnode: 'TSNode', reason: str,
+        tsnode: Union['TSNode', list['TSNode']], reason: str,
         structure: CodeBlock.Structure = CodeBlock.Structure.STATEMENT
     ) -> TreeSitterCodeBlock:
         '''Create a CodeBlock for unsupported valid Fortran.
 
-        :param tsnode: tree-sitter node containing unsupported Fortran.
+        :param tsnode: tree-sitter node or list of consecutive unsupported nodes.
         :param reason: human-readable explanation of the limitation.
         :param structure: whether the unsupported code is a statement or an
             expression.
@@ -539,18 +577,18 @@ class FortranTreeSitterReader():
         :param tsnode: the procedure treesitter node.
         :returns: translated PSyIR Routine.
         '''
-        # This handler is used by multiple nodes in _HANLDER_REDIRECTIONS,
+        # This handler is used by multiple nodes in _HANDLER_REDIRECTIONS,
         # currently: "subroutine", "function" and "program". Get the exact
         # node type
         routine_kind = tsnode.type
         signature, *routine_body, _end_routine_statement = tsnode.children
-        signature_children = signature.children
-        name_nodes = [child for child in signature_children
-                      if child.type == "name"]
+        signature_children = {}
+        for child in signature.children:
+            signature_children.setdefault(child.type, []).append(child)
+        name_nodes = signature_children.get("name", [])
         name_node = name_nodes[0] if name_nodes else None
         name = to_str(name_node) if name_node else routine_kind
-        parameter_nodes = [child for child in signature_children
-                           if child.type == "parameters"]
+        parameter_nodes = signature_children.get("parameters", [])
         parameters = parameter_nodes[0] if parameter_nodes else None
         argument_names = tuple(
             to_str(child) for child in parameters.children
@@ -573,8 +611,7 @@ class FortranTreeSitterReader():
             name, signature, return_type)
         qualifiers = {
             to_str(child).lower().replace("-", "_")
-            for child in signature.children
-            if child.type == "procedure_qualifier"}
+            for child in signature_children.get("procedure_qualifier", [])}
         is_recursive = (True if "recursive" in qualifiers else
                         False if "non_recursive" in qualifiers else None)
         routine = nodes.Routine(
@@ -640,16 +677,18 @@ class FortranTreeSitterReader():
         if routine_kind != "function":
             return None, None
 
-        result_nodes = [child for child in signature.children
-                        if child.type == "function_result"]
+        signature_children = {}
+        for child in signature.children:
+            signature_children.setdefault(child.type, []).append(child)
+        result_nodes = signature_children.get("function_result", [])
         result = result_nodes[0] if result_nodes else None
         result_name_nodes = ([child for child in result.children
                               if child.type == "identifier"]
                              if result else [])
         result_name = (result_name_nodes[0] if result_name_nodes else None)
         return_name = to_str(result_name) if result_name else routine_name
-        type_nodes = [child for child in signature.children
-                      if child.type in ("intrinsic_type", "derived_type")]
+        type_nodes = (signature_children.get("intrinsic_type", []) +
+                      signature_children.get("derived_type", []))
         type_node = type_nodes[0] if type_nodes else None
         if not type_node:
             # The function signature may not have a datatype (declared in the
@@ -677,13 +716,9 @@ class FortranTreeSitterReader():
         for procedure in tsnodes:
             if procedure.type not in ("subroutine", "function"):
                 continue
-            signature_nodes = [child for child in procedure.children
-                               if child.type ==
-                               f"{procedure.type}_statement"]
-            signature, = signature_nodes
-            name_nodes = [child for child in signature.children
+            signature, *_body, _end_statement = procedure.children
+            name_node, = [child for child in signature.children
                           if child.type == "name"]
-            name_node = name_nodes[0] if name_nodes else None
             name = to_str(name_node)
             try:
                 return_info = self._function_return_info(
@@ -1546,9 +1581,7 @@ class FortranTreeSitterReader():
         :returns: translated expression inside the parentheses.
 
         '''
-        content = [child for child in tsnode.children
-                   if child.type not in ("(", ")")]
-        expression, = content
+        _open, expression, _close = tsnode.children
         return self._process_nodes(expression, _NodeExpectation.EXPRESSION)
 
     def _operation(
@@ -1942,7 +1975,10 @@ class FortranTreeSitterReader():
 
         :raises NotImplementedError: if the keyword has no PSyIR node.
         '''
-        keyword_node, = tsnode.children
+        keyword_node, *arguments = tsnode.children
+        if arguments:
+            raise NotImplementedError(
+                "Keyword statements with arguments are not supported")
         keyword = keyword_node.type
         if keyword == "return":
             return nodes.Return()
@@ -1959,23 +1995,21 @@ class FortranTreeSitterReader():
         :returns: root PSyIR IfBlock.
 
         '''
-        condition_nodes = [child for child in tsnode.children
-                           if child.type == "parenthesized_expression"]
-        condition_node = condition_nodes[0] if condition_nodes else None
+        groups = {}
+        for child in tsnode.children:
+            groups.setdefault(child.type, []).append(child)
+        condition_node, = groups["parenthesized_expression"]
         structural = {
             "if", "parenthesized_expression", "then",
             "end_if_statement", "else_clause", "elseif_clause"
         }
         body_nodes = [child for child in tsnode.children
                       if child.type not in structural]
-        else_clause_nodes = [child for child in tsnode.children
-                             if child.type == "else_clause"]
+        else_clause_nodes = groups.get("else_clause", [])
         else_clause = else_clause_nodes[0] if else_clause_nodes else None
-        else_ifs = [child for child in tsnode.children
-                    if child.type == "elseif_clause"]
+        else_ifs = groups.get("elseif_clause", [])
         annotations = []
-        if not any(child.type == "end_if_statement"
-                   for child in tsnode.children):
+        if "end_if_statement" not in groups:
             annotations.append("was_single_stmt")
         if_body = self._process_nodes(body_nodes, _NodeExpectation.LIST)
         else_body = None
@@ -2002,19 +2036,18 @@ class FortranTreeSitterReader():
 
         :returns: annotated PSyIR IfBlock.
         '''
-        condition_nodes = [child for child in tsnode.children
-                           if child.type == "parenthesized_expression"]
-        condition = condition_nodes[0] if condition_nodes else None
+        groups = {}
+        for child in tsnode.children:
+            groups.setdefault(child.type, []).append(child)
+        condition, = groups["parenthesized_expression"]
         structural = {"else", "if", "parenthesized_expression", "then",
                       "else_clause", "elseif_clause"}
         body = self._process_nodes(
             [child for child in tsnode.children
              if child.type not in structural], _NodeExpectation.LIST)
-        trailing_nodes = [child for child in tsnode.children
-                          if child.type == "elseif_clause"]
+        trailing_nodes = groups.get("elseif_clause", [])
         trailing = trailing_nodes[0] if trailing_nodes else None
-        else_clause_nodes = [child for child in tsnode.children
-                             if child.type == "else_clause"]
+        else_clause_nodes = groups.get("else_clause", [])
         else_clause = else_clause_nodes[0] if else_clause_nodes else None
         otherwise = (
             [self._if_clause(trailing, final_else)] if trailing else
@@ -2040,11 +2073,8 @@ class FortranTreeSitterReader():
 
         :raises NotImplementedError: if counted-loop control is unsupported.
         '''
-        statement, *loop_children, end_do_loop_statement = tsnode.children
-        if end_do_loop_statement.type != "end_do_loop_statement":
-            raise InternalError(
-                "Unexpected 'do_loop' tree-sitter children: "
-                f"{[child.type for child in tsnode.children]}")
+        statement, *loop_children, _end_do_loop_statement = \
+            tsnode.children
         if any(child.type == "concurrent_statement"
                for child in statement.children):
             raise NotImplementedError("DO CONCURRENT is not supported")
@@ -2101,9 +2131,8 @@ class FortranTreeSitterReader():
 
         :returns: annotated PSyIR IfBlock.
         '''
-        condition_nodes = [child for child in tsnode.children
-                           if child.type == "parenthesized_expression"]
-        condition = condition_nodes[0] if condition_nodes else None
+        condition, = [child for child in tsnode.children
+                      if child.type == "parenthesized_expression"]
         structural = {"where", "parenthesized_expression",
                       "elsewhere_clause", "end_where_statement"}
         body = self._process_nodes(
@@ -2159,9 +2188,8 @@ class FortranTreeSitterReader():
 
         :raises NotImplementedError: if no conditional CASE can be produced.
         '''
-        selector_nodes = [child for child in tsnode.children
-                          if child.type == "selector"]
-        selector_syntax = selector_nodes[0] if selector_nodes else None
+        selector_syntax, = [child for child in tsnode.children
+                           if child.type == "selector"]
         identifier_nodes = [child for child in selector_syntax.children
                             if child.type == "identifier"]
         selector_node = identifier_nodes[0] if identifier_nodes else None
