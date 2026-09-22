@@ -234,8 +234,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
             the spaces), this option tells PSyclone whether to add a runtime
             check to determine whether the loops should be fused or not.
         '''
-        # TODO #2668: Deprecate options dict. This function exists for
-        # the purposes of documentation required by 2668.
+        # TODO #2668: Deprecate options dict.
         self.validate(nodes, options=options, same_space=same_space,
                       conditional_fusion=conditional_fusion, **kwargs)
         if options:
@@ -278,13 +277,22 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         arg1_field = node1.kernel.arguments.iteration_space_arg()
         arg2_field = node2.kernel.arguments.iteration_space_arg()
 
+        # If the iteration space argument has the same name then we can fuse.
+        if arg1_field.name == arg2_field.name:
+            # We always add force so need to make sure its not a duplicated
+            # keyword argument.
+            if "force" in kwargs:
+                del kwargs["force"]
+            super().apply((node1, node2), same_space=same_space, force=True,
+                          **kwargs)
+            return
+
         kern1 = node1.kernel
         kern2 = node2.kernel
 
         # Both need to have the same iteration_space (dof or otherwise)
         if kern1.iterates_over != kern2.iterates_over:
-            print(kern1.iterates_over, kern2.iterates_over)
-            assert False  # FIXME transformation error?
+            raise TransformationError("FIXME")
 
         # If neither is a built in we check the iteration space and they
         # can only be fused if the space of their fields is the same.
@@ -353,8 +361,6 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
             super().apply((node1, node2), force=True,
                           **kwargs)
             return
-
-        # =======================FIXME BELOW==============================
 
         # Otherwise we have at least one node on any space, and have met
         # all other criteria for fusion, so we can fuse with a runtime check.
