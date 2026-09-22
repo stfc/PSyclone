@@ -56,25 +56,27 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if either of the supplied loops contains \
+        :raises TransformationError: if either of the supplied loops contains
                                      an inter-grid kernel.
-        :raises TransformationError: if one or both function spaces have \
+        :raises TransformationError: if one or both function spaces have
                                      invalid names.
-        :raises TransformationError: if the `same_space` flag was set, but \
-                                     does not apply because neither field \
-                                     is on `ANY_SPACE` or the spaces are not \
+        :raises TransformationError: if the `same_space` flag was set, but
+                                     does not apply because neither field
+                                     is on `ANY_SPACE` or the spaces are not
                                      the same.
-        :raises TransformationError: if the loops are over different spaces \
-                                     that are not both discontinuous and \
+        :raises TransformationError: if the loops are over different spaces
+                                     that are not both discontinuous and
                                      the loops both iterate over cells.
-        :raises TransformationError: if the loops' upper bound names are \
+        :raises TransformationError: if the loops' upper bound names are
                                      not the same.
-        :raises TransformationError: if the halo-depth indices of two loops \
+        :raises TransformationError: if the halo-depth indices of two loops
                                      are not the same.
         :raises TransformationError: if each loop already contains a reduction.
-        :raises TransformationError: if the first loop has a reduction and \
-                                     the second loop reads the result of \
+        :raises TransformationError: if the first loop has a reduction and
+                                     the second loop reads the result of
                                      the reduction.
+        :raises TransformationError: if either loop has more than one write
+                                     access.
         '''
         # pylint: disable=too-many-locals,too-many-branches
         # Call the parent class validation first
@@ -159,14 +161,28 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                         f"'{node1_fs_name}' and '{node2_fs_name}' unless they "
                         f"are both discontinuous.")
 
-        # 3) Check upper loop bounds
+        # 3) Check that both loops only write to one field.
+        node1_write_args = node1.args_filter(
+            arg_types=AccessType.all_write_accesses()
+        )
+        node2_write_args = node2.args_filter(
+            arg_types=AccessType.all_write_accesses()
+        )
+        if len(node1_write_args) > 1 or len(node2_write_args) > 1:
+            raise TransformationError(
+                f"Error in {self.name}: One input loop has more than one "
+                f"write argument. Found '{node1_write_args}' and "
+                f"'{node2_write_args}'."
+            )
+
+        # 4) Check upper loop bounds
         if node1.upper_bound_name != node2.upper_bound_name:
             raise TransformationError(
                 f"Error in {self.name} transformation: The upper bound names "
                 f"are not the same. Found '{node1.upper_bound_name}' and "
                 f"'{node2.upper_bound_name}'.")
 
-        # 4) Check halo depths
+        # 5) Check halo depths
         if node1.upper_bound_halo_depth != node2.upper_bound_halo_depth:
             node1_depth = (node1.upper_bound_halo_depth.debug_string() if
                            node1.upper_bound_halo_depth else "None")
@@ -177,7 +193,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                 f"are not the same. Found "
                 f"'{node1_depth}' and '{node2_depth}'.")
 
-        # 5) Check for reductions
+        # 6) Check for reductions
         arg_types = const.VALID_SCALAR_NAMES
         node1_red_args = node1.args_filter(arg_types=arg_types,
                                            arg_accesses=[AccessType.REDUCTION])
