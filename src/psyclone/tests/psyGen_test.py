@@ -26,7 +26,6 @@ from psyclone.domain.lfric import (lfric_builtins,
                                    LFRicKern, LFRicKernMetadata)
 from psyclone.domain.lfric.transformations import (
     LFRicLoopFuseTrans, LFRicRedundantComputationTrans)
-from psyclone.lfric import LFRicKernelArguments
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.generator import generate
 from psyclone.gocean1p0 import GOKern
@@ -37,9 +36,9 @@ from psyclone.psyGen import (TransInfo, PSyFactory,
                              InvokeSchedule)
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
                                   Literal, Loop, Node, KernelSchedule, Call,
-                                  colored, Schedule)
+                                  Reference, Schedule)
 from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, ScalarType,
-                                    ImportInterface, ContainerSymbol, Symbol,
+                                    ImportInterface, ContainerSymbol,
                                     UnresolvedType, SymbolTable)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.test_files import dummy_transformations
@@ -47,6 +46,7 @@ from psyclone.tests.test_files.dummy_transformations import LocalTransformation
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (LFRicColourTrans,
                                       Transformation)
+from psyclone.utils import colored
 
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -497,11 +497,7 @@ def test_valid_return_object_from_name():
 def test_find_subclasses():
     '''Test for the _find_subclasses() method.'''
     trans = TransInfo()
-    # Check that the method does not include the legacy names for the
-    # LFRic transformations.
     classes = trans._find_subclasses(transformations, Transformation)
-    for cls in classes:
-        assert "dynamo0p3" not in cls.__name__.lower()
     # Check that the method finds at least one transformation we know about.
     # We don't check for every transformation as this would break every time
     # we added a new one.
@@ -745,28 +741,6 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.children[0].loop_body[0]
 
-    # TODO 1010: LFRic still needs psy.gen to create symbols. But these must
-    # eventually be created automatically before the gen() call, for now we
-    # manually create the symbols that appear in the PSyIR tree.
-    schedule.symbol_table.add(Symbol("f1_proxy"))
-    schedule.symbol_table.add(Symbol("f2_proxy"))
-    schedule.symbol_table.add(Symbol("m1_proxy"))
-    schedule.symbol_table.add(Symbol("m2_proxy"))
-    schedule.symbol_table.add(Symbol("ndf_w1"))
-    schedule.symbol_table.add(Symbol("undf_w1"))
-    schedule.symbol_table.add(Symbol("map_w1"))
-    schedule.symbol_table.add(Symbol("ndf_w2"))
-    schedule.symbol_table.add(Symbol("undf_w2"))
-    schedule.symbol_table.add(Symbol("map_w2"))
-    schedule.symbol_table.add(Symbol("ndf_w3"))
-    schedule.symbol_table.add(Symbol("undf_w3"))
-    schedule.symbol_table.add(Symbol("map_w3"))
-
-    # TODO #1085 LFRic Arguments do not have a translation to PSyIR
-    # yet, we monkeypatch a dummy expression for now:
-    monkeypatch.setattr(LFRicKernelArguments, "psyir_expressions",
-                        lambda x: [Literal("1", ScalarType.integer_type())])
-
     # In DSL-level it is a CodedKern with no children
     assert isinstance(kern, CodedKern)
     assert len(kern.children) == 0
@@ -781,7 +755,7 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     assert isinstance(call, Call)
     assert call.routine.name == 'testkern_code'
     assert len(call.arguments) == number_of_arguments
-    assert isinstance(call.arguments[0], Literal)
+    assert isinstance(call.arguments[0], Reference)
 
     # A RoutineSymbol and the ContainerSymbol from where it is imported are
     # in the symbol table

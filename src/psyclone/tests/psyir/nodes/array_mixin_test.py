@@ -464,7 +464,12 @@ def test_aref_to_aos_bound_expression():
 
     '''
     sgrid_type = StructureType.create(
-        [("ID", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None)])
+        [
+            StructureType.ComponentType(
+                "ID", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            )
+        ]
+    )
     sgrid_type_sym = DataTypeSymbol("subgrid_type", sgrid_type)
     sym = DataSymbol("subgrids", ArrayType(sgrid_type_sym, [(3, 10)]))
     lbound = IntrinsicCall.create(IntrinsicCall.Intrinsic.LBOUND,
@@ -517,14 +522,28 @@ def test_member_get_bound_expression(fortran_writer):
     a2d = ArrayType(ScalarType.real_type(), [2, (2, 8)])
     # Structure that contains "map" which is a 2D array.
     stypedef = StructureType.create(
-        [("map", a2d, Symbol.Visibility.PUBLIC, None)])
+        [
+            StructureType.ComponentType(
+                "map", a2d, Symbol.Visibility.PUBLIC, None
+            )
+        ]
+    )
     stypedefsym = DataTypeSymbol("map_type", stypedef)
     # Structure containing a structure of stypedef and an array of such
     # structures.
     stypedef2 = StructureType.create(
-        [("grid", stypedef, Symbol.Visibility.PUBLIC, None),
-         ("subgrids", ArrayType(stypedefsym, [3, (2, 6)]),
-          Symbol.Visibility.PUBLIC, None)])
+        [
+            StructureType.ComponentType(
+                "grid", stypedef, Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
+                "subgrids",
+                ArrayType(stypedefsym, [3, (2, 6)]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
     ssym = DataSymbol("var", stypedef2)
     sref = StructureReference.create(ssym,
                                      ["grid",

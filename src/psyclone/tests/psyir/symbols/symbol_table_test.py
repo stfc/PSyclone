@@ -632,6 +632,43 @@ def test_remove_case_insensitive(sym_name):
     assert "var1" not in sym_table
 
 
+@pytest.mark.parametrize("block_name", ["some_block", ""])
+def test_remove_commonblock_symbols_from_tail(block_name):
+    '''Check that common-block members may only be removed from the end of
+    their storage sequence. This applies to named and blank common blocks.
+
+    '''
+    sym_table = symbols.SymbolTable()
+    symbol1 = symbols.DataSymbol(
+        "var1", symbols.ScalarType.integer_type(),
+        interface=symbols.CommonBlockInterface(block_name, 0))
+    symbol2 = symbols.DataSymbol(
+        "var2", symbols.ScalarType.integer_type(),
+        interface=symbols.CommonBlockInterface(block_name.upper(), 1))
+    symbol3 = symbols.DataSymbol(
+        "var3", symbols.ScalarType.integer_type(),
+        interface=symbols.CommonBlockInterface(block_name, 3))
+    sym_table.add(symbol1)
+    sym_table.add(symbol2)
+    sym_table.add(symbol3)
+
+    with pytest.raises(ValueError) as err:
+        sym_table.remove(symbol2)
+
+    assert (f"Cannot remove Symbol 'var2' from common block "
+            f"'{symbol2.interface.name}' because it has a subsequent member. "
+            f"Only the final member of a common block may be removed." in
+            str(err.value))
+    assert symbol2 in sym_table.symbols
+
+    # Removing members from the tail inwards is permitted. Gaps in the
+    # positions do not affect which member is last.
+    sym_table.remove(symbol3)
+    sym_table.remove(symbol2)
+    sym_table.remove(symbol1)
+    assert not sym_table.symbols
+
+
 def test_swap_symbol():
     ''' Test the SymbolTable.swap() method. '''
     symbol1 = symbols.Symbol("var1")
@@ -660,6 +697,22 @@ def test_swap_symbol():
     sym_table.swap(symbol1, symbol3)
     assert sym_table.lookup("var1") is symbol3
     assert symbol1 not in sym_table._symbols
+
+
+def test_swap_symbol_preserves_tag():
+    ''' Test that SymbolTable.swap() preserves any tag associated with the
+    old symbol by re-associating it with the new symbol. '''
+    sym_table = symbols.SymbolTable()
+    symbol1 = symbols.Symbol("var1")
+    sym_table.add(symbol1, tag="var1_tag")
+    symbol2 = symbols.Symbol("Var1")
+
+    sym_table.swap(symbol1, symbol2)
+
+    assert sym_table.lookup("var1") is symbol2
+    # Searching for the tag must find the new symbol rather than being
+    # dropped.
+    assert sym_table.lookup_with_tag("var1_tag") is symbol2
 
 
 def test_check_for_clashes_imports():
@@ -2060,9 +2113,16 @@ def test_datatypesymbols():
     correct symbols. '''
     sym_table = symbols.SymbolTable()
     assert sym_table.datatypesymbols == []
-    region_type = symbols.StructureType.create([
-        ("startx", symbols.ScalarType.integer_type(),
-         symbols.Symbol.Visibility.PUBLIC, None)])
+    region_type = symbols.StructureType.create(
+        [
+            symbols.StructureType.ComponentType(
+                "startx",
+                symbols.ScalarType.integer_type(),
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            )
+        ]
+    )
     region_sym = symbols.DataTypeSymbol("region_type", region_type)
     sym_table.add(region_sym)
     # Add other symbol types
@@ -2886,7 +2946,7 @@ def test_rename_symbol_errors():
 
     # Cannot rename a common block symbol
     asym = symbols.DataSymbol("a", symbols.ScalarType.integer_type(),
-                              interface=symbols.CommonBlockInterface(""))
+                              interface=symbols.CommonBlockInterface("", 0))
     table.add(asym)
     with pytest.raises(symbols.SymbolError) as err:
         table.rename_symbol(asym, "b")

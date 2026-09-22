@@ -1,4 +1,79 @@
-   32) PR #3535 towards #3506. Remove or replaces TODOS of closed issues.
+   59) PR #3604 towards #2668. Moves more Transformations over to using
+   keyword arguments instead of 'options'.
+ 
+   58) PR #3572 for #1948. Add stencil support for LFRic domain kernels.
+
+   57) PR #3593 for #3503. Adds a LFRicColourAndOMPTrans metatransformation
+   to perform both colouring and OpenMP to loops in the LFRic domain.
+
+   56) PR #3607. Removes the support for the "Dynamo0p3" prefix on
+   LFRic-specific transformations. 
+
+   55) PR #3603 for #1770. Make lfric/eg20 compile.
+
+   54) PR #3587 towards #2216. Adds a new KernelInlineTrans to do
+   a deferred InlineTrans on Kernels after lower the PSy layer.
+ 
+   53) PR #3599 for #3596 and #3195. Updates the fparser2 frontend to
+   create a Call rather than an IntrinsicCall when an imported Symbol
+   shadows an Intrinsic.
+ 
+   52) PR #3574 for #3568. Removes references to fparser from the DUC
+   implementation (by extending the query functionality on CodeBlock).
+ 
+   51) PR #3520 for #1312. Fix psy-layer generation for LFRic scalar arrays.
+
+   50) Adds ArrayIntrinsic2LoopTrans and Intrinsic2CodeTrans
+   metatransformations. 
+
+   49) Move 'colored' utility from psyclone.psyir.nodes.node to
+   psyclone.utils.
+
+   48) PR #34584 for #3583. Fixes PSyclone losing the tag from a symbol when
+   using SymbolTable.swap.
+
+   47) PR #3582 for #3392. Fixes PSyclone reordering the declarations in
+   common blocks.
+
+   46) PR #3581 for #3579. Bypass docstring wrapper when debug info is
+   missing. This allows to use python -O or PYTHONOPTIMIZE.
+
+   45) PR #3563 for #2642. Adds support for PSyclone handling structures
+   with extends and contains.
+
+   44) PR #3571 for #3570. Update fparser version.
+
+   43) PR #3566 towards #1995. More tidying of copyright/license
+   headers to use SPDX form.
+ 
+   42) PR #3468 for #3461. Cleans up the use of sys.path so that
+   different transformation scripts with the same name can be imported.
+ 
+   41) PR #3573. Improves Developer Guide description of coding style
+   and fixes a few incorrect type-hints.
+ 
+   40) PR #3499 towards #2905. Moves lfric symbol creation into the
+   LFRicInvoke constructor.
+
+   39) PR #3492. Improves the Dependence-Use-Chain handling of references
+   to unsupported types (since we can't guarantee the absence of aliasing).
+ 
+   38) PR #3554 for #1590. Adds PSyIR support for complex types and complex
+   literals.
+
+   37) PR #3567. Fixes some typos in the NEMO examples README and the nemo
+   v5 workflow.
+
+   36) PR #3562 for #3559. Ensure all imports are resolved when there are
+   multiple USE statements targeting the same module.
+ 
+   35) PR #3565 for #3564. Bumps the requires setuptools version to 75.0.
+
+   34) PR #3561 for #3506. Remove or replace remaining TODOs of closed issues.
+
+   33) PR #3555 for #3553. Fix issues with line_length breaking comments.
+
+   32) PR #3535 towards #3506. Remove or replace TODOs of closed issues.
 
    31) PR #3556 for #3547. Add a utility to report TODOs to closed issues
    still in the code.

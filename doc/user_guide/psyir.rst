@@ -322,8 +322,7 @@ Structure Datatype
 
 A Structure datatype consists of a dictionary of components where the
 name of each component is used as the corresponding key. Each component
-is stored as a named tuple with ``name``, ``datatype`` and ``visibility``
-members.
+is represented by a ``StructureType.ComponentType`` object.
 
 For example:
 
@@ -334,18 +333,24 @@ For example:
 
   # Structure-type definition
   GRID_TYPE = StructureType.create([
-      ("dx", SCALAR_TYPE, Symbol.Visibility.PUBLIC),
-      ("dy", SCALAR_TYPE, Symbol.Visibility.PUBLIC)])
+      StructureType.ComponentType(
+          "dx", SCALAR_TYPE, Symbol.Visibility.PUBLIC),
+      StructureType.ComponentType(
+          "dy", SCALAR_TYPE, Symbol.Visibility.PUBLIC)])
 
   GRID_TYPE_SYMBOL = DataTypeSymbol("grid_type", GRID_TYPE)
 
   # A structure-type containing other structure types
   FIELD_TYPE_DEF = StructureType.create(
-      [("data", ArrayType(SCALAR_TYPE, [10]), Symbol.Visibility.PUBLIC),
-       ("grid", GRID_TYPE_SYMBOL, Symbol.Visibility.PUBLIC),
-       ("sub_meshes", ArrayType(GRID_TYPE_SYMBOL, [3]),
-        Symbol.Visibility.PUBLIC),
-       ("flag", ScalarType.integer4_type(), Symbol.Visibility.PUBLIC)])
+      [StructureType.ComponentType(
+           "data", ArrayType(SCALAR_TYPE, [10]), Symbol.Visibility.PUBLIC),
+       StructureType.ComponentType(
+           "grid", GRID_TYPE_SYMBOL, Symbol.Visibility.PUBLIC),
+       StructureType.ComponentType(
+           "sub_meshes", ArrayType(GRID_TYPE_SYMBOL, [3]),
+           Symbol.Visibility.PUBLIC),
+       StructureType.ComponentType(
+           "flag", ScalarType.integer4_type(), Symbol.Visibility.PUBLIC)])
 
 Unknown DataType
 ----------------

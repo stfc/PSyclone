@@ -143,8 +143,8 @@ class CommonArgMetadata(CommonMetadata):
                 text = child.children[1].tostr()
                 if isinstance(child.children[1],
                               Fortran2003.Char_Literal_Constant):
-                    # TODO fparser/#295 - fparser keeps the quotation marks
-                    # in character strings.
+                    # TODO https://github.com/stfc/fparser/issues/295 -
+                    # fparser keeps the quotation marks in character strings.
                     return text[1:-1].lower()
                 return text
         return None

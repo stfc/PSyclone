@@ -259,6 +259,28 @@ def _type_of_scalar_with_optional_kind(
     )
 
 
+def _match_shape_of_named_arg(
+        node: IntrinsicCall, scalar_type: DataType,
+        arg_name: str
+) -> DataType:
+    """Helper function to lift the given scalar type to
+    an array type if the named argument is an array.
+
+    :param node: The IntrinsicCall whose return type to compute.
+    :param scalar_type: The scalar type to be considered for lifting.
+    :param arg_name: The name of the argument to use to determine
+                     whether to wrap the scalar type in an array type
+                     or not.
+
+    :returns: the computed datatype for the IntrinsicCall.
+    """
+    arg_type = node.argument_by_name(arg_name).datatype
+    if isinstance(arg_type, ArrayType):
+        return ArrayType(scalar_type, arg_type.shape)
+    else:
+        return scalar_type
+
+
 def _type_of_intrinsic_with_argname_kind_and_optional_dim(
         node: IntrinsicCall, intrinsic: ScalarType.Intrinsic,
         array_arg_name: str, kind_arg_name: str) -> DataType:
@@ -297,22 +319,44 @@ def _type_of_intrinsic_with_argname_kind_and_optional_dim(
 
 def _type_of_intrinsic_with_precision_of_named_arg(
         node: IntrinsicCall, intrinsic: ScalarType.Intrinsic,
-        argument_name: str
+        argument_name: str,
+        return_scalar: bool = False
 ) -> DataType:
     """Helper function for the common IntrinsicCall case where the
-    return type is a scalar of the type of the supplied intrinsic,
-    with the kind of the first argument.
+    return type is a scalar/array of the type of the supplied intrinsic,
+    with the kind and shape of the named argument. If the type of the
+    shape argument is a scalar, then a scalar type is returned, otherwise
+    an array of the same shape is returned.
 
     :param node: The IntrinsicCall whose return type to compute.
     :param intrinsic: The datatype intrinsic type to use.
     :param argument_name: The name of the argument to use for the precision
-                          of the datatype.
+                          and shape of the datatype.
+    :param return_scalar: If True, this function will always return a
+                          ScalarType.
 
     :returns: the computed datatype for the IntrinsicCall.
     """
-    return ScalarType(
-        intrinsic, node.argument_by_name(argument_name).datatype.precision
-    )
+    arg_type = node.argument_by_name(argument_name).datatype
+    elem_type = ScalarType(intrinsic, arg_type.precision)
+    if not return_scalar and isinstance(arg_type, ArrayType):
+        return ArrayType(elem_type, arg_type.shape)
+    else:
+        return elem_type
+
+
+def _complex_to_real(arg_type: DataType) -> DataType:
+    """Convert a COMPLEX argument to REAL of the same precision. Other
+    types pass through unchanged."""
+    if (isinstance(arg_type, ScalarType) and
+            arg_type.intrinsic == ScalarType.Intrinsic.COMPLEX):
+        return ScalarType(ScalarType.Intrinsic.REAL,
+                          arg_type.precision)
+    if (isinstance(arg_type, ArrayType) and
+            arg_type.intrinsic == ScalarType.Intrinsic.COMPLEX):
+        return ArrayType(ScalarType(ScalarType.Intrinsic.REAL,
+                                    arg_type.precision), arg_type.shape)
+    return arg_type
 
 
 def _findloc_return_type(node: IntrinsicCall) -> DataType:
@@ -633,8 +677,8 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("a",),)),
             optional_args={},
-            # TODO 1590 Complex to real conversion unsupported.
-            return_type=lambda node: _type_of_named_argument(node, "a"),
+            return_type=lambda node:
+                _complex_to_real(_type_of_named_argument(node, "a")),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(node)
             ),
@@ -744,8 +788,11 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("z",),)),
             optional_args={},
-            # TODO #1590 Complex numbers' precision unsupported.
-            return_type=lambda node: UnsupportedFortranType(""),
+            return_type=lambda node:
+                _type_of_intrinsic_with_precision_of_named_arg(
+                    node, ScalarType.Intrinsic.REAL,
+                    "z"
+                ),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -1526,8 +1573,15 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={"y": DataNode, "kind": DataNode},
-            # TODO #1590 Complex numbers unsupported.
-            return_type=lambda node: UnsupportedFortranType(""),
+            return_type=lambda node:
+                _match_shape_of_named_arg(
+                    node,
+                    _type_of_scalar_with_optional_kind(
+                        node, ScalarType.Intrinsic.COMPLEX,
+                        "kind"
+                    ),
+                    "x"
+                ),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node, constant_named_args=["kind"]
@@ -1679,8 +1733,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("z",),)),
             optional_args={},
-            # TODO #1590 Complex numbers unsupported.
-            return_type=lambda node: UnsupportedFortranType(""),
+            return_type=lambda node: _type_of_named_argument(node, "z"),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node
@@ -4390,8 +4443,7 @@ class IntrinsicCall(Call):
                 types=DataNode,
                 arg_names=(("x",),)),
             optional_args={},
-            # TODO 1590 Complex conversion unsupported.
-            return_type=lambda node: UnsupportedFortranType(""),
+            return_type=lambda node: _type_of_named_argument(node, "x"),
             reference_accesses=lambda node: (
                 _compute_reference_accesses(
                     node

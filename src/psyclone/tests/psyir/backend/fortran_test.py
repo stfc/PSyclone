@@ -23,7 +23,7 @@ from psyclone.psyir.nodes import (
     Schedule, Routine, Return, FileContainer, IfBlock, OMPTaskloopDirective,
     OMPMasterDirective, OMPParallelDirective, Loop, OMPNumTasksClause,
     OMPDependClause, IntrinsicCall, OMPReductionClause, UnknownDirective,
-    ArrayConstructor)
+    ArrayConstructor, ComplexLiteral)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ContainerSymbol, DataSymbol, GenericInterfaceSymbol,
     ImportInterface, RoutineSymbol, StaticInterface, Symbol, SymbolTable,
@@ -136,6 +136,10 @@ def test_gen_datatype_default_precision(fortran_writer, type_name, result):
     [(ScalarType.Intrinsic.REAL, ScalarType.Precision.SINGLE, "real"),
      (ScalarType.Intrinsic.REAL, ScalarType.Precision.DOUBLE,
       "double precision"),
+     (ScalarType.Intrinsic.COMPLEX, ScalarType.Precision.SINGLE,
+      "complex"),
+     (ScalarType.Intrinsic.COMPLEX, ScalarType.Precision.DOUBLE,
+      "double complex"),
      (ScalarType.Intrinsic.INTEGER, ScalarType.Precision.SINGLE, "integer"),
      (ScalarType.Intrinsic.CHARACTER, ScalarType.Precision.SINGLE,
       "character(len=1)"),
@@ -371,10 +375,22 @@ def test_gen_typedecl_validation(fortran_writer, monkeypatch):
     assert ("cannot generate code for symbol 'my_type' of type "
             "'UnsupportedType'" in str(err.value))
     # Symbol with an invalid visibility
-    dtype = StructureType.create([
-        ("flag", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        ("secret", ScalarType.integer_type(),
-         Symbol.Visibility.PRIVATE, None)])
+    dtype = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "flag",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            StructureType.ComponentType(
+                "secret",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PRIVATE,
+                None,
+            ),
+        ]
+    )
     tsymbol = DataTypeSymbol("my_type", dtype)
     tsymbol._visibility = "wrong"
     with pytest.raises(InternalError) as err:
@@ -385,8 +401,8 @@ def test_gen_typedecl_validation(fortran_writer, monkeypatch):
     tsymbol = DataTypeSymbol("my_type", UnresolvedType())
     with pytest.raises(VisitorError) as err:
         fortran_writer.gen_typedecl(tsymbol)
-    assert ("Local Symbol 'my_type' is of UnresolvedType and therefore no "
-            "declaration can be created for it." in str(err.value))
+    assert ("Fortran backend cannot generate code for symbol 'my_type' "
+            "of type 'UnresolvedType'" in str(err.value))
 
 
 def test_gen_typedecl_unsupported_fortran_type(fortran_writer):
@@ -444,17 +460,36 @@ def test_gen_typedecl(fortran_writer):
     dynamic_atype = ArrayType(ScalarType.real_type(),
                               [ArrayType.Extent.DEFERRED])
     tsymbol = DataTypeSymbol("grid_type", UnresolvedType())
-    dtype = StructureType.create([
-        # Scalar integer
-        ("flag", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        # Private, scalar integer
-        ("secret", ScalarType.integer_type(), Symbol.Visibility.PRIVATE, None),
-        # Static array
-        ("matrix", atype, Symbol.Visibility.PUBLIC, None),
-        # Allocatable array
-        ("data", dynamic_atype, Symbol.Visibility.PUBLIC, None),
-        # Derived type
-        ("grid", tsymbol, Symbol.Visibility.PRIVATE, None)])
+    dtype = StructureType.create(
+        [
+            # Scalar integer
+            StructureType.ComponentType(
+                "flag",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            # Private, scalar integer
+            StructureType.ComponentType(
+                "secret",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PRIVATE,
+                None,
+            ),
+            # Static array
+            StructureType.ComponentType(
+                "matrix", atype, Symbol.Visibility.PUBLIC, None
+            ),
+            # Allocatable array
+            StructureType.ComponentType(
+                "data", dynamic_atype, Symbol.Visibility.PUBLIC, None
+            ),
+            # Derived type
+            StructureType.ComponentType(
+                "grid", tsymbol, Symbol.Visibility.PRIVATE, None
+            ),
+        ]
+    )
     tsymbol = DataTypeSymbol("my_type", dtype)
     assert (fortran_writer.gen_typedecl(tsymbol) ==
             "type, public :: my_type\n"
@@ -468,6 +503,74 @@ def test_gen_typedecl(fortran_writer):
                                      Symbol.Visibility.PRIVATE)
     code = fortran_writer.gen_typedecl(private_tsymbol)
     assert code.startswith("type, private :: my_type\n")
+
+
+def test_gen_typedecl_extends_contains(fortran_writer):
+    '''Check that gen_typedecl() generates EXTENDS and type-bound procedure
+    declarations.'''
+    parent_type = DataTypeSymbol("base_type", UnresolvedType())
+    initialise = Symbol("initialise_impl")
+    code = Symbol("code_impl")
+    dtype = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "flag", ScalarType.integer_type(), Symbol.Visibility.PUBLIC
+            )
+        ],
+        [
+            StructureType.ComponentType(
+                "initialise",
+                UnresolvedType(),
+                Symbol.Visibility.PRIVATE,
+                Reference(initialise),
+                "Initialise the object",
+                "binding",
+            ),
+            StructureType.ComponentType(
+                "reset", UnresolvedType(), Symbol.Visibility.PUBLIC
+            ),
+            StructureType.ComponentType(
+                "code",
+                UnsupportedFortranType(
+                    "PROCEDURE, NOPASS :: code => code_impl"
+                ),
+                Symbol.Visibility.PUBLIC,
+                Reference(code),
+            ),
+        ],
+        extends=parent_type,
+    )
+    tsymbol = DataTypeSymbol(
+        "child_type", dtype, visibility=Symbol.Visibility.PRIVATE)
+    tsymbol.inline_comment = "derived type"
+
+    assert fortran_writer.gen_typedecl(tsymbol) == (
+        "type, extends(base_type), private :: child_type\n"
+        "  integer, public :: flag\n"
+        "  contains\n"
+        "    ! Initialise the object\n"
+        "    procedure, private :: initialise => initialise_impl ! binding\n"
+        "    procedure, public :: reset\n"
+        "    PROCEDURE, NOPASS :: code => code_impl\n"
+        "end type child_type ! derived type\n")
+
+
+def test_gen_proceduredecl_validation(fortran_writer):
+    '''Check validation performed by gen_proceduredecl().'''
+    with pytest.raises(VisitorError) as err:
+        fortran_writer.gen_proceduredecl("invalid")
+    assert ("gen_proceduredecl() expects a "
+            "'StructureType.ComponentType' as its first argument but got "
+            "'str'" in str(err.value))
+
+    procedure = StructureType.ComponentType(
+        "proc", UnresolvedType(), Symbol.Visibility.PUBLIC, None)
+    # Set visibility byypassing the frozen state and validations
+    object.__setattr__(procedure, "visibility", "invalid")
+    with pytest.raises(InternalError) as err:
+        fortran_writer.gen_proceduredecl(procedure)
+    assert ("type-bound procedure must be either public or private but "
+            "procedure 'proc' has visibility 'invalid'" in str(err.value))
 
 
 def test_reverse_map():
@@ -1860,6 +1963,51 @@ def test_fw_literal_node(fortran_writer):
     lit1 = Literal("hello", my_type)
     result = fortran_writer(lit1)
     assert result == "1_'hello'"
+
+
+def test_fw_complexliteral_node(fortran_reader, fortran_writer):
+    ''' Test the PSyIR complex literals are converted to the proper Fortran
+    format when necessary. '''
+    lit1 = Literal("1.0", ScalarType(ScalarType.Intrinsic.REAL,
+                                     ScalarType.Precision.UNDEFINED))
+    lit2 = Literal("2.0", ScalarType(ScalarType.Intrinsic.REAL,
+                                     ScalarType.Precision.UNDEFINED))
+    lit = ComplexLiteral.create(lit1, lit2)
+    result = fortran_writer(lit)
+    assert result == "(1.0, 2.0)"
+
+    # Test that complex literals containing integer literals get
+    # rendered correctly
+    code = '''
+subroutine foo()
+  complex(4) :: c
+  c = (1.0_8, 2)
+  c = (1_8, 2)
+end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    ass = psyir.walk(Assignment)[0]
+    assert fortran_writer(ass.rhs) == "(1.0_8, 2)"
+    assert isinstance(ass.rhs, ComplexLiteral)
+    assert isinstance(ass.rhs.re_part.datatype, ScalarType)
+    assert ass.rhs.re_part.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert ass.rhs.re_part.datatype.precision == 8
+    ass = psyir.walk(Assignment)[1]
+    assert fortran_writer(ass.rhs) == "(1_8, 2)"
+    assert isinstance(ass.rhs, ComplexLiteral)
+    assert isinstance(ass.rhs.re_part.datatype, ScalarType)
+    assert ass.rhs.re_part.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert ass.rhs.re_part.datatype.precision == 8
+
+
+def test_fw_complex_int_kind(fortran_reader, fortran_writer):
+    ''' Test that a complex type with integer precision is correctly
+    rendered. '''
+    code = '''
+subroutine foo()
+  complex*4 :: c
+end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert "complex*4 :: c" in fortran_writer(psyir)
 
 
 def test_fw_call_node(fortran_writer):

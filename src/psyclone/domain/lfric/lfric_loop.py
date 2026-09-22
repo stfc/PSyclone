@@ -9,6 +9,8 @@
     base class from psyGen.py.
     '''
 
+from typing import Optional
+
 from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessMap, Signature
 from psyclone.domain.common.psylayer import PSyLoop
@@ -111,7 +113,7 @@ class LFRicLoop(PSyLoop):
         self._upper_bound_name = None
         self._upper_bound_halo_depth = None
 
-    def lower_to_language_level(self):
+    def lower_to_language_level(self) -> Optional[Node]:
         '''In-place replacement of DSL or high-level concepts into generic
         PSyIR constructs. This function replaces an LFRicLoop with a PSyLoop
         and inserts the loop boundaries into the new PSyLoop, or removes
@@ -120,8 +122,9 @@ class LFRicLoop(PSyLoop):
         the loop in the schedule, i.e. can change when transformations are
         applied), this function can likely be removed.
 
-        :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
+        :returns: the lowered version of this node (or the first node when
+            the lowered version are multiple top-level siblings, or None
+            if this produces no lowered nodes).
 
         '''
         if (not Config.get().distributed_memory and
@@ -142,7 +145,7 @@ class LFRicLoop(PSyLoop):
 
             # This is not a 'domain' loop (i.e. there is a real loop). First
             # check that there isn't any validation issues with the node.
-            for child in self.loop_body.children:
+            for child in self.loop_body.children[:]:
                 child.validate_global_constraints()
 
             # Then generate the loop bounds, this needs to be done BEFORE
@@ -152,7 +155,7 @@ class LFRicLoop(PSyLoop):
             step = self.step_expr.copy()
 
             # Now we can lower the nodes in the loop body
-            for child in self.loop_body.children:
+            for child in self.loop_body.children[:]:
                 child.lower_to_language_level()
 
             # Finally create the new lowered Loop and replace the domain one
@@ -165,18 +168,22 @@ class LFRicLoop(PSyLoop):
             lowered_node = loop
         else:
             # If loop_type is "null" we do not need a loop at all, just the
-            # kernel in its loop_body
-            for child in self.loop_body.children:
+            # lowered statements in its loop_body. Lower only the original
+            # children since lowering a kernel may replace it with zero or
+            # more statements.
+            for child in self.loop_body.children[:]:
                 child.lower_to_language_level()
-            # TODO #2905: This restriction can be removed when also lowering
-            # the parent InvokeSchedule
-            if len(self.loop_body.children) > 1:
-                raise NotImplementedError(
-                    f"Lowering LFRic domain loops that produce more than one "
-                    f"children is not yet supported, but found:\n "
-                    f"{self.view()}")
-            lowered_node = self.loop_body[0].detach()
-            self.replace_with(lowered_node)
+
+            # A domain kernel has no loop at language level. Inlining can
+            # produce any number of statements, so splice all of them into
+            # the parent Schedule in place of this LFRicLoop.
+            parent = self.parent
+            position = self.position
+            lowered_nodes = self.loop_body.pop_all_children()
+            self.detach()
+            for offset, node in enumerate(lowered_nodes):
+                parent.addchild(node, position + offset)
+            lowered_node = lowered_nodes[0] if lowered_nodes else None
 
         return lowered_node
 

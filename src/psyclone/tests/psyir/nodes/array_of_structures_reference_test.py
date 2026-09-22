@@ -34,16 +34,33 @@ def make_component_symbol():
     :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
     '''
-    region_type = symbols.StructureType.create([
-        ("startx", symbols.ScalarType.integer_type(),
-         symbols.Symbol.Visibility.PUBLIC,
-         None)])
+    region_type = symbols.StructureType.create(
+        [
+            symbols.StructureType.ComponentType(
+                "startx",
+                symbols.ScalarType.integer_type(),
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            )
+        ]
+    )
     region_type_symbol = symbols.DataTypeSymbol("region_type", region_type)
-    grid_type = symbols.StructureType.create([
-        ("nx", symbols.ScalarType.integer_type(),
-         symbols.Symbol.Visibility.PUBLIC, None),
-        ("region", region_type_symbol, symbols.Symbol.Visibility.PUBLIC,
-         None)])
+    grid_type = symbols.StructureType.create(
+        [
+            symbols.StructureType.ComponentType(
+                "nx",
+                symbols.ScalarType.integer_type(),
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            symbols.StructureType.ComponentType(
+                "region",
+                region_type_symbol,
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     grid_array_type = symbols.ArrayType(grid_type_symbol, [5])
     ssym = symbols.DataSymbol("grid", grid_array_type)
@@ -135,10 +152,16 @@ def test_asr_create_errors(component_symbol):
 def test_ast_str():
     ''' Test that the __str__ method of the StructureReference class works OK
     when we have an ArrayOfStructuresReference. '''
-    grid_type = symbols.StructureType.create([
-        ("nx", symbols.ScalarType.integer_type(),
-         symbols.Symbol.Visibility.PUBLIC,
-         None)])
+    grid_type = symbols.StructureType.create(
+        [
+            symbols.StructureType.ComponentType(
+                "nx",
+                symbols.ScalarType.integer_type(),
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            )
+        ]
+    )
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     grid_array_type = symbols.ArrayType(grid_type_symbol, [5])
     ssym = symbols.DataSymbol("grid", grid_array_type)
@@ -159,10 +182,19 @@ def test_asr_datatype():
     ndofs = symbols.DataSymbol("ndofs", symbols.ScalarType.integer_type())
     atype = symbols.ArrayType(symbols.ScalarType.real_type(),
                               [nodes.Reference(ndofs), nodes.Reference(ndofs)])
-    grid_type = symbols.StructureType.create([
-        ("nx", symbols.ScalarType.integer_type(),
-         symbols.Symbol.Visibility.PUBLIC, None),
-        ("data", atype, symbols.Symbol.Visibility.PUBLIC, None)])
+    grid_type = symbols.StructureType.create(
+        [
+            symbols.StructureType.ComponentType(
+                "nx",
+                symbols.ScalarType.integer_type(),
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            symbols.StructureType.ComponentType(
+                "data", atype, symbols.Symbol.Visibility.PUBLIC, None
+            ),
+        ]
+    )
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     grid_array_type = symbols.ArrayType(grid_type_symbol, [5])
     ssym = symbols.DataSymbol("grid", grid_array_type)

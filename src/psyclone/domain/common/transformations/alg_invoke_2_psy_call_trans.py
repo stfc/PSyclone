@@ -190,7 +190,7 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
         # Remove functor symbols that are no longer used.
         self.remove_imported_symbols(node)
 
-        # TODO #753. At the moment the container and routine names
+        # TODO #1618. At the moment the container and routine names
         # produced here will differ from the PSy-layer routine name if
         # there is a name clash in the algorithm layer.
         container_tag = node.psylayer_container_root_name
