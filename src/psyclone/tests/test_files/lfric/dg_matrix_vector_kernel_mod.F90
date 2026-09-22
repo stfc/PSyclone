@@ -42,10 +42,10 @@ module dg_matrix_vector_kernel_mod
          /)
     integer :: operates_on = CELL_COLUMN
     contains
-    procedure, nopass :: dg_matrix_vector_code_r_single
+    procedure, nopass :: dg_matrix_vector_code_r_double
   end type
-  public :: dg_matrix_vector_code_r_single
-  
+  public :: dg_matrix_vector_code_r_double
+
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------

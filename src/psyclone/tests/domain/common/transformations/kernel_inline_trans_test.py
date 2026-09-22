@@ -259,7 +259,7 @@ def test_lfric_kernel_with_automatic_array():
     !$omp do schedule(static)
     do cell = loop1_start, loop1_stop, 1
       ! deferred-inline successful for kernel 'dg_matrix_vector_code_r_\
-single_inlined_'
+double_inlined_'
       do k = 0, nlayers_f4 - 1, 1_i_def
         do df_1 = 1, ndf_as1_f2, 1_i_def
           x_e(df_1) = f2_data(map_as1_f2(df_1 - 1 + lbound(map_as1_f2, \

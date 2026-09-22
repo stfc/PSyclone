@@ -442,7 +442,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             # Ensure any expressions in the condition are simplified.
             try:
                 sym_maths.expand(condition)
-            except VisitorError:
+            except Exception:
                 continue
 
             # Make sure we only handle a Boolean Literal as a condition
