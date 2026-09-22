@@ -230,13 +230,13 @@ class Routine(Schedule, CommentableMixin):
                     f"transformation script.")
 
             if not symbol.is_import and symbol.name not in table:
-                # This is a local Symbol.
-                if (ignore_non_data_accesses and
-                        not vam[sig].has_data_access()):
+                # This is Symbol local to the Container.
+                if isinstance(symbol, RoutineSymbol):
+                    # Calls to local Routines can be OK so we don't flag
+                    # them here.
                     continue
-                # The only option would be to make this Symbol public
-                # but that would risk namespace collisions in the generated
-                # code.
+                # The only option would be to make this Symbol public but
+                # that would risk namespace collisions in the generated code.
                 sym_at_call_site = call.scope.symbol_table.lookup(
                     sig.var_name, otherwise=None)
                 if sym_at_call_site is not symbol:

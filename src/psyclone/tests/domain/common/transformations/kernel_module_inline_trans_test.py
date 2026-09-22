@@ -344,11 +344,10 @@ def test_validate_rejects_local_data_access_in_sub_call(fortran_reader,
     psyir = fortran_reader.psyir_from_source('''
     module my_mod
         implicit none
-        integer, parameter :: r_def = kind(1.0d0)
         integer, private :: some_state
         contains
         subroutine compute_cv_code()
-            real(kind=r_def) :: a
+            real :: a
             call do_something()
         end subroutine compute_cv_code
         subroutine do_something()
