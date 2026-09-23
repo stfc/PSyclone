@@ -163,16 +163,16 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
 
         # 3) Check that both loops only write to one field.
         node1_write_args = node1.args_filter(
-            arg_types=AccessType.all_write_accesses()
+            arg_accesses=AccessType.all_write_accesses()
         )
         node2_write_args = node2.args_filter(
-            arg_types=AccessType.all_write_accesses()
+            arg_accesses=AccessType.all_write_accesses()
         )
         if len(node1_write_args) > 1 or len(node2_write_args) > 1:
             raise TransformationError(
                 f"Error in {self.name}: One input loop has more than one "
-                f"write argument. Found '{node1_write_args}' and "
-                f"'{node2_write_args}'."
+                f"write argument. Found '{len(node1_write_args)}' writes and "
+                f"'{len(node2_write_args)}' writes."
             )
 
         # 4) Check upper loop bounds

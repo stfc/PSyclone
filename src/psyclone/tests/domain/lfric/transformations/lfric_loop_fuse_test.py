@@ -155,3 +155,24 @@ def test_loop_fuse_set_dirty():
 
     gen = str(psy.gen)
     assert gen.count("set_dirty()") == 1
+
+
+def test_loop_fuse_multiwrite():
+    ''' Test that validate flags loops that write to more than
+    one field.'''
+    _, invoke = get_invoke("15.18.2_multiwrite_field_fuse_error.f90",
+                           TEST_API, name="invoke_0", dist_mem=False)
+    schedule = invoke.schedule
+    ftrans = LFRicLoopFuseTrans()
+    # Validate fusing the first two loops
+    with pytest.raises(TransformationError) as err:
+        ftrans.validate((schedule.children[0], schedule.children[1]))
+    assert ("Error in LFRicLoopFuseTrans: One input loop has more than one "
+            "write argument. Found '2' writes and '1' writes."
+            in str(err.value))
+    # Validate fusing the latter two loops
+    with pytest.raises(TransformationError) as err:
+        ftrans.validate((schedule.children[1], schedule.children[2]))
+    assert ("Error in LFRicLoopFuseTrans: One input loop has more than one "
+            "write argument. Found '1' writes and '2' writes."
+            in str(err.value))
