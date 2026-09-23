@@ -1750,8 +1750,8 @@ class FortranWriter(LanguageWriter):
             for line in node.get_fortran_lines():
                 result += f"{self._nindent}{line}\n"
         elif node.structure == CodeBlock.Structure.EXPRESSION:
-            for ast_node in node.parse_tree_nodes:
-                result += str(ast_node)
+            # No indent or newlines
+            result = "".join(node.get_fortran_lines())
         else:
             raise VisitorError(
                 f"Unsupported CodeBlock Structure '{node.structure}' found.")
