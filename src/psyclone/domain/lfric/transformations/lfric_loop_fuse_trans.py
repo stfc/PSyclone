@@ -10,7 +10,7 @@
 
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import LFRicConstants, LFRicLoop
-from psyclone.psyGen import InvokeSchedule, Kern
+from psyclone.psyGen import args_filter, InvokeSchedule, Kern
 from psyclone.psyir.nodes import (
     ArrayOfStructuresReference, BinaryOperation, Call, IfBlock,
     StructureReference, Literal
@@ -161,19 +161,20 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                         f"'{node1_fs_name}' and '{node2_fs_name}' unless they "
                         f"are both discontinuous.")
 
-        # 3) Check that both loops only write to one field.
-        node1_write_args = node1.args_filter(
-            arg_accesses=AccessType.all_write_accesses()
-        )
-        node2_write_args = node2.args_filter(
-            arg_accesses=AccessType.all_write_accesses()
-        )
-        if len(node1_write_args) > 1 or len(node2_write_args) > 1:
-            raise TransformationError(
-                f"Error in {self.name}: One input loop has more than one "
-                f"write argument. Found '{len(node1_write_args)}' writes and "
-                f"'{len(node2_write_args)}' writes."
+        # 3) Check that each kernel in each loop only write to one field.
+        for kern in node1.kernels() + node2.kernels():
+            # We use the args_filter function directly as its not defined for
+            # kern.arguments
+            kern_write_args = args_filter(
+                kern.arguments.args,
+                arg_accesses=AccessType.all_write_accesses()
             )
+            if len(kern_write_args) > 1:
+                raise TransformationError(
+                    f"Error in {self.name}: Kernel '{kern.name}' in one of "
+                    f"the input loops has {len(kern_write_args)} write "
+                    f"arguments. Each kernel must have at most one."
+                )
 
         # 4) Check upper loop bounds
         if node1.upper_bound_name != node2.upper_bound_name:

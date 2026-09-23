@@ -167,12 +167,14 @@ def test_loop_fuse_multiwrite():
     # Validate fusing the first two loops
     with pytest.raises(TransformationError) as err:
         ftrans.validate((schedule.children[0], schedule.children[1]))
-    assert ("Error in LFRicLoopFuseTrans: One input loop has more than one "
-            "write argument. Found '2' writes and '1' writes."
+    assert ("Error in LFRicLoopFuseTrans: Kernel "
+            "'testkern_write_any_anyd_code' in one of the input loops has 2 "
+            "write arguments. Each kernel must have at most one."
             in str(err.value))
     # Validate fusing the latter two loops
     with pytest.raises(TransformationError) as err:
         ftrans.validate((schedule.children[1], schedule.children[2]))
-    assert ("Error in LFRicLoopFuseTrans: One input loop has more than one "
-            "write argument. Found '1' writes and '2' writes."
+    assert ("Error in LFRicLoopFuseTrans: Kernel "
+            "'testkern_write_any_anyd_code' in one of the input loops has 2 "
+            "write arguments. Each kernel must have at most one."
             in str(err.value))
