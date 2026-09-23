@@ -18,7 +18,8 @@ from psyclone.domain.common.algorithm import AlgorithmInvokeCall, KernelFunctor
 from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
-    Call, Routine, Literal, Reference, CodeBlock, UnaryOperation, Node)
+    Call, Routine, Literal, Reference, CodeBlock, UnaryOperation, Node,
+    Container)
 from psyclone.psyir.symbols import (ContainerSymbol,
                                     ImportInterface, RoutineSymbol)
 from psyclone.psyir.transformations import TransformationError
@@ -40,22 +41,19 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
     transformation.
 
     '''
-    def validate(self, node, options=None, **kwargs):
+    def validate(self, node, **kwargs):
         '''Validate the node argument.
 
         :param node: a PSyIR node capturing an invoke call.
         :type node: \
             :py:class:`psyclone.domain.common.algorithm.AlgorithmInvokeCall`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied call argument is \
             not a PSyIR AlgorithmInvokeCall node.
         :raises InternalError: if no corresponding 'invoke' symbol is present.
 
         '''
-        if not options:
-            self.validate_options(**kwargs)
+        self.validate_options(**kwargs)
 
         if not isinstance(node, AlgorithmInvokeCall):
             raise TransformationError(
@@ -73,11 +71,10 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
 
     @abc.abstractmethod
     def get_arguments(self, node: AlgorithmInvokeCall,
-                      options: Optional[dict[str, Any]] = None,
                       **kwargs: Any) -> list[Node]:
         '''
         :param node: a PSyIR algorithm invoke call node.
-        :param options: a dictionary with options for transformations.
+        :param kwargs: additional keyword arguments.
         '''
 
     @staticmethod
@@ -170,7 +167,8 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
                 pass
 
     def apply(self, node: AlgorithmInvokeCall,
-              options: Optional[dict[str, Any]] = None,
+              kernels: Optional[dict[int, Container]] = None,
+              check_args: bool = False,
               **kwargs: Any) -> None:
         ''' Apply the transformation to the supplied AlgorithmInvokeCall.
         The supplied node will be replaced with a Call node with appropriate
@@ -178,12 +176,17 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
         table containing the 'invoke' symbol then that symbol is removed.
 
         :param node: a PSyIR algorithm invoke call node.
-        :param options: a dictionary with options for transformations.
+        :param kernels: this option provides a list of LFRic kernels for
+            this LFRic Algorithm Invoke call.
+        :param check_args: if True, checks the number of kernel
+            functor arguments matches the number expected by the kernel
+            metadata. Defaults to False.
 
         '''
-        self.validate(node, options=options, **kwargs)
+        self.validate(node, kernels=kernels, **kwargs)
         node.create_psylayer_symbol_root_names()
-        arguments = self.get_arguments(node, options=options, **kwargs)
+        arguments = self.get_arguments(node, kernels=kernels,
+                                       check_args=check_args)
         symbol_table = node.ancestor(Routine).symbol_table
 
         # Remove functor symbols that are no longer used.

@@ -72,21 +72,11 @@ class LFRicExtractTrans(ExtractTrans):
 
         :param nodes: can be a single node or a list of nodes.
         :param options: a dictionary with options for transformations.
-        :param options["prefix"]: a prefix to use for the PSyData module \
-            name (``prefix_psy_data_mod``) and the PSyDataType \
-            (``prefix_PSyDataType``) - a "_" will be added automatically. \
-            It defaults to "extract", resulting in e.g. \
-            ``extract_psy_data_mod``.
         :param create_driver: whether or not to create a \
             driver program at code-generation time. If set, the driver will \
             be created in the current working directory with the name \
             "driver-MODULE-REGION.f90" where MODULE and REGION will be the \
             corresponding values for this region. Defaults to False.
-        :param options["region_name"]: an optional name to \
-            use for this PSyData area, provided as a 2-tuple containing a \
-            location name followed by a local name. The pair of strings \
-            should uniquely identify a region unless aggregate information \
-            is required (and is supported by the runtime library).
 
         '''
         if options:

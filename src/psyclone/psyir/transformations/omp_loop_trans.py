@@ -276,7 +276,7 @@ class OMPLoopTrans(ParallelLoopTrans):
         :param node: the supplied node to which we will apply the
                      OMPLoopTrans transformation
         :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param bool reprod: indicating whether reproducible reductions should
+        :param reprod: indicating whether reproducible reductions should
             be used. By default the value from the config file will be used.
         :param options: a dictionary with options for transformations
                         and validation.

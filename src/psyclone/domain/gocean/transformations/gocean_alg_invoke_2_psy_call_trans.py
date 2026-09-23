@@ -9,7 +9,7 @@
 into a call to the corresponding PSy-layer routine.
 
 '''
-from typing import Any, Optional
+from typing import Any
 
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall
 from psyclone.domain.common.transformations import AlgInvoke2PSyCallTrans
@@ -31,25 +31,21 @@ class GOceanAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
 
     '''
     def apply(self, node: AlgorithmInvokeCall,
-              options: Optional[dict[str, Any]] = None,
               **kwargs: Any) -> None:
         '''Apply the transformation to the supplied algorithm invoke call.
 
         :param node: a GOcean algorithm invoke call.
-        :param options: a dictionary with options for transformations.
 
         '''
-        super().apply(node, options=options, **kwargs)
+        super().apply(node, **kwargs)
 
     def get_arguments(self, node: AlgorithmInvokeCall,
-                      options: Optional[dict[str, Any]] = None,
                       **kwargs: Any) -> list[Node]:
         '''Creates the GOcean processed (lowered) argument list from the
         argument lists of the kernels within the invoke call and the
         kernel metadata.
 
         :param node: a GOcean algorithm invoke call.
-        :param options: a dictionary with options for transformations.
 
         :returns: the processed (lowered) argument list.
 

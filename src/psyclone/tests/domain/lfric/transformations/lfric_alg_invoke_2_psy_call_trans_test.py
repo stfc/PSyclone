@@ -58,9 +58,10 @@ def test_lfai2psycall_validate():
 
     # kernels not a dictionary
     with pytest.raises(TransformationError) as err:
-        trans.validate(call, options={"kernels": None})
-    assert ("The value of 'kernels' in the options argument must be a "
-            "dictionary but found 'NoneType'." in str(err.value))
+        trans.validate(call, kernels=None)
+    assert ("A dictionary containing LFRic kernel PSyIR must be passed into "
+            "the LFRicAlgInvoke2PSyCallTrans transformation but this was not "
+            "found." in str(err.value))
 
     # kernels entry index not found
     data_type_symbol = DataTypeSymbol("kern_type", ScalarType.real_type())
@@ -69,7 +70,7 @@ def test_lfai2psycall_validate():
     call = LFRicAlgorithmInvokeCall.create(
         RoutineSymbol("mysub"), [kernel_functor], 0)
     with pytest.raises(TransformationError) as err:
-        trans.validate(call, options={"kernels": {None: None}})
+        trans.validate(call, kernels={None: None})
     assert ("The 'kernels' option must be a dictionary containing LFRic "
             "kernel PSyIR indexed by the id's of the associated kernel "
             "functors, but the id for kernel functor 'kern_type' was not "
@@ -77,14 +78,14 @@ def test_lfai2psycall_validate():
 
     # kernels entry value invalid
     with pytest.raises(TransformationError) as err:
-        trans.validate(call, options={"kernels": {id(kernel_functor): None}})
+        trans.validate(call, kernels={id(kernel_functor): None})
     assert ("A PSyIR Container (an LFRic kernel module) was expected, but "
             "found 'NoneType'." in str(err.value))
 
     # no LFRicKernelContainer in PSyIR
     psyir = Container.create("mymod", SymbolTable(), [])
     with pytest.raises(TransformationError) as err:
-        trans.validate(call, options={"kernels": {id(kernel_functor): psyir}})
+        trans.validate(call, kernels={id(kernel_functor): psyir})
     assert ("LFRic kernel PSyIR should contain an LFRicKernelContainer as "
             "the root or first child of the root but this was not found."
             in str(err.value))
@@ -99,7 +100,7 @@ def test_lfai2psycall_validate():
     psyir = LFRicKernelContainer.create(
         "kernel_mod", metadata, SymbolTable(), [])
     with pytest.raises(GenerationError) as err:
-        trans.validate(call, options={"kernels": {id(kernel_functor): psyir}})
+        trans.validate(call, kernels={id(kernel_functor): psyir})
     assert ("The invoke kernel functor 'kern_type' has 1 arguments, but the "
             "kernel metadata expects there to be 2 arguments."
             in str(err.value))
@@ -112,7 +113,7 @@ def test_lfai2psycall_validate():
         name="kernel_type")
     psyir = LFRicKernelContainer.create(
         "kernel_mod", metadata, SymbolTable(), [])
-    trans.validate(call, options={"kernels": {id(kernel_functor): psyir}})
+    trans.validate(call, kernels={id(kernel_functor): psyir})
 
 
 def test_lfai2psycall_get_metadata():
@@ -169,7 +170,7 @@ def test_lfai2psycall_get_arguments():
         "kernel_mod", metadata, SymbolTable(), [])
     with pytest.raises(GenerationError) as err:
         trans.get_arguments(
-            call, options={"kernels": {id(kernel_functor): psyir}},
+            call, kernels={id(kernel_functor): psyir},
             check_args=True)
     assert ("The invoke kernel functor 'kern_type' has 1 arguments, but the "
             "kernel metadata expects there to be 2 arguments."
@@ -180,7 +181,7 @@ def test_lfai2psycall_get_arguments():
     psyir = LFRicKernelContainer.create(
         "kernel_mod", metadata, SymbolTable(), [])
     args = trans.get_arguments(
-        call, options={"kernels": {id(kernel_functor): psyir}})
+        call, kernels={id(kernel_functor): psyir})
     assert len(args) == 1
     assert isinstance(args[0], Reference)
     assert args[0].name == "arg1"
@@ -201,8 +202,8 @@ def test_lfai2psycall_get_arguments():
     psyir2 = LFRicKernelContainer.create(
         "kernel2_mod", metadata2, SymbolTable(), [])
     args = trans.get_arguments(
-        call, options={"kernels": {
-            id(kernel_functor1): psyir, id(kernel_functor2): psyir2}})
+        call, kernels={id(kernel_functor1): psyir,
+                       id(kernel_functor2): psyir2})
     assert len(args) == 2
     assert isinstance(args[0], Reference)
     assert args[0].name == "arg1"
@@ -224,7 +225,7 @@ def test_lfai2psycall_get_arguments():
     psyir = LFRicKernelContainer.create(
         "kernel_mod", metadata, SymbolTable(), [])
     args = trans.get_arguments(
-        call, options={"kernels": {id(kernel_functor): psyir}})
+        call, kernels={id(kernel_functor): psyir})
     assert len(args) == 6
     assert isinstance(args[0], Reference)
     assert args[0].name == "arg1"
@@ -250,7 +251,7 @@ def test_lfai2psycall_get_arguments():
         RoutineSymbol("mysub"), [kernel_functor], 0)
     with pytest.raises(GenerationError) as info:
         _ = trans.get_arguments(
-            call, options={"kernels": {id(kernel_functor): psyir}})
+            call, kernels={id(kernel_functor): psyir})
     assert ("A literal is not a valid value for a stencil direction, but "
             "found '1' for field 'arg2'." in str(info.value))
 
@@ -261,7 +262,7 @@ def test_lfai2psycall_get_arguments():
         [Reference(Symbol("arg1")), Reference(Symbol("arg2"))])
     call = LFRicAlgorithmInvokeCall.create(
         RoutineSymbol("mysub"), [builtin_functor], 0)
-    args = trans.get_arguments(call, options={"kernels": {}})
+    args = trans.get_arguments(call, kernels={})
     assert len(args) == 2
     assert isinstance(args[0], Reference)
     assert args[0].name == "arg1"
@@ -291,7 +292,7 @@ def test_lfai2psycall_apply(fortran_reader):
         name="kernel_type")
     kernel_psyir = LFRicKernelContainer.create(
         "kernel_mod", metadata, SymbolTable(), [])
-    trans.apply(aic, options={"kernels": {id(aic.arguments[0]): kernel_psyir}})
+    trans.apply(aic, kernels={id(aic.arguments[0]): kernel_psyir})
     assert psyir.walk(LFRicAlgorithmInvokeCall) == []
     calls = psyir.walk(Call)
     assert len(calls) == 1
@@ -329,9 +330,9 @@ def test_lfai2psycall_builtin_apply(fortran_reader):
     kernel_psyir2 = LFRicKernelContainer.create(
         "kern_mod", kern_metadata, SymbolTable(), [])
 
-    trans.apply(aic, options={"kernels": {
+    trans.apply(aic, kernels={
         id(aic.arguments[0]): kernel_psyir1,
-        id(aic.arguments[1]): kernel_psyir2}})
+        id(aic.arguments[1]): kernel_psyir2})
     assert psyir.walk(LFRicAlgorithmInvokeCall) == []
     calls = psyir.walk(Call)
     assert len(calls) == 1
@@ -383,10 +384,10 @@ def test_lfai2psycall_multi_invokes(fortran_reader):
     kernel_psyir3 = LFRicKernelContainer.create(
         "setval_x_mod", setval_x_metadata, SymbolTable(), [])
 
-    trans.apply(invokes[1], options={"kernels": {
+    trans.apply(invokes[1], kernels={
         id(invokes[1].arguments[0]): kernel_psyir1,
         id(invokes[1].arguments[1]): kernel_psyir2,
-        id(invokes[1].arguments[2]): kernel_psyir3}})
+        id(invokes[1].arguments[2]): kernel_psyir3})
 
     invokes = psyir.walk(LFRicAlgorithmInvokeCall)
     assert len(invokes) == 1
@@ -395,9 +396,9 @@ def test_lfai2psycall_multi_invokes(fortran_reader):
     assert "setval_x" not in routine.symbol_table._symbols
 
     # Apply the transformation to the one remaining invoke.
-    trans.apply(invokes[0], options={"kernels": {
+    trans.apply(invokes[0], kernels={
         id(invokes[0].arguments[0]): kernel_psyir1,
-        id(invokes[0].arguments[1]): kernel_psyir2}})
+        id(invokes[0].arguments[1]): kernel_psyir2})
 
     assert not psyir.walk(LFRicAlgorithmInvokeCall)
     assert "invoke" not in routine.symbol_table._symbols

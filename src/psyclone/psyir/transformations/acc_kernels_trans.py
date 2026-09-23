@@ -217,9 +217,9 @@ class ACCKernelsTrans(RegionTrans):
         :raises TransformationError: if the proposed region contains a call to
             a routine that is not available on the accelerator.
         :raises TransformationError: if there are no Loops within the
-            proposed region and options["disable_loop_check"] is not True.
+            proposed region and "disable_loop_check" is not True.
         :raises TransformationError: if any assignments in the region contain a
-            character type child and options["allow_strings"] is not True.
+            character type child and "allow_strings" is not True.
 
         '''
         if options:

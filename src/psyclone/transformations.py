@@ -108,14 +108,11 @@ class LFRicOMPLoopTrans(OMPLoopTrans):
 
         :param node: the Node in the Schedule to check
         :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations \
+        :param options: a dictionary with options for transformations
                         and validation.
         :type options: Optional[Dict[str, Any]]
-        :param bool options["reprod"]: \
-            indicating whether reproducible reductions should be used. \
-            By default the value from the config file will be used.
 
-        :raises TransformationError: if an OMP loop transform would create \
+        :raises TransformationError: if an OMP loop transform would create
             incorrect code.
 
         '''
@@ -149,9 +146,6 @@ class LFRicOMPLoopTrans(OMPLoopTrans):
         :param node: the Node in the Schedule to check.
         :param options: a dictionary with options for transformations
                         and validation.
-        :param options["reprod"]:
-                indicating whether reproducible reductions should be used.
-                By default the value from the config file will be used.
 
         '''
         # TODO #2668: Deprecate options dict. Since this Transformation
@@ -935,17 +929,12 @@ class ACCParallelTrans(ParallelRegionTrans):
 
         :param node_list: a single Node or a list of Nodes.
         :param options: a dictionary with options for transformations.
-        :param options["node-type-check"]: this flag controls if the
-            type of the nodes enclosed in the region should be tested to
-            avoid using unsupported nodes inside a region.
         :param default_present: this flag controls if the
             inserted directive should include the default_present clause.
         :param allow_strings: whether to allow the
             transformation on assignments involving character types. Defaults
             to False.
-        :param verbose: whether to allow the
-            transformation on assignments involving character types. Defaults
-            to False.
+        :param verbose: whether to provide explanatory comments in the output.
 
         '''
         node_list = self.get_node_list(node_list)
@@ -1003,21 +992,22 @@ class ACCParallelTrans(ParallelRegionTrans):
     def apply(self, target_nodes: Union[Node, list[Node]],
               options: Optional[dict[str, Any]] = None,
               default_present: Optional[bool] = None,
-              allow_strings: bool = False, device_string: str = "",
-              verbose: bool = False, **kwargs: Any) -> None:
+              allow_strings: bool = False,
+              device_string: str = "",
+              verbose: bool = False,
+              **kwargs: Any) -> None:
         '''
         Encapsulate given nodes with the ACCParallelDirective.
 
         :param target_nodes: a single Node or a list of Nodes.
         :param options: a dictionary with options for transformations.
-        :param options["node-type-check"]: this flag controls if the
-            type of the nodes enclosed in the region should be tested to
-            avoid using unsupported nodes inside a region.
         :param default_present: this flag controls if the
             inserted directive should include the default_present clause.
         :param allow_strings: whether to allow the
             transformation on assignments involving character types. Defaults
             to False.
+        :param device_string: a string identifier for the acceleration device.
+        :param verbose: whether to provide explanatory comments in th output.
 
         '''
         if not options:
@@ -1689,10 +1679,6 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin,
                     :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param bool options["force"]: whether to allow routines with
-            CodeBlocks to run on the GPU.
-        :param str options["device_string"]: provide a compiler-platform
-            identifier.
 
         :raises TransformationError: if the node is not a kernel or a routine.
         :raises TransformationError: if the target is a built-in kernel.
