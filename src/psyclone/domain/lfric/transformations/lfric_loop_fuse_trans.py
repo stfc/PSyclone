@@ -257,9 +257,8 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         if loop1_type == "colours" and loop2_type == "colours":
             # We always add force so need to make sure its not a duplicated
             # keyword argument.
-            if "force" in kwargs:
-                del kwargs["force"]
-            super().apply((node1, node2), same_space=same_space, force=True,
+            kwargs["force"] = True
+            super().apply((node1, node2), same_space=same_space,
                           **kwargs)
             return
 
@@ -268,9 +267,8 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         if same_space and node_on_any_space:
             # We always add force so need to make sure its not a duplicated
             # keyword argument.
-            if "force" in kwargs:
-                del kwargs["force"]
-            super().apply((node1, node2), same_space=same_space, force=True,
+            kwargs["force"] = True
+            super().apply((node1, node2), same_space=same_space,
                           **kwargs)
             return
 
@@ -284,18 +282,10 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         if arg1_field.name == arg2_field.name:
             # We always add force so need to make sure its not a duplicated
             # keyword argument.
-            if "force" in kwargs:
-                del kwargs["force"]
-            super().apply((node1, node2), same_space=same_space, force=True,
+            kwargs["force"] = True
+            super().apply((node1, node2), same_space=same_space,
                           **kwargs)
             return
-
-        kern1 = node1.kernel
-        kern2 = node2.kernel
-
-        # Both need to have the same iteration_space (dof or otherwise)
-        if kern1.iterates_over != kern2.iterates_over:
-            raise TransformationError("FIXME")
 
         # If neither is a built in we check the iteration space and they
         # can only be fused if the space of their fields is the same.

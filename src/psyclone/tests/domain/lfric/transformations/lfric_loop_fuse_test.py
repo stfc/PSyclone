@@ -178,3 +178,23 @@ def test_loop_fuse_multiwrite():
             "'testkern_write_any_anyd_code' in one of the input loops has 2 "
             "write arguments. Each kernel must have at most one."
             in str(err.value))
+
+
+def test_loop_fuse_different_operates_on():
+    ''' Test that validate flags loops that operate on different types of
+    iterator (e.g. dof vs cell_column.'''
+
+    _, invoke = get_invoke(
+        "15.18.3_anyspace_different_operateson_fuse_error.f90",
+        TEST_API, name="invoke_0", dist_mem=False)
+    schedule = invoke.schedule
+    ftrans = LFRicLoopFuseTrans()
+    # This is caught in the base LoopFuseTrans when checking
+    # if node1.iteration_space != node2.iteration_space
+    # Here we have cell_column and dof spaces.
+
+    with pytest.raises(TransformationError) as err:
+        ftrans.validate((schedule.children[0], schedule.children[1]))
+
+    assert ("Error in LFRicLoopFuseTrans transformation. Loops do not have "
+            "the same iteration space." in str(err.value))

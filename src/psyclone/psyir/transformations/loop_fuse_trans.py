@@ -103,6 +103,7 @@ class LoopFuseTrans(LoopTrans):
         if isinstance(node1, PSyLoop) and isinstance(node2, PSyLoop):
             # TODO 1731: For some PSyLoops the iteration space is encoded just
             # in the attributes and not reflected in the loop bounds.
+            print(node1.iteration_space, node2.iteration_space)
             if node1.iteration_space != node2.iteration_space:
                 raise TransformationError(
                     f"Error in {self.name} transformation. Loops do not have "
