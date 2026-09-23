@@ -422,7 +422,7 @@ def test_node_args():
     loop2 = schedule.children[1]
     kern2 = loop2.loop_body[0]
     # 1) Schedule (not that this is useful)
-    all_args = kern1.arguments.args
+    all_args = kern1.arguments.args[:]
     all_args.extend(kern2.arguments.args)
     schedule_args = schedule.args
     for idx, arg in enumerate(all_args):
