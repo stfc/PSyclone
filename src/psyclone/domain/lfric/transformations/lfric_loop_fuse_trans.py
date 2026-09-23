@@ -50,33 +50,28 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         :param node2: the second Loop to fuse.
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param bool options["same_space"]: this optional flag, set to `True`, \
-            asserts that an unknown iteration space (i.e. `ANY_SPACE`) \
-            matches the other iteration space. This is set at the user's own \
-            risk. If both iteration spaces are discontinuous the loops can be \
-            fused without having to use the `same_space` flag.
 
-        :raises TransformationError: if either of the supplied loops contains \
+        :raises TransformationError: if either of the supplied loops contains
                                      an inter-grid kernel.
-        :raises TransformationError: if one or both function spaces have \
+        :raises TransformationError: if one or both function spaces have
                                      invalid names.
-        :raises TransformationError: if the `same_space` flag was set, but \
-                                     does not apply because neither field \
-                                     is on `ANY_SPACE` or the spaces are not \
+        :raises TransformationError: if the `same_space` flag was set, but
+                                     does not apply because neither field
+                                     is on `ANY_SPACE` or the spaces are not
                                      the same.
-        :raises TransformationError: if one or more of the iteration spaces \
-                                     is unknown (`ANY_SPACE`) and the \
+        :raises TransformationError: if one or more of the iteration spaces
+                                     is unknown (`ANY_SPACE`) and the
                                      `same_space` flag is not set to `True`.
-        :raises TransformationError: if the loops are over different spaces \
-                                     that are not both discontinuous and \
+        :raises TransformationError: if the loops are over different spaces
+                                     that are not both discontinuous and
                                      the loops both iterate over cells.
-        :raises TransformationError: if the loops' upper bound names are \
+        :raises TransformationError: if the loops' upper bound names are
                                      not the same.
-        :raises TransformationError: if the halo-depth indices of two loops \
+        :raises TransformationError: if the halo-depth indices of two loops
                                      are not the same.
         :raises TransformationError: if each loop already contains a reduction.
-        :raises TransformationError: if the first loop has a reduction and \
-                                     the second loop reads the result of \
+        :raises TransformationError: if the first loop has a reduction and
+                                     the second loop reads the result of
                                      the reduction.
         '''
         # pylint: disable=too-many-locals,too-many-branches
@@ -213,11 +208,6 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         :param node2: the second Loop to fuse.
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param bool options["same_space"]: this optional flag, set to `True`, \
-            asserts that an unknown iteration space (i.e. `ANY_SPACE`) \
-            matches the other iteration space. This is set at the user's own \
-            risk. If both iteration spaces are discontinuous the loops can be \
-            fused without having to use the `same_space` flag.
         '''
         # TODO #2668: Deprecate options dict. This function exists for
         # the purposes of documentation required by 2668.

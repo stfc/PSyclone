@@ -69,7 +69,6 @@ class AdjointTransformation(Transformation):
         :param options: a dictionary with options for transformations.
 
         '''
-        super().apply(node, options=options, **kwargs)  # pragma: no cover
 
 
 # =============================================================================

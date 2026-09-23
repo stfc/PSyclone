@@ -74,13 +74,10 @@ class LoopTiling2DTrans(LoopTrans):
 
         :param node: the loop to validate.
         :param options: a dict with options for transformation.
-        :param tilesize: The size of the resulting tile, \
-            currently square tiles are always used. If not specified, the \
-            value 32 is used.
 
-        :raises TransformationError: if an unsupported option has been \
+        :raises TransformationError: if an unsupported option has been
             provided.
-        :raises TransformationError: if the provided tilesize is not a \
+        :raises TransformationError: if the provided tilesize is not a
             integer.
         '''
         if options:
