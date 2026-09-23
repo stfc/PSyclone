@@ -5419,23 +5419,37 @@ class Fparser2Reader():
         # original node to ensure that it has the correct precision.
         return zero_oprnd.detach()
 
-    def _intrinsic_handler(self, node, parent):
+    def _intrinsic_handler(self,
+                           node: Fortran2003.Intrinsic_Function_Reference,
+                           parent: Node) -> IntrinsicCall:
         '''Transforms an fparser2 Intrinsic_Function_Reference to the PSyIR
         representation.
 
         :param node: node in fparser2 Parse Tree.
-        :type node:
-            :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         :raises NotImplementedError: if an unsupported intrinsic is found.
 
         '''
         try:
+            # If we already have a RoutineSymbol with the name of the supposed
+            # intrinsic, then it is shadowed by the declared RoutineSymbol and
+            # we should instead create a Call.
+            existing_symbol = parent.scope.symbol_table.lookup(
+                node.items[0].string, otherwise=None
+            )
+            if (existing_symbol is not None and
+                    isinstance(existing_symbol, RoutineSymbol)):
+                # _call_handler can't handle the intrinsic node as
+                # an input, so we have to create it here instead.
+                call = Call(parent=parent)
+                call.addchild(Reference(existing_symbol))
+                call = self._process_args(node, call, False)
+                return call
+
+            # Otherwise we have an IntrinsicCall.
             intrinsic = IntrinsicCall.Intrinsic[node.items[0].string.upper()]
 
             call = IntrinsicCall(intrinsic, parent=parent)

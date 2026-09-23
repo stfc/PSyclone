@@ -210,6 +210,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.ArrayIntrinsic2LoopTrans
+      :members: apply
+      :no-index:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.ChunkLoopTrans
     :members: apply
     :no-index:
@@ -270,10 +276,22 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.Intrinsic2CodeTrans
+      :members: apply
+      :no-index:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.IncreaseRankLoopArraysTrans
       :members: apply
       :no-index:
 
+####
+
+.. autoclass:: psyclone.domain.common.transformations.KernelInlineTrans
+    :members: apply
+    :no-index:
+    
 ####
 
 .. autoclass:: psyclone.domain.common.transformations.KernelModuleInlineTrans
@@ -522,6 +540,20 @@ This is achieved using ``KernelModuleInlineTrans``:
 
 Once the PSy-layer has its own, private copy of the Kernel, it may
 subsequently be transformed.
+
+To fully inline a PSyKAl kernel body at its call site, use
+``KernelInlineTrans`` after ``KernelModuleInlineTrans``. This records the
+request on the kernel and performs the actual inlining during lowering, once
+the API-specific loop bounds and complete kernel-call argument list have been
+constructed:
+
+.. autoclass:: psyclone.domain.common.transformations.KernelInlineTrans
+   :noindex:
+
+Any validation that depends on the completed argument list or on the final
+kernel body is performed by ``InlineTrans`` during lowering. Consequently,
+such errors are reported during code generation rather than when
+``KernelInlineTrans`` is applied.
 
 To transform a kernel, one must first obtain its PSyIR with:
 
