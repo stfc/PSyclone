@@ -182,7 +182,7 @@ def test_loop_fuse_multiwrite():
 
 def test_loop_fuse_different_operates_on():
     ''' Test that validate flags loops that operate on different types of
-    iterator (e.g. dof vs cell_column.'''
+    iterator (e.g. dof vs cell_column).'''
 
     _, invoke = get_invoke(
         "15.18.3_anyspace_different_operateson_fuse_error.f90",
@@ -198,3 +198,26 @@ def test_loop_fuse_different_operates_on():
 
     assert ("Error in LFRicLoopFuseTrans transformation. Loops do not have "
             "the same iteration space." in str(err.value))
+
+
+def test_loop_fuse_fail_to_resolve_space():
+    ''' Test that we fail to fuse loops on any space if we can't find the
+    space elsewhere in the invoke.'''
+    _, invoke = get_invoke(
+        "15.18.4_fail_to_resolve_any_space_fuse_error.f90",
+        TEST_API, name="invoke_0", dist_mem=False)
+    schedule = invoke.schedule
+    ftrans = LFRicLoopFuseTrans()
+
+    # Fusion should work for the first 2 loops.
+    ftrans.apply((schedule.children[0], schedule.children[1]))
+
+    with pytest.raises(TransformationError) as err:
+        ftrans.apply((schedule.children[1], schedule.children[2]))
+    assert ("Error in LFRicLoopFuseTrans: Couldn't lookup the field space for "
+            "one or more of the ANY_SPACE fields being operated on and "
+            "conditional fusion wasn't specified." in str(err.value))
+
+    # Fusion should work if we allow conditional fusion
+    ftrans.apply((schedule.children[1], schedule.children[2]),
+                 conditional_fusion=True)

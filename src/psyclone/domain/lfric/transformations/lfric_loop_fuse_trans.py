@@ -295,9 +295,8 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
             if fs1 == fs2:
                 # We always add force so need to make sure its not a
                 # duplicated keyword argument.
-                if "force" in kwargs:
-                    del kwargs["force"]
-                super().apply((node1, node2), force=True,
+                kwargs["force"] = True
+                super().apply((node1, node2),
                               **kwargs)
                 return
 
@@ -342,6 +341,11 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                 not conditional_fusion):
             # Couldn't work out the space and aren't doing conditional fusion
             # so we should stop.
+            raise TransformationError(
+                f"Error in {self.name}: Couldn't lookup the field space "
+                f"for one or more of the ANY_SPACE fields being operated on "
+                f"and conditional fusion wasn't specified."
+            )
             return  # FIXME Should this raise an Error?
 
         if (found_space1 is not None and found_space2 is not None and
@@ -349,9 +353,8 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
             # They are on the same space so we can fuse them.
             # We always add force so need to make sure its not a
             # duplicated keyword argument.
-            if "force" in kwargs:
-                del kwargs["force"]
-            super().apply((node1, node2), force=True,
+            kwargs["force"] = True
+            super().apply((node1, node2),
                           **kwargs)
             return
 
@@ -398,9 +401,8 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         ifblock.if_body.addchild(node2)
         # We always add force so need to make sure its not a duplicated
         # keyword argument.
-        if "force" in kwargs:
-            del kwargs["force"]
-        super().apply((node1, node2), same_space=same_space, force=True,
+        kwargs["force"] = True
+        super().apply((node1, node2), same_space=same_space,
                       **kwargs)
 
 
