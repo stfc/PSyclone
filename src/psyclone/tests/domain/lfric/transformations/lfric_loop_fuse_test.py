@@ -223,7 +223,7 @@ def test_loop_fuse_fail_to_resolve_space():
                  conditional_fusion=True)
 
 
-def test_loop_fuse_rseolved_different_spaces():
+def test_loop_fuse_resolved_different_spaces():
     ''' Test that we fail to fuse two loops on any space if we find that
     they're actually on different spaces from searching the invoke.'''
     _, invoke = get_invoke(
@@ -239,3 +239,57 @@ def test_loop_fuse_rseolved_different_spaces():
     assert ("Error in LFRicLoopFuseTrans: The kernels provided are on "
             "different spaces so can't be fused. Computed spaces were "
             "'w2trace' and 'w3'." in str(err.value))
+
+
+def test_loop_fuse_conditional_vector_fields(fortran_writer):
+    ''' Test that the loop fusion works correctly for conditional fusion
+    with vector fields.'''
+    psy, invoke = get_invoke(
+        "15.18.6_any_space_vector_fuse.f90",
+        TEST_API, name="invoke_0", dist_mem=False)
+    schedule = invoke.schedule
+    ftrans = LFRicLoopFuseTrans()
+
+    ftrans.apply((schedule.children[0], schedule.children[1]),
+                 conditional_fusion=True)
+    correct = """  if (f1(1)%which_function_space() == \
+f4(1)%which_function_space()) then
+    do cell = uninitialised_loop0_start, uninitialised_loop0_stop, 1
+      call testkern_anys_vector_write_code(nlayers_f1, f1_1_data, f1_2_data, \
+f2_data, f3_data, ndf_as1_f1, undf_as1_f1, map_as1_f1(:,cell), ndf_any_w2, \
+undf_any_w2, map_any_w2(:,cell), basis_any_w2_qr, diff_basis_any_w2_qr, \
+np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)
+      call testkern_anys_vector_write_code(nlayers_f4, f4_1_data, f4_2_data, \
+f2_data, f3_data, ndf_as1_f4, undf_as1_f4, map_as1_f4(:,cell), ndf_any_w2, \
+undf_any_w2, map_any_w2(:,cell), basis_any_w2_qr, diff_basis_any_w2_qr, \
+np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)
+    enddo
+  else
+    do cell = uninitialised_loop0_start, uninitialised_loop0_stop, 1
+      call testkern_anys_vector_write_code(nlayers_f1, f1_1_data, f1_2_data, \
+f2_data, f3_data, ndf_as1_f1, undf_as1_f1, map_as1_f1(:,cell), ndf_any_w2, \
+undf_any_w2, map_any_w2(:,cell), basis_any_w2_qr, diff_basis_any_w2_qr, \
+np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)
+    enddo
+    do cell = uninitialised_loop1_start, uninitialised_loop1_stop, 1
+      call testkern_anys_vector_write_code(nlayers_f4, f4_1_data, f4_2_data, \
+f2_data, f3_data, ndf_as1_f4, undf_as1_f4, map_as1_f4(:,cell), ndf_any_w2, \
+undf_any_w2, map_any_w2(:,cell), basis_any_w2_qr, diff_basis_any_w2_qr, \
+np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)
+    enddo
+  end if"""
+    assert correct in fortran_writer(schedule)
+
+
+def test_loop_fuse_min_max_same_var():
+    '''Test that we fuse two builtins on the same field without any
+    other invoke elements.'''
+    pass
+    # _, invoke = get_invoke(
+    #    "15.10.9_min_max_X_builtin.f90",
+    #    TEST_API, name="invoke_0", dist_mem=False)
+    # schedule = invoke.schedule
+    # ftrans = LFRicLoopFuseTrans()
+
+    # ftrans.apply((schedule.children[0], schedule.children[1]))
+    # ftrans.apply((schedule.children[0], schedule.children[1]))
