@@ -18,10 +18,10 @@ from psyclone.psyGen import Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
-    Assignment, Call, IntrinsicCall, Loop, Node, OMPDeclareTargetDirective,
-    OMPParallelDirective, Reference, Routine, Statement, Literal)
+    Call, IntrinsicCall, Loop, Node, OMPDeclareTargetDirective,
+    OMPParallelDirective, Reference, Routine, Literal)
 from psyclone.psyir.symbols import (
-    AutomaticInterface, DataSymbol, ImportInterface, UnresolvedType,
+    ArrayType, AutomaticInterface, DataSymbol, ImportInterface, UnresolvedType,
     ScalarType)
 from psyclone.psyir.transformations import (
     InlineTrans, TransformationError)
@@ -2719,13 +2719,14 @@ def test_validate_unknown_actual_array_arg(fortran_reader):
         call, call.arguments[0], routine, routine_arg, allow_unknown=True)
 
 
-def test_validate_automatic_array_sized_by_arg(fortran_reader, monkeypatch):
+def test_apply_array_sized_by_arg(fortran_reader, fortran_writer):
     '''
-    Check that validate raises the expected error if the dimension of an
-    automatic array is passed by argument and is written to before the call
-    (because this means we can't simply move the declaration of the array
-    into the table at the call site.)
+    Check that apply converts automatic arrays that can't be automatic in the
+    caller (because their size depends on an argument that is not set)
+    into an allocatable whose allocate is set in the right position (after the
+    value is set).
     '''
+    inline_trans = InlineTrans()
     code = (
         "module test_mod\n"
         "contains\n"
@@ -2733,50 +2734,151 @@ def test_validate_automatic_array_sized_by_arg(fortran_reader, monkeypatch):
         "  real, dimension(10, 10) :: var = 0.0\n"
         "  integer :: ndim, mdim, zdim\n"
         "  ndim = 5\n"
-        "  ! A read access to ndim is fine.\n"
+        "  mdim = 5\n"
         "  zdim = ndim + mdim\n"
-        "  do ndim = 1, 10\n"
+        "  do zdim = 1, 10\n"
+        "     call sub(var, ndim, mdim)\n"
         "  enddo\n"
-        "  call sub(var, ndim, ndim)\n"
         "end subroutine main\n"
         "subroutine sub(x, ilen, jlen)\n"
         "  real, dimension(ilen, jlen), intent(inout) :: x\n"
         "  integer, intent(in) :: ilen, jlen\n"
-        "  real, dimension(ilen*2, jlen) :: work\n"
+        "  real, dimension(ilen*2) :: work1\n"
+        "  real, dimension(ilen, jlen) :: work2\n"
         "  x(:,:) = x(:,:) + 1.0\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    inline_trans.apply(psyir.walk(Call)[0])
+    output = fortran_writer(psyir)
+    assert """
+    ALLOCATE(work1(ndim * 2))
+    ALLOCATE(work2(ndim,mdim))
+    do zdim = 1, 10, 1
+      var(:ndim,:mdim) = var(:ndim,:mdim) + 1.0
+    enddo
+    DEALLOCATE(work2)
+    DEALLOCATE(work1)""" in output
+
+    # The allocate cannot always be hoisted out of the loop.
+    code = (
+        "module test_mod\n"
+        "  use other, only: extvar, sub2\n"
+        "  integer :: n\n"
+        "contains\n"
+        "subroutine main\n"
+        "  real, dimension(10) :: var = 0.0\n"
+        "  integer :: zdim\n"
+        "  n = 1\n"
+        "  do zdim = 1, 10\n"
+        "     call sub(var, zdim)\n"
+        "  enddo\n"
+        "  do zdim = 1, 9\n"
+        "     call sub(var, n)\n"
+        "     n = zdim\n"
+        "  enddo\n"
+        "  do zdim = 1, 8\n"
+        "     call sub(var, extvar)\n"
+        "     ! A impure subroutine can modify extvar\n"
+        "     call sub2()\n"
+        "  enddo\n"
+        "end subroutine main\n"
+        "subroutine sub(x, ilen)\n"
+        "  real, dimension(ilen), intent(inout) :: x\n"
+        "  integer, intent(in) :: ilen\n"
+        "  real, dimension(ilen) :: work\n"
+        "  work(3) = 3\n"
+        "  x(:,:) = x(:,:) + work(3)\n"
         "end subroutine sub\n"
         "end module test_mod\n"
     )
     psyir = fortran_reader.psyir_from_source(code)
     for call in psyir.walk(Call):
         if call.routine.symbol.name == "sub":
-            break
-    inline_trans = InlineTrans()
-    # Should fail because ilen is accessed in a CodeBlock.
-    with pytest.raises(TransformationError) as err:
-        inline_trans.validate(call)
-    assert ("Cannot inline routine 'sub' because one or more of its "
-            "declarations depends on 'ilen' which is passed by argument and "
-            "may be written to before the call ('do ndim ="
-            in str(err.value))
-    # Remove the Loop so the Assignment is found.
-    psyir.walk(Loop)[0].detach()
-    with pytest.raises(TransformationError) as err:
-        inline_trans.validate(call)
-    assert ("Cannot inline routine 'sub' because one or more of its "
-            "declarations depends on 'ilen' which is passed by argument and "
-            "is assigned to before the call ('ndim = 5')" in str(err.value))
-    # Without the preceding write to ndim, validate() is happy.
-    assign = psyir.walk(Assignment)[0]
-    assign.detach()
-    inline_trans.validate(call)
-    # Break Reference.previous_accesses() to exercise the InternalError.
-    monkeypatch.setattr(call.arguments[1], "previous_accesses",
-                        lambda: [Statement()])
-    with pytest.raises(InternalError) as err:
-        inline_trans.validate(call)
-    assert ("Unexpected node type (Statement) returned from Reference."
-            "previous_accesses()" in str(err.value))
+            inline_trans.apply(call,
+                               allow_no_args_check_if_only_one_callee=True)
+    output = fortran_writer(psyir)
+    assert """
+    do zdim = 1, 10, 1
+      ALLOCATE(work(zdim))
+      work(3) = 3
+      var(:zdim) = var(:zdim) + work(3)
+      DEALLOCATE(work)
+    enddo""" in output
+    assert """
+    do zdim = 1, 9, 1
+      ALLOCATE(work_1(n))
+      work_1(3) = 3
+      var(:n) = var(:n) + work_1(3)
+      DEALLOCATE(work_1)
+      n = zdim
+    enddo""" in output
+    assert """
+    do zdim = 1, 8, 1
+      ALLOCATE(work_2(extvar))
+      work_2(3) = 3
+      var(:extvar) = var(:extvar) + work_2(3)
+      DEALLOCATE(work_2)
+      call sub2()
+    enddo""" in output
+
+
+def test_apply_automatic_array_with_extent(fortran_reader):
+    """Test that an automatic array with an unspecified extent is retained
+    when its routine is inlined."""
+    psyir = fortran_reader.psyir_from_source("""
+        module test_mod
+        contains
+          subroutine caller()
+            call callee()
+          end subroutine caller
+          subroutine callee()
+            real :: work
+            work = 1.0
+          end subroutine callee
+        end module test_mod
+        """)
+    caller, callee = psyir.walk(Routine)
+    work = callee.symbol_table.lookup("work")
+    work.datatype = ArrayType(ScalarType.real_type(),
+                              [ArrayType.Extent.ATTRIBUTE])
+
+    InlineTrans().apply(caller.walk(Call)[0])
+
+    assert caller.symbol_table.lookup("work").datatype.shape == [
+        ArrayType.Extent.ATTRIBUTE]
+
+
+def test_apply_automatic_array_hoisted_out_of_directive(fortran_reader):
+    """Test that allocation of an inlined automatic array is hoisted out of
+    its enclosing directive."""
+    psyir = fortran_reader.psyir_from_source("""
+        module test_mod
+        contains
+          subroutine caller()
+            integer :: size
+            size = 10
+            call callee(size)
+          end subroutine caller
+          subroutine callee(size)
+            integer, intent(in) :: size
+            real :: work(size)
+            work(1) = 1.0
+          end subroutine callee
+        end module test_mod
+        """)
+    caller = psyir.walk(Routine)[0]
+    call = caller.walk(Call)[0]
+    directive = OMPParallelDirective.create(children=[call.detach()])
+    caller.addchild(directive)
+
+    InlineTrans().apply(call)
+
+    allocation, directive, deallocation = caller.children[-3:]
+    assert allocation.intrinsic is IntrinsicCall.Intrinsic.ALLOCATE
+    assert isinstance(directive, OMPParallelDirective)
+    assert deallocation.intrinsic is IntrinsicCall.Intrinsic.DEALLOCATE
 
 
 def test_apply_merges_symbol_table_with_routine(fortran_reader):
