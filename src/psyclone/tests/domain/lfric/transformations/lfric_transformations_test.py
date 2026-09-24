@@ -2124,7 +2124,7 @@ def test_two_reductions_real_do(tmpdir, dist_mem, fuse):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:
-        assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()\n" in result
+        assert "loop0_stop = f2_proxy%vspace%get_last_dof_owned()\n" in result
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()\n" in result
         expected_output = (
             "    ! Initialise reduction variable\n"
@@ -2138,7 +2138,7 @@ def test_two_reductions_real_do(tmpdir, dist_mem, fuse):
             "    !$omp do schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
-            "      asum = asum + f1_data(df) * f2_data(df)\n"
+            "      asum = asum + f2_data(df) * f1_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp do schedule(static) reduction(+: bsum)\n"
@@ -2157,7 +2157,7 @@ def test_two_reductions_real_do(tmpdir, dist_mem, fuse):
             "    global_sum%value = bsum\n"
             "    bsum = global_sum%get_sum()")
     else:
-        assert "loop0_stop = undf_as1_f1" in result
+        assert "loop0_stop = undf_as1_f2" in result
         assert "loop1_stop = undf_as1_f1" in result
         expected_output = (
             "    ! Initialise reduction variable\n"
@@ -2171,7 +2171,7 @@ def test_two_reductions_real_do(tmpdir, dist_mem, fuse):
             "    !$omp do schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
-            "      asum = asum + f1_data(df) * f2_data(df)\n"
+            "      asum = asum + f2_data(df) * f1_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp do schedule(static) reduction(+: bsum)\n"
@@ -2212,7 +2212,7 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:
-        assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in result
+        assert "loop0_stop = f2_proxy%vspace%get_last_dof_owned()" in result
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()" in result
         expected_output = (
             "    ALLOCATE(array_of_partial_asum(nthreads))\n"
@@ -2238,7 +2238,7 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      thread_private_asum = thread_private_asum + "
-            "f1_data(df) * f2_data(df)\n"
+            "f2_data(df) * f1_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp do schedule(static)\n"
@@ -2275,7 +2275,7 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "    global_sum%value = bsum\n"
             "    bsum = global_sum%get_sum()")
     else:
-        assert "loop0_stop = undf_as1_f1" in result
+        assert "loop0_stop = undf_as1_f2" in result
         assert "loop1_stop = undf_as1_f1" in result
         expected_output = (
             "    ALLOCATE(array_of_partial_asum(nthreads))\n"
@@ -2301,7 +2301,7 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "      thread_private_asum = thread_private_asum + "
-            "f1_data(df) * f2_data(df)\n"
+            "f2_data(df) * f1_data(df)\n"
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp do schedule(static)\n"
@@ -2366,26 +2366,45 @@ def test_multi_reduction_real_fuse():
     '''test that we raise an exception when we loop fuse two kernels with
     reductions. We need to specify that the loop-fuse is valid in terms of
     iteration spaces.'''
-    for file_name in ["15.15.1_two_same_builtin_reductions.f90",
-                      "15.16.1_two_different_builtin_reductions.f90"]:
+    file_name = "15.15.1_two_same_builtin_reductions.f90"
 
-        for distmem in [False, True]:
-            _, invoke = get_invoke(file_name, TEST_API,
-                                   idx=0, dist_mem=distmem)
-            schedule = invoke.schedule
+    for distmem in [False, True]:
+        _, invoke = get_invoke(file_name, TEST_API,
+                               idx=0, dist_mem=distmem)
+        schedule = invoke.schedule
 
-            ftrans = LFRicLoopFuseTrans()
-            if distmem:
-                # We need to remove the global sum. This makes the
-                # code invalid in this particular case but allows us
-                # to perform our check
-                del schedule.children[1]
-            with pytest.raises(TransformationError) as excinfo:
-                ftrans.apply((schedule.children[0], schedule.children[1]),
-                             {"same_space": True})
-            assert ("Error in LFRicLoopFuseTrans transformation: Cannot "
-                    "fuse loops when each loop already contains a "
-                    "reduction" in str(excinfo.value))
+        ftrans = LFRicLoopFuseTrans()
+        if distmem:
+            # We need to remove the global sum. This makes the
+            # code invalid in this particular case but allows us
+            # to perform our check
+            del schedule.children[1]
+        with pytest.raises(TransformationError) as excinfo:
+            ftrans.apply((schedule.children[0], schedule.children[1]),
+                         {"same_space": True})
+        assert ("Error in LFRicLoopFuseTrans transformation: Cannot fuse "
+                "loops as the first loop has a reduction and the second loop "
+                "reads the result of the reduction." in str(excinfo.value))
+
+    file_name = "15.16.1_two_different_builtin_reductions.f90"
+
+    for distmem in [False, True]:
+        _, invoke = get_invoke(file_name, TEST_API,
+                               idx=0, dist_mem=distmem)
+        schedule = invoke.schedule
+
+        ftrans = LFRicLoopFuseTrans()
+        if distmem:
+            # We need to remove the global sum. This makes the
+            # code invalid in this particular case but allows us
+            # to perform our check
+            del schedule.children[1]
+        with pytest.raises(TransformationError) as excinfo:
+            ftrans.apply((schedule.children[0], schedule.children[1]),
+                         {"same_space": True})
+        assert ("Error in LFRicLoopFuseTrans transformation: Cannot "
+                "fuse loops when each loop already contains a "
+                "reduction" in str(excinfo.value))
 
 
 def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
@@ -2406,7 +2425,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:
-        assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in code
+        assert "loop0_stop = f2_proxy%vspace%get_last_dof_owned()" in code
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()" in code
         assert (
             "    ! Initialise reduction variable\n"
@@ -2417,7 +2436,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "private(df) schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
-            "      asum = asum + f1_data(df) * f2_data(df)\n"
+            "      asum = asum + f2_data(df) * f1_data(df)\n"
             "    enddo\n"
             "    !$omp end parallel do\n"
             "\n"
@@ -2439,7 +2458,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "    global_sum%value = bsum\n"
             "    bsum = global_sum%get_sum()\n") in code
     else:
-        assert "loop0_stop = undf_as1_f1" in code
+        assert "loop0_stop = undf_as1_f2" in code
         assert "loop1_stop = undf_as1_f1" in code
         assert (
             "    ! Initialise reduction variable\n"
@@ -2450,7 +2469,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "private(df) schedule(static) reduction(+: asum)\n"
             "    do df = loop0_start, loop0_stop, 1\n"
             "      ! Built-in: X_innerproduct_Y (real-valued fields)\n"
-            "      asum = asum + f1_data(df) * f2_data(df)\n"
+            "      asum = asum + f2_data(df) * f1_data(df)\n"
             "    enddo\n"
             "    !$omp end parallel do\n"
             "\n"

@@ -281,15 +281,31 @@ np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)
     assert correct in fortran_writer(schedule)
 
 
-def test_loop_fuse_min_max_same_var():
+def test_loop_fuse_min_max_same_var(fortran_writer):
     '''Test that we fuse two builtins on the same field without any
     other invoke elements.'''
-    pass
-    # _, invoke = get_invoke(
-    #    "15.10.9_min_max_X_builtin.f90",
-    #    TEST_API, name="invoke_0", dist_mem=False)
-    # schedule = invoke.schedule
-    # ftrans = LFRicLoopFuseTrans()
+    _, invoke = get_invoke(
+        "15.10.9_min_max_X_builtin.f90",
+        TEST_API, name="invoke_0", dist_mem=False)
+    schedule = invoke.schedule
+    ftrans = LFRicLoopFuseTrans()
+    ftrans.apply((schedule.children[0], schedule.children[1]))
+    ftrans.apply((schedule.children[0], schedule.children[1]))
+    correct = """! Initialise reduction variable
+  amin = 0.0_r_def
 
-    # ftrans.apply((schedule.children[0], schedule.children[1]))
-    # ftrans.apply((schedule.children[0], schedule.children[1]))
+  ! Initialise reduction variable
+  amax = 0.0_r_def
+  do df = uninitialised_loop0_start, uninitialised_loop0_stop, 1
+    ! Built-in: setval_c (set a real-valued field to a real scalar value)
+    f1_data(df) = 1.0_r_def
+
+    ! Built-in: minval_X (compute the global minimum value contained in a \
+field)
+    amin = MIN(amin, f1_data(df))
+
+    ! Built-in: maxval_X (compute the global maximum value contained in a \
+field)
+    amax = MAX(amax, f1_data(df))
+  enddo"""
+    assert correct in fortran_writer(schedule)

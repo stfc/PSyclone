@@ -201,7 +201,27 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         node2_red_args = node2.args_filter(arg_types=arg_types,
                                            arg_accesses=[AccessType.REDUCTION])
 
-        if node1_red_args and node2_red_args:
+        # Find the iteration space arguments if they exist.
+        same_field_name = False
+        kern1 = node1.kernel
+        args1 = None
+        arg1_field = None
+        if kern1:
+            args1 = kern1.arguments
+        if args1:
+            arg1_field = args1.iteration_space_arg()
+        kern2 = node2.kernel
+        args2 = None
+        arg2_field = None
+        if kern2:
+            args2 = kern2.arguments
+        if args2:
+            arg2_field = args2.iteration_space_arg()
+
+        if arg1_field is not None and arg2_field is not None:
+            same_field_name = arg1_field.name == arg2_field.name
+
+        if (node1_red_args and node2_red_args and not same_field_name):
             raise TransformationError(
                 f"Error in {self.name} transformation: Cannot fuse loops "
                 f"when each loop already contains a reduction.")
