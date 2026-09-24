@@ -989,7 +989,7 @@ def test_loopfuse(dist_mem, tmpdir):
     loop1 = schedule.children[index]
     loop2 = schedule.children[index+1]
     trans = LFRicLoopFuseTrans()
-    trans.apply(loop1, loop2)
+    trans.apply((loop1, loop2))
     generated_code = psy.gen
     # only one loop
     assert str(generated_code).count("do cell") == 1

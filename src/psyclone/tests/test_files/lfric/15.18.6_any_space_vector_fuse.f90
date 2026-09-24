@@ -7,16 +7,18 @@
 
 program single_invoke
 
-  ! Description: two different builtin reductions specified in an invoke call.
+  ! Description: one reduction builtin followed by an access to 
+  ! the reduction value.
   use constants_mod, only: r_def
   use field_mod,     only: field_type
-
+  use testkern_anys_vector_write_mod, only: testkern_anys_vector_write_type
   implicit none
 
-  type(field_type) :: f1, f2
-  real(r_def)      :: asum, bsum
+  type(field_type)           :: f1(2), f2, f3, f4(2)
+  type(quadrature_xyoz_type) :: qr
 
-  call invoke( X_innerproduct_Y(asum, f2, f1), &
-               sum_X(bsum, f1) )
+  call invoke( testkern_anys_vector_write_type(f1, f2, f3, qr), &
+               testkern_anys_vector_write_type(f4, f2, f3, qr) &
+           )
 
 end program single_invoke

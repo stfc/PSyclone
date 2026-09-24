@@ -51,18 +51,18 @@ def test_loop_fuse_error():
 
     # Apply loop fuse, but the first node is not a loop:
     with pytest.raises(TransformationError) as err:
-        lftrans.apply(schedule.children[0].children[0], schedule.children[1])
+        lftrans.apply((schedule.children[0].children[0], schedule.children[1]))
     assert "Both nodes must be of the same GOLoop class." in str(err.value)
 
     # Also check that we catch this for the second argument:
     with pytest.raises(TransformationError) as err:
-        lftrans.apply(schedule.children[0], schedule.children[1].children[0])
+        lftrans.apply((schedule.children[0], schedule.children[1].children[0]))
     assert "Both nodes must be of the same GOLoop class." in str(err.value)
 
     # Also check if they have different field_spaces
     schedule.children[1].field_space = "go_cv"
     with pytest.raises(TransformationError) as err:
-        lftrans.apply(schedule.children[0], schedule.children[1])
+        lftrans.apply((schedule.children[0], schedule.children[1]))
     assert ("Cannot fuse loops that are over different grid-point types: "
             "go_cu and go_cv" in str(err.value))
 
@@ -70,7 +70,7 @@ def test_loop_fuse_error():
     loop = schedule.children[1]
     loop.replace_with(Loop())
     with pytest.raises(TransformationError) as err:
-        lftrans.apply(schedule.children[0], schedule.children[1])
+        lftrans.apply((schedule.children[0], schedule.children[1]))
     assert "Both nodes must be of the same GOLoop class." in str(err.value)
 
 
@@ -1566,7 +1566,7 @@ def test_all_go_loop_trans_base_validate(monkeypatch):
         if isinstance(trans, LoopTrans):
             with pytest.raises(NotImplementedError) as err:
                 if isinstance(trans, LoopFuseTrans):
-                    trans.validate(loop, loop)
+                    trans.validate((loop, loop))
                 else:
                     trans.validate(loop)
             assert "validate test exception" in str(err.value), \

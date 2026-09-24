@@ -34,7 +34,7 @@ def trans(psyir):
             node = subroutine.children[idx]
             prev_node = subroutine.children[idx-1]
             try:
-                lf_trans.apply(prev_node, node, {"same_space": True})
+                lf_trans.apply((prev_node, node), {"same_space": True})
                 total_fused += 1
             except TransformationError:
                 pass

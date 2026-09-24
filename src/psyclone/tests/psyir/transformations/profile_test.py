@@ -435,7 +435,7 @@ def test_profile_fused_kernels_lfric():
 
     fuse_trans = LFRicLoopFuseTrans()
     loops = invoke.schedule.walk(Loop)
-    fuse_trans.apply(loops[0], loops[1])
+    fuse_trans.apply((loops[0], loops[1]))
     Profiler.add_profile_nodes(invoke.schedule, Loop)
     code = psy.gen
     expected = '''\

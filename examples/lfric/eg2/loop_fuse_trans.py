@@ -33,6 +33,6 @@ def trans(psyir):
     # the same extent and may safely be fused. (This is not actually true
     # for this particular example but we do this for the purposes of
     # illustration.)
-    lftrans.apply(schedule[0], schedule[1], {"same_space": True})
-    lftrans.apply(schedule[0], schedule[1], {"same_space": True})
-    lftrans.apply(schedule[0], schedule[1], {"same_space": True})
+    lftrans.apply((schedule[0], schedule[1]), {"same_space": True})
+    lftrans.apply((schedule[0], schedule[1]), {"same_space": True})
+    lftrans.apply((schedule[0], schedule[1]), {"same_space": True})
