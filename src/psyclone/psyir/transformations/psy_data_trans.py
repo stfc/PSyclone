@@ -13,7 +13,7 @@ import warnings
 
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import Node, PSyDataNode, Schedule, Return, \
-    OMPDoDirective, ACCDirective, ACCLoopDirective, Routine
+    OMPDoDirective, ACCDirective, ACCLoopDirective, Routine, ExtractNode
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -159,7 +159,8 @@ class PSyDataTrans(RegionTrans):
 
         # We have to create an instance of the node that will be inserted in
         # order to find out what module name it will use.
-        pdata_node = self._node_class(options=options)
+        pdata_node = self._node_class(
+            prefix=prefix, region_name=options.get("region_name"))
         table = node_list[0].scope.symbol_table
         for name in ([sym.name for sym in pdata_node.imported_symbols] +
                      [pdata_node.fortran_module]):
@@ -224,14 +225,17 @@ class PSyDataTrans(RegionTrans):
             validate_kwargs["region_name"] = region_name
         self.validate(node_list, options, **validate_kwargs)
 
-        # The PSyData node API still takes a dictionary. Construct one from
-        # the keyword arguments once they have been validated.
-        if not options:
-            options = {}
-            if prefix:
-                options["prefix"] = prefix
-            if region_name is not None:
-                options["region_name"] = region_name
+        # Keep supporting the deprecated transformation options dictionary,
+        # but pass only node-construction arguments to the node factory.
+        node_kwargs = {"prefix": prefix or None, "region_name": region_name}
+        if options:
+            node_kwargs = {name: options[name]
+                           for name in ("prefix", "region_name")
+                           if name in options}
+            if issubclass(self._node_class, ExtractNode):
+                for name in ("post_var_postfix", "read_write_info"):
+                    if name in options:
+                        node_kwargs[name] = options[name]
 
         # Get useful references
         parent = node_list[0].parent
@@ -242,16 +246,12 @@ class PSyDataTrans(RegionTrans):
 
         # Create an instance of the required class that implements
         # the code extraction using the PSyData API, e.g. a
-        # ExtractNode. We pass the user-specified options to the
-        # create() method.  An example use case for this is the
-        # 'create_driver' flag, where the calling program can control if
-        # a stand-alone driver program should be created or not (when
-        # performing kernel extraction).
+        # ExtractNode.
         for node in node_list:
             node.detach()
 
         psy_data_node = self._node_class.create(
-            node_list, symbol_table=table, options=options)
+            node_list, symbol_table=table, **node_kwargs)
         parent.addchild(psy_data_node, position)
 
         # If we've added PSyData calls to a pure routine then it is
