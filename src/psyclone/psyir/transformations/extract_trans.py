@@ -9,16 +9,20 @@
 of an Invoke into a stand-alone application."
 '''
 
+from typing import Any, Optional, Union
+
 from psyclone.domain.common.psylayer import GlobalReduction
 from psyclone.psyGen import BuiltIn, Kern, HaloExchange
-from psyclone.psyir.nodes import (CodeBlock, ExtractNode, Loop, Schedule,
+from psyclone.psyir.nodes import (CodeBlock, ExtractNode, Loop, Node, Schedule,
                                   Directive, OMPParallelDirective,
                                   ACCParallelDirective)
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class ExtractTrans(PSyDataTrans):
     '''This transformation inserts an ExtractNode or a node derived
     from ExtractNode into the PSyIR of a schedule. At code creation
@@ -51,15 +55,15 @@ class ExtractTrans(PSyDataTrans):
         super().__init__(node_class=node_class)
 
     # -------------------------------------------------------------------------
-    def validate(self, node_list, options=None):
+    def validate(self, node_list: list[Node],
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         # pylint: disable=arguments-renamed
         '''Performs validation checks specific to extract-based
         transformations.
 
         :param node_list: the list of Node(s) we are checking.
-        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if transformation is applied to a \
                                      Kernel or a BuiltIn call without its \
@@ -108,4 +112,15 @@ class ExtractTrans(PSyDataTrans):
 
         # Performs validation checks specific to PSyData-based
         # transformations.
-        super().validate(node_list, options)
+        super().validate(node_list, options, **kwargs)
+
+    def apply(self, nodes: Union[Node, list[Node]],
+              options: Optional[dict[str, Any]] = None,
+              **kwargs: Any) -> None:
+        '''Apply this extraction transformation.
+
+        :param nodes: nodes to enclose in the extraction region.
+        :param options: a dictionary with options for transformations.
+
+        '''
+        super().apply(nodes, options=options, **kwargs)

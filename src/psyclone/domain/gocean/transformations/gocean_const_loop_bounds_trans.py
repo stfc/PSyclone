@@ -7,6 +7,8 @@
 
 '''This module contains the GOConstLoopBoundsTrans.'''
 
+from typing import Any, Optional
+
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule, GOLoop
 from psyclone.psyGen import Transformation
@@ -66,14 +68,14 @@ class GOConstLoopBoundsTrans(Transformation):
         '''
         return "GOConstLoopBoundsTrans"
 
-    def validate(self, node, options=None, **kwargs):
+    def validate(self, node: GOInvokeSchedule,
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         '''Checks if it is valid to apply the GOConstLoopBoundsTrans
         transform.
 
         :param node: the GOInvokeSchedule to transform.
-        :type node: :py:class:`psyclone.gocean1p0.GOInvokeSchedule`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not a \
             GOInvokeSchedule.
@@ -141,15 +143,15 @@ class GOConstLoopBoundsTrans(Transformation):
                 f"GOConstLoopBoundsTrans can not transform invoke "
                 f"'{node.name}' because it does not have any field arguments.")
 
-    def apply(self, node, options=None, **kwargs):
+    def apply(self, node: GOInvokeSchedule,
+              options: Optional[dict[str, Any]] = None,
+              **kwargs: Any) -> None:
         ''' Modify the GOcean kernel loops in a GOInvokeSchedule to use
         common constant loop bound variables.
 
         :param node: the GOInvokeSchedule of which all loops will get the \
             constant loop bounds.
-        :type node: :py:class:`psyclone.gocean1p0.GOInvokeSchedule`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         '''
         # TODO #2668: Deprecate options dict.

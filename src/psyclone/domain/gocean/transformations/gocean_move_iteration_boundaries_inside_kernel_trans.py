@@ -7,6 +7,8 @@
 
 '''This module contains the GOMoveIterationBoundariesInsideKernelTrans.'''
 
+from typing import Any, Optional
+
 from psyclone.psyir.transformations.callee_transformation_mixin import (
     CalleeTransformationMixin)
 from psyclone.psyir.transformations import TransformationError
@@ -67,13 +69,14 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation,
         '''Returns the name of this transformation as a string.'''
         return "GOMoveIterationBoundariesInsideKernelTrans"
 
-    def validate(self, node: GOKern, options=None, **kwargs):
+    def validate(self, node: GOKern,
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         '''Ensure that it is valid to apply this transformation to the
         supplied node.
 
         :param node: the node to validate.
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the node is not a GOKern.
 
@@ -88,12 +91,13 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation,
 
         self._check_callee_implementation_is_local(node)
 
-    def apply(self, node: GOKern, options=None, **kwargs) -> None:
+    def apply(self, node: GOKern,
+              options: Optional[dict[str, Any]] = None,
+              **kwargs: Any) -> None:
         '''Apply this transformation to the supplied node.
 
         :param node: the node to transform.
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         '''
         # TODO #2668: Deprecate options dict.

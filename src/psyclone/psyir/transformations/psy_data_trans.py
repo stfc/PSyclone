@@ -8,16 +8,19 @@
 '''Contains the PSyData transformation.
 '''
 
+from typing import Any, Optional, Union
+import warnings
+
 from psyclone.configuration import Config
-from psyclone.errors import InternalError
-from psyclone.psyGen import InvokeSchedule, Kern
-from psyclone.psyir.nodes import PSyDataNode, Schedule, Return, \
+from psyclone.psyir.nodes import Node, PSyDataNode, Schedule, Return, \
     OMPDoDirective, ACCDirective, ACCLoopDirective, Routine
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class PSyDataTrans(RegionTrans):
     ''' Create a PSyData region around a list of statements. For
     example:
@@ -80,63 +83,9 @@ class PSyDataTrans(RegionTrans):
         return self.__class__.__name__
 
     # ------------------------------------------------------------------------
-    def get_unique_region_name(self, nodes, options):
-        '''This function returns the region and module name. If they are
-        specified in the user options, these names will just be returned (it
-        is then up to the user to guarantee uniqueness). Otherwise a name
-        based on the module and invoke will be created using indices to
-        make sure the name is unique.
-
-        :param nodes: a list of nodes.
-        :type nodes: list of :py:obj:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: Dict[str, Any]
-        :param (str,str) options["region_name"]: an optional name to \
-            use for this PSyData area, provided as a 2-tuple containing a \
-            location name followed by a local name. The pair of strings \
-            should uniquely identify a region unless aggregate information \
-            is required (and is supported by the runtime library).
-
-        '''
-        # We don't use a static method here since it might be useful to
-        # overwrite this functions in derived classes
-        name = options.get("region_name", None)
-        if name:
-            # pylint: disable=too-many-boolean-expressions
-            if not isinstance(name, tuple) or not len(name) == 2 or \
-               not name[0] or not isinstance(name[0], str) or \
-               not name[1] or not isinstance(name[1], str):
-                raise InternalError(
-                    "Error in PSyDataTrans. The name must be a "
-                    "tuple containing two non-empty strings.")
-            # pylint: enable=too-many-boolean-expressions
-            # Valid PSyData names have been provided by the user.
-            return name
-
-        invoke = nodes[0].ancestor(InvokeSchedule).invoke
-        module_name = invoke.invokes.psy.name
-
-        # Use the invoke name as a starting point.
-        region_name = invoke.name
-        kerns = []
-        for node in nodes:
-            kerns.extend(node.walk(Kern))
-
-        if len(kerns) == 1:
-            # This PSyData region only has one kernel within it,
-            # so append the kernel name.
-            region_name += f"-{kerns[0].name}"
-
-        # Add a region index to ensure uniqueness when there are
-        # multiple regions in an invoke.
-        key = module_name + "|" + region_name
-        idx = PSyDataTrans._used_kernel_names.get(key, 0)
-        PSyDataTrans._used_kernel_names[key] = idx + 1
-        region_name += f"-r{idx}"
-        return (module_name, region_name)
-
-    # ------------------------------------------------------------------------
-    def validate(self, nodes, options=None):
+    def validate(self, nodes: Union[Node, list[Node]],
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         '''
         Checks that the supplied list of nodes is valid, that the location
         for this node is valid (not between a loop-directive and its loop),
@@ -144,30 +93,18 @@ class PSyDataTrans(RegionTrans):
         imported from the appropriate PSyData library and finally, calls the
         validate method of the base class.
 
-        :param nodes: a node or list of nodes to be instrumented with \
+        :param nodes: a node or list of nodes to be instrumented with
             PSyData API calls.
-        :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Loop`
-
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param str options["prefix"]: a prefix to use for the PSyData module \
-            name (``PREFIX_psy_data_mod``) and the PSyDataType \
-            (``PREFIX_PSYDATATYPE``) - a "_" will be added automatically. \
-            It defaults to "".
-        :param (str,str) options["region_name"]: an optional name to \
-            use for this PSyData area, provided as a 2-tuple containing a \
-            location name followed by a local name. The pair of strings \
-            should uniquely identify a region unless aggregate information \
-            is required (and is supported by the runtime library).
 
         :raises TransformationError: if the supplied list of nodes is empty.
-        :raises TransformationError: if the PSyData node is inserted \
-            between an OpenMP/ACC directive and the loop(s) to which it \
+        :raises TransformationError: if the PSyData node is inserted
+            between an OpenMP/ACC directive and the loop(s) to which it
             applies.
-        :raises TransformationError: if the 'prefix' or 'region_name' options \
+        :raises TransformationError: if the 'prefix' or 'region_name' options
             are not valid.
-        :raises TransformationError: if there will be a name clash between \
-            any existing symbols and those that must be imported from the \
+        :raises TransformationError: if there will be a name clash between
+            any existing symbols and those that must be imported from the
             appropriate PSyData library.
         :raises TransformationError: if the target nodes are within an
                                      ELEMENTAL routine.
@@ -191,8 +128,16 @@ class PSyDataTrans(RegionTrans):
             raise TransformationError("A PSyData node cannot be inserted "
                                       "inside an OpenACC region.")
 
-        if options is None:
+        if options:
+            # TODO #2668: Deprecate options dictionary.
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
+        else:
+            self.validate_options(**kwargs)
             options = {}
+            for name in ("prefix", "region_name"):
+                value = self.get_option(name, **kwargs)
+                if value is not None and (name != "prefix" or value):
+                    options[name] = value
         if "region_name" in options:
             name = options["region_name"]
             # pylint: disable=too-many-boolean-expressions
@@ -240,10 +185,14 @@ class PSyDataTrans(RegionTrans):
                 f"'{parent_routine.symbol.name}' because it would change its "
                 f"semantics.")
 
-        super().validate(node_list, options)
+        super().validate(node_list, options, **kwargs)
 
     # ------------------------------------------------------------------------
-    def apply(self, nodes, options=None):
+    def apply(self, nodes: Union[Node, list[Node]],
+              options: Optional[dict[str, Any]] = None,
+              prefix: Optional[str] = None,
+              region_name: Optional[tuple[str, str]] = None,
+              **kwargs: Any) -> None:
         # pylint: disable=arguments-renamed
         '''Apply this transformation to a subset of the nodes within a
         schedule - i.e. enclose the specified Nodes in the
@@ -253,25 +202,36 @@ class PSyDataTrans(RegionTrans):
         `pure` attribute, this attribute is removed.
 
         :param nodes: can be a single node or a list of nodes.
-        :type nodes: :py:obj:`psyclone.psyir.nodes.Node` or list of \
-                     :py:obj:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param str options["prefix"]: a prefix to use for the PSyData module \
-            name (``PREFIX_psy_data_mod``) and the PSyDataType \
-            (``PREFIX_PSYDATATYPE``) - a "_" will be added automatically. \
+        :param prefix: a prefix to use for the PSyData module
+            name (``PREFIX_psy_data_mod``) and the PSyDataType
+            (``PREFIX_PSYDATATYPE``) - a "_" will be added automatically.
             It defaults to "".
-        :param (str,str) options["region_name"]: an optional name to \
-            use for this PSyData area, provided as a 2-tuple containing a \
-            location name followed by a local name. The pair of strings \
-            should uniquely identify a region unless aggregate information \
+        :param region_name: an optional name to
+            use for this PSyData area, provided as a 2-tuple containing a
+            location name followed by a local name. The pair of strings
+            should uniquely identify a region unless aggregate information
             is required (and is supported by the runtime library).
 
         '''
         node_list = self.get_node_list(nodes)
 
         # Perform validation checks
-        self.validate(node_list, options)
+        validate_kwargs = dict(kwargs)
+        if prefix is not None:
+            validate_kwargs["prefix"] = prefix
+        if region_name is not None:
+            validate_kwargs["region_name"] = region_name
+        self.validate(node_list, options, **validate_kwargs)
+
+        # The PSyData node API still takes a dictionary. Construct one from
+        # the keyword arguments once they have been validated.
+        if not options:
+            options = {}
+            if prefix:
+                options["prefix"] = prefix
+            if region_name is not None:
+                options["region_name"] = region_name
 
         # Get useful references
         parent = node_list[0].parent

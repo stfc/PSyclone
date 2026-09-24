@@ -757,7 +757,7 @@ def test_ompsingle_nested():
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
-    single.apply(schedule[0])
+    single.apply(schedule[0], nowait=False)
     with pytest.raises(TransformationError) as err:
         single.apply(schedule[0])
     assert ("Nodes of type 'OMPSingleDirective' cannot be enclosed by a "
@@ -814,6 +814,7 @@ def test_profile_trans_name(options):
     _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
     schedule = invoke.schedule
     profile_trans = ProfileTrans()
+    # TODO #2668: Deprecate options dictionary
     if options:
         profile_trans.apply(schedule.children, options=options)
     else:
