@@ -795,6 +795,7 @@ class OMPSingleTrans(ParallelRegionTrans):
                 single region.
 
         '''
+        # TODO #2668: Deprecate options dictionary
         if options:
             nowait = options.get("nowait", self.omp_nowait)
         elif nowait is None:
@@ -945,6 +946,7 @@ class ACCParallelTrans(ParallelRegionTrans):
         device_string = options.get("device_string", "")
         allow_strings = options.get("allow_strings", False)
         super().validate(node_list, options, **kwargs)
+        # TODO #2668: Deprecate options dictionary
         if options is not None and "default_present" in options:
             if not isinstance(options["default_present"], bool):
                 raise TransformationError(
@@ -1659,6 +1661,7 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin,
         else:
             routines = [node]
 
+        # TODO #2668: Deprecate options dictionary
         para = options.get("parallelism", "seq") if options else parallelism
         for routine in routines:
             # Insert the directive to the routine if it doesn't already exist

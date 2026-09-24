@@ -110,6 +110,7 @@ class LoopTiling2DTrans(LoopTrans):
                     f"transformation option '{key}', the supported options "
                     f"are: {valid_options}.")
 
+        # TODO #2668: Deprecate options dictionary
         if options:
             tilesize = options.get("tilesize", 32)
         LoopTilingTrans().validate(node, tiledims=[tilesize, tilesize])
@@ -122,8 +123,8 @@ class LoopTiling2DTrans(LoopTrans):
 
         :param node: the loop to transform.
         :param options: a dict with options for transformations.
-        :param tilesize: The size of the resulting tile, \
-                currently square tiles are always used. If not \
+        :param tilesize: The size of the resulting tile,
+                currently square tiles are always used. If not
                 specified, the value 32 is used.
 
         '''
@@ -131,6 +132,7 @@ class LoopTiling2DTrans(LoopTrans):
                       "Use LoopTilingTrans instead.",
                       DeprecationWarning, 2)
         self.validate(node, options, tilesize=tilesize, **kwargs)
+        # TODO #2668: Deprecate options dictionary
         if options:
             tilesize = options.get("tilesize", 32)
         LoopTilingTrans().apply(node, tiledims=[tilesize, tilesize])

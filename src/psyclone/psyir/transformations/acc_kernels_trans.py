@@ -112,6 +112,7 @@ class ACCKernelsTrans(RegionTrans):
         # one was supplied via the `node` argument.
         node_list = self.get_node_list(node)
 
+        # TODO #2668: Deprecate options dictionary
         if options:
             default_present = options.get("default_present", False)
             async_queue = options.get("async_queue", False)

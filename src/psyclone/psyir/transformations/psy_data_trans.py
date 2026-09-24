@@ -151,27 +151,18 @@ class PSyDataTrans(RegionTrans):
         imported from the appropriate PSyData library and finally, calls the
         validate method of the base class.
 
-        :param nodes: a node or list of nodes to be instrumented with \
+        :param nodes: a node or list of nodes to be instrumented with
             PSyData API calls.
         :param options: a dictionary with options for transformations.
-        :param prefix: a prefix to use for the PSyData module \
-            name (``PREFIX_psy_data_mod``) and the PSyDataType \
-            (``PREFIX_PSYDATATYPE``) - a "_" will be added automatically. \
-            It defaults to "".
-        :param region_name: an optional name to \
-            use for this PSyData area, provided as a 2-tuple containing a \
-            location name followed by a local name. The pair of strings \
-            should uniquely identify a region unless aggregate information \
-            is required (and is supported by the runtime library).
 
         :raises TransformationError: if the supplied list of nodes is empty.
-        :raises TransformationError: if the PSyData node is inserted \
-            between an OpenMP/ACC directive and the loop(s) to which it \
+        :raises TransformationError: if the PSyData node is inserted
+            between an OpenMP/ACC directive and the loop(s) to which it
             applies.
-        :raises TransformationError: if the 'prefix' or 'region_name' options \
+        :raises TransformationError: if the 'prefix' or 'region_name' options
             are not valid.
-        :raises TransformationError: if there will be a name clash between \
-            any existing symbols and those that must be imported from the \
+        :raises TransformationError: if there will be a name clash between
+            any existing symbols and those that must be imported from the
             appropriate PSyData library.
         :raises TransformationError: if the target nodes are within an
                                      ELEMENTAL routine.
@@ -270,14 +261,14 @@ class PSyDataTrans(RegionTrans):
 
         :param nodes: can be a single node or a list of nodes.
         :param options: a dictionary with options for transformations.
-        :param prefix: a prefix to use for the PSyData module \
-            name (``PREFIX_psy_data_mod``) and the PSyDataType \
-            (``PREFIX_PSYDATATYPE``) - a "_" will be added automatically. \
+        :param prefix: a prefix to use for the PSyData module
+            name (``PREFIX_psy_data_mod``) and the PSyDataType
+            (``PREFIX_PSYDATATYPE``) - a "_" will be added automatically.
             It defaults to "".
-        :param region_name: an optional name to \
-            use for this PSyData area, provided as a 2-tuple containing a \
-            location name followed by a local name. The pair of strings \
-            should uniquely identify a region unless aggregate information \
+        :param region_name: an optional name to
+            use for this PSyData area, provided as a 2-tuple containing a
+            location name followed by a local name. The pair of strings
+            should uniquely identify a region unless aggregate information
             is required (and is supported by the runtime library).
 
         '''

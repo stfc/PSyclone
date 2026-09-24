@@ -52,15 +52,13 @@ class ProfileTrans(PSyDataTrans):
 
         :param nodes: a node or list of nodes to be instrumented with
                       profiling.
-        :param force: whether to ignore potential control
-                                      flow jumps when applying this
-                                      transformation. Default is False.
 
         :raises TransformationError: if the supplied region contains a
                                      potential control flow jump that could
                                      result in skipping the end of profiling
                                      caliper, e.g. EXIT or GOTO.
         '''
+        # TODO #2668: Deprecate options dictionary
         if options:
             forced = options.get("force", False)
         else:
@@ -102,6 +100,4 @@ class ProfileTrans(PSyDataTrans):
         :param force: ignore potential control-flow jumps in the region.
 
         '''
-        if force:
-            kwargs["force"] = force
-        super().apply(nodes, options=options, **kwargs)
+        super().apply(nodes, options=options, force=force, **kwargs)

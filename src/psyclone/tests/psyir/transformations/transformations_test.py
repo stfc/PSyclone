@@ -814,6 +814,7 @@ def test_profile_trans_name(options):
     _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
     schedule = invoke.schedule
     profile_trans = ProfileTrans()
+    # TODO #2668: Deprecate options dictionary
     if options:
         profile_trans.apply(schedule.children, options=options)
     else:

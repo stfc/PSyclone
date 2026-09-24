@@ -80,6 +80,7 @@ class LFRicExtractTrans(ExtractTrans):
 
         '''
         if options:
+            # TODO #2668: Deprecate options dictionary
             # We will add a default prefix, so create a copy to avoid
             # changing the user's options:
             my_options = options.copy()

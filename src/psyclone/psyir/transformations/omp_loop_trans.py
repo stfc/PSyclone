@@ -302,6 +302,7 @@ class OMPLoopTrans(ParallelLoopTrans):
             )
             self._reprod = reprod
         else:
+            # TODO #2668: Deprecate options dictionary
             self._reprod = options.get("reprod",
                                        Config.get().reproducible_reductions)
             if options.get("enable_reductions", False):
