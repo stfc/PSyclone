@@ -346,22 +346,27 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                 f"for one or more of the ANY_SPACE fields being operated on "
                 f"and conditional fusion wasn't specified."
             )
-            return  # FIXME Should this raise an Error?
 
-        if (found_space1 is not None and found_space2 is not None and
-                found_space1.orig_name == found_space2.orig_name):
-            # They are on the same space so we can fuse them.
-            # We always add force so need to make sure its not a
-            # duplicated keyword argument.
-            kwargs["force"] = True
-            super().apply((node1, node2),
-                          **kwargs)
-            return
+        if found_space1 is not None and found_space2 is not None:
+            if found_space1.orig_name == found_space2.orig_name:
+                # They are on the same space so we can fuse them.
+                # We always add force so need to make sure its not a
+                # duplicated keyword argument.
+                kwargs["force"] = True
+                super().apply((node1, node2),
+                              **kwargs)
+                return
+            else:
+                # They're on different spaces so we can't fuse.
+                raise TransformationError(
+                    f"Error in {self.name}: The kernels provided are on "
+                    f"different spaces so can't be fused. Computed spaces "
+                    f"were '{found_space1.orig_name}' and "
+                    f"'{found_space2.orig_name}'."
+                )
 
         # Otherwise we have at least one node on any space, and have met
         # all other criteria for fusion, so we can fuse with a runtime check.
-        if not conditional_fusion:
-            return
         arg1_sym = node1.scope.symbol_table.lookup(arg1_field.name)
         arg2_sym = node2.scope.symbol_table.lookup(arg2_field.name)
 

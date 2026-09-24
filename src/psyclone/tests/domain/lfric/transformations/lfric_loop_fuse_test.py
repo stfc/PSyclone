@@ -221,3 +221,21 @@ def test_loop_fuse_fail_to_resolve_space():
     # Fusion should work if we allow conditional fusion
     ftrans.apply((schedule.children[1], schedule.children[2]),
                  conditional_fusion=True)
+
+
+def test_loop_fuse_rseolved_different_spaces():
+    ''' Test that we fail to fuse two loops on any space if we find that
+    they're actually on different spaces from searching the invoke.'''
+    _, invoke = get_invoke(
+        "15.18.5_resolve_different_any_space_fuse_error.f90",
+        TEST_API, name="invoke_0", dist_mem=False)
+    schedule = invoke.schedule
+    ftrans = LFRicLoopFuseTrans()
+
+    # Fusion shouldn't work because the first builtin's field is on w2
+    # and the second's is on w3
+    with pytest.raises(TransformationError) as err:
+        ftrans.apply((schedule.children[0], schedule.children[1]))
+    assert ("Error in LFRicLoopFuseTrans: The kernels provided are on "
+            "different spaces so can't be fused. Computed spaces were "
+            "'w2trace' and 'w3'." in str(err.value))
