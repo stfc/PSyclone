@@ -52,6 +52,7 @@ jobs:
       # PRs are properly merged in.
       LFRIC_CORE_HASH: 458_mesh_for_mesh_tools
       LFRIC_APPS_HASH: 741_more_fab_scripts
+      FAB_VERSION: v2.3.0
       GNU_TOOLCHAIN: gnu14_openmpi
       PYTHON_VERSION: "3.13"
       NUM_PARALLEL: 6
@@ -101,7 +102,7 @@ jobs:
         # Checkout and install Fab:
         # -------------------------
         # For now hard-code a branch
-        git clone -b fab_for_psyclone_it https://github.com/MetOffice/fab.git
+        git clone -b ${FAB_VERSION} https://github.com/MetOffice/fab.git
         pushd fab
         pip install .
         popd
