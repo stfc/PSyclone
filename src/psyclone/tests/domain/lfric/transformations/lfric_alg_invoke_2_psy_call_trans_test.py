@@ -262,7 +262,7 @@ def test_lfai2psycall_get_arguments():
         [Reference(Symbol("arg1")), Reference(Symbol("arg2"))])
     call = LFRicAlgorithmInvokeCall.create(
         RoutineSymbol("mysub"), [builtin_functor], 0)
-    args = trans.get_arguments(call, kernels={})
+    args = trans.get_arguments(call)
     assert len(args) == 2
     assert isinstance(args[0], Reference)
     assert args[0].name == "arg1"

@@ -12,8 +12,6 @@ from typing import Any, Optional, Union
 import warnings
 
 from psyclone.configuration import Config
-from psyclone.errors import InternalError
-from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.nodes import Node, PSyDataNode, Schedule, Return, \
     OMPDoDirective, ACCDirective, ACCLoopDirective, Routine
 from psyclone.psyir.transformations.region_trans import RegionTrans
@@ -83,62 +81,6 @@ class PSyDataTrans(RegionTrans):
         '''
 
         return self.__class__.__name__
-
-    # ------------------------------------------------------------------------
-    def get_unique_region_name(self, nodes, options):
-        '''This function returns the region and module name. If they are
-        specified in the user options, these names will just be returned (it
-        is then up to the user to guarantee uniqueness). Otherwise a name
-        based on the module and invoke will be created using indices to
-        make sure the name is unique.
-
-        :param nodes: a list of nodes.
-        :type nodes: list of :py:obj:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: Dict[str, Any]
-        :param (str,str) options["region_name"]: an optional name to \
-            use for this PSyData area, provided as a 2-tuple containing a \
-            location name followed by a local name. The pair of strings \
-            should uniquely identify a region unless aggregate information \
-            is required (and is supported by the runtime library).
-
-        '''
-        # We don't use a static method here since it might be useful to
-        # overwrite this functions in derived classes
-        name = options.get("region_name", None)
-        if name:
-            # pylint: disable=too-many-boolean-expressions
-            if not isinstance(name, tuple) or not len(name) == 2 or \
-               not name[0] or not isinstance(name[0], str) or \
-               not name[1] or not isinstance(name[1], str):
-                raise InternalError(
-                    "Error in PSyDataTrans. The name must be a "
-                    "tuple containing two non-empty strings.")
-            # pylint: enable=too-many-boolean-expressions
-            # Valid PSyData names have been provided by the user.
-            return name
-
-        invoke = nodes[0].ancestor(InvokeSchedule).invoke
-        module_name = invoke.invokes.psy.name
-
-        # Use the invoke name as a starting point.
-        region_name = invoke.name
-        kerns = []
-        for node in nodes:
-            kerns.extend(node.walk(Kern))
-
-        if len(kerns) == 1:
-            # This PSyData region only has one kernel within it,
-            # so append the kernel name.
-            region_name += f"-{kerns[0].name}"
-
-        # Add a region index to ensure uniqueness when there are
-        # multiple regions in an invoke.
-        key = module_name + "|" + region_name
-        idx = PSyDataTrans._used_kernel_names.get(key, 0)
-        PSyDataTrans._used_kernel_names[key] = idx + 1
-        region_name += f"-r{idx}"
-        return (module_name, region_name)
 
     # ------------------------------------------------------------------------
     def validate(self, nodes: Union[Node, list[Node]],

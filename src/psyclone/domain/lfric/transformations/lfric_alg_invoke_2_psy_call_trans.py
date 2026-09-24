@@ -65,10 +65,6 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
                 "A dictionary containing LFRic kernel PSyIR must be passed "
                 "into the LFRicAlgInvoke2PSyCallTrans transformation but "
                 "this was not found.")
-        if not isinstance(kernels, dict):
-            raise TransformationError(
-                f"The value of 'kernels' in the options argument must be a "
-                f"dictionary but found '{type(kernels).__name__}'.")
         for kern_call in node.arguments:
             if isinstance(kern_call, LFRicBuiltinFunctor):
                 # Skip builtins as their metadata is stored internally
