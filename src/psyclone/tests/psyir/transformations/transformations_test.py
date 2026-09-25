@@ -707,6 +707,54 @@ end subroutine x"""
     out = fortran_writer(psyir)
     assert "nowait" not in out
 
+    # Check nowait is added when there is no other dependency and all the
+    # ancestor Loops are iteration independent.
+    code = """
+    subroutine x()
+        integer :: i, j, k
+        integer, dimension(100, 100, 100) :: arr
+        do i = 1, 100
+          do j = 1, 100
+            do k = 1, 100
+              arr(i, j, k) = i + j + k
+            end do
+          end do
+        end do
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    otrans = OMPParallelTrans()
+    looptrans = OMPLoopTrans(omp_directive="do")
+    routine = psyir.walk(Routine)[0]
+    loops = psyir.walk(Loop)
+    otrans.apply(loops[0])
+    looptrans.apply(loops[2], nowait=True)
+    out = fortran_writer(psyir)
+    assert "nowait" in out
+
+    # Check nowait is added when there is no other dependency and any the
+    # ancestor Loops are iteration independent.
+    code = """
+    subroutine x()
+        integer :: i, j, k
+        integer, dimension(100, 100, 100) :: arr
+        do i = 1, 100
+          do j = 1, 100
+            do k = 1, 100
+              arr(i + k, j, k) = i + j + k
+            end do
+          end do
+        end do
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    otrans = OMPParallelTrans()
+    looptrans = OMPLoopTrans(omp_directive="do")
+    routine = psyir.walk(Routine)[0]
+    loops = psyir.walk(Loop)
+    otrans.apply(loops[0])
+    looptrans.apply(loops[2], nowait=True)
+    out = fortran_writer(psyir)
+    assert "nowait" not in out
+
 
 def test_regiontrans_wrong_children():
     ''' Check that the validate method raises the expected error if
