@@ -13,7 +13,7 @@ import warnings
 
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import Node, PSyDataNode, Schedule, Return, \
-    OMPDoDirective, ACCDirective, ACCLoopDirective, Routine, ExtractNode
+    OMPDoDirective, ACCDirective, ACCLoopDirective, Routine
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -217,25 +217,13 @@ class PSyDataTrans(RegionTrans):
         '''
         node_list = self.get_node_list(nodes)
 
-        # Perform validation checks
-        validate_kwargs = dict(kwargs)
-        if prefix is not None:
-            validate_kwargs["prefix"] = prefix
-        if region_name is not None:
-            validate_kwargs["region_name"] = region_name
-        self.validate(node_list, options, **validate_kwargs)
+        self.validate(node_list, options, prefix=prefix,
+                      region_name=region_name, **kwargs)
 
-        # Keep supporting the deprecated transformation options dictionary,
-        # but pass only node-construction arguments to the node factory.
-        node_kwargs = {"prefix": prefix or None, "region_name": region_name}
-        if options:
-            node_kwargs = {name: options[name]
-                           for name in ("prefix", "region_name")
-                           if name in options}
-            if issubclass(self._node_class, ExtractNode):
-                for name in ("post_var_postfix", "read_write_info"):
-                    if name in options:
-                        node_kwargs[name] = options[name]
+        if options is None:
+            options = {}
+        prefix = prefix or options.get("prefix", None)
+        region_name = region_name or options.get("region_name", None)
 
         # Get useful references
         parent = node_list[0].parent
@@ -251,7 +239,8 @@ class PSyDataTrans(RegionTrans):
             node.detach()
 
         psy_data_node = self._node_class.create(
-            node_list, symbol_table=table, **node_kwargs)
+            node_list, symbol_table=table, prefix=prefix,
+            region_name=region_name)
         parent.addchild(psy_data_node, position)
 
         # If we've added PSyData calls to a pure routine then it is
