@@ -751,6 +751,8 @@ end subroutine x"""
     routine = psyir.walk(Routine)[0]
     loops = psyir.walk(Loop)
     otrans.apply(loops[0])
+    looptrans.apply(loops[0], collapse=3)
+    print(fortran_writer(psyir))
     looptrans.apply(loops[2], nowait=True)
     out = fortran_writer(psyir)
     assert "nowait" not in out
