@@ -81,7 +81,7 @@ class ExtractNode(PSyDataNode):
                  prefix: Optional[str] = None,
                  region_name: Optional[tuple[str, str]] = None,
                  post_var_postfix: str = "_post",
-                 read_write_info: Optional[ReadWriteInfo] = None):
+                 read_write_info: Optional["ReadWriteInfo"] = None):
         super().__init__(ast=ast, children=children,
                          parent=parent, prefix=prefix, region_name=region_name)
 
