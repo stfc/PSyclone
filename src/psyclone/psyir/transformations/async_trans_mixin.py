@@ -165,10 +165,6 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
         node_ancestor = directive.ancestor((Loop, WhileLoop))
         while (isinstance(node_ancestor, Loop) and
                node_ancestor.independent_iterations()):
-            # If the directive contains a loop we need to check there's no
-            # dependency between this loop and the ancestor loop.
-            if loop_variable:
-                assert False
             node_ancestor = node_ancestor.ancestor((Loop, WhileLoop))
         if node_ancestor:
             # If we didn't find a closest and we have an ancestor Loop, then

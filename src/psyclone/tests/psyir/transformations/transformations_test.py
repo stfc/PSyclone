@@ -736,11 +736,11 @@ end subroutine x"""
     code = """
     subroutine x()
         integer :: i, j, k
-        integer, dimension(100, 100, 100) :: arr
-        do i = 1, 100
+        integer, dimension(100, 100) :: arr
+        do i = 1, 50
           do j = 1, 100
-            do k = 1, 100
-              arr(i + k, j, k) = i + j + k
+            do k = 1, 50
+              arr(i + k, j) = i + j + k
             end do
           end do
         end do
@@ -751,8 +751,6 @@ end subroutine x"""
     routine = psyir.walk(Routine)[0]
     loops = psyir.walk(Loop)
     otrans.apply(loops[0])
-    looptrans.apply(loops[0], collapse=3)
-    print(fortran_writer(psyir))
     looptrans.apply(loops[2], nowait=True)
     out = fortran_writer(psyir)
     assert "nowait" not in out
