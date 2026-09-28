@@ -1,3 +1,6 @@
+   60) PR #3616 for #3509. Fixes failing test on master (colour codes
+   in PSyIR node output).
+ 
    59) PR #3604 towards #2668. Moves more Transformations over to using
    keyword arguments instead of 'options'.
  
