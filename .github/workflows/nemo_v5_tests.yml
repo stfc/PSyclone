@@ -284,7 +284,7 @@ jobs:
         # Run non-reproducible test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
-        export NV_ACC_POOL_THRESHOLD=75
+        export NVCOMPILER_ACC_POOL_THRESHOLD=75
         export CUDA_VISIBLE_DEVICES=1
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
@@ -420,7 +420,7 @@ jobs:
         unset ENABLE_PROFILING
         export FCFLAGS="-i4 -Mr8 -O3 -mp=gpu -gpu=mem:managed"
         rm -rf tests/${TEST_DIR}
-        export NV_ACC_POOL_THRESHOLD=75
+        export NVCOMPILER_ACC_POOL_THRESHOLD=75
         export CUDA_VISIBLE_DEVICES=1
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} \
           -p ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py -j ${NUM_PARALLEL} -v 1
