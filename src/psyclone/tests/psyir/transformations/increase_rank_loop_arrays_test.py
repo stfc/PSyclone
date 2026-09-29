@@ -263,7 +263,7 @@ end module
 
 def test_irla_apply_to_character_array(
         fortran_reader, fortran_writer, tmpdir):
-    '''Check that transformation is rejected on function return array'''
+    '''Check that transformation is rejected on character arrays.'''
     psyir = fortran_reader.psyir_from_source("""
 module dummy_module
     implicit none
@@ -292,7 +292,8 @@ end module
 
 def test_irla_reject_existing_loop_index(
         fortran_reader, fortran_writer, tmpdir):
-    '''Check that transformation is rejected on function return array'''
+    '''Check that transformation is rejected if the
+    loop variable is already used as an index in the array.'''
     psyir = fortran_reader.psyir_from_source("""
 module dummy_module
     implicit none
