@@ -114,7 +114,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
                 f"The target of the {self.name} transformation should be a "
                 f"Loop, but found '{type(node).__name__}'.")
 
-        routine = node.ancestor(Routine)
+        routine: Routine = node.ancestor(Routine)
         if routine is None:
             raise TransformationError(
                 f"The target Loop of the {self.name} transformation must be "
@@ -186,6 +186,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
                 f"{self.name} has a mandatory 'arrays' option that is required"
                 f" to specify which arrays are to have their rank increased.")
         for array in arrays:
+            array: ArrayReference
             if isinstance(array, str):
                 try:
                     array = node.scope.symbol_table.lookup(array)
@@ -194,6 +195,10 @@ class IncreaseRankLoopArraysTrans(Transformation):
                         f"{self.name} provided array '{array}' does not exist"
                         f" in this scope."
                     ) from err
+
+            if routine.return_symbol is array:
+                raise TransformationError(
+                    f"{self.name} can't be applied to return variables.")
 
             if (not isinstance(array, Symbol) or not array.is_automatic
                     or not array.is_array):

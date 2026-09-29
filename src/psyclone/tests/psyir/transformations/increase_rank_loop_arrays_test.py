@@ -232,3 +232,30 @@ def test_irla_apply_accesses_outside_loop(
     assert "ztmp(j,i) = ztmp(j,i) + 4" in code
     assert "ztmp(:,i) = 5" in code
     assert Compile(tmpdir).string_compiles(code)
+
+
+def test_irla_apply_to_function_return_array(fortran_reader):
+    '''Check that transformation is rejected on function return array'''
+    psyir = fortran_reader.psyir_from_source("""
+module dummy_module
+    implicit none
+contains
+    function make_array() result(a)
+        real, dimension(10) :: a
+        integer :: i
+
+        do j = 1, m
+            do i = 1, n
+                a(i) = real(i)
+            end do
+        end do
+    end function
+
+end module
+    """)
+    with pytest.raises(TransformationError) as err:
+        trans = IncreaseRankLoopArraysTrans()
+        trans.apply(psyir.walk(Loop)[0], arrays=['a'])
+
+    assert ("IncreaseRankLoopArraysTrans can't be applied to return"
+            " variables." in str(err.value))
