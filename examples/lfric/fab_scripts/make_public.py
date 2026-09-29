@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # -----------------------------------------------------------------------------
-# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+# SPDX-FileCopyrightText: Copyright (c) 2026 Science and Technology
 #                         Facilities Council
 # SPDX-License-Identifier: BSD-3-Clause
 # See the full LICENSE file in the project root for details.
@@ -10,7 +10,7 @@
 """This file contains a script that will remove any private or protected
 declaration in a Fortran file. This is used by PSyclone's kernel extraction
 and driver creation feature, see
-https://psyclone.readthedocs.io/en/latest/user_guide/psyke.html.
+https://psyclone.readthedocs.io/en/latest/user_guide/psyke.html
 for details.
 
 Usage:  make_public.py  file1.f90
