@@ -137,13 +137,15 @@ def test_paralooptrans_validate_loop_inside_pure(fortran_reader):
     module test
         contains
         elemental function my_func(a)
-          real, intent(in) :: a(10)
-          real, intent(out) :: my_func(10)
+          real, intent(in) :: a
+          real :: my_func
           integer :: i
+          real :: values(10)
 
-          do i = LBOUND(a), UBOUND(a)
-            my_func(i) = a(i) + 1
+          do i = LBOUND(values), UBOUND(values)
+            values(i) = a + 1
           end do
+          my_func = values(1)
         end function
 
         pure subroutine my_sub(a,b)
@@ -164,13 +166,19 @@ def test_paralooptrans_validate_loop_inside_pure(fortran_reader):
     # The first one succeeds as it is not inside a pure function
     trans.validate(loops[0], {"verbose": True})
 
-    for loop in loops[1:]:
-        # Check that we reject parallelisng inside a pure routine
-        with pytest.raises(TransformationError) as err:
-            trans.validate(loop, {"verbose": True})
-        assert ("Loops inside a pure (or elemental) routine cannot be "
-                "parallelised, but attempted to parallelise loop inside '"
-                in str(err.value))
+    # Check that we reject parallelisng inside an elemental routine
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loops[1], {"verbose": True})
+    assert ("Loops inside a pure (or elemental) routine cannot be "
+            "parallelised, but attempted to parallelise loop inside '"
+            in str(err.value))
+
+    # Check that we reject parallelisng inside a pure routine
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loops[2], {"verbose": True})
+    assert ("Loops inside a pure (or elemental) routine cannot be "
+            "parallelised, but attempted to parallelise loop inside '"
+            in str(err.value))
 
 
 def test_paralooptrans_validate_ignore_dependencies_for(fortran_reader):
