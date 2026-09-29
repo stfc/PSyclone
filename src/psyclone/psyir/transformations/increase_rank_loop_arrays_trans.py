@@ -231,10 +231,11 @@ class IncreaseRankLoopArraysTrans(Transformation):
                         for n in idx.walk(Reference):
                             if n.symbol is node.variable_reference.symbol:
                                 raise TransformationError(
-                                    f"{self.name} does not support arrays that"
-                                    f" are indexed with the loop variable of the"
-                                    f" target loop, but '{array.name}' is "
-                                    f"indexed with '{node.variable.name}'.")
+                                    f"{self.name} does not support arrays"
+                                    f" that are indexed with the loop"
+                                    f" variable of the target loop,"
+                                    f" but '{array.name}' is indexed"
+                                    f" with '{node.variable.name}'.")
     def apply(
         self,
         node: Loop,
