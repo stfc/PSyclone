@@ -129,14 +129,14 @@ jobs:
 
         # Copy scripts and PSyData files into the LFRic sources:
         # ------------------------------------------------------
-        cp ${PSYCLONE_ROOT}/.github/workflows/fab_scripts/extract_mixin.py \
+        cp ${PSYCLONE_ROOT}/examples/lfric/fab_scripts/extract_mixin.py \
           lfric_core/lfric_build
-        cp ${PSYCLONE_ROOT}/.github/workflows/fab_scripts/make_public.py \
+        cp ${PSYCLONE_ROOT}/examples/lfric/fab_scripts/make_public.py \
           lfric_core/lfric_build
-        cp ${PSYCLONE_ROOT}/.github/workflows/fab_scripts/fab_gungho_model_extract.py \
+        cp ${PSYCLONE_ROOT}/examples/lfric/fab_scripts/fab_gungho_model_extract.py \
             lfric_apps/applications/gungho_model/
         mkdir -p lfric_apps/applications/gungho_model/optimisation/extract
-        cp ${PSYCLONE_ROOT}/.github/workflows/fab_scripts/global.py \
+        cp ${PSYCLONE_ROOT}/examples/lfric/fab_scripts/global.py \
             lfric_apps/applications/gungho_model/optimisation/extract
 
         # Copy the extract PSyData files into the LFRic Fab build system:
