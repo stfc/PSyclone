@@ -191,6 +191,7 @@ def load_script(
 def generate(filename: str,
              api: str = "",
              opsy: Optional[Path] = None,
+             oalg: Optional[Path] = None,
              kernel_paths: Optional[list[str]] = None,
              script_name: Optional[str] = None,
              kwargs_str: Optional[str] = None,
@@ -211,6 +212,8 @@ def generate(filename: str,
 
     :param filename: the file containing the algorithm specification.
     :param api: the name of the API to use. Defaults to empty string.
+    :param opsy: the output filename for the PSy layer.
+    :param oalg: the outpu filename for the Algorithm layer.
     :param kernel_paths: the directories from which to recursively
         search for the files containing the kernel source (if
         different from the location of the algorithm specification).
@@ -319,6 +322,11 @@ def generate(filename: str,
                 logger.error(err, exc_info=True)
                 sys.exit(1)
 
+        # Technically, at this stage the PSyIR is of the input file. But since
+        # the PSyIR is later converted to become the algorithm layer (i.e.
+        # replacing the invokes with the actual calls), the user algorithm
+        # transformation should see the filename as which it is saved.
+        psyir.file_path = oalg
         # Raise to Algorithm PSyIR
         if api in GOCEAN_API_NAMES:
             alg_trans = AlgTrans()
@@ -429,6 +437,7 @@ def generate(filename: str,
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
 
+        psy.container.root.file_path = opsy
         if script_name is not None:
             # Call the optimisation script for psy-layer optimisations. Note
             # that trans_func is always defined, otherwise an exception is
@@ -782,10 +791,15 @@ def main(arguments: list[str]) -> None:
             opsy = Path(args.opsy)
         else:
             opsy = None
+        if args.oalg is not None:
+            oalg = Path(args.oalg)
+        else:
+            oalg = None
         try:
             alg, psy = generate(
                 args.filename,
                 opsy=opsy,
+                oalg=oalg,
                 api=api,
                 kernel_paths=args.directory,
                 script_name=args.script,

@@ -387,22 +387,51 @@ def test_no_script_gocean():
     assert "module psy_single_invoke_test" in str(psy)
 
 
-def test_script_gocean(tmp_path):
+def test_script_gocean_no_output(tmp_path, capsys):
     '''Test that the generate function in generator.py returns
     successfully if a script (containing both trans_alg() and trans()
-    functions) is specified.
+    functions) is specified. It also checks that the file_path
+    is set to None (since no output algorithm name is specified).
 
     '''
     alg_script = script_factory(tmp_path, """
 def trans_alg(psyir):
-    pass
+    print("trans_alg file_path:", psyir.file_path)
 
 def trans(psyir):
-    pass
+    print("trans file_path:", psyir.file_path)
     """)
 
     _, _ = generate(str(GOCEAN_BASE_PATH / "single_invoke.f90"),
                     api="gocean", script_name=alg_script)
+    stdout, _ = capsys.readouterr()
+    assert "trans_alg file_path: None" in stdout
+    assert "trans file_path: None" in stdout
+
+
+def test_script_gocean_with_output(tmp_path, capsys):
+    '''Test that the generate function in generator.py returns
+    successfully if a script (containing both trans_alg() and trans()
+    functions) is specified. It also checks that the file_path
+    is set to the expected output filename.
+
+    '''
+    alg_script = script_factory(tmp_path, """
+def trans_alg(psyir):
+    print("trans_alg file_path:", psyir.file_path)
+
+def trans(psyir):
+    print("trans file_path:", psyir.file_path)
+    """)
+    alg = tmp_path / "alg.f90"
+    psy = tmp_path / "psy.f90"
+    _, _ = generate(str(GOCEAN_BASE_PATH / "single_invoke.f90"),
+                    oalg=alg,
+                    opsy=psy,
+                    api="gocean", script_name=alg_script)
+    stdout, _ = capsys.readouterr()
+    assert f"trans_alg file_path: {alg}" in stdout
+    assert f"trans file_path: {psy}" in stdout
 
 
 def test_profile_gocean():
@@ -2041,6 +2070,7 @@ def trans(psyir, **kwargs):
 
 def trans_alg(psyir, **kwargs):
     print("trans_alg args:", kwargs)
+    print("trans_alg file_path:", psyir.file_path)
     '''
     script_path = tmp_path / "print_args_lfric_testing.py"
     script_path.write_text(recipe)
@@ -2055,6 +2085,7 @@ def trans_alg(psyir, **kwargs):
     stdout, _ = capsys.readouterr()
     assert "trans args: {'b': True}" in stdout
     assert "trans_alg args: {'b': True}" in stdout
+    assert f"trans_alg file_path: {alg_file}" in stdout
 
 
 def test_script_arguments_lfric_default(tmp_path, capsys):
