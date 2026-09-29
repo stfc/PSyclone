@@ -34,6 +34,7 @@ from psyclone.psyir.nodes import (BinaryOperation, UnaryOperation,
                                   Reference, Routine, Container, Schedule)
 from psyclone.psyir.symbols import (ArrayType, ScalarType, DataTypeSymbol,
                                     UnsupportedFortranType)
+from psyclone.psyir.transformations import MoveTrans
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
@@ -977,15 +978,21 @@ def test_loopfuse(dist_mem, tmpdir):
     ''' Tests whether loop fuse actually fuses and whether
     multiple maps are produced or not. Multiple maps are not an
     error but it would be nicer if there were only one '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "4_multikernel_invokes.f90"),
-                           api=TEST_API)
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "4_multikernel_invokes_fusable_distmem.f90"),
+        api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
     index = 0
     if dist_mem:
-        index = 4
+        # Move the halo exchanges from between the loops to before both.
+        mtrans = MoveTrans()
+        mtrans.apply(schedule.children[5], schedule.children[4])
+        mtrans.apply(schedule.children[6], schedule.children[5])
+        mtrans.apply(schedule.children[7], schedule.children[6])
+        mtrans.apply(schedule.children[8], schedule.children[7])
+        index = 8
     loop1 = schedule.children[index]
     loop2 = schedule.children[index+1]
     trans = LFRicLoopFuseTrans()

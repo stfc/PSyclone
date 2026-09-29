@@ -4441,29 +4441,36 @@ def test_rc_then_colour2(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_loop_fuse_then_rc(tmpdir):
+def test_loop_fuse_then_rc(tmpdir, fortran_writer):
     ''' Test that we are able to fuse two loops together, perform
     redundant computation and then colour. '''
-    psy, invoke = get_invoke("4_multikernel_invokes.f90",
+    psy, invoke = get_invoke("4_multikernel_invokes_fusable_distmem.f90",
                              TEST_API, name="invoke_0", dist_mem=True)
     schedule = invoke.schedule
 
+    # Move the halo exchanges from between the loops to before both.
+    mtrans = MoveTrans()
+    mtrans.apply(schedule.children[5], schedule.children[4])
+    mtrans.apply(schedule.children[6], schedule.children[5])
+    mtrans.apply(schedule.children[7], schedule.children[6])
+    mtrans.apply(schedule.children[8], schedule.children[7])
+
     ftrans = LFRicLoopFuseTrans()
 
-    # Fuse the loops
-    ftrans.apply((schedule.children[4], schedule.children[5]))
+    # Fuse the loop
+    ftrans.apply((schedule.children[8], schedule.children[9]))
 
     # Create our redundant computation transformation
     rc_trans = LFRicRedundantComputationTrans()
 
     # Apply redundant computation to the loop
-    rc_trans.apply(schedule.children[4])
+    rc_trans.apply(schedule.children[8])
 
     # Create our colour transformation
     ctrans = LFRicColourTrans()
 
     # Colour the loop
-    ctrans.apply(schedule.children[4])
+    ctrans.apply(schedule.children[8])
 
     psy.invokes.invoke_list[0].schedule = schedule
 

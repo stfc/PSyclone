@@ -96,12 +96,18 @@ def test_loop_fuse_same_space_error():
 
 def test_loop_fuse(dist_mem):
     ''' Test that we are able to fuse two loops together. '''
-    psy, invoke = get_invoke("4_multikernel_invokes.f90", TEST_API,
-                             name="invoke_0", dist_mem=dist_mem)
+    psy, invoke = get_invoke("4_multikernel_invokes_fusable_distmem.f90",
+                             TEST_API, name="invoke_0", dist_mem=dist_mem)
     schedule = invoke.schedule
 
     if dist_mem:
-        index = 4
+        # Move the halo exchanges from between the loops to before both.
+        mtrans = MoveTrans()
+        mtrans.apply(schedule.children[5], schedule.children[4])
+        mtrans.apply(schedule.children[6], schedule.children[5])
+        mtrans.apply(schedule.children[7], schedule.children[6])
+        mtrans.apply(schedule.children[8], schedule.children[7])
+        index = 8
     else:
         index = 0
 
@@ -145,16 +151,22 @@ def test_loop_fuse(dist_mem):
 def test_loop_fuse_set_dirty():
     ''' Test that we are able to fuse two loops together and produce
     the expected set_dirty() calls. '''
-    psy, invoke = get_invoke("4_multikernel_invokes.f90", TEST_API,
-                             name="invoke_0", dist_mem=True)
+    psy, invoke = get_invoke("4_multikernel_invokes_fusable_distmem.f90",
+                             TEST_API, name="invoke_0", dist_mem=True)
 
     schedule = invoke.schedule
+    # Move the halo exchanges from between the loops to before both.
+    mtrans = MoveTrans()
+    mtrans.apply(schedule.children[5], schedule.children[4])
+    mtrans.apply(schedule.children[6], schedule.children[5])
+    mtrans.apply(schedule.children[7], schedule.children[6])
+    mtrans.apply(schedule.children[8], schedule.children[7])
     ftrans = LFRicLoopFuseTrans()
     # Fuse the loops
-    ftrans.apply((schedule.children[4], schedule.children[5]))
+    ftrans.apply((schedule.children[8], schedule.children[9]))
 
     gen = str(psy.gen)
-    assert gen.count("set_dirty()") == 1
+    assert gen.count("set_dirty()") == 2
 
 
 def test_loop_fuse_multiwrite():
@@ -309,3 +321,21 @@ field)
     amax = MAX(amax, f1_data(df))
   enddo"""
     assert correct in fortran_writer(schedule)
+
+
+def test_loop_fuse_dependency(fortran_writer):
+    '''
+    Test that we get a transformation error when trying to fuse dependant
+    kernels.
+    '''
+    psy, invoke = get_invoke("4_multikernel_invokes.f90",
+                             TEST_API, name="invoke_0", dist_mem=True)
+    schedule = invoke.schedule
+
+    ftrans = LFRicLoopFuseTrans()
+
+    # Fuse the loop
+    with pytest.raises(TransformationError) as err:
+        ftrans.apply((schedule.children[4], schedule.children[5]))
+    assert ("Error in LFRicLoopFuseTrans: Cannot fuse loops as the "
+            "loops have a dependency." in str(err.value))

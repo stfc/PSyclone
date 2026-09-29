@@ -77,6 +77,8 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                                      the reduction.
         :raises TransformationError: if either loop has more than one write
                                      access.
+        :raises TransformationError: if there is a dependency between the
+            loops.
         '''
         # pylint: disable=too-many-locals,too-many-branches
         # Call the parent class validation first
@@ -221,6 +223,8 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         if arg1_field is not None and arg2_field is not None:
             same_field_name = arg1_field.name == arg2_field.name
 
+        # If we have two reductions and they aren't on the same field then
+        # we can't fuse them.
         if (node1_red_args and node2_red_args and not same_field_name):
             raise TransformationError(
                 f"Error in {self.name} transformation: Cannot fuse loops "
@@ -235,6 +239,21 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                             f" loops as the first loop has a reduction and "
                             f"the second loop reads the result of the "
                             f"reduction.")
+
+        # 7) Check for dependency between the loops. If we do then we can't
+        # fuse them as we can't guarantee we won't change the result due to
+        # no associativity between mathemtical operators.
+        for kern in node2.kernels():
+            for halo_field in (kern.ancestor(LFRicLoop).
+                               unique_fields_with_halo_reads()):
+                prev_arg_list = halo_field.backward_write_dependencies()
+                if (prev_arg_list and
+                    (prev_arg_list[0].call.parent is node1 or
+                     prev_arg_list[0].call.parent.is_descendant_of(node1))):
+                    raise TransformationError(
+                        f"Error in {self.name}: Cannot fuse loops as the "
+                        f"loops have a dependency."
+                    )
 
     def apply(self, nodes: tuple[LFRicLoop, LFRicLoop],
               options=None, same_space: bool = False,

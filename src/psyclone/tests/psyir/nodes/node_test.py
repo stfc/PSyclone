@@ -392,7 +392,7 @@ def test_node_args():
     '''Test that the Node class args method returns the correct arguments
     for Nodes that do not have arguments themselves'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "4_multikernel_invokes.f90"),
+        os.path.join(BASE_PATH, "4_multikernel_invokes_fusable.f90"),
         api="lfric")
     psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
