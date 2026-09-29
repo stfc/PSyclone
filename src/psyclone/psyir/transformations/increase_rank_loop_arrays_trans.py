@@ -263,8 +263,6 @@ class IncreaseRankLoopArraysTrans(Transformation):
             symtable_node = array.find_symbol_table(node).node
             for ref in symtable_node.walk(ArrayReference):
                 if ref.symbol is array:
-                    # Reference to existing array. Make sure the 
-
                     if ref.is_descendant_of(node):
                         # Inside the target loop index the reference
                         # using the loop variable
