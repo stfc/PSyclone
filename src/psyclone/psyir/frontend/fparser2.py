@@ -11,6 +11,7 @@
 
 from collections import OrderedDict
 from dataclasses import dataclass, field
+from pathlib import Path
 import re
 import os
 import sys
@@ -1020,7 +1021,7 @@ class Fparser2Reader():
         # Whether to keep the last comments in a given block as CodeBlocks
         self._last_comments_as_codeblocks = last_comments_as_codeblocks
 
-    def generate_parse_tree_from_file(self, file_path: str = ""):
+    def generate_parse_tree_from_file(self, file_path: Union[Path, str] = ""):
         '''
         Use the provided file to generate a fparser2 parsetree.
 
@@ -1029,7 +1030,7 @@ class Fparser2Reader():
         :returns: the fparser2 parsetree of the given file.
         '''
         reader = FortranFileReader(
-            file_path,
+            str(file_path),
             include_dirs=Config.get().include_paths,
             ignore_comments=self._ignore_comments,
             process_directives=not self._ignore_directives,

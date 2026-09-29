@@ -225,46 +225,46 @@ def test_psyir_from_statement_invalid(fortran_reader):
     fortran_reader.psyir_from_statement("a=b")
 
 
-def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
+def test_fortran_psyir_from_file(fortran_reader, tmp_path):
     ''' Test that the psyir_from_file method reads and parses to PSyIR
     the specified file. '''
-    filename = str(tmpdir_factory.mktemp('frontend_test').join("testfile.f90"))
-    with open(filename, "w", encoding='utf-8') as wfile:
-        wfile.write(CODE)
+
+    file_path = tmp_path / "testfile.f90"
+    file_path.write_text(CODE)
 
     # Check with a proper file
-    file_container = fortran_reader.psyir_from_file(filename)
+    file_container = fortran_reader.psyir_from_file(file_path)
     assert isinstance(file_container, FileContainer)
+    assert file_container.file_path == file_path
+    assert file_container.name == "testfile.f90"
     subroutine = file_container.children[0]
     assert isinstance(subroutine, Routine)
 
     # Check with an empty file
-    filename = str(tmpdir_factory.mktemp('frontend_test').join("empty.f90"))
-    with open(filename, "w", encoding='utf-8') as wfile:
-        wfile.write("")
-    file_container = fortran_reader.psyir_from_file(filename)
+    file_path = tmp_path / "empty.f90"
+    file_path.write_text("")
+    file_container = fortran_reader.psyir_from_file(file_path)
     assert isinstance(file_container, FileContainer)
     assert file_container.name == "empty.f90"
+    assert file_container.file_path == file_path
 
     # Check with a file containing invalid Fortran
-    filename = str(tmpdir_factory.mktemp('frontend_test').join("wrong.f90"))
-    with open(filename, "w", encoding='utf-8') as wfile:
-        wfile.write("this is not Fortran")
+    file_path = tmp_path / "wrong.f90"
+    file_path.write_text("this is not Fortran")
     with pytest.raises(ValueError) as err:
-        file_container = fortran_reader.psyir_from_file(filename)
+        file_container = fortran_reader.psyir_from_file(file_path)
     assert "Failed to parse" in str(err.value)
 
     # Check with a file that doesn't exist
-    filename = str(tmpdir_factory.mktemp('frontend_test').join("Idontexist"))
+    file_path = tmp_path / "Idontexist"
     with pytest.raises(IOError) as err:
-        fortran_reader.psyir_from_file(filename)
-    assert "No such file or directory: '" + str(filename) in str(err.value)
+        fortran_reader.psyir_from_file(file_path)
+    assert "No such file or directory: '" + str(file_path) in str(err.value)
 
     # Check that directives and comments are ignored by default
-    filename = str(tmpdir_factory.mktemp('frontend_test').join("comments.f90"))
-    with open(filename, "w", encoding='utf-8') as wfile:
-        wfile.write(CODE_WITH_COMMENTS_AND_DIRECTIVES)
-    file_container = fortran_reader.psyir_from_file(filename)
+    file_path = tmp_path / "comments.f90"
+    file_path.write_text(CODE_WITH_COMMENTS_AND_DIRECTIVES)
+    file_container = fortran_reader.psyir_from_file(file_path)
     assert isinstance(file_container, FileContainer)
     for node in file_container.walk(CommentableMixin):
         assert node.preceding_comment == ""
@@ -273,7 +273,7 @@ def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
     # Check that comments can be preserved, and that directives are still
     # ignored by default
     fortran_reader = FortranReader(ignore_comments=False)
-    file_container = fortran_reader.psyir_from_file(filename)
+    file_container = fortran_reader.psyir_from_file(file_path)
     assert isinstance(file_container, FileContainer)
     for node in file_container.walk(CommentableMixin):
         if isinstance(node, Loop):
@@ -286,7 +286,7 @@ def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
     # Check that directives can be preserved
     fortran_reader = FortranReader(ignore_comments=False,
                                    ignore_directives=False)
-    file_container = fortran_reader.psyir_from_file(filename)
+    file_container = fortran_reader.psyir_from_file(file_path)
     assert isinstance(file_container, FileContainer)
     assignment = file_container.walk(Assignment)[0]
     assert assignment.preceding_comment == "Comment on assignment"
