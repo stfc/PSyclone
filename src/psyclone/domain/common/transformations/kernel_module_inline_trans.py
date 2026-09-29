@@ -186,6 +186,8 @@ class KernelModuleInlineTrans(Transformation):
         :raises TransformationError: if the schedule contains accesses
             to data declared in the same module scope or of unknown origin.
         :raises TransformationError: if the schedule contains static Symbols.
+        :raises TransformationError: if the schedule contains a call to a
+            generic interface that includes routines external to the scope.
         :raises TransformationError: if the schedule contains a local
             Symbol that shadows a module name in its outer scope.
 
@@ -222,20 +224,22 @@ class KernelModuleInlineTrans(Transformation):
             if symbol.is_import or symbol.is_unresolved:
                 continue
             # Allow for calls to interfaces. If an interface includes one
-            # or more external routines, they won't be returned by
-            # 'resolve_routine' (as they aren't in the Container). Since
-            # interfaces must be added at Container scope, it must be
-            # possible to make such external routines available in Container
-            # scope at the call site.
-            #if symbol.name == "a_2nd_interface":
-            # if isinstance(symbol, GenericInterfaceSymbol):
-            import pdb; pdb.set_trace()
+            # or more external routines then we reject it. (This is done to
+            # keep the implementation simple - since interfaces must be added
+            # at Container scope, we *could* make such external routines
+            # available in Container scope at the call site but this is an
+            # edge case.)
             routine_names = container.resolve_routine(symbol.name)
             for lrt in routine_names:
                 rt_psyir = container.find_routine_psyir(
                     lrt, allow_private=True)
                 if not rt_psyir:
-                    container.symbol_table.lookup(lrt) # ARPDBG
+                    # This is not a local Routine.
+                    raise TransformationError(
+                        f"Cannot apply {self.name} to {kern_or_call} '{kname}'"
+                        f" because it contains a call to generic interface "
+                        f"'{symbol.name}' and that interface includes external"
+                        f" routine '{lrt}'")
                 # Recursively check the schedule of the target routine.
                 self._validate_schedule(node, f"{kname}->{lrt}",
                                         "routine", rt_psyir)

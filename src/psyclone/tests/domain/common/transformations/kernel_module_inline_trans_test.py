@@ -181,18 +181,25 @@ def test_validate_no_inline_global_var(parser):
     inline_trans.validate(kernels[0])
 
 
-def test_validate_call_includes_interface_call(monkeypatch, fortran_reader):
+def test_call_includes_interface_call(monkeypatch, fortran_reader,
+                                      fortran_writer, tmp_path):
     '''
+    Test when a Kernel includes one or more calls to a locally-defined
+    generic interface. This is supported so long as all routines referred
+    to in the interface are also local.
+
     '''
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
-                           idx=0, dist_mem=False)
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
+                             idx=0, dist_mem=False)
     schedule = invoke.schedule
+    # Get a valid kernel and then monkeypatch it to the case we want to test.
     kern_call = schedule.children[1].loop_body[0].loop_body[0]
     psyir = fortran_reader.psyir_from_source('''
     module my_mod
       use another_mod, only: sub3, sub4
       implicit none
       private
+      ! An interface referring only to local routines
       interface an_interface
         module procedure sub1, sub2
       end interface
@@ -200,14 +207,22 @@ def test_validate_call_includes_interface_call(monkeypatch, fortran_reader):
       interface a_2nd_interface
         procedure sub3, sub4
       end interface
-      public code
+      public compute_cv_code, tricky_code
     contains
-      subroutine code()
+      subroutine compute_cv_code(i, j, fld1_data, fld2_data, fld3_data)
+        integer, intent(in) :: i, j
+        real(8), dimension(:,:) :: fld1_data, fld2_data, fld3_data
         ! Subroutine body containing two calls to the interface defined
         ! within the Container.
         call an_interface(1)
+        call an_interface(1.0)
+      end subroutine compute_cv_code
+      subroutine tricky_code()
+        ! Subroutine body containing a call to a second interface which
+        ! includes external routines in its definition.
+        call an_interface(1)
         call a_2nd_interface(1.0)
-      end subroutine code
+      end subroutine tricky_code
       subroutine sub1(iarg)
         integer, intent(in) :: iarg
       end subroutine sub1
@@ -216,10 +231,30 @@ def test_validate_call_includes_interface_call(monkeypatch, fortran_reader):
       end subroutine sub2
     end module my_mod
     ''')
-    routine = psyir.walk(Routine)[0]
-    monkeypatch.setattr(kern_call, "_schedules", [routine])
+    routines = psyir.walk(Routine)
+    monkeypatch.setattr(kern_call, "_schedules", [routines[0]])
     trans = KernelModuleInlineTrans()
     trans.apply(kern_call)
+    output = fortran_writer(schedule.parent)
+    assert """\
+  interface an_interface_inlined_
+    module procedure :: sub1_inlined_
+    module procedure :: sub2_inlined_
+  end interface an_interface_inlined_""" in output
+    assert "subroutine sub1_inlined_" in output
+    assert "subroutine sub2_inlined_" in output
+    assert "subroutine compute_cv_code_inlined_" in output
+    assert "call compute_cv_code_inlined_" in output
+    assert "call an_interface_inlined_" in output
+    assert GOceanBuild(tmp_path).code_compiles(psy)
+    # Validation should fail for the second routine 'tricky_code' because it
+    # calls an interface that includes external routines.
+    monkeypatch.setattr(kern_call, "_schedules", [routines[1]])
+    with pytest.raises(TransformationError,
+                       match=("because it contains a call to generic interface"
+                              " 'a_2nd_interface' and that interface includes "
+                              "external routine 'sub3'")):
+        trans.validate(kern_call)
 
 
 def test_apply_name_clashes():
@@ -910,6 +945,8 @@ def test_prepare_code_to_inline_routine_refs(fortran_reader, fortran_writer):
 def test_prepare_code_to_inline_call_to_interface(fortran_reader,
                                                   fortran_writer):
     '''
+    Test the result of _prepare_code_to_inline when the target
+    contains calls to interfaces.
     '''
     psyir = fortran_reader.psyir_from_source('''
     module my_mod
@@ -946,8 +983,6 @@ def test_prepare_code_to_inline_call_to_interface(fortran_reader,
                                                "an_interface"]
     assert interfaces["an_interface"] == ["sub1", "sub2"]
     assert interfaces["a_2nd_interface"] == ["sub3", "sub4"]
-    result = fortran_writer(new_routines[0])
-    assert 0
 
 
 def test_module_inline_lfric(tmpdir, annexed, dist_mem):
