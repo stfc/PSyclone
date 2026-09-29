@@ -222,6 +222,18 @@ class IncreaseRankLoopArraysTrans(Transformation):
                     f"outside the given loop in a non-trivial expression "
                     f"but '{array.name}' is used outside the loop.")
 
+            symtable_node = array.find_symbol_table(node).node
+            for ref in symtable_node.walk(ArrayReference):
+                if ref.symbol is array:
+                    ref: ArrayReference
+                    for idx in ref.indices:
+                        for n in idx.walk(Reference):
+                            if n.symbol is node.variable_reference.symbol:
+                                raise TransformationError(
+                                    f"{self.name} does not support arrays that"
+                                    f" are indexed with the loop variable of the"
+                                    f" target loop, but '{array.name}' is "
+                                    f"indexed with '{node.variable.name}'.")
     def apply(
         self,
         node: Loop,
@@ -246,8 +258,11 @@ class IncreaseRankLoopArraysTrans(Transformation):
                 ArrayType.ArrayBounds(node.start_expr, node.stop_expr)
             )
 
-            for ref in array.find_symbol_table(node).node.walk(ArrayReference):
+            symtable_node = array.find_symbol_table(node).node
+            for ref in symtable_node.walk(ArrayReference):
                 if ref.symbol is array:
+                    # Reference to existing array. Make sure the 
+
                     if ref.is_descendant_of(node):
                         # Inside the target loop index the reference using the
                         # loop variable

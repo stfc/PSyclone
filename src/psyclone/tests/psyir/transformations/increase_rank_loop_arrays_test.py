@@ -260,6 +260,7 @@ end module
     assert ("IncreaseRankLoopArraysTrans can't be applied to return"
             " variables." in str(err.value))
 
+
 def test_irla_apply_to_character_array(
         fortran_reader, fortran_writer, tmpdir):
     '''Check that transformation is rejected on function return array'''
@@ -287,3 +288,33 @@ end module
 
     assert ("IncreaseRankLoopArraysTrans can't be applied to character"
             " arrays." in str(err.value))
+
+
+def test_irla_reject_existing_loop_index(
+        fortran_reader, fortran_writer, tmpdir):
+    '''Check that transformation is rejected on function return array'''
+    psyir = fortran_reader.psyir_from_source("""
+module dummy_module
+    implicit none
+contains
+    subroutine make_array()
+        real, dimension(10,10) :: a
+        integer :: i, j
+
+        do j = 1, 10
+            do i = 1, 10
+                a(j,i) = 1
+            end do
+        end do
+    end subroutine
+
+end module
+""")
+
+    with pytest.raises(TransformationError) as err:
+        trans = IncreaseRankLoopArraysTrans()
+        trans.apply(psyir.walk(Loop)[0], arrays=['a'])
+
+    assert ("IncreaseRankLoopArraysTrans does not support arrays that are"
+            " indexed with the loop variable of the target loop, but"
+            in str(err.value))
