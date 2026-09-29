@@ -29,6 +29,13 @@ class FileContainer(Container):
 
     def __init__(self, name, file_path: Optional[Path] = None, **kwargs):
         super().__init__(name, **kwargs)
+
+        # This attribute stores the path of the file, but it can be None
+        # if the file name is not known yet, or when the PSyclone output
+        # is going to stdout. In many cases this attribute will be set
+        # after the whole PSyIR is constructed. But at the time the
+        # user script is called, it will always contain the correct
+        # path (or None if going to stdout).
         self._file_path = file_path
 
     @property
