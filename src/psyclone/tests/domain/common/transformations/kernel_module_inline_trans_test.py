@@ -1304,7 +1304,7 @@ def test_mod_inline_no_container(fortran_reader, fortran_writer, tmpdir,
     assert "use my_mod, only : my_sub" in output
     # but we remove it so that we can check compilation
     # TODO #3142 - we also have to manually add an `external` statement as
-    # we often run the compilation tests with a flag that rejects procedures
+    # we want to run the compilation tests with a flag that rejects procedures
     # with an implicit interface.
     fixed = output.replace("use my_mod, only : my_sub\n",
                            "external :: my_sub_inlined_\n")
@@ -1366,7 +1366,7 @@ subroutine my_sub_inlined_(arg)''' in output)
     assert "call my_sub_inlined__1(" in output
     # Remove the use statement so we can test compilation.
     # TODO #3142 - we also have to manually add an `external` statement as
-    # we often run the compilation tests with a flag that rejects procedures
+    # we want to run the compilation tests with a flag that rejects procedures
     # with an implicit interface.
     fixed = output.replace("use my_mod\n",
                            "external :: my_sub_inlined_, my_sub_inlined__1\n")

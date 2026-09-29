@@ -230,7 +230,7 @@ class Routine(Schedule, CommentableMixin):
                     f"transformation script.")
 
             if not symbol.is_import and symbol.name not in table:
-                # This is Symbol local to the Container.
+                # This Symbol is local to the Container.
                 if isinstance(symbol, RoutineSymbol):
                     # Calls to local Routines can be OK so we don't flag
                     # them here.

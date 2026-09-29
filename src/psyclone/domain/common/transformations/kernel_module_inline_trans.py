@@ -89,8 +89,9 @@ class KernelModuleInlineTrans(Transformation):
         original Container.
 
     If the target routine itself contains calls to other routines within
-    the same module, this transformation will first module-inline those
-    routines in order to permit the target one to be inlined.
+    the same module, this transformation will first copy those
+    routines into the caller scope in order to permit the target one to be
+    copied also.
 
     '''
     def __str__(self):
@@ -216,8 +217,8 @@ class KernelModuleInlineTrans(Transformation):
                 f"because it contains static data symbol(s): {names}")
 
         # If this Schedule itself contains Calls to local routines then
-        # we can only module-inline it if the targets of those Calls can
-        # also be module inlined.
+        # we can only make a private copy of it if the targets of those Calls
+        # can also be copied in.
         container = kernel_schedule.ancestor(Container)
         for call in kernel_schedule.walk(Call):
             symbol = call.routine.symbol
@@ -286,9 +287,8 @@ class KernelModuleInlineTrans(Transformation):
         source_container = orig_container.copy()
         # Make a dict containing *all* Routines in the Container, keyed by
         # routine name.
-        new_routines = {}
-        for routine in source_container.walk(Routine):
-            new_routines[routine.name] = routine
+        new_routines = {routine.name: routine for routine in
+                        source_container.walk(Routine)}
 
         # Recursively collect any local routines and generic interfaces that
         # the target routines themselves call.
@@ -400,6 +400,7 @@ class KernelModuleInlineTrans(Transformation):
                     local_routines = [routine_map[name] for name in names
                                       if name in routine_map]
                     if local_routines:
+                        # Recurse into these routines.
                         KernelModuleInlineTrans._get_all_routines_to_inline(
                             routines_to_copy,
                             interfaces_to_copy,
