@@ -9,10 +9,9 @@
 """Module containing tests for the FileInfo class."""
 
 import logging
-import os
 import pytest
 
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes import FileContainer, Node
 from psyclone.parse import FileInfo, FileInfoFParserError
 
 SOURCE_DUMMY = """\
@@ -65,15 +64,14 @@ def test_file_info_missing_file(caplog):
     assert "'missing.txt'" in str(err.value)
 
 
-def test_file_info_cached_source_code(tmpdir, caplog):
+def test_file_info_cached_source_code(tmp_path, caplog):
     """
     Check that the contents of the file have been cached
     and that the cache was used if reading it a 2nd time.
     """
-    fname = os.path.join(tmpdir, "a_file.txt")
+    fname = tmp_path / "a_file.txt"
     content = "module andy\n\nend module"
-    with open(fname, "w", encoding="utf-8") as fout:
-        fout.write(content)
+    fname.write_text(content)
     finfo = FileInfo(fname, cache_active=True)
     with caplog.at_level(logging.INFO, logger=TEST_LOGGER):
         input1 = finfo.get_source_code()
@@ -106,14 +104,13 @@ def test_file_info_cached_source_code(tmpdir, caplog):
     assert "Using cache of fparser tree with hashsum " in caplog.text
 
 
-def test_file_info_no_cached_source_code(tmpdir):
+def test_file_info_no_cached_source_code(tmp_path):
     """
     Check that the contents of the file have not been cached.
     """
-    fname = os.path.join(tmpdir, "a_file.txt")
+    fname = tmp_path / "a_file.txt"
     content = "module andy\n\nend module"
-    with open(fname, "w", encoding="utf-8") as fout:
-        fout.write(content)
+    fname.write_text(content)
     finfo = FileInfo(fname)
     finfo.get_source_code()
     assert finfo._source_code_hash_sum is None
@@ -130,37 +127,31 @@ def test_file_info_no_cached_source_code(tmpdir):
     assert finfo._cache_data_save is None
 
 
-def test_file_info_decode_error(tmpdir):
+def test_file_info_decode_error(tmp_path):
     """
     Check that FileInfo.get_source_code() handles a decoding error when reading
     a file.
 
     """
-    fname = os.path.join(tmpdir, "a_file.txt")
+    fname = tmp_path / "a_file.txt"
     # Test content includes a byte that cannot be decoded as utf-8.
     content = "Ju\xb5st\nA\nTest"
-    with open(fname, "w", encoding="latin") as fout:
-        fout.write(content)
+    fname.write_text(content, encoding="latin")
     finfo = FileInfo(fname)
     # Content of file has been read with problematic byte skipped.
     assert finfo.get_source_code() == "Just\nA\nTest"
 
 
-def test_file_info_source_fparser_psyir(tmpdir):
+def test_file_info_source_fparser_psyir(tmp_path):
     """
     Check that read source, fparser and psyir always result
     in the same objects.
 
     """
-    filename = os.path.join(tmpdir, "testfile_a.f90")
-    try:
-        os.remove(filename)
-    except FileNotFoundError:
-        pass
-    with open(filename, "w", encoding="utf-8") as fout:
-        fout.write(SOURCE_DUMMY)
+    file_path = tmp_path / "testfile_a.f90"
+    file_path.write_text(SOURCE_DUMMY)
 
-    file_info: FileInfo = FileInfo(filename, cache_active=True)
+    file_info: FileInfo = FileInfo(file_path, cache_active=True)
 
     source_code = file_info.get_source_code()
     source_code2 = file_info.get_source_code()
@@ -170,36 +161,26 @@ def test_file_info_source_fparser_psyir(tmpdir):
     fparser_tree2 = file_info.get_fparser_tree()
     assert fparser_tree is fparser_tree2
 
-    psyir_node = file_info.get_psyir()
-    psyir_node2 = file_info.get_psyir()
-    assert psyir_node is psyir_node2
+    file_container = file_info.get_psyir()
+    file_container2 = file_info.get_psyir()
+    assert file_container is file_container2
+    assert isinstance(file_container, FileContainer)
+    assert file_container.file_path == file_path
 
     # For coverage check
     file_info._cache_save()
 
 
-def test_file_info_load_from_cache(tmpdir):
+def test_file_info_load_from_cache(tmp_path):
     """
     Check that the caching to file really works.
 
     """
-    filename = os.path.join(tmpdir, "testfile_b.f90")
-    filename_cache = os.path.join(tmpdir, "testfile_b.psyclone")
+    file_path = tmp_path / "testfile_b.f90"
 
-    try:
-        os.remove(filename)
-    except FileNotFoundError:
-        pass
+    file_path.write_text(SOURCE_DUMMY)
 
-    try:
-        os.remove(filename_cache)
-    except FileNotFoundError:
-        pass
-
-    with open(filename, "w", encoding="utf-8") as fout:
-        fout.write(SOURCE_DUMMY)
-
-    file_info: FileInfo = FileInfo(filename, cache_active=True)
+    file_info: FileInfo = FileInfo(file_path, cache_active=True)
 
     # Call save_cache just for code coverage
     file_info._cache_save()
@@ -210,43 +191,43 @@ def test_file_info_load_from_cache(tmpdir):
     assert file_info._cache_data_save is None
 
     # Load file which triggers storing things to cache
-    psyir_node = file_info.get_psyir()
-    assert isinstance(psyir_node, Node)
+    file_container = file_info.get_psyir()
+    assert isinstance(file_container, FileContainer)
+    assert file_container.file_path == file_path
 
     # Save cache is used
     assert file_info._cache_data_load is None
     assert file_info._cache_data_save is not None
 
     # Load new file
-    file_info: FileInfo = FileInfo(filename, cache_active=True)
+    file_info: FileInfo = FileInfo(file_path, cache_active=True)
 
     # No cache used
     assert file_info._cache_data_load is None
     assert file_info._cache_data_save is None
 
     # Load file which triggers storing things to cache
-    psyir_node = file_info.get_psyir()
-    assert isinstance(psyir_node, Node)
+    file_container = file_info.get_psyir()
+    assert isinstance(file_container, FileContainer)
+    assert file_container.file_path == file_path
 
     # Loaded and saved to cache
     assert file_info._cache_data_load is not None
     assert file_info._cache_data_save is None
 
 
-def test_file_info_load_from_cache_corrupted(tmpdir, caplog):
+def test_file_info_load_from_cache_corrupted(tmp_path, caplog):
     """
     Test handling of corrupt cache file
 
     """
-    filename = os.path.join(tmpdir, "testfile_c.f90")
-    filename_cache = os.path.join(tmpdir, "testfile_c.psyclone")
+    filename = tmp_path / "testfile_c.f90"
+    filename_cache = tmp_path / "testfile_c.psyclone"
 
-    with open(filename, "w", encoding="utf-8") as fout:
-        fout.write(SOURCE_DUMMY)
+    filename.write_text(SOURCE_DUMMY)
 
-    filename_cache = os.path.join(tmpdir, "testfile_c.psycache")
-    with open(filename_cache, "w", encoding="utf-8") as fout:
-        fout.write("GARBAGE")
+    filename_cache = tmp_path / "testfile_c.psycache"
+    filename_cache.write_text("GARBAGE")
 
     #
     # Step 1) Load with corrupted cache file
@@ -291,16 +272,15 @@ def test_file_info_load_from_cache_corrupted(tmpdir, caplog):
     assert file_info._cache_data_save is None
 
 
-def test_file_info_source_changed(tmpdir, caplog):
+def test_file_info_source_changed(tmp_path, caplog):
     """
     Make sure that cache is not used if source code
     file changed, hence, its checksum.
 
     """
-    filename = os.path.join(tmpdir, "testfile_d.f90")
+    filename = tmp_path / "testfile_d.f90"
 
-    with open(filename, "w", encoding="utf-8") as fout:
-        fout.write(SOURCE_DUMMY)
+    filename.write_text(SOURCE_DUMMY)
 
     #
     # Step 1) Create cache file
@@ -317,8 +297,8 @@ def test_file_info_source_changed(tmpdir, caplog):
     # Step 2) Change source code
     #
 
-    with open(filename, "w", encoding="utf-8") as fout:
-        fout.write(SOURCE_DUMMY + "\n! I'm a comment to change the hashsum")
+    filename.write_text(SOURCE_DUMMY +
+                        "\n! I'm a comment to change the hashsum")
 
     #
     # Step 3) Cache file should not be used
@@ -339,15 +319,14 @@ def test_file_info_source_changed(tmpdir, caplog):
     assert file_info._cache_data_save is not None
 
 
-def test_file_info_source_with_bugs(tmpdir):
+def test_file_info_source_with_bugs(tmp_path):
     """
     Make sure that error is triggered if there's an error.
 
     """
-    filename = os.path.join(tmpdir, "testfile_bug.f90")
+    filename = tmp_path / "testfile_bug.f90"
 
-    with open(filename, "w", encoding="utf-8") as fout:
-        fout.write(SOURCE_DUMMY + "arbitrary words to trigger error")
+    filename.write_text(SOURCE_DUMMY + "arbitrary words to trigger error")
 
     file_info: FileInfo = FileInfo(filename, cache_active=True)
 
@@ -364,15 +343,14 @@ def test_file_info_source_with_bugs(tmpdir):
     assert "previous attempt failed" in str(einfo.value)
 
 
-def test_file_info_cachefile_not_writable(tmpdir, caplog):
+def test_file_info_cachefile_not_writable(tmp_path, caplog):
     """
     Test for a cachefile that is not writable (can't be created).
 
     """
-    filename = os.path.join(tmpdir, "testfile_e.f90")
+    filename = tmp_path / "testfile_e.f90"
 
-    with open(filename, "w", encoding="utf-8") as fout:
-        fout.write(SOURCE_DUMMY)
+    filename.write_text(SOURCE_DUMMY)
 
     file_info: FileInfo = FileInfo(filename, cache_active=True)
 
@@ -395,15 +373,14 @@ def test_file_info_cachefile_not_writable(tmpdir, caplog):
     assert "Unable to write to cache file: " in caplog.text
 
 
-def test_file_info_cachefile_pickle_dump_exception(tmpdir, monkeypatch,
+def test_file_info_cachefile_pickle_dump_exception(tmp_path, monkeypatch,
                                                    caplog):
     """
     Check that we handle any exception raised during pickling.
 
     """
-    filename = os.path.join(tmpdir, "testfile_f.f90")
-    with open(filename, "w", encoding="utf-8") as fout:
-        fout.write(SOURCE_DUMMY)
+    filename = tmp_path / "testfile_f.f90"
+    filename.write_text(SOURCE_DUMMY)
 
     file_info: FileInfo = FileInfo(filename, cache_active=True)
 
@@ -421,27 +398,27 @@ def test_file_info_cachefile_pickle_dump_exception(tmpdir, monkeypatch,
     assert file_info._cache_data_save is None
 
 
-def test_file_info_source_psyir_test(tmpdir):
+def test_file_info_source_psyir_test(tmp_path):
     """
     Here, we generate a dummy psyir cached node to load it.
     This is not yet possible (TODO #2786), but the code
     for this already exists and is tested here.
 
     """
-    filename = os.path.join(tmpdir, "testfile_g.f90")
-
-    with open(filename, "w", encoding="utf-8") as fout:
-        fout.write(SOURCE_DUMMY)
+    file_path = tmp_path / "testfile_g.f90"
+    file_path.write_text(SOURCE_DUMMY)
 
     # Create cache
-    file_info: FileInfo = FileInfo(filename, cache_active=True)
-    file_info.get_psyir()
+    file_info: FileInfo = FileInfo(file_path, cache_active=True)
+    file_container = file_info.get_psyir()
+    assert isinstance(file_container, FileContainer)
+    assert file_container.file_path == file_path
 
     # Load again for coverage case
     file_info.get_psyir()
 
     # Load from cache
-    file_info: FileInfo = FileInfo(filename, cache_active=True)
+    file_info: FileInfo = FileInfo(file_path, cache_active=True)
 
     fparser_tree = file_info.get_fparser_tree()
     fparser_tree2 = file_info.get_fparser_tree()
