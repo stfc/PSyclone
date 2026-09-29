@@ -8,6 +8,9 @@
 ''' This module contains the FileContainer node implementation.'''
 
 import sys
+from pathlib import Path
+from typing import Optional
+
 from psyclone.alg_gen import NoInvokesError
 from psyclone.psyir.nodes.container import Container
 
@@ -23,6 +26,20 @@ class FileContainer(Container):
     '''
     _text_name = "FileContainer"
     _colour = "yellow"
+
+    def __init__(self, name, file_path: Optional[Path] = None, **kwargs):
+        super().__init__(name, **kwargs)
+        self._file_path = file_path
+
+    @property
+    def file_path(self) -> Optional[Path]:
+        '''Return the path of the source file represented by this node.'''
+        return self._file_path
+
+    @file_path.setter
+    def file_path(self, value: Path):
+        '''Set the path of the source file represented by this node.'''
+        self._file_path = value
 
     def __str__(self):
         return f"FileContainer[name='{self.name}']\n"

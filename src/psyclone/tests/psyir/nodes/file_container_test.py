@@ -7,6 +7,8 @@
 
 ''' Performs py.test tests on the FileContainer PSyIR node. '''
 
+from pathlib import Path
+
 import pytest
 from psyclone.alg_gen import NoInvokesError
 from psyclone.psyir.nodes import Routine, FileContainer, Container
@@ -25,6 +27,14 @@ def test_file_container_init():
     assert isinstance(file_container, FileContainer)
     assert isinstance(file_container, Container)
     assert file_container.name == "test"
+    assert file_container.file_path is None
+
+    file_path = Path("test.f90")
+    file_container = FileContainer("test", file_path=file_path)
+    assert file_container.file_path == file_path
+    new_file_path = Path("other.f90")
+    file_container.file_path = new_file_path
+    assert file_container.file_path == new_file_path
 
 
 def test_file_container_node_str():

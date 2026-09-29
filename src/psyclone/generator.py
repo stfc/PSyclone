@@ -18,7 +18,7 @@ import argparse
 import importlib
 import logging
 import os
-import pathlib
+from pathlib import Path
 import shutil
 import sys
 import traceback
@@ -151,7 +151,7 @@ def load_script(
     # with the same name, which is required if PSyclone is called
     # repeatedly from the same Python process (and each call might
     # have different scripts with the same name, e.g. local.py in LFRic).
-    script_path = pathlib.Path(script_name)
+    script_path = Path(script_name)
     spec = importlib.util.spec_from_file_location(module_name, script_path)
     recipe_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(recipe_module)
@@ -190,6 +190,7 @@ def load_script(
 
 def generate(filename: str,
              api: str = "",
+             opsy: Optional[Path] = None,
              kernel_paths: Optional[list[str]] = None,
              script_name: Optional[str] = None,
              kwargs_str: Optional[str] = None,
@@ -279,6 +280,7 @@ def generate(filename: str,
     if api in LFRIC_API_NAMES and not LFRIC_TESTING:
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
+        psy.container.parent.file_path = opsy
         if script_name is not None:
             # Apply provided recipe to PSyIR. Note that trans_func is always
             # defined, otherwise an exception is raised.
@@ -775,9 +777,16 @@ def main(arguments: list[str]) -> None:
             # We write any transformed kernels to the current working directory
             kern_out_path = os.getcwd()
 
+        opsy: Optional[Path]
+        if args.opsy is not None:
+            opsy = Path(args.opsy)
+        else:
+            opsy = None
         try:
             alg, psy = generate(
-                args.filename, api=api,
+                args.filename,
+                opsy=opsy,
+                api=api,
                 kernel_paths=args.directory,
                 script_name=args.script,
                 kwargs_str=args.script_kwargs,
