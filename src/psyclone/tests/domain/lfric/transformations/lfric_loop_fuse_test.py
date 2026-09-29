@@ -325,7 +325,7 @@ field)
 
 def test_loop_fuse_dependency(fortran_writer):
     '''
-    Test that we get a transformation error when trying to fuse dependant
+    Test that we get a transformation error when trying to fuse dependent
     kernels.
     '''
     psy, invoke = get_invoke("4_multikernel_invokes.f90",
