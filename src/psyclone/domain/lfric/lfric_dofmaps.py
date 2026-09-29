@@ -255,15 +255,17 @@ class LFRicDofmaps(LFRicCollection):
         # Function space dofmaps
         for dmap in sorted(self._unique_fs_maps):
             # We declare ndf first as some compilers require this
-            ndf_name = \
-                self._unique_fs_maps[dmap].function_space.ndf_name
-            dim = self.symtab.find_or_create(
-                ndf_name, symbol_type=DataSymbol,
+            fspace = self._unique_fs_maps[dmap].function_space
+            ndf_name = fspace.ndf_name
+            dim = self.symtab.find_or_create_tag(
+                ndf_name, root_name=f"ndf_{fspace.short_name}",
+                symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
             dim.interface = ArgumentInterface(ArgumentInterface.Access.READ)
             self.symtab.append_argument(dim)
-            dmap_symbol = self.symtab.find_or_create(
-                dmap, symbol_type=DataSymbol,
+            dmap_symbol = self.symtab.find_or_create_tag(
+                dmap, root_name=f"map_{fspace.short_name}",
+                symbol_type=DataSymbol,
                 datatype=ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
                                    [Reference(dim)]))
             dmap_symbol.interface = ArgumentInterface(

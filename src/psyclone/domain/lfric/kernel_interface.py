@@ -554,7 +554,7 @@ class KernelInterface(ArgOrdering):
             py:class:`psyclone.core.VariablesAccessMap`
 
         '''
-        basis_name_func = function_space.get_basis_name
+        basis_name_func, basis_tag = function_space.get_basis_name
         # This import must be placed here to avoid circular dependencies
         # pylint: disable=import-outside-toplevel
         from psyclone.lfric import LFRicBasisFunctions

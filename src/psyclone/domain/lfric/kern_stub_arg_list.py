@@ -350,8 +350,10 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
-        self.append(function_space.undf_name, var_accesses)
-        self.append(function_space.map_name, var_accesses)
+        undf_name = self._symtab.lookup_with_tag(function_space.undf_name).name
+        map_name = self._symtab.lookup_with_tag(function_space.map_name).name
+        self.append(undf_name, var_accesses)
+        self.append(map_name, var_accesses)
 
     def basis(self, function_space, var_accesses=None):
         '''Add basis function information for this function space to the
@@ -377,7 +379,7 @@ class KernStubArgList(ArgOrdering):
                 # A kernel stub won't have a name for the corresponding
                 # quadrature argument so we create one by appending the last
                 # part of the shape name to "qr_".
-                basis_name = function_space.get_basis_name(
+                basis_name, basis_tag = function_space.get_basis_name(
                     qr_var="qr_"+shape.split("_")[-1])
                 self.append(basis_name, var_accesses)
 
@@ -386,9 +388,10 @@ class KernStubArgList(ArgOrdering):
                 # functions have been evaluated. _kern.eval_targets is a dict
                 # where the values are 2-tuples of (FunctionSpace, argument).
                 for _, target in self._kern.eval_targets.items():
-                    basis_name = \
+                    basis_name, basis_tag = \
                         function_space.get_basis_name(on_space=target[0])
-                    self.append(basis_name, var_accesses)
+                    sym = self._symtab.lookup_with_tag(basis_tag)
+                    self.append(sym.name, var_accesses)
             else:
                 raise InternalError(
                     f"Unrecognised evaluator shape ('{shape}'). Expected one "
@@ -417,9 +420,10 @@ class KernStubArgList(ArgOrdering):
                 # kernel stub won't have a name for the corresponding
                 # quadrature argument so we create one by appending the
                 # last part of the shape name to "qr_".
-                diff_basis_name = function_space.get_diff_basis_name(
+                diff_basis_name, tag = function_space.get_diff_basis_name(
                     qr_var="qr_"+shape.split("_")[-1])
-                self.append(diff_basis_name, var_accesses)
+                name = self._symtab.lookup_with_tag(tag).name
+                self.append(name, var_accesses)
 
             elif shape in const.VALID_EVALUATOR_SHAPES:
                 # We need differential basis functions for an evaluator,
@@ -427,9 +431,10 @@ class KernStubArgList(ArgOrdering):
                 # a dict where the values are 2-tuples of
                 # (FunctionSpace, argument).
                 for _, target in self._kern.eval_targets.items():
-                    diff_basis_name = function_space.get_diff_basis_name(
+                    diff_basis_name, tag = function_space.get_diff_basis_name(
                         on_space=target[0])
-                    self.append(diff_basis_name, var_accesses)
+                    name = self._symtab.lookup_with_tag(tag).name
+                    self.append(name, var_accesses)
             else:
                 raise InternalError(f"Unrecognised evaluator shape "
                                     f"('{shape}'). Expected one of: "

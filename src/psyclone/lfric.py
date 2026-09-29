@@ -84,6 +84,7 @@ def qr_basis_alloc_args(table: SymbolTable,
     mangled_name = basis_fn['fspace'].mangled_name
     qr_var = "_" + basis_fn["qr_var"]
     ndf_sym = table.lookup_with_tag(f"ndf:{mangled_name}")
+    first = first_dim #if first_dim.isnumeric() else table.lookup(first_dim)
 
     # Dimensionality of the basis arrays depends on the
     # type of quadrature...
@@ -91,9 +92,9 @@ def qr_basis_alloc_args(table: SymbolTable,
     #     alloc_args = [first_dim, basis_fn["fspace"].ndf_name,
     #          "np_xyz"+"_"+basis_fn["qr_var"]]
     if basis_fn["shape"] == "gh_quadrature_xyoz":
-        alloc_args = [first_dim, ndf_sym,
-                      table.lookup("np_xy"+qr_var),
-                      table.lookup("np_z"+qr_var)]
+        alloc_args = [first, ndf_sym.name,
+                      "np_xy"+qr_var,
+                      "np_z"+qr_var]
                       #"np_xy"+qr_var, "np_z"+qr_var]
     # elif basis_fn["shape"] == "gh_quadrature_xoyoz":
     #     alloc_args = [first_dim, basis_fn["fspace"].ndf_name,
@@ -102,12 +103,12 @@ def qr_basis_alloc_args(table: SymbolTable,
     #                   "np_z"+"_"+basis_fn["qr_var"]]
     elif basis_fn["shape"] == "gh_quadrature_face":
         alloc_args = [first_dim, ndf_sym, 
-                      table.lookup("np_xyz"+qr_var),
-                      table.lookup("nfaces"+qr_var)]
-                      #"np_xyz"+qr_var, "nfaces"+qr_var]
+                      "np_xyz"+qr_var, "nfaces"+qr_var]
     elif basis_fn["shape"] == "gh_quadrature_edge":
-        alloc_args = [first_dim, basis_fn["fspace"].ndf_name,
-                      "np_xyz"+qr_var, "nedges"+qr_var]
+        alloc_args = [first,
+                      ndf_sym.name,
+                      "np_xyz"+qr_var,
+                      "nedges"+qr_var]
     else:
         raise NotImplementedError(
             f"Unrecognised shape '{basis_fn['''shape''']}' specified in "
@@ -1589,9 +1590,9 @@ class LFRicLMAOperators(LFRicCollection):
             size_sym.interface = ArgumentInterface(
                                         ArgumentInterface.Access.READ)
             self.symtab.append_argument(size_sym)
-            ndf_name_to = self.symtab.lookup(
+            ndf_name_to = self.symtab.lookup_with_tag(
                                     arg.function_space_to.ndf_name)
-            ndf_name_from = self.symtab.lookup(
+            ndf_name_from = self.symtab.lookup_with_tag(
                                     arg.function_space_from.ndf_name)
 
             # Create the PSyIR intrinsic DataType
@@ -2908,16 +2909,15 @@ class LFRicBasisFunctions(LFRicCollection):
                 f"'{function_space.orig_name}'")
         return first_dim
 
-    def _setup_basis_fns_for_call(self, call):
+    def _setup_basis_fns_for_call(self, call: LFRicKern):
         '''
         Populates self._basis_fns with entries describing the basis
         functions required by the supplied Call.
 
         :param call: the kernel call for which basis functions are required.
-        :type call: :py:class:`psyclone.domain.lfric.LFRicKern`
 
         :raises InternalError: if the supplied call is of incorrect type.
-        :raises InternalError: if the supplied call has an unrecognised \
+        :raises InternalError: if the supplied call has an unrecognised
                                evaluator shape.
         '''
         if not isinstance(call, LFRicKern):
@@ -3007,16 +3007,17 @@ class LFRicBasisFunctions(LFRicCollection):
 
         for basis in basis_arrays:
             dims = []
-            for value in basis_arrays[basis]:
+            # ARPDBG -first entry in list is currently the name of the basis array
+            for value in basis_arrays[basis][1:]:
                 try:
                     dims.append(Literal(value, ScalarType.integer_type()))
-                except ValueError:
-                    dims.append(Reference(self.symtab.find_or_create(value)))
+                except (ValueError, TypeError):
+                    dims.append(Reference(self.symtab.lookup(value)))
             kind_sym = LFRicTypes.add_precision_symbol(self.symtab, "r_def")
             arr_type = ArrayType(ScalarType(ScalarType.Intrinsic.REAL,
                                             Reference(kind_sym)), dims)
             arg = self.symtab.find_or_create_tag(
-                basis, symbol_type=DataSymbol,
+                basis, root_name=basis_arrays[basis][0], symbol_type=DataSymbol,
                 datatype=arr_type)
             arg.interface = ArgumentInterface(ArgumentInterface.Access.READ)
             self.symtab.append_argument(arg)
@@ -3039,32 +3040,32 @@ class LFRicBasisFunctions(LFRicCollection):
                                    Reference(kind_sym))
 
             if shape == "gh_quadrature_xyoz":
-                dim = self.symtab.find_or_create(
+                dim = self.symtab.find_or_create_tag(
                     "np_xy"+qr_name, symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-                sym = self.symtab.find_or_create(
+                sym = self.symtab.find_or_create_tag(
                     "weights_xy"+qr_name, symbol_type=DataSymbol,
                     datatype=ArrayType(intr_type, [Reference(dim)]))
                 sym.interface = ArgumentInterface(
                                         ArgumentInterface.Access.READ)
                 self.symtab.append_argument(sym)
-                dim = self.symtab.find_or_create(
+                dim = self.symtab.find_or_create_tag(
                     "np_z"+qr_name, symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-                sym = self.symtab.find_or_create(
+                sym = self.symtab.find_or_create_tag(
                     "weights_z"+qr_name, symbol_type=DataSymbol,
                     datatype=ArrayType(intr_type, [Reference(dim)]))
                 sym.interface = ArgumentInterface(
                                         ArgumentInterface.Access.READ)
                 self.symtab.append_argument(sym)
             elif shape == "gh_quadrature_face":
-                dim1 = self.symtab.find_or_create(
+                dim1 = self.symtab.find_or_create_tag(
                     "np_xyz"+qr_name, symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-                dim2 = self.symtab.find_or_create(
+                dim2 = self.symtab.find_or_create_tag(
                     "nfaces"+qr_name, symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-                sym = self.symtab.find_or_create(
+                sym = self.symtab.find_or_create_tag(
                     "weights_xyz"+qr_name, symbol_type=DataSymbol,
                     datatype=ArrayType(intr_type, [Reference(dim1),
                                                    Reference(dim2)]))
@@ -3072,13 +3073,13 @@ class LFRicBasisFunctions(LFRicCollection):
                                         ArgumentInterface.Access.READ)
                 self.symtab.append_argument(sym)
             elif shape == "gh_quadrature_edge":
-                dim1 = self.symtab.find_or_create(
+                dim1 = self.symtab.find_or_create_tag(
                     "np_xyz"+qr_name, symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-                dim2 = self.symtab.find_or_create(
+                dim2 = self.symtab.find_or_create_tag(
                     "nedges"+qr_name, symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-                sym = self.symtab.find_or_create(
+                sym = self.symtab.find_or_create_tag(
                     "weights_xyz"+qr_name, symbol_type=DataSymbol,
                     datatype=ArrayType(intr_type, [Reference(dim1),
                                                    Reference(dim2)]))
@@ -3326,29 +3327,32 @@ class LFRicBasisFunctions(LFRicCollection):
             # Currently there are only those two possible types of basis
             # function and we store the required diff basis name in basis_name.
             if basis_fn['type'] == "basis":
-                #if self._invoke:
-                sym = self.symtab.lookup_with_tag(
-                        f"dim:{basis_fn['fspace'].mangled_name}")
-                first_dim = sym
-                #elif self._kernel:
-                #    first_dim = self.basis_first_dim_value(basis_fn["fspace"])
-                #else:
-                #    raise InternalError("Require basis functions but do not "
-                #                        "have either a Kernel or an "
-                #                        "Invoke. Should be impossible.")
+                if self._invoke:
+                    sym = self.symtab.find_or_create_tag(
+                        f"dim:{basis_fn['fspace'].mangled_name}",
+                        root_name=f"dim_{basis_fn['fspace'].short_name}",
+                        symbol_type=DataSymbol,
+                        datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                    first_dim = sym.name
+                elif self._kernel:
+                    first_dim = self.basis_first_dim_value(basis_fn["fspace"])
+                else:
+                    raise InternalError("Require basis functions but do not "
+                                        "have either a Kernel or an "
+                                        "Invoke. Should be impossible.")
                 basis_name = "gh_basis"
             elif basis_fn['type'] == "diff-basis":
-                #if self._invoke:
-                sym = self.symtab.lookup_with_tag(
-                    f"diff_dim:{basis_fn['fspace'].mangled_name}")
-                first_dim = sym
-                #elif self._kernel:
-                #    first_dim = self.diff_basis_first_dim_value(
-                #        basis_fn["fspace"])
-                #else:
-                #    raise InternalError("Require differential basis functions "
-                #                        "but do not have either a Kernel or "
-                #                        "an Invoke. Should be impossible.")
+                if self._invoke:
+                    sym = self.symtab.lookup_with_tag(
+                        f"diff_dim:{basis_fn['fspace'].mangled_name}")
+                    first_dim = sym.name
+                elif self._kernel:
+                    first_dim = self.diff_basis_first_dim_value(
+                        basis_fn["fspace"])
+                else:
+                    raise InternalError("Require differential basis functions "
+                                        "but do not have either a Kernel or "
+                                        "an Invoke. Should be impossible.")
                 basis_name = "gh_diff_basis"
             else:
                 raise InternalError(
@@ -3356,8 +3360,8 @@ class LFRicBasisFunctions(LFRicCollection):
                     f"'{basis_fn['''type''']}'. Should be either 'basis' or "
                     f"'diff-basis'.")
 
-            if self._invoke and sym.name not in var_dim_list:
-                var_dim_list.append(sym)
+            if self._invoke and first_dim not in var_dim_list:
+                var_dim_list.append(first_dim)
 
             if basis_fn["shape"] in const.VALID_QUADRATURE_SHAPES:
 
@@ -3375,14 +3379,15 @@ class LFRicBasisFunctions(LFRicCollection):
 
                 # Dimensionality of the basis arrays depends on the
                 # type of quadrature...
-                alloc_args = qr_basis_alloc_args(self.symtab, sym, basis_fn)
+                alloc_args = qr_basis_alloc_args(
+                    self.symtab, first_dim, basis_fn)
                 for arg in alloc_args:
                     # In a kernel stub the first dimension of the array is
                     # a numerical value so make sure we don't try and declare
                     # it as a variable.
-                    if not isinstance(arg, Literal) and (arg.name not in
+                    if not isinstance(arg, Literal) and (arg not in
                                                          var_dim_list):
-                        var_dim_list.append(arg.name)
+                        var_dim_list.append(arg)
                 basis_arrays[op_tag] = [op_name] + alloc_args
 
             elif basis_fn["shape"].lower() == "gh_evaluator":

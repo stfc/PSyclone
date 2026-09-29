@@ -126,7 +126,7 @@ class LFRicFields(LFRicCollection):
                 intr = ScalarType(ScalarType.Intrinsic.INTEGER,
                                   Reference(kind_sym))
 
-            undf_sym = self.symtab.find_or_create(undf_name)
+            undf_sym = self.symtab.find_or_create_tag(undf_name)
             datatype = ArrayType(intr, [Reference(undf_sym)])
 
             if fld.intent == "in":

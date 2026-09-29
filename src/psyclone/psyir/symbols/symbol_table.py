@@ -588,6 +588,8 @@ class SymbolTable():
             raise KeyError(f"Symbol table already contains a symbol with "
                            f"name '{new_symbol.name}'.")
 
+        if ":" in key or key.isnumeric():
+            import pdb; pdb.set_trace()
         if tag:
             if tag in self.get_tags():
                 raise KeyError(
