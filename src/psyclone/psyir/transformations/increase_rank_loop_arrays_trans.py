@@ -186,6 +186,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
             raise TransformationError(
                 f"{self.name} has a mandatory 'arrays' option that is required"
                 f" to specify which arrays are to have their rank increased.")
+
         for array in arrays:
             array: ArrayReference
             if isinstance(array, str):
@@ -264,8 +265,8 @@ class IncreaseRankLoopArraysTrans(Transformation):
                     # Reference to existing array. Make sure the 
 
                     if ref.is_descendant_of(node):
-                        # Inside the target loop index the reference using the
-                        # loop variable
+                        # Inside the target loop index the reference
+                        # using the loop variable
                         ref.addchild(Reference(node.variable))
                     else:
                         # Outside the target loop index the whole range
