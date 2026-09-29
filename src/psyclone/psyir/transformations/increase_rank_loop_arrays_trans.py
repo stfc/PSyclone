@@ -236,6 +236,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
                                     f" variable of the target loop,"
                                     f" but '{array.name}' is indexed"
                                     f" with '{node.variable.name}'.")
+
     def apply(
         self,
         node: Loop,
