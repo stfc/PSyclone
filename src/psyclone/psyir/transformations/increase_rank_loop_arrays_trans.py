@@ -16,6 +16,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import ArrayType, Symbol
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.psyir.symbols import ScalarType
 from psyclone.utils import transformation_documentation_wrapper
 
 
@@ -199,6 +200,10 @@ class IncreaseRankLoopArraysTrans(Transformation):
             if routine.return_symbol is array:
                 raise TransformationError(
                     f"{self.name} can't be applied to return variables.")
+
+            if array.datatype.intrinsic is ScalarType.Intrinsic.CHARACTER:
+                raise TransformationError(
+                    f"{self.name} can't be applied to character arrays.")
 
             if (not isinstance(array, Symbol) or not array.is_automatic
                     or not array.is_array):
