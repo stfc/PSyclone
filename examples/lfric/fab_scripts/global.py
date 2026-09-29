@@ -1,12 +1,12 @@
-##############################################################################
-# Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
-# For further details please refer to the file LICENCE.original which you
-# should have received as part of this distribution.
-##############################################################################
-
+# -----------------------------------------------------------------------------
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
+# -----------------------------------------------------------------------------
 
 '''
-PSyclone transformation script for the LFRic (Dynamo0p3) API to apply
+PSyclone transformation script for the LFRic API to apply
 colouring, OpenMP and redundant computation to the level-1 halo for
 the initialisation built-ins generically.
 

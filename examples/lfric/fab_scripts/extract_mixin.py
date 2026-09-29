@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-# ##############################################################################
-#  (c) Crown copyright Met Office. All rights reserved.
-#  For further details please refer to the file COPYRIGHT
-#  which you should have received as part of this distribution
-# ##############################################################################
+# -----------------------------------------------------------------------------
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
+# -----------------------------------------------------------------------------
 
 '''
 This module contains an ExtractMixin class to add support for all extration
@@ -103,6 +104,10 @@ class ExtractMixin:
         calling the remove_private_step method to remove private attributes
         from Fortran files. It then calls the base class psyclone_step method
         for PSyclone processing.
+
+        :param ignore_dependencies: Third party Fortran module names in USE
+            statements, 'DEPENDS ON' files and modules to be ignored.
+
         '''
         self.remove_private_step()
 
@@ -122,10 +127,7 @@ class ExtractMixin:
         use for extraction.
 
         :param fpath: the path to the file being processed.
-        :type fpath: Path
         :param config: the FAB BuildConfig instance.
-        :type config: :py:class:`fab.BuildConfig`
         :returns: the transformation script to be used by PSyclone.
-        :rtype: Path
         '''
         return config.source_root / 'optimisation' / 'extract' / 'global.py'

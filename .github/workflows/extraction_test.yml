@@ -143,7 +143,7 @@ jobs:
         mkdir -p lfric_core/infrastructure/build/psyclone/psydata/extract
         cp ${PSYCLONE_EXTRACT_DIR}/*90 lfric_core/infrastructure/build/psyclone/psydata/extract
 
-        # Is this still required?
+        # We don't need to output results for this test:
         sed -i "s|use_xios_io=.true.|use_xios_io=.false.|g" lfric_apps/applications/gungho_model/example/configuration.nml
 
     # Compile GungHo with extraction
