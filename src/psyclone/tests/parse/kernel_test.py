@@ -9,27 +9,28 @@
 file. Some tests for this file are in parse_test.py. This file adds
 tests for code that is not covered there.'''
 
-import os
+from pathlib import Path
 import pytest
+
 from fparser.api import parse
 from fparser import api as fpapi
 from fparser.one.block_statements import BeginSource
 from fparser.two import Fortran2003
+
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
 from psyclone.domain.lfric.lfric_builtins import (
     BUILTIN_DEFINITIONS_FILE as fname)
+from psyclone.errors import InternalError
 from psyclone.expression import ExpressionNode, FunctionVar, NamedArg
 from psyclone.parse.kernel import (
     KernelType, get_kernel_metadata, get_kernel_interface, KernelProcedure,
-    Descriptor, BuiltInKernelTypeFactory, get_kernel_filepath, get_kernel_ast,
-    get_char_value, get_stencil)
+    Descriptor, BuiltInKernelTypeFactory, get_kernel_filepath,
+    get_kernel_parse_tree, get_kernel_ast, get_char_value, get_stencil)
 from psyclone.parse.utils import ParseError
-from psyclone.errors import InternalError
+from psyclone.tests.utilities import get_base_path
 
-LFRIC_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               os.path.pardir, "test_files", "lfric")
-GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                os.path.pardir, "test_files", "gocean1p0")
+LFRIC_BASE_PATH = Path(get_base_path("lfric"))
+GOCEAN_BASE_PATH = Path(get_base_path("gocean"))
 
 # Code fragment for testing standard kernel setup with
 # a type-bound procedure.
@@ -133,22 +134,18 @@ def test_getkernelfilepath_nodir():
             "read") in str(excinfo.value)
 
 
-def test_getkernelfilepath_multifile(tmpdir):
+def test_getkernelfilepath_multifile(tmp_path):
     '''Test that an appropriate exception is raised if more than one file
     matches when searching for kernels.
 
     '''
-    filename = str(tmpdir.join("test_mod.f90"))
-    with open(filename, "w", encoding="utf-8") as ffile:
-        ffile.write("")
+    (tmp_path / "test_mod.f90").write_text("")
 
-    os.mkdir(str(tmpdir.join("tmp")))
-    filename = str(tmpdir.join("tmp", "test_mod.f90"))
-    with open(filename, "w", encoding="utf-8") as ffile:
-        ffile.write("")
+    (tmp_path / "tmp").mkdir()
+    (tmp_path / "tmp" / "test_mod.f90").write_text("")
 
     with pytest.raises(ParseError) as excinfo:
-        _ = get_kernel_filepath("test_mod", [str(tmpdir)], None)
+        _ = get_kernel_filepath("test_mod", [str(tmp_path)], None)
     assert ("More than one match for kernel file 'test_mod.[fF]90' "
             "found!") in str(excinfo.value)
 
@@ -159,7 +156,7 @@ def test_getkernelfilepath_nodir_supplied():
 
     '''
     kern_module_name = "testkern_mod"
-    alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    alg_file_name = LFRIC_BASE_PATH / "1_single_invoke.f90"
     result = get_kernel_filepath(kern_module_name, [], alg_file_name)
     assert "testkern_mod.F90" in result
 
@@ -170,7 +167,7 @@ def test_getkernelfilepath_nomatch():
 
     '''
     kern_module_name = "testkern_mod"
-    alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    alg_file_name = LFRIC_BASE_PATH / "1_single_invoke.f90"
     with pytest.raises(ParseError) as info:
         get_kernel_filepath(
             kern_module_name, [GOCEAN_BASE_PATH], alg_file_name)
@@ -184,7 +181,7 @@ def test_getkernelfilepath_multidir():
 
     '''
     kern_module_name = "testkern_mod"
-    alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    alg_file_name = LFRIC_BASE_PATH / "1_single_invoke.f90"
     result = get_kernel_filepath(
         kern_module_name, [GOCEAN_BASE_PATH, LFRIC_BASE_PATH], alg_file_name)
     assert "testkern_mod.F90" in result
@@ -197,40 +194,34 @@ def test_getkernelfilepath_identical_paths():
 
     '''
     kern_module_name = "testkern_mod"
-    alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    alg_file_name = LFRIC_BASE_PATH / "1_single_invoke.f90"
     result = get_kernel_filepath(
         kern_module_name, [LFRIC_BASE_PATH, LFRIC_BASE_PATH], alg_file_name)
     assert "testkern_mod.F90" in result
 
 
-def test_getkernelfilepath_caseinsensitive1(tmpdir):
+def test_getkernelfilepath_caseinsensitive1(tmp_path):
     '''Test that a case insensitive match is performed when searching for
     kernels with a supplied kernel search path.
 
     '''
-    os.mkdir(str(tmpdir.join("tmp")))
-    filename = str(tmpdir.join("tmp", "test_mod.f90"))
-    with open(filename, "w", encoding="utf-8") as ffile:
-        ffile.write("")
+    (tmp_path / "tmp").mkdir()
+    (tmp_path / "tmp" / "test_mod.f90").write_text("")
 
-    result = get_kernel_filepath("TEST_MOD", [str(tmpdir)], None)
+    result = get_kernel_filepath("TEST_MOD", [str(tmp_path)], None)
     assert "tmp" in result
     assert "test_mod.f90" in result
 
 
-def test_getkernelfilepath_caseinsensitive2(tmpdir):
+def test_getkernelfilepath_caseinsensitive2(tmp_path):
     '''Test that a case insensitive match is performed when searching for
     kernels without a supplied kernel search path.
 
     '''
-    os.mkdir(str(tmpdir.join("tmp")))
-    filename = str(tmpdir.join("tmp", "test_mod.f90"))
-    with open(filename, "w", encoding="utf-8") as ffile:
-        ffile.write("")
-
-    filename = str(tmpdir.join("tmp", "alg.f90"))
-    with open(filename, "w", encoding="utf-8") as ffile:
-        ffile.write("")
+    (tmp_path / "tmp").mkdir()
+    (tmp_path / "tmp" / "test_mod.f90").write_text("")
+    filename = tmp_path / "tmp" / "alg.f90"
+    filename.write_text("")
 
     result = get_kernel_filepath("TEST_MOD", [], filename)
     assert "tmp" in result
@@ -239,13 +230,29 @@ def test_getkernelfilepath_caseinsensitive2(tmpdir):
 # function get_kernel_ast
 
 
+def test_getkernel_parse_tree_error_message():
+    '''Check that a parser failure is wrapped in a helpful ParseError.
+
+    '''
+    filename = LFRIC_BASE_PATH / "testkern_invalid_fortran_mod.f90"
+
+    with pytest.raises(ParseError) as info:
+        get_kernel_parse_tree(str(filename))
+
+    msg = str(info.value)
+    assert "Failed to parse kernel code" in msg
+    assert ("26:   contain <== no parse pattern found for \"contain\" in "
+            "'Type' block.'" in msg)
+    assert f"'{filename}'" in msg
+
+
 def test_getkernelast_nodir():
     '''Test that the directory of the algorithm file is searched if no
     directory is supplied.
 
     '''
     kern_module_name = "testkern_mod"
-    alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    alg_file_name = LFRIC_BASE_PATH / "1_single_invoke.f90"
     result = get_kernel_ast(kern_module_name, alg_file_name, [], False)
     assert isinstance(result, BeginSource)
 
@@ -256,7 +263,7 @@ def test_getkernelast_nomatch():
 
     '''
     kern_module_name = "testkern_mod"
-    alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    alg_file_name = LFRIC_BASE_PATH / "1_single_invoke.f90"
     with pytest.raises(ParseError) as info:
         get_kernel_ast(
             kern_module_name, alg_file_name, [GOCEAN_BASE_PATH], False)
@@ -270,7 +277,7 @@ def test_getkernelast_multidir():
 
     '''
     kern_module_name = "testkern_mod"
-    alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    alg_file_name = LFRIC_BASE_PATH / "1_single_invoke.f90"
     result = get_kernel_ast(
         kern_module_name, alg_file_name, [GOCEAN_BASE_PATH, LFRIC_BASE_PATH],
         False)
