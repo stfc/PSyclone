@@ -14,9 +14,10 @@ from typing import Optional, Union
 
 from psyclone import psyGen
 from psyclone.core import AccessType, Signature, VariablesAccessMap
-# The next two imports cannot be merged, since this would create
+# The next three imports cannot be merged, since this would create
 # a circular dependency.
 from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric.function_space import FunctionSpace
 from psyclone.domain.lfric.metadata_to_arguments_rules import (
     MetadataToArgumentsRules)
 from psyclone.errors import GenerationError, InternalError
@@ -766,23 +767,22 @@ class ArgOrdering:
                         mode=scalar_arg.access,
                         metadata_posn=scalar_arg.metadata_index)
 
-    def fs_common(self, function_space, var_accesses=None):
+    def fs_common(self,
+                  function_space: FunctionSpace,
+                  var_accesses: Optional[VariablesAccessMap]=None):
         '''Add function-space related arguments common to LMA operators and
         fields. If supplied it also stores this access in var_accesses.
 
-        :param function_space: the function space for which the related \
+        :param function_space: the function space for which the related
             arguments common to LMA operators and fields are added.
-        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
         # There is currently one argument: "ndf"
         sym = self.append_integer_reference(
-            function_space.ndf_name,
-            tag=f"ndf:{function_space.mangled_name}")
+            f"ndf_{function_space.short_mangled_name}",
+            tag=function_space.ndf_name)
         self.append(sym.name, var_accesses)
 
     def fs_compulsory_field(self, function_space, var_accesses=None):
@@ -915,7 +915,8 @@ class ArgOrdering:
         # to the argument list as they are mandatory for every function
         # space that appears in the meta-data.
         sym = self.append_array_reference(
-            function_space.cbanded_map_name, indices=[":", ":"])
+            function_space.cbanded_map_name,
+            tag=function_space.cbanded_map_tag, indices=[":", ":"])
         self.append(sym.name, var_accesses)
 
     def indirection_dofmap(self, function_space, operator=None,
@@ -935,8 +936,9 @@ class ArgOrdering:
 
         '''
         # pylint: disable=unused-argument
-        map_name = function_space.cma_indirection_map_name
-        self.append_array_reference(map_name, [":"], tag=map_name)
+        tag = function_space.cma_indirection_map_name
+        map_name = self._symtab.lookup_with_tag(tag).name
+        self.append_array_reference(map_name, [":"], tag=tag)
         self.append(map_name, var_accesses)
 
     def ref_element_properties(self, var_accesses=None):

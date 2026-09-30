@@ -102,7 +102,7 @@ def qr_basis_alloc_args(table: SymbolTable,
     #                   "np_y"+"_"+basis_fn["qr_var"],
     #                   "np_z"+"_"+basis_fn["qr_var"]]
     elif basis_fn["shape"] == "gh_quadrature_face":
-        alloc_args = [first_dim, ndf_sym, 
+        alloc_args = [first_dim, ndf_sym.name, 
                       "np_xyz"+qr_var, "nfaces"+qr_var]
     elif basis_fn["shape"] == "gh_quadrature_edge":
         alloc_args = [first,
@@ -3281,7 +3281,8 @@ class LFRicBasisFunctions(LFRicCollection):
                 IntrinsicCall.Intrinsic.ALLOCATE,
                 [ArrayReference.create(
                     symbol,
-                    [Reference(bn) for bn in basis_arrays[basis][1:]]
+                    [Reference(self.symtab.lookup(bn)) for
+                     bn in basis_arrays[basis][1:]]
                 )])
             self._invoke.schedule.addchild(alloc, cursor)
             cursor += 1

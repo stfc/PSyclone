@@ -546,7 +546,7 @@ class LFRicLoop(PSyLoop):
                     return self.field.generate_method_call(
                         "get_last_dof_owned")
                 return self.field.generate_method_call("get_last_dof_annexed")
-            return Reference(sym_tab.lookup(self._kern.undf_name))
+            return Reference(sym_tab.lookup_with_tag(self._kern.undf_name))
 
         if self._upper_bound_name == "ncells":
             if Config.get().distributed_memory:

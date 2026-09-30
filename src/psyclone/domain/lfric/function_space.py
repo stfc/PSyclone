@@ -192,11 +192,27 @@ class FunctionSpace():
         return f"map:{self.mangled_name}"
 
     @property
-    def cbanded_map_name(self) -> str:
+    def cbanded_map_tag(self) -> str:
         '''
-        :returns: the name of a column-banded dofmap for this FunctionSpace.
+        :returns: the tag for a column-banded dofmap for this FunctionSpace.
         '''
         return "cbanded_map:" + self.mangled_name
+
+    @property
+    def cbanded_map_name(self) -> str:
+        '''
+        :returns: the base name of a column-banded dofmap for this
+                  FunctionSpace.
+        '''
+        return "cbanded_map_" + self.short_mangled_name
+
+    @property
+    def cma_indirection_map_tag(self) -> str:
+        '''
+        :returns: the name of a CMA indirection dofmap for the supplied
+            FunctionSpace.
+        '''
+        return "cma_indirection_map:" + self.mangled_name
 
     @property
     def cma_indirection_map_name(self) -> str:
@@ -204,7 +220,7 @@ class FunctionSpace():
         :returns: the name of a CMA indirection dofmap for the supplied
             FunctionSpace.
         '''
-        return "cma_indirection_map:" + self.mangled_name
+        return "cma_indirection_map_" + self.short_mangled_name
 
     @property
     def ndf_name(self) -> str:

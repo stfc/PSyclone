@@ -222,7 +222,8 @@ class KernCallAccArgList(KernCallArgList):
         arg = self._kern.arguments.get_arg_on_space(function_space)
         if arg.mesh == "gh_fine":
             # For the fine mesh, we need the *whole* dofmap
-            map_name = function_space.map_name
+            map_name = self._symtab.lookup_with_tag(
+                function_space.map_name).name
             self.append(map_name, var_accesses)
         else:
             # For the coarse mesh we only need undf and the dofmap for

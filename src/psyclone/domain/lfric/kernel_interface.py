@@ -548,13 +548,12 @@ class KernelInterface(ArgOrdering):
 
         :param function_space: the function space for this basis function.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: an unused optional argument that stores \
+        :param var_accesses: an unused optional argument that stores
             information about variable accesses.
-        :type var_accesses: :\
-            py:class:`psyclone.core.VariablesAccessMap`
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
-        basis_name_func, basis_tag = function_space.get_basis_name
+        basis_name_func = function_space.get_basis_name
         # This import must be placed here to avoid circular dependencies
         # pylint: disable=import-outside-toplevel
         from psyclone.lfric import LFRicBasisFunctions
@@ -786,7 +785,7 @@ class KernelInterface(ArgOrdering):
             # Create the qr tag by appending the last part of the shape
             # name to "qr_".
             quad_name = shape.split("_")[-1]
-            basis_tag = basis_name_func(qr_var="qr_"+quad_name)
+            basis_name, basis_tag = basis_name_func(qr_var="qr_"+quad_name)
             if shape == "gh_quadrature_xyoz":
                 nqp_xy = self._symtab.find_or_create_tag(
                     "nqp_xy",
@@ -798,9 +797,9 @@ class KernelInterface(ArgOrdering):
                     interface=self._read_access)
                 type_name = mapping["gh_quadrature_xyoz"]
                 arg = LFRicTypes(type_name)(
-                    basis_tag, [int(first_dim_value_func(function_space)),
-                                Reference(ndf_symbol), Reference(nqp_xy),
-                                Reference(nqp_z)],
+                    basis_name, [int(first_dim_value_func(function_space)),
+                                 Reference(ndf_symbol), Reference(nqp_xy),
+                                 Reference(nqp_z)],
                     fs_name, interface=self._read_access)
             elif shape == "gh_quadrature_face":
                 nfaces = self._symtab.find_or_create_tag(
@@ -814,9 +813,9 @@ class KernelInterface(ArgOrdering):
                     interface=self._read_access)
                 type_name = mapping["gh_quadrature_face"]
                 arg = LFRicTypes(type_name)(
-                    basis_tag, [int(first_dim_value_func(function_space)),
-                                Reference(ndf_symbol), Reference(nqp),
-                                Reference(nfaces)],
+                    basis_name, [int(first_dim_value_func(function_space)),
+                                 Reference(ndf_symbol), Reference(nqp),
+                                 Reference(nfaces)],
                     fs_name, interface=self._read_access)
             elif shape == "gh_quadrature_edge":
                 nedges = self._symtab.find_or_create_tag(
@@ -830,9 +829,9 @@ class KernelInterface(ArgOrdering):
                     interface=self._read_access)
                 type_name = mapping["gh_quadrature_edge"]
                 arg = LFRicTypes(type_name)(
-                    basis_tag, [int(first_dim_value_func(function_space)),
-                                Reference(ndf_symbol), Reference(nqp),
-                                Reference(nedges)],
+                    basis_name, [int(first_dim_value_func(function_space)),
+                                 Reference(ndf_symbol), Reference(nqp),
+                                 Reference(nedges)],
                     fs_name, interface=self._read_access)
             elif shape in const.VALID_EVALUATOR_SHAPES:
                 # Need a (diff) basis array for each target space upon

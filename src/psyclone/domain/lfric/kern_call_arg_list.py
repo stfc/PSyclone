@@ -252,7 +252,7 @@ class KernCallArgList(ArgOrdering):
         for arg in self._kern.arguments.args:
             if arg.ndata and not arg.ndata.isnumeric():
                 sym = self._symtab.lookup_with_tag(
-                    f"ndata_{arg.ndata}")
+                    f"ndata:{arg.ndata}")
                 if sym.name in ndata_names:
                     # Make sure we don't duplicate arguments.
                     continue
@@ -739,7 +739,9 @@ class KernCallArgList(ArgOrdering):
             # For the fine mesh, we need ndf, undf and the *whole*
             # dofmap
             self.fs_common(function_space, var_accesses=var_accesses)
-            sym = self.append_integer_reference(function_space.undf_name)
+            sym = self.append_integer_reference(
+                f"undf_{function_space.short_mangled_name}",
+                tag=function_space.undf_name)
             self.append(sym.name, var_accesses)
             map_name = function_space.map_name
             sym = self.append_array_reference(map_name, [":", ":"])

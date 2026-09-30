@@ -86,8 +86,7 @@ class LFRicCellIterators(LFRicCollection):
                 kern.arguments.first_field_or_operator)
             base_name = f"nlayers_{first_arg.name}"
             sym = self.symtab.find_or_create_tag(
-                f"nlayers:{base_name}",
-                root_name=base_name,
+                base_name,
                 symbol_type=LFRicTypes("MeshHeightDataSymbol"))
             _update_arg_properties(sym)
             self._nlayers_names[sym.name] = first_arg
@@ -98,8 +97,7 @@ class LFRicCellIterators(LFRicCollection):
             if arg.nlayers and not arg.nlayers.isnumeric():
                 base_name = f"nlayers_{arg.nlayers}"
                 sym = self.symtab.find_or_create_tag(
-                    f"nlayers:{base_name}",
-                    root_name=base_name,
+                    base_name,
                     symbol_type=LFRicTypes("MeshHeightDataSymbol"))
                 if sym.name not in self._nlayers_names:
                     self._nlayers_names[sym.name] = arg
@@ -108,7 +106,7 @@ class LFRicCellIterators(LFRicCollection):
             if arg.ndata and not arg.ndata.isnumeric():
                 base_name = f"ndata_{arg.ndata}"
                 sym = self.symtab.find_or_create_tag(
-                    f"ndata:{base_name}",
+                    f"ndata:{arg.ndata}",
                     root_name=base_name,
                     symbol_type=LFRicTypes("NumberOfValuesPerDofDataSymbol"))
                 if sym.name not in self._ndata_names:

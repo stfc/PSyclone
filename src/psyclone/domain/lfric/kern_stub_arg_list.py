@@ -350,10 +350,11 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
-        undf_name = self._symtab.lookup_with_tag(function_space.undf_name).name
-        map_name = self._symtab.lookup_with_tag(function_space.map_name).name
-        self.append(undf_name, var_accesses)
-        self.append(map_name, var_accesses)
+        # ARPDBG - symtab not populated yet.
+        #undf_name = self._symtab.lookup_with_tag(function_space.undf_name).name
+        #map_name = self._symtab.lookup_with_tag(function_space.map_name).name
+        self.append(f"undf_{function_space.short_mangled_name}", var_accesses)
+        self.append(f"map_{function_space.short_mangled_name}", var_accesses)
 
     def basis(self, function_space, var_accesses=None):
         '''Add basis function information for this function space to the
