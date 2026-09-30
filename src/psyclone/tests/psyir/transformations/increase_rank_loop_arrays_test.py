@@ -319,3 +319,34 @@ end module
     assert ("IncreaseRankLoopArraysTrans does not support arrays that are"
             " indexed with the loop variable of the target loop, but"
             in str(err.value))
+
+
+def test_irla_reject_array_without_index(
+        fortran_reader, fortran_writer, tmpdir):
+    '''Check that transformation is rejected if the
+    loop variable is already used as an index in the array.'''
+    psyir = fortran_reader.psyir_from_source("""
+module dummy_module
+    implicit none
+contains
+    subroutine make_array()
+        real, dimension(10,10) :: a
+        integer :: i, j
+
+        do j = 1, 10
+            do i = 1, 10
+                a(j,i) = 1
+            end do
+        end do
+    end subroutine
+
+end module
+""")
+
+    with pytest.raises(TransformationError) as err:
+        trans = IncreaseRankLoopArraysTrans()
+        trans.apply(psyir.walk(Loop)[0], arrays=['a'])
+
+    assert ("IncreaseRankLoopArraysTrans does not support arrays that are"
+            " indexed with the loop variable of the target loop, but"
+            in str(err.value))

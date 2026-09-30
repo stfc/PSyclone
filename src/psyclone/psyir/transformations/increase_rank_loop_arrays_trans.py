@@ -227,6 +227,12 @@ class IncreaseRankLoopArraysTrans(Transformation):
             for ref in symtable_node.walk(ArrayReference):
                 if ref.symbol is array:
                     ref: ArrayReference
+
+                    if not ref.indices:
+                        raise TransformationError(
+                            f"{self.name} Can't be applied to arrays"
+                            " without indices.")
+
                     for idx in ref.indices:
                         for n in idx.walk(Reference):
                             if n.symbol is node.variable_reference.symbol:
