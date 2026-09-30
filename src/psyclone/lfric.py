@@ -3406,9 +3406,9 @@ class LFRicBasisFunctions(LFRicCollection):
                         op_name,
                         first_dim,
                         self.symtab.lookup_with_tag(
-                            basis_fn['fspace'].ndf_name),
+                            basis_fn['fspace'].ndf_name).name,
                         self.symtab.lookup_with_tag(
-                            target_space.ndf_name)]
+                            target_space.ndf_name).name]
             else:
                 raise InternalError(
                     f"Unrecognised evaluator shape: '{basis_fn['''shape''']}'."

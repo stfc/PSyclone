@@ -18,6 +18,7 @@ from psyclone.lfric import LFRicBasisFunctions
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.errors import GenerationError, InternalError
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -174,9 +175,9 @@ def test_single_kern_eval(tmpdir):
     assert "    integer(kind=i_def) :: df_nodal" in code
     assert "    integer(kind=i_def) :: df_w0" in code
     assert "    integer(kind=i_def) :: df_w1" in code
-    assert ("    real(kind=r_def), allocatable :: basis_1(:,:,:)"
+    assert ("    real(kind=r_def), allocatable :: basis_w0_on_w0(:,:,:)"
             in code)
-    assert ("    real(kind=r_def), allocatable :: diff_basis_1(:,:,:)"
+    assert ("    real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:)"
             in code)
     assert "    integer(kind=i_def) :: dim_w0" in code
     assert "    integer(kind=i_def) :: diff_dim_w1" in code
@@ -228,19 +229,19 @@ def test_single_kern_eval(tmpdir):
         "    ! Allocate basis/diff-basis arrays\n"
         "    dim_w0 = f0_proxy%vspace%get_dim_space()\n"
         "    diff_dim_w1 = cmap_proxy%vspace%get_dim_space_diff()\n"
-        "    ALLOCATE(basis_1(dim_w0,ndf_w0,ndf_w0))\n"
-        "    ALLOCATE(diff_basis_1(diff_dim_w1,ndf_w1,ndf_w0))\n"
+        "    ALLOCATE(basis_w0_on_w0(dim_w0,ndf_w0,ndf_w0))\n"
+        "    ALLOCATE(diff_basis_w1_on_w0(diff_dim_w1,ndf_w1,ndf_w0))\n"
         "\n"
         "    ! Compute basis/diff-basis arrays\n"
         "    do df_nodal = 1, ndf_w0, 1\n"
         "      do df_w0 = 1, ndf_w0, 1\n"
-        "        basis_1(:,df_w0,df_nodal) = "
+        "        basis_w0_on_w0(:,df_w0,df_nodal) = "
         "f0_proxy%vspace%call_function(BASIS, df_w0, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "    do df_nodal = 1, ndf_w0, 1\n"
         "      do df_w1 = 1, ndf_w1, 1\n"
-        "        diff_basis_1(:,df_w1,df_nodal) = cmap_proxy%vspace%"
+        "        diff_basis_w1_on_w0(:,df_w1,df_nodal) = cmap_proxy%vspace%"
         "call_function(DIFF_BASIS, df_w1, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
@@ -252,13 +253,13 @@ def test_single_kern_eval(tmpdir):
         "    ! Call kernels\n"
         "    do cell = loop0_start, loop0_stop, 1\n"
         "      call testkern_eval_code(nlayers_f0, f0_data, "
-        "cmap_data, ndf_w0, undf_w0, map_w0(:,cell), basis_1, "
-        "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_1)\n"
+        "cmap_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
+        "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
         "    enddo\n"
     )
     assert expected_code in code
     dealloc_code = (
-        "    DEALLOCATE(basis_1, diff_basis_1)\n"
+        "    DEALLOCATE(basis_w0_on_w0, diff_basis_w1_on_w0)\n"
         "\n"
         "  end subroutine invoke_0_testkern_eval_type\n"
     )
@@ -287,8 +288,8 @@ def test_single_kern_eval_op(tmpdir):
     assert "integer(kind=i_def) :: df_nodal" in code
     assert "integer(kind=i_def) :: df_w2" in code
     assert "integer(kind=i_def) :: df_w3" in code
-    assert "real(kind=r_def), allocatable :: basis_1(:,:,:)" in code
-    assert ("real(kind=r_def), allocatable :: diff_basis_1(:,:,:)"
+    assert "real(kind=r_def), allocatable :: basis_w2_on_w0(:,:,:)" in code
+    assert ("real(kind=r_def), allocatable :: diff_basis_w3_on_w0(:,:,:)"
             in code)
     assert "integer(kind=i_def) :: dim_w2" in code
     assert "integer(kind=i_def) :: diff_dim_w3" in code
@@ -311,19 +312,19 @@ def test_single_kern_eval_op(tmpdir):
         "    ! Allocate basis/diff-basis arrays\n"
         "    dim_w2 = op1_proxy%fs_from%get_dim_space()\n"
         "    diff_dim_w3 = f1_proxy%vspace%get_dim_space_diff()\n"
-        "    ALLOCATE(basis_1(dim_w2,ndf_w2,ndf_w0))\n"
-        "    ALLOCATE(diff_basis_1(diff_dim_w3,ndf_w3,ndf_w0))\n"
+        "    ALLOCATE(basis_w2_on_w0(dim_w2,ndf_w2,ndf_w0))\n"
+        "    ALLOCATE(diff_basis_w3_on_w0(diff_dim_w3,ndf_w3,ndf_w0))\n"
         "\n"
         "    ! Compute basis/diff-basis arrays\n"
         "    do df_nodal = 1, ndf_w0, 1\n"
         "      do df_w2 = 1, ndf_w2, 1\n"
-        "        basis_1(:,df_w2,df_nodal) = op1_proxy%fs_from%"
+        "        basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_from%"
         "call_function(BASIS, df_w2, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "    do df_nodal = 1, ndf_w0, 1\n"
         "      do df_w3 = 1, ndf_w3, 1\n"
-        "        diff_basis_1(:,df_w3,df_nodal) = f1_proxy%vspace%"
+        "        diff_basis_w3_on_w0(:,df_w3,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS, df_w3, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
@@ -334,10 +335,11 @@ def test_single_kern_eval_op(tmpdir):
         "    do cell = loop0_start, loop0_stop, 1\n"
         "      call testkern_eval_op_code(cell, nlayers_op1, "
         "op1_proxy%ncell_3d, op1_local_stencil, f1_data, ndf_w0, ndf_w2, "
-        "basis_1, ndf_w3, undf_w3, map_w3(:,cell), diff_basis_1)\n"
+        "basis_w2_on_w0, ndf_w3, undf_w3, map_w3(:,cell), "
+        "diff_basis_w3_on_w0)\n"
         "    enddo\n")
     assert kern_call in code
-    assert "    DEALLOCATE(basis_1, diff_basis_1)\n" in code
+    assert "    DEALLOCATE(basis_w2_on_w0, diff_basis_w3_on_w0)\n" in code
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -377,17 +379,17 @@ def test_two_qr_same_shape(tmpdir):
     assert "integer(kind=i_def) :: loop1_stop" in code
     assert "integer(kind=i_def) :: loop0_start" in code
     assert "integer(kind=i_def) :: loop0_stop" in code
-    assert "real(kind=r_def), allocatable :: basis_1(:,:,:,:)" in code
-    assert ("real(kind=r_def), allocatable :: diff_basis_1(:,:,:,:)"
+    assert "real(kind=r_def), allocatable :: basis_w1_qr(:,:,:,:)" in code
+    assert ("real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)"
             in code)
-    assert "real(kind=r_def), allocatable :: basis_2(:,:,:,:)" in code
-    assert ("real(kind=r_def), allocatable :: diff_basis_2(:,:,:,:)"
+    assert "real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)" in code
+    assert ("real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)"
             in code)
-    assert "real(kind=r_def), allocatable :: basis_3(:,:,:,:)" in code
-    assert ("real(kind=r_def), allocatable :: diff_basis_3(:,:,:,:)"
+    assert "real(kind=r_def), allocatable :: basis_w1_qr2(:,:,:,:)" in code
+    assert ("real(kind=r_def), allocatable :: diff_basis_w2_qr2(:,:,:,:)"
             in code)
-    assert "real(kind=r_def), allocatable :: basis_4(:,:,:,:)" in code
-    assert ("real(kind=r_def), allocatable :: diff_basis_4(:,:,:,:)"
+    assert "real(kind=r_def), allocatable :: basis_w3_qr2(:,:,:,:)" in code
+    assert ("real(kind=r_def), allocatable :: diff_basis_w3_qr2(:,:,:,:)"
             in code)
     assert "integer(kind=i_def) :: dim_w1" in code
     assert "integer(kind=i_def) :: diff_dim_w2" in code
@@ -462,36 +464,36 @@ def test_two_qr_same_shape(tmpdir):
         "    diff_dim_w2 = f2_proxy%vspace%get_dim_space_diff()\n"
         "    dim_w3 = m2_proxy%vspace%get_dim_space()\n"
         "    diff_dim_w3 = m2_proxy%vspace%get_dim_space_diff()\n"
-        "    ALLOCATE(basis_1(dim_w1,ndf_w1,np_xy_qr,np_z_qr))\n"
-        "    ALLOCATE(diff_basis_1(diff_dim_w2,ndf_w2,np_xy_qr,"
+        "    ALLOCATE(basis_w1_qr(dim_w1,ndf_w1,np_xy_qr,np_z_qr))\n"
+        "    ALLOCATE(diff_basis_w2_qr(diff_dim_w2,ndf_w2,np_xy_qr,"
         "np_z_qr))\n"
-        "    ALLOCATE(basis_2(dim_w3,ndf_w3,np_xy_qr,np_z_qr))\n"
-        "    ALLOCATE(diff_basis_2(diff_dim_w3,ndf_w3,np_xy_qr,"
+        "    ALLOCATE(basis_w3_qr(dim_w3,ndf_w3,np_xy_qr,np_z_qr))\n"
+        "    ALLOCATE(diff_basis_w3_qr(diff_dim_w3,ndf_w3,np_xy_qr,"
         "np_z_qr))\n"
-        "    ALLOCATE(basis_3(dim_w1,ndf_w1,np_xy_qr2,np_z_qr2))\n"
-        "    ALLOCATE(diff_basis_3(diff_dim_w2,ndf_w2,np_xy_qr2,"
+        "    ALLOCATE(basis_w1_qr2(dim_w1,ndf_w1,np_xy_qr2,np_z_qr2))\n"
+        "    ALLOCATE(diff_basis_w2_qr2(diff_dim_w2,ndf_w2,np_xy_qr2,"
         "np_z_qr2))\n"
-        "    ALLOCATE(basis_4(dim_w3,ndf_w3,np_xy_qr2,np_z_qr2))\n"
-        "    ALLOCATE(diff_basis_4(diff_dim_w3,ndf_w3,np_xy_qr2,"
+        "    ALLOCATE(basis_w3_qr2(dim_w3,ndf_w3,np_xy_qr2,np_z_qr2))\n"
+        "    ALLOCATE(diff_basis_w3_qr2(diff_dim_w3,ndf_w3,np_xy_qr2,"
         "np_z_qr2))\n"
         "\n"
         "    ! Compute basis/diff-basis arrays\n"
         "    call qr%compute_function("
-        "BASIS, f1_proxy%vspace, dim_w1, ndf_w1, basis_1)\n"
+        "BASIS, f1_proxy%vspace, dim_w1, ndf_w1, basis_w1_qr)\n"
         "    call qr%compute_function(DIFF_BASIS, "
-        "f2_proxy%vspace, diff_dim_w2, ndf_w2, diff_basis_1)\n"
+        "f2_proxy%vspace, diff_dim_w2, ndf_w2, diff_basis_w2_qr)\n"
         "    call qr%compute_function("
-        "BASIS, m2_proxy%vspace, dim_w3, ndf_w3, basis_2)\n"
+        "BASIS, m2_proxy%vspace, dim_w3, ndf_w3, basis_w3_qr)\n"
         "    call qr%compute_function(DIFF_BASIS, "
-        "m2_proxy%vspace, diff_dim_w3, ndf_w3, diff_basis_2)\n"
+        "m2_proxy%vspace, diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n"
         "    call qr2%compute_function("
-        "BASIS, g1_proxy%vspace, dim_w1, ndf_w1, basis_3)\n"
+        "BASIS, g1_proxy%vspace, dim_w1, ndf_w1, basis_w1_qr2)\n"
         "    call qr2%compute_function(DIFF_BASIS, "
-        "g2_proxy%vspace, diff_dim_w2, ndf_w2, diff_basis_3)\n"
+        "g2_proxy%vspace, diff_dim_w2, ndf_w2, diff_basis_w2_qr2)\n"
         "    call qr2%compute_function("
-        "BASIS, n2_proxy%vspace, dim_w3, ndf_w3, basis_4)\n"
+        "BASIS, n2_proxy%vspace, dim_w3, ndf_w3, basis_w3_qr2)\n"
         "    call qr2%compute_function(DIFF_BASIS, "
-        "n2_proxy%vspace, diff_dim_w3, ndf_w3, diff_basis_4)\n"
+        "n2_proxy%vspace, diff_dim_w3, ndf_w3, diff_basis_w3_qr2)\n"
         "\n")
     assert expected_code in code
     assert ("    loop0_stop = f1_proxy%vspace%get_ncell()\n"
@@ -502,24 +504,25 @@ def test_two_qr_same_shape(tmpdir):
         "    do cell = loop0_start, loop0_stop, 1\n"
         "      call testkern_qr_code(nlayers_f1, f1_data, f2_data, "
         "m1_data, a, m2_data, istp, "
-        "ndf_w1, undf_w1, map_w1(:,cell), basis_1, "
-        "ndf_w2, undf_w2, map_w2(:,cell), diff_basis_1, "
-        "ndf_w3, undf_w3, map_w3(:,cell), basis_2, diff_basis_2, "
+        "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr, "
+        "ndf_w2, undf_w2, map_w2(:,cell), diff_basis_w2_qr, "
+        "ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, diff_basis_w3_qr, "
         "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
         "    enddo\n"
         "    do cell = loop1_start, loop1_stop, 1\n"
         "      call testkern_qr_code(nlayers_g1, g1_data, g2_data, "
         "n1_data, b, n2_data, istp, "
-        "ndf_w1, undf_w1, map_w1(:,cell), basis_3, "
-        "ndf_w2, undf_w2, map_w2(:,cell), diff_basis_3, "
-        "ndf_w3, undf_w3, map_w3(:,cell), basis_4, diff_basis_4, "
+        "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr2, "
+        "ndf_w2, undf_w2, map_w2(:,cell), diff_basis_w2_qr2, "
+        "ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr2, diff_basis_w3_qr2, "
         "np_xy_qr2, np_z_qr2, weights_xy_qr2, weights_z_qr2)\n"
         "    enddo\n")
     assert expected_kern_call in code
     expected_dealloc = (
         "    ! Deallocate basis arrays\n"
-        "    DEALLOCATE(basis_1, basis_3, basis_2, basis_4, diff_basis_1, "
-        "diff_basis_3, diff_basis_2, diff_basis_4)\n"
+        "    DEALLOCATE(basis_w1_qr, basis_w1_qr2, basis_w3_qr, basis_w3_qr2, "
+        "diff_basis_w2_qr, diff_basis_w2_qr2, diff_basis_w3_qr, "
+        "diff_basis_w3_qr2)\n"
     )
     assert expected_dealloc in code
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -2157,6 +2160,13 @@ def test_lfricbasisfns_unsupp_qr(monkeypatch):
     dbasis = LFRicBasisFunctions(kernel)
     monkeypatch.setattr(
         dbasis, "_qr_vars", {"unsupported-shape": None})
+    # The code assumes that the various 'ndf' variables have already
+    # been added to the SymbolTable so we have to do that manually.
+    for idx in ["w0", "w1", "w2", "w2h", "w2v", "w2broken", "w2trace",
+                "w2htrace", "w2vtrace", "wchi", "w3", "wtheta"]:
+        kernel._stub_symbol_table.add(
+            DataSymbol(f"ndf_{idx}", ScalarType.integer_type()),
+            tag=f"ndf:{idx}")
     with pytest.raises(InternalError) as err:
         dbasis.stub_declarations()
     assert ("Quadrature shapes other than ['gh_quadrature_xyoz', "
