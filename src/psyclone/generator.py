@@ -325,7 +325,7 @@ def generate(filename: str,
         # Technically, at this stage the PSyIR is of the input file. But since
         # the PSyIR is later converted to become the algorithm layer (i.e.
         # replacing the invokes with the actual calls), the user algorithm
-        # transformation should see the filename as which it is saved.
+        # transformation should see the filename as which it will be saved.
         psyir.file_path = oalg
         # Raise to Algorithm PSyIR
         if api in GOCEAN_API_NAMES:
@@ -996,6 +996,8 @@ def code_transformation_mode(input_file: str,
             logger.error(err, exc_info=True)
             sys.exit(1)
 
+        if output_file:
+            psyir.file_path = Path(output_file)
         # Modify file
         if trans_recipe:
             trans_recipe(psyir, **kwargs)

@@ -2030,6 +2030,36 @@ def test_config_overwrite() -> None:
             "'DOES_NOT_EXIST=27'" in str(err.value))
 
 
+def test_script_arguments_generic(tmp_path, capsys):
+    """
+    Tests that script arguments are received as expected using the
+    transformation arguments. This test creates a dummy script that prints
+    the arguments for trans and trans_alg, which we check for.
+    """
+
+    recipe = dedent('''
+        def trans(psyir, **kwargs):
+            print("trans args:", kwargs)
+            print("trans file_path:", psyir.file_path)
+
+        def trans_alg(psyir, **kwargs):
+            print("trans_alg args:", kwargs)
+            print("trans_alg file_path:", psyir.file_path)
+        ''')
+    script_path = tmp_path / "print_args_lfric_testing.py"
+    script_path.write_text(recipe)
+
+    input_file = NEMO_BASE_PATH / "explicit_do.f90"
+    out_file = tmp_path / "out.f90"
+    main([str(input_file), "-s", str(script_path),
+          "--script-kwargs", "b: True",
+          "-o", str(out_file)])
+    stdout, _ = capsys.readouterr()
+    assert "trans args: {'b': True}" in stdout
+    assert "trans_alg" not in stdout
+    assert f"trans file_path: {out_file}" in stdout
+
+
 def test_script_arguments_transform(tmp_path, capsys):
     """Tests that script arguments are received as expected when transforming
     generic Fortran code. This test creates a dummy script that prints the
