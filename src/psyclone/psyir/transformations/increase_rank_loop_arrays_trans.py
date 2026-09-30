@@ -174,8 +174,10 @@ class IncreaseRankLoopArraysTrans(Transformation):
                 if isinstance(assignment.lhs, ArrayReference):
                     # Check that the l.h.s. has no wildcard indices, e.g.,
                     # a(:) = 1 and a function on the r.h.s.
-                    if not any(assignment.lhs.is_full_range(idx)
-                            for idx, _ in enumerate(assignment.lhs.indices)):
+                    if not any(
+                            assignment.lhs.is_full_range(idx)
+                            for idx, _ in enumerate(assignment.lhs.indices)
+                        ):
                         continue
                 if assignment.rhs.walk(Call):
                     raise TransformationError(
@@ -246,8 +248,8 @@ class IncreaseRankLoopArraysTrans(Transformation):
 
             if array.datatype.is_allocatable:
                 raise TransformationError(
-                    f"{self.name} does not support arrays that are allocatable, "
-                    f"but '{array.name}' is.")
+                    f"{self.name} does not support arrays that are"
+                    f" allocatable, but '{array.name}' is.")
 
         # Walk over `Reference` to also catch, e.g, `call foo(some_array)`
         # where the argument is a `Reference` and not an `ArrayReference`.

@@ -418,9 +418,10 @@ end module
     assert ("IncreaseRankLoopArraysTrans No call on r.h.s. of"
             " a range array is allowed." in str(err.value))
 
+
 def test_irla_allocatable_array(fortran_reader):
-    '''Reject if the array is allocatable since this would also require modifying
-    the allocate statement.'''
+    '''Reject if the array is allocatable since this would also
+    require modifying the allocate statement.'''
     psyir = fortran_reader.psyir_from_source("""
 module dummy_module
     use dummy
@@ -446,5 +447,5 @@ end module
     with pytest.raises(TransformationError) as err:
         trans.apply(psyir.walk(Loop)[0], arrays=['a'])
 
-    assert ("IncreaseRankLoopArraysTrans does not support arrays that are allocatable, "
-            "but 'a' is." in str(err.value))
+    assert ("IncreaseRankLoopArraysTrans does not support arrays that are"
+            " allocatable, but 'a' is." in str(err.value))
