@@ -118,6 +118,8 @@ ASYNC_ISSUES = [
     "traadv_fct.f90",
     # Signal 11 in build
     "zdfswm.f90",
+    # DefUseChain: AttributeError: 'ScalarType' object has no attribute 'shape'
+    "fliocom.f90"
 ]
 
 
