@@ -84,7 +84,7 @@ def qr_basis_alloc_args(table: SymbolTable,
     mangled_name = basis_fn['fspace'].mangled_name
     qr_var = "_" + basis_fn["qr_var"]
     ndf_sym = table.lookup_with_tag(f"ndf:{mangled_name}")
-    first = first_dim #if first_dim.isnumeric() else table.lookup(first_dim)
+    first = first_dim
 
     # Dimensionality of the basis arrays depends on the
     # type of quadrature...
@@ -3040,32 +3040,32 @@ class LFRicBasisFunctions(LFRicCollection):
                                    Reference(kind_sym))
 
             if shape == "gh_quadrature_xyoz":
-                dim = self.symtab.find_or_create_tag(
+                dim = self.symtab.find_or_create(
                     "np_xy"+qr_name, symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-                sym = self.symtab.find_or_create_tag(
+                sym = self.symtab.find_or_create(
                     "weights_xy"+qr_name, symbol_type=DataSymbol,
                     datatype=ArrayType(intr_type, [Reference(dim)]))
                 sym.interface = ArgumentInterface(
                                         ArgumentInterface.Access.READ)
                 self.symtab.append_argument(sym)
-                dim = self.symtab.find_or_create_tag(
+                dim = self.symtab.find_or_create(
                     "np_z"+qr_name, symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-                sym = self.symtab.find_or_create_tag(
+                sym = self.symtab.find_or_create(
                     "weights_z"+qr_name, symbol_type=DataSymbol,
                     datatype=ArrayType(intr_type, [Reference(dim)]))
                 sym.interface = ArgumentInterface(
                                         ArgumentInterface.Access.READ)
                 self.symtab.append_argument(sym)
             elif shape == "gh_quadrature_face":
-                dim1 = self.symtab.find_or_create_tag(
+                dim1 = self.symtab.find_or_create(
                     "np_xyz"+qr_name, symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-                dim2 = self.symtab.find_or_create_tag(
+                dim2 = self.symtab.find_or_create(
                     "nfaces"+qr_name, symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-                sym = self.symtab.find_or_create_tag(
+                sym = self.symtab.find_or_create(
                     "weights_xyz"+qr_name, symbol_type=DataSymbol,
                     datatype=ArrayType(intr_type, [Reference(dim1),
                                                    Reference(dim2)]))
@@ -3073,13 +3073,13 @@ class LFRicBasisFunctions(LFRicCollection):
                                         ArgumentInterface.Access.READ)
                 self.symtab.append_argument(sym)
             elif shape == "gh_quadrature_edge":
-                dim1 = self.symtab.find_or_create_tag(
+                dim1 = self.symtab.find_or_create(
                     "np_xyz"+qr_name, symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-                dim2 = self.symtab.find_or_create_tag(
+                dim2 = self.symtab.find_or_create(
                     "nedges"+qr_name, symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-                sym = self.symtab.find_or_create_tag(
+                sym = self.symtab.find_or_create(
                     "weights_xyz"+qr_name, symbol_type=DataSymbol,
                     datatype=ArrayType(intr_type, [Reference(dim1),
                                                    Reference(dim2)]))
@@ -3386,8 +3386,7 @@ class LFRicBasisFunctions(LFRicCollection):
                     # In a kernel stub the first dimension of the array is
                     # a numerical value so make sure we don't try and declare
                     # it as a variable.
-                    if not isinstance(arg, Literal) and (arg not in
-                                                         var_dim_list):
+                    if not arg.isnumeric() and (arg not in var_dim_list):
                         var_dim_list.append(arg)
                 basis_arrays[op_tag] = [op_name] + alloc_args
 

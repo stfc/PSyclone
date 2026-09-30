@@ -359,7 +359,7 @@ def test_arg_descriptor_field():
     assert field_descriptor.mesh is None
     assert field_descriptor.stencil is None
     assert field_descriptor.vector_size == 1
-    assert field_descriptor.nlayers is None
+    assert field_descriptor.nlayers == ""
     assert field_descriptor.ndata == "1"
 
 
@@ -375,7 +375,7 @@ def test_fld_nlayers():
     mdata = LFRicKernMetadata(ast, name=name)
     # By default, nlayers is left as None.
     field_descriptor = mdata.arg_descriptors[5]
-    assert field_descriptor.nlayers is None
+    assert field_descriptor.nlayers == ""
     # The seventh argument has nlayers specified as "double"
     field_descriptor = mdata.arg_descriptors[6]
     assert field_descriptor.nlayers == "double"

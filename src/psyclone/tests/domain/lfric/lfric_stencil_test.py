@@ -197,7 +197,8 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
         "nlayers_f0, f0_data, f1_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), f2_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), ndf_wtheta, undf_wtheta, "
-        "map_wtheta(:,cell), ndf_ads1_f1, undf_ads1_f1, map_ads1_f1(:,cell))")
+        "map_wtheta(:,cell), ndf_ads1_f1__1, undf_ads1_f1__1, "
+        "map_ads1_f1__1(:,cell))")
     assert output1 in result
     # Use a different stencil dofmap
     output2 = (
@@ -205,8 +206,9 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
         "nlayers_f3, f3_data, f4_data, f4_stencil_size(cell), "
         "f4_stencil_dofmap(:,:,cell), f5_data, f5_stencil_size(cell), "
         "f5_stencil_dofmap(:,:,cell), ndf_wtheta, undf_wtheta, "
-        "map_wtheta(:,cell), ndf_ads1_f4, undf_ads1_f4, map_ads1_f4(:,cell), "
-        "ndf_ads2_f5, undf_ads2_f5, map_ads2_f5(:,cell))")
+        "map_wtheta(:,cell), ndf_ads1_f4__1, undf_ads1_f4__1, "
+        "map_ads1_f4__1(:,cell), ndf_ads2_f5__1, undf_ads2_f5__1, "
+        "map_ads2_f5__1(:,cell))")
     assert output2 in result
     # Check for halo exchanges and correct loop bounds
     if dist_mem:
@@ -1240,8 +1242,8 @@ def test_multi_stencil_same_name_direction(dist_mem, tmpdir):
         "f4_data, f4_stencil_size(cell), direction, "
         "f4_stencil_dofmap(:,:,cell), "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
-        "map_w2(:,cell), ndf_ads1_f4, undf_ads1_f4, "
-        "map_ads1_f4(:,cell))")
+        "map_w2(:,cell), ndf_ads1_f4__1, undf_ads1_f4__1, "
+        "map_ads1_f4__1(:,cell))")
     assert output5 in result
 
     # Check compilation
@@ -1721,15 +1723,15 @@ def test_single_kernel_any_space_stencil(dist_mem, tmpdir):
         "f0_data, f1_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), f2_data, f1_stencil_size(cell), "
         "f1_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_as1_f1, undf_as1_f1, map_as1_f1(:,cell))")
+        "ndf_as1_f1__1, undf_as1_f1__1, map_as1_f1__1(:,cell))")
     assert output2 in result
     output3 = (
         "      call testkern_different_anyspace_stencil_code(nlayers_f3, "
         "f3_data, f4_data, f4_stencil_size(cell), "
         "f4_stencil_dofmap(:,:,cell), f5_data, f5_stencil_size(cell), "
         "f5_stencil_dofmap(:,:,cell), ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_as1_f4, undf_as1_f4, map_as1_f4(:,cell), ndf_as2_f5, "
-        "undf_as2_f5, map_as2_f5(:,cell))")
+        "ndf_as1_f4__1, undf_as1_f4__1, map_as1_f4__1(:,cell), ndf_as2_f5__1, "
+        "undf_as2_f5__1, map_as2_f5__1(:,cell))")
     # Use a different stencil dofmap
     assert output3 in result
 
