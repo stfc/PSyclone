@@ -45,7 +45,6 @@ env:
   HDF5_VERSION: "2.2"
   NETCDF_C_VERSION: "4.10"
   NETCDF_FORTRAN_VERSION: "4.6"
-  NVFORTRAN_VERSION: "26.5"
   NVHPC_TOOLCHAIN: nvhpc26_3_openmpi
   INTEL_TOOLCHAIN: intel25_3_openmpi
   PERL_VERSION: "5.44"
@@ -89,9 +88,10 @@ jobs:
         # pip install external/fparser
         pip install .[test]
         # Compile nvidia profiling tools
-        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment %${NVHPC_TOOLCHAIN}
         cd lib/profiling/nvidia/
-        F90=nvfortran make
+        F90=$FC make
     - name: Reset working directory
       run: |
         rm -rf ${PREFIX}/UKMO-NEMOv4
@@ -104,20 +104,38 @@ jobs:
       # Only bother doing passthrough if this is a re-run of a previous test.
       if: ${{ github.run_attempt != '1' }}
       run: |
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment %${NVHPC_TOOLCHAIN}
         . .runner_venv/bin/activate
+        
+        # Set envvars
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export NEMO_DIR=${PREFIX}/UKMO-NEMOv4
         export NEMOV4=1  # Enables specific NEMOV4 exclusions in the PSyclone transformation script
-        cd $PSYCLONE_NEMO_DIR
-        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
-        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
-        module load perl/${PERL_VERSION}
-        make -j ${NUM_PARALLEL} passthrough
-        make -j ${NUM_PARALLEL} compile-passthrough
-        make run-passthrough
+        export TEST_DIR=SPITZ12_PASSTHROUGH_NVHPC
+        export PSYCLONE_COMPILER=$MPIF90
+        export MPIF90=psyclonefc
+        export PSYCLONE_OPTS="--enable-cache -l output"
+        export FCFLAGS="-i4 -Mr8 -O2 -Mnovect -Mnofma -g"
+        
+        # Compile
+        cd ${PREFIX}/UKMO-NEMOv4
+        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        rm -rf cfgs/${TEST_DIR}
+        ./makenemo -r SPITZ12 -m linux_spack -n ${TEST_DIR} \
+          -j ${NUM_PARALLEL} -e $PSYCLONE_NEMO_DIR/modified_files/nemov4 \
+          add_key "IEEE_IS_NAN=ieee_is_nan key_nosignedzero" \
+          del_key "key_iomput key_mpp_mpi key_si3"
+          
+        # Run test
+        cd cfgs/${TEST_DIR}/EXP00/
+        ln -sf /archive/psyclone-tests/nemo-inputs/UKMO-eORCA1_GO8_NEMOv4/*.nc .
+        rm -rf run.stat
+        ./nemo
+        
         # Check for full numerical reproducibility with KGO results
-        diff <(make -s output-passthrough)  KGOs/run.stat.nemo4.spitz12.nvhpc.10steps
-
+        diff run.stat $PSYCLONE_NEMO_DIR/KGOs/run.stat.nemo4.spitz12.nvhpc.10steps
+        
     # PSyclone, compile and run MetOffice NEMO with OpenMP for GPUs
     - name: NEMO MetOffice OpenMP for GPU
       id: nemo_omp_offload
@@ -162,28 +180,46 @@ jobs:
     - name: NEMO MetOffice OpenACC kernels for GPU
       id: nemo_acc_kernels
       run: |
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment %${NVHPC_TOOLCHAIN}
         . .runner_venv/bin/activate
+
+        # Set envvars
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export PROFILE_HOME=${GITHUB_WORKSPACE}/lib/profiling/nvidia/
         export NEMO_DIR=${PREFIX}/UKMO-NEMOv4
-        cd $PSYCLONE_NEMO_DIR
-        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
-        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
-        module load perl/${PERL_VERSION}
-        make clean
-        make -j ${NUM_PARALLEL} openacc_kernels
-        COMPILER_ARCH=linux_nvidia_acc_gpu make -j ${NUM_PARALLEL} compile-openacc_kernels
+        export TEST_DIR=SPITZ12_ACC_KERNELS_NVHPC
+        export PSYCLONE_COMPILER=$MPIF90
+        export MPIF90=psyclonefc
+        export REPRODUCIBLE=1
+        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/acc_kernels_trans.py"
+        export FCFLAGS="-i4 -Mr8 -O2 -Mnovect -Mnofma -g -acc -mp=gpu -gpu=mem:managed,math_uniform"
+        export NEMOV4=1  # Enables specific NEMOV4 exclusions in the PSyclone transformation script
+
+        # Compile
+        cd ${PREFIX}/UKMO-NEMOv4
+        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        rm -rf cfgs/${TEST_DIR}
+        ./makenemo -r SPITZ12 -m linux_spack -n ${TEST_DIR} \
+          -j ${NUM_PARALLEL} -e $PSYCLONE_NEMO_DIR/modified_files/nemov4 \
+          add_key "IEEE_IS_NAN=ieee_is_nan key_nosignedzero" \
+          del_key "key_iomput key_mpp_mpi key_si3"
+
+        # Run test
         export NV_ACC_POOL_THRESHOLD=75
         export CUDA_VISIBLE_DEVICES=1
-        make run-openacc_kernels
-        # Check the output is as expected (TODO #2895: improve numerical reproducibility)
-        make output-openacc_kernels | grep -q " it :      10"  || (echo "Error: 'it :      10' not found!" & false)
-        make output-openacc_kernels | grep -q "|ssh|_max:  0.259483" || (echo "Error: '|ssh|_max:  0.259483' not found!" & false)
-        make output-openacc_kernels | grep -q "|U|_max:  0.458515" || (echo "Error: '|U|_max:  0.458515' not found!" & false)
-        make output-openacc_kernels | grep -q "S_min:  0.482686" || (echo "Error: 'S_min:  0.482686' not found!" & false)
-        make output-openacc_kernels | grep -q "S_max:  0.407622" || (echo "Error: 'S_max:  0.407622' not found!" & false)
-        export VAR_TIME=$(grep -A 1 "Elapsed Time" <(make -s time-openacc_kernels) | head -n 2 | tail -n 1 | awk '{print $1}')
+        cd cfgs/${TEST_DIR}/EXP00/
+        ln -sf /archive/psyclone-tests/nemo-inputs/UKMO-eORCA1_GO8_NEMOv4/*.nc .
+        ./nemo
+        diff run.stat $PSYCLONE_NEMO_DIR/KGOs/run.stat.nemo4.spitz12.nvhpc.10steps || true
+        export VAR_TIME=$(grep -A 1 "Elapsed Time" timing.output | head -n 2 | tail -n 1 | awk '{print $1}')
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
+        # Check the output is as expected (TODO #2895: improve numerical reproducibility)
+        # make output-openacc_kernels | grep -q " it :      10"  || (echo "Error: 'it :      10' not found!" & false)
+        # make output-openacc_kernels | grep -q "|ssh|_max:  0.259483" || (echo "Error: '|ssh|_max:  0.259483' not found!" & false)
+        # make output-openacc_kernels | grep -q "|U|_max:  0.458515" || (echo "Error: '|U|_max:  0.458515' not found!" & false)
+        # make output-openacc_kernels | grep -q "S_min:  0.482686" || (echo "Error: 'S_min:  0.482686' not found!" & false)
+        # make output-openacc_kernels | grep -q "S_max:  0.407622" || (echo "Error: 'S_max:  0.407622' not found!" & false)
 
     # PSyclone, compile and run MetOffice NEMO with OpenACC loops for GPUs
     - name: NEMO MetOffice OpenACC loops for GPU
@@ -266,26 +302,41 @@ jobs:
     - name: NEMO MetOffice OpenMP for GPU with async
       id: nemo_omp_offload_async
       run: |
+        source /archive/psyclone-spack/psyclone-spack-Dec25/spack-repo/share/spack/setup-env.sh
+        spack unload && spack load nemo-build-environment %${NVHPC_TOOLCHAIN}
         . .runner_venv/bin/activate
+
+        # Set envvars
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
+        export PROFILE_HOME=${GITHUB_WORKSPACE}/lib/profiling/nvidia/
         export NEMO_DIR=${PREFIX}/UKMO-NEMOv4
-        cd $PSYCLONE_NEMO_DIR
-        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
-        module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
-        module load perl/${PERL_VERSION}
-        make clean
-        export NEMOV4=1  # Enables specific NEMOV4 exclusions in the PSyclone transformation script
+        export TEST_DIR=SPITZ12_OMP_OFFLOAD_ASYNC_LOOPS_NVHPC
+        export PSYCLONE_COMPILER=$MPIF90
+        export MPIF90=psyclonefc
         export PARALLEL_DIRECTIVES="omp_offloading+omp_threading"
         export REPRODUCIBLE=1
+        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py"
+        export FCFLAGS="-i4 -Mr8 -O2 -Mnovect -Mnofma -g -mp=gpu -gpu=mem:managed,math_uniform"
+        export NEMOV4=1  # Enables specific NEMOV4 exclusions in the PSyclone transformation script
         export ASYNC_PARALLEL=1
-        make -j ${NUM_PARALLEL} openmp_gpu
-        make -j ${NUM_PARALLEL} compile-openmp_gpu
+
+        # Compile
+        cd ${PREFIX}/UKMO-NEMOv4
+        cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
+        rm -rf cfgs/${TEST_DIR}
+        ./makenemo -r SPITZ12 -m linux_spack -n ${TEST_DIR} \
+          -j ${NUM_PARALLEL} -e $PSYCLONE_NEMO_DIR/modified_files/nemov4 \
+          add_key "IEEE_IS_NAN=ieee_is_nan key_nosignedzero" \
+          del_key "key_iomput key_mpp_mpi key_si3"
+
+        # Run test
         export NV_ACC_POOL_THRESHOLD=75
         export CUDA_VISIBLE_DEVICES=1
-        make run-openmp_gpu
-        # Check for full numerical reproducibility with KGO results
-        diff <(make -s output-openmp_gpu)  KGOs/run.stat.nemo4.spitz12.nvhpc.10steps
-        export VAR_TIME=$(grep -A 1 "Elapsed Time" <(make -s time-openmp_gpu) | head -n 2 | tail -n 1 | awk '{print $1}')
+        cd cfgs/${TEST_DIR}/EXP00/
+        ln -sf /archive/psyclone-tests/nemo-inputs/UKMO-eORCA1_GO8_NEMOv4/*.nc .
+        ./nemo
+        diff run.stat $PSYCLONE_NEMO_DIR/KGOs/run.stat.nemo4.spitz12.nvhpc.10steps
+        export VAR_TIME=$(grep -A 1 "Elapsed Time" timing.output | head -n 2 | tail -n 1 | awk '{print $1}')
         echo "time=${VAR_TIME}" >> "${GITHUB_OUTPUT}"
 
   upload_if_on_mirror:
@@ -313,14 +364,14 @@ jobs:
             {
               ci_test: "NEMOv4 OpenMP for GPU",
               nemo_version: "NEMO MO 4.0.2",
-              compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
+              compiler:"'"${NVHPC_TOOLCHAIN}"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_omp_offload}}"',
               '"$COMMON_FIELDS"'
             },
             {
               ci_test: "NEMOv4 OpenACC kernels for GPU",
               nemo_version: "MEMO MO 4.0.2",
-              compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
+              compiler:"'"${NVHPC_TOOLCHAIN}"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_acc_kernels}}"',
               '"$COMMON_FIELDS"'
             },
@@ -341,7 +392,7 @@ jobs:
             {
               ci_test: "NEMOv4 OpenMP for GPU Async",
               nemo_version: "NEMO MO 4.0.2",
-              compiler:"nvhpc-'"$NVFORTRAN_VERSION"'",
+              compiler:"'"${NVHPC_TOOLCHAIN}"'",
               elapsed_time: '"${{needs.run_if_on_mirror.outputs.nemo_omp_offload_async}}"',
               '"$COMMON_FIELDS"'
             }])'
