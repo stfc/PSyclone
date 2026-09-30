@@ -168,14 +168,15 @@ class IncreaseRankLoopArraysTrans(Transformation):
                         f" '{assignment.debug_string().strip()}'."
                     )
 
-            if isinstance(assignment.lhs, ArrayReference):
+            if isinstance(assignment.lhs, Reference):
                 if assignment.lhs.symbol not in arrays:
                     continue
-                # Check that the l.h.s. has no wildcard indices, e.g.,
-                # a(:) = 1 and a function on the r.h.s.
-                if not any(assignment.lhs.is_full_range(idx)
-                           for idx, _ in enumerate(assignment.lhs.indices)):
-                    continue
+                if isinstance(assignment.lhs, ArrayReference):
+                    # Check that the l.h.s. has no wildcard indices, e.g.,
+                    # a(:) = 1 and a function on the r.h.s.
+                    if not any(assignment.lhs.is_full_range(idx)
+                            for idx, _ in enumerate(assignment.lhs.indices)):
+                        continue
                 if assignment.rhs.walk(Call):
                     raise TransformationError(
                         f"{self.name} No call on r.h.s. of a range array"

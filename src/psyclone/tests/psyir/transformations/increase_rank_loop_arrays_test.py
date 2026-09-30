@@ -382,3 +382,38 @@ end module
 
     assert ("IncreaseRankLoopArraysTrans No call on r.h.s. of"
             " a range array is allowed." in str(err.value))
+
+
+def test_irla_assignment_to_full_array_with_call_on_rhs(fortran_reader):
+    '''Reject if assignment to range of array on l.h.s
+    and call on r.h.s.'''
+    psyir = fortran_reader.psyir_from_source("""
+module dummy_module
+    use dummy
+    implicit none
+contains
+    subroutine make_array()
+        real, dimension(10,10) :: a
+        integer :: i, j, k
+
+        ! Reject because of such an assignment
+        a = 1 + dummy_func()
+
+        do k = 1, 10
+            do j = 1, 10
+                do i = 1, 10
+                    a(j,i) = 1
+                end do
+            end do
+        end do
+    end subroutine
+
+end module
+""")
+
+    trans = IncreaseRankLoopArraysTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.apply(psyir.walk(Loop)[0], arrays=['a'])
+
+    assert ("IncreaseRankLoopArraysTrans No call on r.h.s. of"
+            " a range array is allowed." in str(err.value))
