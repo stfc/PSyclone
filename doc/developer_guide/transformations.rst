@@ -265,11 +265,13 @@ performance if there are many I/O operations.
 Inlining
 ========
 
-PSyclone supports two different inlining transformations:
-``KernelModuleInlineTrans`` and ``InlineTrans``. The former is relatively
-simple and creates a copy of the Kernel routine within the same Container
-as the routine from which it is called. The latter is far more intrusive
-and replaces a call to a routine with the actual body of that routine.
+PSyclone supports three related inlining transformations:
+``KernelModuleInlineTrans``, ``KernelInlineTrans`` and ``InlineTrans``. The
+first creates a copy of the Kernel routine within the same Container as the
+routine from which it is called. ``KernelInlineTrans`` marks a PSyKAl kernel
+for deferred inlining once API-specific lowering has constructed its complete
+``Call``. ``InlineTrans`` is the lower-level transformation that replaces such
+a ``Call`` with the actual body of its target routine.
 This can be complex due to the fact that Fortran allows the bounds of
 arrays within a routine to differ from those at the call site, e.g.:
 
