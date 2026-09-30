@@ -23,6 +23,7 @@ def test_read_write_info() -> None:
     assert rwi.signatures_read == []
     assert rwi.write_list == []
     assert rwi.signatures_written == []
+    assert rwi.call_list == []
 
 
 def test_add_read() -> None:
@@ -85,6 +86,33 @@ def test_add_write() -> None:
     assert rwi.signatures_written == [sig_a, sig_b, sig_c]
 
     assert rwi.is_read(sig_a) is False
+
+
+def test_add_call() -> None:
+    '''Test adding call signatures with and without modules.'''
+
+    rwi = ReadWriteInfo()
+    sig_b = Signature("b")
+    sig_a = Signature("a")
+    sig_c = Signature("c")
+
+    rwi.add_read(sig_b)
+    rwi.add_write(sig_b)
+    rwi.add_call(sig_b)
+    rwi.add_call(sig_a)
+    rwi.add_call(sig_c, "mod_c")
+
+    # Since routines are not variables, this function will only return sig_b
+    assert rwi.all_used_vars_list == [("", sig_b)]
+    assert rwi.read_list == [("", sig_b)]
+    assert rwi.write_list == [("", sig_b)]
+    assert rwi.call_list == [("", sig_a), ("", sig_b), ("mod_c", sig_c)]
+
+    # Exercise the sorted getter paths when a call is added after the
+    # read/write lists have already been sorted.
+    rwi.add_call(sig_a, "mod_a")
+    assert rwi.call_list == [("", sig_a), ("", sig_b), ("mod_a", sig_a),
+                             ("mod_c", sig_c)]
 
 
 def test_remove_var(caplog) -> None:
