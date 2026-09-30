@@ -251,19 +251,29 @@ class IncreaseRankLoopArraysTrans(Transformation):
         '''
         self.validate(node, arrays=arrays, **kwargs)
 
+        # List of processed array names
+        array_processed: list[str] = []
+
         for array in arrays:
+            array_symbol: Symbol
             if isinstance(array, str):
-                array = node.scope.symbol_table.lookup(array, otherwise=None)
+                array_symbol = node.scope.symbol_table.lookup(array, otherwise=None)
+            else:
+                array_symbol = array
+
+            if array_symbol.name in array_processed:
+                continue
+            array_processed.append(array_symbol.name)
 
             # Add an additional dimension to this array with the same bounds as
             # the target Loop
-            array.shape.append(
+            array_symbol.shape.append(
                 ArrayType.ArrayBounds(node.start_expr, node.stop_expr)
             )
 
-            symtable_node = array.find_symbol_table(node).node
+            symtable_node = array_symbol.find_symbol_table(node).node
             for ref in symtable_node.walk(ArrayReference):
-                if ref.symbol is array:
+                if ref.symbol is array_symbol:
                     if ref.is_descendant_of(node):
                         # Inside the target loop index the reference
                         # using the loop variable
