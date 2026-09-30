@@ -1,3 +1,5 @@
+   62) PR #3580 for #3576. Update LFRic extraction integration tests.
+
    61) PR #3618 for #3614. Ensures any kernel-parsing errors are
    propagated back to the user.
  
