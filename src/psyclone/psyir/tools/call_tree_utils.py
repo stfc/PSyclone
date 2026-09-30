@@ -9,11 +9,15 @@
 across different subroutines and modules.'''
 
 import logging
+from pathlib import Path
+from typing import cast
 
-from psyclone.core import Signature, VariablesAccessMap
+import yaml
+
+from psyclone.core import AccessSequence, Signature, VariablesAccessMap
 from psyclone.parse import ModuleManager
-from psyclone.psyGen import BuiltIn, Kern
-from psyclone.psyir.nodes import Container, Reference
+from psyclone.psyGen import BuiltIn, CodedKern, Kern
+from psyclone.psyir.nodes import Container, Node, Reference, Routine
 from psyclone.psyir.symbols import (
     ArgumentInterface, DefaultModuleInterface, GenericInterfaceSymbol,
     ImportInterface, IntrinsicSymbol, RoutineSymbol)
@@ -27,7 +31,9 @@ class CallTreeUtils():
     '''
 
     # ------------------------------------------------------------------------
-    def _compute_all_non_locals(self, routine):
+    def _compute_all_non_locals(
+            self,
+            routine: Routine) -> list[tuple[str, str, Signature]]:
         # pylint: disable=too-many-branches
         '''This function computes all non-local access of the specified
         routine node. It returns a list of 3-tuples containing:
@@ -42,18 +48,16 @@ class CallTreeUtils():
 
         :param routine: the routine for which to collect all non-local
             accesses
-        :type routine: :py:class:`psyclone.psyir.nodes.Routine`
 
         :returns: list of non-local references
-        :rtype: list[tuple[str, str, :py:class:`psyclone.core.Signature`]]
 
 
         '''
-        non_locals = []
+        non_locals: list[tuple[str, str, Signature]] = []
 
         outer_module = routine.ancestor(Container)
 
-        for access in routine.walk((Kern, Reference)):
+        for access in routine.walk((CodedKern, Reference)):
             if isinstance(access, BuiltIn) or (
                     isinstance(access, Reference) and
                     isinstance(access.symbol, IntrinsicSymbol)
@@ -62,7 +66,7 @@ class CallTreeUtils():
                 # so ignore them.
                 continue
 
-            if isinstance(access, Kern):
+            if isinstance(access, CodedKern):
                 # A kernel is a subroutine call from a module:
                 # TODO #2054: This will not be necessary anymore once
                 # a Kernel is also a Call.
@@ -86,7 +90,7 @@ class CallTreeUtils():
                     continue
 
                 # We don't know where the subroutine comes from
-                non_locals.append(("routine", None,
+                non_locals.append(("routine", "",
                                    Signature(access.symbol.name)))
                 continue
 
@@ -132,21 +136,19 @@ class CallTreeUtils():
         return non_locals
 
     # -------------------------------------------------------------------------
-    def get_input_parameters(self, read_write_info, node_list,
-                             variables_info=None,
-                             include_non_data_accesses=False):
+    def get_input_parameters(
+            self, read_write_info: ReadWriteInfo,
+            node_list: list[Node],
+            variables_info: VariablesAccessMap | None = None,
+            include_non_data_accesses: bool = False) -> None:
         '''Adds all variables that are input parameters (i.e. are read before
         potentially being written) to the read_write_info object.
 
         :param read_write_info: this object stores the information about
             all input parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param node_list: list of PSyIR nodes to be analysed.
-        :type node_list: list[:py:class:`psyclone.psyir.nodes.Node`]
         :param variables_info: optional variable usage information,
             can be used to avoid repeatedly collecting this information.
-        :type variables_info:
-            :py:class:`psyclone.core.variables_info.VariablesAccessMap`
 
         '''
         # Collect the information about all variables used:
@@ -170,20 +172,18 @@ class CallTreeUtils():
                 read_write_info.add_read(signature)
 
     # -------------------------------------------------------------------------
-    def get_output_parameters(self, read_write_info, node_list,
-                              variables_info=None):
+    def get_output_parameters(
+            self, read_write_info: ReadWriteInfo,
+            node_list: list[Node],
+            variables_info: VariablesAccessMap | None = None) -> None:
         '''Adds all variables that are output parameters (i.e. are written)
         to the read_write_info object.
 
         :param read_write_info: this object stores the information about
             output parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param node_list: list of PSyIR nodes to be analysed.
-        :type node_list: list[:py:class:`psyclone.psyir.nodes.Node`]
         :param variables_info: optional variable usage information,
             can be used to avoid repeatedly collecting this information.
-        :type variables_info: \
-        Optional[:py:class:`psyclone.core.variables_info.VariablesAccessMap`]
 
         '''
         # Collect the information about all variables used:
@@ -197,8 +197,10 @@ class CallTreeUtils():
                 read_write_info.add_write(signature)
 
     # -------------------------------------------------------------------------
-    def get_in_out_parameters(self, node_list, collect_non_local_symbols=False,
-                              include_non_data_accesses=False):
+    def get_in_out_parameters(
+            self, node_list: list[Node] | Node,
+            collect_non_local_symbols: bool = False,
+            include_non_data_accesses: bool = False) -> ReadWriteInfo:
         '''Returns a ReadWriteInfo object that contains all variables that are
         input and output parameters to the specified node list. This function
         calls `get_input_parameter` and `get_output_parameter`, but avoids the
@@ -214,18 +216,16 @@ class CallTreeUtils():
         search paths are specified for the module manager.
 
         :param node_list: list of PSyIR nodes to be analysed.
-        :type node_list: list[:py:class:`psyclone.psyir.nodes.Node`] |
-            :py:class:`psyclone.psyir.nodes.Node`
         :param bool collect_non_local_symbols: whether non-local symbols
             (i.e. symbols used in other modules either directly or
             indirectly) should be included in the in/out information.
 
         :returns: a ReadWriteInfo object with the information about input-
             and output parameters.
-        :rtype: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
         '''
         node_list = node_list if isinstance(node_list, list) else [node_list]
+        node_list = cast(list[Node], node_list)
         variables_info = VariablesAccessMap()
         for node in node_list:
             variables_info.update(node.reference_accesses())
@@ -240,15 +240,15 @@ class CallTreeUtils():
         return read_write_info
 
     # -------------------------------------------------------------------------
-    def get_non_local_read_write_info(self, node_list, read_write_info):
+    def get_non_local_read_write_info(
+            self, node_list: list[Node],
+            read_write_info: ReadWriteInfo) -> None:
         '''Returns the information about non-local variables that are read
         or written.
 
         :param node_list: list of nodes containing Kernel calls to interrogate.
-        :type node_list: list[:py:class:`psyclone.psyGen.Kern`]
         :param read_write_info: the object to update with the read/write
                                 information obtained.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
         '''
         # First collect all non-local symbols from the kernels called. They
@@ -308,8 +308,11 @@ class CallTreeUtils():
         return self._resolve_calls_and_unknowns(todo, read_write_info)
 
     # -------------------------------------------------------------------------
-    def _resolve_calls_and_unknowns(self, outstanding_nonlocals,
-                                    read_write_info):
+    def _resolve_calls_and_unknowns(
+            self,
+            outstanding_nonlocals: list[
+                tuple[str, str, Signature, AccessSequence | None]],
+            read_write_info: ReadWriteInfo) -> None:
         '''This function updates the list of non-local symbols by:
         1. replacing all subroutine calls with the list of their corresponding
             non-local symbols.
@@ -322,12 +325,8 @@ class CallTreeUtils():
 
         :param outstanding_nonlocals: the information about symbol type,
             module_name, symbol_name, signature and access information.
-        :type outstanding_nonlocals: list[tuple[
-            str, str, str, :py:class:`psyclone.core.Signature`,
-            :py:class:`psyclone.core.AccessSequence`]]
         :param read_write_info: information about all input and output
             parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
         '''
         # pylint: disable=too-many-branches, too-many-locals
@@ -345,7 +344,7 @@ class CallTreeUtils():
             if module_name in mod_manager.ignores():
                 continue
             if external_type == "routine":
-                if module_name is None:
+                if not module_name:
                     # We don't know where the subroutine comes from.
                     # For now ignore this
                     # TODO #2120: Handle error
@@ -484,7 +483,9 @@ class CallTreeUtils():
             read_write_info.add_write(signature, module_name)
 
     # ------------------------------------------------------------------------
-    def get_non_local_symbols(self, routine):
+    def get_non_local_symbols(
+            self, routine: Routine) -> list[
+                tuple[str, str, Signature, AccessSequence | None]]:
         '''This function returns a list of non-local accesses in this
         routine. It returns a list of triplets, each one containing:
 
@@ -498,11 +499,8 @@ class CallTreeUtils():
 
         :param routine: the routine for which to collect all non-local
             accesses
-        :type routine: :py:class:`psyclone.psyir.nodes.Routine`
 
         :returns: the non-local accesses in this routine.
-        :rtype: list[tuple[str, str, :py:class:`psyclone.core.Signature`,
-            :py:class:`psyclone.core.AccessSequence`]]
 
         '''
         non_locals = self._compute_all_non_locals(routine)
@@ -520,7 +518,7 @@ class CallTreeUtils():
                 name = sig.var_name
             name_accesses[name] = access
 
-        result = []
+        result: list[tuple[str, str, Signature, AccessSequence | None]] = []
         for (symbol_type, module, signature) in non_locals:
             if symbol_type == "routine":
                 result.append((symbol_type, module, signature, None))

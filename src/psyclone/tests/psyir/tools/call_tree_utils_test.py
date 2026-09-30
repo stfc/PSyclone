@@ -84,7 +84,7 @@ def test_call_tree_compute_all_non_locals_non_kernel():
     psyir = \
         container_node.find_routine_psyir("calling_unknown_subroutine")
     info = ctu._compute_all_non_locals(psyir)
-    assert info == [("routine", None, Signature("unknown_subroutine"))]
+    assert info == [("routine", "", Signature("unknown_subroutine"))]
 
     # Check calling an imported subroutine
     psyir = \
@@ -194,7 +194,7 @@ def test_call_tree_get_used_symbols_from_modules():
             ("unknown", "module_with_var_mod", "module_var_a"),
             ("unknown", "module_with_var_mod", "module_function"),
             ("routine", "testkern_import_symbols_mod", "local_subroutine"),
-            ("routine", None, "unknown_subroutine")]
+            ("routine", "", "unknown_subroutine")]
             )
     for x in non_locals_without_access:
         assert x in expected, str(x) + " not found"
