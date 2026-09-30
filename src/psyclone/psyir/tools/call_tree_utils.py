@@ -391,7 +391,8 @@ class CallTreeUtils():
                     # Add the list of non-locals to our todo list:
                     outstanding_nonlocals.extend(
                         self.get_non_local_symbols(routine))
-                    read_write_info.add_call(routine.name, cntr.name)
+                    read_write_info.add_call(Signature(routine.name),
+                                             cntr.name)
                     at_least_one_routine_found = True
 
                 if not at_least_one_routine_found:
