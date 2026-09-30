@@ -168,9 +168,9 @@ class IncreaseRankLoopArraysTrans(Transformation):
                         f" '{assignment.debug_string().strip()}'."
                     )
 
-            if isinstance(assignment.lhs, Reference):
                 if assignment.lhs.symbol not in arrays:
                     continue
+
                 if isinstance(assignment.lhs, ArrayReference):
                     # Check that the l.h.s. has no wildcard indices, e.g.,
                     # a(:) = 1 and a function on the r.h.s.
@@ -243,6 +243,11 @@ class IncreaseRankLoopArraysTrans(Transformation):
                     f"{self.name} does not support arrays that are referenced "
                     f"outside the given loop in a non-trivial expression "
                     f"but '{array.name}' is used outside the loop.")
+
+            if array.datatype.is_allocatable:
+                raise TransformationError(
+                    f"{self.name} does not support arrays that are allocatable, "
+                    f"but '{array.name}' is.")
 
         # Walk over `Reference` to also catch, e.g, `call foo(some_array)`
         # where the argument is a `Reference` and not an `ArrayReference`.
