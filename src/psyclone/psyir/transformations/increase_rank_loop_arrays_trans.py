@@ -257,7 +257,8 @@ class IncreaseRankLoopArraysTrans(Transformation):
         for array in arrays:
             array_symbol: Symbol
             if isinstance(array, str):
-                array_symbol = node.scope.symbol_table.lookup(array, otherwise=None)
+                array_symbol = node.scope.symbol_table.lookup(
+                                                     array, otherwise=None)
             else:
                 array_symbol = array
 
