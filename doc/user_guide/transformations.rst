@@ -264,6 +264,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.HoistRunetimeInquiryIntrinsicsTrans
+      :members: apply
+      :no-index:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.HoistTrans
       :members: apply
       :no-index:

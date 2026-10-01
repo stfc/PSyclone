@@ -32,6 +32,8 @@ from psyclone.psyir.transformations.hoist_local_arrays_trans import \
 from psyclone.psyir.transformations.hoist_loop_bound_expr_trans import \
     HoistLoopBoundExprTrans
 from psyclone.psyir.transformations.hoist_trans import HoistTrans
+from psyclone.psyir.transformations.hoist_runetime_inquiry_intrinsics_trans \
+    import HoistRunetimeInquiryIntrinsicsTrans
 from psyclone.psyir.transformations.increase_rank_loop_arrays_trans import \
     IncreaseRankLoopArraysTrans
 from psyclone.psyir.transformations.inline_trans import InlineTrans
@@ -135,6 +137,7 @@ __all__ = [
     "HoistLocalArraysTrans",
     "HoistLoopBoundExprTrans",
     "HoistTrans",
+    "HoistRunetimeInquiryIntrinsicsTrans",
     "IncreaseRankLoopArraysTrans",
     "InlineTrans",
     "Abs2CodeTrans",
