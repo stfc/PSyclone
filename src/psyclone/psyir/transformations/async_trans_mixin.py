@@ -66,7 +66,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
             for node in nodes:
                 var_accesses.update(node.reference_accesses())
                 if isinstance(node, Loop) and loop_variable is None:
-                    loop_variable = nodes[0].variable
+                    loop_variable = node.variable
         writes = []
         reads = []
         for signature in var_accesses.all_signatures:
