@@ -517,8 +517,7 @@ def test_undf_name():
     sched = psy.invokes.invoke_list[0].schedule
     kern = sched.walk(LFRicKern)[0]
 
-    # TODO add 'tag' method
-    assert kern.undf_name == "undf:w1"
+    assert kern.undf_name == "undf_w1"
 
 
 def test_kern_owned_cell_no_annexed(monkeypatch):

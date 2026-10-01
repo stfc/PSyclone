@@ -381,7 +381,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         field = self._arguments.iteration_space_arg()
         return self.scope.symbol_table.lookup_with_tag(
-            field.function_space.undf_tag)
+            field.function_space.undf_tag).name
 
     @property
     def qr_required(self):
