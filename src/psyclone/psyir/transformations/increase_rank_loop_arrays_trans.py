@@ -11,11 +11,12 @@ from typing import Optional, Union
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
-    Loop, Reference, ArrayReference, Routine, CodeBlock, Range,
+    Call, Loop, Reference, ArrayReference, Routine, CodeBlock, Range,
     IntrinsicCall, Assignment)
 from psyclone.psyir.symbols import ArrayType, Symbol
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.psyir.symbols import ScalarType
 from psyclone.utils import transformation_documentation_wrapper
 
 
@@ -109,16 +110,37 @@ class IncreaseRankLoopArraysTrans(Transformation):
         self.validate_options(**kwargs)
         arrays = self.get_option('arrays', **kwargs)
 
+        # Each item listed in the array list must be a local Array Symbol or a
+        # string that resolves to it
+        if not isinstance(arrays, list) or len(arrays) == 0:
+            raise TransformationError(
+                f"{self.name} has a mandatory 'arrays' option that is required"
+                f" to specify which arrays are to have their rank increased.")
+
         if not isinstance(node, Loop):
             raise TransformationError(
                 f"The target of the {self.name} transformation should be a "
                 f"Loop, but found '{type(node).__name__}'.")
 
-        routine = node.ancestor(Routine)
+        routine: Routine = node.ancestor(Routine)
         if routine is None:
             raise TransformationError(
                 f"The target Loop of the {self.name} transformation must be "
                 f"inside a Routine.")
+
+        # Make copy & convert to symbols
+        arrays = arrays[:]
+        for idx, array in enumerate(arrays):
+            if not isinstance(array, str):
+                continue
+
+            try:
+                arrays[idx] = node.scope.symbol_table.lookup(array)
+            except KeyError as err:
+                raise TransformationError(
+                    f"{self.name} provided array '{array}' does not exist"
+                    f" in this scope."
+                ) from err
 
         # Check if the loop bound expressions are static:
         # First, find all Symbols accessed in the loop bounds.
@@ -133,10 +155,10 @@ class IncreaseRankLoopArraysTrans(Transformation):
                 if ref.parent.is_inquiry or ref.position == 0:
                     continue
             values_to_check.add(ref.symbol)
-        # Second, check that none of these Symbols are assigned to within the
-        # Routine
         for assignment in routine.walk(Assignment):
             if isinstance(assignment.lhs, Reference):
+                # Second, check that none of these Symbols are assigned to
+                # within the Routine
                 if assignment.lhs.symbol in values_to_check:
                     raise TransformationError(
                         f"{self.name} can only be applied to loops with static"
@@ -144,6 +166,22 @@ class IncreaseRankLoopArraysTrans(Transformation):
                         f"in a loop with the variable "
                         f"'{assignment.lhs.symbol.name}' which is assigned to:"
                         f" '{assignment.debug_string().strip()}'."
+                    )
+
+                if assignment.lhs.symbol not in arrays:
+                    continue
+
+                if isinstance(assignment.lhs, ArrayReference):
+                    # Check that the l.h.s. has no wildcard indices, e.g.,
+                    # a(:) = 1 and a function on the r.h.s.
+                    if not any(
+                            assignment.lhs.is_full_range(idx)
+                            for idx, _ in enumerate(assignment.lhs.indices)):
+                        continue
+                if assignment.rhs.walk(Call):
+                    raise TransformationError(
+                        f"{self.name} No call on r.h.s. of a range array"
+                        " is allowed."
                     )
 
         # Capture all symbols used inside codeblocks, these are not permitted
@@ -179,21 +217,16 @@ class IncreaseRankLoopArraysTrans(Transformation):
                 # Everything else is currently forbidden
                 non_supported_outside_loop_symbols.add(check.symbol)
 
-        # Each item listed in the array list must be a local Array Symbol or a
-        # string that resolves to it
-        if not isinstance(arrays, list) or len(arrays) == 0:
-            raise TransformationError(
-                f"{self.name} has a mandatory 'arrays' option that is required"
-                f" to specify which arrays are to have their rank increased.")
         for array in arrays:
-            if isinstance(array, str):
-                try:
-                    array = node.scope.symbol_table.lookup(array)
-                except KeyError as err:
-                    raise TransformationError(
-                        f"{self.name} provided array '{array}' does not exist"
-                        f" in this scope."
-                    ) from err
+            array: Symbol
+
+            if routine.return_symbol is array:
+                raise TransformationError(
+                    f"{self.name} can't be applied to return variables.")
+
+            if array.datatype.intrinsic is ScalarType.Intrinsic.CHARACTER:
+                raise TransformationError(
+                    f"{self.name} can't be applied to character arrays.")
 
             if (not isinstance(array, Symbol) or not array.is_automatic
                     or not array.is_array):
@@ -212,6 +245,45 @@ class IncreaseRankLoopArraysTrans(Transformation):
                     f"outside the given loop in a non-trivial expression "
                     f"but '{array.name}' is used outside the loop.")
 
+            if array.datatype.is_allocatable:
+                raise TransformationError(
+                    f"{self.name} does not support arrays that are"
+                    f" allocatable, but '{array.name}' is.")
+
+        # Walk over `Reference` to also catch, e.g, `call foo(some_array)`
+        # where the argument is a `Reference` and not an `ArrayReference`.
+        for ref in node.walk(Reference):
+            # We iterate here over the arrays since it's more efficient
+            # than in the outer.
+            for array in arrays:
+                array: Symbol
+
+                if ref.symbol is not array:
+                    continue
+
+                if type(ref) is Reference:
+                    # Check for cases where an array is used as an argument
+                    # to a call, e.g., `call foo(some_array)`.
+                    call: Call = ref.ancestor(Call)
+                    if isinstance(call, IntrinsicCall):
+                        continue
+
+                    raise TransformationError(
+                        f"{self.name} Can't be applied to arrays"
+                        " without indices.")
+
+                ref: ArrayReference
+
+                for idx in ref.indices:
+                    for n in idx.walk(Reference):
+                        if n.symbol is node.variable_reference.symbol:
+                            raise TransformationError(
+                                f"{self.name} does not support arrays"
+                                f" that are indexed with the loop"
+                                f" variable of the target loop,"
+                                f" but '{array.name}' is indexed"
+                                f" with '{node.variable.name}'.")
+
     def apply(
         self,
         node: Loop,
@@ -226,21 +298,33 @@ class IncreaseRankLoopArraysTrans(Transformation):
         '''
         self.validate(node, arrays=arrays, **kwargs)
 
+        # List of processed array names
+        array_processed: list[str] = []
+
         for array in arrays:
+            array_symbol: Symbol
             if isinstance(array, str):
-                array = node.scope.symbol_table.lookup(array, otherwise=None)
+                array_symbol = node.scope.symbol_table.lookup(
+                                                     array, otherwise=None)
+            else:
+                array_symbol = array
+
+            if array_symbol.name in array_processed:
+                continue
+            array_processed.append(array_symbol.name)
 
             # Add an additional dimension to this array with the same bounds as
             # the target Loop
-            array.shape.append(
+            array_symbol.shape.append(
                 ArrayType.ArrayBounds(node.start_expr, node.stop_expr)
             )
 
-            for ref in array.find_symbol_table(node).node.walk(ArrayReference):
-                if ref.symbol is array:
+            symtable_node = array_symbol.find_symbol_table(node).node
+            for ref in symtable_node.walk(ArrayReference):
+                if ref.symbol is array_symbol:
                     if ref.is_descendant_of(node):
-                        # Inside the target loop index the reference using the
-                        # loop variable
+                        # Inside the target loop index the reference
+                        # using the loop variable
                         ref.addchild(Reference(node.variable))
                     else:
                         # Outside the target loop index the whole range
