@@ -755,6 +755,40 @@ end subroutine x"""
     out = fortran_writer(psyir)
     assert "nowait" not in out
 
+    # Check nowait is added for the case seen in the real use cases
+    code = """subroutine x()
+    integer, parameter :: r_um = 8
+    real, dimension(:,:,:) :: um_array
+    real, dimension(:) :: lfric_array
+    integer, dimension(:,:) :: map
+    integer :: i, k, nlayers, seg_len
+
+    do k = 1, nlayers
+      do i = 1, seg_len
+        um_array(i, 1, k) = real(lfric_array(map(1, i) + k), r_um)
+      end do
+    end do
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    otrans = OMPParallelTrans()
+    looptrans = OMPLoopTrans(omp_directive="do")
+    routine = psyir.walk(Routine)[0]
+    loops = psyir.walk(Loop)
+    otrans.apply(loops[0])
+    looptrans.apply(loops[1], nowait=True)
+    out = fortran_writer(psyir)
+    correct = """  !$omp parallel default(shared) private(i,k)
+  do k = 1, nlayers, 1
+    !$omp do schedule(auto)
+    do i = 1, seg_len, 1
+      um_array(i,1,k) = REAL(lfric_array(map(1,i) + k), kind=r_um)
+    enddo
+    !$omp end do nowait
+  enddo
+  !$omp barrier
+  !$omp end parallel"""
+    assert correct in out
+
 
 def test_regiontrans_wrong_children():
     ''' Check that the validate method raises the expected error if
