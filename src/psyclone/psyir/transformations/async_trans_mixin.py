@@ -57,16 +57,12 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                   dependency.
 
         '''
-        loop_variable = None
-        if isinstance(nodes, (Loop, WhileLoop)):
+        if isinstance(nodes, Loop):
             var_accesses = nodes.reference_accesses()
-            loop_variable = nodes.variable
         else:
             var_accesses = VariablesAccessMap()
             for node in nodes:
                 var_accesses.update(node.reference_accesses())
-                if isinstance(node, Loop) and loop_variable is None:
-                    loop_variable = node.variable
         writes = []
         reads = []
         for signature in var_accesses.all_signatures:
@@ -165,6 +161,9 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
         node_ancestor = directive.ancestor((Loop, WhileLoop))
         while (isinstance(node_ancestor, Loop) and
                node_ancestor.independent_iterations()):
+            # We skip over ancestor loops that have independent iterations
+            # as we already know they have no dependencies between their
+            # iterations..
             node_ancestor = node_ancestor.ancestor((Loop, WhileLoop))
         if node_ancestor:
             # If we didn't find a closest and we have an ancestor Loop, then
