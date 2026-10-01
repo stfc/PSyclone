@@ -471,3 +471,82 @@ def test_earliest_root_position(fortran_reader, fortran_writer):
         endif''')
     assert tree.walk(IntrinsicCall)[0].parent is \
         tree.walk(Routine)[0].children[0]
+
+
+@pytest.mark.parametrize('resolved', [False, True])
+def test_structure_element_writes(fortran_reader, resolved):
+    '''Writes to derived-type array elements do not change component bounds.'''
+    declarations = 'use fields, only: frcv'
+    if resolved:
+        declarations = '''type field
+          real, allocatable :: z3(:,:,:)
+        end type
+        type(field) :: frcv(2)'''
+    tree = fortran_reader.psyir_from_source(f'''
+        subroutine test(ztx)
+        {declarations}
+        real :: ztx(:,:)
+        integer, parameter :: jpr_otx1=1
+        integer :: idx_2, idx_3
+        do idx_2=lbound(frcv(jpr_otx1)%z3,2),ubound(frcv(jpr_otx1)%z3,2)
+          do idx_3=lbound(frcv(jpr_otx1)%z3,1),ubound(frcv(jpr_otx1)%z3,1)
+            frcv(jpr_otx1)%z3(idx_3,idx_2,1) = &
+                ztx(idx_3+(lbound(ztx,1)-lbound(frcv(jpr_otx1)%z3,1)), &
+                    idx_2+(lbound(ztx,2)-lbound(frcv(jpr_otx1)%z3,2)))
+          enddo
+        enddo
+        end''')
+    HoistRunetimeInquiryIntrinsicsTrans().apply(tree.walk(Routine)[0])
+    inquiries = tree.walk(IntrinsicCall)
+    assert len(inquiries) == 6
+    assert all(not call.ancestor(Loop) for call in inquiries)
+    routine = tree.walk(Routine)[0]
+    assert all(call.parent.position < routine.walk(Loop)[0].position
+               for call in inquiries)
+
+
+@pytest.mark.parametrize('write,blocked', [
+    ('objects(k)%z3(i,1,1)=0', False),
+    ('objects(k)%z3(:,1,1)=0', False),
+    ('objects(k)%other=0', False),
+    ('objects(k)%z3=rhs', True),
+    ('objects(k)%z3=>rhs', True),
+    ('objects(k)=replacement', True),
+    ('objects=replacement', True),
+    ('k=2', True),
+    ('deallocate(objects(k)%z3)', True)])
+def test_component_descriptor_barriers(fortran_reader, write, blocked):
+    '''Component replacement, object replacement and selectors are barriers.'''
+    tree = fortran_reader.psyir_from_source(f'''
+        subroutine test()
+        use fields, only: objects, replacement, rhs
+        integer :: i, k, n
+        do i=1,10
+          {write}
+          n=size(objects(k)%z3)
+        enddo
+        end''')
+    HoistRunetimeInquiryIntrinsicsTrans().apply(tree.walk(Routine)[0])
+    inquiry = next(call for call in tree.walk(IntrinsicCall)
+                   if call.intrinsic == IntrinsicCall.Intrinsic.SIZE)
+    assert bool(inquiry.ancestor(Loop)) is blocked
+
+
+def test_structure_loop_selector(fortran_reader):
+    '''An inquiry cannot cross a loop that selects different structures.'''
+    tree = fortran_reader.psyir_from_source('''
+        subroutine test()
+        use fields, only: objects
+        integer :: i, k, n
+        do k=1,10
+          do i=1,10
+            objects(k)%z3(i)=0
+            n=size(objects(k)%z3)
+          enddo
+        enddo
+        end''')
+    HoistRunetimeInquiryIntrinsicsTrans().apply(tree.walk(Routine)[0])
+    inquiry = tree.walk(IntrinsicCall)[0]
+    outer = tree.walk(Loop)[0]
+    assert inquiry.ancestor(Loop) is outer
+    assert inquiry.parent is outer.loop_body.children[0]

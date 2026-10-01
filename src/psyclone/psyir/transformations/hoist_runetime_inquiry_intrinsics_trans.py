@@ -7,7 +7,7 @@
 '''Hoist array inquiries whose bounds are only known at run time.'''
 
 from psyclone.psyir.nodes import (
-    ArrayReference, Assignment, Call, CodeBlock, Directive, IfBlock,
+    Assignment, Call, CodeBlock, Directive, IfBlock,
     IntrinsicCall, Literal, Loop, Reference, Return, Routine, Schedule,
     WhileLoop)
 from psyclone.psyir.symbols import (
@@ -80,6 +80,25 @@ class HoistRunetimeInquiryIntrinsicsTrans(RegionTrans):
             for bound in dtype.shape)
 
     @staticmethod
+    def _changes_descriptor(assignment, array):
+        '''Whether an assignment can replace an array or a containing object.
+
+        Indexing the final component writes elements or a section and cannot
+        reallocate that component. A containing structure is different:
+        assigning ``objects(i)`` can replace its allocatable components.
+        Compare component paths even when their datatypes are unresolved.
+        '''
+        lhs = assignment.lhs
+        if lhs.symbol is not array.symbol:
+            return False
+        written, indices = lhs.get_signature_and_indices()
+        queried, _ = array.get_signature_and_indices()
+        if written != queried[:len(written)]:
+            return False
+        return (assignment.is_pointer or len(written) < len(queried) or
+                not indices[-1])
+
+    @staticmethod
     def _barrier(node, inquiry, local):
         '''Whether executing node can change the inquiry's result.
 
@@ -124,8 +143,9 @@ class HoistRunetimeInquiryIntrinsicsTrans(RegionTrans):
                 continue
             if lhs.symbol in values:
                 return True
-            if lhs.symbol in arrays and (assign.is_pointer or
-                                         not isinstance(lhs, ArrayReference)):
+            if any(HoistRunetimeInquiryIntrinsicsTrans._changes_descriptor(
+                    assign, arg) for arg in inquiry.arguments
+                   if isinstance(arg, Reference)):
                 return True
         return any(loop.variable in symbols for loop in node.walk(Loop))
 
