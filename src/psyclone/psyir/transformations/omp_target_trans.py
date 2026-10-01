@@ -14,6 +14,8 @@ from psyclone.psyir.nodes import (
     OMPTaskwaitDirective, Directive, Schedule, Node)
 from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.transformations.region_trans import RegionTrans
+from psyclone.psyir.transformations.hoist_runetime_inquiry_intrinsics_trans \
+    import HoistRunetimeInquiryIntrinsicsTrans
 from psyclone.psyir.transformations.async_trans_mixin import \
     AsyncTransMixin
 from psyclone.psyir.transformations import TransformationError
@@ -213,6 +215,10 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
         # Check whether we've been passed a list of nodes or just a
         # single node. If the latter then we create ourselves a
         # list containing just that node.
+
+        for child in node_list:
+            HoistRunetimeInquiryIntrinsicsTrans().apply(
+                child, assume_reallocations_are_local=True)
 
         # Create a directive containing the nodes in node_list and insert it.
         parent = node_list[0].parent
