@@ -173,7 +173,8 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                 continue
 
             # All arrays not explicitly marked as explicitly_private are shared
-            if any(accs.has_indices() for accs in accesses):
+            if symbol.is_array_access():
+                #            if any(accs.has_indices() for accs in accesses):
                 continue
 
             # If a variable is only accessed once, it is either an error
