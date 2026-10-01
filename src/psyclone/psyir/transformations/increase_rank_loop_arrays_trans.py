@@ -176,8 +176,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
                     # a(:) = 1 and a function on the r.h.s.
                     if not any(
                             assignment.lhs.is_full_range(idx)
-                            for idx, _ in enumerate(assignment.lhs.indices)
-                        ):
+                            for idx, _ in enumerate(assignment.lhs.indices)):
                         continue
                 if assignment.rhs.walk(Call):
                     raise TransformationError(

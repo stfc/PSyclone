@@ -46,7 +46,7 @@ def test_irla_validate(fortran_reader):
 
     routine = psyir.children[0]
     with pytest.raises(TransformationError) as err:
-        trans.apply(routine.children[0], arrays =['a'])
+        trans.apply(routine.children[0], arrays=['a'])
     assert ("The target of the IncreaseRankLoopArraysTrans transformation "
             "should be a Loop, but found 'Assignment'." in str(err.value))
 
