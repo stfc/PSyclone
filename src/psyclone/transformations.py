@@ -2006,27 +2006,6 @@ class KernelImportsToArguments(Transformation, CalleeTransformationMixin):
                     kern.arguments.append(arg[0], arg[1])
 
 
-# Create a compatibility layer for all existing Dynamo0p3 transformation
-# names. These are just derived classes from the new name which print
-# a deprecation message when creating an instance
-for name in ["OMPParallelLoopTrans",
-             "OMPLoopTrans",
-             "ColourTrans",
-             "AsyncHaloExchangeTrans",
-             "KernelConstTrans"]:
-    class_string = f"""
-class Dynamo0p3{name}(LFRic{name}):
-
-    def __new__(cls):
-        print("Deprecation warning: the script uses the legacy name "
-              "'Dynamo0p3{name}', please use new name "
-              "'LFRic{name}' instead.")
-        return super().__new__(cls)
-        """
-    # pylint: disable=exec-used
-    exec(class_string)
-
-
 # For Sphinx AutoAPI documentation generation
 __all__ = [
    "ACCEnterDataTrans",

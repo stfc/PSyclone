@@ -15,8 +15,10 @@ from psyclone.psyir.nodes import Assignment, Reference, StructureReference
 from psyclone.psyir.symbols import ScalarType, DataSymbol, DataTypeSymbol
 from psyclone.psyir.transformations import TransformationError
 from psyclone.configuration import Config
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class GOConstLoopBoundsTrans(Transformation):
     ''' Use of a common constant variable for each loop bound within
     a GOInvokeSchedule. By default, PSyclone generates loops where
@@ -64,7 +66,7 @@ class GOConstLoopBoundsTrans(Transformation):
         '''
         return "GOConstLoopBoundsTrans"
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''Checks if it is valid to apply the GOConstLoopBoundsTrans
         transform.
 
@@ -84,6 +86,8 @@ class GOConstLoopBoundsTrans(Transformation):
             field argument.
 
         '''
+        if not options:
+            self.validate_options(**kwargs)
         if not isinstance(node, GOInvokeSchedule):
             raise TransformationError(
                 f"GOConstLoopBoundsTrans can only be applied to "
@@ -137,7 +141,7 @@ class GOConstLoopBoundsTrans(Transformation):
                 f"GOConstLoopBoundsTrans can not transform invoke "
                 f"'{node.name}' because it does not have any field arguments.")
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         ''' Modify the GOcean kernel loops in a GOInvokeSchedule to use
         common constant loop bound variables.
 
@@ -148,7 +152,8 @@ class GOConstLoopBoundsTrans(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node, options=options)
+        # TODO #2668: Deprecate options dict.
+        self.validate(node, options=options, **kwargs)
 
         i_stop = node.symbol_table.new_symbol(
             "istop", symbol_type=DataSymbol,

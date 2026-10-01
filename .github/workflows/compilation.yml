@@ -156,8 +156,10 @@ jobs:
         make -C examples allclean
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
+        # Since this is the second execution of the examples, we also test the psyclone part with
+        # PYTHONOPTIMIZE=2 which removes asserts and annotations
         # TODO #3074: Examples compilation cannot be run in parallel
-        F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C examples run
+        PYTHONOPTIMIZE=2 F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C examples run
     - name: Tutorials with compilation - nvfortran
       run: |
         . .runner_venv/bin/activate
@@ -165,6 +167,9 @@ jobs:
         make -C tutorial/training allclean
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
+        # Since this is the second execution of the examples, we also test the psyclone part with
+        # PYTHONOPTIMIZE=2 which removes asserts and annotations
+        export PYTHONOPTIMIZE=2
         F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/practicals/LFRic compile
         F90=nvfortran F90FLAGS="-acc -Minfo=all -Mnofma -O2" make -C tutorial/practicals/generic run
         # We cannot run non-GPU examples with the openacc flag, since output_field
