@@ -616,7 +616,7 @@ class LFRicStencils(LFRicCollection):
                 symbol.datatype = ArrayType(
                         LFRicTypes("LFRicIntegerScalarDataType")(),
                         [Reference(symtab.lookup_with_tag(
-                            arg.function_space.ndf_name)),
+                            arg.function_space.ndf_tag)),
                          Reference(max_length),
                          Literal("4", ScalarType.integer_type())])
             else:
@@ -629,7 +629,7 @@ class LFRicStencils(LFRicCollection):
                 symbol.datatype = ArrayType(
                         LFRicTypes("LFRicIntegerScalarDataType")(),
                         [Reference(symtab.lookup_with_tag(
-                            arg.function_space.ndf_name)),
+                            arg.function_space.ndf_tag)),
                          Reference(size_symbol)])
             symbol.interface = ArgumentInterface(
                         ArgumentInterface.Access.READ)

@@ -68,9 +68,9 @@ class LFRicDofmaps(LFRicCollection):
                 # space. If there is then we use it to look up the dofmap.
                 fld_arg = unique_fs.field_on_space(call.arguments)
                 if fld_arg:
-                    map_name = unique_fs.map_name
-                    if map_name not in self._unique_fs_maps:
-                        self._unique_fs_maps[map_name] = fld_arg
+                    map_tag = unique_fs.map_tag
+                    if map_tag not in self._unique_fs_maps:
+                        self._unique_fs_maps[map_tag] = fld_arg
             if call.cma_operation == "assembly":
                 # A kernel that assembles a CMA operator requires
                 # column-banded dofmaps for its 'to' and 'from'
@@ -268,16 +268,14 @@ class LFRicDofmaps(LFRicCollection):
         for dmap in sorted(self._unique_fs_maps):
             # We declare ndf first as some compilers require this
             fspace = self._unique_fs_maps[dmap].function_space
-            ndf_name = fspace.ndf_name
             dim = self.symtab.find_or_create_tag(
-                ndf_name, root_name=f"ndf_{fspace.short_mangled_name}",
+                fspace.ndf_tag, root_name=fspace.ndf_name,
                 symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
             dim.interface = ArgumentInterface(ArgumentInterface.Access.READ)
             self.symtab.append_argument(dim)
-            # TODO add FunctionSpace.dof_map_name/tag method
             dmap_symbol = self.symtab.find_or_create_tag(
-                dmap, root_name=f"map_{fspace.short_mangled_name}",
+                dmap, root_name=fspace.map_name,
                 symbol_type=DataSymbol,
                 datatype=ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
                                    [Reference(dim)]))
@@ -296,10 +294,9 @@ class LFRicDofmaps(LFRicCollection):
                     f"Invalid direction ('{cma['''direction''']}') found for "
                     f"CMA operator when collecting column-banded dofmaps. "
                     f"Should be either 'to' or 'from'.")
-            tag = fspace.ndf_name
-            name = f"ndf_{fspace.short_mangled_name}"
             symbol = self.symtab.find_or_create_tag(
-                tag, root_name=name, symbol_type=DataSymbol,
+                fspace.ndf_tag, root_name=fspace.ndf_name,
+                symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
             symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
             self.symtab.append_argument(symbol)

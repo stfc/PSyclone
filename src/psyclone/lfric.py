@@ -81,9 +81,9 @@ def qr_basis_alloc_args(table: SymbolTable,
             f"lfric.qr_basis_alloc_args(). Should be one of: "
             f"{const.VALID_QUADRATURE_SHAPES}")
 
-    mangled_name = basis_fn['fspace'].mangled_name
+    fspace = basis_fn['fspace']
     qr_var = "_" + basis_fn["qr_var"]
-    ndf_sym = table.lookup_with_tag(f"ndf:{mangled_name}")
+    ndf_sym = table.lookup_with_tag(fspace.ndf_tag)
     first = first_dim
 
     # Dimensionality of the basis arrays depends on the
@@ -1140,8 +1140,8 @@ class LFRicFunctionSpaces(LFRicCollection):
             # CMA kernel performing a matrix-matrix operation.
             if self._invoke and not self._dofs_only or \
                self._kernel and self._kernel.cma_operation != "matrix-matrix":
-                self._var_list.append((f"ndf:{mangled_name}",
-                                       f"ndf_{short_name}"))
+                self._var_list.append((function_space.ndf_tag,
+                                       function_space.ndf_name))
 
             # If there is a field on this space then add undf to list
             # to declare later. However, if the invoke contains only
@@ -1151,11 +1151,11 @@ class LFRicFunctionSpaces(LFRicCollection):
             if self._invoke and self._invoke.field_on_space(function_space):
                 if not (self._dofs_only and Config.get().distributed_memory):
                     self._var_list.append(
-                        (f"undf:{mangled_name}", f"undf_{short_name}"))
+                        (function_space.undf_tag, function_space.undf_name))
             elif self._kernel and \
                     function_space.field_on_space(self._kernel.arguments):
                 self._var_list.append(
-                    (f"undf:{mangled_name}", f"undf_{short_name}"))
+                    (function_space.undf_tag, f"undf_{short_name}"))
 
     def stub_declarations(self):
         '''
@@ -1590,10 +1590,10 @@ class LFRicLMAOperators(LFRicCollection):
             size_sym.interface = ArgumentInterface(
                                         ArgumentInterface.Access.READ)
             self.symtab.append_argument(size_sym)
-            ndf_name_to = self.symtab.lookup_with_tag(
-                                    arg.function_space_to.ndf_name)
-            ndf_name_from = self.symtab.lookup_with_tag(
-                                    arg.function_space_from.ndf_name)
+            ndf_to = self.symtab.lookup_with_tag(
+                arg.function_space_to.ndf_tag)
+            ndf_from = self.symtab.lookup_with_tag(
+                arg.function_space_from.ndf_tag)
 
             # Create the PSyIR intrinsic DataType
             kind_sym = self.symtab.find_or_create(
@@ -1620,8 +1620,8 @@ class LFRicLMAOperators(LFRicCollection):
                 arg.name, symbol_type=DataSymbol,
                 datatype=ArrayType(intr_type, [
                     Reference(size_sym),
-                    Reference(ndf_name_to),
-                    Reference(ndf_name_from),
+                    Reference(ndf_to),
+                    Reference(ndf_from),
                 ]))
             arg_sym.interface = ArgumentInterface(intent)
             self.symtab.append_argument(arg_sym)
@@ -3406,9 +3406,9 @@ class LFRicBasisFunctions(LFRicCollection):
                         op_name,
                         first_dim,
                         self.symtab.lookup_with_tag(
-                            basis_fn['fspace'].ndf_name).name,
+                            basis_fn['fspace'].ndf_tag).name,
                         self.symtab.lookup_with_tag(
-                            target_space.ndf_name).name]
+                            target_space.ndf_tag).name]
             else:
                 raise InternalError(
                     f"Unrecognised evaluator shape: '{basis_fn['''shape''']}'."
@@ -3709,7 +3709,8 @@ class LFRicBasisFunctions(LFRicCollection):
                         datatype=LFRicTypes("LFRicIntegerScalarDataType")())
                     loop = Loop.create(
                             symbol, Literal('1', ScalarType.integer_type()),
-                            Reference(self.symtab.lookup_with_tag(space.ndf_name)),
+                            Reference(
+                                self.symtab.lookup_with_tag(space.ndf_tag)),
                             Literal('1', ScalarType.integer_type()), [])
                     if first:
                         loop.preceding_comment = (
@@ -3730,7 +3731,7 @@ class LFRicBasisFunctions(LFRicCollection):
                     inner_loop = Loop.create(
                             symbol, Literal('1', ScalarType.integer_type()),
                             Reference(self.symtab.lookup_with_tag(
-                                basis_fn["fspace"].ndf_name)),
+                                basis_fn["fspace"].ndf_tag)),
                             Literal('1', ScalarType.integer_type()), [])
                     loop.loop_body.addchild(inner_loop)
 
@@ -3883,11 +3884,11 @@ class LFRicBoundaryConditions(LFRicCollection):
         super().stub_declarations()
         for dofs in self._boundary_dofs:
             name = "boundary_dofs_" + dofs.argument.name
-            ndf_name = self.symtab.lookup_with_tag(
-                dofs.function_space.ndf_name)
+            ndf_sym = self.symtab.lookup_with_tag(
+                dofs.function_space.ndf_tag)
             dtype = ArrayType(
                 LFRicTypes("LFRicIntegerScalarDataType")(),
-                [Reference(ndf_name), Literal("2", ScalarType.integer_type())])
+                [Reference(ndf_sym), Literal("2", ScalarType.integer_type())])
             new_symbol = self.symtab.new_symbol(
                 name,
                 symbol_type=DataSymbol,

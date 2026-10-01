@@ -557,8 +557,8 @@ def test_lfric_stub_banded_dofmap():
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
-    assert "cbanded_map_ads1_op_1: READ," in var_info
-    assert "cbanded_map_ads2_op_1: READ" in var_info
+    assert "cbanded_map_ads1_op_1__1: READ," in var_info
+    assert "cbanded_map_ads2_op_1__1: READ" in var_info
 
 
 def test_lfric_stub_indirection_dofmap():
@@ -572,8 +572,8 @@ def test_lfric_stub_indirection_dofmap():
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
-    assert "cma_indirection_map_as1_field_1: READ," in var_info
-    assert "cma_indirection_map_as2_field_2: READ" in var_info
+    assert "cma_indirection_map_as1_field_1__1: READ," in var_info
+    assert "cma_indirection_map_as2_field_2__1: READ" in var_info
 
 
 def test_lfric_stub_boundary_dofmap():

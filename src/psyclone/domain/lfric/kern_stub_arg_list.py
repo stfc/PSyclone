@@ -350,11 +350,17 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
-        # ARPDBG - symtab not populated yet.
-        #undf_name = self._symtab.lookup_with_tag(function_space.undf_name).name
-        #map_name = self._symtab.lookup_with_tag(function_space.map_name).name
-        self.append(f"undf_{function_space.short_mangled_name}", var_accesses)
-        self.append(f"map_{function_space.short_mangled_name}", var_accesses)
+        try:
+            undf_name = self._symtab.lookup_with_tag(
+                function_space.undf_tag).name
+            map_name = self._symtab.lookup_with_tag(
+                function_space.map_tag).name
+        except KeyError:
+            # We may not have a populated symbol table.
+            undf_name = function_space.undf_name
+            map_name = function_space.map_name
+        self.append(undf_name, var_accesses)
+        self.append(map_name, var_accesses)
 
     def basis(self, function_space, var_accesses=None):
         '''Add basis function information for this function space to the
@@ -391,8 +397,13 @@ class KernStubArgList(ArgOrdering):
                 for _, target in self._kern.eval_targets.items():
                     basis_name, basis_tag = \
                         function_space.get_basis_name(on_space=target[0])
-                    sym = self._symtab.lookup_with_tag(basis_tag)
-                    self.append(sym.name, var_accesses)
+                    try:
+                        name = self._symtab.lookup_with_tag(basis_tag).name
+                    except KeyError:
+                        # Allow for cases where the symbol table has not
+                        # been populated (mainly during testing)
+                        name = basis_name
+                    self.append(name, var_accesses)
             else:
                 raise InternalError(
                     f"Unrecognised evaluator shape ('{shape}'). Expected one "
@@ -423,7 +434,12 @@ class KernStubArgList(ArgOrdering):
                 # last part of the shape name to "qr_".
                 diff_basis_name, tag = function_space.get_diff_basis_name(
                     qr_var="qr_"+shape.split("_")[-1])
-                name = self._symtab.lookup_with_tag(tag).name
+                try:
+                    name = self._symtab.lookup_with_tag(tag).name
+                except KeyError:
+                    # Allow for cases where the symbol table has not
+                    # been populated (mainly during testing)
+                    name = diff_basis_name
                 self.append(name, var_accesses)
 
             elif shape in const.VALID_EVALUATOR_SHAPES:
@@ -434,7 +450,12 @@ class KernStubArgList(ArgOrdering):
                 for _, target in self._kern.eval_targets.items():
                     diff_basis_name, tag = function_space.get_diff_basis_name(
                         on_space=target[0])
-                    name = self._symtab.lookup_with_tag(tag).name
+                    try:
+                        name = self._symtab.lookup_with_tag(tag).name
+                    except KeyError:
+                        # Allow for cases where the symbol table has not
+                        # been populated (mainly during testing)
+                        name = diff_basis_name
                     self.append(name, var_accesses)
             else:
                 raise InternalError(f"Unrecognised evaluator shape "

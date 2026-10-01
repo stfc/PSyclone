@@ -185,11 +185,18 @@ class FunctionSpace():
         return start + "s" + self._orig_name.split("_")[-1]
 
     @property
+    def map_tag(self) -> str:
+        '''
+        :returns: a unique dofmap name for the supplied FunctionSpace.
+        '''
+        return f"map:{self.mangled_name}"
+
+    @property
     def map_name(self) -> str:
         '''
         :returns: a dofmap name for the supplied FunctionSpace.
         '''
-        return f"map:{self.mangled_name}"
+        return f"map_{self.short_mangled_name}"
 
     @property
     def cbanded_map_tag(self) -> str:
@@ -223,18 +230,34 @@ class FunctionSpace():
         return "cma_indirection_map_" + self.short_mangled_name
 
     @property
+    def ndf_tag(self) -> str:
+        '''
+        :returns: a unique tag for the ndf symbol for this FunctionSpace
+                  object.
+        '''
+        return "ndf:" + self.mangled_name
+
+    @property
     def ndf_name(self) -> str:
         '''
         :returns: a ndf name for this FunctionSpace object.
         '''
-        return "ndf:" + self.mangled_name
+        return f"ndf_{self.short_mangled_name}"
+
+    @property
+    def undf_tag(self) -> str:
+        '''
+        :returns: a unique tag for the undf symbol for this FunctionSpace
+                  object.
+        '''
+        return "undf:" + self.mangled_name
 
     @property
     def undf_name(self) -> str:
         '''
         :returns: a undf name for this FunctionSpace object.
         '''
-        return "undf:" + self.mangled_name
+        return f"undf_{self.short_mangled_name}"
 
     def get_basis_name(self,
                        qr_var: str = None,

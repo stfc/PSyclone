@@ -198,11 +198,11 @@ class KernCallAccArgList(KernCallArgList):
         '''
         if not self._kern.iterates_over.endswith("cell_column"):
             return
-        sym = self._symtab.lookup_with_tag(function_space.undf_name)
+        sym = self._symtab.lookup_with_tag(function_space.undf_tag)
         self.append(sym.name, var_accesses)
         # The base class only adds one dimension to the list, while OpenACC
         # needs the whole field, so we cannot call the base class.
-        sym = self._symtab.lookup_with_tag(function_space.map_name)
+        sym = self._symtab.lookup_with_tag(function_space.map_tag)
         self.append(sym.name, var_accesses)
 
     def fs_intergrid(self, function_space, var_accesses=None):
@@ -223,7 +223,7 @@ class KernCallAccArgList(KernCallArgList):
         if arg.mesh == "gh_fine":
             # For the fine mesh, we need the *whole* dofmap
             map_name = self._symtab.lookup_with_tag(
-                function_space.map_name).name
+                function_space.map_tag).name
             self.append(map_name, var_accesses)
         else:
             # For the coarse mesh we only need undf and the dofmap for

@@ -769,7 +769,7 @@ class ArgOrdering:
 
     def fs_common(self,
                   function_space: FunctionSpace,
-                  var_accesses: Optional[VariablesAccessMap]=None):
+                  var_accesses: Optional[VariablesAccessMap] = None):
         '''Add function-space related arguments common to LMA operators and
         fields. If supplied it also stores this access in var_accesses.
 
@@ -780,9 +780,8 @@ class ArgOrdering:
 
         '''
         # There is currently one argument: "ndf"
-        sym = self.append_integer_reference(
-            f"ndf_{function_space.short_mangled_name}",
-            tag=function_space.ndf_name)
+        sym = self.append_integer_reference(function_space.ndf_name,
+                                            tag=function_space.ndf_tag)
         self.append(sym.name, var_accesses)
 
     def fs_compulsory_field(self, function_space, var_accesses=None):
@@ -937,7 +936,12 @@ class ArgOrdering:
         '''
         # pylint: disable=unused-argument
         tag = function_space.cma_indirection_map_name
-        map_name = self._symtab.lookup_with_tag(tag).name
+        try:
+            map_name = self._symtab.lookup_with_tag(tag).name
+        except KeyError:
+            # Allow for the case where we haven't set-up the symbol table
+            # yet (mainly during testing).
+            map_name = tag
         self.append_array_reference(map_name, [":"], tag=tag)
         self.append(map_name, var_accesses)
 

@@ -371,17 +371,17 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         return None
 
     @property
-    def undf_name(self):
+    def undf_name(self) -> str:
         '''
         Dynamically looks up the name of the 'undf' variable for the
         space that this kernel updates.
 
         :returns: the name of the undf variable.
-        :rtype: str
 
         '''
         field = self._arguments.iteration_space_arg()
-        return field.function_space.undf_name
+        return self.scope.symbol_table.lookup_with_tag(
+            field.function_space.undf_tag)
 
     @property
     def qr_required(self):

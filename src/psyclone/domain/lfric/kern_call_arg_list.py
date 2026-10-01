@@ -703,11 +703,10 @@ class KernCallArgList(ArgOrdering):
 
         sym = self.append_integer_reference(
             function_space.undf_name,
-            tag=f"undf:{function_space.mangled_name}")
+            tag=function_space.undf_tag)
         self.append(sym.name, var_accesses)
 
-        map_name = function_space.map_name
-        sym = self._symtab.lookup_with_tag(map_name)
+        sym = self._symtab.lookup_with_tag(function_space.map_tag)
 
         if self._kern.iterates_over == 'domain':
             # This kernel takes responsibility for iterating over cells so
@@ -740,11 +739,12 @@ class KernCallArgList(ArgOrdering):
             # dofmap
             self.fs_common(function_space, var_accesses=var_accesses)
             sym = self.append_integer_reference(
-                f"undf_{function_space.short_mangled_name}",
-                tag=function_space.undf_name)
+                function_space.undf_name,
+                tag=function_space.undf_tag)
             self.append(sym.name, var_accesses)
             map_name = function_space.map_name
-            sym = self.append_array_reference(map_name, [":", ":"])
+            sym = self.append_array_reference(map_name, [":", ":"],
+                                              tag=function_space.map_tag)
             self.append(sym.name, var_accesses)
         else:
             # For the coarse mesh we only need undf and the dofmap for
