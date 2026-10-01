@@ -45,7 +45,7 @@ env:
   HDF5_VERSION: "2.2"
   NETCDF_C_VERSION: "4.10"
   NETCDF_FORTRAN_VERSION: "4.6"
-  NVHPC_TOOLCHAIN: nvhpc26_3_openmpi
+  NVHPC_TOOLCHAIN: nvhpc26_9_openmpi
   INTEL_TOOLCHAIN: intel25_3_openmpi
   PERL_VERSION: "5.44"
   PYTHON_VERSION: "3.14"
@@ -168,7 +168,7 @@ jobs:
           del_key "key_iomput key_mpp_mpi key_si3"
 
         # Run test
-        export NV_ACC_POOL_THRESHOLD=75
+        export NVCOMPILER_ACC_POOL_THRESHOLD=75
         export CUDA_VISIBLE_DEVICES=1
         cd cfgs/${TEST_DIR}/EXP00/
         ln -sf /archive/psyclone-tests/nemo-inputs/UKMO-eORCA1_GO8_NEMOv4/*.nc .
@@ -207,7 +207,7 @@ jobs:
           del_key "key_iomput key_mpp_mpi key_si3"
 
         # Run test
-        export NV_ACC_POOL_THRESHOLD=75
+        export NVCOMPILER_ACC_POOL_THRESHOLD=75
         export CUDA_VISIBLE_DEVICES=1
         cd cfgs/${TEST_DIR}/EXP00/
         ln -sf /archive/psyclone-tests/nemo-inputs/UKMO-eORCA1_GO8_NEMOv4/*.nc .
@@ -247,7 +247,7 @@ jobs:
           del_key "key_iomput key_mpp_mpi key_si3"
 
         # Run test
-        export NV_ACC_POOL_THRESHOLD=75
+        export NVCOMPILER_ACC_POOL_THRESHOLD=75
         export CUDA_VISIBLE_DEVICES=1
         cd cfgs/${TEST_DIR}/EXP00/
         ln -sf /archive/psyclone-tests/nemo-inputs/UKMO-eORCA1_GO8_NEMOv4/*.nc .
@@ -325,7 +325,7 @@ jobs:
           del_key "key_iomput key_mpp_mpi key_si3"
 
         # Run test
-        export NV_ACC_POOL_THRESHOLD=75
+        export NVCOMPILER_ACC_POOL_THRESHOLD=75
         export CUDA_VISIBLE_DEVICES=1
         cd cfgs/${TEST_DIR}/EXP00/
         ln -sf /archive/psyclone-tests/nemo-inputs/UKMO-eORCA1_GO8_NEMOv4/*.nc .
