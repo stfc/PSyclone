@@ -7,7 +7,8 @@
 '''Tests for extraction and safe movement of run-time array inquiries.'''
 import pytest
 
-from psyclone.psyir.nodes import Assignment, IntrinsicCall, Loop, Routine
+from psyclone.psyir.nodes import (
+    Assignment, IfBlock, IntrinsicCall, Loop, Routine)
 from psyclone.psyir.transformations import (
     HoistRunetimeInquiryIntrinsicsTrans, TransformationError)
 
@@ -242,3 +243,231 @@ def test_constant_bounds(fortran_reader, fortran_writer):
     tree, _ = transform(fortran_reader, fortran_writer, 'x=size(b)',
                         'integer, parameter :: n=10\nreal :: b(2*n)')
     assert len(tree.walk(Assignment)) == 1
+
+
+@pytest.mark.parametrize('body', [
+    '''if (i>0) then
+         if (j>0) then
+           x=size(a)
+         endif
+       endif''',
+    '''if (i>0) then
+         x=0
+       else
+         x=size(a)
+       endif''',
+    '''do i=1,10
+         if (j>0) then
+           x=size(a)
+         endif
+       enddo''',
+    '''if (j>0) then
+         do i=1,10
+           x=size(a)
+         enddo
+       endif'''])
+def test_hoist_if_to_routine(fortran_reader, fortran_writer, body):
+    '''Cross then/else bodies and mixed nesting all the way to the routine.'''
+    tree, _ = transform(fortran_reader, fortran_writer, body)
+    inquiry = tree.walk(IntrinsicCall)[0]
+    routine = tree.walk(Routine)[0]
+    assert inquiry.parent is routine.children[0]
+
+
+def test_if_reuse(fortran_reader, fortran_writer):
+    '''Both branches share a definition hoisted before their condition.'''
+    tree, code = transform(fortran_reader, fortran_writer, '''
+        if (i>0) then
+          x=size(a)
+        else
+          x=size(a)+size(a)
+        endif''')
+    assert len(tree.walk(IntrinsicCall)) == 1
+    routine = tree.walk(Routine)[0]
+    assert tree.walk(IntrinsicCall)[0].parent is routine.children[0]
+    assert 'x = size_a + size_a' in code
+
+
+@pytest.mark.parametrize('change', ['allocate(a(10))', 'd=1'])
+def test_if_preceding_definition(fortran_reader, fortran_writer, change):
+    '''A required definition in a branch prevents hoisting outside it.'''
+    tree, _ = transform(fortran_reader, fortran_writer, f'''
+        if (i>0) then
+          {change}
+          x=ubound(a,d)
+        endif''')
+    assert tree.walk(IntrinsicCall)[-1].ancestor(IfBlock)
+
+
+def test_if_later_change(fortran_reader, fortran_writer):
+    '''Later changes in either branch do not prevent hoisting before the if.'''
+    tree, _ = transform(fortran_reader, fortran_writer, '''
+        if (i>0) then
+          x=size(a)
+          deallocate(a)
+        else
+          deallocate(a)
+        endif''')
+    routine = tree.walk(Routine)[0]
+    assert tree.walk(IntrinsicCall)[0].parent is routine.children[0]
+
+
+@pytest.mark.parametrize('local', [False, True])
+def test_if_condition_call(fortran_reader, fortran_writer, local):
+    '''Condition side effects respect the assumption about reallocations.'''
+    tree, _ = transform(fortran_reader, fortran_writer, '''
+        if (test_flag()) then
+          x=size(a)
+        endif''', 'logical, external :: test_flag', local=local)
+    assert bool(tree.walk(IntrinsicCall)[0].ancestor(IfBlock)) is not local
+
+
+@pytest.mark.parametrize('guard', ['allocated(a)', 'd>0'])
+def test_if_protecting_condition(fortran_reader, fortran_writer, guard):
+    '''Descriptor and DIM guards remain outside dependent inquiries.'''
+    tree, _ = transform(fortran_reader, fortran_writer, f'''
+        if ({guard}) then
+          if (i>0) then
+            x=ubound(a,d)
+          endif
+        endif''')
+    inquiry = next(call for call in tree.walk(IntrinsicCall)
+                   if call.intrinsic == IntrinsicCall.Intrinsic.UBOUND)
+    outer_if = tree.walk(IfBlock)[0]
+    assert inquiry.parent is outer_if.if_body.children[0]
+
+
+def test_if_pointer_guard(fortran_reader, fortran_writer):
+    '''Association guards are retained when crossing inner if bodies.'''
+    tree, _ = transform(fortran_reader, fortran_writer, '''
+        if (associated(p)) then
+          if (i>0) then
+            x=size(p)
+          endif
+        endif''', 'real, pointer :: p(:)', local=True)
+    inquiry = next(call for call in tree.walk(IntrinsicCall)
+                   if call.intrinsic == IntrinsicCall.Intrinsic.SIZE)
+    assert inquiry.parent is tree.walk(IfBlock)[0].if_body.children[0]
+
+
+def test_if_hoist_stops_inside_loop(fortran_reader, fortran_writer):
+    '''Cross an if but stay after an allocation in the enclosing loop.'''
+    tree, _ = transform(fortran_reader, fortran_writer, '''
+        do i=1,10
+          allocate(a(i))
+          if (j>0) then
+            x=size(a)
+          endif
+          deallocate(a)
+        enddo''')
+    inquiry = next(call for call in tree.walk(IntrinsicCall)
+                   if call.intrinsic == IntrinsicCall.Intrinsic.SIZE)
+    loop = tree.walk(Loop)[0]
+    assert inquiry.parent is loop.loop_body.children[1]
+
+
+def test_if_selected_assignment(fortran_reader, fortran_writer):
+    '''A selected assignment can hoist inquiries beyond its enclosing if.'''
+    tree = fortran_reader.psyir_from_source('''
+        subroutine test(a, flag)
+        real :: a(:)
+        logical :: flag
+        integer :: x
+        if (flag) then
+          x=size(a)
+        endif
+        end''')
+    HoistRunetimeInquiryIntrinsicsTrans().apply(tree.walk(Assignment)[0])
+    routine = tree.walk(Routine)[0]
+    assert tree.walk(IntrinsicCall)[0].parent is routine.children[0]
+    assert fortran_writer(tree).index('size_a = SIZE') < \
+        fortran_writer(tree).index('if (flag)')
+
+
+def test_if_optional_guard(fortran_reader):
+    '''Optional arguments remain inside their presence guards.'''
+    tree = fortran_reader.psyir_from_source('''
+        subroutine test(a)
+        real, optional :: a(:)
+        integer :: x
+        if (present(a)) then
+          x=size(a)
+        endif
+        end''')
+    HoistRunetimeInquiryIntrinsicsTrans().apply(tree.walk(Routine)[0])
+    inquiry = next(call for call in tree.walk(IntrinsicCall)
+                   if call.intrinsic == IntrinsicCall.Intrinsic.SIZE)
+    assert inquiry.ancestor(IfBlock)
+
+
+def test_if_pointer_assignment(fortran_reader, fortran_writer):
+    '''A pointer assignment inside the branch is still a hoisting barrier.'''
+    tree, _ = transform(fortran_reader, fortran_writer, '''
+        if (i>0) then
+          p => b
+          x=size(p)
+        endif''', 'real, pointer :: p(:)\nreal, target :: b(10)')
+    inquiry = tree.walk(IntrinsicCall)[0]
+    assert inquiry.parent is tree.walk(IfBlock)[0].if_body.children[1]
+
+
+@pytest.mark.parametrize('guarded', [False, True])
+def test_final_schedule_after_extraction(fortran_reader, guarded):
+    '''Later extraction can clear an earlier barrier in the final schedule.'''
+    body = 'flag=associated(p)\nx=size(a)'
+    if guarded:
+        body = f'if (allocated(a)) then\n{body}\nendif'
+    tree = fortran_reader.psyir_from_source(f'''
+        subroutine test(a,p)
+        real, allocatable :: a(:)
+        real, pointer :: p(:)
+        logical :: flag
+        integer :: x
+        {body}
+        end''')
+    HoistRunetimeInquiryIntrinsicsTrans().apply(tree.walk(Routine)[0])
+    inquiry = next(call for call in tree.walk(IntrinsicCall)
+                   if call.intrinsic == IntrinsicCall.Intrinsic.SIZE)
+    assignment = inquiry.parent
+    schedule = (tree.walk(IfBlock)[0].if_body if guarded
+                else tree.walk(Routine)[0])
+    assert assignment.parent is schedule
+    # ASSOCIATED remains a conservative call barrier, but the assignment to
+    # flag is now just a reference and must no longer delay the SIZE temporary.
+    assert assignment.position == (0 if guarded else 1)
+    assert schedule.children[assignment.position + 1].lhs.symbol.name == 'flag'
+
+
+@pytest.mark.parametrize('case', [
+    ('allocate(a(10))', '', 'a'),
+    ('a=[1.,2.]', '', 'a'),
+    ('p=>b', 'real, pointer :: p(:)\nreal, target :: b(10)', 'p')])
+@pytest.mark.parametrize('nested', [False, True])
+def test_earliest_after_barrier(fortran_reader, fortran_writer, case, nested):
+    '''Place inquiries immediately after the last descriptor change.'''
+    change, declarations, array = case
+    body = f'{change}\nj=2\nx=ubound({array},1)'
+    if nested:
+        body = f'do i=1,10\n{body}\nenddo'
+    tree, _ = transform(fortran_reader, fortran_writer, body, declarations)
+    inquiry = next(call for call in tree.walk(IntrinsicCall)
+                   if call.intrinsic == IntrinsicCall.Intrinsic.UBOUND)
+    schedule = (tree.walk(Loop)[0].loop_body if nested
+                else tree.walk(Routine)[0])
+    assert inquiry.parent is schedule.children[1]
+    assert schedule.children[2].lhs.symbol.name == 'j'
+
+
+def test_earliest_root_position(fortran_reader, fortran_writer):
+    '''Cross unrelated statements in every schedule, including the routine.'''
+    tree, _ = transform(fortran_reader, fortran_writer, '''
+        j=1
+        if (j>0) then
+          d=1
+          do i=1,10
+            x=0
+            x=size(a)
+          enddo
+        endif''')
+    assert tree.walk(IntrinsicCall)[0].parent is \
+        tree.walk(Routine)[0].children[0]

@@ -7,8 +7,9 @@
 '''Hoist array inquiries whose bounds are only known at run time.'''
 
 from psyclone.psyir.nodes import (
-    ArrayReference, Assignment, Call, CodeBlock, Directive, IntrinsicCall,
-    Literal, Loop, Reference, Return, Routine, Schedule, WhileLoop)
+    ArrayReference, Assignment, Call, CodeBlock, Directive, IfBlock,
+    IntrinsicCall, Literal, Loop, Reference, Return, Routine, Schedule,
+    WhileLoop)
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, ScalarType, UnresolvedType, UnsupportedFortranType)
 from psyclone.psyir.transformations.region_trans import RegionTrans
@@ -23,10 +24,14 @@ class HoistRunetimeInquiryIntrinsicsTrans(RegionTrans):
 
     The region selects the inquiries to transform; their assignments may move
     outside that region, up to the enclosing routine. Movement stops at changes
-    to their operands, opaque code, conditional execution and directives.
+    to their operands, opaque code, protecting conditions and directives.
+    If bodies can be crossed unless evaluating the condition changes an operand
+    or the condition guards its allocation, association, presence or indices.
     A loop is crossed only if all its iterations preserve the inquiry operands.
     Whole-array assignments are conservatively treated as possible automatic
     reallocations. Array element assignments do not change bounds.
+    After extraction, assignments move as early as possible within their final
+    schedules, stopping immediately after the last relevant barrier.
 
     Unsupported result types and expressions with side effects are left intact.
     Inquiries in while-loop conditions and within directives are left intact.
@@ -144,6 +149,44 @@ class HoistRunetimeInquiryIntrinsicsTrans(RegionTrans):
             return ArrayType(scalar, [ArrayType.Extent.DEFERRED])
         return dtype
 
+    @staticmethod
+    def _guards_inquiry(condition, inquiry):
+        '''Whether a condition protects evaluation of this inquiry.
+
+        Allocation, association and presence tests can guard invalid array
+        descriptors. Conditions on value operands can protect DIM or section
+        indices. Keep dependent inquiries inside these guards.
+        '''
+        symbols = set()
+        values = set()
+        for arg in inquiry.arguments:
+            refs = arg.walk(Reference)
+            symbols.update(ref.symbol for ref in refs)
+            if (isinstance(arg, Reference) and
+                    HoistRunetimeInquiryIntrinsicsTrans._runtime_array(arg)):
+                refs = refs[1:]
+            values.update(ref.symbol for ref in refs)
+        if any(ref.symbol in values for ref in condition.walk(Reference)):
+            return True
+        for call in condition.walk(IntrinsicCall):
+            if call.intrinsic in (IntrinsicCall.Intrinsic.ALLOCATED,
+                                  IntrinsicCall.Intrinsic.ASSOCIATED,
+                                  IntrinsicCall.Intrinsic.PRESENT):
+                if any(ref.symbol in symbols for arg in call.arguments
+                       for ref in arg.walk(Reference)):
+                    return True
+        return False
+
+    def _earliest_anchor(self, anchor, inquiry, local):
+        '''Find the earliest safe insertion point in anchor's schedule.'''
+        schedule = anchor.parent
+        while anchor.position:
+            previous = schedule.children[anchor.position - 1]
+            if self._barrier(previous, inquiry, local):
+                break
+            anchor = previous
+        return anchor
+
     def apply(self, nodes, options=None,
               assume_reallocations_are_local: bool = False, **kwargs):
         '''Extract and hoist inquiries in the supplied region.
@@ -194,17 +237,24 @@ class HoistRunetimeInquiryIntrinsicsTrans(RegionTrans):
                 continue
             while True:
                 schedule = anchor.parent
-                while anchor.position:
-                    previous = schedule.children[anchor.position - 1]
-                    if self._barrier(previous, call, local):
+                anchor = self._earliest_anchor(anchor, call, local)
+                if anchor.position:
+                    break
+                enclosing = schedule.parent
+                if isinstance(enclosing, Loop):
+                    # Every iteration must preserve the operands.
+                    if self._barrier(enclosing, call, local):
                         break
-                    anchor = previous
-                if anchor.position or not isinstance(schedule.parent, Loop):
+                elif isinstance(enclosing, IfBlock):
+                    # Preceding statements in this branch have already been
+                    # checked. Later statements and the other branch are not
+                    # executed on the path from the condition to the inquiry.
+                    if (self._barrier(enclosing.condition, call, local) or
+                            self._guards_inquiry(enclosing.condition, call)):
+                        break
+                else:
                     break
-                loop = schedule.parent
-                if self._barrier(loop, call, local):
-                    break
-                anchor = loop
+                anchor = enclosing
             # Previously generated definitions are crossed just like any other
             # independent statement. Reuse only a definition at this location.
             containing = call
@@ -230,6 +280,19 @@ class HoistRunetimeInquiryIntrinsicsTrans(RegionTrans):
             assignment = Assignment.create(Reference(symbol), expression)
             schedule.addchild(assignment, anchor.position)
             generated.append((expression, assignment))
+
+        # Later extractions can remove barriers from earlier statements. For
+        # example, extracting ASSOCIATED (classified as impure) leaves a plain
+        # reference in its original statement. Revisit generated definitions
+        # once extraction is complete. Creation order puts dependencies before
+        # their users, so moving a definition clears the way for its users.
+        for expression, assignment in generated:
+            anchor = self._earliest_anchor(assignment, expression, local)
+            if anchor is not assignment:
+                schedule = assignment.parent
+                position = anchor.position
+                assignment.detach()
+                schedule.addchild(assignment, position)
 
 
 __all__ = ['HoistRunetimeInquiryIntrinsicsTrans']
