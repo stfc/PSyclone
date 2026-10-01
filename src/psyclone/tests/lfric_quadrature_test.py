@@ -20,6 +20,7 @@ from psyclone.lfric import LFRicBasisFunctions, qr_basis_alloc_args
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import KernelCall, parse
 from psyclone.psyGen import CodedKern, PSyFactory
+from psyclone.psyir.symbols import DataSymbol, ScalarType, SymbolTable
 from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
@@ -572,7 +573,7 @@ def test_lfricbasisfunctions(monkeypatch):
     # dictionary containing an invalid shape entry
     basis_dict = {"shape": "gh_wrong_shape"}
     with pytest.raises(InternalError) as excinfo:
-        _ = qr_basis_alloc_args("size1", basis_dict)
+        _ = qr_basis_alloc_args(SymbolTable(), "size1", basis_dict)
     assert ("Unrecognised shape ('gh_wrong_shape') specified "
             in str(excinfo.value))
 
@@ -644,7 +645,9 @@ def test_lfricbasisfns_initialise(monkeypatch):
     assert ("Unrecognised evaluator shape: 'not-a-shape'. Should be "
             "one of " in str(err.value))
     # Break the internal list of basis functions
-    monkeypatch.setattr(dinf, "_basis_fns", [{'type': 'not-a-type'}])
+    monkeypatch.setattr(dinf, "_basis_fns",
+                        [{'type': 'not-a-type',
+                          'fspace': dinf._basis_fns[0]["fspace"]}])
     with pytest.raises(InternalError) as err:
         dinf.initialise(0)
     assert ("Unrecognised type of basis function: 'not-a-type'. Should be "
@@ -660,6 +663,9 @@ def test_lfricbasisfns_compute(monkeypatch):
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     dinf = LFRicBasisFunctions(psy.invokes.invoke_list[0])
+    # Add an expected symbol to the internal table.
+    dinf.symtab.add(DataSymbol("dim1", ScalarType.integer_type()),
+                    tag="dim:w1")
     # First supply an invalid shape for one of the basis functions
     dinf._basis_fns[0]["shape"] = "not-a-shape"
     with pytest.raises(InternalError) as err:
@@ -668,7 +674,9 @@ def test_lfricbasisfns_compute(monkeypatch):
             "Should be one of: ['gh_quadrature_xyoz', "
             in str(err.value))
     # Now supply an invalid type for one of the basis functions
-    monkeypatch.setattr(dinf, "_basis_fns", [{'type': 'not-a-type'}])
+    monkeypatch.setattr(dinf, "_basis_fns",
+                        [{'type': 'not-a-type',
+                          'fspace': dinf._basis_fns[0]["fspace"]}])
     with pytest.raises(InternalError) as err:
         dinf._compute_basis_fns(0)
     assert ("Unrecognised type of basis function: 'not-a-type'. Expected "

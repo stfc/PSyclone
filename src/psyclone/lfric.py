@@ -3883,7 +3883,8 @@ class LFRicBoundaryConditions(LFRicCollection):
         super().stub_declarations()
         for dofs in self._boundary_dofs:
             name = "boundary_dofs_" + dofs.argument.name
-            ndf_name = self.symtab.lookup(dofs.function_space.ndf_name)
+            ndf_name = self.symtab.lookup_with_tag(
+                dofs.function_space.ndf_name)
             dtype = ArrayType(
                 LFRicTypes("LFRicIntegerScalarDataType")(),
                 [Reference(ndf_name), Literal("2", ScalarType.integer_type())])
