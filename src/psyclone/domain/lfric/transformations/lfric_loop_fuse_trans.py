@@ -359,7 +359,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                             break
                 if found_space1 is not None:
                     break
-        found_space2 = node1.field_space
+        found_space2 = node2.field_space
         if node2_fs_name in const.VALID_ANY_SPACE_NAMES:
             it_space_arg2 = node2.kernel.arguments.iteration_space_arg()
             found_space2 = None
