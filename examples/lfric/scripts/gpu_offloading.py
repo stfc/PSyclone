@@ -32,9 +32,13 @@ from psyclone.psyir.transformations import ACCLoopTrans
 # Names of any invoke that we won't add any GPU offloading
 INVOKE_EXCLUSIONS = []
 
-# We won't attempt to inline calls to routines with names that contain
-# these strings (because they're not computationally important).
-INLINE_EXCLUSIONS = ["abort", "logging"]
+# We won't attempt to inline calls to routines or kernels with these names
+# because they're not computationally important or cause runtime errors.
+INLINE_EXCLUSIONS = [
+    "abort", "logging",
+    "sample_eos_operators_code_inlined_",
+    "apply_mixed_wp_operator_code_inlined_",
+]
 
 OFFLOAD_DIRECTIVES = os.getenv('LFRIC_OFFLOAD_DIRECTIVES', "none")
 
@@ -172,6 +176,8 @@ def trans(psyir):
                     print(f"Annotation successful for kernel "
                           f"'{kern.name}'")
                     try:
+                        if kern.name in INLINE_EXCLUSIONS:
+                            continue
                         if OFFLOAD_DIRECTIVES.startswith("acc"):
                             # TODO #423: PSyclone doesn't support the OpenACC
                             # private clause yet, which we need for the inlined
