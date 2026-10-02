@@ -467,7 +467,6 @@ def test_omp_region_before_loops_trans(tmpdir):
             omp_do_idx = idx
         if 'do j =' in line:
             break
-
     assert omp_region_idx != -1
     assert omp_do_idx != -1
     assert omp_do_idx - omp_region_idx == 1

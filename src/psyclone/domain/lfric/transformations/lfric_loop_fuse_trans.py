@@ -339,6 +339,19 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                               **kwargs)
                 return
 
+        # If both are discontinuous we can fuse.
+        both_discontinuous = (
+            node1_fs_name in const.VALID_DISCONTINUOUS_NAMES and
+            node2_fs_name in const.VALID_DISCONTINUOUS_NAMES
+        )
+        if both_discontinuous:
+           # We always add force so need to make sure its not a
+           # duplicated keyword argument.
+           kwargs["force"] = True
+           super().apply((node1, node2),
+                         **kwargs)
+           return
+
         # If one or more is on any space then we need to search for the space.
         found_space1 = node1.field_space
         invokeschedule = node1.ancestor(InvokeSchedule)

@@ -172,9 +172,11 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
                     private.add(symbol)
                 continue
 
-            # All arrays not explicitly marked as explicitly_private are shared
-            if symbol.is_array_access():
-                #            if any(accs.has_indices() for accs in accesses):
+            # All arrays not explicitly marked as explicitly_private are shared.
+            # Both checks are required to handle both DSL fields and structure
+            # accesses.
+            if (symbol.is_array_access() or
+                    any(accs.has_indices() for accs in accesses)):
                 continue
 
             # If a variable is only accessed once, it is either an error
