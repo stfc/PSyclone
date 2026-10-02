@@ -5,21 +5,19 @@
 ! See the full LICENSE file in the project root for details.
 ! -----------------------------------------------------------------------------
 
-program multi_invoke
+program single_invoke
 
-  ! Description: single function specified in an invoke call
+  ! Description: one reduction builtin followed by an access to 
+  ! the reduction value.
   use constants_mod, only: r_def
   use field_mod,     only: field_type
-  use testkern_mod,  only: testkern_type
-
+  use non_dof_anyspace_mod, only: non_dof_anyspace_kern
   implicit none
 
-  type(field_type) :: f1, f2, f3,m1, m2
-  real(r_def)      :: a
+  type(field_type) :: f1
+  real(r_def)      :: asum
 
-  call invoke(                           &
-       testkern_type(a, f1, f2, m1, m2), &
-       testkern_type(a, f3, f2, m2, m1)  &
-          )
+  call invoke( non_dof_anyspace_kern(f1, asum), &
+               setval_c(f1, asum) )
 
-end program multi_invoke
+end program single_invoke

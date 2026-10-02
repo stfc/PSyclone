@@ -74,7 +74,7 @@ def apply_all(node_list, transform):
             try:
                 print(f"Applying {transform.name} on '{current_name}' and "
                       f"'{siblings[0].walk(GOKern)[0].name}'.")
-                transform.apply(current, siblings[0])
+                transform.apply((current, siblings[0]))
             except TransformationError as err:
                 print("Cannot apply {transform.name} because", str(err.value))
                 break

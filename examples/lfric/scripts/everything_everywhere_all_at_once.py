@@ -12,7 +12,7 @@ DistributedMemory, OpenMP coloring and serial transformations possible.
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.transformations import (
-    LFRicRedundantComputationTrans)
+    LFRicLoopFuseTrans, LFRicRedundantComputationTrans)
 from psyclone.lfric import LFRicHaloExchange, LFRicHaloExchangeStart
 from psyclone.psyir.transformations import Matmul2CodeTrans, OMPParallelTrans
 from psyclone.psyir.nodes import IntrinsicCall, KernelSchedule
@@ -21,6 +21,7 @@ from psyclone.transformations import (
     LFRicColourTrans, LFRicOMPLoopTrans, LFRicAsyncHaloExchangeTrans)
 from psyclone.psyir.transformations import MoveTrans, TransformationError
 
+ENABLE_LOOP_FUSION = True
 ENABLE_REDUNDANT_COMPUTATION = True
 ENABLE_ASYNC_HALOS = False  # TODO #2903: Async fails with FFSL
 ENABLE_OMP_COLOURING = True
@@ -36,6 +37,7 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
+    fusetrans = LFRicLoopFuseTrans()
     rtrans = LFRicRedundantComputationTrans()
     ctrans = LFRicColourTrans()
     otrans = LFRicOMPLoopTrans()
@@ -47,6 +49,22 @@ def trans(psyir):
     mtrans = MoveTrans()
 
     for subroutine in psyir.walk(InvokeSchedule):
+        if ENABLE_LOOP_FUSION:
+            loops = subroutine.loops()
+            num_loops = len(loops)
+            current_index = 0
+            # Keep trying to fuse loops wherever possible
+            while current_index < num_loops-1:
+                try:
+                    fusetrans.apply((loops[current_index],
+                                     loops[current_index+1]))
+                    # If fusion is successful then we have 1 less remaining
+                    # loop and continue at the same index to keep trying to
+                    # fuse.
+                    num_loops = num_loops - 1
+                except TransformationError:
+                    # If fusion fails we move to the next loop.
+                    current_index = current_index + 1
         if ENABLE_REDUNDANT_COMPUTATION:
             # Make setval_* compute redundantly to the level 1 halo if it
             # is in its own loop and is not restricted to owned dofs only.

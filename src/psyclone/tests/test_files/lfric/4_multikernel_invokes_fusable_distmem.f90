@@ -5,21 +5,22 @@
 ! See the full LICENSE file in the project root for details.
 ! -----------------------------------------------------------------------------
 
-program multi_invoke
+program multikernel_invokes_1
 
-  ! Description: single function specified in an invoke call
+  ! Multiple kernel calls within an invoke
+
   use constants_mod, only: r_def
   use field_mod,     only: field_type
   use testkern_mod,  only: testkern_type
 
   implicit none
 
-  type(field_type) :: f1, f2, f3,m1, m2
+  type(field_type) :: f1, f2, f3, f4, m1, m2, m3, m4
   real(r_def)      :: a
 
   call invoke(                           &
        testkern_type(a, f1, f2, m1, m2), &
-       testkern_type(a, f3, f2, m2, m1)  &
-          )
+       testkern_type(a, f3, f4, m3, m4)  &
+       )
 
-end program multi_invoke
+end program multikernel_invokes_1

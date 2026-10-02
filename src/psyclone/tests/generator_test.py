@@ -518,25 +518,26 @@ from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 def trans(psyir):
     module = psyir.children[0]
     schedule = [x for x in module.children if x.name == "invoke_0"][0]
-    loop1 = schedule.children[4]
-    loop2 = schedule.children[5]
+    loop1 = schedule.children[0]
+    loop2 = schedule.children[1]
     transform = LFRicLoopFuseTrans()
-    transform.apply(loop1, loop2)
+    transform.apply((loop1, loop2))
 """)
     # First loop fuse explicitly (without using generator.py)
-    parse_file = str(LFRIC_BASE_PATH / "4_multikernel_invokes.f90")
+    parse_file = str(LFRIC_BASE_PATH / "4_multikernel_invokes_fusable.f90")
     _, invoke_info = parse(parse_file, api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
-    loop1 = schedule.children[4]
-    loop2 = schedule.children[5]
+    loop1 = schedule.children[0]
+    loop2 = schedule.children[1]
     trans = LFRicLoopFuseTrans()
-    trans.apply(loop1, loop2)
+    trans.apply((loop1, loop2))
     generated_code_1 = psy.gen
     # Second loop fuse using generator.py and a script
     _, generated_code_2 = generate(parse_file, api="lfric",
-                                   script_name=fuse_loop_script)
+                                   script_name=fuse_loop_script,
+                                   distributed_memory=False)
     # third - check that the results are the same ...
     assert str(generated_code_1) == str(generated_code_2)
 
