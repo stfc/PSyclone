@@ -2828,19 +2828,6 @@ class LFRicBasisFunctions(LFRicCollection):
             self._setup_basis_fns_for_call(call)
 
     @staticmethod
-    def basis_first_dim_name(function_space: FunctionSpace) -> str:
-        '''
-        Get the name of the variable holding the first dimension of a
-        basis function
-
-        :param function_space: the function space the basis function is for
-
-        :return: a Fortran variable name
-
-        '''
-        return "dim_" + function_space.mangled_name
-
-    @staticmethod
     def basis_first_dim_value(function_space):
         '''
         Get the size of the first dimension of a basis function.
@@ -2868,21 +2855,6 @@ class LFRicBasisFunctions(LFRicCollection):
                 f"expecting one of {const.VALID_FUNCTION_SPACES} but found "
                 f"'{function_space.orig_name}'")
         return first_dim
-
-    @staticmethod
-    def diff_basis_first_dim_name(function_space):
-        '''
-        Get the name of the variable holding the first dimension of a
-        differential basis function.
-
-        :param function_space: the function space the diff-basis function \
-                               is for.
-        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :return: a Fortran variable name.
-        :rtype: str
-
-        '''
-        return "diff_dim_" + function_space.mangled_name
 
     @staticmethod
     def diff_basis_first_dim_value(function_space):
