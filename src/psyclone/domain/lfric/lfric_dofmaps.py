@@ -91,14 +91,14 @@ class LFRicDofmaps(LFRicCollection):
                 if map_name not in self._unique_cbanded_maps:
                     self._unique_cbanded_maps[map_name] = {
                         "argument": cma_args[0],
-                        "base_name": f"cbanded_map_{fspace.short_mangled_name}",
+                        "base_name": fspace.cbanded_map_name,
                         "direction": "to"}
                 fspace = cma_args[0].function_space_from
                 map_name = fspace.cbanded_map_tag
                 if map_name not in self._unique_cbanded_maps:
                     self._unique_cbanded_maps[map_name] = {
                         "argument": cma_args[0],
-                        "base_name": f"cbanded_map_{fspace.short_mangled_name}",
+                        "base_name": fspace.cbanded_map_name,
                         "direction": "from"}
             elif call.cma_operation == "apply":
                 # A kernel that applies (or applies the inverse of) a
@@ -120,14 +120,14 @@ class LFRicDofmaps(LFRicCollection):
                 if map_name not in self._unique_indirection_maps:
                     self._unique_indirection_maps[map_name] = {
                         "argument": cma_args[0],
-                        "base_name": f"cma_indirection_map_{fspace.short_mangled_name}",
+                        "base_name": fspace.cma_indirection_map_name,
                         "direction": "to"}
                 fspace = cma_args[0].function_space_from
                 map_name = fspace.cma_indirection_map_name
                 if map_name not in self._unique_indirection_maps:
                     self._unique_indirection_maps[map_name] = {
                         "argument": cma_args[0],
-                        "base_name": f"cma_indirection_map_{fspace.short_mangled_name}",
+                        "base_name": fspace.cma_indirection_map_name,
                         "direction": "from"}
 
     def initialise(self, cursor: int) -> int:

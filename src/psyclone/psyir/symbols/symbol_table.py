@@ -588,10 +588,6 @@ class SymbolTable():
             raise KeyError(f"Symbol table already contains a symbol with "
                            f"name '{new_symbol.name}'.")
 
-        #if ":" in key or key.isnumeric() or key.endswith("z_1"):
-        #    import pdb; pdb.set_trace()
-        #if tag and tag.startswith("basis:w"):
-        #    import pdb; pdb.set_trace()
         if tag:
             if tag in self.get_tags():
                 raise KeyError(
@@ -1189,8 +1185,6 @@ class SymbolTable():
         try:
             return self.get_tags(scope_limit)[tag]
         except KeyError as err:
-            if tag == "map_w2":
-                import pdb; pdb.set_trace()
             raise KeyError(f"Could not find the tag '{tag}' in the Symbol "
                            f"Table.") from err
 

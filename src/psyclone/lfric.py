@@ -93,9 +93,7 @@ def qr_basis_alloc_args(table: SymbolTable,
     #          "np_xyz"+"_"+basis_fn["qr_var"]]
     if basis_fn["shape"] == "gh_quadrature_xyoz":
         alloc_args = [first, ndf_sym.name,
-                      "np_xy"+qr_var,
-                      "np_z"+qr_var]
-                      #"np_xy"+qr_var, "np_z"+qr_var]
+                      "np_xy"+qr_var, "np_z"+qr_var]
     # elif basis_fn["shape"] == "gh_quadrature_xoyoz":
     #     alloc_args = [first_dim, basis_fn["fspace"].ndf_name,
     #                   "np_x"+"_"+basis_fn["qr_var"],
@@ -3008,6 +3006,7 @@ class LFRicBasisFunctions(LFRicCollection):
         for basis in basis_arrays:
             dims = []
             # ARPDBG -first entry in list is currently the name of the basis array
+            # import pdb; pdb.set_trace()
             for value in basis_arrays[basis][1:]:
                 try:
                     dims.append(Literal(value, ScalarType.integer_type()))
