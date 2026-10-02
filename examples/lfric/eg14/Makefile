@@ -67,6 +67,8 @@ $(PROFILE_LIB):
 main_psy.o:	other_alg_mod_psy.o testkern_w0_kernel_mod.o
 main_alg.o:	other_alg_mod_alg.o main_psy.o
 
+# Override these targets from common.mk because we need to add the
+# profiling-related flags.
 %.o: %.F90
 	$(F90) $(F90FLAGS) -I$(PROFILE_PATH) -c $<
 

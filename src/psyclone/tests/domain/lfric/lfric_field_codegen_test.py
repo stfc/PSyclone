@@ -11,12 +11,11 @@ LFRic field arguments.
 '''
 
 import os
-import pytest
 
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.tests.utilities import get_invoke, get_psylayer_schedule
+from psyclone.tests.utilities import get_invoke
 
 
 # Constants
@@ -669,13 +668,13 @@ def test_int_field_fs(tmpdir):
     integer(kind=i_def) :: undf_wchi
     integer(kind=i_def) :: ndf_any_w2
     integer(kind=i_def) :: undf_any_w2
-    integer(kind=i_def) :: ndf_as1_f8
-    integer(kind=i_def) :: undf_as1_f8
-    integer(kind=i_def) :: ndf_ads1_m7
-    integer(kind=i_def) :: undf_ads1_m7
-    integer(kind=i_def), pointer :: map_ads1_m7(:,:) => null()
+    integer(kind=i_def) :: ndf_as1_f8__1
+    integer(kind=i_def) :: undf_as1_f8__1
+    integer(kind=i_def) :: ndf_ads1_m7__1
+    integer(kind=i_def) :: undf_ads1_m7__1
+    integer(kind=i_def), pointer :: map_ads1_m7__1(:,:) => null()
     integer(kind=i_def), pointer :: map_any_w2(:,:) => null()
-    integer(kind=i_def), pointer :: map_as1_f8(:,:) => null()
+    integer(kind=i_def), pointer :: map_as1_f8__1(:,:) => null()
     integer(kind=i_def), pointer :: map_w0(:,:) => null()
     integer(kind=i_def), pointer :: map_w1(:,:) => null()
     integer(kind=i_def), pointer :: map_w2(:,:) => null()
@@ -760,8 +759,8 @@ def test_int_field_fs(tmpdir):
         "    map_w2vtrace => m5_proxy%vspace%get_whole_dofmap()\n"
         "    map_wchi => m6_proxy%vspace%get_whole_dofmap()\n"
         "    map_any_w2 => f7_proxy%vspace%get_whole_dofmap()\n"
-        "    map_as1_f8 => f8_proxy%vspace%get_whole_dofmap()\n"
-        "    map_ads1_m7 => m7_proxy%vspace%get_whole_dofmap()\n"
+        "    map_as1_f8__1 => f8_proxy%vspace%get_whole_dofmap()\n"
+        "    map_ads1_m7__1 => m7_proxy%vspace%get_whole_dofmap()\n"
         "\n"
         "    ! Initialise number of DoFs for w1\n"
         "    ndf_w1 = f1_proxy%vspace%get_ndf()\n"
@@ -816,12 +815,12 @@ def test_int_field_fs(tmpdir):
         "    undf_any_w2 = f7_proxy%vspace%get_undf()\n"
         "\n"
         "    ! Initialise number of DoFs for as1_f8\n"
-        "    ndf_as1_f8 = f8_proxy%vspace%get_ndf()\n"
-        "    undf_as1_f8 = f8_proxy%vspace%get_undf()\n"
+        "    ndf_as1_f8__1 = f8_proxy%vspace%get_ndf()\n"
+        "    undf_as1_f8__1 = f8_proxy%vspace%get_undf()\n"
         "\n"
         "    ! Initialise number of DoFs for ads1_m7\n"
-        "    ndf_ads1_m7 = m7_proxy%vspace%get_ndf()\n"
-        "    undf_ads1_m7 = m7_proxy%vspace%get_undf()\n"
+        "    ndf_ads1_m7__1 = m7_proxy%vspace%get_ndf()\n"
+        "    undf_ads1_m7__1 = m7_proxy%vspace%get_undf()\n"
         "\n"
         "    ! Set-up all of the loop bounds\n"
         "    loop0_start = 1\n"
@@ -884,9 +883,9 @@ def test_int_field_fs(tmpdir):
         "map_w2trace(:,cell), ndf_w2htrace, undf_w2htrace, "
         "map_w2htrace(:,cell), ndf_w2vtrace, undf_w2vtrace, "
         "map_w2vtrace(:,cell), ndf_wchi, undf_wchi, map_wchi(:,cell), "
-        "ndf_any_w2, undf_any_w2, map_any_w2(:,cell), ndf_as1_f8, "
-        "undf_as1_f8, map_as1_f8(:,cell), ndf_ads1_m7, "
-        "undf_ads1_m7, map_ads1_m7(:,cell))\n"
+        "ndf_any_w2, undf_any_w2, map_any_w2(:,cell), ndf_as1_f8__1, "
+        "undf_as1_f8__1, map_as1_f8__1(:,cell), ndf_ads1_m7__1, "
+        "undf_ads1_m7__1, map_ads1_m7__1(:,cell))\n"
         "    enddo\n"
         "\n"
         "    ! Set halos dirty/clean for fields modified in the above "
@@ -929,10 +928,10 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
     real(kind=r_def), allocatable :: basis_w2_qr_face(:,:,:,:)
     real(kind=r_def), allocatable :: diff_basis_wchi_qr_xyoz(:,:,:,:)
     real(kind=r_def), allocatable :: diff_basis_wchi_qr_face(:,:,:,:)
-    real(kind=r_def), allocatable :: basis_ads1_f3_qr_xyoz(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_ads1_f3_qr_xyoz(:,:,:,:)
-    real(kind=r_def), allocatable :: basis_ads1_f3_qr_face(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_ads1_f3_qr_face(:,:,:,:)
+    real(kind=r_def), allocatable :: basis_ads1_f3__1_qr_xyoz(:,:,:,:)
+    real(kind=r_def), allocatable :: diff_basis_ads1_f3__1_qr_xyoz(:,:,:,:)
+    real(kind=r_def), allocatable :: basis_ads1_f3__1_qr_face(:,:,:,:)
+    real(kind=r_def), allocatable :: diff_basis_ads1_f3__1_qr_face(:,:,:,:)
 """
     for line in expected.split("\n"):
         assert line in code, line
@@ -952,35 +951,35 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
     assert "type(quadrature_xyoz_proxy_type) :: qr_xyoz_proxy\n" in code
     # Allocation and computation of (some of) the basis/differential
     # basis functions
-    assert ("    ALLOCATE(basis_ads1_f3_qr_xyoz(dim_ads1_f3,"
-            "ndf_ads1_f3,np_xy_qr_xyoz,np_z_qr_xyoz))\n"
-            "    ALLOCATE(diff_basis_ads1_f3_qr_xyoz(diff_dim_ads1_f3,"
-            "ndf_ads1_f3,np_xy_qr_xyoz,np_z_qr_xyoz))\n"
-            "    ALLOCATE(basis_ads1_f3_qr_face(dim_ads1_f3,"
-            "ndf_ads1_f3,np_xyz_qr_face,nfaces_qr_face))\n"
-            "    ALLOCATE(diff_basis_ads1_f3_qr_face(diff_dim_ads1_f3,"
-            "ndf_ads1_f3,np_xyz_qr_face,nfaces_qr_face))\n"
+    assert ("    ALLOCATE(basis_ads1_f3__1_qr_xyoz(dim_ads1,"
+            "ndf_ads1_f3__1,np_xy_qr_xyoz,np_z_qr_xyoz))\n"
+            "    ALLOCATE(diff_basis_ads1_f3__1_qr_xyoz(diff_dim_ads1,"
+            "ndf_ads1_f3__1,np_xy_qr_xyoz,np_z_qr_xyoz))\n"
+            "    ALLOCATE(basis_ads1_f3__1_qr_face(dim_ads1,"
+            "ndf_ads1_f3__1,np_xyz_qr_face,nfaces_qr_face))\n"
+            "    ALLOCATE(diff_basis_ads1_f3__1_qr_face(diff_dim_ads1,"
+            "ndf_ads1_f3__1,np_xyz_qr_face,nfaces_qr_face))\n"
             in code)
     assert ("    call qr_xyoz%compute_function(BASIS, f3_proxy%vspace, "
-            "dim_ads1_f3, ndf_ads1_f3, basis_ads1_f3_qr_xyoz)\n"
+            "dim_ads1, ndf_ads1_f3__1, basis_ads1_f3__1_qr_xyoz)\n"
             "    call qr_xyoz%compute_function(DIFF_BASIS, "
-            "f3_proxy%vspace, diff_dim_ads1_f3, ndf_ads1_f3, "
-            "diff_basis_ads1_f3_qr_xyoz)\n"
+            "f3_proxy%vspace, diff_dim_ads1, ndf_ads1_f3__1, "
+            "diff_basis_ads1_f3__1_qr_xyoz)\n"
             "    call qr_face%compute_function(BASIS, f3_proxy%vspace, "
-            "dim_ads1_f3, ndf_ads1_f3, basis_ads1_f3_qr_face)\n"
+            "dim_ads1, ndf_ads1_f3__1, basis_ads1_f3__1_qr_face)\n"
             "    call qr_face%compute_function(DIFF_BASIS, "
-            "f3_proxy%vspace, diff_dim_ads1_f3, ndf_ads1_f3, "
-            "diff_basis_ads1_f3_qr_face)\n" in code)
+            "f3_proxy%vspace, diff_dim_ads1, ndf_ads1_f3__1, "
+            "diff_basis_ads1_f3__1_qr_face)\n" in code)
     # Check that the kernel call itself is correct
     assert (
         "testkern_2qr_int_field_code(nlayers_f1, f1_data, "
         "f2_1_data, f2_2_data, f2_3_data, f3_data, "
         "istp, ndf_w2, undf_w2, map_w2(:,cell), basis_w2_qr_xyoz, "
         "basis_w2_qr_face, ndf_wchi, undf_wchi, map_wchi(:,cell), "
-        "diff_basis_wchi_qr_xyoz, diff_basis_wchi_qr_face, ndf_ads1_f3, "
-        "undf_ads1_f3, map_ads1_f3(:,cell), basis_ads1_f3_qr_xyoz, "
-        "basis_ads1_f3_qr_face, diff_basis_ads1_f3_qr_xyoz, "
-        "diff_basis_ads1_f3_qr_face, np_xy_qr_xyoz, np_z_qr_xyoz, "
+        "diff_basis_wchi_qr_xyoz, diff_basis_wchi_qr_face, ndf_ads1_f3__1, "
+        "undf_ads1_f3__1, map_ads1_f3__1(:,cell), basis_ads1_f3__1_qr_xyoz, "
+        "basis_ads1_f3__1_qr_face, diff_basis_ads1_f3__1_qr_xyoz, "
+        "diff_basis_ads1_f3__1_qr_face, np_xy_qr_xyoz, np_z_qr_xyoz, "
         "weights_xy_qr_xyoz, weights_z_qr_xyoz, nfaces_qr_face, "
         "np_xyz_qr_face, weights_xyz_qr_face)\n" in code)
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -1104,8 +1103,8 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         "    map_w2vtrace => n5_proxy%vspace%get_whole_dofmap()\n"
         "    map_wchi => n6_proxy%vspace%get_whole_dofmap()\n"
         "    map_any_w2 => i7_proxy%vspace%get_whole_dofmap()\n"
-        "    map_as1_i8 => i8_proxy%vspace%get_whole_dofmap()\n"
-        "    map_ads1_n7 => n7_proxy%vspace%get_whole_dofmap()\n")
+        "    map_as1_i8__1 => i8_proxy%vspace%get_whole_dofmap()\n"
+        "    map_ads1_n7__1 => n7_proxy%vspace%get_whole_dofmap()\n")
     assert output in generated_code
     # Kernel calls are the same regardless of distributed memory
     kern1_call = (
@@ -1122,9 +1121,9 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         "undf_w2trace, map_w2trace(:,cell), ndf_w2htrace, undf_w2htrace, "
         "map_w2htrace(:,cell), ndf_w2vtrace, undf_w2vtrace, "
         "map_w2vtrace(:,cell), ndf_wchi, undf_wchi, map_wchi(:,cell), "
-        "ndf_any_w2, undf_any_w2, map_any_w2(:,cell), ndf_as1_i8, "
-        "undf_as1_i8, map_as1_i8(:,cell), ndf_ads1_n7, "
-        "undf_ads1_n7, map_ads1_n7(:,cell))\n")
+        "ndf_any_w2, undf_any_w2, map_any_w2(:,cell), ndf_as1_i8__1, "
+        "undf_as1_i8__1, map_as1_i8__1(:,cell), ndf_ads1_n7__1, "
+        "undf_ads1_n7__1, map_ads1_n7__1(:,cell))\n")
     assert kern1_call in generated_code
     kern2_call = (
         "      call testkern_fs_code(nlayers_f1, f1_data, f2_data, "
@@ -1167,14 +1166,78 @@ def test_int_real_field_fs(dist_mem, tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_field_nlevels():
+def test_field_nlayers(tmp_path):
     '''Test for a kernel that has arguments with non-default values of
-    NLEVELS and NDATA.
+    NLAYERS and NDATA.
 
     '''
-    with pytest.raises(NotImplementedError) as err:
-        _ = get_psylayer_schedule("1.5.6_single_invoke_nlevels_ndata.f90",
-                                  TEST_API)
-    # TODO #868 - code generation yet to be implemented.
-    assert ("Cannot generate arguments for kernel "
-            "'testkern_nlevels_ndata_code'" in str(err.value))
+    psy, _ = get_invoke("1.5.6_single_invoke_nlayers_ndata.f90",
+                        dist_mem=False, api=TEST_API, idx=0)
+    output = str(psy.gen)
+
+    # Check the lookups for the number of layers. There should be the default
+    # value from the first field/op argument and then a second, custom value
+    # for arguments three and six.
+    expected = '''\
+    ! Initialise number of layers
+    nlayers_f1 = f1_proxy%vspace%get_nlayers()
+    nlayers_shallow = f3_proxy%vspace%get_nlayers()
+'''
+    assert expected in output
+
+    # Lookup for the number of data points per dof.
+    expected = '''\
+    ! Initialise number of data values per dof
+    ndata_precip = f5_proxy%vspace%get_ndata()
+'''
+    assert expected in output
+
+    # Check the dofmap lookups.
+    expected = '''\
+    ! Look-up dofmaps for each function space
+    map_w1 => f1_proxy%vspace%get_whole_dofmap()
+    map_w2 => f2_proxy%vspace%get_whole_dofmap()
+    map_w2_shallow_1 => f3_proxy%vspace%get_whole_dofmap()
+    map_w2__precip => f5_proxy%vspace%get_whole_dofmap()
+    map_w2_shallow_precip => f6_proxy%vspace%get_whole_dofmap()
+
+    ! Initialise number of DoFs for w1
+    ndf_w1 = f1_proxy%vspace%get_ndf()
+    undf_w1 = f1_proxy%vspace%get_undf()
+
+    ! Initialise number of DoFs for w2
+    ndf_w2 = f2_proxy%vspace%get_ndf()
+    undf_w2 = f2_proxy%vspace%get_undf()
+
+    ! Initialise number of DoFs for w2_shallow_1
+    ndf_w2_shallow_1 = f3_proxy%vspace%get_ndf()
+    undf_w2_shallow_1 = f3_proxy%vspace%get_undf()
+
+    ! Initialise number of DoFs for w2__precip
+    ndf_w2__precip = f5_proxy%vspace%get_ndf()
+    undf_w2__precip = f5_proxy%vspace%get_undf()
+
+    ! Initialise number of DoFs for w2_shallow_precip
+    ndf_w2_shallow_precip = f6_proxy%vspace%get_ndf()
+    undf_w2_shallow_precip = f6_proxy%vspace%get_undf()
+'''
+    assert expected in output
+
+    # Check the kernel call.
+    assert ("call testkern_nlayers_ndata_code("
+            "nlayers_f1, nlayers_shallow, ndata_precip, a, "
+            "f1_data, f2_data, f3_data, f4_data, f5_data, f6_data, "
+            # Arg one is on W1
+            "ndf_w1, undf_w1, map_w1(:,cell), "
+            # Arg two is on W2
+            "ndf_w2, undf_w2, map_w2(:,cell), "
+            # Arg three (and four) are on w2 but with nlayers='shallow'
+            "ndf_w2_shallow_1, undf_w2_shallow_1, map_w2_shallow_1(:,cell), "
+            # Arg five is on w2 but has ndata='precip'
+            "ndf_w2__precip, undf_w2__precip, map_w2__precip(:,cell), "
+            # Arg six is on w2 but has nlayers='shallow' *and* ndata='precip'
+            "ndf_w2_shallow_precip, undf_w2_shallow_precip, "
+            "map_w2_shallow_precip(:,cell)"
+            ")" in output)
+
+    assert LFRicBuild(tmp_path).code_compiles(psy)

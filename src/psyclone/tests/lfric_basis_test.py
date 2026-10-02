@@ -18,6 +18,7 @@ from psyclone.lfric import LFRicBasisFunctions
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.errors import GenerationError, InternalError
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -515,14 +516,15 @@ def test_two_qr_same_shape(tmpdir):
         "ndf_w2, undf_w2, map_w2(:,cell), diff_basis_w2_qr2, "
         "ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr2, diff_basis_w3_qr2, "
         "np_xy_qr2, np_z_qr2, weights_xy_qr2, weights_z_qr2)\n"
-        "    enddo\n"
-        "\n"
+        "    enddo\n")
+    assert expected_kern_call in code
+    expected_dealloc = (
         "    ! Deallocate basis arrays\n"
-        "    DEALLOCATE(basis_w1_qr, basis_w1_qr2, basis_w3_qr, "
-        "basis_w3_qr2, diff_basis_w2_qr, diff_basis_w2_qr2, diff_basis_w3_qr, "
+        "    DEALLOCATE(basis_w1_qr, basis_w1_qr2, basis_w3_qr, basis_w3_qr2, "
+        "diff_basis_w2_qr, diff_basis_w2_qr2, diff_basis_w3_qr, "
         "diff_basis_w3_qr2)\n"
     )
-    assert expected_kern_call in code
+    assert expected_dealloc in code
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -992,24 +994,24 @@ def test_two_eval_same_var_same_space(tmpdir):
     # We should only get one set of basis and diff-basis functions in the
     # generated code
     assert code.count(
-        "ndf_ads1_f0 = f0_proxy%vspace%get_ndf()") == 1
+        "ndf_ads1_f0__1 = f0_proxy%vspace%get_ndf()") == 1
     assert code.count(
-        "    do df_nodal = 1, ndf_ads1_f0, 1\n"
+        "    do df_nodal = 1, ndf_ads1_f0__1, 1\n"
         "      do df_w0 = 1, ndf_w0, 1\n"
-        "        basis_w0_on_ads1_f0(:,df_w0,df_nodal) = f1_proxy%vspace"
-        "%call_function(BASIS, df_w0, nodes_ads1_f0(:,df_nodal))\n"
+        "        basis_w0_on_ads1_f0__1(:,df_w0,df_nodal) = f1_proxy%vspace"
+        "%call_function(BASIS, df_w0, nodes_ads1_f0__1(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n") == 1
     assert code.count(
-        "    do df_nodal = 1, ndf_ads1_f0, 1\n"
+        "    do df_nodal = 1, ndf_ads1_f0__1, 1\n"
         "      do df_w1 = 1, ndf_w1, 1\n"
-        "        diff_basis_w1_on_ads1_f0(:,df_w1,df_nodal) = f2_proxy"
-        "%vspace%call_function(DIFF_BASIS, df_w1, nodes_ads1_f0(:,"
+        "        diff_basis_w1_on_ads1_f0__1(:,df_w1,df_nodal) = f2_proxy"
+        "%vspace%call_function(DIFF_BASIS, df_w1, nodes_ads1_f0__1(:,"
         "df_nodal))\n"
         "      enddo\n"
         "    enddo\n") == 1
     assert code.count(
-        "DEALLOCATE(basis_w0_on_ads1_f0, diff_basis_w1_on_ads1_f0)") == 1
+        "DEALLOCATE(basis_w0_on_ads1_f0__1, diff_basis_w1_on_ads1_f0__1)") == 1
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -1464,10 +1466,11 @@ def test_basis_evaluator(fortran_writer):
     code = fortran_writer(kernel.gen_stub)
 
     assert (
-        "subroutine dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
-        "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
-        "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, field_9_wchi, "
-        "op_10_ncell_3d, op_10, field_11_w2vtrace, op_12_ncell_3d, op_12, "
+        "subroutine dummy_code(cell, nlayers_field_1, field_1_w0, "
+        "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, "
+        "field_5_wtheta, op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, "
+        "op_8, field_9_wchi, op_10_ncell_3d, op_10, field_11_w2vtrace, "
+        "op_12_ncell_3d, op_12, "
         "ndf_w0, undf_w0, map_w0, basis_w0_on_w0, ndf_w1, basis_w1_on_w0, "
         "ndf_w2, undf_w2, map_w2, basis_w2_on_w0, ndf_w3, basis_w3_on_w0, "
         "ndf_wtheta, undf_wtheta, map_wtheta, basis_wtheta_on_w0, ndf_w2h, "
@@ -1476,7 +1479,7 @@ def test_basis_evaluator(fortran_writer):
         "basis_wchi_on_w0, ndf_w2trace, basis_w2trace_on_w0, ndf_w2vtrace, "
         "undf_w2vtrace, map_w2vtrace, basis_w2vtrace_on_w0, ndf_w2htrace, "
         "basis_w2htrace_on_w0)" in code)
-    assert "integer(kind=i_def), intent(in) :: nlayers" in code
+    assert "integer(kind=i_def), intent(in) :: nlayers_field_1" in code
     assert "integer(kind=i_def), intent(in) :: ndf_w0" in code
     assert ("integer(kind=i_def), dimension(ndf_w0), intent(in) "
             ":: map_w0" in code)
@@ -1677,7 +1680,8 @@ def test_diff_basis(fortran_writer):
         "  implicit none\n"
         "  public\n\n"
         "  contains\n"
-        "  subroutine dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
+        "  subroutine dummy_code(cell, nlayers_field_1, "
+        "field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
         "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, field_9_wchi, "
         "op_10_ncell_3d, op_10, field_11_w2htrace, op_12_ncell_3d, op_12, "
@@ -1694,7 +1698,7 @@ def test_diff_basis(fortran_writer):
         "weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
         "    use constants_mod\n") in code
 
-    assert "integer(kind=i_def), intent(in) :: nlayers" in code
+    assert "integer(kind=i_def), intent(in) :: nlayers_field_1" in code
     assert "integer(kind=i_def), intent(in) :: ndf_w0" in code
     assert ("integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0"
             in code)
@@ -1854,7 +1858,8 @@ def test_diff_basis_eval(fortran_writer):
         "  public\n"
         "\n"
         "  contains\n"
-        "  subroutine dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
+        "  subroutine dummy_code(cell, nlayers_field_1, "
+        "field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
         "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, field_9_wchi, "
         "op_10_ncell_3d, op_10, field_11_w2vtrace, op_12_ncell_3d, op_12, "
@@ -1871,7 +1876,7 @@ def test_diff_basis_eval(fortran_writer):
     assert output_args in generated_code
     assert """\
     use constants_mod
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers_field_1
     integer(kind=i_def), intent(in) :: ndf_w0
     integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
     integer(kind=i_def), intent(in) :: ndf_w2
@@ -1966,7 +1971,8 @@ def test_2eval_stubgen(fortran_writer):
     generated_code = fortran_writer(kernel.gen_stub)
 
     assert (
-        "subroutine dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
+        "subroutine dummy_code(cell, nlayers_field_1, "
+        "field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
         "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, "
         "field_9_wchi, op_10_ncell_3d, op_10, field_11_w2vtrace, "
@@ -1989,7 +1995,7 @@ def test_2eval_stubgen(fortran_writer):
         generated_code)
     assert """\
     use constants_mod
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers_field_1
     integer(kind=i_def), intent(in) :: ndf_w0
     integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
     integer(kind=i_def), intent(in) :: ndf_w2
@@ -2154,6 +2160,13 @@ def test_lfricbasisfns_unsupp_qr(monkeypatch):
     dbasis = LFRicBasisFunctions(kernel)
     monkeypatch.setattr(
         dbasis, "_qr_vars", {"unsupported-shape": None})
+    # The code assumes that the various 'ndf' variables have already
+    # been added to the SymbolTable so we have to do that manually.
+    for idx in ["w0", "w1", "w2", "w2h", "w2v", "w2broken", "w2trace",
+                "w2htrace", "w2vtrace", "wchi", "w3", "wtheta"]:
+        kernel._stub_symbol_table.add(
+            DataSymbol(f"ndf_{idx}", ScalarType.integer_type()),
+            tag=f"ndf:{idx}")
     with pytest.raises(InternalError) as err:
         dbasis.stub_declarations()
     assert ("Quadrature shapes other than ['gh_quadrature_xyoz', "
