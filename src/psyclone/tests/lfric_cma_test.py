@@ -1340,7 +1340,7 @@ intent(in) :: cbanded_map_ads2_op_1__1
 , intent(inout) :: cma_op_2
     integer(kind=i_def), intent(in) :: op_1_ncell_3d
     real(kind=r_def), dimension(op_1_ncell_3d,ndf_ads1_op_1__1,\
-    ndf_ads2_op_1__1), intent(in) :: op_1
+ndf_ads2_op_1__1), intent(in) :: op_1
 
 
   end subroutine columnwise_op_asm_kernel_code

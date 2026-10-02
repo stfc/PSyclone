@@ -116,14 +116,14 @@ class LFRicDofmaps(LFRicCollection):
                         f"CMA operator but found {len(cma_args)}")
 
                 fspace = cma_args[0].function_space_to
-                map_name = fspace.cma_indirection_map_name
+                map_name = fspace.cma_indirection_map_tag
                 if map_name not in self._unique_indirection_maps:
                     self._unique_indirection_maps[map_name] = {
                         "argument": cma_args[0],
                         "base_name": fspace.cma_indirection_map_name,
                         "direction": "to"}
                 fspace = cma_args[0].function_space_from
-                map_name = fspace.cma_indirection_map_name
+                map_name = fspace.cma_indirection_map_tag
                 if map_name not in self._unique_indirection_maps:
                     self._unique_indirection_maps[map_name] = {
                         "argument": cma_args[0],

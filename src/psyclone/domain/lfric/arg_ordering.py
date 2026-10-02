@@ -935,13 +935,13 @@ class ArgOrdering:
 
         '''
         # pylint: disable=unused-argument
-        tag = function_space.cma_indirection_map_name
+        tag = function_space.cma_indirection_map_tag
         try:
             map_name = self._symtab.lookup_with_tag(tag).name
         except KeyError:
             # Allow for the case where we haven't set-up the symbol table
             # yet (mainly during testing).
-            map_name = tag
+            map_name = function_space.cma_indirection_map_name
         self.append_array_reference(map_name, [":"], tag=tag)
         self.append(map_name, var_accesses)
 
