@@ -2732,6 +2732,18 @@ class LFRicInterGrid():
         return self._last_cell_tile_var_symbol
 
 
+@dataclass(frozen=True)
+class BasisInfo:
+    '''
+    Holds information on a basis/differential-basis array.
+    '''
+    #: The base name to use when generating a name.
+    base_name: str
+    #: The names of symbols used to dimension the array. (Excludes any
+    ## integer literals.)
+    dim_vars: list[str]
+
+
 class LFRicBasisFunctions(LFRicCollection):
     ''' Holds all information on the basis and differential basis
     functions required by an invoke or kernel call. This covers both those
@@ -3005,9 +3017,7 @@ class LFRicBasisFunctions(LFRicCollection):
 
         for basis in basis_arrays:
             dims = []
-            # ARPDBG -first entry in list is currently the name of the basis array
-            # import pdb; pdb.set_trace()
-            for value in basis_arrays[basis][1:]:
+            for value in basis_arrays[basis].dim_vars:
                 try:
                     dims.append(Literal(value, ScalarType.integer_type()))
                 except (ValueError, TypeError):
@@ -3016,8 +3026,8 @@ class LFRicBasisFunctions(LFRicCollection):
             arr_type = ArrayType(ScalarType(ScalarType.Intrinsic.REAL,
                                             Reference(kind_sym)), dims)
             arg = self.symtab.find_or_create_tag(
-                basis, root_name=basis_arrays[basis][0], symbol_type=DataSymbol,
-                datatype=arr_type)
+                basis, root_name=basis_arrays[basis].base_name,
+                symbol_type=DataSymbol, datatype=arr_type)
             arg.interface = ArgumentInterface(ArgumentInterface.Access.READ)
             self.symtab.append_argument(arg)
 
@@ -3265,12 +3275,9 @@ class LFRicBasisFunctions(LFRicCollection):
 
         # Allocate basis arrays
         for basis in basis_arrays:
-            dims = "("+",".join([":"]*(len(basis_arrays[basis])-1))+")"
-            # TODO - it would be better if we could keep some function-space
-            # info in the name but that means that the dict returned by
-            # _basis_fn_declns needs to hold a 2-tuple: one entry for the
-            # function space and one of the list of names.
-            new_name = self.symtab.next_available_name(basis_arrays[basis][0])
+            dims = "("+",".join([":"]*len(basis_arrays[basis].dim_vars))+")"
+            base_name = basis_arrays[basis].base_name
+            new_name = self.symtab.next_available_name(base_name)
             symbol = self.symtab.find_or_create_tag(
                 tag=basis, root_name=new_name, symbol_type=DataSymbol,
                 datatype=UnsupportedFortranType(
@@ -3281,7 +3288,7 @@ class LFRicBasisFunctions(LFRicCollection):
                 [ArrayReference.create(
                     symbol,
                     [Reference(self.symtab.lookup(bn)) for
-                     bn in basis_arrays[basis][1:]]
+                     bn in basis_arrays[basis].dim_vars]
                 )])
             self._invoke.schedule.addchild(alloc, cursor)
             cursor += 1
@@ -3293,14 +3300,15 @@ class LFRicBasisFunctions(LFRicCollection):
                 "Allocate basis/diff-basis arrays")
         return cursor
 
-    def _basis_fn_declns(self) -> tuple[list[str], dict[str, list[str]]]:
+    def _basis_fn_declns(self) -> tuple[list[str], dict[str, BasisInfo]]:
         '''
         Extracts all information relating to the necessary declarations
         for basis-function arrays.
 
         :returns: a 2-tuple containing a list of all unique variables used
             in dimensioning the basis arrays plus a dict mapping each of the
-            basis arrays to a list of their dimensions.
+            basis arrays to BasisInfo holding a base name and a list of
+            the array dimensions.
 
         :raises InternalError: if neither self._invoke or self._kernel are set.
         :raises InternalError: if an unrecognised type of basis function is
@@ -3312,8 +3320,8 @@ class LFRicBasisFunctions(LFRicCollection):
 
         '''
         # pylint: disable=too-many-branches
-        # Dictionary of basis arrays where key values are the array names and
-        # entries are a list of dimensions.
+        # Dictionary of basis arrays where key values are tags for the array
+        # symbols and entries are a list of dimensions.
         basis_arrays = OrderedDict()
         # List of names of dimensioning (scalar) variables
         var_dim_list = []
@@ -3387,7 +3395,7 @@ class LFRicBasisFunctions(LFRicCollection):
                     # it as a variable.
                     if not arg.isnumeric() and (arg not in var_dim_list):
                         var_dim_list.append(arg)
-                basis_arrays[op_tag] = [op_name] + alloc_args
+                basis_arrays[op_tag] = BasisInfo(op_name, alloc_args)
 
             elif basis_fn["shape"].lower() == "gh_evaluator":
                 # This is an evaluator and thus may be required on more than
@@ -3401,13 +3409,13 @@ class LFRicBasisFunctions(LFRicCollection):
                         continue
                     # We haven't seen a basis with this name before so
                     # need to store its dimensions
-                    basis_arrays[op_tag] = [
+                    basis_arrays[op_tag] = BasisInfo(
                         op_name,
-                        first_dim,
-                        self.symtab.lookup_with_tag(
-                            basis_fn['fspace'].ndf_tag).name,
-                        self.symtab.lookup_with_tag(
-                            target_space.ndf_tag).name]
+                        [first_dim,
+                         self.symtab.lookup_with_tag(
+                             basis_fn['fspace'].ndf_tag).name,
+                         self.symtab.lookup_with_tag(
+                             target_space.ndf_tag).name])
             else:
                 raise InternalError(
                     f"Unrecognised evaluator shape: '{basis_fn['''shape''']}'."
