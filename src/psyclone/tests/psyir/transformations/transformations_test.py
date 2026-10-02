@@ -731,9 +731,11 @@ end subroutine x"""
     out = fortran_writer(psyir)
     assert "nowait" in out
 
-    # Check nowait is not added when there is no other dependency and one of
-    # the ancestor Loops cause a dependency (regardless of if another ancestor
-    # loop is iteration indepenedent).
+    # Check nowait is not added when one of the ancestor Loops cause a
+    # dependency (regardless of middle loops that are iteration
+    # indepenedent).
+    # TODO #3624: Inserting the correct barriers in the middle of the
+    # loop nest could make the nowait possible here.
     code = """
     subroutine x()
         integer :: i, j, k

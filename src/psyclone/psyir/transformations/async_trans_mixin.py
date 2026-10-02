@@ -163,7 +163,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                node_ancestor.independent_iterations()):
             # We skip over ancestor loops that have independent iterations
             # as we already know they have no dependencies between their
-            # iterations..
+            # iterations.
             node_ancestor = node_ancestor.ancestor((Loop, WhileLoop))
         if node_ancestor:
             # If we didn't find a closest and we have an ancestor Loop, then
