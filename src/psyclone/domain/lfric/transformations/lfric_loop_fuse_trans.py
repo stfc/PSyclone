@@ -273,6 +273,14 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
             `ANY_SPACE` and PSyclone can't find other metadata to determine
             the spaces), this option tells PSyclone whether to add a runtime
             check to determine whether the loops should be fused or not.
+
+        :raises TransformationError: if we have continuous ANY_SPACE field
+            written to by one of the input loops, we can't find
+            another access to the field in the invoke to compute the field, and
+            same_space nor conditional_fusion are enabled.
+        :raises TransformationError: if we have any continuous ANY_SPACE
+            fields written to by the input loops and after resolving the space
+            we determine the accesses are to fields on different spaces.
         '''
         # TODO #2668: Deprecate options dict.
         self.validate(nodes, options=options, same_space=same_space,
@@ -316,8 +324,6 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         arg2_field = node2.kernel.arguments.iteration_space_arg()
 
         # If the iteration space argument has the same name then we can fuse.
-        # FIXME We should only do this if we don't need a halo exchange
-        # between them.
         if arg1_field.name == arg2_field.name:
             # We always add force so need to make sure its not a duplicated
             # keyword argument.
