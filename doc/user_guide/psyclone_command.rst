@@ -86,9 +86,12 @@ by the command:
 
     Transformation scripts:
       -s SCRIPT, --script SCRIPT
-                            filename of a PSyclone optimisation recipe
+                            filename of a PSyclone optimisation recipe (can be
+                            specified multiple times to apply multiple scripts)
       --script-kwargs SCRIPT_KWARGS
-                            Keyword arguments for the transformation script.
+                            Keyword arguments for the transformation script (can be
+                            specified multiple times, each applies to the most recent
+                            -s script).
 
     Directory management:
       -I INCLUDE, --include INCLUDE
@@ -145,6 +148,20 @@ section. With a transformation recipe the command looks like:
 .. code-block:: console
 
     psyclone input.f90 -s transformation_recipe.py
+
+Multiple transformation scripts can be applied in sequence by specifying multiple ``-s``
+flags. Each script will be applied to the PSyIR in the order specified:
+
+.. code-block:: console
+
+    psyclone input.f90 -s script1.py -s script2.py
+
+Each script can also have its own keyword arguments using ``--script-kwargs``. Each
+``--script-kwargs`` applies to the most recent ``-s`` script that preceded it:
+
+.. code-block:: console
+
+    psyclone input.f90 -s script1.py --script-kwargs "opt1: 1" -s script2.py --script-kwargs "opt2: 2"
 
 
 Fortran INCLUDE Files and Modules
