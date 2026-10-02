@@ -345,12 +345,12 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
             node2_fs_name in const.VALID_DISCONTINUOUS_NAMES
         )
         if both_discontinuous:
-           # We always add force so need to make sure its not a
-           # duplicated keyword argument.
-           kwargs["force"] = True
-           super().apply((node1, node2),
-                         **kwargs)
-           return
+            # We always add force so need to make sure its not a
+            # duplicated keyword argument.
+            kwargs["force"] = True
+            super().apply((node1, node2),
+                          **kwargs)
+            return
 
         # If one or more is on any space then we need to search for the space.
         found_space1 = node1.field_space
