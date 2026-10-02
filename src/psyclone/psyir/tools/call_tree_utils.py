@@ -304,6 +304,8 @@ class CallTreeUtils():
                             "'%s' - ignored.", routine_name,
                             kernel.module_name)
                         continue
+                    read_write_info.add_call(Signature(kernel.name),
+                                             kernel.module_name)
                     todo.extend(self.get_non_local_symbols(psyir))
         return self._resolve_calls_and_unknowns(todo, read_write_info)
 
@@ -527,3 +529,41 @@ class CallTreeUtils():
                            name_accesses[signature.var_name]))
 
         return result
+
+    # ------------------------------------------------------------------------
+    def write_call_tree_info(self, psyir: Node, filename: str | Path) -> None:
+        '''Write call-tree information for all routines in a PSyIR tree.
+
+        The output maps each external module to the routines called and the
+        symbols read or written by the PSyIR tree.
+
+        :param psyir: the PSyIR tree to analyse.
+        :param filename: the path of the YAML file to write.
+        '''
+
+        modules_used: dict[str, dict[str, set[str]]] = {}
+        for routine in psyir.walk(Routine):
+            module_name = routine.ancestor(Container).name
+            info = self.get_in_out_parameters(
+                routine, include_non_data_accesses=True,
+                collect_non_local_symbols=True)
+            # info.add_call(Signature(routine.name), module_name)
+            for module_name, signature in info.call_list:
+                module_info = modules_used.setdefault(
+                    module_name, {"routines": set(), "symbols": set()})
+                module_info["routines"].add(str(signature))
+            for module_name, signature in info.read_list + info.write_list:
+                module_info = modules_used.setdefault(
+                    module_name, {"routines": set(), "symbols": set()})
+                module_info["symbols"].add(str(signature))
+
+        output = {
+            module_name: {
+                "routines": sorted(module_info["routines"]),
+                "symbols": sorted(module_info["symbols"])}
+            for module_name, module_info in modules_used.items()
+            if module_name
+        }
+        with Path(filename).open("w", encoding="utf-8") as yaml_file:
+            yaml.safe_dump(output, yaml_file, default_flow_style=False,
+                           sort_keys=True)
