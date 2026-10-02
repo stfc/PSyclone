@@ -218,9 +218,10 @@ class KernCallArgList(ArgOrdering):
         nlayers_names = set()
         # By default we always pass the number of layers associated with the
         # first field or operator argument.
-        name = f"nlayers_{self._kern.arguments.first_field_or_operator.name}"
+        tag = f"nlayers_{self._kern.arguments.first_field_or_operator.name}"
+        name = self._symtab.lookup_with_tag(tag).name
         nlayers_names.add(name)
-        nlayers_symbol = self.append_integer_reference(name, tag=name)
+        nlayers_symbol = self.append_integer_reference(name, tag=tag)
         self.append(nlayers_symbol.name, var_accesses)
         self._nlayers_positions.append(self.num_args)
         # We also have to pass any other values of nlayers for those args
@@ -228,7 +229,7 @@ class KernCallArgList(ArgOrdering):
         for arg in self._kern.arguments.args:
             if arg.nlayers and not arg.nlayers.isnumeric():
                 sym = self._symtab.lookup_with_tag(
-                    f"nlayers_{arg.nlayers}")
+                    f"nlayers_label:{arg.nlayers}")
                 if sym.name in nlayers_names:
                     # Make sure we don't duplicate arguments.
                     continue

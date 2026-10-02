@@ -96,8 +96,12 @@ class LFRicCellIterators(LFRicCollection):
         for arg in kern.arguments.args:
             if arg.nlayers and not arg.nlayers.isnumeric():
                 base_name = f"nlayers_{arg.nlayers}"
+                # Note we use a slightly different form of tag for those
+                # nlayers provided as labels in the metadata. This prevents
+                # collisions with the label given to the 'default' nlayers.
                 sym = self.symtab.find_or_create_tag(
-                    base_name,
+                    f"nlayers_label:{arg.nlayers}",
+                    root_name=base_name,
                     symbol_type=LFRicTypes("MeshHeightDataSymbol"))
                 if sym.name not in self._nlayers_names:
                     self._nlayers_names[sym.name] = arg

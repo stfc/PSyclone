@@ -16,7 +16,9 @@ if TYPE_CHECKING:
     from psyclone.lfric import LFRicKernelArgument
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
+from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import InternalError
+from psyclone.psyir.symbols import DataSymbol
 
 
 class KernStubArgList(ArgOrdering):
@@ -59,14 +61,24 @@ class KernStubArgList(ArgOrdering):
         '''
         first_arg: LFRicKernelArgument = (
             self._kern.arguments.first_field_or_operator)
-        self.append(f"nlayers_{first_arg.name}", var_accesses)
+        default_nlayers = f"nlayers_{first_arg.name}"
+        sym = self._symtab.find_or_create_tag(
+            default_nlayers,
+            symbol_type=DataSymbol,
+            datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+        self.append(sym.name, var_accesses)
         nlayers_names = set()
         for arg in self._kern.arguments.args:
             if arg.nlayers and not arg.nlayers.isnumeric():
-                if arg.nlayers in nlayers_names:
+                sym = self._symtab.find_or_create_tag(
+                    f"nlayers_label:{arg.nlayers}",
+                    root_name=f"nlayers_{arg.nlayers}",
+                    symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                if sym.name in nlayers_names:
                     continue
-                nlayers_names.add(arg.nlayers)
-                self.append(f"nlayers_{arg.nlayers}", var_accesses)
+                nlayers_names.add(sym.name)
+                self.append(sym.name, var_accesses)
 
     def field_ndata(self,
                     var_accesses: Optional[VariablesAccessMap] = None) -> None:
