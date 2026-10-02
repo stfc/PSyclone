@@ -373,7 +373,8 @@ def test_supported_prefix(fortran_reader, fn_prefix, routine_type):
     elif "impure" in fn_prefix:
         assert not rsym.is_pure
     else:
-        assert rsym.is_pure is None
+        # Any combination not including explicitly impure is pure
+        assert rsym.is_pure
 
 
 @pytest.mark.parametrize("routine_type", ["function", "subroutine"])
