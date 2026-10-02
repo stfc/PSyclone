@@ -11,7 +11,6 @@ and properties.
 '''
 
 import os
-from typing import Optional
 
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType

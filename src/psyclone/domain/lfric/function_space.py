@@ -47,11 +47,12 @@ class FunctionSpace():
                  kernel_args: "LFRicKernelArguments",
                  nlayers: str = "",
                  ndata: str = "1"):
-        if any(not isinstance(arg, str) for arg in [name, nlayers, ndata]):
-            raise TypeError(
-                f"The 'name', 'nlayers' and 'ndata' arguments to "
-                f"FunctionSpace must all be str but got '{arg}' of type "
-                f"'{type(arg).__name__}'")
+        for aname, arg in [("name", name), ("nlayers", nlayers),
+                           ("ndata", ndata)]:
+            if not isinstance(arg, str):
+                raise TypeError(
+                    f"The '{aname}' argument to FunctionSpace must be str but "
+                    "got: '{type(arg).__name__}'")
         self._orig_name = name
         self._kernel_args = kernel_args
         self._nlayers = nlayers

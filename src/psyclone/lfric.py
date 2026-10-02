@@ -100,7 +100,7 @@ def qr_basis_alloc_args(table: SymbolTable,
     #                   "np_y"+"_"+basis_fn["qr_var"],
     #                   "np_z"+"_"+basis_fn["qr_var"]]
     elif basis_fn["shape"] == "gh_quadrature_face":
-        alloc_args = [first_dim, ndf_sym.name, 
+        alloc_args = [first_dim, ndf_sym.name,
                       "np_xyz"+qr_var, "nfaces"+qr_var]
     elif basis_fn["shape"] == "gh_quadrature_edge":
         alloc_args = [first,
@@ -1130,7 +1130,6 @@ class LFRicFunctionSpaces(LFRicCollection):
         # Loop over all unique function spaces used by our kernel(s)
         for function_space in self._function_spaces:
 
-            mangled_name = function_space.mangled_name
             short_name = function_space.short_mangled_name
 
             # We need ndf for a space if a kernel operates on cell-columns,
@@ -3207,7 +3206,6 @@ class LFRicBasisFunctions(LFRicCollection):
             # We need the list of nodes for each unique FS upon which we need
             # to evaluate basis/diff-basis functions
             nodes_name = f"nodes_{fspace.mangled_name}"
-            tag_name = f"nodes_{fspace.short_mangled_name}"
             kind = api_config.default_kind["real"]
             LFRicTypes.add_precision_symbol(self.symtab, kind)
             try:
@@ -3654,13 +3652,11 @@ class LFRicBasisFunctions(LFRicCollection):
             if basis_fn["type"] == "diff-basis":
                 basis_name = "gh_diff_basis"
                 basis_type = "DIFF_BASIS"
-                #first_dim = self.diff_basis_first_dim_name(basis_fn["fspace"])
                 first_dim_sym = self.symtab.lookup_with_tag(
                     f"diff_dim:{mangled_name}")
             elif basis_fn["type"] == "basis":
                 basis_name = "gh_basis"
                 basis_type = "BASIS"
-                #first_dim = self.basis_first_dim_name(basis_fn["fspace"])
                 first_dim_sym = self.symtab.lookup_with_tag(
                     f"dim:{mangled_name}")
             else:
@@ -3731,8 +3727,8 @@ class LFRicBasisFunctions(LFRicCollection):
 
                     symbol = self.symtab.find_or_create_tag(
                         dof_loop_var,
-                        root_name=f"df_{basis_fn['fspace'].\
-                        short_mangled_name}",
+                        root_name=(
+                            f"df_{basis_fn['fspace'].short_mangled_name}"),
                         symbol_type=DataSymbol,
                         datatype=LFRicTypes("LFRicIntegerScalarDataType")())
                     inner_loop = Loop.create(

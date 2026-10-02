@@ -397,8 +397,8 @@ def test_op_any_space_different_space_2(tmpdir):
     assert "ndf_as3_c__1 = c_proxy%fs_to%get_ndf()" in generated_code
     assert ("ndf_a4_an_or_wh_a_vy_lg_ne_1 = an_operator_with_a_very_long_name_"
             "proxy%fs_from%get_ndf()" in generated_code)
-    assert ("undf_a4_an_or_wh_a_vy_lg_ne_1 = an_operator_with_a_very_long_name_"
-            "proxy%fs_from%get_undf()" in generated_code)
+    assert ("undf_a4_an_or_wh_a_vy_lg_ne_1 = an_operator_with_a_very_long_"
+            "name_proxy%fs_from%get_undf()" in generated_code)
     assert ("dim_as4 = an_operator_with_a_very_long_name_"
             "proxy%fs_from%get_dim_space()" in generated_code)
     assert "ndf_as5_a__1 = a_proxy%vspace%get_ndf()" in generated_code
@@ -408,7 +408,8 @@ def test_op_any_space_different_space_2(tmpdir):
             "name_proxy%fs_from, " in generated_code)
     assert ("call qr%compute_function(DIFF_BASIS, an_operator_with_a_very_"
             "long_name_proxy%fs_from, " in generated_code)
-    assert "map_as5_a__1 => a_proxy%vspace%get_whole_dofmap()" in generated_code
+    assert ("map_as5_a__1 => a_proxy%vspace%get_whole_dofmap()"
+            in generated_code)
     assert ("map_a4_an_or_wh_a_vy_lg_ne_1 => a_field_with_a_very_long_name_"
             "proxy%vspace%get_whole_dofmap()" in generated_code)
 
@@ -862,8 +863,8 @@ def test_2kern_invoke_any_space(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "integer(kind=i_def), pointer :: map_as1_f1__1(:,:) => null()" in gen
-    assert "integer(kind=i_def), pointer :: map_as1_f2__1(:,:) => null()" in gen
+    assert "teger(kind=i_def), pointer :: map_as1_f1__1(:,:) => null()" in gen
+    assert "teger(kind=i_def), pointer :: map_as1_f2__1(:,:) => null()" in gen
     assert "map_as1_f1__1 => f1_proxy%vspace%get_whole_dofmap()\n" in gen
     assert "map_as1_f2__1 => f2_proxy%vspace%get_whole_dofmap()\n" in gen
     assert (

@@ -1009,7 +1009,8 @@ def test_cma_apply(tmpdir, dist_mem):
             "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
             "ndf_as1_field_a__1, undf_as1_field_a__1, "
             "map_as1_field_a__1(:,cell), cma_indirection_map_as1_field_a__1, "
-            "ndf_as2_field_b__1, undf_as2_field_b__1, map_as2_field_b__1(:,cell),"
+            "ndf_as2_field_b__1, undf_as2_field_b__1, "
+            "map_as2_field_b__1(:,cell),"
             " cma_indirection_map_as2_field_b__1)") in code
     # We do not perform halo swaps for operators
     assert "cma_op1_proxy%is_dirty(" not in code
@@ -1316,16 +1317,16 @@ module columnwise_op_asm_kernel_mod
   subroutine columnwise_op_asm_kernel_code(cell, nlayers_op_1, ncell_2d, \
 op_1_ncell_3d, op_1, cma_op_2, cma_op_2_nrow, cma_op_2_ncol, \
 cma_op_2_bandwidth, cma_op_2_alpha, cma_op_2_beta, cma_op_2_gamma_m, \
-cma_op_2_gamma_p, ndf_ads1_op_1__1, cbanded_map_ads1_op_1__1, ndf_ads2_op_1__1, \
-cbanded_map_ads2_op_1__1)
+cma_op_2_gamma_p, ndf_ads1_op_1__1, cbanded_map_ads1_op_1__1, \
+ndf_ads2_op_1__1, cbanded_map_ads2_op_1__1)
     use constants_mod
     integer(kind=i_def), intent(in) :: nlayers_op_1
     integer(kind=i_def), intent(in) :: ndf_ads1_op_1__1
-    integer(kind=i_def), dimension(ndf_ads1_op_1__1,nlayers_op_1), intent(in) :: \
-cbanded_map_ads1_op_1__1
+    integer(kind=i_def), dimension(ndf_ads1_op_1__1,nlayers_op_1), \
+intent(in) :: cbanded_map_ads1_op_1__1
     integer(kind=i_def), intent(in) :: ndf_ads2_op_1__1
-    integer(kind=i_def), dimension(ndf_ads2_op_1__1,nlayers_op_1), intent(in) :: \
-cbanded_map_ads2_op_1__1
+    integer(kind=i_def), dimension(ndf_ads2_op_1__1,nlayers_op_1), \
+intent(in) :: cbanded_map_ads2_op_1__1
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_2d
     integer(kind=i_def), intent(in) :: cma_op_2_nrow
@@ -1338,8 +1339,8 @@ cbanded_map_ads2_op_1__1
     real(kind=r_def), dimension(cma_op_2_bandwidth,cma_op_2_nrow,ncell_2d)\
 , intent(inout) :: cma_op_2
     integer(kind=i_def), intent(in) :: op_1_ncell_3d
-    real(kind=r_def), dimension(op_1_ncell_3d,ndf_ads1_op_1__1,ndf_ads2_op_1__1)\
-, intent(in) :: op_1
+    real(kind=r_def), dimension(op_1_ncell_3d,ndf_ads1_op_1__1,\
+    ndf_ads2_op_1__1), intent(in) :: op_1
 
 
   end subroutine columnwise_op_asm_kernel_code
@@ -1366,11 +1367,11 @@ module columnwise_op_asm_field_kernel_mod
 
   contains
   subroutine columnwise_op_asm_field_kernel_code(cell, nlayers_field_1, \
-ncell_2d, field_1_as1_field_1__1, op_2_ncell_3d, op_2, cma_op_3, cma_op_3_nrow, \
-cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, \
-cma_op_3_gamma_m, cma_op_3_gamma_p, ndf_as1_field_1__1, undf_as1_field_1__1, \
-map_as1_field_1__1, cbanded_map_as1_field_1__1, ndf_as2_op_2__1, \
-cbanded_map_as2_op_2__1)
+ncell_2d, field_1_as1_field_1__1, op_2_ncell_3d, op_2, cma_op_3, \
+cma_op_3_nrow, cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, \
+cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p, ndf_as1_field_1__1, \
+undf_as1_field_1__1, map_as1_field_1__1, cbanded_map_as1_field_1__1, \
+ndf_as2_op_2__1, cbanded_map_as2_op_2__1)
     use constants_mod
     integer(kind=i_def), intent(in) :: nlayers_field_1
     integer(kind=i_def), intent(in) :: ndf_as1_field_1__1
@@ -1434,8 +1435,8 @@ ndf_as2_op_1__1, cbanded_map_as2_op_1__1)
     integer(kind=i_def), dimension(ndf_as1_op_1__1), intent(in) :: \
 map_as1_op_1__1
     integer(kind=i_def), intent(in) :: ndf_as2_op_1__1
-    integer(kind=i_def), dimension(ndf_as2_op_1__1,nlayers_op_1), intent(in) :: \
-cbanded_map_as2_op_1__1
+    integer(kind=i_def), dimension(ndf_as2_op_1__1,nlayers_op_1), intent(in) \
+:: cbanded_map_as2_op_1__1
     integer(kind=i_def), intent(in) :: undf_as1_op_1__1
     integer(kind=i_def), intent(in) :: cell
     integer(kind=i_def), intent(in) :: ncell_2d
