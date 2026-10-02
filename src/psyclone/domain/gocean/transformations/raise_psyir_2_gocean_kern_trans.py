@@ -9,6 +9,8 @@
 PSyclone kernel-layer-specific PSyIR which uses specialised classes.
 
 '''
+from typing import Any, Optional
+
 from psyclone.domain.gocean.kernel import GOceanKernelMetadata, GOceanContainer
 from psyclone.errors import PSycloneError
 from psyclone.gocean1p0 import GOSymbolTable, GOKernelSchedule
@@ -76,14 +78,14 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
     >>> trans = RaisePSyIR2GOceanKernTrans("compute_cu")
     >>> trans.apply(kernel_container)
 
-    :param str metadata_name: the name of the symbol containing the \
+    :param metadata_name: the name of the symbol containing the \
         required kernel metadata in language-level PSyIR.
 
     :raises TransformationError: if the supplied metadata_name is \
         invalid.
 
     '''
-    def __init__(self, metadata_name):
+    def __init__(self, metadata_name: str) -> None:
         super().__init__()
 
         try:
@@ -98,12 +100,13 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
         # The name of the PSyIR symbol containing the metadata
         self._metadata_name = metadata_name
 
-    def validate(self, node: Container, options=None, **kwargs):
+    def validate(self, node: Container,
+                 options: Optional[dict[str, str]] = None,
+                 **kwargs: Any) -> None:
         '''Validate the supplied PSyIR tree.
 
         :param node: a PSyIR node that is the root of a PSyIR tree.
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str: str]]
 
         :raises TransformationError: if the metadata name has not been \
             set or does not exist in the code.
@@ -167,7 +170,9 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
                 f"that it names as implementing the kernel ('{proc_name}').")
         # TODO #288: Validate kernel arguments against metadata.
 
-    def apply(self, node: Container, options=None, **kwargs):
+    def apply(self, node: Container,
+              options: Optional[dict[str, str]] = None,
+              **kwargs: Any) -> None:
         '''Raise the supplied language-level GOcean kernel PSyIR to
         GOcean-specific kernel PSyIR. Specialises the kernel container
         to a GOcean-specific subclass, populates this subclass with
@@ -177,7 +182,6 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
 
         :param node: a kernel represented in generic PSyIR.
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str: str]]
 
         '''
         self.validate(node, options=options, **kwargs)

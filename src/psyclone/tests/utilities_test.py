@@ -21,7 +21,8 @@ from psyclone.psyir.nodes.node import Node
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.utilities import (
     change_dir, check_links, count_lines, Compile, CompileError, get_ast,
-    get_base_path, get_infrastructure_path, get_invoke, line_number,
+    get_base_path, get_examples_path, get_infrastructure_path, get_invoke,
+    line_number,
     make_external_module, print_diffs)
 
 
@@ -290,6 +291,7 @@ def test_get_invoke():
     # is raised, so no assert required
 
     get_invoke("test14_module_inline_same_kernel.f90", "gocean", idx=0)
+    get_invoke("eg1/shallow_alg.f90", "gocean-examples", idx=0)
     get_invoke("1_single_invoke.f90", "lfric", idx=0)
     # Check that dist_mem is being accepted:
     get_invoke("1_single_invoke.f90", "lfric", idx=0, dist_mem=True)
@@ -322,6 +324,12 @@ def test_get_invoke():
     with pytest.raises(ParseError) as excinfo:
         get_invoke("does_not_exist", "lfric", idx=0)
     assert "No such file or directory" in str(excinfo.value)
+
+
+def test_get_examples_path():
+    '''Test that get_examples_path returns the expected absolute path.'''
+    path = get_examples_path("gocean/eg1/shallow_alg.f90")
+    assert path.endswith("examples/gocean/eg1/shallow_alg.f90")
 
 
 # -----------------------------------------------------------------------------

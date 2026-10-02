@@ -13,13 +13,17 @@
    actual code.
 '''
 
+from typing import Any, Optional, Union
+
 from psyclone import psyGen
-from psyclone.psyir.nodes import ValueRangeCheckNode
+from psyclone.psyir.nodes import Node, ValueRangeCheckNode
 from psyclone.psyir import nodes
 from psyclone.psyir.transformations.read_only_verify_trans \
     import ReadOnlyVerifyTrans
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class ValueRangeCheckTrans(ReadOnlyVerifyTrans):
     '''This transformation inserts a ValueRangeCheckNode into the PSyIR of a
     schedule. At code creation time this node will use the PSyData API
@@ -46,15 +50,15 @@ class ValueRangeCheckTrans(ReadOnlyVerifyTrans):
         # This function is only here to change the default node type
         super().__init__(node_class=node_class)
 
-    def validate(self, node_list, options=None):
+    def validate(self, node_list: list[Node],
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         '''Performs validation checks specific to nan-test
         transformations. This function is only here so that it
         is documented.
 
         :param node_list: the list of Node(s) we are checking.
-        :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if transformation is applied to a \
                                      Kernel or a BuiltIn call without its \
@@ -69,7 +73,18 @@ class ValueRangeCheckTrans(ReadOnlyVerifyTrans):
         '''
         # pylint: disable=useless-super-delegation
 
-        super().validate(node_list, options)
+        super().validate(node_list, options, **kwargs)
+
+    def apply(self, nodes: Union[Node, list[Node]],
+              options: Optional[dict[str, Any]] = None,
+              **kwargs: Any) -> None:
+        '''Apply this value-range checking transformation.
+
+        :param nodes: nodes to enclose in the checking region.
+        :param options: a dictionary with options for transformations.
+
+        '''
+        super().apply(nodes, options=options, **kwargs)
 
 
 # ============================================================================

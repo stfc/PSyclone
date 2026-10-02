@@ -42,7 +42,6 @@ class MoveTrans(Transformation):
         :param node: the node to be moved.
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param str options["position"]: either 'before' or 'after'.
 
         :raises TransformationError: if the given node is not an instance
             of :py:class:`psyclone.psyir.nodes.Node`
@@ -82,7 +81,6 @@ class MoveTrans(Transformation):
             the location. This must be 'before' or 'after'.
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param str options["position"]: either 'before' or 'after'.
 
         :raises TransformationError: if the given node is not an instance
             of :py:class:`psyclone.psyir.nodes.Node`

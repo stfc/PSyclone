@@ -9,6 +9,8 @@
 LFRic kernel-layer-specific PSyIR which uses specialised classes.
 
 '''
+from typing import Any, Optional
+
 from psyclone.domain.lfric.kernel.lfric_kernel_metadata import \
     LFRicKernelMetadata
 from psyclone.domain.lfric.kernel.psyir import LFRicKernelContainer
@@ -85,12 +87,13 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
     def __init__(self):
         super().__init__()
 
-    def validate(self, node: Container, options=None, **kwargs) -> None:
+    def validate(self, node: Container,
+                 options: Optional[dict[str, str]] = None,
+                 **kwargs: Any) -> None:
         '''Validate the supplied PSyIR tree.
 
         :param node: a PSyIR node that is the root of a PSyIR tree.
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str: str]]
 
         :raises TransformationError: if the supplied node is not a
             Container.
@@ -162,7 +165,9 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
         # Check that the metadata can be generated without any errors.
         _ = LFRicKernelMetadata.create_from_psyir(metadata_symbol)
 
-    def apply(self, node: Container, options=None, **kwargs) -> None:
+    def apply(self, node: Container,
+              options: Optional[dict[str, str]] = None,
+              **kwargs: Any) -> None:
         '''Raise the supplied language-level kernel to LFRic-specific kernel
         PSyIR. Specialises the kernel container to an LFRic-specific
         subclass, populates this subclass with the kernel metadata
@@ -173,7 +178,6 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
         :param node: a kernel represented in generic PSyIR.
         :param options: a dictionary with options for transformations.
             This is expected to contain the metadata_name.
-        :type options: Optional[Dict[str: str]]
 
         '''
         self.validate(node, options=options, **kwargs)
