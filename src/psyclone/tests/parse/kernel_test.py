@@ -546,18 +546,17 @@ def test_kerneltype_dimensions():
 
 
 def test_kerneltype_brackets():
-    '''Test that an exception is raised if the metadata is supplied within
-    square brackets as this is not supported within the parser.
+    '''Test that square-bracket array initialisation is accepted (as used
+    by transmuted kernels). This is a regression test for #3628.
 
     '''
     my_code = CODE.replace("(/", "[")
     my_code = my_code.replace("/)", "]")
     parse_tree = parse(my_code)
 
-    with pytest.raises(ParseError) as excinfo:
-        _ = KernelType(parse_tree)
-    assert ("Parser does not currently support '[...]' initialisation for "
-            "'meta_args', please use '(/.../)' instead.") in str(excinfo.value)
+    # Should not raise — square brackets must be accepted
+    kernel_type = KernelType(parse_tree)
+    assert kernel_type is not None
 
 
 def test_kerneltype_nargs():
