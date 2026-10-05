@@ -1,3 +1,6 @@
+   63) PR #3617 for #3609. Improve AsyncTransMixin to allow adding nowaits
+   when the ancestor loops of a directive are iteration-independent.
+
    62) PR #3580 for #3576. Update LFRic extraction integration tests.
 
    61) PR #3618 for #3614. Ensures any kernel-parsing errors are
