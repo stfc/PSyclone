@@ -33,13 +33,33 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         ftrans =  LFRicLoopFuseTrans()
         ftrans.apply(schedule[0], schedule[1])
 
+
+    The input loops will be fused as long as:
+
+    1. Neither input contains an inter-grid kernel.
+    2. The loops contain valid function spaces.
+    3. The function space must be the same or discontinuous or ANY_SPACE.
+    4. All kernels must only write to a single field.
+    5. The upper_bound_name must be the same.
+    6. The halo depths must be the same.
+    7. All reductions must be on the same field and the second 
+       loop can't read the result of a reduction in the first loop.
+    8. There's no dependency between the loops that could require a halo
+       exchange.
+    9. If we have a non-discontinuous ANY_SPACE field, we need to be able to
+       work out what the actual field space is or must be doing conditional
+       fusion.
+    10. The computed field space for ANY_SPACE fields must be the same space
+        if not discontinuous.
+
     The optional argument `same_space` can be set as
 
     .. code-block :: python
 
-        ftrans.apply(schedule[0], schedule[1], {"same_space": True})
+        ftrans.apply(schedule[0], schedule[1], same_space=True)
 
-    when applying the transformation.
+    when applying the transformation. This overrides the need to compute the 
+    actual space for fields on ANY_SPACE.
 
     '''
 
