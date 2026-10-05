@@ -49,8 +49,7 @@ from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
-from psyclone.psyir.transformations import (
-    ParallelRegionTrans, HoistRunetimeInquiryIntrinsicsTrans)
+from psyclone.psyir.transformations import ParallelRegionTrans
 from psyclone.utils import transformation_documentation_wrapper
 from psyclone.psyir.transformations.mark_routine_for_gpu_mixin import (
     MarkRoutineForGPUMixin)
@@ -1000,10 +999,6 @@ class ACCParallelTrans(ParallelRegionTrans):
         # position of the new !$omp parallel directive.
         node_parent = node_list[0].parent
         node_position = node_list[0].position
-
-        for child in node_list:
-            HoistRunetimeInquiryIntrinsicsTrans().apply(
-                child, assume_reallocations_are_local=True)
 
         # Create the parallel directive
         directive = ACCParallelDirective(

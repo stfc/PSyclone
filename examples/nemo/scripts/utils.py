@@ -17,11 +17,11 @@ from psyclone.psyir.nodes import (
     Operation)
 from psyclone.psyir.symbols import DataSymbol, ArrayType
 from psyclone.psyir.transformations import (
-    ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
+    ArrayAssignment2LoopsTrans, HoistLocalArraysTrans,
     HoistTrans, InlineTrans, ProfileTrans, OMPMinimiseSyncTrans,
     Reference2ArrayRangeTrans, ScalarisationTrans, IncreaseRankLoopArraysTrans,
     MaximalRegionTrans, TransformationError, DataNodeToTempTrans,
-    ArrayIntrinsic2LoopTrans)
+    ArrayIntrinsic2LoopTrans, HoistRunetimeInquiryIntrinsicsTrans)
 
 # USE statements to chase to gather additional symbol information.
 NEMO_MODULES_TO_IMPORT = [
@@ -213,23 +213,6 @@ def normalise_loops(
     if increase_array_ranks:
         increase_rank_and_reorder_nemov5_loops(schedule)
 
-    if hoist_expressions:
-        # First hoist all possible expressions
-        for loop in schedule.walk(Loop):
-            try:
-                HoistLoopBoundExprTrans().apply(loop)
-            except TransformationError:
-                pass
-
-        # Hoist all possible assignments (in reverse order so the inner loop
-        # constants are hoisted all the way out if possible)
-        for loop in reversed(schedule.walk(Loop)):
-            for statement in list(loop.loop_body):
-                try:
-                    HoistTrans().apply(statement)
-                except TransformationError:
-                    pass
-
     if hoist_argument_expressions:
         hoist_arguments_to_temporaries(schedule.walk(Call))
         normalise_loops(
@@ -244,9 +227,17 @@ def normalise_loops(
             # Make sure we never repeat this step.
             hoist_argument_expressions=False,
         )
-    # TODO #1928: In order to perform better on the GPU, nested loops with two
-    # sibling inner loops need to be fused or apply loop fission to the
-    # top level. This would allow the collapse clause to be applied.
+
+    if hoist_expressions:
+        # Hoist all possible assignments (in reverse order so the inner loop
+        # constants are hoisted all the way out if possible)
+        for loop in reversed(schedule.walk(Loop)):
+            for statement in list(loop.loop_body):
+                try:
+                    HoistTrans().apply(statement)
+                except TransformationError:
+                    pass
+
 
 
 def increase_rank_and_reorder_nemov5_loops(routine: Routine):
@@ -424,6 +415,8 @@ def insert_explicit_loop_parallelism(
             # First check that the region_directive is feasible for this region
             if region_directive_trans:
                 region_directive_trans.validate(loop, options=opts)
+                HoistRunetimeInquiryIntrinsicsTrans().apply(
+                    loop, assume_reallocations_are_local=True)
 
             # If it is, apply the parallelisation directive
             loop_directive_trans.apply(loop, options=opts)
