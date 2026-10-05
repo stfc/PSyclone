@@ -42,6 +42,9 @@ module dg_matrix_vector_kernel_mod
          /)
     integer :: operates_on = CELL_COLUMN
     contains
+    ! TODO #3601: Polymorhpic kernels cannot be fully-inlined yet, we can use the
+    ! procedure below and remove the public statement when this is fixed.
+    ! procedure, nopass :: dg_matrix_vector_code
     procedure, nopass :: dg_matrix_vector_code_r_double
   end type
   public :: dg_matrix_vector_code_r_double

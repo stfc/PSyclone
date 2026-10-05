@@ -238,7 +238,10 @@ def test_kernel_inline_trans_rechecks_callees(monkeypatch, capsys):
 def test_lfric_kernel_with_automatic_array(tmpdir):
     '''
     Test that Colouring, adding OpenMP and then Inlining a kernel that has
-    temporary automatic arrays works as expected.
+    temporary automatic arrays and is polymorhpic works as expected.
+
+    TODO #3601: Polymorhpic kernels are not inlined yet, in case the kernel
+    has been modified to provide a procedure referencing a single subroutine.
 
     '''
     psy, invoke = get_invoke("15.1.11_builtin_and_op_kernel_invoke.f90",
