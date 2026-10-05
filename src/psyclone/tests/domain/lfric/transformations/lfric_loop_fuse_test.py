@@ -10,6 +10,7 @@
 import pytest
 
 from psyclone.configuration import Config
+from psyclone.lfric import LFRicLoop, LFRicHaloExchange
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.psyir.transformations import (TransformationError, MoveTrans)
 from psyclone.tests.utilities import get_invoke
@@ -26,6 +27,7 @@ def test_loop_fuse_invalid_space(monkeypatch):
     _, first_invoke = get_invoke("4_multikernel_invokes.f90", TEST_API,
                                  idx=0, dist_mem=False)
     schedule = first_invoke.schedule
+    loops = schedule.walk(LFRicLoop)
     first_kernel_args = schedule.coded_kernels()[0].arguments
     # Get argument on the "write" space w1
     _, fspace = first_kernel_args.get_arg_on_space_name("w1")
@@ -35,7 +37,7 @@ def test_loop_fuse_invalid_space(monkeypatch):
     # Apply transformation and raise the error
     ftrans = LFRicLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
-        ftrans.apply((schedule.children[0], schedule.children[1]))
+        ftrans.apply(loops[0:2])
     assert ("One or both function spaces 'not_a_space_name' and 'w1' have "
             "invalid names" in str(excinfo.value))
 
@@ -56,20 +58,17 @@ def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
 
         ftrans = LFRicLoopFuseTrans()
         mtrans = MoveTrans()
+        loops = schedule.walk(LFRicLoop)
         if dist_mem:
-            index = 9
+            index = loops[0].position
             # f, c and g halo exchanges between loops can be moved
             # before the 1st loop as they are not accessed in it
-            for idx in range(index-3, index):
+            for idx in range(index, index+3):
                 mtrans.apply(schedule.children[idx+1],
                              schedule.children[idx])
-        else:
-            index = 0
 
         with pytest.raises(TransformationError) as excinfo:
-            ftrans.apply((schedule.children[index],
-                         schedule.children[index+1]),
-                         {"same_space": same_space})
+            ftrans.apply(loops[0:2], {"same_space": same_space})
 
         if same_space:
             assert ("The 'same_space' flag was set, but does not apply "
@@ -99,17 +98,14 @@ def test_loop_fuse(dist_mem):
     psy, invoke = get_invoke("4_multikernel_invokes_fusable_distmem.f90",
                              TEST_API, name="invoke_0", dist_mem=dist_mem)
     schedule = invoke.schedule
+    loops = schedule.walk(LFRicLoop)
+    halo_exchs = schedule.walk(LFRicHaloExchange)
 
     if dist_mem:
-        # Move the halo exchanges from between the loops to before both.
+        # Move the second loop to after the first 2 sets of 4 halo exchanges,
+        # instead of between the 3rd and 4th.
         mtrans = MoveTrans()
-        mtrans.apply(schedule.children[5], schedule.children[4])
-        mtrans.apply(schedule.children[6], schedule.children[5])
-        mtrans.apply(schedule.children[7], schedule.children[6])
-        mtrans.apply(schedule.children[8], schedule.children[7])
-        index = 8
-    else:
-        index = 0
+        mtrans.apply(loops[0], halo_exchs[7], position="after")
 
     ftrans = LFRicLoopFuseTrans()
 
@@ -117,8 +113,7 @@ def test_loop_fuse(dist_mem):
             "validity checks" in str(ftrans))
 
     # Fuse the loops
-    ftrans.apply((schedule.children[index],
-                 schedule.children[index+1]))
+    ftrans.apply(loops[0:2])
 
     gen = str(psy.gen)
 
@@ -155,15 +150,15 @@ def test_loop_fuse_set_dirty():
                              TEST_API, name="invoke_0", dist_mem=True)
 
     schedule = invoke.schedule
-    # Move the halo exchanges from between the loops to before both.
+    loops = schedule.walk(LFRicLoop)
+    halo_exchs = schedule.walk(LFRicHaloExchange)
+    # Move the second loop to after the first 2 sets of 4 halo exchanges,
+    # instead of between the 3rd and 4th.
     mtrans = MoveTrans()
-    mtrans.apply(schedule.children[5], schedule.children[4])
-    mtrans.apply(schedule.children[6], schedule.children[5])
-    mtrans.apply(schedule.children[7], schedule.children[6])
-    mtrans.apply(schedule.children[8], schedule.children[7])
+    mtrans.apply(loops[0], halo_exchs[7], position="after")
     ftrans = LFRicLoopFuseTrans()
     # Fuse the loops
-    ftrans.apply((schedule.children[8], schedule.children[9]))
+    ftrans.apply(loops[0:2])
 
     gen = str(psy.gen)
     assert gen.count("set_dirty()") == 2
@@ -176,22 +171,23 @@ def test_loop_fuse_multiwrite():
                            TEST_API, name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
+    loops = schedule.walk(LFRicLoop)
     # Validate fusing the first two loops
-    with pytest.raises(TransformationError) as err:
-        ftrans.validate((schedule.children[0], schedule.children[1]))
-    assert ("Error in LFRicLoopFuseTrans: Kernel "
-            "'testkern_write_any_anyd_code' in one of the input loops has 2 "
-            "write arguments. LFRicLoopFuseTrans can only currently fuse "
-            "when each kernel has at most one."
-            in str(err.value))
+    with pytest.raises(
+        TransformationError,
+        match="Error in LFRicLoopFuseTrans: Kernel "
+              "'testkern_write_any_anyd_code' in one of the input loops has "
+              "2 write arguments. LFRicLoopFuseTrans can only currently fuse "
+              "when each kernel has at most one."):
+        ftrans.validate(loops[0:2])
     # Validate fusing the latter two loops
-    with pytest.raises(TransformationError) as err:
-        ftrans.validate((schedule.children[1], schedule.children[2]))
-    assert ("Error in LFRicLoopFuseTrans: Kernel "
-            "'testkern_write_any_anyd_code' in one of the input loops has 2 "
-            "write arguments. LFRicLoopFuseTrans can only currently fuse "
-            "when each kernel has at most one."
-            in str(err.value))
+    with pytest.raises(
+        TransformationError,
+        match="Error in LFRicLoopFuseTrans: Kernel "
+              "'testkern_write_any_anyd_code' in one of the input loops has "
+              "2 write arguments. LFRicLoopFuseTrans can only currently fuse "
+              "when each kernel has at most one."):
+        ftrans.validate(loops[1:3])
 
 
 def test_loop_fuse_different_operates_on():
@@ -203,15 +199,16 @@ def test_loop_fuse_different_operates_on():
         TEST_API, name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
+    loops = schedule.walk(LFRicLoop)
     # This is caught in the base LoopFuseTrans when checking
     # if node1.iteration_space != node2.iteration_space
     # Here we have cell_column and dof spaces.
 
-    with pytest.raises(TransformationError) as err:
-        ftrans.validate((schedule.children[0], schedule.children[1]))
-
-    assert ("Error in LFRicLoopFuseTrans transformation. Loops do not have "
-            "the same iteration space." in str(err.value))
+    with pytest.raises(
+        TransformationError,
+        match="Error in LFRicLoopFuseTrans transformation. Loops do not have "
+              "the same iteration space."):
+        ftrans.validate(loops[0:2])
 
 
 def test_loop_fuse_fail_to_resolve_space():
@@ -222,19 +219,22 @@ def test_loop_fuse_fail_to_resolve_space():
         TEST_API, name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
+    loops = schedule.walk(LFRicLoop)
 
     # Fusion should work for the first 2 loops.
-    ftrans.apply((schedule.children[0], schedule.children[1]))
+    ftrans.apply(loops[0:2])
 
-    with pytest.raises(TransformationError) as err:
-        ftrans.apply((schedule.children[1], schedule.children[2]))
-    assert ("Error in LFRicLoopFuseTrans: Couldn't lookup the field space for "
-            "one or more of the ANY_SPACE fields being operated on and "
-            "conditional fusion wasn't specified." in str(err.value))
+    # Find the new loop set.
+    loops = schedule.walk(LFRicLoop)
+    with pytest.raises(
+        TransformationError,
+        match="Error in LFRicLoopFuseTrans: Couldn't lookup the field space "
+              "for one or more of the ANY_SPACE fields being operated on and "
+              "conditional fusion wasn't specified."):
+        ftrans.apply(loops[1:3])
 
     # Fusion should work if we allow conditional fusion
-    ftrans.apply((schedule.children[1], schedule.children[2]),
-                 conditional_fusion=True)
+    ftrans.apply(loops[1:3], conditional_fusion=True)
 
 
 def test_loop_fuse_resolved_different_spaces():
@@ -246,13 +246,16 @@ def test_loop_fuse_resolved_different_spaces():
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
 
+    loops = schedule.walk(LFRicLoop)
+
     # Fusion shouldn't work because the first builtin's field is on w2
     # and the second's is on w3
-    with pytest.raises(TransformationError) as err:
-        ftrans.apply((schedule.children[0], schedule.children[1]))
-    assert ("Error in LFRicLoopFuseTrans: The kernels provided are on "
-            "different spaces so can't be fused. Computed spaces were "
-            "'w2trace' and 'w3'." in str(err.value))
+    with pytest.raises(
+        TransformationError,
+        match="Error in LFRicLoopFuseTrans: The kernels provided are on "
+              "different spaces so can't be fused. Computed spaces were "
+              "'w2trace' and 'w3'."):
+        ftrans.apply(loops[0:2])
 
 
 def test_loop_fuse_conditional_vector_fields(fortran_writer):
@@ -335,9 +338,11 @@ def test_loop_fuse_dependency(fortran_writer):
     schedule = invoke.schedule
 
     ftrans = LFRicLoopFuseTrans()
+    loops = schedule.walk(LFRicLoop)
 
     # Fuse the loop
-    with pytest.raises(TransformationError) as err:
-        ftrans.apply((schedule.children[4], schedule.children[5]))
-    assert ("Error in LFRicLoopFuseTrans: Cannot fuse loops as the "
-            "loops have a dependency on the field f1." in str(err.value))
+    with pytest.raises(
+        TransformationError,
+        match="Error in LFRicLoopFuseTrans: Cannot fuse loops as the "
+              "loops have a dependency on the field f1."):
+        ftrans.apply(loops[0:2])
