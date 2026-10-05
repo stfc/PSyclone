@@ -53,6 +53,7 @@ def trans(psyir):
             loops = subroutine.loops()
             num_loops = len(loops)
             current_index = 0
+            num_fused = 0
             # Keep trying to fuse loops wherever possible
             while current_index < num_loops-1:
                 try:
@@ -62,9 +63,12 @@ def trans(psyir):
                     # loop and continue at the same index to keep trying to
                     # fuse.
                     num_loops = num_loops - 1
+                    num_fused = num_fused + 1
                 except TransformationError:
                     # If fusion fails we move to the next loop.
                     current_index = current_index + 1
+            print(f"Fused {num_fused} loops for invoke {subroutine.name} in "
+                  f"{psyir.name}")
         if ENABLE_REDUNDANT_COMPUTATION:
             # Make setval_* compute redundantly to the level 1 halo if it
             # is in its own loop and is not restricted to owned dofs only.

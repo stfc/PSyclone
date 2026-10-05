@@ -3956,7 +3956,6 @@ def test_lfricpsy_gen_container_routines(tmpdir):
     _, invoke_info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-
     # Manually add a new top-level routine
     psy.invokes.invoke_list[0].schedule.ancestor(Container).addchild(
             Routine.create("new_routine"))

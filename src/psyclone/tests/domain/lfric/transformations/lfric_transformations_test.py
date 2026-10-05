@@ -2111,7 +2111,7 @@ def test_two_reductions_real_do(tmpdir, dist_mem, fuse):
         with pytest.raises(TransformationError) as err:
             ftrans.apply((schedule[0], schedule[1]),
                          options={"same_space": True})
-        assert ("Cannot fuse loops when each loop already contains a "
+        assert ("Cannot fuse loops when each loop contains a "
                 "reduction" in str(err.value))
     # Apply an OpenMP do to the loop
     for child in schedule.children:
@@ -2403,7 +2403,7 @@ def test_multi_reduction_real_fuse():
             ftrans.apply((schedule.children[0], schedule.children[1]),
                          {"same_space": True})
         assert ("Error in LFRicLoopFuseTrans transformation: Cannot "
-                "fuse loops when each loop already contains a "
+                "fuse loops when each loop contains a "
                 "reduction" in str(excinfo.value))
 
 

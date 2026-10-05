@@ -191,6 +191,26 @@ def trans(psyir):
                     print(f"Annotation failed for kernel '{kern.name}' "
                           f"due to:\n{err.value}")
 
+        # Try to fuse all of the loops.
+        loops = subroutine.loops()
+        num_loops = len(loops)
+        current_index = 0
+        num_fused = 0
+        # Keep trying to fuse loops wherever possible
+        while current_index < num_loops-1:
+            try:
+                fusetrans.apply((loops[current_index],
+                                 loops[current_index+1]))
+                kernel_names = [k.name.lower() for k in
+                                loop[current_index].kernels()]
+                # If fusion is successful then we have 1 less remaining
+                # loop and continue at the same index to keep trying to
+                # fuse.
+                num_loops = num_loops - 1
+                print("Fusion successful: {kernel_names}")
+            except TransformationError:
+                # If fusion fails we move to the next loop.
+                current_index = current_index + 1
         # Add GPU offloading to loops
         for loop in subroutine.walk(Loop):
             kernel_names = [k.name.lower() for k in loop.kernels()]

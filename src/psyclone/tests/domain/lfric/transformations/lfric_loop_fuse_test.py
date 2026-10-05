@@ -181,14 +181,16 @@ def test_loop_fuse_multiwrite():
         ftrans.validate((schedule.children[0], schedule.children[1]))
     assert ("Error in LFRicLoopFuseTrans: Kernel "
             "'testkern_write_any_anyd_code' in one of the input loops has 2 "
-            "write arguments. Each kernel must have at most one."
+            "write arguments. LFRicLoopFuseTrans can only currently fuse "
+            "when each kernel has at most one."
             in str(err.value))
     # Validate fusing the latter two loops
     with pytest.raises(TransformationError) as err:
         ftrans.validate((schedule.children[1], schedule.children[2]))
     assert ("Error in LFRicLoopFuseTrans: Kernel "
             "'testkern_write_any_anyd_code' in one of the input loops has 2 "
-            "write arguments. Each kernel must have at most one."
+            "write arguments. LFRicLoopFuseTrans can only currently fuse "
+            "when each kernel has at most one."
             in str(err.value))
 
 
@@ -338,4 +340,4 @@ def test_loop_fuse_dependency(fortran_writer):
     with pytest.raises(TransformationError) as err:
         ftrans.apply((schedule.children[4], schedule.children[5]))
     assert ("Error in LFRicLoopFuseTrans: Cannot fuse loops as the "
-            "loops have a dependency." in str(err.value))
+            "loops have a dependency on the field f1." in str(err.value))
