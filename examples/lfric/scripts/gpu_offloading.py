@@ -203,7 +203,7 @@ def trans(psyir):
                 fusetrans.apply((loops[current_index],
                                  loops[current_index+1]))
                 kernel_names = [k.name.lower() for k in
-                                loop[current_index].kernels()]
+                                loops[current_index].kernels()]
                 # If fusion is successful then we have 1 less remaining
                 # loop and continue at the same index to keep trying to
                 # fuse.
