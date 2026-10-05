@@ -370,7 +370,7 @@ def test_add_with_tags_1():
                       tag="tag1")
     assert ("This symbol table, or an outer scope ancestor symbol table, "
             "already contains the tag 'tag1' for the symbol 'symbol_tag1', "
-            "so it can not be associated with symbol 'var1'."
+            "so it cannot be associated with symbol 'var1'."
             in str(error.value))
 
 
@@ -2379,7 +2379,7 @@ def test_copy_external_import():
         symtab.copy_external_import(var5, "tag")
     assert ("This symbol table, or an outer scope ancestor symbol table, "
             "already contains the tag 'tag' for the symbol 'symbol',"
-            " so it can not be associated with symbol 'c'."
+            " so it cannot be associated with symbol 'c'."
             in str(error.value))
 
     # It should also fail if the symbol exist and the tag is given to another
@@ -2768,7 +2768,7 @@ def test_new_symbol():
         sym = symtab.new_symbol("generic", tag="my_tag")
     assert ("This symbol table, or an outer scope ancestor symbol table, "
             "already contains the tag 'my_tag' for the symbol 'generic_2', "
-            "so it can not be associated with symbol 'generic_3'."
+            "so it cannot be associated with symbol 'generic_3'."
             in str(error.value))
 
     # New symbols can be given a symbols.Symbol sub-type

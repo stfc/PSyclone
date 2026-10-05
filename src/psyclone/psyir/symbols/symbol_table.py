@@ -644,7 +644,7 @@ class SymbolTable():
             raise KeyError(
                 f"This symbol table, or an outer scope ancestor symbol "
                 f"table, already contains the tag '{tag}' for the symbol "
-                f"'{existing[tag].name}', so it can not be associated with "
+                f"'{existing[tag].name}', so it cannot be associated with "
                 f"symbol '{symbol.name}'.")
 
         for old_tag, tagged_symbol in existing.items():
@@ -721,9 +721,8 @@ class SymbolTable():
                 f"check_for_clashes: 'symbols_to_skip' must be an instance of "
                 f"Iterable but got '{type(symbols_to_skip).__name__}'")
 
-        # This argument is queried for every clashing Symbol below. Materialise
-        # it once so generators and other one-shot Iterables behave like
-        # reusable collections.
+        # This argument is used several times, so convert it to a tuple in case
+        # a consumable iterator (e.g. a generator) is provided.
         symbols_to_skip = tuple(symbols_to_skip)
 
         if other_table is self:
@@ -751,7 +750,8 @@ class SymbolTable():
                         type(other_sym.interface)):
                     raise SymbolError(
                         f"ContainerSymbols named '{this_sym.name}' have "
-                        f"incompatible intrinsic or interface information.")
+                        f"incompatible intrinsic or interface information:\n"
+                        f"{this_sym}\n{other_sym}")
                 continue
 
             # If they are both IntrinsicSymbol then that's fine.
@@ -1106,8 +1106,8 @@ class SymbolTable():
                 f"SymbolTable.merge() expects 'symbols_to_skip' to be an "
                 f"Iterable but got '{type(symbols_to_skip).__name__}'")
 
-        # This argument is documented as any Iterable and is used repeatedly
-        # below. Materialise it once so that generators work as expected.
+        # This argument is used several times, so convert it to a tuple in case
+        # a consumable iterator (e.g. a generator) is provided.
         symbols_to_skip = tuple(symbols_to_skip)
 
         if other_table is self:

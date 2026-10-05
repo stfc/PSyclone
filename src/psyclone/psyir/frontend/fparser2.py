@@ -6272,16 +6272,21 @@ class Fparser2Reader():
             subprog_part = _first_type_match(
                 node.children, Fortran2003.Module_Subprogram_Part)
         except ValueError:
+            # No module subprogram found
             pass
         else:
-            module_subprograms = \
-                [subprogram for subprogram in subprog_part.children
-                 if not isinstance(subprogram, Fortran2003.Contains_Stmt)]
-            if module_subprograms:
+            # Process each subprogram component
+            for subprogram in subprog_part.children:
+                if isinstance(subprogram, Fortran2003.Contains_Stmt):
+                    continue  # Skip CONTAINS statement
                 try:
-                    self.process_nodes(parent=container,
-                                       nodes=module_subprograms)
+                    self.process_nodes(parent=container, nodes=[subprogram])
                 except SymbolError as err:
+                    # This happens when the problematic symbol has not been
+                    # caputred by a UnsupportedType or Codeblock. This happens
+                    # with implicit functions, but since PSyIR output is always
+                    # 'implicit none', we need to put the whole parent module
+                    # in a CodeBlock to preserve the 'implicit' code.
                     raise NotImplementedError(str(err.value)) from err
 
         return container
