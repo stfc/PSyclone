@@ -103,9 +103,7 @@ class Reference(DataNode):
 
             # Use the intent access pattern
             arg = callee.symbol_table.argument_list[arg_idx]
-            if arg.interface.access == ArgumentInterface.Access.WRITE:
-                return False
-            return True
+            return arg.interface.access != ArgumentInterface.Access.WRITE
 
         # All references other than LHS of assignments represent a read. This
         # can be improved in the future by looking at Call intents.
@@ -144,9 +142,8 @@ class Reference(DataNode):
 
             # Use the intent access pattern
             arg = callee.symbol_table.argument_list[arg_idx]
-            if arg.interface.access == ArgumentInterface.Access.READ:
-                return False
-            return True
+            return arg.interface.access != ArgumentInterface.Access.READ
+
         # The reference that is the LHS of an assignment is a write.
         if isinstance(parent, Assignment) and parent.lhs is self:
             return True

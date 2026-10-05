@@ -648,7 +648,6 @@ def test_reference_is_read_write_with_intents(fortran_reader):
     end module
    """
     psyir = fortran_reader.psyir_from_source(code)
-    print(psyir.view())
     calls = psyir.walk(Call)
     assert calls[0].arguments[0].symbol.name == "a"
     assert calls[0].arguments[0].is_read
@@ -662,6 +661,7 @@ def test_reference_is_read_write_with_intents(fortran_reader):
 
     # The named arguments are out of order, but we currently can't match
     # the caller-callee, so we assume worst-case: readwrite
+    # TODO #759: Adding support for 'optional' will need to consider this
     assert calls[1].arguments[0].symbol.name == "d"
     assert calls[1].arguments[0].is_read
     assert calls[1].arguments[0].is_write

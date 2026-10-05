@@ -235,7 +235,7 @@ def test_kernel_inline_trans_rechecks_callees(monkeypatch, capsys):
         "one callee.\n")
 
 
-def test_lfric_kernel_with_automatic_array():
+def test_lfric_kernel_with_automatic_array(tmpdir):
     '''
     Test that Colouring, adding OpenMP and then Inlining a kernel that has
     temporary automatic arrays works as expected.
@@ -277,3 +277,4 @@ dim=1),cell) + k)
     !$omp end parallel
     deallocate(lhs_e)
     deallocate(x_e)""" in str(psy.gen).lower()
+    assert LFRicBuild(tmpdir).code_compiles(psy)

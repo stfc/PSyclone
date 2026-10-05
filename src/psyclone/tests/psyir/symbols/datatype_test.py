@@ -458,6 +458,19 @@ def test_arraytype_arraybounds():
     assert bound2.upper is bounds.upper
 
 
+def test_arraytype_arraybounds_get_all_accessed_symbols():
+    '''Test the ArrayBounds get_all_accessed_symbols() method.'''
+    lower = DataSymbol("lower", ScalarType.integer_type())
+    upper = DataSymbol("upper", ScalarType.integer_type())
+    bounds = ArrayType.ArrayBounds(Reference(lower), Reference(upper))
+
+    assert bounds.get_all_accessed_symbols() == {lower, upper}
+
+    bounds = ArrayType.ArrayBounds(Reference(lower),
+                                   ArrayType.Extent.ATTRIBUTE)
+    assert bounds.get_all_accessed_symbols() == {lower}
+
+
 def test_arraytype():
     '''Test that the ArrayType class __init__ works as expected. Test the
     different dimension datatypes that are supported.'''

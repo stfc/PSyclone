@@ -36,6 +36,7 @@ INVOKE_EXCLUSIONS = []
 # because they're not computationally important or cause runtime errors.
 INLINE_EXCLUSIONS = [
     "abort", "logging",
+    # TODO #3611: The problem could be the L/UBOUND offloaded intrinsics.
     "sample_eos_operators_code_inlined_",
     "apply_mixed_wp_operator_code_inlined_",
 ]

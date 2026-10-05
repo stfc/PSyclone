@@ -258,74 +258,33 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             convert_to_allocatable = False
             new_shape = []
             for dim in sym.datatype.shape:
-                if isinstance(dim, ArrayType.Extent):
-                    new_shape.append(dim)
-                else:
-                    lower = self._replace_formal_args_in_expr(
-                        dim.lower, node, formal_args,
-                        routine_node=routine,
-                        allow_no_args_check_if_only_one_callee=(
-                            allow_no_args_check_if_only_one_callee),
-                    )
-                    upper = self._replace_formal_args_in_expr(
-                        dim.upper, node, formal_args,
-                        routine_node=routine,
-                        allow_no_args_check_if_only_one_callee=(
-                            allow_no_args_check_if_only_one_callee),
-                    )
-                    sym_in_shape = lower.get_all_accessed_symbols().union(
-                                       upper.get_all_accessed_symbols())
-                    for symbol in sym_in_shape:
-                        # Unless we can prove it is constant, the shape can
-                        # change in each call to match the runtime value
-                        if (not isinstance(symbol, DataSymbol)
-                                or not symbol.is_constant):
-                            convert_to_allocatable = True
-                    new_shape.append(ArrayType.ArrayBounds(lower, upper))
+                if not isinstance(dim, ArrayType.ArrayBounds):
+                    raise InternalError(
+                        f"Found invalid symbol '{sym}', an automatic array "
+                        f"must have defined array bounds.")
+                lower = self._replace_formal_args_in_expr(
+                    dim.lower, node, formal_args,
+                    routine_node=routine,
+                    allow_no_args_check_if_only_one_callee=(
+                        allow_no_args_check_if_only_one_callee),
+                )
+                upper = self._replace_formal_args_in_expr(
+                    dim.upper, node, formal_args,
+                    routine_node=routine,
+                    allow_no_args_check_if_only_one_callee=(
+                        allow_no_args_check_if_only_one_callee),
+                )
+                sym_in_shape = lower.get_all_accessed_symbols().union(
+                                   upper.get_all_accessed_symbols())
+                for symbol in sym_in_shape:
+                    # Unless we can prove it is constant, the shape can
+                    # change in each call to match the runtime value
+                    if (not isinstance(symbol, DataSymbol)
+                            or not symbol.is_constant):
+                        convert_to_allocatable = True
+                new_shape.append(ArrayType.ArrayBounds(lower, upper))
             if convert_to_allocatable:
-                cursor = node
-
-                # Try to hoist the allocations out of loops/directives
-                while True:
-                    loop = cursor.ancestor(Loop)
-                    if not loop:
-                        break
-                    writes_to_a_shape_symbol = False
-                    for ref in loop.walk(Reference):
-                        if ref in [dim.upper for dim in new_shape]:
-                            if ref.is_write:
-                                writes_to_a_shape_symbol = True
-                                break
-                    # LFRicLoops kernels do not contain the kernels arguments
-                    # as references with appropriate access patterns
-                    if (isinstance(loop, LFRicLoop) or
-                            not writes_to_a_shape_symbol):
-                        cursor = loop
-                    else:
-                        break
-                # If it is inside a RegionDirective->Schedule->cursor, hoist it
-                while isinstance(cursor.parent.parent, Directive):
-                    cursor = cursor.parent.parent
-
-                # Update the shape to DEFERRED to make the symbol allocatable
-                sym.datatype = ArrayType(
-                    sym.datatype.elemental_type,
-                    [ArrayType.Extent.DEFERRED for _ in new_shape])
-                parent = cursor.parent
-                # Add allocate and deallocate calls arround the cursor
-                parent.addchild(
-                    IntrinsicCall.create(
-                        IntrinsicCall.Intrinsic.ALLOCATE,
-                        [ArrayReference.create(
-                            sym, [dim.upper.copy() for dim in new_shape])]),
-                    cursor.position
-                )
-                parent.addchild(
-                    IntrinsicCall.create(
-                        IntrinsicCall.Intrinsic.DEALLOCATE,
-                        [Reference(sym)]),
-                    cursor.position + 1
-                )
+                self._create_allocatable_array(node, sym, new_shape)
             else:
                 sym.datatype = ArrayType(sym.datatype.elemental_type,
                                          new_shape)
@@ -355,6 +314,66 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             for child in new_stmts[1:]:
                 idx += 1
                 parent.addchild(child, idx)
+
+    @staticmethod
+    def _create_allocatable_array(node: Call, symbol: DataSymbol,
+                                  shape: List) -> None:
+        """Convert an automatic array to an allocatable array and add the
+        required allocation and deallocation around the call site.
+
+        The allocation is hoisted out of enclosing loops where the array's
+        shape is invariant and out of any enclosing region directives.
+
+        :param node: the call site being inlined.
+        :param symbol: the automatic-array symbol to make allocatable.
+        :param shape: the rewritten shape of the automatic array.
+
+        """
+        cursor = node
+
+        # Try to hoist the allocations out of loops/directives
+        while True:
+            loop = cursor.ancestor(Loop)
+            if not loop:
+                break
+            writes_to_a_shape_symbol = False
+            for ref in loop.walk(Reference):
+                for dim in shape:
+                    if ref.symbol in dim.get_all_accessed_symbols():
+                        if ref.is_write:
+                            writes_to_a_shape_symbol = True
+                            break
+            # LFRicLoops kernels do not contain the kernels arguments
+            # as references with appropriate access patterns
+            if (isinstance(loop, LFRicLoop) or
+                    not writes_to_a_shape_symbol):
+                # Examine next parent loop
+                cursor = loop
+            else:
+                break
+        # If it is inside a RegionDirective->Schedule->cursor, hoist it
+        while isinstance(cursor.parent.parent, Directive):
+            cursor = cursor.parent.parent
+
+        # Update the shape to DEFERRED to make the symbol allocatable
+        symbol.datatype = ArrayType(
+            symbol.datatype.elemental_type,
+            [ArrayType.Extent.DEFERRED for _ in shape])
+        parent = cursor.parent
+        # Add allocate and deallocate calls arround the cursor
+        parent.addchild(
+            IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.ALLOCATE,
+                [ArrayReference.create(
+                    symbol, [dim.upper.copy() for dim in shape])]),
+            cursor.position
+        )
+        parent.addchild(
+            IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.DEALLOCATE,
+                [Reference(symbol)]),
+            cursor.position + 1
+        )
 
     def _optional_arg_resolve_present_intrinsics(self,
                                                  routine_node: Routine,
@@ -441,7 +460,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             # Ensure any expressions in the condition are simplified.
             try:
                 sym_maths.expand(condition)
-            except Exception:
+            except Exception:   # pylint: disable=broad-except
                 continue
 
             # Make sure we only handle a Boolean Literal as a condition

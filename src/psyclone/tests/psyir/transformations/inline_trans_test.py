@@ -2824,9 +2824,9 @@ def test_apply_array_sized_by_arg(fortran_reader, fortran_writer):
     enddo""" in output
 
 
-def test_apply_automatic_array_with_extent(fortran_reader):
-    """Test that an automatic array with an unspecified extent is retained
-    when its routine is inlined."""
+def test_apply_automatic_array_with_unspecified_extent(fortran_reader):
+    """Test that an automatic array with an unspecified extent is raised as
+    a an InternalError."""
     psyir = fortran_reader.psyir_from_source("""
         module test_mod
         contains
@@ -2844,10 +2844,12 @@ def test_apply_automatic_array_with_extent(fortran_reader):
     work.datatype = ArrayType(ScalarType.real_type(),
                               [ArrayType.Extent.ATTRIBUTE])
 
-    InlineTrans().apply(caller.walk(Call)[0])
-
-    assert caller.symbol_table.lookup("work").datatype.shape == [
-        ArrayType.Extent.ATTRIBUTE]
+    with pytest.raises(InternalError) as err:
+        InlineTrans().apply(caller.walk(Call)[0])
+    assert ("Found invalid symbol 'work: DataSymbol<Array<Scalar<REAL, "
+            "UNDEFINED>, shape=['ATTRIBUTE']>, Automatic>', an automatic "
+            "array must have defined array bounds."
+            in str(err.value))
 
 
 def test_apply_automatic_array_hoisted_out_of_directive(fortran_reader):
