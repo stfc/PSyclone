@@ -16,7 +16,7 @@ from psyclone.domain.common.transformations import (
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric.transformations import (
-    LFRicRedundantComputationTrans)
+    LFRicRedundantComputationTrans, LFRicLoopFuseTrans)
 from psyclone.psyir.nodes import (
     Call, Directive, IntrinsicCall, Loop, Routine, Schedule)
 from psyclone.psyir.transformations import (
@@ -78,6 +78,7 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
+    fusetrans = LFRicLoopFuseTrans()
     rtrans = LFRicRedundantComputationTrans()
     ctrans = LFRicColourTrans()
     otrans = LFRicOMPLoopTrans()
