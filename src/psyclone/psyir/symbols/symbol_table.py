@@ -1183,9 +1183,8 @@ class SymbolTable():
                 merged_arguments.append(argument)
         self.specify_argument_list(merged_arguments)
 
-        # Tags are part of the identity-preserving metadata of a Symbol and
-        # must follow it into the destination table. A clashing Symbol may have
-        # been renamed or combined with an existing equivalent Symbol above.
+        # A clashing Symbol may have been renamed or combined with an existing
+        # equivalent Symbol. Reapply the previous tags to the new targets.
         for tag, tagged_symbol in tags_to_merge:
             if tag in self.get_tags():
                 continue
@@ -1236,20 +1235,19 @@ class SymbolTable():
         if index2 is not None:
             self._argument_list[index2] = symbol1
 
-    def specify_argument_list(self, argument_symbols):
+    def specify_argument_list(self, argument_symbols: list[Symbol]):
         '''
-        Sets-up the internal list storing the order of the arguments to this
-        kernel.
+        Set up the list storing the order of the arguments in the associated
+        routine. If a provided Symbol is not yet part of the symbol table, it
+        will be added.
 
-        :param list argument_symbols: ordered list of the DataSymbols \
-            representing the kernel arguments.
+        :param argument_symbols: ordered list of the Symbols representing the
+            arguments in the associated routine.
 
-        :raises ValueError: if the new argument_list is not consistent with \
+        :raises ValueError: if the new argument_list is not consistent with
             the existing entries in the SymbolTable.
 
         '''
-        # Historically this method also accepted new Symbols. Preserve that
-        # useful behaviour while ensuring they become real local entries.
         self._validate_arg_list(argument_symbols, check_membership=False)
         added_symbols = []
         try:
@@ -1265,7 +1263,7 @@ class SymbolTable():
                         f"argument but a different Symbol with that name is "
                         f"the local entry in this SymbolTable.")
             # Validate the other half of the invariant before committing the
-            # new list: every local argument Symbol must be present in it.
+            # new list: every argument Symbol must be present in the table.
             self._validate_non_args(argument_symbols)
         except (InternalError, KeyError, SymbolError, TypeError, ValueError):
             for symbol in added_symbols:
