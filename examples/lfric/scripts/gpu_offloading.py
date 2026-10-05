@@ -208,7 +208,8 @@ def trans(psyir):
                 # loop and continue at the same index to keep trying to
                 # fuse.
                 num_loops = num_loops - 1
-                print("Fusion successful: {kernel_names}")
+                print(f"Fusion successful: {kernel_names}, "
+                      f"{psyir.name}:{subroutine.name}")
             except TransformationError:
                 # If fusion fails we move to the next loop.
                 current_index = current_index + 1
