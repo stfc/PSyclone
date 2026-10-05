@@ -51,8 +51,8 @@ class FunctionSpace():
                            ("ndata", ndata)]:
             if not isinstance(arg, str):
                 raise TypeError(
-                    f"The '{aname}' argument to FunctionSpace must be str but "
-                    "got: '{type(arg).__name__}'")
+                    f"The '{aname}' argument to FunctionSpace must be a str "
+                    f"but got: '{type(arg).__name__}'")
         self._orig_name = name
         self._kernel_args = kernel_args
         self._nlayers = nlayers

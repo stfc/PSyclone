@@ -177,7 +177,7 @@ def test_intent(fortran_writer):
 SPACES = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(12) =                          &
+     type(arg_type), meta_args(13) =                          &
           (/ arg_type(gh_field, gh_real, gh_inc,   w0),       &
              arg_type(gh_field, gh_real, gh_inc,   w1),       &
              arg_type(gh_field, gh_real, gh_inc,   w2),       &
@@ -189,7 +189,10 @@ module dummy_mod
              arg_type(gh_field, gh_real, gh_write, w2v),      &
              arg_type(gh_field, gh_real, gh_inc,   w2htrace), &
              arg_type(gh_field, gh_real, gh_write, w2vtrace), &
-             arg_type(gh_field, gh_real, gh_read,  wchi)      &
+             arg_type(gh_field, gh_real, gh_read,  wchi),     &
+             ! Custom nlayers deliberately named to collide with the name
+             ! used for the default number of layers.
+             arg_type(gh_field, gh_real, gh_read,  w0, nlayers="field_1") &
            /)
      integer :: operates_on = cell_column
    contains
@@ -217,21 +220,27 @@ def test_spaces(fortran_writer):
         "  public\n"
         "\n"
         "  contains\n"
-        "  subroutine dummy_code(nlayers_field_1, field_1_w0, field_2_w1, "
+        "  subroutine dummy_code(nlayers_field_1, nlayers_field_1_1, "
+        "field_1_w0, field_2_w1, "
         "field_3_w2, field_4_w2broken, field_5_w2trace, field_6_w3, "
         "field_7_wtheta, field_8_w2h, field_9_w2v, field_10_w2htrace, "
-        "field_11_w2vtrace, field_12_wchi, "
+        "field_11_w2vtrace, field_12_wchi, field_13_w0_field_1_1, "
         "ndf_w0, undf_w0, map_w0, ndf_w1, undf_w1, map_w1, "
         "ndf_w2, undf_w2, map_w2, ndf_w2broken, undf_w2broken, map_w2broken, "
         "ndf_w2trace, undf_w2trace, map_w2trace, ndf_w3, undf_w3, map_w3, "
         "ndf_wtheta, undf_wtheta, map_wtheta, ndf_w2h, undf_w2h, map_w2h, "
         "ndf_w2v, undf_w2v, map_w2v, ndf_w2htrace, undf_w2htrace, "
         "map_w2htrace, ndf_w2vtrace, undf_w2vtrace, map_w2vtrace, "
-        "ndf_wchi, undf_wchi, map_wchi)\n"
+        "ndf_wchi, undf_wchi, map_wchi, ndf_w0_field_1_1, undf_w0_field_1_1, "
+        "map_w0_field_1_1)\n"
         "    use constants_mod\n"
         "    integer(kind=i_def), intent(in) :: nlayers_field_1\n"
+        "    integer(kind=i_def), intent(in) :: nlayers_field_1_1\n"
         "    integer(kind=i_def), intent(in) :: ndf_w0\n"
         "    integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0\n"
+        "    integer(kind=i_def), intent(in) :: ndf_w0_field_1_1\n"
+        "    integer(kind=i_def), dimension(ndf_w0_field_1_1), intent(in) :: "
+        "map_w0_field_1_1\n"
         "    integer(kind=i_def), intent(in) :: ndf_w1\n"
         "    integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1\n"
         "    integer(kind=i_def), intent(in) :: ndf_w2\n"
@@ -274,6 +283,7 @@ def test_spaces(fortran_writer):
         "    integer(kind=i_def), intent(in) :: undf_w2htrace\n"
         "    integer(kind=i_def), intent(in) :: undf_w2vtrace\n"
         "    integer(kind=i_def), intent(in) :: undf_wchi\n"
+        "    integer(kind=i_def), intent(in) :: undf_w0_field_1_1\n"
         "    real(kind=r_def), dimension(undf_w0), intent(inout) "
         ":: field_1_w0\n"
         "    real(kind=r_def), dimension(undf_w1), intent(inout) "
@@ -298,6 +308,8 @@ def test_spaces(fortran_writer):
         ":: field_11_w2vtrace\n"
         "    real(kind=r_def), dimension(undf_wchi), intent(in) "
         ":: field_12_wchi\n"
+        "    real(kind=r_def), dimension(undf_w0_field_1_1), intent(in) "
+        ":: field_13_w0_field_1_1\n"
         "\n"
         "\n"
         "  end subroutine dummy_code\n"

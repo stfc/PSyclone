@@ -2185,7 +2185,7 @@ def test_arg_desc_func_space_tofrom_err():
 
 def test_unrecognised_fspace_error():
     ''' Tests that an error is raised in FunctionSpace initialisation when
-    an unrecognised function space is supplied.
+    an unrecognised function space or invalid type is supplied.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2200,6 +2200,11 @@ def test_unrecognised_fspace_error():
     assert (f"Unrecognised function space 'not_a_space'. The supported "
             f"spaces are {const.VALID_FUNCTION_SPACE_NAMES}" in
             str(excinfo.value))
+    # Test the type-checking on named arguments.
+    with pytest.raises(TypeError,
+                       match=("'nlayers' argument to FunctionSpace must be a "
+                              "str but got: 'int'")):
+        _ = FunctionSpace("w1", first_kernel.arguments, nlayers=1)
 
 
 def test_mangle_no_space_error():
