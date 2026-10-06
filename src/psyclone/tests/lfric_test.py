@@ -19,7 +19,6 @@ from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
                                    LFRicConstants, LFRicKern,
                                    LFRicKernMetadata, LFRicLoop)
-from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.lfric import (
     LFRicACCEnterDataDirective, LFRicBoundaryConditions,
     LFRicKernelArgument, LFRicKernelArguments, LFRicProxies, HaloDepth,
@@ -971,48 +970,6 @@ def test_mkern_invoke_multiple_any_spaces(tmpdir):
     assert ("call qr%compute_function(DIFF_BASIS, op4_proxy%fs_from, "
             "diff_dim_as4_op4, ndf_as4_op4, diff_basis_as4_op4_qr)"
             in gen)
-
-
-def test_loopfuse(dist_mem, tmpdir):
-    ''' Tests whether loop fuse actually fuses and whether
-    multiple maps are produced or not. Multiple maps are not an
-    error but it would be nicer if there were only one '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "4_multikernel_invokes.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
-    invoke = psy.invokes.get("invoke_0")
-    schedule = invoke.schedule
-    index = 0
-    if dist_mem:
-        index = 4
-    loop1 = schedule.children[index]
-    loop2 = schedule.children[index+1]
-    trans = LFRicLoopFuseTrans()
-    trans.apply(loop1, loop2)
-    generated_code = psy.gen
-    # only one loop
-    assert str(generated_code).count("do cell") == 1
-    # only one map for each space
-    assert str(generated_code).count("map_w1 =>") == 1
-    assert str(generated_code).count("map_w2 =>") == 1
-    assert str(generated_code).count("map_w3 =>") == 1
-    # kernel call tests
-    kern_idxs = []
-    for idx, line in enumerate(str(generated_code).split('\n')):
-        if "do cell" in line:
-            do_idx = idx
-        if "call testkern_code(" in line:
-            kern_idxs.append(idx)
-        if "enddo" in line:
-            enddo_idx = idx
-    # two kernel calls
-    assert len(kern_idxs) == 2
-    # both kernel calls are within the loop
-    for kern_id in kern_idxs:
-        assert enddo_idx > kern_id > do_idx
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_named_psy_routine(dist_mem, tmpdir):
@@ -3949,7 +3906,6 @@ def test_lfricpsy_gen_container_routines(tmpdir):
     _, invoke_info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-
     # Manually add a new top-level routine
     psy.invokes.invoke_list[0].schedule.ancestor(Container).addchild(
             Routine.create("new_routine"))

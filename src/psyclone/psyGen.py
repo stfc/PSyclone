@@ -748,18 +748,18 @@ class Kern(Statement):
 
     :param parent: parent of this node in the PSyIR.
     :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
-    :param call: information on the call itself, as obtained by parsing \
+    :param call: information on the call itself, as obtained by parsing
                  the Algorithm layer code.
     :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
     :param str name: the name of the routine being called.
-    :param ArgumentsClass: class to create the object that holds all \
-        information on the kernel arguments, as extracted from kernel \
+    :param ArgumentsClass: class to create the object that holds all
+        information on the kernel arguments, as extracted from kernel
         meta-data (and accessible here via call.ktype).
     :type ArgumentsClass: type of :py:class:`psyclone.psyGen.Arguments`
-    :param bool check: whether to check for consistency between the \
+    :param bool check: whether to check for consistency between the
         kernel metadata and the algorithm layer. Defaults to True.
 
-    :raises GenerationError: if any of the arguments to the call are \
+    :raises GenerationError: if any of the arguments to the call are
                              duplicated.
 
     '''
@@ -2223,10 +2223,10 @@ class KernelArgument(Argument):
     arguments as specified by the kernel argument metadata and the
     kernel invocation in the Algorithm layer.
 
-    :param arg: information obtained from the metadata for this kernel \
+    :param arg: information obtained from the metadata for this kernel
                 argument.
     :type arg: :py:class:`psyclone.parse.kernel.Descriptor`
-    :param arg_info: information on how this argument is specified in \
+    :param arg_info: information on how this argument is specified in
                      the Algorithm layer.
     :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
     :param call: the PSyIR kernel node to which this argument pertains.

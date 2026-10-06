@@ -82,7 +82,7 @@ def trans(psyir: FileContainer) -> None:
 
     start = 1
     # First merge the first two j loops
-    fuse.apply(schedule[start], schedule[start+1])
+    fuse.apply((schedule[start], schedule[start+1]))
     # do j do i count
     #      do i born
     # do j do i die
@@ -90,7 +90,7 @@ def trans(psyir: FileContainer) -> None:
 
     # Then merge the (previous third, now second) loop to the
     # fused loop
-    fuse.apply(schedule[start], schedule[start+1])
+    fuse.apply((schedule[start], schedule[start+1]))
     # do j do i count
     #      do i born
     #      do i die
@@ -99,13 +99,13 @@ def trans(psyir: FileContainer) -> None:
     # You cannot fuse the two remaining outer loops!
 
     # Fuse the three inner loops: first the first two
-    fuse.apply(schedule[start].loop_body[0], schedule[start].loop_body[1])
+    fuse.apply((schedule[start].loop_body[0], schedule[start].loop_body[1]))
     # do j do i count born
     #      do i die
     # do j do i combine
 
     # Then merge in the previous third, now second) loop
-    fuse.apply(schedule[start].loop_body[0], schedule[start].loop_body[1])
+    fuse.apply((schedule[start].loop_body[0], schedule[start].loop_body[1]))
     # do j do i count born die
     # do j do i combine
 
