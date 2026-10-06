@@ -196,7 +196,6 @@ def trans(psyir):
         loops = subroutine.loops()
         num_loops = len(loops)
         current_index = 0
-        num_fused = 0
         # Keep trying to fuse loops wherever possible
         while current_index < num_loops-1:
             try:
