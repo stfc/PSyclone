@@ -16,7 +16,7 @@ module profile_psy_data_mod
 
   type :: profile_PSyDataType
      ! The opaque Vernier handle for a specific region
-     integer (kind=vik) :: vernier_handle
+     integer (kind=vik), allocatable :: vernier_handle(:)
      ! The name of the subroutine and module to be used by Vernier
      character(:), allocatable :: name
      ! True if this instance of PSyDataType has the name already
@@ -60,21 +60,28 @@ contains
                       num_post_vars)
 
     use vernier_mod, only : vernier_start
+!$  use omp_lib, only : omp_get_max_threads, omp_get_thread_num
     implicit none
 
     class(profile_PSyDataType), intent(inout), target :: this
     character(len=*), intent(in) :: module_name, region_name
     integer, intent(in) :: num_pre_vars, num_post_vars
+    integer :: nthreads, thread_id
 
 !$omp critical
     if (.not. this%initialised) then
       ! Vernier only supports a single name, so we store the concatenated
       ! strings to reduce runtime overhead
       this%name = module_name//":"//region_name
+      nthreads = 1
+!$    nthreads = omp_get_max_threads()
+      allocate(this%vernier_handle(nthreads))
       this%initialised = .true.
     endif
 !$omp end critical
-    call vernier_start(this%vernier_handle, this%name)
+    thread_id = 1
+!$  thread_id = omp_get_thread_num() + 1
+    call vernier_start(this%vernier_handle(thread_id), this%name)
 
   end subroutine PreStart
 
@@ -86,12 +93,16 @@ contains
   subroutine PostEnd(this)
 
     use vernier_mod, only : vernier_stop
+!$  use omp_lib, only : omp_get_thread_num
 
     implicit none
 
     class(profile_PSyDataType), intent(inout), target :: this
+    integer :: thread_id
 
-    call vernier_stop(this%vernier_handle)
+    thread_id = 1
+!$  thread_id = omp_get_thread_num() + 1
+    call vernier_stop(this%vernier_handle(thread_id))
 
   end subroutine PostEnd
 
