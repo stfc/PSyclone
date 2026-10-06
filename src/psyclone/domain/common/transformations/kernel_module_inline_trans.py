@@ -22,7 +22,7 @@ from psyclone.psyir.symbols import (
     SymbolError)
 from psyclone.psyir.nodes import (
     Call, Container, FileContainer, IntrinsicCall, Reference, Routine,
-    Schedule, ScopingNode)
+    ScopingNode)
 from psyclone.utils import transformation_documentation_wrapper
 
 
@@ -142,7 +142,7 @@ class KernelModuleInlineTrans(Transformation):
         # Check that the PSyIR of the routine/kernel can be retrieved.
         kname = node.routine.symbol.name
         try:
-            kernels = node.get_callees()
+            routines = node.get_callees()
         except Exception as error:
             raise TransformationError(
                 f"{self.name} failed to retrieve PSyIR for {kern_or_call} "
@@ -153,7 +153,7 @@ class KernelModuleInlineTrans(Transformation):
         if self._target_is_local(node):
             return
 
-        if len(kernels) > 1:
+        if len(routines) > 1:
             # We can't bring the target of a call to an interface into local
             # scope if there's no Container in which to put the interface.
             cntr = node
@@ -168,21 +168,21 @@ class KernelModuleInlineTrans(Transformation):
                     f"call-site is not within a module.")
 
         # Validate the PSyIR of each routine/kernel.
-        for kernel_schedule in kernels:
-            self._validate_schedule(node, kname, kern_or_call, kernel_schedule)
+        for routine in routines:
+            self._validate_routine(node, kname, kern_or_call, routine)
 
-    def _validate_schedule(self,
-                           node: Union[CodedKern, Call],
-                           kname: str,
-                           kern_or_call: str,
-                           kernel_schedule: Schedule):
+    def _validate_routine(self,
+                          node: Union[CodedKern, Call],
+                          kname: str,
+                          kern_or_call: str,
+                          routine: Routine):
         '''
-        Validates that the supplied schedule can be module-inlined.
+        Validates that the supplied Routine can be module-inlined.
 
         :param node: the candidate kernel/routine call to inline.
         :param kname: the name of the kernel/routine.
         :param kern_or_call: text for readable error messages.
-        :param kernel_schedule: the schedule of the routine to inline.
+        :param routine: the routine to inline.
 
         :raises TransformationError: if the schedule contains accesses
             to data declared in the same module scope or of unknown origin.
@@ -193,11 +193,11 @@ class KernelModuleInlineTrans(Transformation):
             Symbol that shadows a module name in its outer scope.
 
         '''
-        # We do not support kernels that use symbols representing data
+        # We do not support routines that use symbols representing data
         # declared in their own parent module (we would need to add new imports
         # from this module at the call site, and we don't do this yet).
         try:
-            kernel_schedule.check_outer_scope_accesses(
+            routine.check_outer_scope_accesses(
                 node, kern_or_call, ignore_non_data_accesses=True)
         except SymbolError as err:
             raise TransformationError(
@@ -208,7 +208,7 @@ class KernelModuleInlineTrans(Transformation):
         # Check for any static Symbols that are not compile-time constants. We
         # can't permit these because if the target routine is called from other
         # places then we'll change the results.
-        static_syms = [sym for sym in kernel_schedule.symbol_table.datasymbols
+        static_syms = [sym for sym in routine.symbol_table.datasymbols
                        if (sym.is_static and not sym.is_constant)]
         if static_syms:
             names = ", ".join(f"'{sym.name}'" for sym in static_syms)
@@ -219,8 +219,8 @@ class KernelModuleInlineTrans(Transformation):
         # If this Schedule itself contains Calls to local routines then
         # we can only make a private copy of it if the targets of those Calls
         # can also be copied in.
-        container = kernel_schedule.ancestor(Container)
-        for call in kernel_schedule.walk(Call):
+        container = routine.ancestor(Container)
+        for call in routine.walk(Call):
             symbol = call.routine.symbol
             if symbol.is_import or symbol.is_unresolved:
                 continue
@@ -241,18 +241,18 @@ class KernelModuleInlineTrans(Transformation):
                         f" because it contains a call to generic interface "
                         f"'{symbol.name}' and that interface includes external"
                         f" routine '{lrt}'")
-                # Recursively check the schedule of the target routine.
-                self._validate_schedule(node, f"{kname}->{lrt}",
-                                        "routine", rt_psyir)
+                # Recursively check the target routine.
+                self._validate_routine(node, f"{kname}->{lrt}",
+                                       "routine", rt_psyir)
 
         # We handle cases where the target routine accesses symbols that are
         # imported into an outer scope by bringing those imports inside the
         # target routine. However, if the target routine already contains a
         # symbol that shadows the name of the source module of such an import
         # then we cannot do this (we could attempt to rename the local symbol).
-        symtab = kernel_schedule.ancestor(Container).symbol_table
+        symtab = routine.ancestor(Container).symbol_table
         ctr_names = [sym.name.lower() for sym in symtab.containersymbols]
-        for scope in kernel_schedule.walk(ScopingNode):
+        for scope in routine.walk(ScopingNode):
             for symbol in scope.symbol_table.symbols:
                 if (symbol.name.lower() in ctr_names and
                         not isinstance(symbol, ContainerSymbol)):
@@ -425,12 +425,12 @@ class KernelModuleInlineTrans(Transformation):
                                   iface_sym.is_unresolved)):
                 return False
 
-        for kernel_schedule in routines:
-            rt_sym = node.scope.symbol_table.lookup(kernel_schedule.name,
+        for routine in routines:
+            rt_sym = node.scope.symbol_table.lookup(routine.name,
                                                     otherwise=None)
-            if (not rt_sym or (rt_sym is not kernel_schedule.symbol) or
+            if (not rt_sym or (rt_sym is not routine.symbol) or
                     (node.ancestor(Container) is not
-                     kernel_schedule.ancestor(Container)) or
+                     routine.ancestor(Container)) or
                     (rt_sym.is_import or rt_sym.is_unresolved)):
                 return False
 
