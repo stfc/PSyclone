@@ -625,6 +625,32 @@ def test_outer_scope_accesses_unresolved(fortran_reader):
             "this" in str(err.value))
 
 
+def test_outer_scope_accesses_unsupported_type(fortran_reader):
+    '''
+    Test that check_outer_scope_accesses rejects symbols of
+    UnsupportedFortranType that have no partial datatype.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+    module my_mod
+      use some_mod
+    contains
+      subroutine call_it(arg)
+        procedure(func) :: arg
+        call arg()
+      end subroutine call_it
+    end module my_mod
+    ''')
+    routines = psyir.walk(Routine)
+    rt0 = routines[0]
+    assert rt0.symbol.name == "call_it"
+    call = rt0.walk(Call)[0]
+    with pytest.raises(SymbolError,
+                       match=("contains accesses to 'arg' which is of "
+                              "UnsupportedFortranType")):
+        rt0.check_outer_scope_accesses(call, "call")
+
+
 def test_outer_scope_accesses_multi_wildcards(fortran_reader):
     '''
     Test that check_outer_scope_accesses() raises the expected errors when it's

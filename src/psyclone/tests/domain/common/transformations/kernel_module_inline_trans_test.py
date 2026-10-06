@@ -1576,6 +1576,62 @@ def test_mod_inline_unresolved_sym_in_container(monkeypatch, fortran_reader):
     assert not (new_rt.is_import or new_rt.is_unresolved)
 
 
+def test_mod_inline_procedure_references(fortran_reader, fortran_writer):
+    '''
+    Test that we refuse to module inline when we have references to procedures
+    being passed as arguments.
+
+    '''
+    code = '''\
+module funint
+  abstract interface
+     real function f1var(x)
+       real, intent(in) :: x
+     end function f1var
+  end interface
+end module funint
+module middle
+  use funint
+contains
+  subroutine eval(fun,fval) ! sets fval = fun(Pi)
+    procedure(f1var) :: fun
+    real, intent(out) :: fval
+    real :: x
+    x = acos(-1.0)
+    fval=fun(x)
+  end subroutine eval
+end module middle
+
+module showGenIntf
+contains
+  real function f1a(x) ! returns square of argument
+    real, intent(in) :: x
+    f1a=x*x
+  end function f1a
+  real function f1b(x) ! returns cube of argument
+    real, intent(in) :: x
+    f1b=x*x*x
+  end function f1b
+  subroutine doit()
+    use middle, only: eval
+    real :: yvala,yvalb
+    call eval(f1a,yvala)
+    call eval(f1b,yvalb)
+    write(*,*)' For x = Pi, f1a(x) = ',yvala,', f1b(x) = ',yvalb
+  end subroutine doit
+end module showGenIntf
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    container = psyir.walk(Container)[-1]
+    routines = container.walk(Routine)
+    call = routines[-1].walk(Call)[0]
+    intrans = KernelModuleInlineTrans()
+    with pytest.raises(TransformationError,
+                       match=("routine 'eval' contains accesses to 'fun' "
+                              "which is of UnsupportedFortranType")):
+        intrans.apply(call)
+
+
 def test_mod_inline_shared_wildcard_import(monkeypatch, tmp_path,
                                            clear_module_manager_instance):
     '''
