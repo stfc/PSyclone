@@ -119,7 +119,7 @@ class FunctionSpace():
                     f"No kernel argument found for function "
                     f"space '{self._orig_name}'")
 
-        # To avoid naming .collisions, we always include both nlayers and ndata
+        # To avoid naming collisions, we always include both nlayers and ndata
         # in the result, even if they are empty (in which case we get a double
         # underscore).
         parts = [base_name, self._nlayers, self._ndata]
@@ -128,7 +128,9 @@ class FunctionSpace():
     @property
     def short_mangled_name(self) -> str:
         '''
-        TODO
+        :returns: a short form of the mangled name. This is *not* guaranteed
+            to be unique but is useful when constructing meaningful variable
+            names.
         '''
         return self._shorten_name(self.mangled_name)
 
@@ -161,7 +163,7 @@ class FunctionSpace():
     @property
     def short_name(self) -> str:
         '''
-        Creates a short version of the name of this function space  to be used
+        Creates a short version of the name of this function space to be used
         for mangled names from the condensed keywords and function space IDs.
 
         For spaces other than any_*_spaces then the original name is just
@@ -188,28 +190,31 @@ class FunctionSpace():
     @property
     def map_tag(self) -> str:
         '''
-        :returns: a unique dofmap name for the supplied FunctionSpace.
+        :returns: a unique tag for the dofmap associated with this
+                  FunctionSpace.
         '''
         return f"map:{self.mangled_name}"
 
     @property
     def map_name(self) -> str:
         '''
-        :returns: a dofmap name for the supplied FunctionSpace.
+        :returns: a dofmap name for the supplied FunctionSpace. This is not
+            guaranteed to be unique but can be used as a start point.
         '''
         return f"map_{self.short_mangled_name}"
 
     @property
     def cbanded_map_tag(self) -> str:
         '''
-        :returns: the tag for a column-banded dofmap for this FunctionSpace.
+        :returns: a unique tag for a column-banded dofmap for this
+                  FunctionSpace.
         '''
         return "cbanded_map:" + self.mangled_name
 
     @property
     def cbanded_map_name(self) -> str:
         '''
-        :returns: the base name of a column-banded dofmap for this
+        :returns: the base name to use for a column-banded dofmap for this
                   FunctionSpace.
         '''
         return "cbanded_map_" + self.short_mangled_name
@@ -217,46 +222,44 @@ class FunctionSpace():
     @property
     def cma_indirection_map_tag(self) -> str:
         '''
-        :returns: the name of a CMA indirection dofmap for the supplied
-            FunctionSpace.
+        :returns: a unique tag for a CMA indirection dofmap for this
+                  FunctionSpace.
         '''
         return "cma_indirection_map:" + self.mangled_name
 
     @property
     def cma_indirection_map_name(self) -> str:
         '''
-        :returns: the name of a CMA indirection dofmap for the supplied
-            FunctionSpace.
+        :returns: a base name for a CMA indirection dofmap for this
+                  FunctionSpace.
         '''
         return "cma_indirection_map_" + self.short_mangled_name
 
     @property
     def ndf_tag(self) -> str:
         '''
-        :returns: a unique tag for the ndf symbol for this FunctionSpace
-                  object.
+        :returns: a unique tag for the ndf symbol for this FunctionSpace.
         '''
         return "ndf:" + self.mangled_name
 
     @property
     def ndf_name(self) -> str:
         '''
-        :returns: a ndf name for this FunctionSpace object.
+        :returns: a base ndf name for this FunctionSpace.
         '''
         return f"ndf_{self.short_mangled_name}"
 
     @property
     def undf_tag(self) -> str:
         '''
-        :returns: a unique tag for the undf symbol for this FunctionSpace
-                  object.
+        :returns: a unique tag for the undf symbol for this FunctionSpace.
         '''
         return "undf:" + self.mangled_name
 
     @property
     def undf_name(self) -> str:
         '''
-        :returns: a undf name for this FunctionSpace object.
+        :returns: a base undf name for this FunctionSpace.
         '''
         return f"undf_{self.short_mangled_name}"
 
