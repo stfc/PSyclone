@@ -734,11 +734,6 @@ def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
         raise ParseError(
             f"In kernel metadata '{name}': '{var_name}' variable must be a 1 "
             f"dimensional array.")
-    if descs.init.find("[") != -1 and descs.init.find("]") != -1:
-        # there is a bug in fparser1
-        raise ParseError(
-            f"Parser does not currently support '[...]' initialisation for "
-            f"'{var_name}', please use '(/.../)' instead.")
     try:
         inits = expr.FORT_EXPRESSION.parseString(descs.init)[0]
     except ParseException as err:
