@@ -8,11 +8,12 @@
 '''This module provides the generic loop fusion class, which is the base
 class for all API-specific loop fusion transformations.
 '''
+from typing import Iterable
 import warnings
 
 from psyclone.core import SymbolicMaths
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.psyir.nodes import Reference, Routine, Node
+from psyclone.psyir.nodes import Reference, Routine, Loop
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
@@ -39,7 +40,7 @@ class LoopFuseTrans(LoopTrans):
         return "Fuse two adjacent loops together"
 
     # pylint: disable=arguments-renamed
-    def validate(self, nodes: tuple[Node], options=None,
+    def validate(self, nodes: Iterable[Loop], options=None,
                  **kwargs):
         ''' Performs various checks to ensure that it is valid to apply
         the LoopFuseTrans transformation to the supplied Nodes.
@@ -70,9 +71,9 @@ class LoopFuseTrans(LoopTrans):
         else:
             self.validate_options(**kwargs)
             ignore_dep_analysis = self.get_option("force", **kwargs)
-        if not isinstance(nodes, tuple) or len(nodes) != 2:
+        if not isinstance(nodes, Iterable) or len(nodes) != 2:
             raise TransformationError(
-                f"{self.name} expected a tuple of 2 input nodes but was "
+                f"{self.name} expected an Iterable of 2 input nodes but was "
                 f"provided {nodes}."
             )
         node1 = nodes[0]
@@ -132,10 +133,10 @@ class LoopFuseTrans(LoopTrans):
                 raise TransformationError(f"{self.name}. {messages[0]}")
 
     # -------------------------------------------------------------------------
-    def apply(self, nodes: tuple[Node, Node], options=None,
+    def apply(self, nodes: Iterable[Loop], options=None,
               force: bool = False, **kwargs):
         # pylint: disable=arguments-differ
-        ''' Fuses two loops represented by `psyclone.psyir.nodes.Node` objects
+        ''' Fuses two loops represented by `psyclone.psyir.nodes.Loop` objects
         after performing validity checks.
 
         If the two loops don't have the same loop variable, the second loop's

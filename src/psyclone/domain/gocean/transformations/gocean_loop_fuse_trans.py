@@ -8,6 +8,8 @@
 '''This module contains the GOcean-specific loop-fusion transformation.
 '''
 
+from typing import Iterable
+
 from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
 from psyclone.gocean1p0 import GOLoop
 from psyclone.utils import transformation_documentation_wrapper
@@ -35,7 +37,7 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         return ("Fuse two adjacent loops together with GOcean-specific "
                 "validity checks")
 
-    def validate(self, nodes: tuple[GOLoop, GOLoop], options=None, **kwargs):
+    def validate(self, nodes: Iterable[GOLoop], options=None, **kwargs):
         '''Checks if it is valid to apply the GOceanLoopFuseTrans
         transform. It ensures that the fused loops are over
         the same grid-point types, before calling the normal
@@ -67,7 +69,7 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
 
         super().validate(nodes, options=options, **kwargs)
 
-    def apply(self, nodes: tuple[GOLoop, GOLoop],
+    def apply(self, nodes: Iterable[GOLoop],
               options=None, **kwargs):
         '''Applies the GoceanLoopFuseTrans to the provided nodes.
 

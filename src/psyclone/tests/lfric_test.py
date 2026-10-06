@@ -974,54 +974,6 @@ def test_mkern_invoke_multiple_any_spaces(tmpdir):
             in gen)
 
 
-def test_loopfuse(dist_mem, tmpdir):
-    ''' Tests whether loop fuse actually fuses and whether
-    multiple maps are produced or not. Multiple maps are not an
-    error but it would be nicer if there were only one '''
-    _, invoke_info = parse(os.path.join(
-        BASE_PATH, "4_multikernel_invokes_fusable_distmem.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
-    invoke = psy.invokes.get("invoke_0")
-    schedule = invoke.schedule
-    index = 0
-    if dist_mem:
-        # Move the halo exchanges from between the loops to before both.
-        mtrans = MoveTrans()
-        mtrans.apply(schedule.children[5], schedule.children[4])
-        mtrans.apply(schedule.children[6], schedule.children[5])
-        mtrans.apply(schedule.children[7], schedule.children[6])
-        mtrans.apply(schedule.children[8], schedule.children[7])
-        index = 8
-    loop1 = schedule.children[index]
-    loop2 = schedule.children[index+1]
-    trans = LFRicLoopFuseTrans()
-    trans.apply((loop1, loop2))
-    generated_code = psy.gen
-    # only one loop
-    assert str(generated_code).count("do cell") == 1
-    # only one map for each space
-    assert str(generated_code).count("map_w1 =>") == 1
-    assert str(generated_code).count("map_w2 =>") == 1
-    assert str(generated_code).count("map_w3 =>") == 1
-    # kernel call tests
-    kern_idxs = []
-    for idx, line in enumerate(str(generated_code).split('\n')):
-        if "do cell" in line:
-            do_idx = idx
-        if "call testkern_code(" in line:
-            kern_idxs.append(idx)
-        if "enddo" in line:
-            enddo_idx = idx
-    # two kernel calls
-    assert len(kern_idxs) == 2
-    # both kernel calls are within the loop
-    for kern_id in kern_idxs:
-        assert enddo_idx > kern_id > do_idx
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
 def test_named_psy_routine(dist_mem, tmpdir):
     ''' Check that we generate a subroutine with the expected name
     if an invoke is named. '''

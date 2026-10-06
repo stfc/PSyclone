@@ -13,11 +13,53 @@ from psyclone.configuration import Config
 from psyclone.lfric import LFRicLoop, LFRicHaloExchange
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.psyir.transformations import (TransformationError, MoveTrans)
+from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 
 # The version of the API that the tests in this file
 # exercise.
 TEST_API = "lfric"
+
+
+def test_loopfuse(dist_mem, tmpdir):
+    ''' Tests whether loop fuse actually fuses and whether
+    multiple maps are produced or not. Multiple maps are not an
+    error but it would be nicer if there were only one '''
+    psy, invoke = get_invoke("4_multikernel_invokes_fusable_distmem.f90",
+                             api=TEST_API, dist_mem=dist_mem, idx=0)
+    schedule = invoke.schedule
+    loops = schedule.walk(LFRicLoop)
+    halo_exchs = schedule.walk(LFRicHaloExchange)
+    if dist_mem:
+        # Move the second loop to after the first 2 sets of 4 halo exchanges,
+        # instead of between the 3rd and 4th.
+        mtrans = MoveTrans()
+        mtrans.apply(loops[0], halo_exchs[7], position="after")
+    trans = LFRicLoopFuseTrans()
+    trans.apply(loops[0:2])
+    generated_code = psy.gen
+    # only one loop
+    assert str(generated_code).count("do cell") == 1
+    # only one map for each space
+    assert str(generated_code).count("map_w1 =>") == 1
+    assert str(generated_code).count("map_w2 =>") == 1
+    assert str(generated_code).count("map_w3 =>") == 1
+    # kernel call tests
+    kern_idxs = []
+    for idx, line in enumerate(str(generated_code).split('\n')):
+        if "do cell" in line:
+            do_idx = idx
+        if "call testkern_code(" in line:
+            kern_idxs.append(idx)
+        if "enddo" in line:
+            enddo_idx = idx
+    # two kernel calls
+    assert len(kern_idxs) == 2
+    # both kernel calls are within the loop
+    for kern_id in kern_idxs:
+        assert enddo_idx > kern_id > do_idx
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_loop_fuse_invalid_space(monkeypatch):
@@ -36,10 +78,11 @@ def test_loop_fuse_invalid_space(monkeypatch):
 
     # Apply transformation and raise the error
     ftrans = LFRicLoopFuseTrans()
-    with pytest.raises(TransformationError) as excinfo:
+    with pytest.raises(
+        TransformationError,
+        match="One or both function spaces 'not_a_space_name' and 'w1' have "
+              "invalid names"):
         ftrans.apply(loops[0:2])
-    assert ("One or both function spaces 'not_a_space_name' and 'w1' have "
-            "invalid names" in str(excinfo.value))
 
 
 def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
@@ -67,6 +110,8 @@ def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
                 mtrans.apply(schedule.children[idx+1],
                              schedule.children[idx])
 
+        # Don't use match as the error depends on whether same_sapce
+        # is set or not.
         with pytest.raises(TransformationError) as excinfo:
             ftrans.apply(loops[0:2], {"same_space": same_space})
 
@@ -86,14 +131,15 @@ def test_loop_fuse_same_space_error():
 
     '''
     ftrans = LFRicLoopFuseTrans()
-    with pytest.raises(TransformationError) as excinfo:
-        ftrans.validate((None, None), {"same_space": "foo"})
-    assert ("The value of the 'same_space' flag must be either bool or "
-            "None type, but the type of flag provided was 'str'."
-            in str(excinfo.value))
+    # TODO #2668: Deprecate options dict.
+    with pytest.raises(
+        TypeError,
+        match="The value of the 'same_space' flag must be either bool or "
+              "None type, but the type of flag provided was 'str'."):
+        ftrans.validate((None, None), options={"same_space": "foo"})
 
 
-def test_loop_fuse(dist_mem):
+def test_loop_fuse(dist_mem, tmpdir):
     ''' Test that we are able to fuse two loops together. '''
     psy, invoke = get_invoke("4_multikernel_invokes_fusable_distmem.f90",
                              TEST_API, name="invoke_0", dist_mem=dist_mem)
@@ -142,8 +188,10 @@ def test_loop_fuse(dist_mem):
     assert call_idx1 < call_idx2
     assert call_idx2 < end_loop_idx
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
-def test_loop_fuse_set_dirty():
+
+def test_loop_fuse_set_dirty(tmpdir):
     ''' Test that we are able to fuse two loops together and produce
     the expected set_dirty() calls. '''
     psy, invoke = get_invoke("4_multikernel_invokes_fusable_distmem.f90",
@@ -162,6 +210,8 @@ def test_loop_fuse_set_dirty():
 
     gen = str(psy.gen)
     assert gen.count("set_dirty()") == 2
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_loop_fuse_multiwrite():
@@ -211,10 +261,10 @@ def test_loop_fuse_different_operates_on():
         ftrans.validate(loops[0:2])
 
 
-def test_loop_fuse_fail_to_resolve_space():
+def test_loop_fuse_fail_to_resolve_space(tmpdir):
     ''' Test that we fail to fuse loops on any space if we can't find the
     space elsewhere in the invoke.'''
-    _, invoke = get_invoke(
+    psy, invoke = get_invoke(
         "15.18.4_fail_to_resolve_any_space_fuse_error.f90",
         TEST_API, name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
@@ -235,6 +285,7 @@ def test_loop_fuse_fail_to_resolve_space():
 
     # Fusion should work if we allow conditional fusion
     ftrans.apply(loops[1:3], conditional_fusion=True)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_loop_fuse_resolved_different_spaces():
@@ -258,7 +309,7 @@ def test_loop_fuse_resolved_different_spaces():
         ftrans.apply(loops[0:2])
 
 
-def test_loop_fuse_conditional_vector_fields(fortran_writer):
+def test_loop_fuse_conditional_vector_fields(fortran_writer, tmpdir):
     ''' Test that the loop fusion works correctly for conditional fusion
     with vector fields.'''
     psy, invoke = get_invoke(
@@ -267,8 +318,8 @@ def test_loop_fuse_conditional_vector_fields(fortran_writer):
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
 
-    ftrans.apply((schedule.children[0], schedule.children[1]),
-                 conditional_fusion=True)
+    loops = schedule.walk(LFRicLoop)
+    ftrans.apply(loops[0:2], conditional_fusion=True)
     correct = """  if (f1(1)%which_function_space() == \
 f4(1)%which_function_space()) then
     do cell = uninitialised_loop0_start, uninitialised_loop0_stop, 1
@@ -296,18 +347,20 @@ np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)
     enddo
   end if"""
     assert correct in fortran_writer(schedule)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_loop_fuse_min_max_same_var(fortran_writer):
+def test_loop_fuse_min_max_same_var(fortran_writer, tmpdir):
     '''Test that we fuse two builtins on the same field without any
     other invoke elements.'''
-    _, invoke = get_invoke(
+    psy, invoke = get_invoke(
         "15.10.9_min_max_X_builtin.f90",
         TEST_API, name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
-    ftrans.apply((schedule.children[0], schedule.children[1]))
-    ftrans.apply((schedule.children[0], schedule.children[1]))
+    loops = schedule.walk(LFRicLoop)
+    ftrans.apply(loops[0:2])
+    ftrans.apply((loops[0], loops[2]))
     correct = """! Initialise reduction variable
   amin = 0.0_r_def
 
@@ -326,7 +379,7 @@ field)
     amax = MAX(amax, f1_data(df))
   enddo"""
     assert correct in fortran_writer(schedule)
-
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 def test_loop_fuse_dependency(fortran_writer):
     '''

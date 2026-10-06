@@ -8,6 +8,8 @@
 '''This module provides the LFRic-specific loop fusion transformation.
 '''
 
+from typing import Iterable
+
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import LFRicConstants, LFRicLoop
 from psyclone.psyGen import args_filter, InvokeSchedule, Kern
@@ -42,7 +44,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
     4. All kernels must only write to a single field.
     5. The upper_bound_name must be the same.
     6. The halo depths must be the same.
-    7. All reductions must be on the same field and the second 
+    7. All reductions must be on the same field and the second
        loop can't read the result of a reduction in the first loop.
     8. There's no dependency between the loops that could require a halo
        exchange.
@@ -58,7 +60,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
 
         ftrans.apply(schedule[0], schedule[1], same_space=True)
 
-    when applying the transformation. This overrides the need to compute the 
+    when applying the transformation. This overrides the need to compute the
     actual space for fields on ANY_SPACE.
 
     '''
@@ -67,7 +69,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         return ("Fuse two adjacent loops together with LFRic-specific "
                 "validity checks")
 
-    def validate(self, nodes: tuple[LFRicLoop, LFRicLoop],
+    def validate(self, nodes: Iterable[LFRicLoop],
                  options=None, **kwargs):
         ''' Performs various checks to ensure that it is valid to apply
         the LFRicLoopFuseTrans transformation to the supplied loops.
@@ -80,10 +82,10 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                                      an inter-grid kernel.
         :raises TransformationError: if one or both function spaces have
                                      invalid names.
-        :raises TransformationError: if the `same_space` flag was set, but
-                                     does not apply because neither field
-                                     is on `ANY_SPACE` or the spaces are not
-                                     the same.
+        :raises TypeError: if the `same_space` flag was set, but
+                           does not apply because neither field
+                           is on `ANY_SPACE` or the spaces are not
+                           the same.
         :raises TransformationError: if the loops are over different spaces
                                      that are not both discontinuous and
                                      the loops both iterate over cells.
@@ -107,24 +109,25 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         my_options = None
         if not options:
             self.validate_options(**kwargs)
-            kwargs["force"] = True
             same_space = self.get_option("same_space", **kwargs)
         else:
             my_options = options.copy()
             my_options["force"] = True
             same_space = my_options.get("same_space", False)
-        force = True
-
         # TODO #2498: access information for LFRic kernels do not have any
         # index information for field accesses, and the loop fusion dependency
         # tests will therefore fail. To avoid this, disable the dependency test
         # in the generic loop fusion class for LFRic.
-        # TODO 257: if the loop-fusion transformation is implemented to just
+        # TODO #257: if the loop-fusion transformation is implemented to just
         # check that a variable with a stencil read-access is written, then
         # the test could be enabled for LFRic as well, so the force option
         # can be removed.
+        force = True
+
+        # TODO #2668: This can be removed when deprecating the options dict
+        # as its handled by validate_options automatically.
         if same_space and not isinstance(same_space, bool):
-            raise TransformationError(
+            raise TypeError(
                 f"Error in {self.name} transformation: The value of the "
                 f"'same_space' flag must be either bool or None type, but the "
                 f"type of flag provided was '{type(same_space).__name__}'.")
@@ -195,7 +198,8 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                 raise TransformationError(
                     f"Error in {self.name}: Kernel '{kern.name}' in one of "
                     f"the input loops has {len(kern_write_args)} write "
-                    f"arguments. Each kernel must have at most one."
+                    f"arguments. {self.name} can only currently fuse when "
+                    f"each kernel has at most one."
                 )
 
         # 4) Check upper loop bounds
@@ -223,22 +227,15 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         node2_red_args = node2.args_filter(arg_types=arg_types,
                                            arg_accesses=[AccessType.REDUCTION])
 
-        # Find the iteration space arguments if they exist.
+        # Find the iteration space arguments if they exist, as they don't for
+        # inputs like colour loops.
         same_field_name = False
         kern1 = node1.kernel
-        args1 = None
-        arg1_field = None
-        if kern1:
-            args1 = kern1.arguments
-        if args1:
-            arg1_field = args1.iteration_space_arg()
+        args1 = kern1.arguments if kern1 else None
+        arg1_field = args1.iteration_space_arg() if args1 else None
         kern2 = node2.kernel
-        args2 = None
-        arg2_field = None
-        if kern2:
-            args2 = kern2.arguments
-        if args2:
-            arg2_field = args2.iteration_space_arg()
+        args2 = kern2.arguments if kern2 else None
+        arg2_field = args2.iteration_space_arg() if args2 else None
 
         if arg1_field is not None and arg2_field is not None:
             same_field_name = arg1_field.name == arg2_field.name
@@ -248,7 +245,8 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         if (node1_red_args and node2_red_args and not same_field_name):
             raise TransformationError(
                 f"Error in {self.name} transformation: Cannot fuse loops "
-                f"when each loop already contains a reduction.")
+                f"when each loop contains a reduction and those reductions "
+                f"are to different fields.")
         if node1_red_args:
             for reduction_arg in node1_red_args:
                 other_args = node2.args_filter()
@@ -268,14 +266,14 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                                unique_fields_with_halo_reads()):
                 prev_arg_list = halo_field.backward_write_dependencies()
                 if (prev_arg_list and
-                    (prev_arg_list[0].call.parent is node1 or
-                     prev_arg_list[0].call.parent.is_descendant_of(node1))):
+                        prev_arg_list[0].call.parent.is_descendant_of(node1)):
                     raise TransformationError(
                         f"Error in {self.name}: Cannot fuse loops as the "
-                        f"loops have a dependency."
+                        f"loops have a dependency on the field "
+                        f"{halo_field.name}."
                     )
 
-    def apply(self, nodes: tuple[LFRicLoop, LFRicLoop],
+    def apply(self, nodes: Iterable[LFRicLoop],
               options=None, same_space: bool = False,
               conditional_fusion: bool = False, **kwargs):
         ''' Applies the LFricLoopFuseTrans to the provided nodes.
@@ -352,8 +350,8 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                           **kwargs)
             return
 
-        # If neither is a built in we check the iteration space and they
-        # can only be fused if the space of their fields is the same.
+        # If neither field is on ANY_SPACE, then we can fuse if both fields
+        # are on the same function space.
         if not node_on_any_space:
             fs1 = arg1_field.function_space.undf_name
             fs2 = arg2_field.function_space.undf_name
@@ -380,40 +378,41 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
 
         # If one or more is on any space then we need to search for the space.
         found_space1 = node1.field_space
+        found_space2 = node2.field_space
         invokeschedule = node1.ancestor(InvokeSchedule)
         # Find all the Kerns in the InvokeSchedule
         kerns = invokeschedule.walk(Kern)
+
         if node1_fs_name in const.VALID_ANY_SPACE_NAMES:
-            it_space_arg = node1.kernel.arguments.iteration_space_arg()
+            it_space_arg1 = node1.kernel.arguments.iteration_space_arg()
             found_space1 = None
-            # Check if the it_space_arg appears in any of the other kernels
-            for kern in kerns:
-                for arg in kern.arguments.args:
-                    if arg.name == it_space_arg.name:
-                        # If it does, check the iteration space of it.
-                        fs = arg.function_space
-                        fs_name = fs.orig_name
-                        if fs_name not in const.VALID_ANY_SPACE_NAMES:
-                            found_space1 = fs
-                            break
-                if found_space1 is not None:
-                    break
-        found_space2 = node2.field_space
         if node2_fs_name in const.VALID_ANY_SPACE_NAMES:
             it_space_arg2 = node2.kernel.arguments.iteration_space_arg()
             found_space2 = None
-            # Check if the it_space_arg appears in any of the other kernels
-            for kern in kerns:
-                for arg in kern.arguments.args:
-                    if arg.name == it_space_arg2.name:
-                        # If it does, check the iteration space of it.
-                        fs = arg.function_space
-                        fs_name = fs.orig_name
-                        if fs_name not in const.VALID_ANY_SPACE_NAMES:
-                            found_space2 = fs
-                            break
-                if found_space2 is not None:
+
+        # Check if the it_space_args appear in any of the other kernels
+        for kern in kerns:
+            for arg in kern.arguments.args:
+                if found_space1 is None and arg.name == it_space_arg1.name:
+                    # If one does, we can use it as the iteration space for
+                    # the relevant arg.
+                    fs = arg.function_space
+                    fs_name = fs.orig_name
+                    if fs_name not in const.VALID_ANY_SPACE_NAMES:
+                        found_space1 = fs
+                if found_space2 is None and arg.name == it_space_arg2.name:
+                    # If one does, we can use it as the iteration space for
+                    # the relevant arg.
+                    fs = arg.function_space
+                    fs_name = fs.orig_name
+                    if fs_name not in const.VALID_ANY_SPACE_NAMES:
+                        found_space2 = fs
+                # If both are found then we can stop.
+                if found_space1 is not None and found_space2 is not None:
                     break
+            # If both are found then we can stop.
+            if found_space1 is not None and found_space2 is not None:
+                break
 
         if ((found_space1 is None or found_space2 is None) and
                 not conditional_fusion):

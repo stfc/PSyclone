@@ -68,17 +68,18 @@ def test_fusetrans_error_not_enough_inputs():
 
     fuse = LoopFuseTrans()
     # Check the input if its not a Tuple.
-    with pytest.raises(TransformationError) as err:
+    with pytest.raises(
+        TransformationError,
+        match=r"LoopFuseTrans expected an Iterable of 2 "
+              r"input nodes but was provided Loop\[variable:'i'\]"):
         fuse.validate(loop1)
-    assert ("LoopFuseTrans expected a tuple of 2 input nodes but was "
-            "provided Loop[variable:'i']" in str(err.value))
 
     # CHeck the input if its not got 2 elements.
-    with pytest.raises(TransformationError) as err:
+    with pytest.raises(
+        TransformationError,
+        match=r"LoopFuseTrans expected an Iterable of 2 input nodes but was "
+              r"provided \(<psyclone.psyir.nodes.loop.Loop"):
         fuse.validate((loop1, ))
-    assert ("Transformation Error: LoopFuseTrans expected a tuple of 2 input "
-            "nodes but was provided (<psyclone.psyir.nodes.loop.Loop"
-            in str(err.value))
 
 
 # ----------------------------------------------------------------------------
