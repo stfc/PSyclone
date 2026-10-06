@@ -53,7 +53,7 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
 
         '''
         self.validate_options(**kwargs)
-        kernels = kwargs.get("kernels", None)
+        kernels = self.get_option("kernels", **kwargs)
 
         if not isinstance(node, LFRicAlgorithmInvokeCall):
             raise TransformationError(

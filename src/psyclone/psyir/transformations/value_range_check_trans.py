@@ -60,15 +60,12 @@ class ValueRangeCheckTrans(ReadOnlyVerifyTrans):
         :param node_list: the list of Node(s) we are checking.
         :param options: a dictionary with options for transformations.
 
-        :raises TransformationError: if transformation is applied to a \
-                                     Kernel or a BuiltIn call without its \
-                                     parent Loop.
-        :raises TransformationError: if transformation is applied to a Loop \
-                                     without its parent Directive when \
-                                     optimisations are applied.
-        :raises TransformationError: if transformation is applied to an \
-                                     orphaned Directive without its parent \
-                                     Directive.
+        :raises TransformationError: if transformation is applied to a
+            Kernel or a BuiltIn call without its parent Loop.
+        :raises TransformationError: if transformation is applied to a Loop
+            without its parent Directive when optimisations are applied.
+        :raises TransformationError: if transformation is applied to an
+            orphaned Directive without its parent Directive.
 
         '''
         # pylint: disable=useless-super-delegation

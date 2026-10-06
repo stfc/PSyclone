@@ -36,9 +36,8 @@ class LFRicExtractTrans(ExtractTrans):
         :param node_list: the list of Node(s) we are checking.
         :param options: a dictionary with options for transformations.
 
-        :raises TransformationError: if transformation is applied to a Loop \
-                                     over cells in a colour without its \
-                                     parent Loop over colours.
+        :raises TransformationError: if transformation is applied to a Loop
+            over cells in a colour without its parent Loop over colours.
         '''
 
         # First check constraints on Nodes in the node_list inherited from
@@ -72,10 +71,10 @@ class LFRicExtractTrans(ExtractTrans):
 
         :param nodes: can be a single node or a list of nodes.
         :param options: a dictionary with options for transformations.
-        :param create_driver: whether or not to create a \
-            driver program at code-generation time. If set, the driver will \
-            be created in the current working directory with the name \
-            "driver-MODULE-REGION.f90" where MODULE and REGION will be the \
+        :param create_driver: whether or not to create a
+            driver program at code-generation time. If set, the driver will
+            be created in the current working directory with the name
+            "driver-MODULE-REGION.f90" where MODULE and REGION will be the
             corresponding values for this region. Defaults to False.
 
         '''

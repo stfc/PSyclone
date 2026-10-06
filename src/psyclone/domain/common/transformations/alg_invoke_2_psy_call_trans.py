@@ -41,14 +41,12 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
     transformation.
 
     '''
-    def validate(self, node, **kwargs):
+    def validate(self, node: AlgorithmInvokeCall, **kwargs):
         '''Validate the node argument.
 
         :param node: a PSyIR node capturing an invoke call.
-        :type node: \
-            :py:class:`psyclone.domain.common.algorithm.AlgorithmInvokeCall`
 
-        :raises TransformationError: if the supplied call argument is \
+        :raises TransformationError: if the supplied call argument is
             not a PSyIR AlgorithmInvokeCall node.
         :raises InternalError: if no corresponding 'invoke' symbol is present.
 

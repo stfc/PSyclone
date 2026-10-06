@@ -30,7 +30,7 @@ from psyclone.utils import transformation_documentation_wrapper
 
 
 @transformation_documentation_wrapper
-class AdjointTransformation(Transformation):
+class AdjointTransformation(Transformation, metaclass=abc.ABCMeta):
     '''An abstract class for Adjoint transformations. Requires a list of
     active variables to be passed when creating an instance of the
     class. Also supports an optional writer argument.

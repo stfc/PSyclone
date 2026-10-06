@@ -292,10 +292,10 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
         :py:meth:`OMPParallelLoopTrans.apply`.
 
         :param node: a Loop node from an AST.
-        :param options: a dictionary with options for transformations\
-                        and validation.
+        :param options: a dictionary with options for transformations
+            and validation.
 
-        :raises TransformationError: if the supplied node is not an inner or\
+        :raises TransformationError: if the supplied node is not an inner or
             outer loop.
 
         '''
@@ -307,7 +307,7 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
                 "Error in "+self.name+" transformation.  The requested loop"
                 " is not of type inner or outer.")
 
-        OMPParallelLoopTrans.apply(self, node, options=options, **kwargs)
+        super().apply(node, options=options, **kwargs)
 
 
 @transformation_documentation_wrapper
@@ -317,10 +317,10 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
         specific validity checks (that the node is either an inner or outer
         Loop).
 
-        :param str omp_directive: choose which OpenMP loop directive to use. \
+        :param omp_directive: choose which OpenMP loop directive to use.
             Defaults to "do".
-        :param str omp_schedule: the OpenMP schedule to use. Must be one of \
-            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to \
+        :param omp_schedule: the OpenMP schedule to use. Must be one of
+            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to
             'static'.
 
         '''
@@ -341,7 +341,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
         :param node: the candidate loop for parallelising using OMP Do.
         :param options: a dictionary with options for transformations.
 
-        :raises TransformationError: if the loop_type of the supplied Loop is \
+        :raises TransformationError: if the loop_type of the supplied Loop is
                                      not "inner" or "outer".
 
         '''
@@ -786,13 +786,12 @@ class OMPSingleTrans(ParallelRegionTrans):
         nowait clause to be added if it is set to True, otherwise no clause
         will be added.
 
-        :param node_list: the supplied node or node list to which we will \
-                          apply the OMPSingleTrans transformation
-        :param options: a list with options for transformations \
-                        and validation.
-        :param nowait:
-                indicating whether or not to use a nowait clause on this \
-                single region.
+        :param node_list: the supplied node or node list to which we will
+            apply the OMPSingleTrans transformation.
+        :param options: a list with options for transformations
+            and validation.
+        :param nowait: indicating whether or not to use a nowait clause on this
+            single region.
 
         '''
         # TODO #2668: Deprecate options dictionary
@@ -939,19 +938,20 @@ class ACCParallelTrans(ParallelRegionTrans):
 
         '''
         node_list = self.get_node_list(node_list)
+        # TODO #2668: Deprecate options dictionary
         if not options:
             self.validate_options(**kwargs)
-            options = kwargs
-        verbose = options.get("verbose", False)
-        device_string = options.get("device_string", "")
-        allow_strings = options.get("allow_strings", False)
+        else:
+            kwargs = options
+        verbose = self.get_option("verbose", **kwargs)
+        device_string = self.get_option("device_string", **kwargs)
+        allow_strings = self.get_option("allow_strings", **kwargs)
         super().validate(node_list, options, **kwargs)
-        # TODO #2668: Deprecate options dictionary
-        if options is not None and "default_present" in options:
-            if not isinstance(options["default_present"], bool):
+        if "default_present" in kwargs:
+            if not isinstance(kwargs["default_present"], bool):
                 raise TransformationError(
                     f"The provided 'default_present' option must be a "
-                    f"boolean, but found '{options['default_present']}'."
+                    f"boolean, but found '{kwargs['default_present']}'."
                 )
         for node in node_list:
             if not allow_strings:
@@ -1012,13 +1012,11 @@ class ACCParallelTrans(ParallelRegionTrans):
         :param verbose: whether to provide explanatory comments in th output.
 
         '''
-        if not options:
-            if default_present is None:
-                default_present = self._default_present
-            options = {"default_present": default_present,
-                       "allow_strings": allow_strings,
-                       "device_string": device_string, "verbose": verbose,
-                       **kwargs}
+        if options:
+            default_present = options.get("default_present",
+                                          self._default_present)
+        if default_present is None:
+            default_present = self._default_present
         # Check whether we've been passed a list of nodes or just a
         # single node. If the latter then we create ourselves a
         # list containing just that node.
@@ -1035,8 +1033,7 @@ class ACCParallelTrans(ParallelRegionTrans):
         # Create the parallel directive
         directive = ACCParallelDirective(
             children=[node.detach() for node in node_list])
-        directive.default_present = options.get("default_present",
-                                                self._default_present)
+        directive.default_present = default_present
 
         # Add the region directive as a child of the parent
         # of the nodes being enclosed and at the original location
@@ -1286,18 +1283,14 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
                       f" value {value}.")
         # --------------------------------------------------------------------
 
-        if not options:
-            options = {"cellshape": cellshape,
-                       "element_order_h": element_order_h,
-                       "element_order_v": element_order_v,
-                       "number_of_layers": number_of_layers,
-                       "quadrature": quadrature, **kwargs}
         self.validate(node, options, **kwargs)
 
-        number_of_layers = options.get("number_of_layers", None)
-        quadrature = options.get("quadrature", False)
-        element_order_h = options.get("element_order_h", None)
-        element_order_v = options.get("element_order_v", None)
+        if options:
+            kwargs = options
+        number_of_layers = self.get_option("number_of_layers", **kwargs)
+        quadrature = self.get_option("quadrature", **kwargs)
+        element_order_h = self.get_option("element_order_h", **kwargs)
+        element_order_v = self.get_option("element_order_v", **kwargs)
         kernel = node
 
         arg_list_info = KernCallArgList(kernel)
@@ -1388,12 +1381,13 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
 
         self._check_callee_implementation_is_local(node)
 
-        options = options or {}
-        cellshape = options.get("cellshape", "quadrilateral")
-        element_order_h = options.get("element_order_h", None)
-        element_order_v = options.get("element_order_v", None)
-        number_of_layers = options.get("number_of_layers", None)
-        quadrature = options.get("quadrature", False)
+        if options:
+            kwargs = options
+        cellshape = self.get_option("cellshape", **kwargs)
+        element_order_h = self.get_option("element_order_h", **kwargs)
+        element_order_v = self.get_option("element_order_v", **kwargs)
+        number_of_layers = self.get_option("number_of_layers", **kwargs)
+        quadrature = self.get_option("quadrature", **kwargs)
         if cellshape.lower() != "quadrilateral":
             # Only quadrilaterals are currently supported
             raise TransformationError(
@@ -1504,9 +1498,9 @@ class ACCEnterDataTrans(Transformation):
         '''
         sched = node
         # Ensure that the proposed transformation is valid
-        if not options:
-            options = {"async_queue": async_queue, **kwargs}
         self.validate(sched, options, **kwargs)
+        if options:
+            kwargs = options
 
         # pylint: disable=import-outside-toplevel
         if isinstance(sched, LFRicInvokeSchedule):
@@ -1530,8 +1524,8 @@ class ACCEnterDataTrans(Transformation):
                 current = current.parent
             posn = sched.children.index(current)
 
-        # extract async. Default to False.
-        async_queue = options.get('async_queue', False)
+        # Get async_queue value
+        async_queue = self.get_option('async_queue', **kwargs)
 
         # check
         self.check_child_async(sched, async_queue)
@@ -1577,9 +1571,10 @@ class ACCEnterDataTrans(Transformation):
             (subclass of) :py:class:`psyclone.psyir.nodes.Schedule`.
 
         '''
-        not options and self.validate_options(**kwargs)
-        options = options or kwargs
         super().validate(sched, options, **kwargs)
+        # TODO #2668: Remove options
+        if options:
+            kwargs = options
 
         if not isinstance(sched, Schedule):
             raise TransformationError("Cannot apply an OpenACC enter data "
@@ -1592,7 +1587,7 @@ class ACCEnterDataTrans(Transformation):
             raise TransformationError("Schedule already has an OpenACC data "
                                       "region - cannot add an enter data.")
 
-        async_queue = options.get('async_queue', False)
+        async_queue = self.get_option('async_queue', **kwargs)
 
         # check consistency with children about async_queue
         self.check_child_async(sched, async_queue)

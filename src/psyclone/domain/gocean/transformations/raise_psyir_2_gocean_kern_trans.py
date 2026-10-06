@@ -78,10 +78,10 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
     >>> trans = RaisePSyIR2GOceanKernTrans("compute_cu")
     >>> trans.apply(kernel_container)
 
-    :param metadata_name: the name of the symbol containing the \
+    :param metadata_name: the name of the symbol containing the
         required kernel metadata in language-level PSyIR.
 
-    :raises TransformationError: if the supplied metadata_name is \
+    :raises TransformationError: if the supplied metadata_name is
         invalid.
 
     '''

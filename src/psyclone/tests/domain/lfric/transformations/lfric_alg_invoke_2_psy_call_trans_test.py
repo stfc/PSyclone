@@ -51,6 +51,7 @@ def test_lfai2psycall_validate():
 
     # No metadata internal KeyError
     with pytest.raises(TransformationError) as err:
+        # TODO #2668: Remove options from transformations
         trans.validate(call, options={"dummy": "dummy"})
     assert ("A dictionary containing LFRic kernel PSyIR must be passed into "
             "the LFRicAlgInvoke2PSyCallTrans transformation but this was not "

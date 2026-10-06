@@ -7,6 +7,8 @@
 
 ''' Transformation to insert OpenMP directives to parallelise PSyIR Loops. '''
 
+from typing import Union
+
 from psyclone.configuration import Config
 from psyclone.psyir.nodes import Directive, Schedule, Routine
 from psyclone.psyir.nodes.omp_directives import (
@@ -268,7 +270,7 @@ class OMPLoopTrans(ParallelLoopTrans):
         return node
 
     def apply(self, node, options=None,
-              reprod: bool = None,
+              reprod: Union[bool, None] = None,
               enable_reductions: bool = False,
               **kwargs):
         '''Apply the OMPLoopTrans transformation to the specified PSyIR Loop.

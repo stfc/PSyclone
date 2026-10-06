@@ -10,7 +10,7 @@ creation time will create callbacks according to the PSyData API.
 This is the base class for nodes that e.g. create kernel extraction
 or profiling. '''
 
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from collections import namedtuple
 
 from psyclone.configuration import Config
@@ -26,6 +26,9 @@ from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.symbols import (SymbolTable, DataTypeSymbol, DataSymbol,
                                     ContainerSymbol, UnresolvedType, Symbol,
                                     UnsupportedFortranType, ImportInterface)
+
+if TYPE_CHECKING:
+    from fparser.two import Fortran2003
 
 
 # =============================================================================
@@ -219,38 +222,38 @@ class PSyDataNode(Statement):
         return self._region_name
 
     @classmethod
-    def create(cls, children, symbol_table, ast=None, *,
-               prefix=None, region_name=None, **kwargs):
+    def create(cls, children: list[Node], symbol_table: SymbolTable,
+               ast: Optional["Fortran2003.Base"] = None, *,
+               prefix: Optional[str] = None,
+               region_name: Optional[tuple[str, str]] = None,
+               **kwargs):
         '''
         Creates a new (sub-class of a) PSyData node with the supplied
         'children' nodes as its children. The symbols used by the PSyData API
         are added to the supplied symbol table. This is a class method so that
         it acts as a factory for the various sub-classes of PSyDataNode.
 
-        :param children: the PSyIR nodes that will become children of the \
+        :param children: the PSyIR nodes that will become children of the
             new PSyData node.
-        :type children: list[:py:class:`psyclone.psyir.nodes.Node`]
-        :param symbol_table: the associated SymbolTable to which symbols \
+        :param symbol_table: the associated SymbolTable to which symbols
             must be added.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param ast: reference to fparser2 parse tree for the routine being \
+        :param ast: reference to fparser2 parse tree for the routine being
             instrumented with PSyData calls.
-        :type ast: :py:class:`fparser.two.Fortran2003.Base`
-        :param str prefix: a prefix to use for the PSyData module \
-            name (``prefix_psy_data_mod``) and the PSyDataType \
-            (``prefix_PSyDataType``) - a "_" will be added automatically. \
-            It defaults to the class prefix ("" for PSyDataNode), giving \
+        :param prefix: a prefix to use for the PSyData module
+            name (``prefix_psy_data_mod``) and the PSyDataType
+            (``prefix_PSyDataType``) - a "_" will be added automatically.
+            It defaults to the class prefix ("" for PSyDataNode), giving
             ``psy_data_mod``, and the data type ``PSyDataType``.
-        :param tuple[str,str] region_name: an optional name to use \
-            for this PSyDataNode, provided as a 2-tuple containing a module \
-            name followed by a local name. The pair of strings should \
-            uniquely identify a region unless aggregate information is \
+        :param region_name: an optional name to use
+            for this PSyDataNode, provided as a 2-tuple containing a module
+            name followed by a local name. The pair of strings should
+            uniquely identify a region unless aggregate information is
             required (and is supported by the runtime library).
 
         :param kwargs: additional keyword arguments for the subclass
             constructor.
 
-        :raises TypeError: if the supplied children or symbol table are not \
+        :raises TypeError: if the supplied children or symbol table are not
             of the correct type.
 
         '''

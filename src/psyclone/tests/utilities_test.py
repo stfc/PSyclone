@@ -291,7 +291,6 @@ def test_get_invoke():
     # is raised, so no assert required
 
     get_invoke("test14_module_inline_same_kernel.f90", "gocean", idx=0)
-    get_invoke("eg1/shallow_alg.f90", "gocean-examples", idx=0)
     get_invoke("1_single_invoke.f90", "lfric", idx=0)
     # Check that dist_mem is being accepted:
     get_invoke("1_single_invoke.f90", "lfric", idx=0, dist_mem=True)

@@ -177,7 +177,6 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
 
         :param node: a kernel represented in generic PSyIR.
         :param options: a dictionary with options for transformations.
-            This is expected to contain the metadata_name.
 
         '''
         self.validate(node, options=options, **kwargs)
