@@ -19,7 +19,6 @@ from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
                                    LFRicConstants, LFRicKern,
                                    LFRicKernMetadata, LFRicLoop)
-from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.lfric import (
     LFRicACCEnterDataDirective, LFRicBoundaryConditions,
     LFRicKernelArgument, LFRicKernelArguments, LFRicProxies, HaloDepth,
@@ -34,7 +33,6 @@ from psyclone.psyir.nodes import (BinaryOperation, UnaryOperation,
                                   Reference, Routine, Container, Schedule)
 from psyclone.psyir.symbols import (ArrayType, ScalarType, DataTypeSymbol,
                                     UnsupportedFortranType)
-from psyclone.psyir.transformations import MoveTrans
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke

@@ -381,6 +381,7 @@ field)
     assert correct in fortran_writer(schedule)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+
 def test_loop_fuse_dependency(fortran_writer):
     '''
     Test that we get a transformation error when trying to fuse dependent
