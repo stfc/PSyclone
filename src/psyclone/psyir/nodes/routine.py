@@ -231,7 +231,7 @@ class Routine(Schedule, CommentableMixin):
 
             if not symbol.is_import and symbol.name not in table:
                 # This Symbol is local to the Container.
-                if isinstance(symbol, RoutineSymbol):
+                if isinstance(symbol, RoutineSymbol) and vam[sig].is_called():
                     # Calls to local Routines can be OK so we don't flag
                     # them here.
                     continue
