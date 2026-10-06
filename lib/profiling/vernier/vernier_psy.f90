@@ -66,12 +66,14 @@ contains
     character(len=*), intent(in) :: module_name, region_name
     integer, intent(in) :: num_pre_vars, num_post_vars
 
+!$omp critical
     if (.not. this%initialised) then
-      ! Venier only supports a single name, so we store the concatenated
+      ! Vernier only supports a single name, so we store the concatenated
       ! strings to reduce runtime overhead
       this%name = module_name//":"//region_name
       this%initialised = .true.
     endif
+!$omp end critical
     call vernier_start(this%vernier_handle, this%name)
 
   end subroutine PreStart
