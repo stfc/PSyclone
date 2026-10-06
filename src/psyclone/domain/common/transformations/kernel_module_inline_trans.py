@@ -404,7 +404,7 @@ class KernelModuleInlineTrans(Transformation):
                 if ((call.symbol.is_modulevar or call.symbol.is_automatic) and
                         not call.symbol.is_import):
                     names = container.resolve_routine(call.symbol.name)
-                    if len(names) > 1:
+                    if isinstance(call.symbol, GenericInterfaceSymbol):
                         # This is a call to an interface. Add its name and
                         # constituent routine (names) to the dict.
                         interfaces_to_copy[call.symbol.name.lower()] = names

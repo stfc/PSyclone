@@ -205,6 +205,10 @@ def test_call_includes_interface_call(monkeypatch, fortran_reader,
       interface AN_interface
         module procedure sub1, sUB2
       end interface
+      ! An interface containing a single, local routine
+      interface just_the_ONE
+        module procedure SUB1
+      end interface just_the_ONE
       ! An interface to routines defined in an external module
       interface a_2nd_interface
         procedure sub3, Sub4
@@ -214,10 +218,11 @@ def test_call_includes_interface_call(monkeypatch, fortran_reader,
       subroutine compute_cv_code(i, j, fld1_data, fld2_data, fld3_data)
         integer, intent(in) :: i, j
         real(8), dimension(:,:) :: fld1_data, fld2_data, fld3_data
-        ! Subroutine body containing two calls to the interface defined
+        ! Subroutine body containing three calls to the interfaces defined
         ! within the Container.
         call an_interface(1)
         call an_interface(1.0)
+        call JUST_THE_one(1)
       end subroutine compute_cv_code
       subroutine tricky_code()
         ! Subroutine body containing a call to a second interface which
@@ -246,11 +251,18 @@ def test_call_includes_interface_call(monkeypatch, fortran_reader,
     module procedure :: sub1_inlined_
     module procedure :: sub2_inlined_
   end interface an_interface_inlined_""" in output
+    # Check that an interface containing just a single routine is correctly
+    # inlined.
+    assert """\
+  interface just_the_one_inlined_
+    module procedure :: sub1_inlined_
+  end interface just_the_one_inlined_""" in output
     assert "subroutine sub1_inlined_" in output
     assert "subroutine sub2_inlined_" in output
     assert "subroutine compute_cv_code_inlined_" in output
     assert "call compute_cv_code_inlined_" in output
     assert "call an_interface_inlined_" in output
+    assert "call just_the_one_inlined_" in output
     assert GOceanBuild(tmp_path).code_compiles(psy)
     # Validation should fail for the second routine 'tricky_code' because it
     # calls an interface that includes external routines.
