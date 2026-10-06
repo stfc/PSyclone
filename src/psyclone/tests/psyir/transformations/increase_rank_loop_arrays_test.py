@@ -8,7 +8,7 @@
 ''' Module containing tests for the IncreaseRankLoopArraysTrans class. '''
 
 import pytest
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Loop, Routine
 from psyclone.psyir.transformations import IncreaseRankLoopArraysTrans
 from psyclone.tests.utilities import Compile
 from psyclone.transformations import TransformationError
@@ -221,8 +221,13 @@ def test_irla_apply_accesses_outside_loop(
          size_of_ztmp_dim = SIZE(ztmp, dim=1)
      end program
     """)
+    routine: Routine = psyir.walk(Routine)[0]
+    a_symbol = routine.symbol_table.lookup("ztmp")
+
     trans = IncreaseRankLoopArraysTrans()
-    trans.apply(psyir.walk(Loop)[1], arrays=['ztmp'])
+    # We hand over the same symbol twice to cover another
+    # branch taking care of it.
+    trans.apply(psyir.walk(Loop)[1], arrays=[a_symbol, "ztmp"])
     code = fortran_writer(psyir)
     # Check the ztmp accesses outside the target loop
     assert "ztmp = 1" in code  # This already indexes the whole array
@@ -449,3 +454,32 @@ end module
 
     assert ("IncreaseRankLoopArraysTrans does not support arrays that are"
             " allocatable, but 'a' is." in str(err.value))
+
+
+def test_irla_array_without_indices(fortran_reader):
+    '''Trigger exception that array without indices is used.'''
+    psyir = fortran_reader.psyir_from_source("""
+module dummy_module
+    use dummy
+    implicit none
+contains
+    subroutine make_array()
+        real, dimension(:,:) :: a
+        integer :: i, j
+
+        do i = 1, 10
+            do j = 1, 10
+                a = 1
+            end do
+        end do
+    end subroutine
+
+end module
+""")
+
+    trans = IncreaseRankLoopArraysTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.apply(psyir.walk(Loop)[0], arrays=['a'])
+
+    assert ("IncreaseRankLoopArraysTrans can't be applied to"
+            " arrays without indices." in str(err.value))

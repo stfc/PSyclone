@@ -269,7 +269,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
                         continue
 
                     raise TransformationError(
-                        f"{self.name} Can't be applied to arrays"
+                        f"{self.name} can't be applied to arrays"
                         " without indices.")
 
                 ref: ArrayReference
@@ -299,19 +299,19 @@ class IncreaseRankLoopArraysTrans(Transformation):
         self.validate(node, arrays=arrays, **kwargs)
 
         # List of processed array names
-        array_processed: list[str] = []
+        array_processed: set[str] = set()
 
         for array in arrays:
             array_symbol: Symbol
             if isinstance(array, str):
                 array_symbol = node.scope.symbol_table.lookup(
-                                                     array, otherwise=None)
+                                array, otherwise=None)
             else:
                 array_symbol = array
 
             if array_symbol.name in array_processed:
                 continue
-            array_processed.append(array_symbol.name)
+            array_processed.add(array_symbol.name)
 
             # Add an additional dimension to this array with the same bounds as
             # the target Loop
