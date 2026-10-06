@@ -186,7 +186,8 @@ def test_call_includes_interface_call(monkeypatch, fortran_reader,
     '''
     Test when a Kernel includes one or more calls to a locally-defined
     generic interface. This is supported so long as all routines referred
-    to in the interface are also local.
+    to in the interface are also local. Also tests that recursion doesn't
+    cause problems.
 
     '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
@@ -225,6 +226,9 @@ def test_call_includes_interface_call(monkeypatch, fortran_reader,
       end subroutine tricky_code
       subroutine sub1(iarg)
         integer, intent(in) :: iarg
+        ! This isn't valid Fortran because it recurses but we have it here
+        ! to test that PSyclone doesn't crash.
+        call an_interface(iarg)
       end subroutine sub1
       subroutine sub2(rarg)
         real, intent(in) :: rarg

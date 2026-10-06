@@ -41,6 +41,8 @@ count_uniq "Module-inline successful"
 count_uniq "Module-inline failed"
 echo -n "   -> "
 count_uniq "because it accesses data from its outer scope"
+echo -n "   -> "
+count_uniq "because it contains static data symbol"
 echo
 echo " --- Then we need to inline them, or fallback to GPU routine annotations ---"
 count_uniq "Annotation successful"

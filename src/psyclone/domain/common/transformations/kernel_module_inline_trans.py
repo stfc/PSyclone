@@ -169,20 +169,24 @@ class KernelModuleInlineTrans(Transformation):
 
         # Validate the PSyIR of each routine/kernel.
         for routine in routines:
-            self._validate_routine(node, kname, kern_or_call, routine)
+            self._validate_routine(node, kname, kern_or_call, routine, set())
 
     def _validate_routine(self,
                           node: Union[CodedKern, Call],
                           kname: str,
                           kern_or_call: str,
-                          routine: Routine):
+                          routine: Routine,
+                          visited_routines):
         '''
-        Validates that the supplied Routine can be module-inlined.
+        Validates (recursively) that the supplied Routine can be
+        module-inlined.
 
         :param node: the candidate kernel/routine call to inline.
         :param kname: the name of the kernel/routine.
         :param kern_or_call: text for readable error messages.
         :param routine: the routine to inline.
+        :param visited_routines: the set of Routines that have already been
+            visited (to prevent indefinite recursion).
 
         :raises TransformationError: if the schedule contains accesses
             to data declared in the same module scope or of unknown origin.
@@ -193,9 +197,15 @@ class KernelModuleInlineTrans(Transformation):
             Symbol that shadows a module name in its outer scope.
 
         '''
-        # We do not support routines that use symbols representing data
-        # declared in their own parent module (we would need to add new imports
-        # from this module at the call site, and we don't do this yet).
+        # Prevent indefinite recursion.
+        if routine.symbol in visited_routines:
+            return
+        visited_routines.add(routine.symbol)
+
+        # We do not support routines that use unresolved symbols or those
+        # representing data declared in their own parent module (we would need
+        # to add new imports from this module at the call site, and we don't
+        # do this yet).
         try:
             routine.check_outer_scope_accesses(
                 node, kern_or_call, ignore_non_data_accesses=True)
@@ -216,13 +226,13 @@ class KernelModuleInlineTrans(Transformation):
                 f"Cannot apply {self.name} to {kern_or_call} '{kname}' "
                 f"because it contains static data symbol(s): {names}")
 
-        # If this Schedule itself contains Calls to local routines then
-        # we can only make a private copy of it if the targets of those Calls
-        # can also be copied in.
+        # If this Routine itself contains Calls to local routines then
+        # we can only ModuleInline it if the targets of those Calls
+        # can also be ModuleInlined.
         container = routine.ancestor(Container)
         for call in routine.walk(Call):
             symbol = call.routine.symbol
-            if symbol.is_import or symbol.is_unresolved:
+            if symbol.is_import:
                 continue
             # Allow for calls to interfaces. If an interface includes one
             # or more external routines then we reject it. (This is done to
@@ -231,19 +241,19 @@ class KernelModuleInlineTrans(Transformation):
             # available in Container scope at the call site but this is an
             # edge case.)
             routine_names = container.resolve_routine(symbol.name)
-            for lrt in routine_names:
+            for rt_name in routine_names:
                 rt_psyir = container.find_routine_psyir(
-                    lrt, allow_private=True)
+                    rt_name, allow_private=True)
                 if not rt_psyir:
                     # This is not a local Routine.
                     raise TransformationError(
                         f"Cannot apply {self.name} to {kern_or_call} '{kname}'"
                         f" because it contains a call to generic interface "
                         f"'{symbol.name}' and that interface includes external"
-                        f" routine '{lrt}'")
+                        f" routine '{rt_name}'")
                 # Recursively check the target routine.
-                self._validate_routine(node, f"{kname}->{lrt}",
-                                       "routine", rt_psyir)
+                self._validate_routine(node, f"{kname}->{rt_name}",
+                                       "routine", rt_psyir, visited_routines)
 
         # We handle cases where the target routine accesses symbols that are
         # imported into an outer scope by bringing those imports inside the
@@ -286,8 +296,8 @@ class KernelModuleInlineTrans(Transformation):
         # the Container that encapsulates them.
         source_container = orig_container.copy()
         # Make a dict containing *all* Routines in the Container, keyed by
-        # routine name.
-        new_routines = {routine.name: routine for routine in
+        # lower-cased routine name.
+        new_routines = {routine.name.lower(): routine for routine in
                         source_container.walk(Routine)}
 
         # Recursively collect any local routines and generic interfaces that
@@ -382,6 +392,10 @@ class KernelModuleInlineTrans(Transformation):
                                     local Routines.
         '''
         for routine in routines_to_examine:
+
+            # Add this routine to the dict of routines to be copied.
+            routines_to_copy[routine.symbol.name.lower()] = routine
+
             for call in routine.walk(Call):
                 if isinstance(call, IntrinsicCall):
                     continue
@@ -395,10 +409,16 @@ class KernelModuleInlineTrans(Transformation):
                         # constituent routine (names) to the dict.
                         interfaces_to_copy[call.symbol.name] = names
                     # Add any local routines called by the target(s) of this
-                    # call. It's possibly for an interface to include routines
+                    # call. It's possible for an interface to include routines
                     # that are not local (i.e. imported) so we skip those.
-                    local_routines = [routine_map[name] for name in names
-                                      if name in routine_map]
+                    # We also skip any (recursive) calls to routines we've
+                    # already seen.
+                    local_routines: list[Routine] = []
+                    for name in names:
+                        lname = name.lower()
+                        if (lname in routine_map and
+                                lname not in routines_to_copy):
+                            local_routines.append(routine_map[lname])
                     if local_routines:
                         # Recurse into these routines.
                         KernelModuleInlineTrans._get_all_routines_to_inline(
@@ -407,8 +427,6 @@ class KernelModuleInlineTrans(Transformation):
                             container,
                             routine_map,
                             local_routines)
-            # Add this routine to the dict of routines to be copied.
-            routines_to_copy[routine.symbol.name] = routine
 
     def _target_is_local(self, node: Union[Call, CodedKern]) -> bool:
         '''
