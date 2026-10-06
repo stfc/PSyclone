@@ -123,6 +123,7 @@ jobs:
         cd ${PREFIX}/UKMO-NEMOv4
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         rm -rf cfgs/${TEST_DIR}
+        # -e modifies the source files, currently removing the lbclnk array of pointers packing
         ./makenemo -r SPITZ12 -m linux_spack -n ${TEST_DIR} \
           -j ${NUM_PARALLEL} -e $PSYCLONE_NEMO_DIR/modified_files/nemov4 \
           add_key "IEEE_IS_NAN=ieee_is_nan key_nosignedzero" \
@@ -162,6 +163,7 @@ jobs:
         cd ${PREFIX}/UKMO-NEMOv4
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         rm -rf cfgs/${TEST_DIR}
+        # -e modifies the source files, currently removing the lbclnk array of pointers packing
         ./makenemo -r SPITZ12 -m linux_spack -n ${TEST_DIR} \
           -j ${NUM_PARALLEL} -e $PSYCLONE_NEMO_DIR/modified_files/nemov4 \
           add_key "IEEE_IS_NAN=ieee_is_nan key_nosignedzero" \
@@ -201,6 +203,7 @@ jobs:
         cd ${PREFIX}/UKMO-NEMOv4
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         rm -rf cfgs/${TEST_DIR}
+        # -e modifies the source files, currently removing the lbclnk array of pointers packing
         ./makenemo -r SPITZ12 -m linux_spack -n ${TEST_DIR} \
           -j ${NUM_PARALLEL} -e $PSYCLONE_NEMO_DIR/modified_files/nemov4 \
           add_key "IEEE_IS_NAN=ieee_is_nan key_nosignedzero" \
@@ -241,6 +244,7 @@ jobs:
         cd ${PREFIX}/UKMO-NEMOv4
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         rm -rf cfgs/${TEST_DIR}
+        # -e modifies the source files, currently removing the lbclnk array of pointers packing
         ./makenemo -r SPITZ12 -m linux_spack -n ${TEST_DIR} \
           -j ${NUM_PARALLEL} -e $PSYCLONE_NEMO_DIR/modified_files/nemov4 \
           add_key "IEEE_IS_NAN=ieee_is_nan key_nosignedzero" \
@@ -319,6 +323,7 @@ jobs:
         cd ${PREFIX}/UKMO-NEMOv4
         cp $PSYCLONE_NEMO_DIR/KGOs/arch-linux_spack.fcm arch/arch-linux_spack.fcm
         rm -rf cfgs/${TEST_DIR}
+        # -e modifies the source files, currently removing the lbclnk array of pointers packing
         ./makenemo -r SPITZ12 -m linux_spack -n ${TEST_DIR} \
           -j ${NUM_PARALLEL} -e $PSYCLONE_NEMO_DIR/modified_files/nemov4 \
           add_key "IEEE_IS_NAN=ieee_is_nan key_nosignedzero" \

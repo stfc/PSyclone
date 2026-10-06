@@ -259,6 +259,10 @@ def normalise_loops(
         for expr in cdtypes:
             if isinstance(expr, BinaryOperation):
                 DataNodeToTempTrans().apply(expr, storage_name=name)
+                # After DataNodeToTempTrans expr is the rhs of a new assignment
+                # inserted immediately before the statement that originally
+                # contained it. Knowing that it is runtime constant, we also
+                # bring it at the top of the schedule.
                 assignment = expr.parent
                 assignment.detach()
                 schedule.addchild(assignment, 0)
