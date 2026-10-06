@@ -1241,3 +1241,49 @@ def test_field_nlayers(tmp_path):
             ")" in output)
 
     assert LFRicBuild(tmp_path).code_compiles(psy)
+
+
+def test_field_nlayers_anydspace(tmp_path):
+    '''Test for a multi-kernel invoke where there are arguments with
+    non-default values of NLAYERS and NDATA, including those on
+    ANY_DISCONTINUOUS_SPACE_*.
+
+    '''
+    psy, _ = get_invoke("1.5.7_multi_kernel_nlayers_ndata.f90",
+                        dist_mem=False, api=TEST_API, idx=0)
+    output = str(psy.gen)
+
+    assert '''\
+    ! Look-up dofmaps for each function space
+    map_w1 => f1_proxy%vspace%get_whole_dofmap()
+    map_w2 => f2_proxy%vspace%get_whole_dofmap()
+    map_w2_shallow_1 => f3_proxy%vspace%get_whole_dofmap()
+    map_w2__precip => f5_proxy%vspace%get_whole_dofmap()
+    map_w2_shallow_precip => f6_proxy%vspace%get_whole_dofmap()
+    map_ads1_df7_shallow_1 => df7_proxy%vspace%get_whole_dofmap()
+    map_ads2_df8__precip => df8_proxy%vspace%get_whole_dofmap()
+    map_ads1_df8_shallow_1 => df8_proxy%vspace%get_whole_dofmap()
+    map_ads2_df9__precip => df9_proxy%vspace%get_whole_dofmap()''' in output
+
+    # Field df8 is passed as the last argument to the second kernel
+    # (ANY_DISCONTINUOUS_SPACE_2) but as the penultimate argument to the third
+    # (ANY_DISCONTINUOUS_SPACE_1).
+    assert '''\
+    ! Initialise number of DoFs for ads2_df8__precip
+    ndf_ads2_df8__precip = df8_proxy%vspace%get_ndf()
+    undf_ads2_df8__precip = df8_proxy%vspace%get_undf()
+
+    ! Initialise number of DoFs for ads1_df8_shallow_1
+    ndf_ads1_df8_shallow_1 = df8_proxy%vspace%get_ndf()
+    undf_ads1_df8_shallow_1 = df8_proxy%vspace%get_undf()''' in output
+
+    assert '''\
+    do cell = loop2_start, loop2_stop, 1
+      call testkern_nlayers_ndata_anydspace_code(nlayers_f1, nlayers_shallow, \
+ndata_precip, a, f1_data, df8_data, df9_data, ndf_w1, undf_w1, map_w1(:,cell),\
+ ndf_ads1_df8_shallow_1, undf_ads1_df8_shallow_1, map_ads1_df8_shallow_1\
+(:,cell), ndf_ads2_df9__precip, undf_ads2_df9__precip, map_ads2_df9__precip\
+(:,cell))
+    enddo''' in output
+
+    assert LFRicBuild(tmp_path).code_compiles(psy)
