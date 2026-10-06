@@ -1151,6 +1151,10 @@ def test_module_inline_interface_with_renamed_import(monkeypatch,
         real*4, dimension(10), intent(inout) :: arg
         arg(1:10) = 1.0
       end subroutine my_other_sub
+      subroutine indirect_interface()
+        real*8, dimension(10) :: var
+        call my_interface(var)
+      end subroutine indirect_interface
     end module my_mod
     ''')
     intrans = KernelModuleInlineTrans()
@@ -1158,15 +1162,22 @@ def test_module_inline_interface_with_renamed_import(monkeypatch,
     code = '''\
     program my_prog
       implicit none
-      use my_mod, only: local_name=>my_interface
+      use my_mod, only: local_name=>my_interface, indirect_interface
       real*4, dimension(10) :: var
       call local_name(var)
+      call indirect_interface()
     end program my_prog'''
     psyir = fortran_reader.psyir_from_source(code)
+    calls = psyir.walk(Call)
     with pytest.raises(TransformationError) as err:
-        intrans.validate(psyir.walk(Call)[0])
+        intrans.validate(calls[0])
     assert ("Cannot copy the target of the call to 'local_name' since it is a "
             "polymorphic routine" in str(err.value))
+    # Repeat for when the call to the interface is down the call stack.
+    with pytest.raises(TransformationError,
+                       match=("because it is an interface and the call-site "
+                              "lacks a module to which it could be added")):
+        intrans.validate(calls[1])
     code = '''\
     module second_mod
     contains

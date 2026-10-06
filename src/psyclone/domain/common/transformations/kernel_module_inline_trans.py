@@ -153,30 +153,34 @@ class KernelModuleInlineTrans(Transformation):
         if self._target_is_local(node):
             return
 
-        if len(routines) > 1:
-            # We can't bring the target of a call to an interface into local
-            # scope if there's no Container in which to put the interface.
-            cntr = node
-            while cntr:
-                cntr = cntr.ancestor(Container)
-                if cntr and not isinstance(cntr, FileContainer):
-                    break
-            else:
-                raise TransformationError(
-                    f"Cannot copy the target of the call to '{kname}' since "
-                    f"it is a polymorphic routine (i.e. an interface) and the "
-                    f"call-site is not within a module.")
+        # We can't bring the target of a call to an interface into local
+        # scope if there's no Container in which to put the interface.
+        interfaces_permitted = False
+        cntr = node
+        while cntr:
+            cntr = cntr.ancestor(Container)
+            if cntr and not isinstance(cntr, FileContainer):
+                interfaces_permitted = True
+                break
+
+        if len(routines) > 1 and not interfaces_permitted:
+            raise TransformationError(
+                f"Cannot copy the target of the call to '{kname}' since "
+                f"it is a polymorphic routine (i.e. an interface) and the "
+                f"call-site is not within a module.")
 
         # Validate the PSyIR of each routine/kernel.
         for routine in routines:
-            self._validate_routine(node, kname, kern_or_call, routine, set())
+            self._validate_routine(node, kname, kern_or_call, routine,
+                                   interfaces_permitted, set())
 
     def _validate_routine(self,
                           node: Union[CodedKern, Call],
                           kname: str,
                           kern_or_call: str,
                           routine: Routine,
-                          visited_routines):
+                          interfaces_permitted: bool,
+                          visited_routines: set[Symbol]):
         '''
         Validates (recursively) that the supplied Routine can be
         module-inlined.
@@ -185,8 +189,11 @@ class KernelModuleInlineTrans(Transformation):
         :param kname: the name of the kernel/routine.
         :param kern_or_call: text for readable error messages.
         :param routine: the routine to inline.
-        :param visited_routines: the set of Routines that have already been
-            visited (to prevent indefinite recursion).
+        :param interfaces_permitted: whether calls to generic interfaces are
+            permitted (i.e. whether the call-site has a Container to put
+            them in).
+        :param visited_routines: the set of Symbols (representing routines)
+            that have already been visited.
 
         :raises TransformationError: if the schedule contains accesses
             to data declared in the same module scope or of unknown origin.
@@ -241,6 +248,14 @@ class KernelModuleInlineTrans(Transformation):
             # available in Container scope at the call site but this is an
             # edge case.)
             routine_names = container.resolve_routine(symbol.name)
+            if not interfaces_permitted and (
+                    isinstance(symbol, GenericInterfaceSymbol) or
+                    len(routine_names) > 1):
+                raise TransformationError(
+                    f"Cannot apply {self.name} to {kern_or_call} '{kname}' "
+                    f"because it is an interface and the call-site lacks a "
+                    f"module to which it could be added.")
+
             for rt_name in routine_names:
                 rt_psyir = container.find_routine_psyir(
                     rt_name, allow_private=True)
@@ -253,7 +268,8 @@ class KernelModuleInlineTrans(Transformation):
                         f" routine '{rt_name}'")
                 # Recursively check the target routine.
                 self._validate_routine(node, f"{kname}->{rt_name}",
-                                       "routine", rt_psyir, visited_routines)
+                                       "routine", rt_psyir,
+                                       interfaces_permitted, visited_routines)
 
         # We handle cases where the target routine accesses symbols that are
         # imported into an outer scope by bringing those imports inside the
