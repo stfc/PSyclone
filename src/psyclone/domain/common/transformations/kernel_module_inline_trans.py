@@ -312,7 +312,7 @@ class KernelModuleInlineTrans(Transformation):
         copied_routines: list[Routine] = []
 
         for orig_routine in all_routines_to_inline.values():
-            code_to_inline = new_routines[orig_routine.name]
+            code_to_inline = new_routines[orig_routine.name.lower()]
             copied_routines.append(code_to_inline)
 
             vam = code_to_inline.reference_accesses()
@@ -383,11 +383,11 @@ class KernelModuleInlineTrans(Transformation):
         :param routines_to_copy: the Routines that need to be copied to the
             call site. Keys are routine names, values are the Routine objects.
         :param interfaces_to_copy: the generic interfaces that need to be
-            copied to the call site. Keys are interface names, corresponding
-            value is a list of the routine names in the interface.
+            copied to the call site. Keys are lower-cased interface names,
+            values are a list of the routine names in the interface.
         :param container: the Container holding the routines.
         :param routine_map: dict holding all of the Routines in the current
-            Container, indexed by name.
+            Container, indexed by lower-cased name.
         :param routines_to_examine: the list of Routines to check for calls to
                                     local Routines.
         '''
@@ -407,7 +407,7 @@ class KernelModuleInlineTrans(Transformation):
                     if len(names) > 1:
                         # This is a call to an interface. Add its name and
                         # constituent routine (names) to the dict.
-                        interfaces_to_copy[call.symbol.name] = names
+                        interfaces_to_copy[call.symbol.name.lower()] = names
                     # Add any local routines called by the target(s) of this
                     # call. It's possible for an interface to include routines
                     # that are not local (i.e. imported) so we skip those.
@@ -506,7 +506,7 @@ class KernelModuleInlineTrans(Transformation):
         if len(codes_to_inline) > 1:
             # If there are multiple routines then the target of the call must
             # be an interface.
-            inlined_interfaces[external_callee_name] = [
+            inlined_interfaces[external_callee_name.lower()] = [
                 rt.symbol.name for rt in codes_to_inline]
 
         if self._target_is_local(node):
@@ -536,7 +536,7 @@ class KernelModuleInlineTrans(Transformation):
             # collisions.
             new_sym.visibility = Symbol.Visibility.PRIVATE
             # Add the new symbol to the map.
-            name_map[code_to_inline.name] = new_sym
+            name_map[code_to_inline.name.lower()] = new_sym
             # Add the routine code into this Container
             code_to_inline = code_to_inline.detach()
             code_to_inline.symbol = new_sym
@@ -552,9 +552,10 @@ class KernelModuleInlineTrans(Transformation):
             new_name = f"{iface_name}_inlined_"
             new_sym = container.symbol_table.new_symbol(
                 new_name, symbol_type=GenericInterfaceSymbol,
-                routines=[(name_map[name], True) for name in member_names],
+                routines=[(name_map[name.lower()], True) for
+                          name in member_names],
                 visibility=Symbol.Visibility.PRIVATE)
-            name_map[iface_name] = new_sym
+            name_map[iface_name.lower()] = new_sym
 
         # Update any calls to other routines inside the routines we have moved
         # into this Container as they may now also point to local copies
@@ -563,8 +564,9 @@ class KernelModuleInlineTrans(Transformation):
             for call in code_to_inline.walk(Call):
                 if isinstance(call, IntrinsicCall):
                     continue
-                if call.symbol.name in name_map:
-                    call.routine.symbol = name_map[call.symbol.name]
+                call_name = call.symbol.name.lower()
+                if call_name in name_map:
+                    call.routine.symbol = name_map[call_name]
 
         if update_all:
             # We will update all Calls/Kernels associated with the
@@ -574,11 +576,11 @@ class KernelModuleInlineTrans(Transformation):
             # Only update the supplied Call/Kernel.
             all_calls = [node]
 
-        target_sym = name_map.get(caller_name, None)
+        target_sym = name_map.get(caller_name.lower(), None)
         if not target_sym:
             # If we haven't copied in a routine of 'caller_name' then it must
             # be because the target of the call is renamed on import.
-            target_sym = name_map.get(external_callee_name)
+            target_sym = name_map.get(external_callee_name.lower())
 
         for call in all_calls:
             name = call.routine.symbol.name.lower()

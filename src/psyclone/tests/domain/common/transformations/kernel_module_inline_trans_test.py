@@ -187,7 +187,8 @@ def test_call_includes_interface_call(monkeypatch, fortran_reader,
     Test when a Kernel includes one or more calls to a locally-defined
     generic interface. This is supported so long as all routines referred
     to in the interface are also local. Also tests that recursion doesn't
-    cause problems.
+    cause problems. Case of the routine and interface names is deliberately
+    mixed.
 
     '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
@@ -201,12 +202,12 @@ def test_call_includes_interface_call(monkeypatch, fortran_reader,
       implicit none
       private
       ! An interface referring only to local routines
-      interface an_interface
-        module procedure sub1, sub2
+      interface AN_interface
+        module procedure sub1, sUB2
       end interface
       ! An interface to routines defined in an external module
       interface a_2nd_interface
-        procedure sub3, sub4
+        procedure sub3, Sub4
       end interface
       public compute_cv_code, tricky_code
     contains
@@ -228,9 +229,9 @@ def test_call_includes_interface_call(monkeypatch, fortran_reader,
         integer, intent(in) :: iarg
         ! This isn't valid Fortran because it recurses but we have it here
         ! to test that PSyclone doesn't crash.
-        call an_interface(iarg)
+        call an_Interface(iarg)
       end subroutine sub1
-      subroutine sub2(rarg)
+      subroutine Sub2(rarg)
         real, intent(in) :: rarg
       end subroutine sub2
     end module my_mod
@@ -239,7 +240,7 @@ def test_call_includes_interface_call(monkeypatch, fortran_reader,
     monkeypatch.setattr(kern_call, "_schedules", [routines[0]])
     trans = KernelModuleInlineTrans()
     trans.apply(kern_call)
-    output = fortran_writer(schedule.parent)
+    output = fortran_writer(schedule.parent).lower()
     assert """\
   interface an_interface_inlined_
     module procedure :: sub1_inlined_

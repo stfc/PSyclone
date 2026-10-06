@@ -43,6 +43,8 @@ echo -n "   -> "
 count_uniq "because it accesses data from its outer scope"
 echo -n "   -> "
 count_uniq "because it contains static data symbol"
+echo -n "   -> "
+count_uniq "shadows the name of a module in the outer scope"
 echo
 echo " --- Then we need to inline them, or fallback to GPU routine annotations ---"
 count_uniq "Annotation successful"
