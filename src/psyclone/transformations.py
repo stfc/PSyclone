@@ -84,65 +84,94 @@ def check_intergrid(node):
                 f" is such a kernel.")
 
 
-class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
+class LFRicOMPLoopTrans(OMPLoopTrans):
 
-    ''' LFRic-specific OpenMP loop transformation. Adds LFRic specific
-        validity checks. Actual transformation is done by the
-        :py:class:`base class <OMPParallelLoopTrans>`.
+    ''' LFRic specific orphan OpenMP loop transformation. Adds
+    LFRic-specific validity checks.
 
-        :param str omp_directive: choose which OpenMP loop directive to use.
-            Defaults to "do".
-        :param str omp_schedule: the OpenMP schedule to use. Must be one of
-            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to
-            'static'.
+    :param str omp_schedule: the OpenMP schedule to use. Must be one of \
+        'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to \
+        'static'.
 
     '''
-    def __init__(self, omp_directive="do", omp_schedule="static"):
-        super().__init__(omp_directive=omp_directive,
-                         omp_schedule=omp_schedule)
+    def __init__(self, omp_schedule="static"):
+        super().__init__(omp_directive="do", omp_schedule=omp_schedule)
 
     def __str__(self):
-        return "Add an OpenMP Parallel Do directive to an LFRic loop"
+        return "Add an OpenMP DO directive to an LFRic loop"
 
-    def validate(self, node, options=None):
-        '''
-        Perform LFRic-specific loop validity checks then call the `validate`
-        method of the base class.
+    def validate(self, node, options=None, **kwargs):
+        ''' Perform LFRic specific loop validity checks for the
+        OMPLoopTrans.
 
         :param node: the Node in the Schedule to check
         :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
+        :param options: a dictionary with options for transformations \
+                        and validation.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["reprod"]: \
+            indicating whether reproducible reductions should be used. \
+            By default the value from the config file will be used.
 
-        :raises TransformationError: if the supplied Node is not an LFRicLoop.
-        :raises TransformationError: if the associated loop requires
-            colouring.
+        :raises TransformationError: if an OMP loop transform would create \
+            incorrect code.
+
         '''
-        if not isinstance(node, LFRicLoop):
-            raise TransformationError(
-                f"Error in {self.name} transformation. The supplied node "
-                f"must be an LFRicLoop but got '{type(node).__name__}'")
+        # Since this function potentially modifies the user's option
+        # dictionary, create a copy:
+        options = options.copy() if options else {}
+
+        # Make sure the default is set:
+        options["reprod"] = options.get("reprod",
+                                        Config.get().reproducible_reductions)
+
+        # This transformation allows to parallelise loops with potential
+        # dependencies because we use cell colouring to guarantee that
+        # neighbours are not updated at the same time.
+        options["force"] = True
+        super().validate(node, options=options)
 
         # If the loop is not already coloured then check whether or not
-        # it should be. If the field space is discontinuous (including
-        # any_discontinuous_space) then we don't need to worry about
-        # colouring.
-        const = LFRicConstants()
-        if node.field_space.orig_name not in const.VALID_DISCONTINUOUS_NAMES:
-            if (node.loop_type not in ('cells_in_colour', 'tiles_in_colour')
-                    and node.has_inc_arg()):
-                raise TransformationError(
-                    f"Error in {self.name} transformation. The kernel has an "
-                    f"argument with INC access but the loop is of type "
-                    f"'{node.loop_type}'. Colouring is required.")
-        # As this is a domain-specific loop, we don't perform general
-        # dependence analysis because it is too conservative and doesn't
-        # account for the special steps taken for such a loop at code-
-        # generation time (e.g. the way we ensure variables are given the
-        # correct sharing attributes).
-        local_options = options.copy() if options else {}
-        local_options["force"] = True
-        super().validate(node, options=local_options)
+        # it should be
+        if (node.loop_type not in ('cells_in_colour', 'tiles_in_colour',
+                                   'cells_in_tile')
+                and node.has_inc_arg()):
+            raise TransformationError(
+                f"Error in {self.name} transformation. The kernel has an "
+                f"argument with INC access. Colouring is required.")
+
+    def apply(self, node, options=None, **kwargs):
+        ''' Apply LFRic specific OMPLoopTrans.
+
+        :param node: the Node in the Schedule to check.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+        :param options: a dictionary with options for transformations
+                        and validation.
+        :type options: Optional[dict[str, Any]]
+        :param bool options["reprod"]:
+                indicating whether reproducible reductions should be used.
+                By default the value from the config file will be used.
+
+        '''
+        # TODO #2668: Deprecate options dict. Since this Transformation
+        # overrides the input options we will need to do the same with
+        # the input **kwargs, preferable with a warning or logging message
+        # explaining that the input is overridden (unless the behaviour of
+        # this Transformation is updated.
+
+        # Since this function potentially modifies the user's option
+        # dictionary, create a copy:
+        options = options.copy() if options else {}
+        # Make sure the default is set:
+        options["reprod"] = options.get("reprod",
+                                        Config.get().reproducible_reductions)
+
+        # This transformation allows to parallelise loops with potential
+        # dependencies because we use cell colouring to guarantee that
+        # neighbours are not updated at the same time.
+        options["force"] = True
+
+        super().apply(node, options)
 
 
 @transformation_documentation_wrapper(add_subtransformations=False)
@@ -236,95 +265,6 @@ class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
                              **par_kwargs)
                 return
         super().apply(node, options=options, **kwargs)
-
-
-class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
-
-    '''GOcean specific OpenMP Do loop transformation. Adds GOcean
-       specific validity checks (that supplied Loop is an inner or outer
-       loop). Actual transformation is done by
-       :py:class:`base class <OMPParallelLoopTrans>`.
-
-        :param str omp_directive: choose which OpenMP loop directive to use. \
-            Defaults to "do".
-        :param str omp_schedule: the OpenMP schedule to use. Must be one of \
-            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to \
-            'static'.
-
-    '''
-    def __init__(self, omp_directive="do", omp_schedule="static"):
-        super().__init__(omp_directive=omp_directive,
-                         omp_schedule=omp_schedule)
-
-    def __str__(self):
-        return "Add an OpenMP Parallel Do directive to a GOcean loop"
-
-    def apply(self, node, options=None):
-        ''' Perform GOcean-specific loop validity checks then call
-        :py:meth:`OMPParallelLoopTrans.apply`.
-
-        :param node: a Loop node from an AST.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param options: a dictionary with options for transformations\
-                        and validation.
-        :type options: Optional[Dict[str, Any]]
-
-        :raises TransformationError: if the supplied node is not an inner or\
-            outer loop.
-
-        '''
-        self.validate(node, options=options)
-
-        # Check we are either an inner or outer loop
-        if node.loop_type not in ["inner", "outer"]:
-            raise TransformationError(
-                "Error in "+self.name+" transformation.  The requested loop"
-                " is not of type inner or outer.")
-
-        OMPParallelLoopTrans.apply(self, node)
-
-
-class GOceanOMPLoopTrans(OMPLoopTrans):
-
-    ''' GOcean-specific orphan OpenMP loop transformation. Adds GOcean
-        specific validity checks (that the node is either an inner or outer
-        Loop).
-
-        :param str omp_directive: choose which OpenMP loop directive to use. \
-            Defaults to "do".
-        :param str omp_schedule: the OpenMP schedule to use. Must be one of \
-            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to \
-            'static'.
-
-        '''
-    def __init__(self, omp_directive="do", omp_schedule="static"):
-        super().__init__(omp_directive=omp_directive,
-                         omp_schedule=omp_schedule)
-
-    def __str__(self):
-        return "Add the selected OpenMP loop directive to a GOcean loop"
-
-    def validate(self, node, options=None, **kwargs):
-        '''
-        Checks that the supplied node is a valid target for parallelisation
-        using OMP directives.
-
-        :param node: the candidate loop for parallelising using OMP Do.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-
-        :raises TransformationError: if the loop_type of the supplied Loop is \
-                                     not "inner" or "outer".
-
-        '''
-        super().validate(node, options=options)
-
-        # Check we are either an inner or outer loop
-        if node.loop_type not in ["inner", "outer"]:
-            raise TransformationError("Error in "+self.name+" transformation."
-                                      " The requested loop is not of type "
-                                      "inner or outer.")
 
 
 class ColourTrans(LoopTrans):

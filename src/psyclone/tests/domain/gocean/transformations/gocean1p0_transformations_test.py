@@ -20,7 +20,8 @@ from psyclone.parse import ModuleManager
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Container, Loop
 from psyclone.psyir.transformations import (
-    LoopFuseTrans, LoopTrans, TransformationError, ACCLoopTrans, OMPParallelTrans)
+    LoopFuseTrans, LoopTrans, TransformationError, ACCLoopTrans,
+    OMPParallelTrans)
 from psyclone.transformations import (
     ACCRoutineTrans, OMPLoopTrans, ACCParallelTrans, ACCEnterDataTrans)
 from psyclone.domain.gocean.transformations import (

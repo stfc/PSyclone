@@ -24,11 +24,8 @@ from psyclone.psyir.transformations import (
     ACCKernelsTrans, ProfileTrans, TransformationError,
     OMPParallelTrans)
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import OMPParallelTrans, LFRicOMPLoopTrans
+from psyclone.transformations import LFRicOMPLoopTrans
 from psyclone.domain.gocean.transformations import GOceanOMPLoopTrans
-from psyclone.utils import colored
-from psyclone.transformations import (
-    GOceanOMPLoopTrans, LFRicOMPLoopTrans)
 from psyclone.utils import colored
 
 
