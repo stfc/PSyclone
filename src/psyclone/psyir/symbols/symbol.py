@@ -85,6 +85,7 @@ class Symbol(CommentableMixin):
         # The following attributes have a setter method (with error checking)
         self._visibility = None
         self._interface = None
+        self._directive = None
 
         self._process_arguments(visibility=visibility, interface=interface)
 
@@ -126,6 +127,8 @@ class Symbol(CommentableMixin):
                           interface=self.interface.copy())
         copy.preceding_comment = self.preceding_comment
         copy.inline_comment = self.inline_comment
+        if self.directive is not None:
+            copy.directive = self.directive.copy()
         return copy
 
     def copy_properties(self,
@@ -147,6 +150,7 @@ class Symbol(CommentableMixin):
                             f"found '{type(symbol_in).__name__}'.")
         if not exclude_interface:
             self._interface = symbol_in.interface
+        self.directive = symbol_in.directive
 
     def specialise(self, subclass, **kwargs):
         '''Specialise this symbol so that it becomes an instance of the class
@@ -313,6 +317,33 @@ class Symbol(CommentableMixin):
                             f"SymbolInterface but got "
                             f"'{type(value).__name__}'")
         self._interface = value
+
+    @property
+    def directive(self) -> Optional["Node"]:
+        '''
+        :returns: the PSyIR directive associated with this Symbol, if any.
+        :rtype: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        '''
+        return self._directive
+
+    @directive.setter
+    def directive(self, value: Optional["Node"]):
+        '''
+        Setter for the directive associated with this Symbol.
+
+        :param value: the PSyIR directive associated with this Symbol, if any.
+        :type value: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+
+        :raises TypeError: if the supplied value is not a PSyIR Node or None.
+        '''
+        # This import has to be local to avoid a circular dependency.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Node
+        if value is not None and not isinstance(value, Node):
+            raise TypeError(
+                f"The directive associated with a Symbol must be a PSyIR "
+                f"Node or None but got '{type(value).__name__}'.")
+        self._directive = value
 
     @property
     def is_automatic(self):

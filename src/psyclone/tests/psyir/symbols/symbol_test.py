@@ -18,7 +18,8 @@ import pytest
 
 from psyclone.core import Signature, AccessSequence, AccessType
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Container, Literal, KernelSchedule, Reference
+from psyclone.psyir.nodes import (
+    Container, KernelSchedule, Literal, OMPDeclareTargetDirective, Reference)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ContainerSymbol,
     DataSymbol, ImportInterface, DefaultModuleInterface, StaticInterface,
@@ -38,6 +39,7 @@ def test_symbol_initialisation():
     assert sym.name == "sym1"
     assert sym.visibility == Symbol.DEFAULT_VISIBILITY
     assert isinstance(sym.interface, AutomaticInterface)
+    assert sym.directive is None
     # Check that the default visibility is public
     assert Symbol.DEFAULT_VISIBILITY == Symbol.Visibility.PUBLIC
 
@@ -61,6 +63,21 @@ def test_symbol_initialisation():
         Symbol('sym1', interface="hello")
     assert ("The interface to a Symbol must be a SymbolInterface but got "
             "'str'" in str(error.value))
+
+
+def test_symbol_directive():
+    '''Test the Symbol directive getter and setter.'''
+    symbol = Symbol("sym")
+    directive = OMPDeclareTargetDirective()
+    symbol.directive = directive
+    assert symbol.directive is directive
+    symbol.directive = None
+    assert symbol.directive is None
+
+    with pytest.raises(TypeError) as error:
+        symbol.directive = "not a PSyIR node"
+    assert ("The directive associated with a Symbol must be a PSyIR Node or "
+            "None but got 'str'." in str(error.value))
 
 
 def test_symbol_interface_setter_and_is_properties():
@@ -197,12 +214,15 @@ def test_symbol_copy():
     csym = ContainerSymbol("some_mod")
     asym = Symbol("a", visibility=Symbol.Visibility.PRIVATE,
                   interface=ImportInterface(csym))
+    asym.directive = OMPDeclareTargetDirective()
     new_sym = asym.copy()
     assert new_sym is not asym
     assert new_sym.name == asym.name
     assert isinstance(new_sym.interface, ImportInterface)
     assert new_sym.interface.container_symbol is csym
     assert new_sym.visibility == asym.visibility
+    assert new_sym.directive is not asym.directive
+    assert isinstance(new_sym.directive, OMPDeclareTargetDirective)
     # Check that we can modify the interface of the new symbol without
     # affecting the original.
     new_sym.interface.container_symbol = ContainerSymbol("other_mod")
@@ -214,6 +234,7 @@ def test_symbol_copy_properties():
     csym = ContainerSymbol("some_mod")
     sym = Symbol("a", visibility=Symbol.Visibility.PRIVATE,
                  interface=ImportInterface(csym))
+    sym.directive = OMPDeclareTargetDirective()
     new_sym = Symbol("b")
     # First, exclude the interface from the update.
     new_sym.copy_properties(sym, exclude_interface=True)
@@ -228,6 +249,7 @@ def test_symbol_copy_properties():
     assert new_sym.visibility == Symbol.Visibility.PUBLIC
     # Interface should have been updated
     assert new_sym.interface == sym.interface
+    assert new_sym.directive is sym.directive
 
     with pytest.raises(TypeError) as err:
         new_sym.copy_properties("hello")
