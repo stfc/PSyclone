@@ -336,6 +336,7 @@ class ScalarisationTrans(LoopTrans):
 
         '''
         self.validate_options(**kwargs)
+        super().validate(node, **kwargs)
 
     def apply(self, node: Loop, **kwargs) -> None:
         '''

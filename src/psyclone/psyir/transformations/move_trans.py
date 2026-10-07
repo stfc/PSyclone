@@ -67,6 +67,7 @@ class MoveTrans(Transformation):
             raise TransformationError(
                 f"In {self.name}, data dependencies "
                 f"forbid the move to the new location")
+        super().validate(node, options=options, **kwargs)
 
     def apply(self, node: Node, location: Node, position: str = "before",
               options=None, **kwargs):

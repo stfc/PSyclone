@@ -78,6 +78,7 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
                 f"Error in {self.name} transformation. This transformation "
                 f"can only be applied to 'Routine' nodes, but found "
                 f"'{type(node).__name__}'.")
+        super().validate(node, options=options, **kwargs)
 
     def apply(self, node: Routine, options=None, **kwargs):
         '''Apply this transformation to the supplied node.

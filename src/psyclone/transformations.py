@@ -1113,6 +1113,8 @@ class LFRicAsyncHaloExchangeTrans(Transformation):
                 f" node must be a synchronous halo exchange but found "
                 f"'{type(node)}'.")
 
+        super().validate(node, options=options, **kwargs)
+
 
 @transformation_documentation_wrapper
 class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
@@ -1439,6 +1441,7 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
                 "quadrature is set then both element_order_h and "
                 "element_order_v must also be set (as the values of the "
                 "former are derived from the latter.")
+        super().validate(node, options=options, **kwargs)
 
 
 @transformation_documentation_wrapper
@@ -1943,6 +1946,7 @@ class KernelImportsToArguments(Transformation, CalleeTransformationMixin):
                     f"Cannot apply {self.name} to Kernel '{node.name}' "
                     f"because it accesses data from its outer scope: "
                     f"{err.value}") from err
+        super().validate(node, options=options, **kwargs)
 
     def apply(self, node: CodedKern,
               options: Optional[dict[str, Any]] = None,

@@ -72,6 +72,7 @@ class Intrinsic2CodeBaseTrans(Transformation, metaclass=abc.ABCMeta):
                 f"Error in {self.name} transformation. This transformation "
                 f"requires the operator to be part of an assignment "
                 f"statement, but no such assignment was found.")
+        super().validate(node, options=options, **kwargs)
 
     def _validate_scalar_arg(self, node, options=None):
         '''
