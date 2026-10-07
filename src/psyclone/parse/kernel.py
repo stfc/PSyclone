@@ -135,7 +135,7 @@ def get_kernel_parse_tree(filepath: str):
     except Exception as err:
         raise ParseError(
             f"Failed to parse kernel code '{filepath}'. Is the Fortran "
-            f"correct?") from err
+            f"correct?\nError:\n'{err}'.") from err
     return parse_tree
 
 

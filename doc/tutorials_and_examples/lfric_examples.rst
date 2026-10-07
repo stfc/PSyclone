@@ -341,4 +341,4 @@ algorithm layer run:
 .. code-block:: bash
 
     cd eg20/
-    psyclone-kern -gen alg ../code/testkern_mod.F90
+    psyclone-kern -api lfric -gen alg ../code/testkern_mod.F90

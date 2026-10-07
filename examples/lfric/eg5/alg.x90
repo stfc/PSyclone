@@ -1,0 +1,77 @@
+!-----------------------------------------------------------------------------
+! Original under:
+! Copyright (c) 2017-2026, Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+! -----------------------------------------------------------------------------
+! Modifications under:
+! SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+!                         Facilities Council
+! SPDX-License-Identifier: BSD-3-Clause
+! See the full LICENSE file in the project root for details.
+! -----------------------------------------------------------------------------
+
+!> An example algorithm that invokes various kernels requiring stencil
+!! information. It is written as a program so that it can be compiled for
+!! testing. HOWEVER, it is *not* complete enough to be executed.
+program  oned_conservative_flux_alg
+
+  use constants_mod,                     only: r_def, i_def
+  use field_mod,                         only: field_type
+  use function_space_mod,                only: function_space_type
+  use function_space_collection_mod,     only: function_space_collection
+  use quadrature_mod,                    only: quadrature_type
+  use fs_continuity_mod,                 only: W0, W3
+
+  use subgrid_coeffs_kernel_mod, only : subgrid_coeffs_kernel_type
+  use conservative_flux_kernel_mod, only : conservative_flux_kernel_type
+  use jules_kernel_mod, only: jules_kernel_type
+  implicit none
+
+  integer(i_def)   :: mesh_id = 1
+  integer(i_def)   :: a1_stencil_length
+  integer(i_def)   :: a2_stencil_length, a2_direction
+  integer(i_def)   :: a3_stencil_length
+  type(field_type) :: u
+  type(field_type) :: dep_pts
+  type(field_type) :: rho_in
+  type(field_type) :: mass_flux
+  type(field_type) :: a0, a1, a2, a3
+  integer(i_def)     :: direction = 1
+  integer(kind=i_def) ::  transport_stencil_length = 1, rho_stencil_length = 1
+  integer(kind=i_def) :: element_order_h = 1
+  integer(kind=i_def) :: element_order_v = 1
+
+  type(function_space_type), target :: rho_fs
+  type(function_space_type), pointer :: rho_fs_ptr => null()
+
+  ! For a fully executable code we'd need to create the various correct function
+  ! spaces here.
+  rho_fs = function_space_type( mesh_id,         &
+                                element_order_h, &
+                                element_order_v, &
+                                W0, 1 )
+  rho_fs_ptr => rho_fs
+  call a0%initialise( vector_space=rho_fs, name="a0" )
+  call a1%initialise( vector_space=rho_fs, name="a1" )
+  call a2%initialise( vector_space=rho_fs, name="a2" )
+  call a3%initialise( vector_space=rho_fs, name="a3" )
+  call u%initialise( vector_space=rho_fs, name="u" )
+  call dep_pts%initialise( vector_space=rho_fs, name="dep_pts" )
+  call rho_in%initialise( vector_space=rho_fs, name="rho_in" )
+  call mass_flux%initialise( vector_space=rho_fs, name="mass_flux" )
+
+  call invoke(                                                                   &
+        subgrid_coeffs_kernel_type(a0,a1,a2,rho_in,rho_stencil_length),          &
+                                                                                 &
+        conservative_flux_kernel_type(mass_flux,dep_pts,u,                       &
+                                      rho_in,transport_stencil_length,direction, &
+                                      a0,transport_stencil_length,direction,     &
+                                      a1,transport_stencil_length,direction,     &
+                                      a2,transport_stencil_length,direction),    &
+        jules_kernel_type(a0, a1, a1_stencil_length,                             &
+                          a2, a2_stencil_length, a2_direction,                   &
+                          a3, a3_stencil_length)                                 &
+               )
+
+end program oned_conservative_flux_alg
