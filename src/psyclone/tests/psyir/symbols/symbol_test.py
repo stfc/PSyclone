@@ -337,7 +337,7 @@ def test_get_external_symbol(monkeypatch):
             "'some_mod' but could not obtain its PSyIR." in str(err.value))
 
 
-def test_get_external_symbol_missing(monkeypatch):
+def test_get_external_symbol_missing():
     '''
     Test that get_external_symbol() raises the expected error when the
     requested symbol cannot be found in the Container from which it is
