@@ -2826,7 +2826,7 @@ def test_apply_array_sized_by_arg(fortran_reader, fortran_writer):
 
 def test_apply_automatic_array_with_unspecified_extent(fortran_reader):
     """Test that an automatic array with an unspecified extent is raised as
-    a an InternalError."""
+    an InternalError."""
     psyir = fortran_reader.psyir_from_source("""
         module test_mod
         contains

@@ -12,6 +12,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.domain.common.transformations import (
     KernelInlineTrans, KernelModuleInlineTrans)
+from psyclone.domain.lfric import LFRicKern
 from psyclone.domain.lfric.transformations import LFRicColourAndOMPTrans
 from psyclone.psyGen import CodedKern
 from psyclone.psyir.nodes import (
@@ -125,7 +126,7 @@ def test_kernel_inline_trans_defers_body_validation(parser, capsys):
         "InlineTrans.apply() to override.)\n")
 
 
-def test_kernel_inline_trans_lfric_colouring(tmpdir):
+def test_kernel_inline_trans_lfric_colouring(tmp_path):
     """Test deferred LFRic arguments, loop bounds and generated code."""
     psy, invoke = get_invoke("1_single_invoke.f90", "lfric",
                              idx=0, dist_mem=False)
@@ -150,7 +151,7 @@ def test_kernel_inline_trans_lfric_colouring(tmpdir):
     # Code generation lowers a copy and must preserve the DSL-level original.
     assert isinstance(invoke.schedule.walk(CodedKern)[0], CodedKern)
     assert invoke.schedule.walk(CodedKern)[0].inline
-    assert LFRicBuild(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
 def test_kernel_inline_trans_gocean(capsys, tmp_path):
@@ -235,15 +236,29 @@ def test_kernel_inline_trans_rechecks_callees(monkeypatch, capsys):
         "one callee.\n")
 
 
-def test_lfric_kernel_with_automatic_array(tmpdir):
+def test_lfric_kernel_with_automatic_array(tmp_path, monkeypatch):
     '''
     Test that Colouring, adding OpenMP and then Inlining a kernel that has
-    temporary automatic arrays and is polymorhpic works as expected.
+    temporary automatic arrays and is polymorphic works as expected.
 
-    TODO #3601: Polymorhpic kernels are not inlined yet, in case the kernel
-    has been modified to provide a procedure referencing a single subroutine.
 
     '''
+    # TODO #3601: Polymorphic kernels are not inlined yet, so monkeypatch
+    # callee resolution to select the double-precision implementation.
+    get_callees = LFRicKern.get_callees
+
+    def get_double_precision_callee(kernel):
+        routines = get_callees(kernel)
+        if kernel.name == "dg_matrix_vector_code":
+            routines = [routine for routine in routines
+                        if routine.name == "dg_matrix_vector_code_r_double"]
+            # Module inlining also needs the call to name this implementation.
+            kernel.routine = Reference(routines[0].symbol)
+            kernel._schedules = routines
+        return routines
+
+    monkeypatch.setattr(LFRicKern, "get_callees", get_double_precision_callee)
+
     psy, invoke = get_invoke("15.1.11_builtin_and_op_kernel_invoke.f90",
                              idx=0, api="lfric", dist_mem=True)
 
@@ -280,4 +295,4 @@ dim=1),cell) + k)
     !$omp end parallel
     deallocate(lhs_e)
     deallocate(x_e)""" in str(psy.gen).lower()
-    assert LFRicBuild(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmp_path).code_compiles(psy)

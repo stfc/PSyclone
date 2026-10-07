@@ -331,20 +331,30 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
         """
         cursor = node
 
+        # Get all symbols in the new array shape
+        shape_symbols = set()
+        for dim in shape:
+            shape_symbols.update(dim.get_all_accessed_symbols())
+
         # Try to hoist the allocations out of loops/directives
         while True:
             loop = cursor.ancestor(Loop)
             if not loop:
                 break
+
+            # Check if anywhere in this loop the array shape symbols change
             writes_to_a_shape_symbol = False
             for ref in loop.walk(Reference):
-                for dim in shape:
-                    if ref.symbol in dim.get_all_accessed_symbols():
-                        if ref.is_write:
-                            writes_to_a_shape_symbol = True
-                            break
-            # LFRicLoops kernels do not contain the kernels arguments
-            # as references with appropriate access patterns
+                if ref.symbol in shape_symbols:
+                    if ref.is_write:
+                        writes_to_a_shape_symbol = True
+                        break
+
+            # TODO #3124: We need a special case for LFRicLoops because they
+            # still miss their argument references. Here we use domain
+            # knowledge to guarantee that their automatic array shape don't
+            # change (these are sized by fields ndfs, undfs with are runtime
+            # constant).
             if (isinstance(loop, LFRicLoop) or
                     not writes_to_a_shape_symbol):
                 # Examine next parent loop
