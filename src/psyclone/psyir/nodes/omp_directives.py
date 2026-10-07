@@ -48,7 +48,8 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
-    ContainerSymbol, DataSymbol, ImportInterface, ScalarType, RoutineSymbol)
+    ContainerSymbol, DataSymbol, ImportInterface, ScalarType, RoutineSymbol,
+    Symbol)
 
 #: Mapping from PSyIR reduction operator to OMP reduction operator.
 MAP_REDUCTION_OP_TO_OMP = {
@@ -140,6 +141,49 @@ class OMPDeclareTargetDirective(OMPStandaloneDirective):
                 f"{type(self.parent).__name__}.")
 
         super().validate_global_constraints()
+
+
+class OMPDeclareTargetVariable(OMPStandaloneDirective):
+    '''Class representing an OpenMP Declare Target directive for a variable.
+
+    :param symbol: the symbol declared as a target.
+    :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+
+    :raises TypeError: if the supplied symbol is not a Symbol.
+    '''
+
+    def __init__(self, symbol, **kwargs):
+        if not isinstance(symbol, Symbol):
+            raise TypeError(
+                f"OMPDeclareTargetVariable expects a PSyIR Symbol but found "
+                f"'{type(symbol).__name__}'.")
+        super().__init__(**kwargs)
+        self._symbol = symbol
+
+    @property
+    def symbol(self):
+        '''
+        :returns: the symbol declared as a target.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+        '''
+        return self._symbol
+
+    def begin_string(self):
+        '''
+        :returns: the opening string statement of this directive.
+        :rtype: str
+        '''
+        return f"omp declare target({self._symbol.name})"
+
+    def node_str(self, colour=True):
+        '''
+        :param bool colour: whether or not to include control codes for
+            coloured output.
+
+        :returns: a text description of this node.
+        :rtype: str
+        '''
+        return f"{self.coloured_name(colour)}[{self._symbol.name}]"
 
 
 class OMPTaskwaitDirective(OMPStandaloneDirective):

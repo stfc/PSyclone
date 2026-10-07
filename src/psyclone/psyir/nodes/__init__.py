@@ -66,7 +66,7 @@ from psyclone.psyir.nodes.omp_directives import (
     OMPParallelDoDirective, OMPSingleDirective, OMPMasterDirective,
     OMPSerialDirective, OMPTaskloopDirective, OMPTaskwaitDirective,
     OMPStandaloneDirective, OMPRegionDirective, OMPTargetDirective,
-    OMPLoopDirective, OMPDeclareTargetDirective,
+    OMPLoopDirective, OMPDeclareTargetDirective, OMPDeclareTargetVariable,
     OMPTeamsDistributeParallelDoDirective, OMPAtomicDirective,
     OMPSimdDirective, OMPTeamsLoopDirective, OMPBarrierDirective,
     OMPCriticalDirective)
@@ -164,6 +164,7 @@ __all__ = [
         'OMPTargetDirective',
         'OMPLoopDirective',
         'OMPDeclareTargetDirective',
+        'OMPDeclareTargetVariable',
         'OMPSimdDirective',
         'OMPTeamsDistributeParallelDoDirective',
         'OMPTeamsLoopDirective',
