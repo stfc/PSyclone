@@ -93,8 +93,6 @@ jobs:
         git clone https://github.com/stfc/lfric_apps
         cd lfric_apps
         git checkout ${LFRIC_APPS_HASH}
-        # Always use https to fetch the lfric_apps dependencies
-        git config --global url."https://github.com/".insteadOf git@github.com:
 
     # PSyclone, compile and run MetOffice LFRic with 6 MPI ranks.
     - name: LFRic passthrough (with DistributedMemory)
