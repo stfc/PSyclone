@@ -5,6 +5,6 @@
 # See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
-EXAMPLES=extract value_range_check profile readonly
+EXAMPLES=extract value_range_check omp_profile profile readonly
 
 include ../../top_level.mk
