@@ -1,10 +1,10 @@
 # PSyclone Wrapper Library for LFRic
 
 This is a wrapper library that maps PSyclone's [PSyData](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) [profiling API](
-https://psyclone.readthedocs.io/en/stable/profiling.html#profiling) to the
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) [profiling API](
+https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html#profiling) to the
 timer functionality provided in LFRic (see the [LFRic API](
-https://psyclone.readthedocs.io/en/latest/lfric.html) documentation
+https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html) documentation
 on how to access and use the LFRic code).
 
 ## Dependencies
@@ -40,15 +40,15 @@ In order to compile the ``libpsy_lfric_timer.a`` library using already
 compiled LFRic code, the following command can be used:
 
 ```shell
-LFRIC_INF_DIR=$<path/to/LFRic/compiled/code> make libpsy_lfric_timer.a
+LFRIC_PATH=$<path/to/LFRic/compiled/code> make libpsy_lfric_timer.a
 ```
 This will pick up the module file for the LFRic timer from the specified
 directory. As can be seen from the above command, the location of the LFRic
 infrastructure code is specified using the environment variable
-``LFRIC_INF_DIR``. For demonstration purposes, it defaults to the relative
-path to location of the pared-down LFRic infrastructure located in a clone
+``LFRIC_PATH``. For demonstration purposes, it defaults to the relative
+path to location of the LFRic infrastructure located in a clone
 of PSyclone repository,
-``<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure``.
+``<PSYCLONEHOME>/external/lfric_infrastructure/src``.
 This is not available in the PSyclone [installation](
 ./../../README.md#installation) so the exact path
 **must be specified** during the compilation process.
@@ -65,7 +65,7 @@ repository and specify the exact path during the compilation process.
 For instance,
 
 ```shell
-LFRIC_INF_DIR=<PSYCLONEHOME>/src/psyclone/tests/test_files/lfric/infrastructure make \
+LFRIC_PATH=<PSYCLONEHOME>/external/lfric_infrastructure/src make \
 	libpsy_lfric_timer_standalone.a
 ```
 
@@ -85,7 +85,7 @@ $(F90) -c  -I <PATH-TO-PSYCLONE>/lib/profiling/lfric_timer some_file.f90
 $(F90) some_file.o -L <PATH-TO-PSYCLONE>/lib/profiling/lfric_timer -lpsy_lfric_timer_standalone
 ```
 The application of the ``libpsy_lfric_timer.a`` needs to provide the path
-to the LFRic compiled code as well, e.g. by adding ``-L$(LFRIC_INF_DIR) -llfric``.
+to the LFRic compiled code as well, e.g. by adding ``-L$(LFRIC_PATH) -llfric``.
 
 **Note**, The ``<PATH-TO-PSYCLONE>`` differs depending on whether the
 wrapper library is compiled in a clone of PSyclone repository or in a
@@ -103,45 +103,3 @@ $ less timer.txt
 ||psy_test:invoke_1_update_field:u||                 0.00||                 0.00||                 0.00||                    1||                37.11||                 0.00||
 
 ```
-
-<!--
-## Licence
-
--------------------------------------------------------------------------------
-
-BSD 3-Clause License
-
-Copyright (c) 2020-2025, Science and Technology Facilities Council.
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-* Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-
-* Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-
-* Neither the name of the copyright holder nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
--------------------------------------------------------------------------------
-Authors: J. Henrichs, Bureau of Meteorology,
-         I. Kavcic, Met Office
--->

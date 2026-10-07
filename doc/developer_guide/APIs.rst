@@ -1,38 +1,9 @@
 .. -----------------------------------------------------------------------------
-.. BSD 3-Clause License
-..
-.. Copyright (c) 2019-2025, Science and Technology Facilities Council.
-.. All rights reserved.
-..
-.. Redistribution and use in source and binary forms, with or without
-.. modification, are permitted provided that the following conditions are met:
-..
-.. * Redistributions of source code must retain the above copyright notice, this
-..   list of conditions and the following disclaimer.
-..
-.. * Redistributions in binary form must reproduce the above copyright notice,
-..   this list of conditions and the following disclaimer in the documentation
-..   and/or other materials provided with the distribution.
-..
-.. * Neither the name of the copyright holder nor the names of its
-..   contributors may be used to endorse or promote products derived from
-..   this software without specific prior written permission.
-..
-.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-.. POSSIBILITY OF SUCH DAMAGE.
+.. SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+..                         Facilities Council
+.. SPDX-License-Identifier: BSD-3-Clause
+.. See the full LICENSE file in the project root for details.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-.. Modified by I. Kavcic, L. Turner and O. Brunt, Met Office
 
 Generic Code
 ############
@@ -628,7 +599,7 @@ invokes found in the algorithm layer. This schedule includes all required
 loops and kernel calls that need to be generated in the PSy layer for
 the particular invoke call. Once the loops and kernel calls have been
 created then (if the ``DISTRIBUTED_MEMORY`` flag is set to ``true``) PSyclone
-adds any required halo exchanges and global sums. This work is all
+adds any required halo exchanges and global reductions. This work is all
 performed in the ``LFRicInvoke`` constructor (``__init__``) method.
 
 In PSyclone we apply a lazy halo exchange approach (as opposed to an
@@ -949,37 +920,6 @@ exchange before the loop) or add existing halo exchanges after a loop
 (as an increase in depth will only make it more likely that a halo
 exchange is no longer required after the loop).
 
-Kernel Transformations
-++++++++++++++++++++++
-
-Since PSyclone is invoked separately for each Algorithm file in an
-application, the naming of the new, transformed kernels is done with
-reference to the kernel output directory. All transformed kernels (and
-the modules that contain them) are re-named following the PSyclone
-Fortran naming conventions (:ref:`lfric-conventions`). This enables the
-reliable identification of transformed versions of any given kernel
-within the output directory.
-
-If the "multiple" kernel-renaming scheme is in use, PSyclone simply
-appends an integer to the original kernel name, checks whether such a
-kernel is present in the output directory and if not, creates it. If a
-kernel with the generated name is present then the integer is
-incremented and the process repeated. If the "single" kernel-renaming
-scheme is in use, the same procedure is followed but if a matching
-kernel is already present in the output directory then the new kernel
-is not written (and we check that the contents of the existing kernel
-are the same as the one we would create).
-
-If an application is being built in parallel then it is possible that
-different invocations of PSyclone will happen simultaneously and
-therefore we must take care to avoid race conditions when querying the
-filesystem. For this reason we use ``os.open``::
-
-    fd = os.open(<filename>, os.O_CREAT | os.O_WRONLY | os.O_EXCL)
-
-The ``os.O_CREATE`` and ``os.O_EXCL`` flags in combination mean that
-``open()`` raises an error if the file in question already exists.
-
 Colouring
 +++++++++
 
@@ -1025,12 +965,10 @@ coarse mesh.
 Lowering
 --------
 
-As described in :ref:`psy_layer_backends`, the use of a PSyIR backend to
+As described in :ref:`uplifting-lowering`, the use of a PSyIR backend to
 generate code for the LFRic PSy layer requires that each LFRic-specific
-node be lowered to 'language-level' PSyIR. Although this is work in progress
-(see e.g. https://github.com/stfc/PSyclone/issues/1010), some nodes already
-have the ``lower_to_language_level()`` method implemented. These are
-described in the sub-sections below.
+node be lowered to 'language-level' PSyIR. This requires that each node
+have the ``lower_to_language_level()`` method implemented.
 
 BuiltIns
 ++++++++
@@ -1044,21 +982,13 @@ PSyIR for the arithmetic operations required by the particular BuiltIn.
 This PSyIR forms the new body of the dof loop containing the original
 BuiltIn node.
 
-In constructing this PSyIR, suitable Symbols for the loop
-variable and the various kernel arguments must be looked up. Since the
-migration to the use of language-level PSyIR for the LFRic PSy layer
-is at an early stage, in practise this often requires that suitable
-Symbols be constructed and inserted into the symbol table of the PSy
-layer routine. A lot of this work is currently performed in the
-``LFRicKernelArgument.infer_datatype()`` method but ultimately (see
-https://github.com/stfc/PSyclone/issues/1258) much of this will be
-removed.
-
-The sum and inner product BuiltIns require extending PSyIR to handle
-reductions in the ``GlobalSum`` class in ``psyGen.py``. Conversions from
-``real`` to ``int`` and vice-versa require the target precisions be
-available as symbols, which is being implemented as a part of the mixed
-precision support.
+The sum, inner-product, maxval and minval BuiltIns require extending
+PSyIR to handle reductions. When any of these are encountered during the
+initial construction of the PSy layer, an instance of ``LFRicGlobalSum``,
+``LFRicGlobalMax`` or ``LFRicGlobalMin`` is inserted, as required. Each of
+these nodes uses the parameterised ``lower_to_language_level()`` method of the
+``_LFRicGlobalReduction`` base class when generating the final
+PSyIR that is passed to a backend.
 
 Kernel Metadata
 ---------------
@@ -1191,9 +1121,11 @@ Usage
 In general, the details of how PSyclone is used when building a
 particular model (such as LFRic) are left to the build system of
 that model. However, PSyclone support for the NEMO model is still
-evolving very rapidly and is not yet a part of the official NEMO
-repository. Consequently, the PSyclone repository contains two
-example scripts that are used when building the NEMO model.
+evolving very rapidly. Although it is a part of the official NEMO
+repository, the associated scripts are tightly linked to specific
+versions of PSyclone. Consequently, the PSyclone repository contains
+example scripts that work with the head of the master branch and
+are used when building the NEMO model for the integration tests.
 These scripts may be found in ``examples/nemo/scripts`` and their
 use is described in the ``README.md`` file in that directory.
 
@@ -1202,8 +1134,9 @@ Implicit Loops
 --------------
 
 Many of the loops in NEMO are written using Fortran array notation. Such
-use of array notation is encouraged in the NEMO Coding Conventions
-:footcite:t:`nemo_code_conv` and identifying these loops can be important
+use of array notation is encouraged in the NEMO Coding Conventions as
+detailed in Appendix G of :footcite:t:`nemo_ocean_engine`. Identifying
+these loops can be important
 when introducing, e.g. OpenMP. These implicit loops are not
 automatically represented as PSyIR Loop instances but can be converted
 to explicit loops using the ``ArrayAssignment2LoopsTrans``
@@ -1232,13 +1165,9 @@ Since PSyclone does not currently attempt to fully resolve all symbols
 when parsing NEMO code, this information is not available and therefore
 such statements are not identified as loops.
 
-In order to improve the PSyclone capabilities to convert implicit loops,
-the details of externally declared symbols can be resolved by using the
-`resolve_imports` method of the symbol table:
-
-.. code-block:: python
-
-   import_symbol = symbol_table.lookup(module_name)
-   symbol_table.resolve_imports(container_symbols=[import_symbol])
+In order to improve PSyclone's capability to convert implicit loops,
+the details of externally declared symbols can be resolved by setting
+``RESOLVE_IMPORTS`` appropriately within a transformation script
+(see :ref:`sec_script_globals`).
 
 .. footbibliography::

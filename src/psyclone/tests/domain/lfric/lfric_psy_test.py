@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
-# Modifications: A. R. Porter, STFC Daresbury Lab
 
 
 '''This module tests the LFRicPSy class found in the LFRic domain.
@@ -73,29 +44,6 @@ def test_lfricpsy():
     assert isinstance(lfric_psy._invokes, LFRicInvokes)
 
 
-def test_lfricpsy_kind():
-    '''Check that an instance of LFRicPSy captures any precision (kind
-    values) for literals.
-
-    '''
-    # 1: no literal kind value gives the default r_def (even though it
-    # is not required).
-    _, invoke_info = parse(os.path.join(
-        BASE_PATH, "15.12.3_single_pointwise_builtin.f90"), api="lfric")
-    lfric_psy = LFRicPSy(invoke_info)
-    result = str(lfric_psy.gen)
-    assert "use constants_mod\n" in result
-    assert "f1_data(df) = 0.0\n" in result
-    # 2: Literal kind value is declared (trying with two cases to check)
-    for kind_name in ["r_solver", "r_tran"]:
-        invoke_info.calls[0].kcalls[0].args[1]._text = f"0.0_{kind_name}"
-        invoke_info.calls[0].kcalls[0].args[1]._datatype = ("real", kind_name)
-        lfric_psy = LFRicPSy(invoke_info)
-        result = str(lfric_psy.gen).lower()
-        assert "use constants_mod\n" in result
-        assert f"f1_data(df) = 0.0_{kind_name}" in result
-
-
 def test_lfricpsy_names():
     '''Check that the name() and orig_name() methods of LFRicPSy behave as
     expected.
@@ -116,7 +64,6 @@ def test_lfricpsy_gen_no_invoke():
     '''
     expected_result = (
         "module hello_psy\n"
-        "  use constants_mod\n"
         "  implicit none\n"
         "  public\n"
         "\n"

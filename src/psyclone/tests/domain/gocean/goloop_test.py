@@ -1,40 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# ----------------------------------------------------------------------------
-# Authors A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
-# Modified R. W. Ford, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
+# -----------------------------------------------------------------------------
 
 '''Tests for the GOLoop class.'''
 
@@ -47,7 +16,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule
 from psyclone.psyir.nodes import (Schedule, Reference, StructureReference,
                                   Node, Literal)
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.tools.dependency_tools import DTCode
 from psyclone.tests.utilities import get_invoke
@@ -59,22 +28,16 @@ def test_goloop_create(monkeypatch):
     ''' Test that the GOLoop create method populates the relevant attributes
     and creates the loop children. '''
 
-    # The parent must be a GOInvokeSchedule
-    with pytest.raises(GenerationError) as err:
-        goloop = GOLoop(loop_type="inner", parent=Schedule())
-    assert ("GOLoops must always be constructed with a parent which is inside"
-            " (directly or indirectly) of a GOInvokeSchedule"
-            in str(err.value))
-
     # Monkeypatch the called GOLoops methods as this will be tested separately
     monkeypatch.setattr(GOLoop, "lower_bound",
-                        lambda x: Literal("10", INTEGER_TYPE))
+                        lambda x: Literal("10", ScalarType.integer_type()))
     monkeypatch.setattr(GOLoop, "upper_bound",
-                        lambda x: Literal("20", INTEGER_TYPE))
+                        lambda x: Literal("20", ScalarType.integer_type()))
 
     # Call the create method
     gosched = GOInvokeSchedule.create('name')
     goloop = GOLoop.create(parent=gosched,
+                           variable=DataSymbol("i", ScalarType.integer_type()),
                            loop_type="inner",
                            field_name="cv_fld",
                            iteration_space="go_internal_pts",
@@ -86,24 +49,28 @@ def test_goloop_create(monkeypatch):
     assert goloop.field_name == "cv_fld"
     assert goloop.iteration_space == "go_internal_pts"
     assert goloop.field_space == "go_cv"
+    assert goloop.variable.name == "i"
 
     # Check that the created children correspond to the expected values
-    assert len(goloop.children) == 4
-    assert isinstance(goloop.children[0], Literal)
+    assert len(goloop.children) == 5
+    assert isinstance(goloop.children[0], Reference)
     assert isinstance(goloop.children[1], Literal)
     assert isinstance(goloop.children[2], Literal)
-    assert isinstance(goloop.children[3], Schedule)
-    assert goloop.children[0].value == '10'
-    assert goloop.children[1].value == '20'
-    assert goloop.children[2].value == '1'
+    assert isinstance(goloop.children[3], Literal)
+    assert isinstance(goloop.children[4], Schedule)
+    assert goloop.start_expr.value == '10'
+    assert goloop.stop_expr.value == '20'
+    assert goloop.step_expr.value == '1'
 
     # Try with an invalid loop type
     with pytest.raises(TypeError) as err:
-        goloop = GOLoop.create(parent=gosched,
-                               loop_type="invalid",
-                               field_name="cv_fld",
-                               iteration_space="go_internal_pts",
-                               field_space="go_cv")
+        goloop = GOLoop.create(
+            parent=gosched,
+            variable=DataSymbol("i", ScalarType.integer_type()),
+            loop_type="invalid",
+            field_name="cv_fld",
+            iteration_space="go_internal_pts",
+            field_space="go_cv")
     assert ("Error, loop_type value (invalid) is invalid. Must be one of "
             "['inner', 'outer']." in str(err.value))
 
@@ -113,11 +80,13 @@ def test_goloop_create(monkeypatch):
     monkeypatch.setattr(GOceanConstants, "VALID_LOOP_TYPES",
                         ["inner", "outer", "other"])
     with pytest.raises(InternalError) as err:
-        goloop = GOLoop.create(parent=gosched,
-                               loop_type="other",
-                               field_name="cv_fld",
-                               iteration_space="go_internal_pts",
-                               field_space="go_cv")
+        goloop = GOLoop.create(
+            parent=gosched,
+            variable=DataSymbol("i", ScalarType.integer_type()),
+            loop_type="other",
+            field_name="cv_fld",
+            iteration_space="go_internal_pts",
+            field_space="go_cv")
     assert ("While the loop type 'other' is valid, it is not yet supported."
             in str(err.value))
 
@@ -126,7 +95,8 @@ def test_goloop_properties_getters_and_setters():
     ''' Test that the GOLoop getters and setters, retrieve and set the
     expected attributes. '''
     gosched = GOInvokeSchedule.create('name')
-    goloop = GOLoop(loop_type="inner", parent=gosched)
+    goloop = GOLoop(variable=DataSymbol("i", ScalarType.integer_type()),
+                    loop_type="inner", parent=gosched)
 
     # Set and get iteration_space
     goloop.iteration_space = "it_space"
@@ -178,15 +148,16 @@ def test_goloop_bounds_invalid_iteration_space():
     ''' Check that the _upper/lower_bound() methods raise the expected error
     if the iteration space is not recognised. '''
     gosched = GOInvokeSchedule.create('name')
-    gojloop = GOLoop(parent=gosched, loop_type="outer")
+    gojloop = GOLoop(variable=DataSymbol("j", ScalarType.integer_type()),
+                     parent=gosched, loop_type="outer")
 
     # Set the iteration space to something invalid
     gojloop.iteration_space = "broken"
     with pytest.raises(GenerationError) as err:
         gojloop.upper_bound()
     assert ("Cannot generate custom loop bound for loop GOLoop["
-            "variable:'j', loop_type:'outer']\nEnd GOLoop. Couldn't find "
-            "any suitable field." in str(err.value))
+            "variable:'j', loop_type:'outer']\nReference[name:'j']\nEnd "
+            "GOLoop. Couldn't find any suitable field." in str(err.value))
 
     # Create an complete invoke now
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
@@ -216,7 +187,7 @@ def test_goloop_grid_property_psyir_expression():
     hsym = schedule.symbol_table.lookup("hello")
     assert isinstance(hsym, DataSymbol)
     assert href.parent is loop
-    assert hsym.datatype == INTEGER_TYPE
+    assert hsym.datatype == ScalarType.integer_type()
     assert isinstance(href, Reference)
     # A derived-type reference must be in the form of a format string with
     # "{0}" at the start.
@@ -237,10 +208,11 @@ def test_goloop_validate_loop():
     # We need a parent in order to create the node, but then we detach it to
     # check that the validation works as expected.
     schedule = GOInvokeSchedule.create('name')
-    goloop = GOLoop(loop_type="inner", parent=schedule)
-    goloop.addchild(Literal("1", INTEGER_TYPE))
-    goloop.addchild(Literal("1", INTEGER_TYPE))
-    goloop.addchild(Literal("1", INTEGER_TYPE))
+    goloop = GOLoop(variable=DataSymbol("i", ScalarType.integer_type()),
+                    loop_type="inner", parent=schedule)
+    goloop.addchild(Literal("1", ScalarType.integer_type()))
+    goloop.addchild(Literal("1", ScalarType.integer_type()))
+    goloop.addchild(Literal("1", ScalarType.integer_type()))
     goloop.addchild(Schedule())
 
     # Test that an ancestor must be GOInvokeSchedule
@@ -259,11 +231,13 @@ def test_goloop_validate_loop():
 
     class GOKernMock(GOKern):
         ''' Mock class of GOKern for this test'''
+
         def __init__(self):
             ''' Overridden constructor to initialize it just as a
             PSyIR node'''
             # pylint: disable=super-init-not-called, non-parent-init-called
             Node.__init__(self)  # Ignore hierarchy constructors
+            self.routine = None
 
     # Test Loop containing kernels with different offsets
     gokern1 = GOKernMock()
@@ -286,7 +260,7 @@ def clear_fparser():
     ''' The next test assumes that fparser has not been initialised.
     This is achieved by calling `_setup([])` with an empty list, which
     will remove all currently existing parser classes and functions.
-    At the end of the tests re-initialse parser. This must be done in
+    At the end of the tests re-initialise parser. This must be done in
     a fixture, since in case of a failure we still have to make sure
     that fparser gets properly re-initialised.
     '''
@@ -304,10 +278,10 @@ def clear_fparser():
 
 @pytest.mark.usefixtures("clear_fparser")
 def test_loop_bound_when_fparser_not_initialised():
-    '''This reproduces #1272: a gocean custom loop boundary could
-    not be parsed if the parser has not been initialised previously.
-    Reproduce this bug by re-initialising fparser with an empty
-    class list.
+    '''This reproduces a previous bug where a gocean custom loop
+    boundary could not be parsed if the parser has not been
+    initialised previously. Reproduce this bug by re-initialising
+    fparser with an empty class list.
     '''
     GOLoop.add_bounds("go_offset_sw:go_ct:internal_we_halo:1:2:3:4")
 
@@ -315,13 +289,18 @@ def test_loop_bound_when_fparser_not_initialised():
 def test_independent_iterations(monkeypatch):
     '''Test the independent_iterations method of GOLoop.'''
     schedule = GOInvokeSchedule.create('name')
-    goloop = GOLoop(loop_type="inner", parent=schedule)
-    assert goloop.independent_iterations()
+    goloop = GOLoop(variable=DataSymbol("i", ScalarType.integer_type()),
+                    loop_type="inner", parent=schedule)
+
+    # Add dummy children
+    goloop.addchild(Literal("1", ScalarType.integer_type()))
+    goloop.addchild(Literal("1", ScalarType.integer_type()))
+    goloop.addchild(Literal("1", ScalarType.integer_type()))
+    goloop.addchild(Schedule())
 
     # Test that we can supply our own instance of DependencyTools. We do this
     # by monkeypatching the can_loop_be_parallelised() method so that it adds
     # a message.
-
     def fake1(deptools, _2, test_all_variables=False,
               signatures_to_ignore=None):
         # pylint: disable=unused-argument
@@ -336,7 +315,6 @@ def test_independent_iterations(monkeypatch):
     # Test when the DA raises an exception (typically because of missing
     # variables in the PSyIR - TODO #845) that this is handled by the
     # independent_iterations method.
-
     def fake2(_1, _2, test_all_variables=False, signatures_to_ignore=None):
         # pylint: disable=unused-argument
         raise InternalError("This is just a test")

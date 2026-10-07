@@ -31,3 +31,7 @@ cov.xml
 .coverage.*
 *.psycache
 __pycache__
+build
+examples/psyir/transpose/trans_*.F90
+examples/psyir/matmul/matmul_*.F90
+examples/psyir/custom_directives/directives_omp.F90

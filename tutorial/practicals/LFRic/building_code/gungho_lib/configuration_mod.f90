@@ -1,45 +1,21 @@
-!-----------------------------------------------------------------------------
-! Copyright (c) 2017-2025,  Met Office, on behalf of HMSO and Queen's Printer
-! For further details please refer to the file LICENCE.original which you
-! should have received as part of this distribution.
-!-----------------------------------------------------------------------------
-! BSD 3-Clause License
-!
-! Modifications copyright (c) 2020-2025, Science and Technology Facilities Council.
-! All rights reserved.
-!
-! Redistribution and use in source and binary forms, with or without
-! modification, are permitted provided that the following conditions are met:
-!
-! * Redistributions of source code must retain the above copyright notice, this
-!   list of conditions and the following disclaimer.
-!
-! * Redistributions in binary form must reproduce the above copyright notice,
-!   this list of conditions and the following disclaimer in the documentation
-!   and/or other materials provided with the distribution.
-!
-! * Neither the name of the copyright holder nor the names of its
-!   contributors may be used to endorse or promote products derived from
-!   this software without specific prior written permission.
-!
-! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-! FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-! COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-! INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-! BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-! LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
+! Original under:
+! Copyright (c) 2017-2026, Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+! -----------------------------------------------------------------------------
+! Modifications under:
+! SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+!                         Facilities Council
+! SPDX-License-Identifier: BSD-3-Clause
+! See the full LICENSE file in the project root for details.
+! -----------------------------------------------------------------------------
+
 ! Handles the loading of namelists.
 !
 module configuration_mod
 
-  use constants_mod, only : i_native, l_def, str_def, str_max_filename
+  use constants_mod, only : i_def, l_def, str_def, str_max_filename
   use log_mod,       only : log_scratch_space, log_event, LOG_LEVEL_ERROR
 
   use base_mesh_config_mod, only : read_base_mesh_namelist, &
@@ -106,10 +82,10 @@ contains
 
     character(*), intent(in) :: filename
 
-    integer(i_native), intent(in) :: local_rank
+    integer(i_def), intent(in) :: local_rank
 
     character(str_def), allocatable :: namelists(:)
-    integer(i_native) :: unit = -1
+    integer(i_def) :: unit = -1
 
     !local_rank = get_comm_rank()
 
@@ -135,8 +111,8 @@ contains
 
     implicit none
 
-    integer(i_native),  intent(in)                 :: unit
-    integer(i_native),  intent(in)                 :: local_rank
+    integer(i_def),  intent(in)                 :: unit
+    integer(i_def),  intent(in)                 :: local_rank
     character(str_def), intent(inout), allocatable :: names(:)
 
     character(str_def), allocatable :: names_temp(:)
@@ -148,7 +124,7 @@ contains
     logical(l_def)     :: continue_read
     ! Number of names - technically a scalar but must be defined as a
     ! single element array to be broadcast-able
-    integer(i_native)  :: namecount(1)
+    integer(i_def)  :: namecount(1)
 
     namecount = 0
     if (local_rank == 0) then
@@ -193,7 +169,7 @@ contains
     logical(l_def), optional, intent(out) :: success_mask(:)
     logical(l_def)                        :: ensure_configuration
 
-    integer(i_native) :: i
+    integer(i_def) :: i
     logical           :: configuration_found = .True.
 
     if (present(success_mask) &
@@ -243,12 +219,12 @@ contains
                                            namelists, filename )
     implicit none
 
-    integer(i_native),  intent(in) :: unit
-    integer(i_native),  intent(in) :: local_rank
+    integer(i_def),  intent(in) :: unit
+    integer(i_def),  intent(in) :: local_rank
     character(str_def), intent(in) :: namelists(:)
     character(*),       intent(in) :: filename
 
-    integer(i_native) :: i
+    integer(i_def) :: i
 
     ! Read the namelists
     do i = 1, size(namelists)

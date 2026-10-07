@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: Joerg Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, N. Nobre and A. R. Porter, STFC Daresbury Lab
 
 '''This module tests AccessType.'''
 
@@ -49,10 +20,10 @@ def test_str():
     assert str(AccessType.READWRITE) == "READWRITE"
     assert str(AccessType.INC) == "INC"
     assert str(AccessType.READINC) == "READINC"
-    assert str(AccessType.SUM) == "SUM"
+    assert str(AccessType.REDUCTION) == "REDUCTION"
     assert str(AccessType.CALL) == "CALL"
     assert str(AccessType.INQUIRY) == "INQUIRY"
-    assert str(AccessType.TYPE_INFO) == "TYPE_INFO"
+    assert str(AccessType.CONSTANT) == "CONSTANT"
     assert str(AccessType.UNKNOWN) == "UNKNOWN"
 
 
@@ -67,19 +38,17 @@ def test_api_specific_name():
     assert AccessType.READWRITE.api_specific_name() == "gh_readwrite"
     assert AccessType.INC.api_specific_name() == "gh_inc"
     assert AccessType.READINC.api_specific_name() == "gh_readinc"
-    assert AccessType.SUM.api_specific_name() == "gh_sum"
+    assert AccessType.REDUCTION.api_specific_name() == "gh_reduction"
     assert AccessType.CALL.api_specific_name() == "call"
     assert AccessType.INQUIRY.api_specific_name() == "inquiry"
-    assert AccessType.TYPE_INFO.api_specific_name() == "type_info"
+    assert AccessType.CONSTANT.api_specific_name() == "constant"
     assert AccessType.UNKNOWN.api_specific_name() == "unknown"
-    assert AccessType.get_valid_reduction_modes() == [AccessType.SUM]
-    assert AccessType.get_valid_reduction_names() == ["gh_sum"]
     # Use set to make this independent of the order:
     assert set(AccessType.all_write_accesses()) == set([AccessType.WRITE,
                                                         AccessType.READWRITE,
                                                         AccessType.INC,
                                                         AccessType.READINC,
-                                                        AccessType.SUM])
+                                                        AccessType.REDUCTION])
     assert set(AccessType.all_read_accesses()) == set([AccessType.READ,
                                                        AccessType.READWRITE,
                                                        AccessType.READINC,
@@ -96,9 +65,9 @@ def test_from_string():
     assert AccessType.from_string("readwrite") == AccessType.READWRITE
     assert AccessType.from_string("inc") == AccessType.INC
     assert AccessType.from_string("readinc") == AccessType.READINC
-    assert AccessType.from_string("sum") == AccessType.SUM
+    assert AccessType.from_string("reduction") == AccessType.REDUCTION
     assert AccessType.from_string("unknown") == AccessType.UNKNOWN
-    assert AccessType.from_string("type_info") == AccessType.TYPE_INFO
+    assert AccessType.from_string("constant") == AccessType.CONSTANT
 
     with pytest.raises(ValueError) as err:
         AccessType.from_string("invalid")
@@ -141,7 +110,6 @@ def test_non_data_accesses():
     assert all(isinstance(acc, AccessType) for acc in accesses)
     all_read_accesses = AccessType.all_read_accesses()
     all_write_accesses = AccessType.all_write_accesses()
-    all_reductions = AccessType.get_valid_reduction_modes()
-    all_data_accesses = all_read_accesses + all_write_accesses + all_reductions
+    all_data_accesses = all_read_accesses + all_write_accesses
     for acc in accesses:
         assert acc not in all_data_accesses

@@ -1,41 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: L. Mitchell Imperial College
-#          R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
-# Modified: C.M. Maynard, Met Office / University of Reading,
-#           I. Kavcic and L. Turner, Met Office
-#           J. Henrichs, Bureau of Meteorology
 
 '''Module that uses the Fortran parser fparser1 to parse
 PSyclone-conformant kernel code.
@@ -43,7 +11,6 @@ PSyclone-conformant kernel code.
 '''
 
 import os
-import sys
 
 from pyparsing import ParseException
 
@@ -99,7 +66,7 @@ def get_kernel_filepath(module_name, kernel_paths, alg_filename):
     # searching for the kernel source (we perform a case insensitive
     # match).
     search_string = f"{module_name}.F90"
-    matches = []
+    matches = set()
 
     # If a search path has been specified then look there. Otherwise
     # look in the directory containing the algorithm definition file.
@@ -119,7 +86,7 @@ def get_kernel_filepath(module_name, kernel_paths, alg_filename):
             for filename in filenames:
                 # perform a case insensitive match
                 if filename.lower() == search_string.lower():
-                    matches.append(os.path.join(root, filename))
+                    matches.add(os.path.join(root, filename))
     if not kernel_paths:
         # Look *only* in the directory that contained the algorithm
         # file.
@@ -128,7 +95,7 @@ def get_kernel_filepath(module_name, kernel_paths, alg_filename):
         for filename in filenames:
             # perform a case insensitive match
             if filename.lower() == search_string.lower():
-                matches.append(os.path.join(cdir, filename))
+                matches.add(os.path.join(cdir, filename))
 
     if not matches:
         # There were no matches.
@@ -138,30 +105,25 @@ def get_kernel_filepath(module_name, kernel_paths, alg_filename):
         # There was more than one match
         raise ParseError(
             f"kernel.py:get_kernel_filepath: More than one match for kernel "
-            f"file '{module_name}.[fF]90' found!")
+            f"file '{module_name}.[fF]90' found! {matches}")
     # There is a single match
-    return matches[0]
+    return matches.pop()
 
 
-def get_kernel_parse_tree(filepath):
+def get_kernel_parse_tree(filepath: str):
     '''Parse the file in filepath with fparser1 and return a parse tree.
 
-    :param str filepath: path to a file (hopefully) containing \
-    PSyclone kernel code.
+    :param filepath: path to a file (hopefully) containing PSyclone
+                     kernel code.
 
-    :returns: Parse tree of the kernel code contained in the specified \
-    file.
+    :returns: Parse tree of the kernel code contained in the specified
+              file.
     :rtype: :py:class:`fparser.one.block_statements.BeginSource`
 
     :raises ParseError: if fparser fails to parse the file
 
     '''
     parsefortran.FortranParser.cache.clear()
-
-    # If logging is disable during a sphinx doctest run, doctest will just
-    # stop working. So only disable logging if we are not running doctest.
-    if 'sphinx.ext.doctest' not in sys.modules:
-        fparser.logging.disable(fparser.logging.CRITICAL)
 
     try:
         parse_tree = fpapi.parse(filepath)
@@ -173,7 +135,7 @@ def get_kernel_parse_tree(filepath):
     except Exception as err:
         raise ParseError(
             f"Failed to parse kernel code '{filepath}'. Is the Fortran "
-            f"correct?") from err
+            f"correct?\nError:\n'{err}'.") from err
     return parse_tree
 
 
@@ -211,12 +173,12 @@ class KernelTypeFactory():
     '''Factory to create the required API-specific information about
     coded-kernel metadata and a reference to its code.
 
-    :param str api: The API for which this factory is to create Kernel \
-    information. If it is not supplied then the default API, as \
-    specified in the PSyclone config file, is used.
+    :param api: The API for which this factory is to create Kernel
+        information. If it is not supplied then the current API (as
+        specified on the psyclone command-line) is used.
 
     '''
-    def __init__(self, api=''):
+    def __init__(self, api: str = ""):
         check_api(api)
         self._type = api
 
@@ -321,7 +283,7 @@ def get_mesh(metadata, valid_mesh_types):
     :return: the name of the mesh
     :rtype: string
 
-    :raises ParseError: if the supplied meta-data is not a recognised \
+    :raises ParseError: if the supplied meta-data is not a recognised
                         mesh identifier.
     :raises ParseError: if the mesh type is unsupported.
 
@@ -404,6 +366,34 @@ def get_stencil(metadata, valid_types):
             "Kernels with fixed stencil extents are not currently "
             "supported")
     return {"type": stencil_type, "extent": stencil_extent}
+
+
+def get_char_value(metadata: expr.NamedArg,
+                   keyword: str) -> str:
+    '''
+    :param metadata: node in fparser1 ast holding the meta-data.
+    :param keyword: the name of the meta-data entry to extract.
+
+    :returns: a label or int (as a string) representing the value
+              of the metadata element.
+
+    :raises ParseError: if the supplied metadata doesn't represent
+        a named argument for the specified keyword.
+    :raises ParseError: if the value associated with the keyword is
+        not provided as a string.
+
+    '''
+    if (not isinstance(metadata, expr.NamedArg) or
+            metadata.name.lower() != keyword):
+        raise ParseError(
+            f"{metadata} is not a valid {keyword} specifier (expected "
+            f"{keyword}='label | int')")
+    if not metadata.is_string:
+        raise ParseError(
+            f"The value of {keyword} must be specified as a quoted string "
+            f"but got {metadata}")
+
+    return metadata.value.lower()
 
 
 class Descriptor():

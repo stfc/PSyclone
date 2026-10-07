@@ -1,3 +1,10 @@
+! -----------------------------------------------------------------------------
+! SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+!                         Facilities Council
+! SPDX-License-Identifier: BSD-3-Clause
+! See the full LICENSE file in the project root for details.
+! -----------------------------------------------------------------------------
+
 module adj_sample_eos_pressure_kernel_mod
   use argument_mod, only : arg_type, cell_column, func_type, gh_basis, gh_evaluator, gh_field, gh_read, gh_real, gh_readwrite
   use constants_mod, only : i_def, r_def

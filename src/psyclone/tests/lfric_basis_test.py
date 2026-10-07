@@ -1,39 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
-# Modified: I. Kavcic and L. Turner, Met Office
-# Modified: J. Henrichs, Bureau of Meteorology
 
 ''' Module containing py.test tests for functionality related to
 evaluators in the LFRic API '''
@@ -189,12 +159,12 @@ def test_single_kern_eval(tmpdir):
     code = str(psy.gen)
 
     # Check module declarations
-    assert "use constants_mod\n" in code
+    assert "use constants_mod, only : i_def\n" in code
     assert "use field_mod, only : field_proxy_type, field_type" in code
+    assert "use testkern_eval_mod, only : testkern_eval_code" in code
 
     # Check subroutine declarations
     assert "  subroutine invoke_0_testkern_eval_type(f0, cmap)" in code
-    assert "    use testkern_eval_mod, only : testkern_eval_code" in code
     assert "    use function_space_mod, only : BASIS, DIFF_BASIS" in code
     assert "    type(field_type), intent(in) :: f0" in code
     assert "    type(field_type), intent(in) :: cmap" in code
@@ -381,7 +351,7 @@ def test_two_qr_same_shape(tmpdir):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
 
-    assert "use constants_mod\n" in code
+    assert "use constants_mod, only : i_def, r_def\n" in code
     assert "use field_mod, only : field_proxy_type, field_type" in code
 
     assert ("subroutine invoke_0(f1, f2, m1, a, m2, istp, g1, g2, n1, b, "
@@ -712,7 +682,7 @@ def test_qr_plus_eval(tmpdir):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
 
-    assert "use constants_mod\n" in code
+    assert "use constants_mod, only : i_def, r_def\n" in code
     assert "use field_mod, only : field_proxy_type, field_type" in code
 
     assert "subroutine invoke_0(f0, f1, f2, m1, a, m2, istp, qr)" in code
@@ -1022,24 +992,24 @@ def test_two_eval_same_var_same_space(tmpdir):
     # We should only get one set of basis and diff-basis functions in the
     # generated code
     assert code.count(
-        "ndf_adspc1_f0 = f0_proxy%vspace%get_ndf()") == 1
+        "ndf_ads1_f0 = f0_proxy%vspace%get_ndf()") == 1
     assert code.count(
-        "    do df_nodal = 1, ndf_adspc1_f0, 1\n"
+        "    do df_nodal = 1, ndf_ads1_f0, 1\n"
         "      do df_w0 = 1, ndf_w0, 1\n"
-        "        basis_w0_on_adspc1_f0(:,df_w0,df_nodal) = f1_proxy%vspace"
-        "%call_function(BASIS, df_w0, nodes_adspc1_f0(:,df_nodal))\n"
+        "        basis_w0_on_ads1_f0(:,df_w0,df_nodal) = f1_proxy%vspace"
+        "%call_function(BASIS, df_w0, nodes_ads1_f0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n") == 1
     assert code.count(
-        "    do df_nodal = 1, ndf_adspc1_f0, 1\n"
+        "    do df_nodal = 1, ndf_ads1_f0, 1\n"
         "      do df_w1 = 1, ndf_w1, 1\n"
-        "        diff_basis_w1_on_adspc1_f0(:,df_w1,df_nodal) = f2_proxy"
-        "%vspace%call_function(DIFF_BASIS, df_w1, nodes_adspc1_f0(:,"
+        "        diff_basis_w1_on_ads1_f0(:,df_w1,df_nodal) = f2_proxy"
+        "%vspace%call_function(DIFF_BASIS, df_w1, nodes_ads1_f0(:,"
         "df_nodal))\n"
         "      enddo\n"
         "    enddo\n") == 1
     assert code.count(
-        "DEALLOCATE(basis_w0_on_adspc1_f0, diff_basis_w1_on_adspc1_f0)") == 1
+        "DEALLOCATE(basis_w0_on_ads1_f0, diff_basis_w1_on_ads1_f0)") == 1
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 

@@ -1,49 +1,16 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: Joerg Henrichs, Bureau of Meteorology
-# Modified by N. Nobre, STFC Daresbury Lab
 
 '''This module tests the Signature class.'''
 
 import pytest
 
-from psyclone.core import ComponentIndices, Signature
+from psyclone.core import Signature
 from psyclone.errors import InternalError
-from psyclone.psyir.backend.c import CWriter
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import Reference
-from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE
 
 
 def test_signature():
@@ -184,57 +151,3 @@ def test_signature_comparison():
         _ = Signature(("a", "b")) >= (1, 2)
     assert "'>=' not supported between instances of 'Signature' and 'tuple'" \
         in str(err.value)
-
-
-def test_to_language_fortran():
-    '''Test that conversion of a Signature with a ComponentIndices argument
-    gives the expected results.
-    '''
-    sig = Signature("a")
-    comp = ComponentIndices()
-    assert sig.to_language(comp) == "a"
-
-    comp = ComponentIndices(["i"])
-    assert sig.to_language(comp) == "a(i)"
-
-    ref = Reference(DataSymbol("j", INTEGER_SINGLE_TYPE))
-    comp = ComponentIndices([ref])
-    assert sig.to_language(comp) == "a(j)"
-
-    # Test error condition if number of components in signature does not
-    # match the number of indices in ComponentIndices
-    comp = ComponentIndices([[1], [2]])
-    with pytest.raises(InternalError) as err:
-        sig.to_language(comp)
-    assert ("Signature 'a' has 1 components, but component_indices [[1], [2]] "
-            "has 2." in str(err.value))
-
-    sig = Signature(("a", "b", "c"))
-    comp = ComponentIndices([[1], [], ["i", "j"]])
-    assert sig.to_language(comp) == "a(1)%b%c(i,j)"
-    comp = ComponentIndices([[1, 2], [], []])
-    assert sig.to_language(comp) == "a(1,2)%b%c"
-    comp = ComponentIndices([[], [], []])
-    assert sig.to_language(comp) == "a%b%c"
-    assert sig.to_language() == "a%b%c"
-
-
-def test_output_languages():
-    '''Tests that error messages can be created in different languages.
-    '''
-
-    sig = Signature(("a"))
-    comp = ComponentIndices([["i", "j"]])
-    f_writer = FortranWriter()
-    c_writer = CWriter()
-    # Check that it defaults to Fortran
-    assert sig.to_language(comp) == "a(i,j)"
-    assert sig.to_language(comp, f_writer) == "a(i,j)"
-    assert sig.to_language(comp, c_writer) == "a[i + j * aLEN1]"
-
-    sig = Signature(("a", "b", "c"))
-    comp = ComponentIndices([[1], [], ["i", "j"]])
-    # Check that it defaults to Fortran
-    assert sig.to_language(comp) == "a(1)%b%c(i,j)"
-    assert sig.to_language(comp, f_writer) == "a(1)%b%c(i,j)"
-    assert sig.to_language(comp, c_writer) == "a[1].b.c[i + j * cLEN1]"

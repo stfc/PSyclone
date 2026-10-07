@@ -1,0 +1,236 @@
+# -----------------------------------------------------------------------------
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
+# -----------------------------------------------------------------------------
+
+'''
+This module contains the LFRicScalarArrayArgs class which handles the
+declarations of ScalarArray arguments to the kernel found in either
+an Invoke or a Kernel stub.
+'''
+
+# Imports
+from collections import Counter
+from typing import Union
+
+from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
+from psyclone.domain.lfric import (LFRicCollection, LFRicConstants, LFRicTypes,
+                                   LFRicKern, LFRicInvoke)
+from psyclone.errors import GenerationError, InternalError
+from psyclone.psyGen import FORTRAN_INTENT_NAMES
+from psyclone.psyir.nodes import (
+    ArrayReference, Assignment, IntrinsicCall, Literal, Reference)
+from psyclone.psyir.symbols import (DataSymbol, ArrayType,
+                                    ScalarType, ArgumentInterface)
+
+# pylint: disable=too-many-branches
+
+
+class LFRicScalarArrayArgs(LFRicCollection):
+    '''
+    Handles the declarations of ScalarArray kernel arguments appearing in
+    either an Invoke or a Kernel stub.
+
+    :param node: the Invoke or Kernel stub for which to manage the
+                 ScalarArray arguments.
+    '''
+    def __init__(self, node: Union[LFRicKern, LFRicInvoke]):
+        super().__init__(node)
+
+        # Initialise a dictionary keyed by intent ('in', 'out', 'inout')
+        # with values to be populated with lists of ScalarArray arguments
+        self._scalar_array_args = {}
+        for intent in FORTRAN_INTENT_NAMES:
+            self._scalar_array_args[intent] = []
+
+    def invoke_declarations(self):
+        '''
+        Create argument lists and declarations for all ScalarArray arguments
+        in an Invoke.
+
+        :raises InternalError: for unsupported argument intrinsic types.
+        :raises GenerationError: if the same ScalarArray argument has
+                                 different data types in different Kernel
+                                 calls within the same Invoke.
+
+        '''
+        super().invoke_declarations()
+        # Create dictionary of all ScalarArray arguments for validation.
+        # The dictionary keys are intent values, i.e., 'in', 'out', and
+        # 'inout', with the values being arrays of ScalarArray arguments.
+        const = LFRicConstants()
+        self._scalar_array_args = self._invoke.unique_declns_by_intent(
+            const.VALID_ARRAY_NAMES)
+        # Filter ScalarArray arguments by intent and intrinsic type
+        real_scalar_arrays = self._invoke.unique_declns_by_intent(
+            const.VALID_ARRAY_NAMES,
+            intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
+        integer_scalar_arrays = self._invoke.unique_declns_by_intent(
+            const.VALID_ARRAY_NAMES,
+            intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
+        logical_scalar_arrays = self._invoke.unique_declns_by_intent(
+            const.VALID_ARRAY_NAMES,
+            intrinsic_type=const.MAPPING_DATA_TYPES["gh_logical"])
+
+        for intent in FORTRAN_INTENT_NAMES:
+            # scal contains all ScalarArray arguments of all intents and
+            # intrinsic types whereas decl_scal contains all ScalarArray
+            # arguments of all intents with valid intrinsic types.
+            scal = [arg.declaration_name
+                    for arg in self._scalar_array_args[intent]]
+            decl_scal = [arg.declaration_name for arg in
+                         real_scalar_arrays[intent]]
+            decl_scal += [arg.declaration_name for arg in
+                          integer_scalar_arrays[intent]]
+            decl_scal += [arg.declaration_name for arg in
+                          logical_scalar_arrays[intent]]
+
+            # Check for unsupported intrinsic types
+            scal_inv = sorted(set(scal) - set(decl_scal))
+            if scal_inv:
+                raise InternalError(
+                    f"Found unsupported intrinsic types for the ScalarArray "
+                    f"arguments {scal_inv} to Invoke '{self._invoke.name}'. "
+                    f"Supported types are {const.VALID_INTRINSIC_TYPES}.")
+            # Check that the same ScalarArray name is not found in either of
+            # 'real', 'integer' or 'logical' ScalarArray lists (for instance
+            # if passed to one kernel as a 'real' and to another kernel as an
+            # 'logical' ScalarArray)
+            scal_multi_type = [item for item, count in
+                               Counter(decl_scal).items() if count > 1]
+            if scal_multi_type:
+                raise GenerationError(
+                    f"ScalarArray argument(s) {scal_multi_type} in Invoke "
+                    f"'{self._invoke.name}' is/are passed to more than one "
+                    f"kernel and the kernel metadata for the corresponding "
+                    f"arguments specifies different intrinsic types.")
+
+        # Create declarations
+        self._create_declarations()
+
+    def stub_declarations(self):
+        '''
+        Create and add declarations for all ScalarArray arguments in
+        a Kernel stub.
+
+        :raises InternalError: for an unsupported argument data type.
+
+        '''
+        super().stub_declarations()
+        const = LFRicConstants()
+        type_map = {"real": LFRicTypes("LFRicRealScalarDataType")(),
+                    "integer": LFRicTypes("LFRicIntegerScalarDataType")(),
+                    "logical": LFRicTypes("LFRicLogicalScalarDataType")()}
+
+        # Extract all ScalarArray arguments
+        for arg in self.kernel_calls[0].arguments.args:
+            if arg.is_scalar_array:
+                # Check whether the ScalarArrays are of a supported data
+                # type
+                if (arg.descriptor.data_type not in
+                        const.VALID_SCALAR_DATA_TYPES):
+                    raise InternalError(
+                        f"Found an unsupported data type "
+                        f"'{arg.descriptor.data_type}' for the "
+                        f"ScalarArray argument '{arg.declaration_name}'"
+                        f". Supported types are "
+                        f"{const.VALID_SCALAR_DATA_TYPES}.")
+                self._scalar_array_args[arg.intent].append(arg)
+
+        # Create declarations
+        for intent in FORTRAN_INTENT_NAMES:
+            for arg in self._scalar_array_args[intent]:
+                # Create the dimensions array symbol
+                dims_array_symbol = self.symtab.find_or_create_tag(
+                    tag="dims_" + arg.name,
+                    symbol_type=DataSymbol,
+                    datatype=ArrayType(
+                        LFRicTypes("LFRicIntegerScalarDataType")(),
+                        [arg._array_ndims]))
+                dims_array_symbol.interface = ArgumentInterface(
+                                    INTENT_MAPPING[intent])
+                self.symtab.append_argument(dims_array_symbol)
+                # Create list of dims_array references
+                sym_list = [ArrayReference.create(
+                    dims_array_symbol,
+                    [Literal(str(idx), ScalarType.integer_type())])
+                        for idx in range(1, arg._array_ndims + 1)]
+                # Create the symbol
+                array_symbol = self.symtab.find_or_create_tag(
+                    tag=arg.name,
+                    symbol_type=DataSymbol,
+                    datatype=ArrayType(
+                        type_map[arg.intrinsic_type],
+                        sym_list))
+                array_symbol.interface = ArgumentInterface(
+                                    INTENT_MAPPING[intent])
+                self.symtab.append_argument(array_symbol)
+
+    def _create_declarations(self):
+        '''
+        Create the symbols for the ScalarArray arguments.
+
+        '''
+        type_map = {"real": LFRicTypes("LFRicRealScalarDataType")(),
+                    "integer": LFRicTypes("LFRicIntegerScalarDataType")(),
+                    "logical": LFRicTypes("LFRicLogicalScalarDataType")()}
+
+        # ScalarArray arguments
+        for intent in FORTRAN_INTENT_NAMES:
+            for arg in self._scalar_array_args[intent]:
+                # Create the symbol for the dimensions array.
+                self.symtab.find_or_create_tag(
+                    tag="dims_" + arg.name,
+                    symbol_type=DataSymbol,
+                    datatype=ArrayType(
+                        LFRicTypes("LFRicIntegerScalarDataType")(),
+                        [arg._array_ndims]))
+                # Find the ScalarArray tag and convert it to an ArrayType
+                array_symbol = self.symtab.lookup_with_tag(
+                    "AlgArgs_" + arg.name)
+                array_symbol.datatype = ArrayType(
+                    type_map[arg.intrinsic_type],
+                    arg._array_ndims*[ArrayType.Extent.ATTRIBUTE])
+                array_symbol.interface = ArgumentInterface(
+                                    INTENT_MAPPING[intent])
+                self.symtab.append_argument(array_symbol)
+
+    def initialise(self, cursor: int) -> int:
+        '''
+        Add code to initialise the array holding the extent of each dimension
+        of any ScalarArray arguments.
+
+        :param cursor: position to add the next initialisation statements.
+
+        :returns: Updated cursor value.
+
+        '''
+        first = True
+        # For each ScalarArray argument...
+        for intent in FORTRAN_INTENT_NAMES:
+            for arg in self._scalar_array_args[intent]:
+                # We want dims_array = SHAPE(scalar_array)
+                dim_array_sym = self.symtab.lookup_with_tag("dims_" + arg.name)
+                array_symbol = self.symtab.lookup_with_tag(
+                    "AlgArgs_" + arg.name)
+                shape_call = IntrinsicCall.create(
+                    IntrinsicCall.Intrinsic.SHAPE,
+                    [Reference(array_symbol)])
+                assign = Assignment.create(lhs=Reference(dim_array_sym),
+                                           rhs=shape_call)
+                if first:
+                    assign.preceding_comment = (
+                        "Store dimensions of ScalarArray arguments")
+                    first = False
+                self._invoke.schedule.addchild(assign, cursor)
+                cursor += 1
+
+        return cursor
+
+
+# ---------- Documentation utils -------------------------------------------- #
+# The list of module members that we wish AutoAPI to generate
+# documentation for.
+__all__ = ['LFRicScalarArrayArgs']

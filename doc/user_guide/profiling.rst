@@ -1,40 +1,9 @@
 .. -----------------------------------------------------------------------------
-.. BSD 3-Clause License
-..
-.. Copyright (c) 2018-2025, Science and Technology Facilities Council.
-.. All rights reserved.
-..
-.. Redistribution and use in source and binary forms, with or without
-.. modification, are permitted provided that the following conditions are met:
-..
-.. * Redistributions of source code must retain the above copyright notice, this
-..   list of conditions and the following disclaimer.
-..
-.. * Redistributions in binary form must reproduce the above copyright notice,
-..   this list of conditions and the following disclaimer in the documentation
-..   and/or other materials provided with the distribution.
-..
-.. * Neither the name of the copyright holder nor the names of its
-..   contributors may be used to endorse or promote products derived from
-..   this software without specific prior written permission.
-..
-.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-.. POSSIBILITY OF SUCH DAMAGE.
+.. SPDX-FileCopyrightText: Copyright (c) 2018-2026 Science and Technology
+..                         Facilities Council
+.. SPDX-License-Identifier: BSD-3-Clause
+.. See the full LICENSE file in the project root for details.
 .. -----------------------------------------------------------------------------
-.. Written by J. Henrichs, Bureau of Meteorology
-.. Modified by A. R. Porter, STFC Daresbury Lab
-.. Modified by R. W. Ford, STFC Daresbury Lab
-.. Modified by I. Kavcic, Met Office
 
 .. _userguide-profiling:
 
@@ -52,7 +21,8 @@ transformation within a transformation script.
 
 PSyclone can be used with a variety of existing profiling tools.
 It currently supports dl_timer, TAU, Vernier, Dr Hook, the NVIDIA GPU
-profiling tools and it comes with a simple stand-alone timer library.
+profiling tools (NVTX), the AMD ROCm profiling tools (ROCTx), and it
+comes with a simple stand-alone timer library.
 The :ref:`PSyData API <psy_data>` (see also the
 :ref:`Developer Guide <devguide_psy_data>`)
 is utilised to implement wrapper libraries that connect the PSyclone
@@ -78,11 +48,11 @@ Interface to Third Party Profiling Tools
 
 PSyclone comes with :ref:`wrapper libraries <libraries>` to support
 usage of TAU, Vernier, Dr Hook, dl_timer, NVTX (NVIDIA Tools Extension
-library), and a simple non-thread-safe timing library. Support for further
-profiling libraries will be added in the future. To compile the
-wrapper libraries, change into the directory ``lib/profiling``
-of PSyclone and type ``make`` to compile all wrappers. If only
-some of the wrappers are required, you can either use
+library), ROCTx (AMD library for code instrumentation), and a simple non-thread-safe timing
+library. Support for further profiling libraries will be added in the
+future. To compile the wrapper libraries, change into the directory
+``lib/profiling`` of PSyclone and type ``make`` to compile all wrappers.
+If only some of the wrappers are required, you can either use
 ``make wrapper-name`` (e.g. ``make drhook``), or change
 into the corresponding directory and use ``make``. The
 corresponding ``README.md`` files contain additional parameters
@@ -105,9 +75,9 @@ libraries that come with PSyclone:
     for each MPI process), and not thread-safe.
 
 ``lib/profiling/dl_timer``
-    This wrapper uses the apeg-dl_timer library. In order to use
+    This wrapper uses the dl_timer library. In order to use
     this wrapper, you must download and install the dl_timer library
-    from https://bitbucket.org/apeg/dl_timer. This library has
+    from https://github.com/stfc/dl_timer. This library has
     various compile-time options and may be built with MPI or OpenMP
     support. Additional link options might therefore be required
     (e.g. enabling OpenMP, or linking with MPI).
@@ -130,6 +100,11 @@ libraries that come with PSyclone:
     This is a wrapper library that maps the PSyclone profiling API
     to the NVIDIA Tools Extension library (NVTX). This library is
     available from https://developer.nvidia.com/cuda-toolkit.
+
+``lib/profiling/amd``
+    This is a wrapper library that maps the PSyclone profiling API
+    to the AMD ROCTx library. ROCTx documentation is available
+    from https://rocm.docs.amd.com/projects/rocprofiler-sdk/en/latest/how-to/using-rocprofiler-sdk-roctx.html.
 
 ``lib/profiling/lfric_timer``
     This profile wrapper uses the timer functionality provided by
@@ -160,7 +135,7 @@ wrapper provided by the tool which will provide the required additional
 compiler parameters. The exceptions are the template and simple_timing
 libraries, which are stand alone. The profiling example in
 ``examples/gocean/eg5/profile`` can be used with any of the
-wrapper libraries (except ``nvidia``) to see how they work.
+wrapper libraries (except ``nvidia`` and ``amd``) to see how they work.
 
 .. _required_profiling_calls:
 
@@ -168,7 +143,10 @@ Required Modifications to the Program
 -------------------------------------
 In order to guarantee that any profiling library is properly
 initialised, PSyclone's profiling wrappers utilise two additional
-function calls that the user must manually insert into the program:
+function calls that the user must manually insert into the program
+(the NVIDIA NVTX wrapper in ``lib/profiling/nvidia`` and the AMD ROCTx
+wrapper in ``lib/profiling/amd`` are exceptions and do not require these
+calls):
 
 profile_PSyDataInit()
 ~~~~~~~~~~~~~~~~~~~~~
@@ -249,9 +227,10 @@ cannot be used as there is no concept of `kernels`.
           GPU execution).
 
 .. note:: It is still the responsibility of the user to manually
-    add the calls to ``profile_PSyDataInit`` and 
-    ``profile_PSyDataShutdown`` to the
-    code base (see :ref:`required_profiling_calls`).
+    add the calls to ``profile_PSyDataInit`` and
+    ``profile_PSyDataShutdown`` to the code base (see
+    :ref:`required_profiling_calls`), unless using the NVIDIA NVTX or
+    AMD ROCTx wrapper.
 
 PSyclone will modify the schedule of each invoke to insert the
 profiling regions. Below we show an example of a schedule created
@@ -277,7 +256,7 @@ holding the loop bounds have been omitted for all but the first loop):
                             ...
                             Schedule[]
                                 0: CodedKern compute_unew_code(unew_fld,uold_fld,z_fld,
-                                           cv_fld,h_fld,tdt,dy) [module_inline=False]
+                                           cv_fld,h_fld,tdt,dy)
                 1: Loop[type='outer',field_space='cv',it_space='internal_pts']
                     ...
                     Schedule[]
@@ -285,7 +264,7 @@ holding the loop bounds have been omitted for all but the first loop):
                             ...
                             Schedule[]
                                 0: CodedKern compute_vnew_code(vnew_fld,vold_fld,z_fld,
-                                           cu_fld,h_fld,tdt,dy) [module_inline=False]
+                                           cu_fld,h_fld,tdt,dy)
                 2: Loop[type='outer',field_space='ct',it_space='internal_pts']
                     ...
                     Schedule[]
@@ -293,7 +272,7 @@ holding the loop bounds have been omitted for all but the first loop):
                             ...
                             Schedule[]
                                 0: CodedKern compute_pnew_code(pnew_fld,pold_fld,cu_fld,
-                                           cv_fld,tdt,dx,dy) [module_inline=False]
+                                           cv_fld,tdt,dx,dy)
 
 And now the same schedule when instrumenting kernels. In this case
 each loop nest and kernel call will be contained in a separate
@@ -314,7 +293,7 @@ region:
                             ...
                             Schedule[]
                                 0: CodedKern compute_unew_code(unew_fld,uold_fld,z_fld,
-                                        cv_fld,h_fld,tdt,dy) [module_inline=False]
+                                        cv_fld,h_fld,tdt,dy)
         1: [Profile]
             Schedule[]
                 0: Loop[type='outer',field_space='go_cv',it_space='go_internal_pts']
@@ -325,7 +304,7 @@ region:
                                 ...
                                 Schedule[]
                                     0: CodedKern compute_vnew_code(vnew_fld,vold_fld,z_fld,
-                                        cu_fld,h_fld,tdt,dy) [module_inline=False]
+                                        cu_fld,h_fld,tdt,dy)
         2: [Profile]
             Schedule[]
                 0: Loop[type='outer',field_space='go_ct',it_space='go_internal_pts']
@@ -336,7 +315,7 @@ region:
                             ...
                             Schedule[]
                                 0: CodedKern compute_pnew_code(pnew_fld,pold_fld,
-                                        cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
+                                        cu_fld,cv_fld,tdt,dx,dy)
 
 Both options can be specified at the same time:
 
@@ -358,7 +337,7 @@ Both options can be specified at the same time:
                                     ...
                                     Schedule[]
                                         0: CodedKern compute_unew_code(unew_fld,uold_fld,
-                                                ...) [module_inline=False]
+                                                ...)
                 1: [Profile]
                     Schedule[]
                         0: Loop[type='outer',field_space='go_cv',
@@ -370,7 +349,7 @@ Both options can be specified at the same time:
                                         ...
                                         Schedule[]
                                             0: CodedKern compute_vnew_code(vnew_fld,vold_fld,
-                                                ...) [module_inline=False]
+                                                ...)
                 2: [Profile]
                     Schedule[]
                         0: Loop[type='outer',field_space='go_ct',
@@ -382,7 +361,7 @@ Both options can be specified at the same time:
                                     ...
                                     Schedule[]
                                         0: CodedKern compute_pnew_code(pnew_fld,pold_fld,
-                                                ...) [module_inline=False]
+                                                ...)
 
 
 Profiling in Scripts - ``ProfileTrans``
@@ -434,8 +413,8 @@ names). For example:
 .. warning::
 
    If "region_name" is misspelt in the options dictionary then the
-   option will be silently ignored. This is true for all
-   options. Issue #613 captures this problem.
+   option will be silently ignored. This is true for all options.
+   Moving to kwargs options (#2668) will fix this problem.
    
 .. warning::
  
@@ -533,7 +512,6 @@ For the :ref:`LFRic <lfric-api>` and
                               Literal[value:'1', DataType.INTEGER]
                               Schedule[]
                                   0: CodedKern testkern_code(a,f1,f2,m1,m2)
-                                     [module_inline=False]
 
     This is the code created for this example:
 

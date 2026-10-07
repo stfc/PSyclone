@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2025, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
 
 '''Module containing tests for the FieldArgMetadata class.
 
@@ -40,6 +12,7 @@ import pytest
 
 from fparser.two import Fortran2003
 
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel import FieldArgMetadata
 
 
@@ -57,6 +30,8 @@ def test_create(datatype, access, function_space):
     assert field_arg._access == "gh_read"
     assert field_arg._function_space == "w0"
     assert field_arg._stencil is None
+    assert field_arg.ndata == "1"
+    assert field_arg.nlevels is None
 
 
 def test_create_stencil():
@@ -71,6 +46,30 @@ def test_create_stencil():
     assert field_arg._access == "gh_read"
     assert field_arg._function_space == "w0"
     assert field_arg._stencil == "cross"
+    assert field_arg.nlevels is None
+    assert field_arg.ndata == "1"
+
+
+def test_create_nlevels_ndata():
+    '''Test that an instance of FieldArgMetadata can be created successfully
+    with optional ndata and nlevels metadata.
+
+    '''
+    fld_arg = FieldArgMetadata("gh_real", "gh_write", "w0", nlevels="1",
+                               stencil="cross")
+    assert isinstance(fld_arg, FieldArgMetadata)
+    assert fld_arg.form == "gh_field"
+    assert fld_arg._datatype == "gh_real"
+    assert fld_arg._access == "gh_write"
+    assert fld_arg._function_space == "w0"
+    assert fld_arg._stencil == "cross"
+    assert fld_arg.nlevels == "1"
+    assert fld_arg.ndata == "1"
+    fld_arg2 = FieldArgMetadata("gh_real", "gh_write", "w0", nlevels="ustar",
+                                stencil="cross", ndata="big_phys")
+    assert fld_arg2._stencil == "cross"
+    assert fld_arg2.nlevels == "ustar"
+    assert fld_arg2.ndata == "big_phys"
 
 
 def test_init_invalid_fs():
@@ -96,22 +95,31 @@ def test_init_invalid_stencil():
 
 
 @pytest.mark.parametrize(
-    "metadata,expected_stencil",
-    [("arg_type(GH_FIELD, GH_REAL, GH_READ, W0)", None),
-     ("arg_type(GH_FIELD, GH_REAL, GH_READ, W0, stencil(region))", "region")])
-def test_get_metadata(metadata, expected_stencil):
+    "metadata,expected_stencil,expected_nlevels,expected_ndata",
+    [("arg_type(GH_FIELD, GH_REAL, GH_READ, W0)", None, None, None),
+     ("arg_type(GH_FIELD, GH_REAL, GH_READ, W0, stencil(region))",
+      "region", None, None),
+     ('arg_type(GH_FIELD, GH_REAL, GH_READ, W0, nlevels="big")',
+      None, "big", None),
+     ('arg_type(GH_FIELD, GH_REAL, GH_READ, W0, stencil(region), '
+      'nlevels="big", ndata="4")',
+      "region", "big", "4")])
+def test_get_metadata(metadata, expected_stencil, expected_nlevels,
+                      expected_ndata):
     '''Test that the _get_metadata class method works as expected, with
     and without optional stencil metadata.
 
     '''
-    fparser2_tree = FieldArgMetadata.create_fparser2(
-        metadata, Fortran2003.Part_Ref)
-    datatype, access, function_space, stencil = FieldArgMetadata._get_metadata(
-        fparser2_tree)
+    encoding = Fortran2003.Structure_Constructor
+    fparser2_tree = FieldArgMetadata.create_fparser2(metadata, encoding)
+    (datatype, access, function_space, stencil,
+     nlevels, ndata) = FieldArgMetadata._get_metadata(fparser2_tree)
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
     assert function_space == "W0"
     assert stencil == expected_stencil
+    assert nlevels == expected_nlevels
+    assert ndata == expected_ndata
 
 
 def test_get_stencil():
@@ -149,7 +157,9 @@ def test_get_stencil():
 
 @pytest.mark.parametrize("fortran_string", [
     "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)",
-    "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, STENCIL(REGION))"])
+    "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, STENCIL(REGION))",
+    "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, NDATA='THREE')",
+    "arg_type(GH_FIELD, GH_REAL, GH_READ, W0, NLEVELS='4')"])
 def test_fortran_string(fortran_string):
     '''Test that the fortran_string method works as expected. Test with
     and without a stencil.
@@ -175,9 +185,10 @@ def test_check_access():
     FieldArgMetadata.check_access("GH_READ")
     with pytest.raises(ValueError) as info:
         FieldArgMetadata.check_access("invalid")
-    assert ("The 'access descriptor' metadata should be a recognised value "
-            "(one of ['gh_read', 'gh_write', 'gh_readwrite', 'gh_inc', "
-            "'gh_readinc']) but found 'invalid'." in str(info.value))
+    const = LFRicConstants()
+    assert (f"The 'access descriptor' metadata should be a recognised value "
+            f"(one of {const.VALID_FIELD_ACCESS_TYPES}) but found 'invalid'."
+            in str(info.value))
 
 
 def test_function_space_setter_getter():
@@ -188,18 +199,10 @@ def test_function_space_setter_getter():
     field_arg = FieldArgMetadata("GH_REAL", "GH_READ", "W0")
     with pytest.raises(ValueError) as info:
         field_arg.function_space = "invalid"
-    assert ("The 'function space' metadata should be a recognised value (one "
-            "of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', "
-            "'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi', "
-            "'any_space_1', 'any_space_2', 'any_space_3', 'any_space_4', "
-            "'any_space_5', 'any_space_6', 'any_space_7', 'any_space_8', "
-            "'any_space_9', 'any_space_10', 'any_discontinuous_space_1', "
-            "'any_discontinuous_space_2', 'any_discontinuous_space_3', "
-            "'any_discontinuous_space_4', 'any_discontinuous_space_5', "
-            "'any_discontinuous_space_6', 'any_discontinuous_space_7', "
-            "'any_discontinuous_space_8', 'any_discontinuous_space_9', "
-            "'any_discontinuous_space_10']) but found 'invalid'."
-            in str(info.value))
+    const = LFRicConstants()
+    assert (f"The 'function space' metadata should be a recognised value (one "
+            f"of {const.VALID_FUNCTION_SPACE_NAMES}) but found "
+            f"'invalid'." in str(info.value))
     field_arg.function_space = "w3"
     assert field_arg.function_space == "w3"
     field_arg.function_space = "W3"
@@ -215,9 +218,10 @@ def test_stencil_getter_setter():
     field_arg = FieldArgMetadata("GH_REAL", "GH_READ", "W0")
     with pytest.raises(ValueError) as info:
         field_arg.stencil = "invalid"
-    assert ("The 'stencil' metadata should be a recognised value (one of "
-            "['x1d', 'y1d', 'xory1d', 'cross', 'region', 'cross2d']) but "
-            "found 'invalid'." in str(info.value))
+    const = LFRicConstants()
+    assert (f"The 'stencil' metadata should be a recognised value (one of "
+            f"{const.VALID_STENCIL_TYPES}) but "
+            f"found 'invalid'." in str(info.value))
     field_arg.stencil = "x1d"
     assert field_arg.stencil == "x1d"
     field_arg.stencil = "X1D"

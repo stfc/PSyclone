@@ -1,4 +1,10 @@
-! Author R. Ford STFC Daresbury Lab
+! -----------------------------------------------------------------------------
+! SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+!                         Facilities Council
+! SPDX-License-Identifier: BSD-3-Clause
+! See the full LICENSE file in the project root for details.
+! -----------------------------------------------------------------------------
+
 program single_stencil_region
   ! Description: single region stencil specified in an invoke call.
   use testkern_stencil_region_mod, only: testkern_stencil_region_type

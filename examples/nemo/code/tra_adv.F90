@@ -1,9 +1,9 @@
-   !!=====================================================================================
-   !! ***  traadv kernel extracted from the NEMO software (http://www.nemo-ocean.eu ) ***
-   !! ***          governed by the CeCILL licence (http://www.cecill.info)            ***
-   !!                                                   
-   !! ***                             IS-ENES2 - CMCC/STFC                            ***
-   !!=====================================================================================
+!!=====================================================================================
+!! ***  traadv kernel extracted from the NEMO software (http://www.nemo-ocean.eu ) ***
+!! ***          governed by the CeCILL licence (http://www.cecill.info)            ***
+!!                                                   
+!! ***                             IS-ENES2 - CMCC/STFC                            ***
+!!=====================================================================================
 PROGRAM tra_adv
    USE iso_c_binding, only: C_INT64_T
    ! The below should be e.g. wp = KIND(1.0d0) but PSyclone does not support

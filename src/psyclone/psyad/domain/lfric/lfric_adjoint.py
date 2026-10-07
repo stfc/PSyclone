@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''
 Module containing LFRic-specific functionality for the generation of
@@ -51,24 +23,26 @@ from psyclone.domain.lfric.utils import (
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad import AdjointVisitor
 from psyclone.psyad.domain.common import create_adjoint_name
-from psyclone.psyir.nodes import Routine
-from psyclone.psyir.symbols import ContainerSymbol, UnsupportedFortranType
-from psyclone.psyir.symbols.symbol import ArgumentInterface, ImportInterface
+from psyclone.psyir.nodes import Routine, Node
+from psyclone.psyir.symbols import ContainerSymbol, StructureType
+from psyclone.psyir.symbols.symbol import (
+    ArgumentInterface, ImportInterface, UnresolvedInterface)
 
 
 # pylint: disable=too-many-locals
-def generate_lfric_adjoint(tl_psyir, active_variables):
+def generate_lfric_adjoint(
+    tl_psyir: Node,
+    active_variables: list[str]
+) -> Node:
     '''Takes an LFRic tangent-linear kernel represented in language-level PSyIR
     and returns its adjoint represented in language-level PSyIR.
 
     :param tl_psyir: language-level PSyIR containing the LFRic
         tangent-linear kernel.
-    :type tl_psyir: :py:class:`psyclone.psyir.Node`
-    :param list[str] active_variables: names of the active variables.
+    :param active_variables: names of the active variables.
 
     :returns: language-level PSyIR containing the adjoint of the
         supplied tangent-linear kernel.
-    :rtype: :py:class:`psyclone.psyir.Node`
 
     :raises InternalError: if the PSyIR does not contain any kernel metadata.
     :raises InternalError: if the PSyIR does not contain any Routines.
@@ -80,8 +54,9 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
     # linear kernel.
     tl_container = find_container(tl_psyir)
     for sym in tl_container.symbol_table.datatypesymbols:
-        if (isinstance(sym.datatype, UnsupportedFortranType) and
-                "extends(kernel_type)" in sym.datatype.declaration.lower()):
+        if (isinstance(sym.datatype, StructureType) and
+                sym.datatype.extends and
+                sym.datatype.extends.name.lower() == "kernel_type"):
             tl_metadata_name = sym.name
             break
     else:
@@ -113,7 +88,7 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
     # or an interface.)
 
     # Until we can query the kernel metadata to see whether it points
-    # to a kernel or an interface (issue #1807), we simply assume that we
+    # to a kernel or an interface (issue #3546), we simply assume that we
     # should allow multiple routines as they imply an interface. We
     # further assume that the implementation of the routines in the
     # interface use the same variable names which allows us to
@@ -155,7 +130,7 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
     if metadata.procedure_name:
         metadata.procedure_name = create_adjoint_name(metadata.procedure_name)
     else:
-        # Issue #2236. We are not yet able to to raise multi-precision
+        # Issue #3546. We are not yet able to to raise multi-precision
         # metadata to LFRic-specific metadata, so return without
         # making any further modifications.
         return ad_psyir
@@ -235,7 +210,7 @@ def _update_access_metadata(var_name, arg_symbols, metadata):
             # TODO #2333 - in LFRic only Builtin kernels are currently allowed
             # to write to a scalar argument (since this implies a reduction).
             # We therefore need to flag this case.
-            access = "gh_sum"
+            access = "gh_reduction"
         elif type(meta_arg) in [
                 OperatorArgMetadata, ColumnwiseOperatorArgMetadata]:
             access = "gh_readwrite"
@@ -274,8 +249,12 @@ def _check_or_add_access_symbol(container, access):
     '''
     kernel = container.children[0]
     symbol_table = kernel.symbol_table
+    arg_mod_symbol = symbol_table.find_or_create(
+        "argument_mod", symbol_type=ContainerSymbol)
     try:
         argument_mod_symbol = symbol_table.lookup(access)
+        if isinstance(argument_mod_symbol.interface, UnresolvedInterface):
+            argument_mod_symbol.interface = ImportInterface(arg_mod_symbol)
         if not isinstance(argument_mod_symbol.interface, ImportInterface):
             raise GenerationError(
                 f"The existing symbol '{access}' is not imported from a use "
@@ -287,8 +266,6 @@ def _check_or_add_access_symbol(container, access):
                 f"'{argument_mod_symbol.interface.container_symbol.name}' but "
                 f"should be imported from 'argument_mod'.")
     except KeyError:
-        arg_mod_symbol = symbol_table.find_or_create(
-            "argument_mod", symbol_type=ContainerSymbol)
         symbol_table = arg_mod_symbol.find_symbol_table(kernel)
         symbol_table.new_symbol(
             root_name=access, interface=ImportInterface(arg_mod_symbol))

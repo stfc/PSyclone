@@ -1,65 +1,36 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
-# Modified C.M. Maynard, Met Office / University of Reading
 
 '''A module to perform pytest unit tests on the parse/kernel.py
 file. Some tests for this file are in parse_test.py. This file adds
 tests for code that is not covered there.'''
 
-import os
+from pathlib import Path
 import pytest
+
 from fparser.api import parse
 from fparser import api as fpapi
 from fparser.one.block_statements import BeginSource
 from fparser.two import Fortran2003
+
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
-from psyclone.domain.lfric.lfric_builtins import \
-    BUILTIN_DEFINITIONS_FILE as fname
-from psyclone.parse.kernel import KernelType, get_kernel_metadata, \
-    get_kernel_interface, KernelProcedure, Descriptor, \
-    BuiltInKernelTypeFactory, get_kernel_filepath, get_kernel_ast
-from psyclone.parse.utils import ParseError
+from psyclone.domain.lfric.lfric_builtins import (
+    BUILTIN_DEFINITIONS_FILE as fname)
 from psyclone.errors import InternalError
+from psyclone.expression import ExpressionNode, FunctionVar, NamedArg
+from psyclone.parse.kernel import (
+    KernelType, get_kernel_metadata, get_kernel_interface, KernelProcedure,
+    Descriptor, BuiltInKernelTypeFactory, get_kernel_filepath,
+    get_kernel_parse_tree, get_kernel_ast, get_char_value, get_stencil)
+from psyclone.parse.utils import ParseError
+from psyclone.tests.utilities import get_base_path
 
-# pylint: disable=invalid-name
-
-LFRIC_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               os.path.pardir, "test_files", "lfric")
-GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                os.path.pardir, "test_files", "gocean1p0")
+LFRIC_BASE_PATH = Path(get_base_path("lfric"))
+GOCEAN_BASE_PATH = Path(get_base_path("gocean"))
 
 # Code fragment for testing standard kernel setup with
 # a type-bound procedure.
@@ -163,23 +134,18 @@ def test_getkernelfilepath_nodir():
             "read") in str(excinfo.value)
 
 
-def test_getkernelfilepath_multifile(tmpdir):
+def test_getkernelfilepath_multifile(tmp_path):
     '''Test that an appropriate exception is raised if more than one file
     matches when searching for kernels.
 
     '''
-    filename = str(tmpdir.join("test_mod.f90"))
-    ffile = open(filename, "w")
-    ffile.write("")
-    ffile.close()
-    os.mkdir(str(tmpdir.join("tmp")))
-    filename = str(tmpdir.join("tmp", "test_mod.f90"))
-    ffile = open(filename, "w")
-    ffile.write("")
-    ffile.close()
+    (tmp_path / "test_mod.f90").write_text("")
+
+    (tmp_path / "tmp").mkdir()
+    (tmp_path / "tmp" / "test_mod.f90").write_text("")
 
     with pytest.raises(ParseError) as excinfo:
-        _ = get_kernel_filepath("test_mod", [str(tmpdir)], None)
+        _ = get_kernel_filepath("test_mod", [str(tmp_path)], None)
     assert ("More than one match for kernel file 'test_mod.[fF]90' "
             "found!") in str(excinfo.value)
 
@@ -190,18 +156,18 @@ def test_getkernelfilepath_nodir_supplied():
 
     '''
     kern_module_name = "testkern_mod"
-    alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    alg_file_name = LFRIC_BASE_PATH / "1_single_invoke.f90"
     result = get_kernel_filepath(kern_module_name, [], alg_file_name)
     assert "testkern_mod.F90" in result
 
 
 def test_getkernelfilepath_nomatch():
     '''Test that the expected exception is raised if the kernel file is
-    not found in the supplied directory (or its descendents).
+    not found in the supplied directory (or its descendants).
 
     '''
     kern_module_name = "testkern_mod"
-    alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    alg_file_name = LFRIC_BASE_PATH / "1_single_invoke.f90"
     with pytest.raises(ParseError) as info:
         get_kernel_filepath(
             kern_module_name, [GOCEAN_BASE_PATH], alg_file_name)
@@ -215,46 +181,69 @@ def test_getkernelfilepath_multidir():
 
     '''
     kern_module_name = "testkern_mod"
-    alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    alg_file_name = LFRIC_BASE_PATH / "1_single_invoke.f90"
     result = get_kernel_filepath(
         kern_module_name, [GOCEAN_BASE_PATH, LFRIC_BASE_PATH], alg_file_name)
     assert "testkern_mod.F90" in result
 
 
-def test_getkernelfilepath_caseinsensitive1(tmpdir):
+def test_getkernelfilepath_identical_paths():
+    '''Test that get_kernel_filepath works when the same search path
+    is specified more than once (i.e. that if the same kernel file is
+    found more than once with different search paths, no error is raised).
+
+    '''
+    kern_module_name = "testkern_mod"
+    alg_file_name = LFRIC_BASE_PATH / "1_single_invoke.f90"
+    result = get_kernel_filepath(
+        kern_module_name, [LFRIC_BASE_PATH, LFRIC_BASE_PATH], alg_file_name)
+    assert "testkern_mod.F90" in result
+
+
+def test_getkernelfilepath_caseinsensitive1(tmp_path):
     '''Test that a case insensitive match is performed when searching for
     kernels with a supplied kernel search path.
 
     '''
-    os.mkdir(str(tmpdir.join("tmp")))
-    filename = str(tmpdir.join("tmp", "test_mod.f90"))
-    ffile = open(filename, "w")
-    ffile.write("")
-    ffile.close()
-    result = get_kernel_filepath("TEST_MOD", [str(tmpdir)], None)
+    (tmp_path / "tmp").mkdir()
+    (tmp_path / "tmp" / "test_mod.f90").write_text("")
+
+    result = get_kernel_filepath("TEST_MOD", [str(tmp_path)], None)
     assert "tmp" in result
     assert "test_mod.f90" in result
 
 
-def test_getkernelfilepath_caseinsensitive2(tmpdir):
+def test_getkernelfilepath_caseinsensitive2(tmp_path):
     '''Test that a case insensitive match is performed when searching for
     kernels without a supplied kernel search path.
 
     '''
-    os.mkdir(str(tmpdir.join("tmp")))
-    filename = str(tmpdir.join("tmp", "test_mod.f90"))
-    ffile = open(filename, "w")
-    ffile.write("")
-    ffile.close()
-    filename = str(tmpdir.join("tmp", "alg.f90"))
-    ffile = open(filename, "w")
-    ffile.write("")
-    ffile.close()
+    (tmp_path / "tmp").mkdir()
+    (tmp_path / "tmp" / "test_mod.f90").write_text("")
+    filename = tmp_path / "tmp" / "alg.f90"
+    filename.write_text("")
+
     result = get_kernel_filepath("TEST_MOD", [], filename)
     assert "tmp" in result
     assert "test_mod.f90" in result
 
 # function get_kernel_ast
+
+
+def test_getkernel_parse_tree_error_message():
+    '''Check that a parser failure is wrapped in a helpful ParseError.
+
+    '''
+    filename = LFRIC_BASE_PATH / "testkern_invalid_fortran_mod.f90"
+
+    with pytest.raises(ParseError) as info:
+        get_kernel_parse_tree(str(filename))
+
+    msg = str(info.value)
+    assert "Failed to parse kernel code" in msg
+    assert ("26:   contain <== no parse pattern found for \"contain\" in "
+            "'Type' block.'" in msg)
+    assert f"'{filename}'" in msg
 
 
 def test_getkernelast_nodir():
@@ -263,18 +252,18 @@ def test_getkernelast_nodir():
 
     '''
     kern_module_name = "testkern_mod"
-    alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    alg_file_name = LFRIC_BASE_PATH / "1_single_invoke.f90"
     result = get_kernel_ast(kern_module_name, alg_file_name, [], False)
     assert isinstance(result, BeginSource)
 
 
 def test_getkernelast_nomatch():
     '''Test that the expected exception is raised if the kernel file is
-    not found in the supplied directory (or its descendents).
+    not found in the supplied directory (or its descendants).
 
     '''
     kern_module_name = "testkern_mod"
-    alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    alg_file_name = LFRIC_BASE_PATH / "1_single_invoke.f90"
     with pytest.raises(ParseError) as info:
         get_kernel_ast(
             kern_module_name, alg_file_name, [GOCEAN_BASE_PATH], False)
@@ -288,7 +277,7 @@ def test_getkernelast_multidir():
 
     '''
     kern_module_name = "testkern_mod"
-    alg_file_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    alg_file_name = LFRIC_BASE_PATH / "1_single_invoke.f90"
     result = get_kernel_ast(
         kern_module_name, alg_file_name, [GOCEAN_BASE_PATH, LFRIC_BASE_PATH],
         False)
@@ -675,6 +664,48 @@ def test_get_integer_variable():
     tmp = KernelType(parse_tree)
     assert tmp.get_integer_variable("GH_SHAPE") == "gh_quadrature_face"
     assert tmp.get_integer_variable("Gh_Shape") == "gh_quadrature_face"
+
+
+def test_get_stencil():
+    ''' Check that parse.get_stencil() raises the correct errors when
+    passed various incorrect inputs. '''
+    enode = ExpressionNode(["1"])
+    with pytest.raises(ParseError) as excinfo:
+        _ = get_stencil(enode, ["cross"])
+    assert ("Expecting format stencil(<type>[,<extent>]) but found the "
+            "literal" in str(excinfo.value))
+    node = FunctionVar(["stencil()"])
+    with pytest.raises(ParseError) as excinfo:
+        _ = get_stencil(node, ["cross"])
+    assert ("Expecting format stencil(<type>[,<extent>]) but found stencil()"
+            in str(excinfo.value))
+    node = FunctionVar(["stencil", "cross"])
+    # Deliberately break the args member of node in order to trigger an
+    # internal error
+    node.args = [True]
+    with pytest.raises(ParseError) as excinfo:
+        _ = get_stencil(node, ["cross"])
+    assert ("expecting either FunctionVar or str from the expression analyser"
+            in str(excinfo.value))
+
+
+def test_get_char_value():
+    '''
+    Tests for the get_char_value() routine.
+    '''
+    enode = ExpressionNode(["1"])
+    with pytest.raises(ParseError) as err:
+        _ = get_char_value(enode, "nlevels")
+    assert "not a valid nlevels specifier (expected" in str(err.value)
+    # Value must be a quoted string
+    node = NamedArg(["nlevels", "=", "1"])
+    with pytest.raises(ParseError) as err:
+        _ = get_char_value(node, "nlevels")
+    assert ("nlevels must be specified as a quoted string but got nlevels=1"
+            in str(err.value))
+    node2 = NamedArg(["nlevels", "=", "'1'"])
+    value = get_char_value(node2, "nlevels")
+    assert value == "1"
 
 
 def test_get_integer_variable_err():

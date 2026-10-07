@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2025, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified: J. Henrichs, Bureau of Meteorology
 
 '''A module to perform pytest tests on the code in the preprocess.py
 file within the psyad/transformations directory
@@ -76,6 +47,7 @@ def test_preprocess_reference2arrayrange(tmpdir, fortran_reader,
     '''
     code = (
         "program test\n"
+        "use other, only: g\n"
         "real, dimension(10,10) :: a,b,c,e,f\n"
         "real, dimension(10) :: d\n"
         "integer :: i\n"
@@ -83,10 +55,11 @@ def test_preprocess_reference2arrayrange(tmpdir, fortran_reader,
         "do i = lbound(d,1), ubound(d,1)\n"
         "  d(i) = 0.0\n"
         "end do\n"
-        "e = f\n"
+        "e = f + g\n"
         "end program test\n")
     expected = (
         "program test\n"
+        "  use other, only : g\n"
         "  real, dimension(10,10) :: a\n"
         "  real, dimension(10,10) :: b\n"
         "  real, dimension(10,10) :: c\n"
@@ -101,16 +74,21 @@ def test_preprocess_reference2arrayrange(tmpdir, fortran_reader,
         "      a(idx_1,idx) = b(idx_1,idx) * c(idx_1,idx)\n"
         "    enddo\n"
         "  enddo\n"
-        "  do i = LBOUND(d, 1), UBOUND(d, 1), 1\n"
+        "  do i = LBOUND(d, dim=1), UBOUND(d, dim=1), 1\n"
         "    d(i) = 0.0\n"
         "  enddo\n"
-        "  e(:,:) = f(:,:)\n\n"
+        "  e(:,:) = g + f(:,:)\n\n"
         "end program test\n")
     psyir = fortran_reader.psyir_from_source(code)
     preprocess_trans(psyir, ["a", "c"])
     result = fortran_writer(psyir)
     assert result == expected
-    assert Compile(tmpdir).string_compiles(result)
+    # TODO #3269: Currently this tests shows that psyad converts references to
+    # array_references even when there are imported symbols with unknown type
+    # ('g' in the example above). This demonstrate this we added an import that
+    # makes the test not compilable, this will be fixed when psyad can follow
+    # dependencies.
+    # assert Compile(tmpdir).string_compiles(result)
 
 
 def test_preprocess_dotproduct(tmpdir, fortran_reader, fortran_writer):
@@ -239,8 +217,8 @@ def test_preprocess_arrayassign2loop_failure(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(TransformationError) as err:
         preprocess_trans(psyir, ["a", "c"])
-    assert (" ArrayAssignment2LoopsTrans does not accept calls which are "
-            "not guaranteed" in str(err.value))
+    assert ("ArrayAssignment2LoopsTrans does not accept calls which are not "
+            "guaranteed to" in str(err.value))
 
 
 @pytest.mark.parametrize("operation", ["+", "-"])

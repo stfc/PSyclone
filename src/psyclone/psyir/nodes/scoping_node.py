@@ -1,45 +1,18 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors: A. R. Porter and S. Siso, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module contains the ScopingNode implementation.'''
 
-from psyclone.core import VariablesAccessMap
+from typing import Union
+
+from psyclone.core import VariablesAccessMap, Signature, AccessType
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import (
-    RoutineSymbol, SymbolError, SymbolTable)
+    RoutineSymbol, Symbol, SymbolError, SymbolTable)
 
 
 class ScopingNode(Node):
@@ -128,7 +101,7 @@ class ScopingNode(Node):
         '''
         # Reorganise the symbol table construction to occur before we add
         # the children.
-        self._symbol_table = other.symbol_table.deep_copy(self)
+        self._symbol_table = other.symbol_table.deep_copy(attached_to=self)
 
         # Remove symbols corresponding to Routines that are contained in this
         # ScopingNode. These symbols will be added automatically by the Routine
@@ -155,10 +128,10 @@ class ScopingNode(Node):
             except KeyError:
                 pass
 
-        super(ScopingNode, self)._refine_copy(other)
+        super()._refine_copy(other)
 
         # Add any routine tags back
-        for tag in removed_tags.keys():
+        for tag in removed_tags:
             # pylint: disable-next=protected-access
             self._symbol_table._tags[tag] = self._symbol_table.lookup(
                     removed_tags[tag].name)
@@ -175,7 +148,7 @@ class ScopingNode(Node):
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
+            structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         '''
@@ -183,11 +156,15 @@ class ScopingNode(Node):
         # During the updating process when moving a Routine (and its
         # associated Symbol), it's possible that we won't have a SymbolTable.
         if self._symbol_table:
-            var_accesses.update(self._symbol_table.reference_accesses())
+            for symbol in self._symbol_table.get_all_accessed_symbols():
+                var_accesses.add_access(
+                    Signature(symbol.name), AccessType.CONSTANT, self)
         var_accesses.update(super().reference_accesses())
         return var_accesses
 
-    def replace_symbols_using(self, table_or_symbol):
+    def replace_symbols_using(
+            self,
+            table_or_symbol: Union[SymbolTable, Symbol]) -> None:
         '''
         Update any Symbols referenced by this Node (and its descendants) with
         those in the supplied table (or just the supplied Symbol instance) if
@@ -201,8 +178,6 @@ class ScopingNode(Node):
 
         :param table_or_symbol: the symbol table from which to get replacement
             symbols or a single, replacement Symbol.
-        :type table_or_symbol: :py:class:`psyclone.psyir.symbols.SymbolTable` |
-            :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         next_table = table_or_symbol

@@ -1,51 +1,20 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-#         I. Kavcic, Met Office
-#         J. Henrichs, Bureau of Meteorology
-#         J. G. Wallwork, University of Cambridge
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module contains the Assignment node implementation.'''
 
-from psyclone.core import VariablesAccessMap
+from psyclone.core import VariablesAccessMap, AccessType, Signature
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.intrinsic_call import (
     IntrinsicCall, REDUCTION_INTRINSICS)
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.statement import Statement
@@ -176,31 +145,19 @@ class Assignment(Statement):
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
+            structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         '''
-        # It is important that a new instance is used to handle the LHS,
-        # since a check in 'change_read_to_write' makes sure that there
-        # is only one access to the variable!
         lhs_accesses = self.lhs.reference_accesses()
-        # Now change the (one) access to the assigned variable to be WRITE.
+        # Now change the top (last) access to be WRITE.
+        if isinstance(self.lhs, Reference):
+            sig, _ = self.lhs.get_signature_and_indices()
+            lhs_accesses[sig][-1].access_type = AccessType.WRITE
         # Note that if the LHS is a CodeBlock then reference_accesses() will
         # already have given all Signatures READWRITE access. This is not
         # strictly correct (they should probably be UNKNOWN) and is the
         # subject of #2863.
-        if isinstance(self.lhs, Reference):
-            sig, _ = self.lhs.get_signature_and_indices()
-            var_info = lhs_accesses[sig]
-            try:
-                var_info.change_read_to_write()
-            except InternalError as err:
-                # An internal error typically indicates that the same variable
-                # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
-                # supported in PSyclone.
-                raise NotImplementedError(
-                    f"The variable '{self.lhs.name}' appears more than once on"
-                    f" the left-hand side of an assignment.") from err
 
         # Merge the data (that shows now WRITE for the variable) with the
         # parameter to this function. It is important that first the
@@ -209,7 +166,6 @@ class Assignment(Statement):
         # location otherwise, but the order is still important)
         rhs_accesses = self.rhs.reference_accesses()
         rhs_accesses.update(lhs_accesses)
-        rhs_accesses.next_location()
         return rhs_accesses
 
     @property
@@ -223,7 +179,7 @@ class Assignment(Statement):
         # It's not sufficient simply to check for a Range node as that may be
         # part of an argument to an Operator or function that performs a
         # reduction and thus returns a scalar result, e.g. a(SUM(b(:))) = 1.0
-        # TODO #658 this check for reductions needs extending to also support
+        # TODO #1799 this check for reductions needs extending to also support
         # user-implemented functions.
         if isinstance(self.lhs, (ArrayReference, StructureReference)):
             ranges = self.lhs.walk(Range)
@@ -231,10 +187,9 @@ class Assignment(Statement):
                 opn = array_range.ancestor(IntrinsicCall)
                 while opn:
                     if opn.intrinsic in REDUCTION_INTRINSICS:
-                        # The current array range is in an argument to a
-                        # reduction intrinsic so we assume that the result
-                        # is a scalar.
-                        # TODO #658 this could still be a reduction
+                        # We don't know if this is a reduction into
+                        # a scalar or an array.
+                        # TODO #1799 this could still be a reduction
                         # into an array (e.g. SUM(a(:,:), dim=1)) but
                         # we need to be able to interrogate the type
                         # of a PSyIR expression in order to be
@@ -257,3 +212,39 @@ class Assignment(Statement):
 
         '''
         return isinstance(self.rhs, Literal)
+
+    def previous_accesses(self) -> dict[Signature, list[Node]]:
+        '''
+        :returns: the nodes containing the previous accesses of the symbols
+                  accessed within this node. It can be multiple nodes for
+                  each symbol if the control flow diverges and there are
+                  multiple possible accesses.
+        '''
+        # Find all of the read/write References in this assignment.
+        refs = []
+        for ref in self.walk(Reference):
+            if ref.is_read or ref.is_write:
+                refs.append(ref)
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import DefinitionUseChain
+        chain = DefinitionUseChain(refs)
+        return chain.find_backward_accesses()
+
+    def next_accesses(self) -> dict[Signature, list[Node]]:
+        '''
+        :returns: the nodes containing the next accesses of the symbols
+                  accessed within this node. It can be multiple nodes for
+                  each symbol if the control flow diverges and there are
+                  multiple possible accesses.
+        '''
+        # Find all of the read/write References in this assignment.
+        refs = []
+        for ref in self.walk(Reference):
+            if ref.is_read or ref.is_write:
+                refs.append(ref)
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import DefinitionUseChain
+        chain = DefinitionUseChain(refs)
+        return chain.find_forward_accesses()

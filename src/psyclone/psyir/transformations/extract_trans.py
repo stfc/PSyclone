@@ -1,45 +1,16 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: I. Kavcic, Met Office
-#          A. R. Porter and N. Nobre, STFC Daresbury Lab
-#          J. Henrichs, Bureau of Meteorology
 
 '''This module contains the base class for extracting extracting a region
 of an Invoke into a stand-alone application."
 '''
 
-from psyclone.psyGen import BuiltIn, Kern, HaloExchange, GlobalSum
+from psyclone.domain.common.psylayer import GlobalReduction
+from psyclone.psyGen import BuiltIn, Kern, HaloExchange
 from psyclone.psyir.nodes import (CodeBlock, ExtractNode, Loop, Schedule,
                                   Directive, OMPParallelDirective,
                                   ACCParallelDirective)
@@ -64,59 +35,20 @@ class ExtractTrans(PSyDataTrans):
     Loops containing a Kernel or BuiltIn call) or entire Invokes. This
     functionality does not support distributed memory.
 
-    :param node_class: The Node class of which an instance will be inserted \
+    :param node_class: The Node class of which an instance will be inserted
         into the tree (defaults to ExtractNode), but can be any derived class.
-    :type node_class: :py:class:`psyclone.psyir.nodes.ExtractNode` or \
+    :type node_class: :py:class:`psyclone.psyir.nodes.ExtractNode` or
         derived class
 
     '''
     # The types of node that this transformation cannot enclose
     excluded_node_types = (CodeBlock, ExtractNode,
-                           HaloExchange, GlobalSum)
+                           HaloExchange, GlobalReduction)
 
     def __init__(self, node_class=ExtractNode):
         # This function is required to provide the appropriate default
         # node class.
         super().__init__(node_class=node_class)
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def determine_postfix(read_write_info, postfix="_post"):
-        '''
-        This function prevents any name clashes that can occur when adding
-        the postfix to output variable names. For example, if there is an
-        output variable 'a', the driver (and the output file) will contain
-        two variables: 'a' and 'a_post'. But if there is also another variable
-        called 'a_post', a name clash would occur (two identical keys in the
-        output file, and two identical local variables in the driver). In
-        order to avoid this, the suffix 'post' is changed (to 'post0',
-        'post1', ...) until any name clashes are avoided. This works for
-        structured and non-structured types.
-
-        :param read_write_info: information about all input and output \
-            parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str postfix: the postfix to append to each output variable.
-
-        :returns: a postfix that can be added to each output variable without
-            generating a name clash.
-        :rtype: str
-
-        '''
-        suffix = ""
-        # Create the a set of all input and output variables (to avoid
-        # checking input+output variables more than once)
-        all_vars = read_write_info.set_of_all_used_vars
-        # The signatures in the input/output list need to be converted
-        # back to strings to easily append the suffix.
-        all_vars_string = [str(input_var) for _, input_var in all_vars]
-        while any(str(out_sig)+postfix+str(suffix) in all_vars_string
-                  for out_sig in read_write_info.signatures_written):
-            if suffix == "":
-                suffix = 0
-            else:
-                suffix += 1
-        return postfix+str(suffix)
 
     # -------------------------------------------------------------------------
     def validate(self, node_list, options=None):

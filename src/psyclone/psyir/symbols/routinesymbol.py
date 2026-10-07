@@ -1,43 +1,15 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified A. B. G. Chalk, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module contains the RoutineSymbol.'''
 
-from psyclone.psyir.symbols.datatypes import NoType
+from __future__ import annotations
+
+from psyclone.psyir.symbols.datatypes import UnresolvedType
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
@@ -45,9 +17,9 @@ class RoutineSymbol(TypedSymbol):
     '''Symbol identifying a callable routine.
 
     :param str name: name of the symbol.
-    :param datatype: data type of the symbol. Default to NoType().
+    :param datatype: data type of the symbol. Defaults to UnresolvedType.
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
-    :param kwargs: additional keyword arguments provided by \
+    :param kwargs: additional keyword arguments provided by
                    :py:class:`psyclone.psyir.symbols.TypedSymbol`
     :type kwargs: unwrapped dict.
 
@@ -59,7 +31,7 @@ class RoutineSymbol(TypedSymbol):
         # logic in the _process_argument for when the RoutineSymbol is
         # specialised instead of constructed.
         if datatype is None:
-            datatype = NoType()
+            datatype = UnresolvedType()
         super().__init__(name, datatype)
         # Whether this Routine is 'elemental'. A value of None indicates that
         # this is unknown.
@@ -71,9 +43,8 @@ class RoutineSymbol(TypedSymbol):
 
     def _process_arguments(self, **kwargs):
         ''' Process the arguments for the constructor and the specialise
-        methods. In this case it provides a default NoType datatype if
-        none is found or provided. It also handles the 'is_pure' and
-        'is_elemental' arguments since these are specific to RoutineSymbol.
+        methods. It also handles the 'is_pure' and 'is_elemental' arguments
+        since these are specific to RoutineSymbol.
 
         :param kwargs: keyword arguments which can be:\n
             the arguments in :py:class:`psyclone.psyir.symbols.TypedSymbol`
@@ -82,7 +53,7 @@ class RoutineSymbol(TypedSymbol):
         '''
         if "datatype" not in kwargs and \
            (not hasattr(self, '_datatype') or self.datatype is None):
-            kwargs["datatype"] = NoType()
+            kwargs["datatype"] = UnresolvedType()
         # Use the setters as they perform type checking.
         self.is_elemental = kwargs.pop("is_elemental", None)
         self.is_pure = kwargs.pop("is_pure", None)
@@ -164,11 +135,37 @@ class RoutineSymbol(TypedSymbol):
         '''
         # The constructors for all Symbol-based classes have 'name' as the
         # first positional argument.
-        return type(self)(self.name, self.datatype.copy(),
+        copy = type(self)(self.name, self.datatype.copy(),
                           visibility=self.visibility,
                           interface=self.interface.copy(),
                           is_pure=self.is_pure,
                           is_elemental=self.is_elemental)
+        copy.preceding_comment = self.preceding_comment
+        copy.inline_comment = self.inline_comment
+        return copy
+
+    def copy_properties(self,
+                        symbol_in: RoutineSymbol,
+                        exclude_interface: bool = False):
+        '''Replace all properties in this object with the properties from
+        symbol_in, apart from the name (which is immutable) and visibility.
+
+        :param symbol_in: the symbol from which the properties are copied.
+        :param exclude_interface: whether or not to copy the interface
+            property of the provided Symbol (default is to include it).
+
+        :raises TypeError: if the argument is not the expected type.
+
+        '''
+        if not isinstance(symbol_in, RoutineSymbol):
+            raise TypeError(
+                f"Argument should be of type 'RoutineSymbol' but "
+                f"found '{type(symbol_in).__name__}'.")
+
+        super().copy_properties(symbol_in, exclude_interface=exclude_interface)
+
+        self._is_elemental = symbol_in.is_elemental
+        self._is_pure = symbol_in.is_pure
 
 
 # For Sphinx AutoAPI documentation generation

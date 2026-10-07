@@ -1,40 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab;
-#          I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office;
-#          C. M. Maynard, Met Office/University of Reading;
-#          J. Henrichs, Bureau of Meteorology.
 
 '''
 Module containing pytest tests for kernel stub code generation for the
@@ -46,7 +15,8 @@ import pytest
 
 from fparser import api as fpapi
 from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
-                                   LFRicKernMetadata, LFRicScalarArgs)
+                                   LFRicKernMetadata, LFRicScalarArgs,
+                                   LFRicScalarArrayArgs)
 from psyclone.errors import InternalError
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.utils import ParseError
@@ -79,6 +49,29 @@ def test_lfricscalars_stub_err():
     const = LFRicConstants()
     assert (f"Found an unsupported data type 'gh_invalid_scalar' for the "
             f"scalar argument 'iscalar_2'. Supported types are "
+            f"{const.VALID_SCALAR_DATA_TYPES}." in str(err.value))
+
+
+def test_lfricscalararray_stub_err():
+    ''' Check that LFRicScalarArrayArgs.stub_declarations() raises the
+    expected internal error if it encounters an unrecognised data
+    type of a scalar argument when generating a kernel stub.
+
+    '''
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_scalar_array_mod.f90"),
+                      ignore_comments=False)
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
+    kernel.load_meta(metadata)
+    # Sabotage the scalar argument to make it have an invalid data type
+    arg = kernel.arguments.args[1]
+    arg.descriptor._data_type = "gh_invalid_scalar"
+    with pytest.raises(InternalError) as err:
+        LFRicScalarArrayArgs(kernel).stub_declarations()
+    const = LFRicConstants()
+    assert (f"Found an unsupported data type 'gh_invalid_scalar' for the "
+            f"ScalarArray argument 'rscalar_array_2'. Supported types are "
             f"{const.VALID_SCALAR_DATA_TYPES}." in str(err.value))
 
 
@@ -135,4 +128,47 @@ def test_stub_generate_with_scalar_sums_err():
     assert (
         "A user-supplied LFRic kernel must not write/update a scalar "
         "argument but kernel 'simple_with_reduction_type' has a scalar "
-        "argument with 'gh_sum' access." in str(err.value))
+        "argument with 'gh_reduction' access." in str(err.value))
+
+
+def test_stub_generate_with_scalar_array():
+    ''' Check that the stub generate produces the expected output when
+    the kernel has ScalarArray arguments. '''
+    result = generate(
+        os.path.join(BASE_PATH, "testkern_scalar_array_mod.f90"),
+        api=TEST_API)
+
+    expected = """\
+module testkern_scalar_array_mod
+  implicit none
+  public
+
+  contains
+  subroutine testkern_scalar_array_code(nlayers, field_1_w1, \
+dims_rscalar_array_2, rscalar_array_2, dims_lscalar_array_3, \
+lscalar_array_3, dims_iscalar_array_4, iscalar_array_4, \
+iscalar_5, ndf_w1, undf_w1, map_w1)
+    use constants_mod
+    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: ndf_w1
+    integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
+    integer(kind=i_def), intent(in) :: undf_w1
+    integer(kind=i_def), intent(in) :: iscalar_5
+    integer(kind=i_def), dimension(2), intent(in) :: dims_rscalar_array_2
+    real(kind=r_def), dimension(dims_rscalar_array_2(1),\
+dims_rscalar_array_2(2)), intent(in) :: rscalar_array_2
+    integer(kind=i_def), dimension(1), intent(in) :: dims_lscalar_array_3
+    logical(kind=l_def), dimension(dims_lscalar_array_3(1)), intent(in) :: \
+lscalar_array_3
+    integer(kind=i_def), dimension(4), intent(in) :: dims_iscalar_array_4
+    integer(kind=i_def), dimension(dims_iscalar_array_4(1),\
+dims_iscalar_array_4(2),dims_iscalar_array_4(3),\
+dims_iscalar_array_4(4)), intent(in) :: iscalar_array_4
+    real(kind=r_def), dimension(undf_w1), intent(inout) :: field_1_w1
+
+
+  end subroutine testkern_scalar_array_code
+
+end module testkern_scalar_array_mod
+"""
+    assert expected == result

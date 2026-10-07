@@ -1,38 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author:   A. R. Porter, STFC Daresbury Laboratory
-# Modified: S. Siso, STFC Daresbury Laboratory
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Module containing pytest tests for the ProfileNode. '''
@@ -41,7 +11,7 @@ import pytest
 from fparser.two import Fortran2003
 from psyclone.psyir.nodes import (ProfileNode, Literal, Assignment, CodeBlock,
                                   Reference, Return, KernelSchedule, Loop)
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE, \
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, ScalarType, \
     ContainerSymbol, DataTypeSymbol, UnsupportedFortranType, ImportInterface
 from psyclone.profiler import Profiler
 from psyclone.errors import InternalError
@@ -116,12 +86,12 @@ def test_lower_to_lang_level_single_node():
     a single ProfileNode.
 
     '''
-    Profiler.set_options([Profiler.INVOKES], api="nemo")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
-        symbol_type=DataSymbol, datatype=REAL_TYPE)
-    zero = Literal("0.0", REAL_TYPE)
-    one = Literal("1.0", REAL_TYPE)
+        symbol_type=DataSymbol, datatype=ScalarType.real_type())
+    zero = Literal("0.0", ScalarType.real_type())
+    one = Literal("1.0", ScalarType.real_type())
     assign1 = Assignment.create(Reference(arg1), zero)
     assign2 = Assignment.create(Reference(arg1), one)
 
@@ -136,14 +106,14 @@ def test_lower_to_lang_level_single_node():
     assert isinstance(kschedule[0], CodeBlock)
     # The first CodeBlock should have the "psy-data-start" annotation.
     assert kschedule[0].annotations == ["psy-data-start"]
-    ptree = kschedule[0].get_ast_nodes
+    ptree = kschedule[0].parse_tree_nodes
     assert len(ptree) == 1
     assert isinstance(ptree[0], Fortran2003.Call_Stmt)
     assert kschedule[1] is assign1
     assert kschedule[2] is assign2
     assert isinstance(kschedule[-2], CodeBlock)
     assert kschedule[-2].annotations == []
-    ptree = kschedule[-2].get_ast_nodes
+    ptree = kschedule[-2].parse_tree_nodes
     assert len(ptree) == 1
     assert isinstance(ptree[0], Fortran2003.Call_Stmt)
     assert isinstance(kschedule[-1], Return)
@@ -154,11 +124,13 @@ def test_lower_named_profile_node():
     a ProfileNode has pre-set names for the module and region.
 
     '''
-    Profiler.set_options([Profiler.INVOKES], api="nemo")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
-        symbol_type=DataSymbol, datatype=REAL_TYPE)
-    assign1 = Assignment.create(Reference(arg1), Literal("0.0", REAL_TYPE))
+        symbol_type=DataSymbol, datatype=ScalarType.real_type())
+    assign1 = Assignment.create(
+        Reference(arg1),
+        Literal("0.0", ScalarType.real_type()))
     kschedule = KernelSchedule.create(
         "work1", symbol_table, [assign1, Return()])
     Profiler.add_profile_nodes(kschedule, Loop)
@@ -169,7 +141,7 @@ def test_lower_named_profile_node():
     kschedule.lower_to_language_level()
     cblocks = kschedule.walk(CodeBlock)
     assert ("PreStart(\"my_mod\", \"first\", 0, 0)" in
-            str(cblocks[0].get_ast_nodes[0]))
+            cblocks[0].get_fortran_lines()[0])
 
 
 def test_lower_to_lang_level_multi_node():
@@ -178,7 +150,7 @@ def test_lower_to_lang_level_multi_node():
 
     '''
     # We use a GOcean example containing multiple kernel calls
-    Profiler.set_options([Profiler.KERNELS], api="gocean")
+    Profiler.set_options([Profiler.KERNELS], is_psykal=True)
     _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean",
                            idx=0)
     sched = invoke.schedule
@@ -190,14 +162,12 @@ def test_lower_to_lang_level_multi_node():
     sym1 = table.lookup("profile_psy_data_1")
     assert isinstance(sym1, DataSymbol)
     cblocks = sched.walk(CodeBlock)
-    ptree = cblocks[0].get_ast_nodes
-    code = str(ptree[0]).lower()
+    code = cblocks[0].get_fortran_lines()[0].lower()
     assert ("call profile_psy_data % prestart(\"psy_single_invoke_two_"
             "kernels\", \"invoke_0-compute_cu_code-r0\"" in code)
     assert cblocks[0].annotations == ["psy-data-start"]
     assert cblocks[1].annotations == []
-    ptree = cblocks[2].get_ast_nodes
-    code = str(ptree[0]).lower()
+    code = cblocks[2].get_fortran_lines()[0].lower()
     assert ("call profile_psy_data_1 % prestart(\"psy_single_invoke_two_"
             "kernels\", \"invoke_0-time_smooth_code-r1\"" in code)
     assert cblocks[2].annotations == ["psy-data-start"]

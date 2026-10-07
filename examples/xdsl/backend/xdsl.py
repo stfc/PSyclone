@@ -1,34 +1,7 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2025, xDSL project
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2012-2026, xDSL project
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 '''xDSL PSyIR backend. Generates xDSL PSyclone dialect from PSyIR nodes.
@@ -333,7 +306,7 @@ class xDSLWriter(LanguageWriter):
                         local_name = \
                           schedule.symbol_table.next_available_name(new_name)
                         if local_name == new_name:
-                            # new_name is availble in the current symbol table
+                            # new_name is available in the current symbol table
                             # so we're done.
                             break
                         # new_name clashed with an entry in the current symbol
@@ -392,7 +365,7 @@ class xDSLWriter(LanguageWriter):
         ops_to_return = []
 
         if node.structure == CodeBlock.Structure.STATEMENT:
-            for ast_node in node.get_ast_nodes:
+            for ast_node in node.parse_tree_nodes:
                 name = \
                   str(walk(ast_node.children[0], Fortran2003.Type_Name)[0])
                 args = []
@@ -401,7 +374,7 @@ class xDSLWriter(LanguageWriter):
                 #  args.append(arg)
                 ops_to_return.append(psy_ir.CallExpr.get(name, args=args))
         elif node.structure == CodeBlock.Structure.EXPRESSION:
-            for ast_node in node.get_ast_nodes:
+            for ast_node in node.parse_tree_nodes:
                 name = \
                   str(walk(ast_node.children[0], Fortran2003.Type_Name)[0])
                 args = []

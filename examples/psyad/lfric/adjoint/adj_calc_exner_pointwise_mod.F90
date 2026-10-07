@@ -1,3 +1,10 @@
+! -----------------------------------------------------------------------------
+! SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+!                         Facilities Council
+! SPDX-License-Identifier: BSD-3-Clause
+! See the full LICENSE file in the project root for details.
+! -----------------------------------------------------------------------------
+
 module adj_calc_exner_pointwise_mod
   use planet_config_mod, only : kappa, Rd, p_zero
   use constants_mod, only : r_def

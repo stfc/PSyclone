@@ -1,7 +1,14 @@
+! -----------------------------------------------------------------------------
+! SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+!                         Facilities Council
+! SPDX-License-Identifier: BSD-3-Clause
+! See the full LICENSE file in the project root for details.
+! -----------------------------------------------------------------------------
+
 program shallow
 
 !> @mainpage BENCHMARK WEATHER PREDICTION PROGRAM FOR COMPARING THE
-!! PREFORMANCE OF CURRENT SUPERCOMPUTERS. THE MODEL IS
+!! PERFORMANCE OF CURRENT SUPERCOMPUTERS. THE MODEL IS
 !! BASED OF THE PAPER - THE DYNAMICS OF FINITE-DIFFERENCE
 !! MODELS OF THE SHALLOW-WATER EQUATIONS, BY ROBERT SADOURNY
 !! J. ATM. SCIENCES, VOL 32, NO 4, APRIL 1975.
@@ -147,7 +154,7 @@ program shallow
   CALL copy_field(v_fld, vold_fld)
   CALL copy_field(p_fld, pold_fld)
      
-  ! Write intial values of p, u, and v into a netCDF file   
+  ! Write initial values of p, u, and v into a netCDF file
   call ascii_write(0, 'psifld.dat', psi_fld%data,            &
                    psi_fld%internal%nx, psi_fld%internal%ny, &
                    psi_fld%internal%xstart, psi_fld%internal%ystart)

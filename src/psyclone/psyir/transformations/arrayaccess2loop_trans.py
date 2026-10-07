@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 
 '''Module providing a transformation that transforms a constant index
 access to an array (i.e. one that does not contain a loop iterator) to
@@ -45,14 +17,16 @@ from psyclone.core import SymbolicMaths
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, \
     Assignment, Literal, Node, Schedule, Loop
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 # pylint: disable=too-many-locals
 # pylint: disable=too-many-branches
 
 
+@transformation_documentation_wrapper
 class ArrayAccess2LoopTrans(Transformation):
     '''Provides a transformation to transform a constant index access to
     an array (i.e. one that does not contain a loop iterator) to a
@@ -72,17 +46,17 @@ class ArrayAccess2LoopTrans(Transformation):
     >>> print(FortranWriter()(psyir))
     program example
       real, dimension(10) :: a
-      integer :: ji
+      integer :: idx
     <BLANKLINE>
-      do ji = 1, 1, 1
-        a(ji) = 0.0
+      do idx = 1, 1, 1
+        a(idx) = 0.0
       enddo
     <BLANKLINE>
     end program example
     <BLANKLINE>
 
     '''
-    def apply(self, node, options=None):
+    def apply(self, node: Node, options=None, **kwargs):
         '''Apply the ArrayAccess2Loop transformation if the supplied node
         is an access to an array index within an Array Reference that
         is on the left-hand-side of an Assignment node. The access
@@ -95,13 +69,12 @@ class ArrayAccess2LoopTrans(Transformation):
         placed immediately around the assignment.
 
         :param node: an array index.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
             This is an optional argument that defaults to None.
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node, options)
+        self.validate(node, options, **kwargs)
 
         array_index = node.position
         array_reference = node.parent
@@ -115,7 +88,7 @@ class ArrayAccess2LoopTrans(Transformation):
         # not exist then create it.
         loop_variable_symbol = symbol_table.find_or_create(
                 loop_variable_name, symbol_type=DataSymbol,
-                datatype=INTEGER_TYPE)
+                datatype=ScalarType.integer_type())
 
         # Replace current access with loop variable.
         for array in assignment.walk(ArrayReference):
@@ -129,7 +102,7 @@ class ArrayAccess2LoopTrans(Transformation):
         loc_index = loop_body.position
 
         # Create the new single-trip loop and add its children.
-        step = Literal("1", INTEGER_TYPE)
+        step = Literal("1", ScalarType.integer_type())
         loop = Loop.create(loop_variable_symbol, node_copy,
                            node_copy.copy(), step, [loop_body.detach()])
 
@@ -137,17 +110,19 @@ class ArrayAccess2LoopTrans(Transformation):
         # modified assignment.
         loc_parent.children.insert(loc_index, loop)
 
-    def validate(self, node, options=None):
+    def validate(self, node: Node, options=None, **kwargs):
         '''Perform various checks to ensure that it is valid to apply the
         ArrayAccess2LoopTrans transformation to the supplied PSyIR Node.
 
         :param node: the node that is being checked.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
             This is an optional argument that defaults to None.
         :type options: Optional[Dict[str, Any]]
 
         '''
+        # TODO #2668: Deprecate options dict
+        if not options:
+            self.validate_options(**kwargs)
         # Not a PSyIR node
         if not isinstance(node, Node):
             raise TransformationError(

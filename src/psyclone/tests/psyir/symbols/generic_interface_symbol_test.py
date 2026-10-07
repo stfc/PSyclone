@@ -1,37 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2023-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2023-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module contains pytest tests for GenericInterfaceSymbol.'''
@@ -39,8 +10,9 @@
 import pytest
 
 from psyclone.psyir.symbols import (
-    ContainerSymbol, GenericInterfaceSymbol, ImportInterface, INTEGER_TYPE,
-    RoutineSymbol, SymbolTable, Symbol, UnresolvedInterface)
+    AutomaticInterface, ContainerSymbol, GenericInterfaceSymbol,
+    ImportInterface, ScalarType, RoutineSymbol, SymbolTable, Symbol,
+    UnresolvedInterface)
 
 
 def test_gis_constructor():
@@ -80,6 +52,34 @@ def test_gis_constructor():
     assert oak.container_routines == [nut]
 
 
+def test_gis_is_pure():
+    '''
+    Test that the is_pure() property correctly picks up the value from
+    the RoutineSymbols within the definition of the interface.
+    '''
+    acorn = RoutineSymbol("acorn", is_pure=True)
+    oak = GenericInterfaceSymbol("oak", [(acorn, False)])
+    assert oak.is_pure
+    acorn.is_pure = False
+    assert not oak.is_pure
+    oak._routines = []
+    assert oak.is_pure is None
+
+
+def test_gis_is_elemental():
+    '''
+    Test that the is_elemental() property picks up the value from the
+    RoutineSymbols within the interface.
+    '''
+    acorn = RoutineSymbol("acorn", is_elemental=True)
+    oak = GenericInterfaceSymbol("oak", [(acorn, False)])
+    assert oak.is_elemental
+    acorn.is_elemental = False
+    assert not oak.is_elemental
+    oak._routines = []
+    assert oak.is_elemental is None
+
+
 def test_gis_specialise():
     '''
     Specialise a generic symbol into a GenericInterfaceSymbol.
@@ -101,14 +101,28 @@ def test_gis_specialise():
     assert symbol.routines[1].from_container is False
 
 
-def test_gis_typedsymbol_keywords():
+def test_gis_typedsymbol_keywords_rejected():
     '''
-    Test that keyword arguments to the constructor are passed through to the
-    TypedSymbol constructor.
+    Test that certain keyword arguments to the constructor are rejected
+    (because the associated properties are computed dynamically from the
+    RoutineSymbols that the GenericInterfaceSymbol contains.
+    TypedSymbol constructor).
     '''
-    walnut = GenericInterfaceSymbol("walnut", [(RoutineSymbol("nut"), True)],
-                                    datatype=INTEGER_TYPE)
-    assert walnut.datatype == INTEGER_TYPE
+    with pytest.raises(ValueError) as err:
+        _ = GenericInterfaceSymbol("walnut", [(RoutineSymbol("nut"), True)],
+                                   datatype=ScalarType.integer_type())
+    assert ("'datatype' property of GenericInterfaceSymbol cannot be supplied "
+            "to the constructor" in str(err.value))
+    with pytest.raises(ValueError) as err:
+        _ = GenericInterfaceSymbol("walnut", [(RoutineSymbol("nut"), True)],
+                                   is_pure=True)
+    assert ("'is_pure' property of GenericInterfaceSymbol cannot be supplied "
+            "to the constructor" in str(err.value))
+    with pytest.raises(ValueError) as err:
+        _ = GenericInterfaceSymbol("walnut", [(RoutineSymbol("nut"), True)],
+                                   is_elemental=True)
+    assert ("'is_elemental' property of GenericInterfaceSymbol cannot be "
+            "supplied to the constructor" in str(err.value))
 
 
 def test_gis_str():
@@ -118,7 +132,7 @@ def test_gis_str():
     ash = RoutineSymbol("ash")
     holly = RoutineSymbol("holly")
     coppice = GenericInterfaceSymbol("coppice", [(ash, True), (holly, False)])
-    assert str(coppice) == ("coppice: GenericInterfaceSymbol<NoType, "
+    assert str(coppice) == ("coppice: GenericInterfaceSymbol<UnresolvedType, "
                             "routines=['ash', 'holly']>")
 
 
@@ -140,6 +154,11 @@ def test_gis_copy():
     assert ash in rsyms
     assert holly in rsyms
 
+    # Test that the preceding comment is copied correctly.
+    coppice.preceding_comment = "Here is my preceding comment"
+    spinney = coppice.copy()
+    assert spinney.preceding_comment == "Here is my preceding comment"
+
 
 def test_gis_copy_properties():
     '''
@@ -159,7 +178,11 @@ def test_gis_copy_properties():
     csym = ContainerSymbol("woodland")
     coppice2 = GenericInterfaceSymbol("coppice2", [(ash, True)],
                                       interface=ImportInterface(csym))
-    new_sym.copy_properties(coppice2)
+    # Check that we can exclude copying interface properties.
+    new_sym.copy_properties(coppice2, exclude_interface=True)
+    assert isinstance(new_sym.interface, AutomaticInterface)
+    # Repeat but include the interface properties.
+    new_sym.copy_properties(coppice2, exclude_interface=False)
     for info in new_sym.routines:
         assert info.symbol.interface.container_symbol is csym
 
@@ -202,16 +225,14 @@ def test_gis_replace_symbols_using(table):
         assert rinfo.symbol in [ashling, newholly, birch]
 
 
-def test_gis_reference_accesses():
-    '''Tests for the reference_accesses() method.'''
+def test_gis_get_all_accessed_symbols():
+    '''Tests for the get_all_accessed_symbols() method.'''
     ash = RoutineSymbol("ash")
     holly = RoutineSymbol("holly")
     birch = RoutineSymbol("birch")
     coppice = GenericInterfaceSymbol("coppice", [(ash, True), (holly, False),
                                                  (birch, True)])
-    vam = coppice.reference_accesses()
-    all_names = [sig.var_name for sig in vam.all_signatures]
-    assert len(all_names) == 3
-    assert "ash" in all_names
-    assert "holly" in all_names
-    assert "birch" in all_names
+    dependent_symbols = coppice.get_all_accessed_symbols()
+    assert ash in dependent_symbols
+    assert holly in dependent_symbols
+    assert birch in dependent_symbols

@@ -1,39 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
-# Modified: A. R. Porter and S. Siso, STFC Daresbury Lab
-#           J. Henrichs, Bureau of Meteorology
 
 '''This module contains PSyclone Kernel-layer-specific PSyIR classes
 for the GOcean API.
@@ -50,9 +20,11 @@ from psyclone.configuration import Config
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container
-from psyclone.psyir.symbols import DataTypeSymbol, UnsupportedFortranType
+from psyclone.psyir.symbols import (
+    DataTypeSymbol, StructureType, UnsupportedFortranType)
 
 
 class GOceanContainer(Container):
@@ -198,21 +170,18 @@ class GOceanKernelMetadata():
             str(self.name), UnsupportedFortranType(self.fortran_string()))
 
     @staticmethod
-    def create_from_psyir(symbol):
+    def create_from_psyir(symbol: DataTypeSymbol) -> 'GOceanKernelMetadata':
         '''Create a new instance of GOceanKernelMetadata populated with
         metadata from a kernel in language-level PSyIR.
 
-        :param symbol: the symbol in which the metadata is stored \
+        :param symbol: the symbol in which the metadata is stored
             in language-level PSyIR.
-        :type symbol: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
 
         :returns: an instance of GOceanKernelMetadata.
-        :rtype: :py:class:`psyclone.domain.gocean.kernel.psyir.\
-            GOceanKernelMetadata`
 
-        :raises TypeError: if the symbol argument is not the expected \
+        :raises TypeError: if the symbol argument is not the expected
             type.
-        :raises InternalError: if the datatype of the provided symbol \
+        :raises InternalError: if the datatype of the provided symbol
             is not the expected type.
 
         '''
@@ -223,16 +192,21 @@ class GOceanKernelMetadata():
 
         datatype = symbol.datatype
 
-        if not isinstance(datatype, UnsupportedFortranType):
-            raise InternalError(
-                f"Expected kernel metadata to be stored in the PSyIR as "
-                f"an UnsupportedFortranType, but found "
-                f"{type(datatype).__name__}.")
+        if isinstance(datatype, StructureType):
+            # TODO #239: GOceanKernelMetadata.create_from_psyir will
+            # replace this
+            declaration = FortranWriter().gen_typedecl(
+                symbol, include_visibility=False)
+            # Preserve the casing
+            declaration = declaration.replace(
+                "go_stencil(", "GO_STENCIL(")
+            return GOceanKernelMetadata.create_from_fortran_string(
+                declaration)
 
-        # In an UnsupportedFortranType, the declaration is stored as a
-        # string, so use create_from_fortran_string()
-        return GOceanKernelMetadata.create_from_fortran_string(
-            datatype.declaration)
+        raise InternalError(
+            f"Expected kernel metadata to be stored in the PSyIR as "
+            f"an StructureType, but found "
+            f"{type(datatype).__name__}.")
 
     @staticmethod
     def create_from_fortran_string(fortran_string):
@@ -597,11 +571,11 @@ class GOceanKernelMetadata():
 
             '''
             const = GOceanConstants()
-            if value.lower() not in const.get_valid_access_types():
+            if value.lower() not in const.VALID_ACCESS_TYPES:
                 raise ValueError(
                     f"The first metadata entry for a grid property argument "
                     f"should be a valid access descriptor (one of "
-                    f"{const.get_valid_access_types()}), but found '{value}'.")
+                    f"{const.VALID_ACCESS_TYPES}), but found '{value}'.")
 
         @property
         def access(self):
@@ -729,11 +703,11 @@ class GOceanKernelMetadata():
 
             '''
             const = GOceanConstants()
-            if value.lower() not in const.get_valid_access_types():
+            if value.lower() not in const.VALID_ACCESS_TYPES:
                 raise ValueError(
                     f"The first metadata entry for a field argument should "
                     f"be a recognised access descriptor (one of "
-                    f"{const.get_valid_access_types()}), but found '{value}'.")
+                    f"{const.VALID_ACCESS_TYPES}), but found '{value}'.")
 
         @property
         def access(self):
@@ -885,11 +859,8 @@ class GOceanKernelMetadata():
         @stencil.setter
         def stencil(self, value_list):
             '''
-            :param value_list: set the new stencil value, encoded as \
-                three strings, each of three digits (0 or 1), see the \
-                `psyclone user guide <https://psyclone.readthedocs.io/en/\
-stable/gocean1p0.html#argument-metadata-meta-args>` \
-                for more details.
+            :param value_list: set the new stencil value, encoded as
+                three strings, each of three digits (0 or 1).
             :type value_list: List[str]
 
             '''
@@ -967,11 +938,11 @@ stable/gocean1p0.html#argument-metadata-meta-args>` \
 
             '''
             const = GOceanConstants()
-            if value.lower() not in const.get_valid_access_types():
+            if value.lower() not in const.VALID_ACCESS_TYPES:
                 raise ValueError(
                     f"The first metadata entry for a scalar argument should "
                     f"be a recognised access descriptor (one of "
-                    f"{const.get_valid_access_types()}), but found '{value}'.")
+                    f"{const.VALID_ACCESS_TYPES}), but found '{value}'.")
 
         @property
         def access(self):

@@ -57,7 +57,7 @@ terminal.
 
 If the terminal output is not coloured you might like to install
 termcolor (`pip install termcolor` if using a virtualenv or take a
-look at the [installation instructions](../../../README.md#Requirements))
+look at the [installation instructions](../../../README.md##Requirements))
 and re-run.
 
 From inspection of the PSyIR you will see that the kernels are called
@@ -83,7 +83,7 @@ InvokeSchedule[invoke='invoke_0', dm=False]
          Reference[name:'loop1_stop']
          Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
          Schedule[]
-             0: CodedKern scaled_matrix_vector_code(grad_p,p,div_star,hb_inv) [module_inline=False]
+             0: CodedKern scaled_matrix_vector_code(grad_p,p,div_star,hb_inv)
      ...
 ```
 
@@ -163,7 +163,7 @@ InvokeSchedule[invoke='invoke_0', dm=True]
         Reference[name:'loop1_stop']
         Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
         Schedule[]
-            0: CodedKern scaled_matrix_vector_code(grad_p,p,div_star,hb_inv) [module_inline=False]
+            0: CodedKern scaled_matrix_vector_code(grad_p,p,div_star,hb_inv)
     ...
 ```
 

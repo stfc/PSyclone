@@ -8,8 +8,8 @@ driver program. The reason for this will become clear as you work
 through the tutorial.
 
 You can find information on the various transformations supported by
-PSyclone in the [User Guide](https://psyclone.readthedocs.io/en/latest/transformations.html).
-There is a separate [section](https://psyclone.readthedocs.io/en/latest/profiling.html) on
+PSyclone in the [User Guide](https://psyclone.readthedocs.io/en/latest/user_guide/transformations.html).
+There is a separate [section](https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html) on
 PSyclone's support for profiling.
 
 ## Prerequisites ##
@@ -22,11 +22,11 @@ Make then you may need to edit the Makefile and replace the occurrences of
 ## 1. Automatic Profiling ##
 
 To begin, we will make use of PSyclone's support for the
-[automatic addition of profiling instrumentation](https://psyclone.readthedocs.io/en/latest/profiling.html). For
+[automatic addition of profiling instrumentation](https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html). For
 demonstration purposes we will be using the 'simple-timing' library
 distributed with PSyclone since that has no dependencies. (PSyclone
 currently provides wrapper libraries for profiling tools such as
-[dl_timer](https://bitbucket.org/apeg/dl_timer/src/master/), DrHook
+[dl_timer](https://github.com/stfc/dl_timer), DrHook
 (from ECMWF), [tau](https://www.cs.uoregon.edu/research/tau) and NVIDIA's
 nvtx. You may wish to investigate these if you have time at the end of
 this session.)
@@ -196,13 +196,12 @@ transformation script to perform finer-grained profiling.
 3. If you have time, you may want to try repeating this exercise using
    a different PSyData wrapper library. For CPU, the next step up from
    the 'simple_timing' library we have used so far is 'dl_timer' which
-   is available from
-   [bitbucket](https://bitbucket.org/apeg/dl_timer/src/master/). You
+   is available from [github](https://github.com/stfc/dl_timer/). You
    will need to obtain the source for this library:
    ```
-   git clone https://bitbucket.org/apeg/dl_timer.git
+   git clone https://github.com/stfc/dl_timer.git
    cd dl_timer
-   . compiler_setup/gnu.sh
+   . compiler_setup/gnu_setup.sh
    make sm_lib
    ```
    and then update the

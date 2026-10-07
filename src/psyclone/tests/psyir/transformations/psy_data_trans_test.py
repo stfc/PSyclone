@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2025, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
-# Modified: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 ''' Module containing tests for generating PSyData hooks'''
 
@@ -40,10 +11,9 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import PSyDataNode
-from psyclone.psyir.transformations import (ExtractTrans, PSyDataTrans,
-                                            ReadOnlyVerifyTrans,
-                                            TransformationError)
+from psyclone.psyir.nodes import Assignment, Loop, PSyDataNode, Routine
+from psyclone.psyir.transformations import (
+    OMPLoopTrans, PSyDataTrans, ReadOnlyVerifyTrans, TransformationError)
 from psyclone.tests.utilities import get_invoke
 
 
@@ -85,7 +55,44 @@ def test_psy_data_trans_basic():
         children[0] is node
 
 
-# -----------------------------------------------------------------------------
+def test_psy_data_trans_validate_not_inside_loop_directive(fortran_reader):
+    '''
+    Check that the transformation refuses to add caliper nodes between
+    a loop-directive and the associated loop.
+
+    '''
+    otrans = OMPLoopTrans()
+    psytrans = PSyDataTrans()
+    psyir = fortran_reader.psyir_from_source('''\
+    subroutine a_test()
+      integer :: i, va(10)
+      do i = 1, 10
+        va(i) = 5
+      end do
+    end subroutine a_test''')
+    loop = psyir.walk(Loop)[0]
+    otrans.apply(loop)
+    with pytest.raises(TransformationError) as err:
+        psytrans.validate(loop)
+    assert ("A PSyData node cannot be inserted between an OpenMP/ACC "
+            "directive and the loop(s)" in str(err.value))
+
+
+def test_psy_data_trans_validate_no_elemental(fortran_reader):
+    '''Check that the transformation refuses to act on an elemental routine.'''
+    data_trans = PSyDataTrans()
+    psyir = fortran_reader.psyir_from_source('''\
+    elemental real function a_test(var)
+      real, intent(in) :: var
+      a_test = var*var
+    end function a_test''')
+    assign = psyir.walk(Assignment)[0]
+    with pytest.raises(TransformationError) as err:
+        data_trans.validate(assign)
+    assert ("Cannot add PSyData calls inside ELEMENTAL routine 'a_test' "
+            "because it would change its semantics" in str(err.value))
+
+
 def test_class_definitions(fortran_writer):
     '''Tests if the class-prefix can be set and behaves as expected.
     '''
@@ -100,7 +107,7 @@ def test_class_definitions(fortran_writer):
 
     # By default, no prefix should be used:
     assert "use psy_data_mod, only : PSyDataType" in code
-    assert "type(PSyDataType), save, target :: psy_data" in code
+    assert "type(psydatatype), save, target :: psy_data" in code
     assert "CALL psy_data" in code
 
     # This puts the new PSyDataNode with prefix "extract" around the
@@ -108,13 +115,13 @@ def test_class_definitions(fortran_writer):
     data_trans.apply(schedule, {"prefix": "extract"})
     code = fortran_writer(schedule.root)
     assert "use extract_psy_data_mod, only : extract_PSyDataType" in code
-    assert ("type(extract_PSyDataType), save, target :: "
+    assert ("type(extract_psydatatype), save, target :: "
             "extract_psy_data" in code)
     assert "CALL extract_psy_data" in code
     # The old call must still be there (e.g. not somehow be changed
     # by setting the prefix)
     assert "use psy_data_mod, only : PSyDataType" in code
-    assert "type(PSyDataType), save, target :: psy_data" in code
+    assert "type(psydatatype), save, target :: psy_data" in code
     assert "CALL psy_data" in code
 
     # Now add a third class: "profile", and make sure all previous
@@ -125,10 +132,10 @@ def test_class_definitions(fortran_writer):
     assert "use extract_psy_data_mod, only : extract_PSyDataType" in code
     assert "use profile_psy_data_mod, only : profile_PSyDataType" in code
 
-    assert "type(PSyDataType), save, target :: psy_data" in code
-    assert ("type(extract_PSyDataType), save, target :: "
+    assert "type(psydatatype), save, target :: psy_data" in code
+    assert ("type(extract_psydatatype), save, target :: "
             "extract_psy_data" in code)
-    assert ("type(profile_PSyDataType), save, target :: "
+    assert ("type(profile_psydatatype), save, target :: "
             "profile_psy_data" in code)
 
     assert "CALL psy_data" in code
@@ -175,12 +182,10 @@ def test_psy_data_get_unique_region_names():
 
 
 # -----------------------------------------------------------------------------
-@pytest.mark.parametrize("transformation",
-                         [ExtractTrans(), ReadOnlyVerifyTrans()])
 def test_trans_with_shape_function(monkeypatch, fortran_reader,
-                                   fortran_writer, transformation):
+                                   fortran_writer):
     '''Tests that extraction of a region that uses an array-shape Fortran
-    intrinsic like lbound, ubound, or size do include these references.
+    intrinsic like lbound, ubound, or size include these references.
 
     '''
     source = '''program test
@@ -200,7 +205,26 @@ def test_trans_with_shape_function(monkeypatch, fortran_reader,
     config = Config.get()
     monkeypatch.setattr(config, "distributed_memory", False)
 
-    transformation.apply(loop)
+    ReadOnlyVerifyTrans().apply(loop)
     out = fortran_writer(psyir)
     assert 'PreDeclareVariable("dummy", dummy)' in out
     assert 'ProvideVariable("dummy", dummy)' in out
+
+
+def test_psy_data_trans_remove_pure(fortran_reader):
+    '''
+    Test that applying the transformation to a pure routine causes that
+    attribute to be removed.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+    pure subroutine so_clean(var)
+      integer, intent(inout) :: var
+      var = var*var
+    end subroutine so_clean
+    ''')
+    routine = psyir.walk(Routine)[0]
+    assert routine.symbol.is_pure
+    psytrans = PSyDataTrans()
+    psytrans.apply(routine.children)
+    assert not routine.symbol.is_pure

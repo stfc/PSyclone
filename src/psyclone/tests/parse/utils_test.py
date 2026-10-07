@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''A module to perform pytest unit tests on the parse/utils.py
 file.
@@ -40,6 +12,9 @@ file.
 import tempfile
 
 import pytest
+
+from fparser.two import Fortran2003
+from fparser.two.utils import walk
 
 from psyclone.parse.utils import check_line_length, parse_fp2, ParseError
 from psyclone.errors import InternalError
@@ -119,3 +94,22 @@ def test_parsefp2_invalid_fortran(tmpdir):
     with pytest.raises(ParseError) as excinfo:
         _ = parse_fp2(my_file)
     assert "Syntax error in file" in str(excinfo.value)
+
+
+def test_parsefp2_ignore_comments(tmpdir):
+    '''Test that ignore_comments=False option works for parse_fp2.'''
+    code = """subroutine test
+    integer :: i
+
+    ! Here is a comment
+    i = 1
+    end subroutine"""
+    my_file = str(tmpdir.join("comment.f90"))
+    with open(my_file, "w", encoding="utf-8") as ffile:
+        ffile.write(code)
+        ffile.close()
+
+    out = parse_fp2(my_file, ignore_comments=False)
+    comments = walk(out, Fortran2003.Comment)
+    assert len(comments) == 2
+    assert str(comments[1]) == "! Here is a comment"

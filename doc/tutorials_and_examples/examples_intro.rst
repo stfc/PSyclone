@@ -1,3 +1,10 @@
+.. -----------------------------------------------------------------------------
+.. SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+..                         Facilities Council
+.. SPDX-License-Identifier: BSD-3-Clause
+.. See the full LICENSE file in the project root for details.
+.. -----------------------------------------------------------------------------
+
 Introduction to the examples
 ============================
 
@@ -54,7 +61,7 @@ steps. In order to compile the sources, use the target ``compile``:
     make compile
 
 which will first perform the transformation steps before compiling
-any created Fortan source files. If the example also supports running
+any created Fortran source files. If the example also supports running
 a compiled and linked binary, use the target:
 
 .. code-block:: bash
@@ -98,13 +105,14 @@ so it can be recorded in this table.
 
 .. tabularcolumns:: |l|L|
 
-======================= =======================================================
-Compiler                Version
-======================= =======================================================
-Gnu Fortran             9.3
-Intel Fortran           17, 21
-NVIDIA Fortran          23.5
-======================= =======================================================
+=======================   =======================================================
+Compiler                  Version
+=======================   =======================================================
+Gnu Fortran               13.3, 14.3, 15.2, 16.1
+Intel Fortran (ifort)     21
+Intel LLVM Fortran (ifx)  2025.3.1, 2026.1.0
+NVIDIA Fortran            23.5
+=======================   =======================================================
 
 .. _examples_dependencies:
 

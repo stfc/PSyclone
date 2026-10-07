@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2025, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
-# Modified: A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the translation of PSyIR to PSyclone
 Algorithm PSyIR.
@@ -108,26 +79,6 @@ def test_init():
     assert isinstance(invoke_trans, RaisePSyIR2LFRicAlgTrans)
 
 
-def test_structure_contructor(fortran_reader):
-    '''Test that validation does not raise an exception if the fparser2
-    node is a structure constructor.
-
-    '''
-    code = (
-        "subroutine alg()\n"
-        "  use kern_mod\n"
-        "  call invoke(kern(1.0))\n"
-        "end subroutine alg\n")
-
-    psyir = fortran_reader.psyir_from_source(code)
-    subroutine = psyir.children[0]
-    lfric_invoke_trans = RaisePSyIR2LFRicAlgTrans()
-
-    lfric_invoke_trans.validate(subroutine.children[0])
-    lfric_invoke_trans._validate_fp2_node(
-        subroutine[0].arguments[0]._fp2_nodes[0])
-
-
 @pytest.mark.parametrize("string", ["error='hello'", "name=0"])
 def test_named_arg_error(string, fortran_reader):
     '''Test that the validation method raises an exception if a named
@@ -198,14 +149,15 @@ def test_codeblock_invalid(monkeypatch, fortran_reader):
     subroutine = psyir.children[0]
     code_block = subroutine[0].arguments[0]
     assert isinstance(code_block, CodeBlock)
-    monkeypatch.setattr(code_block, "_fp2_nodes", [None])
 
     lfric_invoke_trans = RaisePSyIR2LFRicAlgTrans()
 
     with pytest.raises(TransformationError) as info:
         lfric_invoke_trans.validate(subroutine[0])
-    assert ("Expecting an algorithm invoke codeblock to contain a "
-            "Structure-Constructor, but found 'NoneType'." in str(info.value))
+    assert ("Error in RaisePSyIR2LFRicAlgTrans transformation. The arguments "
+            "to this invoke call are expected to be kernel calls which are "
+            "represented in generic PSyIR as Calls, but ''xx' // 'xx'' is of "
+            "type 'Fparser2CodeBlock'." in str(info.value))
 
 
 def test_arg_declaration_error(fortran_reader):
@@ -227,8 +179,8 @@ def test_arg_declaration_error(fortran_reader):
     invoke_trans = RaisePSyIR2LFRicAlgTrans()
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(psyir.children[0][0])
-    assert ("The invoke call argument 'setval_c' has been used as a routine "
-            "name. This is not allowed." in str(info.value))
+    assert ("The invoke call argument 'setval_c' has been used as the "
+            "Algorithm routine name. This is not allowed." in str(info.value))
 
 
 def test_apply_codedkern_arrayref(fortran_reader):
@@ -375,3 +327,28 @@ def test_apply_mixed(fortran_reader):
     check_args(args, [(Reference, "field1"), (Literal, "1.0")])
     args = subroutine[0].arguments[3].children
     check_args(args, [(Reference, "field1"), (Reference, "value")])
+
+
+def test_apply_keeps_comments(fortran_reader):
+    '''Test the the comments are kept when applying the transformation.'''
+    code = (
+        "subroutine alg()\n"
+        "  use kern_mod\n"
+        "  use field_mod, only : field\n"
+        "  type(field) :: field1\n"
+        "  integer :: value\n"
+        "  call invoke(kern(field1), setval_c(field1, 1.0), name='test', "
+        "setval_c(field1, 1.0), setval_c(field1, value))\n"
+        "end subroutine alg\n")
+
+    psyir = fortran_reader.psyir_from_source(code)
+    subroutine = psyir.children[0]
+    lfric_invoke_trans = RaisePSyIR2LFRicAlgTrans()
+    subroutine[0].preceding_comment = "My comment"
+    subroutine[0].inline_comment = "Inline comment"
+
+    lfric_invoke_trans.apply(subroutine[0], 5)
+
+    assert isinstance(subroutine[0], LFRicAlgorithmInvokeCall)
+    assert subroutine[0].preceding_comment == "My comment"
+    assert subroutine[0].inline_comment == "Inline comment"

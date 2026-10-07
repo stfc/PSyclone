@@ -1,41 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2025, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified by: R. W. Ford, STFC Daresbury Lab
-#              L. Turner, Met Office
-#              T. Vockerodt, Met Office
-#              J. Dendy, Met Office
 
 ''' pytest tests for the LFRic-specific algorithm-generation functionality. '''
 
@@ -44,14 +12,13 @@ import pytest
 
 from fparser import api as fpapi
 from psyclone.configuration import Config
-from psyclone.domain.lfric import (
-    KernCallInvokeArgList, LFRicKern, LFRicSymbolTable)
+from psyclone.domain.lfric import KernCallInvokeArgList, LFRicKern
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Container, Routine, ScopingNode
+from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, UnresolvedType, DataTypeSymbol,
-    ImportInterface, ArrayType, ScalarType, INTEGER_TYPE)
+    ImportInterface, ArrayType, ScalarType)
 
 # Constants
 BASE_PATH = os.path.join(
@@ -60,22 +27,12 @@ BASE_PATH = os.path.join(
     "test_files", "lfric")
 
 
-@pytest.fixture(scope="function", autouse=True)
-def setup():
-    '''Make sure that all tests here use lfric as API.'''
-    Config.get().api = "lfric"
-
-
 @pytest.fixture(name="prog", scope="function")
-def create_prog_fixture():
+def create_prog_fixture() -> Routine:
     '''
     :returns: a PSyIR Routine node representing a program.
-    :rtype: :py:class:`psyclone.psyir.nodes.Routine`
     '''
     Config.get().api = "lfric"
-    # The tests below sometime fail (depending of the number of parallel
-    # jobs) if the LFRicSymbolTable has not been not set up.
-    ScopingNode._symbol_table_class = LFRicSymbolTable
     prog = Routine.create("test_prog", is_program=True)
     mesh_mod = prog.symbol_table.new_symbol("mesh_mod",
                                             symbol_type=ContainerSymbol)
@@ -169,9 +126,9 @@ def test_create_function_spaces(prog, fortran_writer):
         sym = prog.symbol_table.lookup(space)
         assert sym.interface.container_symbol is fs_mod_sym
     # Checking function space ordering is consistent.
-    assert ("TYPE(function_space_type), POINTER :: "
+    assert ("type(function_space_type), pointer :: "
             "vector_space_w1_ptr\n  "
-            "TYPE(function_space_type), POINTER :: "
+            "type(function_space_type), pointer :: "
             "vector_space_w3_ptr" in gen)
     assert ("vector_space_w1_ptr => function_space_collection%"
             "get_fs(mesh,element_order_h,element_order_v,w1)\n  "
@@ -190,9 +147,9 @@ def test_initialise_field(prog, fortran_writer):
     # Add symbols for the necessary function spaces but for simplicity
     # make them of integer type.
     table.new_symbol("vector_space_w3_ptr", symbol_type=DataSymbol,
-                     datatype=INTEGER_TYPE)
+                     datatype=ScalarType.integer_type())
     table.new_symbol("vector_space_w2_ptr", symbol_type=DataSymbol,
-                     datatype=INTEGER_TYPE)
+                     datatype=ScalarType.integer_type())
     # First - a single field argument.
     sym = table.new_symbol("field1", symbol_type=DataSymbol, datatype=ftype)
     LFRicAlg().initialise_field(prog, sym, "w3")
@@ -219,10 +176,14 @@ def test_initialise_quadrature(prog, fortran_writer):
     ''' Tests for the initialise_quadrature function with the supported
     XYoZ shape. '''
     table = prog.symbol_table
-    table.new_symbol("element_order_h", tag="element_order_h",
-                     symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-    table.new_symbol("element_order_v", tag="element_order_v",
-                     symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    table.new_symbol("element_order_h",
+                     tag="element_order_h",
+                     symbol_type=DataSymbol,
+                     datatype=ScalarType.integer_type())
+    table.new_symbol("element_order_v",
+                     tag="element_order_v",
+                     symbol_type=DataSymbol,
+                     datatype=ScalarType.integer_type())
     # Setup symbols that would normally be created in KernCallInvokeArgList.
     quad_container = table.new_symbol(
         "quadrature_xyoz_mod", symbol_type=ContainerSymbol)
@@ -239,8 +200,8 @@ def test_initialise_quadrature(prog, fortran_writer):
     assert qrule.datatype is qtype
     # Check that the constructor is called in the generated code.
     gen = fortran_writer(prog)
-    assert ("qr = quadrature_xyoz_type(element_order_h + 3,element_order_h + "
-            "3,element_order_v + 3,quadrature_rule)"
+    assert ("qr = quadrature_xyoz_type(element_order_h + 3, element_order_h + "
+            "3, element_order_v + 3, quadrature_rule)"
             in gen)
 
 
@@ -248,10 +209,14 @@ def test_initialise_quadrature_unsupported_shape(prog):
     ''' Test that the initialise_quadrature function raises the expected error
     for an unsupported quadrature shape. '''
     table = prog.symbol_table
-    table.new_symbol("element_order_h", tag="element_order_h",
-                     symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-    table.new_symbol("element_order_v", tag="element_order_v",
-                     symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    table.new_symbol("element_order_h",
+                     tag="element_order_h",
+                     symbol_type=DataSymbol,
+                     datatype=ScalarType.integer_type())
+    table.new_symbol("element_order_v",
+                     tag="element_order_v",
+                     symbol_type=DataSymbol,
+                     datatype=ScalarType.integer_type())
     # Setup symbols that would normally be created in KernCallInvokeArgList.
     quad_container = table.new_symbol(
         "quadrature_xyz_mod", symbol_type=ContainerSymbol)
@@ -288,9 +253,9 @@ module testkern_mod
   implicit none
 
   type, extends(kernel_type) :: testkern_type
-     type(arg_type), dimension(2) :: meta_args =        &
-          (/ arg_type(gh_scalar, gh_real, gh_read),     &
-             arg_type(gh_field,  gh_real, gh_inc,  w1)  &
+     type(arg_type), dimension(2) :: meta_args =       &
+          (/ arg_type(gh_scalar, gh_real, gh_read),    &
+             arg_type(gh_field,  gh_real, gh_inc,  w1) &
            /)
      integer :: operates_on = cell_column
    contains
@@ -337,9 +302,10 @@ def test_construct_kernel_args(prog, lfrickern, fortran_writer):
                 f"get_fs(mesh,element_order_h,element_order_v,{space})" in gen)
     for idx in range(2, 7):
         assert f"call field_{idx}" in gen
-    assert ("qr_xyoz = quadrature_xyoz_type(element_order_h + 3,"
-            "element_order_h + 3,element_order_v + 3,quadrature_rule)" in gen)
-    # TODO #240 - test for compilation.
+    assert ("qr_xyoz = quadrature_xyoz_type(element_order_h + 3, "
+            "element_order_h + 3, element_order_v + 3, quadrature_rule)"
+            in gen)
+    # TODO #284 - test for compilation.
 
 
 def test_create_from_kernel_invalid_kernel(tmpdir):
@@ -373,20 +339,28 @@ def test_create_from_kernel_invalid_field_type(monkeypatch):
 
 def test_create_from_kernel_with_scalar(fortran_writer):
     ''' Check that create_from_kernel() returns the expected Fortran for a
-    valid LFRic kernel that has a scalar argument. '''
+    valid LFRic kernel that has scalar and scalar-array arguments. '''
     psyir = LFRicAlg().create_from_kernel(
-        "test", os.path.join(BASE_PATH, "testkern_mod.F90"))
+        "test", os.path.join(BASE_PATH, "testkern_scalar_array_mod.f90"))
     code = fortran_writer(psyir)
     assert "module test_mod" in code
-    assert "use constants_mod, only : i_def, r_def" in code
-    assert "real(kind=r_def) :: rscalar_1" in code
-    assert ("    rscalar_1 = 1_i_def\n"
-            "    call invoke(setval_c(field_2, 1.0_r_def), "
-            "setval_c(field_3, 1.0_r_def), "
-            "setval_c(field_4, 1.0_r_def), "
-            "setval_c(field_5, 1.0_r_def), "
-            "testkern_type(rscalar_1, field_2, field_3, field_4, field_5))\n"
-            in code)
+    assert "use constants_mod, only : i_def, l_def, r_def" in code
+    assert "integer(kind=i_def) :: iscalar_5" in code
+    # The extent of each dimension of a scalar array is unknown so we
+    # arbirtrarily use a value of 3 to get something that compiles.
+    assert "real(kind=r_def), dimension(3,3) :: rscalar_array_2" in code
+
+    assert """
+    ! Since kernel metadata only specifies the *rank* of this 'scalar array' \
+argument, each dimension has been given the arbitrary extent of 3 in order to \
+create compilable code.
+    lscalar_array_3 = .true._l_def""" in code
+
+    assert ("    iscalar_array_4 = 1_i_def\n"
+            "    iscalar_5 = 1_i_def\n"
+            "    call invoke(setval_c(field_1, 1.0_r_def), "
+            "testkern_scalar_array_type(field_1, rscalar_array_2, "
+            "lscalar_array_3, iscalar_array_4, iscalar_5))\n" in code)
 
 
 def test_create_from_kernel_with_vector(fortran_writer):

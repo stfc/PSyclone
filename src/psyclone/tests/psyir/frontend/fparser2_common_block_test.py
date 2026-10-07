@@ -1,37 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2023-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: S. Siso, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2023-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Tests Fortran common blocks in the fparser2 PSyIR front-end '''
@@ -41,8 +12,7 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two.Fortran2003 import Specification_Part
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Routine
-from psyclone.psyir.symbols import CommonBlockInterface, \
-    UnsupportedFortranType
+from psyclone.psyir.symbols import CommonBlockInterface, ScalarType
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -57,35 +27,30 @@ def test_named_common_block():
 
     # Test with a single common block
     reader = FortranStringReader('''
-        integer :: a, b, c
+        integer(kind=i_def) :: a, b, c
         common /name1/ a, b, c''')
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(routine, fparser2spec.content, [])
 
-    # There is a name1 commonblock symbol
-    commonblock = symtab.lookup("_PSYCLONE_INTERNAL_COMMONBLOCK")
-    assert isinstance(commonblock.datatype, UnsupportedFortranType)
-    assert commonblock.datatype.declaration == "COMMON /name1/ a, b, c"
-
     # The variables have been updated to a common block interface
-    assert isinstance(symtab.lookup("a").interface, CommonBlockInterface)
-    assert isinstance(symtab.lookup("b").interface, CommonBlockInterface)
-    assert isinstance(symtab.lookup("c").interface, CommonBlockInterface)
+    assert symtab.lookup("a").interface == CommonBlockInterface('name1', 0)
+    assert symtab.lookup("b").interface == CommonBlockInterface('name1', 1)
+    assert symtab.lookup("c").interface == CommonBlockInterface('name1', 2)
 
     # The same common block can also bring other variables in a separate
     # statement
     reader = FortranStringReader('''
         real :: d, e
-        common /name1/ d, e''')
+        real(kind=wp) :: f
+        common /name1/ d, e, f''')
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(routine, fparser2spec.content, [])
 
-    # This is stored in a separate symbol, but the declaration has the right
-    # text
-    commonblock_2 = symtab.lookup("_PSYCLONE_INTERNAL_COMMONBLOCK_1")
-    assert commonblock_2.datatype.declaration == "COMMON /name1/ d, e"
-    assert isinstance(symtab.lookup("d").interface, CommonBlockInterface)
-    assert isinstance(symtab.lookup("e").interface, CommonBlockInterface)
+    assert symtab.lookup("d").interface == CommonBlockInterface('name1', 3)
+    assert symtab.lookup("e").interface == CommonBlockInterface('name1', 4)
+    fsym = symtab.lookup("f")
+    assert fsym.interface == CommonBlockInterface('name1', 5)
+    assert fsym.datatype.intrinsic is ScalarType.Intrinsic.REAL
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -104,21 +69,16 @@ def test_unnamed_commonblock():
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(routine, fparser2spec.content, [])
 
-    # There is an UnsupportedFortranType symbol containing the commonblock
-    commonblock = symtab.lookup("_PSYCLONE_INTERNAL_COMMONBLOCK")
-    assert isinstance(commonblock.datatype, UnsupportedFortranType)
-    assert commonblock.datatype.declaration == "COMMON // a, b, c"
-
-    # The variables have been updated to a common block interface
-    assert isinstance(symtab.lookup("a").interface, CommonBlockInterface)
-    assert isinstance(symtab.lookup("b").interface, CommonBlockInterface)
-    assert isinstance(symtab.lookup("c").interface, CommonBlockInterface)
+    # The variables have been updated to the unnamed common block interface
+    assert symtab.lookup("a").interface == CommonBlockInterface("", 0)
+    assert symtab.lookup("b").interface == CommonBlockInterface("", 1)
+    assert symtab.lookup("c").interface == CommonBlockInterface("", 2)
 
 
 @pytest.mark.usefixtures("f2008_parser")
-def test_multiple_commonblocks_in_statement():
+def test_multiple_commonblocks_and_comments():
     ''' Test that common block statements with multiple common blocks
-    are handled correctly.'''
+    and comments are handled correctly.'''
 
     # Create a dummy test routine
     routine = Routine.create("test_routine")
@@ -126,26 +86,26 @@ def test_multiple_commonblocks_in_statement():
     processor = Fparser2Reader()
 
     # And provide a common block containing two named blocks
-    reader = FortranStringReader('''
+    code = ('''
         integer :: a, b, c, d
-        common /name1/ a, b /name2/ c
-        common /name2/ d''')
-    fparser2spec = Specification_Part(reader)
+        ! This is the first common block
+        common /name1/ a, b /name2/ c  ! Inline comment
+        ! This is the second common block
+        common /name2/ d  ! Inline comment
+        ! Comment after
+        ''')
+    fparser2spec = processor.generate_parse_tree_from_source(
+        code, partial_code="specs")
     processor.process_declarations(routine, fparser2spec.content, [])
 
-    # There is a UnsupportedFortranType symbol containing each the commonblock
-    commonblock = symtab.lookup("_PSYCLONE_INTERNAL_COMMONBLOCK")
-    assert isinstance(commonblock.datatype, UnsupportedFortranType)
-    assert commonblock.datatype.declaration == "COMMON /name1/ a, b /name2/ c"
-    commonblock = symtab.lookup("_PSYCLONE_INTERNAL_COMMONBLOCK_1")
-    assert isinstance(commonblock.datatype, UnsupportedFortranType)
-    assert commonblock.datatype.declaration == "COMMON /name2/ d"
-
     # The variables have been updated to a common block interface
-    assert isinstance(symtab.lookup("a").interface, CommonBlockInterface)
-    assert isinstance(symtab.lookup("b").interface, CommonBlockInterface)
-    assert isinstance(symtab.lookup("c").interface, CommonBlockInterface)
-    assert isinstance(symtab.lookup("d").interface, CommonBlockInterface)
+    assert symtab.lookup("a").interface == CommonBlockInterface('name1', 0)
+    assert symtab.lookup("b").interface == CommonBlockInterface('name1', 1)
+    assert symtab.lookup("c").interface == CommonBlockInterface('name2', 0)
+    assert symtab.lookup("d").interface == CommonBlockInterface('name2', 1)
+
+    # The comments are currently discarded
+    assert symtab.lookup("a").preceding_comment == ""
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -164,11 +124,6 @@ def test_named_commonblock_with_posterior_declaration():
         integer :: a, b''')
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(routine, fparser2spec.content, [])
-
-    # There is an UnsupportedFortranType symbol containing the commonblock
-    commonblock = symtab.lookup("_PSYCLONE_INTERNAL_COMMONBLOCK")
-    assert isinstance(commonblock.datatype, UnsupportedFortranType)
-    assert commonblock.datatype.declaration == "COMMON /name1/ a, b"
 
     # The variables have been updated to a common block interface
     assert isinstance(symtab.lookup("a").interface, CommonBlockInterface)

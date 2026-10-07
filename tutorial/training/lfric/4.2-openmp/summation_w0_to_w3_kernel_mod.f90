@@ -1,0 +1,74 @@
+! -----------------------------------------------------------------------------
+! SPDX-FileCopyrightText: Copyright (c) 2024-2026 Science and Technology
+!                         Facilities Council
+! SPDX-License-Identifier: BSD-3-Clause
+! See the full LICENSE file in the project root for details.
+! -----------------------------------------------------------------------------
+
+module summation_w0_to_w3_kernel_mod
+
+  use argument_mod
+  use kernel_mod
+  use fs_continuity_mod, only: w0, W3
+
+  use constants_mod
+
+  implicit none
+
+  private
+
+  type, public, extends(kernel_type) :: summation_w0_to_w3_kernel_type
+     private
+     type(arg_type), dimension(2) :: meta_args =            &
+          (/ arg_type(gh_field, gh_real, gh_readwrite, w3), &
+             arg_type(gh_field, gh_real, gh_read,      w0)  &
+           /)
+     integer :: operates_on = cell_column
+   contains
+     procedure, nopass :: code => summation_w0_to_w3_kernel_code
+  end type summation_w0_to_w3_kernel_type
+
+  public :: summation_w0_to_w3_kernel_code
+
+contains
+
+    ! This kernel adds all 8 values from the field on W0 to the corresponding
+    ! element in W3. It assumes lowest order finite elements.
+
+    !! @param[in] nlayers Integer the number of layers.
+    !! @param[in,out] field_w3 The field on W3 to store the sum.
+    !! @param[in,out] field_w0 The field on W0 which is added up.
+    !! @param[in] ndf_w3 Integer value indicating the number of degrees of freedom on W3
+    !! @param[in] undf_w3 Integer value indicating the number of unique degrees of freedom in W3
+    !! @param[in] map_w3 Integer array holding the dofmap for the cell at the base of the column for W3
+    !! @param[in] ndf_w0 Integer the number of degrees of freedom in W0
+    !! @param[in] undf_w0 Integer value indicating the number of unique degrees of freedom in W0
+    !! @param[in] map_w0 Integer array holding the dofmap for the cell at the base of the column for W0
+
+    SUBROUTINE summation_w0_to_w3_kernel_code(nlayers, field_w3, field_w0, ndf_w3, &
+                                              undf_w3, map_w3, ndf_w0, undf_w0, map_w0)
+      USE constants_mod
+      IMPLICIT NONE
+      INTEGER(KIND=i_def), intent(in)                     :: nlayers
+      REAL(KIND=r_def), intent(inout), dimension(undf_w3) :: field_w3
+      REAL(KIND=r_def), intent(in), dimension(undf_w0)    :: field_w0
+      INTEGER(KIND=i_def), intent(in)                     :: ndf_w0
+      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0)  :: map_w0
+      INTEGER(KIND=i_def), intent(in)                     :: ndf_w3
+      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3)  :: map_w3
+      INTEGER(KIND=i_def), intent(in)                     :: undf_w3, undf_w0
+
+      integer(kind=i_def)                                 :: i, k
+
+      do k=0, nlayers-1
+        do i=1, ndf_w0
+          ! Fill in the summation: field_w3 = field_w3 + field_w0
+          ! Make sure to use the right indices and mappings
+          ! Also be aware that field_w3 has just one degree of freedom
+
+        end do
+      end do
+
+    END SUBROUTINE summation_w0_to_w3_kernel_code
+
+end module summation_w0_to_w3_kernel_mod

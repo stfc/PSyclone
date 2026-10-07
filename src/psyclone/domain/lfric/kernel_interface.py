@@ -1,54 +1,25 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
-# Modified: I. Kavcic and L. Turner, Met Office
-#           A. R. Porter and N. Nobre, STFC Daresbury Lab
-# Modified: J. Henrichs, Bureau of Meteorology
 
 '''This module creates the expected arguments for an LFRic coded
 kernel based on the kernel metadata.
 
 '''
+from typing import TYPE_CHECKING
 from psyclone.core import AccessType
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
-from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
 from psyclone.psyir.nodes import Reference
-from psyclone.psyir.symbols import ArgumentInterface
+from psyclone.psyir.symbols import ArgumentInterface, SymbolTable
+if TYPE_CHECKING:
+    from psyclone.domain.lfric.lfric_kern import LFRicKern
 
 
 # pylint: disable=too-many-public-methods, no-member
@@ -72,7 +43,6 @@ class KernelInterface(ArgOrdering):
     code when all of its methods are implemented.
 
     :param kern: the kernel for which to create arguments.
-    :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
 
     '''
     #: Mapping from a generic PSyIR datatype to the equivalent
@@ -101,14 +71,14 @@ class KernelInterface(ArgOrdering):
         "gh_quadrature_edge": "DiffBasisFunctionQrEdgeDataSymbol"}
     _read_access = ArgumentInterface(ArgumentInterface.Access.READ)
 
-    def __init__(self, kern):
+    def __init__(self, kern: "LFRicKern"):
         super().__init__(kern)
         # We need a brand new symbol table, not a reference to the one for
         # the Schedule containing this kernel call (which is what the
         # ArgOrdering constructor defaults to). This is so that we can
         # specify the correct interface for those symbols passed
         # as arguments.
-        self._forced_symtab = LFRicSymbolTable()
+        self._forced_symtab = SymbolTable()
 
     def generate(self, var_accesses=None):
         '''Call the generate base class then add the argument list as it can't

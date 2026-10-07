@@ -1,7 +1,5 @@
 # PSyclone GOcean PSyData Kernel-Extraction Example
 
-**Author** J. Henrichs, Bureau of Meteorology
-
 ## Introduction
 
 This is a very simple test that shows how to use the kernel-data extraction
@@ -18,7 +16,7 @@ for the correct way of checking out all required software) . You can set
 the environment variable ``INF_DIR`` to point to a different directory.
 
 The stand-alone extraction library in
-``../../../../lib/extract/standalone/dl_esm_inf`` is used as default, and
+``../../../../lib/extract/binary/dl_esm_inf`` is used as default, and
 will also be automatically compiled. You can also use the NetCDF based
 extraction library by setting the environment variable `TYPE` to `netcdf`
 when calling `make`, e.g.:
@@ -31,7 +29,7 @@ installation-specific paths). The NetCDF-based extraction library in
 will also be automatically compiled.
 
 The binary  instrumented for extraction will either be called
-``extract_test.standalone`` or ``extract_test.netcdf``.
+``extract_test.binary`` or ``extract_test.netcdf``.
 More details on compiling these libraries are in the corresponding
 subdirectories. To create and compile the example, type ``make compile``.
 
@@ -47,8 +45,8 @@ psyclone -nodm -l -api "gocean"             \
 This will also create two driver files, which can read the corresponding
 output files, call the kernel, and verify that the same output values are
 computed. These drivers will be compiled by the Makefile as well and will
-be named ``driver-main-init.standalone/netcdf`` and
-``driver-main-update.standalone/netcdf``.
+be named ``driver-main-init.binary/netcdf`` and
+``driver-main-update.binary/netcdf``.
 
 
 ## Running
@@ -68,7 +66,7 @@ When running the driver program, all the output variables will be listed
 together with either 'correct', or 'incorrect' (and the actual and
 expected) values:
 ```
-./driver-main-init.standalone
+./driver-main-init.binary
  a_fld correct
  b_fld correct
  c_fld correct
@@ -100,42 +98,3 @@ extraction library, these files will be called ``main-update.nc`` and
     variables:
             double a_fld(a_flddim%2, a_flddim%1) ;
     ...
-
-
-## Licence
-
------------------------------------------------------------------------------
-
-BSD 3-Clause License
-
-Copyright (c) 2020-2025, Science and Technology Facilities Council.
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-* Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-
-* Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-
-* Neither the name of the copyright holder nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-------------------------------------------------------------------------------

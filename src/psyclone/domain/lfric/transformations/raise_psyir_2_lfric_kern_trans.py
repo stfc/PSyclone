@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Raise generic PSyIR representing a kernel-layer routine to
 LFRic kernel-layer-specific PSyIR which uses specialised classes.
@@ -44,6 +16,7 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, ScopingNode, FileContainer
 from psyclone.psyir.transformations import TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
 # TODO issue #1877. Find an appropriate place for the find_symbol()
@@ -75,6 +48,7 @@ def find_symbol(node, name):
     return (None, None)
 
 
+@transformation_documentation_wrapper
 class RaisePSyIR2LFRicKernTrans(Transformation):
     '''Raise a generic PSyIR representation of a kernel-layer routine and
     metadata to an LFRic version with specialised domain-specific
@@ -111,11 +85,10 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
     def __init__(self):
         super().__init__()
 
-    def validate(self, node, options=None):
+    def validate(self, node: Container, options=None, **kwargs) -> None:
         '''Validate the supplied PSyIR tree.
 
         :param node: a PSyIR node that is the root of a PSyIR tree.
-        :type node: :py:class:`psyclone.psyir.node.Container`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str: str]]
 
@@ -131,7 +104,10 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
             reside in a Container (as opposed to a FileContainer).
 
         '''
-        super().validate(node, options=options)
+        super().validate(node, options=options, **kwargs)
+
+        if not options:
+            self.validate_options(**kwargs)
 
         if not isinstance(node, Container):
             raise TransformationError(
@@ -186,7 +162,7 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
         # Check that the metadata can be generated without any errors.
         _ = LFRicKernelMetadata.create_from_psyir(metadata_symbol)
 
-    def apply(self, node, options=None):
+    def apply(self, node: Container, options=None, **kwargs) -> None:
         '''Raise the supplied language-level kernel to LFRic-specific kernel
         PSyIR. Specialises the kernel container to an LFRic-specific
         subclass, populates this subclass with the kernel metadata
@@ -195,13 +171,12 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
         removes the symbol from the symbol table.
 
         :param node: a kernel represented in generic PSyIR.
-        :type node: :py:class:`psyclone.psyir.node.Container`
-        :param options: a dictionary with options for transformations. \
+        :param options: a dictionary with options for transformations.
             This is expected to contain the metadata_name.
         :type options: Optional[Dict[str: str]]
 
         '''
-        self.validate(node, options=options)
+        self.validate(node, options=options, **kwargs)
 
         # The name of the PSyIR symbol containing the metadata.
         metadata_name = options["metadata_name"]

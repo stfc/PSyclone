@@ -1,37 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors A. B. G. Chalk, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the OpenMP PSyIR Task Directive nodes. '''
@@ -43,10 +14,10 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Assignment, BinaryOperation, \
         DynamicOMPTaskDirective, Literal, Loop, Reference
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.tests.utilities import Compile
-from psyclone.transformations import OMPSingleTrans, \
-    OMPParallelTrans
+from psyclone.transformations import OMPSingleTrans
+from psyclone.psyir.transformations import OMPParallelTrans
 
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
@@ -215,7 +186,7 @@ def test_omp_task_directive_full_step_input_access(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -261,7 +232,7 @@ def test_omp_task_directive_sub_step_input_access(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -312,7 +283,7 @@ def test_omp_task_directive_sub_step_access_chunked_loop(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -362,7 +333,7 @@ def test_omp_task_directive_sub_step_access_double_chunked_loop(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
-    loop = loops[1].children[3].children[0]
+    loop = loops[1].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -420,7 +391,7 @@ def test_omp_task_directive_multi_step_access_chunked_loops(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
-    loop = loops[1].children[3].children[0]
+    loop = loops[1].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -468,7 +439,7 @@ def test_omp_task_directive_output_sub_step_access_chunked_loop(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -517,7 +488,7 @@ def test_omp_task_directive_output_sub_step_access_double_chunked_loop(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
-    loop = loops[1].children[3].children[0]
+    loop = loops[1].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -568,7 +539,7 @@ def test_omp_task_directive_output_multi_step_access_double_chunked_loop(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
-    loop = loops[1].children[3].children[0]
+    loop = loops[1].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -619,7 +590,7 @@ def test_omp_task_directive_input_shift_loop_reference_expressions(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -671,7 +642,7 @@ def test_omp_task_directive_input_shift_loop_structure_reference_expressions(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -717,7 +688,7 @@ def test_omp_task_directive_input_sub_step_access_parameter_ignored(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -766,7 +737,7 @@ def test_omp_task_directive_if_statement(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
-    loop = loops[1].children[3].children[0]
+    loop = loops[1].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -815,7 +786,7 @@ def test_omp_task_directive_mul_index_fail(fortran_reader):
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
-    loop = loops[1].children[3].children[0]
+    loop = loops[1].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -857,7 +828,7 @@ def test_omp_task_directive_refref_index_fail(fortran_reader):
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
-    loop = loops[1].children[3].children[0]
+    loop = loops[1].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -900,7 +871,7 @@ def test_omp_task_directive_lit_sum_ref_array_index(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -946,7 +917,7 @@ def test_omp_task_directive_write_index_shared(fortran_reader):
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[3]
+    loop = loops[0].loop_body.children[3]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -987,7 +958,7 @@ def test_omp_task_directive_read_index_shared(fortran_reader):
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[3]
+    loop = loops[0].loop_body.children[3]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -1031,7 +1002,7 @@ def test_omp_task_directive_read_index_shared_type(fortran_reader):
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[3]
+    loop = loops[0].loop_body.children[3]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -1074,7 +1045,7 @@ def test_omp_task_directive_write_index_shared_type(fortran_reader):
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[3]
+    loop = loops[0].loop_body.children[3]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -1118,7 +1089,7 @@ def test_omp_task_directive_first_access_read_firstprivate(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[1]
+    loop = loops[0].loop_body.children[1]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -1171,7 +1142,7 @@ def test_omp_task_directive_shared_nonarray(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[1]
+    loop = loops[0].loop_body.children[1]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -1222,7 +1193,7 @@ def test_omp_task_directive_else_statement(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
-    loop = loops[1].children[3].children[0]
+    loop = loops[1].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -1249,7 +1220,7 @@ def test_omp_task_directive_output_nonarray_shared_var(
         fortran_reader, fortran_writer, tmpdir
         ):
     ''' Test the code generation generates the correct clauses
-    when an output variable is just a shared vairable '''
+    when an output variable is just a shared variable '''
     code = '''
     subroutine my_subroutine(k)
         integer :: i, ii
@@ -1272,7 +1243,7 @@ def test_omp_task_directive_output_nonarray_shared_var(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
-    loop = loops[1].children[3].children[0]
+    loop = loops[1].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -1319,7 +1290,7 @@ def test_omp_task_directive_stepval_not_yet_firstprivate(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
-    loop = loops[1].children[3].children[0]
+    loop = loops[1].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -1370,7 +1341,7 @@ def test_omp_task_directive_steval_not_yet_firsprivate_structureref(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
-    loop = loops[1].children[3].children[0]
+    loop = loops[1].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -1416,7 +1387,7 @@ def test_omp_task_directive_literal_index_to_read_array(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -1461,7 +1432,7 @@ def test_omp_task_directive_literal_index_to_write_array(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -1501,7 +1472,7 @@ def test_omp_task_directive_non_loop(fortran_reader):
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -1541,10 +1512,10 @@ def test_omp_task_directive_multichild(fortran_reader):
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    assign = loops[0].children[3].children[0]
+    assign = loops[0].loop_body.children[0]
     assign.detach()
     tdir.children[0].addchild(assign)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -1581,7 +1552,7 @@ def test_omp_task_directive_loop_start_array(fortran_reader):
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -1619,7 +1590,7 @@ def test_omp_task_directive_loop_stop_array(fortran_reader):
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -1657,7 +1628,7 @@ def test_omp_task_directive_loop_step_array(fortran_reader):
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -1700,7 +1671,7 @@ def test_omp_task_directive_literal_add_reference_proxy_var(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -1751,7 +1722,7 @@ def test_omp_task_directive_private_variable_in_array_index(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -1801,7 +1772,7 @@ def test_omp_task_directive_parent_loop_array_index(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -1845,7 +1816,7 @@ def test_omp_task_directive_firstprivate_constant(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -1894,7 +1865,7 @@ def test_omp_task_directive_error_shared_index_nonarray(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -1933,7 +1904,7 @@ def test_omp_task_directive_shared_loop_var(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -1974,7 +1945,7 @@ def test_omp_task_directive_temporary_variable_shift_input(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -2038,7 +2009,7 @@ ty%y%jp(index+1))
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
-    loop = loops[1].children[3].children[0]
+    loop = loops[1].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -2103,7 +2074,7 @@ def test_omp_task_directive_subtype_loop_index(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
-    loop = loops[1].children[3].children[0]
+    loop = loops[1].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -2161,7 +2132,7 @@ def test_omp_task_directive_subtype_literal_index(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -2223,7 +2194,7 @@ ty%y(3)%jp(ii+1))
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -2317,7 +2288,7 @@ def test_omp_task_directive_multi_array_structure_rhs(fortran_reader):
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -2369,7 +2340,7 @@ def test_omp_task_directive_array_member_ref_and_literal_index(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -2468,7 +2439,7 @@ def test_omp_task_directive_sub_shift_indirection_input(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -2525,7 +2496,7 @@ def test_omp_task_directive_sub_shift_indirection_if(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -2533,10 +2504,10 @@ def test_omp_task_directive_sub_shift_indirection_if(
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''\
-  !$omp parallel default(shared) private(i,j) firstprivate(iplusone)
+  !$omp parallel default(shared) private(i,iplusone,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j) firstprivate(i,iplusone) shared(boundary,a,b) \
+    !$omp task private(j,iplusone) firstprivate(i) shared(boundary,a,b) \
 depend(in: boundary(:,i),b(:,i),k) depend(out: a(:,i + 32),a(:,i),a(:,i - 32))
     do j = 1, 32, 1
       if (boundary(j,i) > 1) then
@@ -2587,7 +2558,7 @@ def test_omp_task_directive_sub_shift_indirection_if_readonly(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -2595,10 +2566,10 @@ def test_omp_task_directive_sub_shift_indirection_if_readonly(
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''\
-  !$omp parallel default(shared) private(i,j) firstprivate(iplusone)
+  !$omp parallel default(shared) private(i,iplusone,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j) firstprivate(i,iplusone) shared(boundary,a,b) \
+    !$omp task private(j,iplusone) firstprivate(i) shared(boundary,a,b) \
 depend(in: boundary(:,i),k,b(:,i + 32),b(:,i),b(:,i - 32)) depend(out: a(:,i))
     do j = 1, 32, 1
       if (boundary(j,i) > 1) then
@@ -2648,7 +2619,7 @@ def test_omp_task_directive_array_member_if_indirection_readonly(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -2656,10 +2627,10 @@ def test_omp_task_directive_array_member_if_indirection_readonly(
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''\
-  !$omp parallel default(shared) private(i,j) firstprivate(iplusone)
+  !$omp parallel default(shared) private(i,iplusone,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j) firstprivate(i,iplusone) shared(boundary,b,aa) \
+    !$omp task private(j,iplusone) firstprivate(i) shared(boundary,b,aa) \
 depend(in: boundary(:,i),aa%A(1:10,i + 32),aa%A(1:10,i - 32),aa%A(1:10,i))\
  depend(out: b(:,i))
     do j = 1, 10, 1
@@ -2709,7 +2680,7 @@ def test_omp_task_directive_array_member_if_indirection_write(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -2717,10 +2688,10 @@ def test_omp_task_directive_array_member_if_indirection_write(
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''\
-  !$omp parallel default(shared) private(i,j) firstprivate(iplusone)
+  !$omp parallel default(shared) private(i,iplusone,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j) firstprivate(i,iplusone) shared(boundary,aa,b) \
+    !$omp task private(j,iplusone) firstprivate(i) shared(boundary,aa,b) \
 depend(in: boundary(:,i),b(:,i)) \
 depend(out: aa%A(1:10,i + 32),aa%A(1:10,i - 32),aa%A(1:10,i))
     do j = 1, 10, 1
@@ -2803,13 +2774,12 @@ sshn_v(i,jiv))
     ptrans.apply(loops[0].parent.parent)
 
     correct = '''\
-  !$omp parallel default(shared) private(i,j,j_el_inner,j_out_var) \
-firstprivate(jiv)
+  !$omp parallel default(shared) private(i,j,j_el_inner,j_out_var,jiv)
   !$omp single
   do j_out_var = ystart, ystop, 32
     j_el_inner = MIN(j_out_var + (32 - 1), ystop)
-    !$omp task private(j,i) firstprivate(j_out_var,j_el_inner,xstart,\
-xstop,jiv) shared(boundary,va,hv,sshn_v) depend(in: boundary(:,j_out_var),\
+    !$omp task private(j,i,jiv) firstprivate(j_out_var,j_el_inner,xstart,\
+xstop) shared(boundary,va,hv,sshn_v) depend(in: boundary(:,j_out_var),\
 boundary(:,j_out_var + 32),g,hv(:,j_out_var),va(:,j_out_var + 32),\
 va(:,j_out_var),sshn_v(:,j_out_var),sshn_v(:,j_out_var + 32),\
 va(:,j_out_var - 32),sshn_v(:,j_out_var - 32)) depend(out: va(:,j_out_var))
@@ -2820,12 +2790,10 @@ va(:,j_out_var - 32),sshn_v(:,j_out_var - 32)) depend(out: va(:,j_out_var))
             jiv = j + 1
             va(i,j) = va(i,jiv) + SQRT(g / hv(i,j)) * (sshn_v(i,j) - \
 sshn_v(i,jiv))
-          else
-            if (boundary(i,j + 1) < 0) then
-              jiv = j - 1
-              va(i,j) = va(i,jiv) + SQRT(g / hv(i,j)) * (sshn_v(i,j) - \
+          elseif (boundary(i,j + 1) < 0) then
+            jiv = j - 1
+            va(i,j) = va(i,jiv) + SQRT(g / hv(i,j)) * (sshn_v(i,j) - \
 sshn_v(i,jiv))
-            end if
           end if
         end if
       enddo
@@ -2881,7 +2849,7 @@ def test_omp_task_directive_multi_step_if_indirection(
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -2889,10 +2857,10 @@ def test_omp_task_directive_multi_step_if_indirection(
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''\
-!$omp parallel default(shared) private(i,j) firstprivate(iplusone)
+!$omp parallel default(shared) private(i,iplusone,j)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j) firstprivate(i,iplusone) shared(boundary,a,b) \
+    !$omp task private(j,iplusone) firstprivate(i) shared(boundary,a,b) \
 depend(in: boundary(:,i),b(:,i),k) depend(out: a(:,i + 32),a(:,i))
     do j = 1, 32, 1
       if (boundary(j,i) > 1) then
@@ -3027,7 +2995,7 @@ def test_omp_task_external_constant(fortran_reader, fortran_writer):
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -3087,7 +3055,7 @@ def test_omp_task_directive_xfail_indirection_test(fortran_reader,
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -3138,7 +3106,7 @@ def test_omp_task_directive_48(fortran_reader, fortran_writer, tmpdir):
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -3184,7 +3152,7 @@ def test_omp_task_directive_inquiry_intrinsic(fortran_reader, fortran_writer):
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -3221,7 +3189,7 @@ def test_omp_task_directive_disallowed_intrinsic(fortran_reader):
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
     loops = tree.walk(Loop, stop_type=Loop)
-    loop = loops[0].children[3].children[0]
+    loop = loops[0].loop_body.children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
@@ -3272,8 +3240,8 @@ def test_omp_task_directive_intrinsic_loop_bound(fortran_reader,
     ptrans.apply(parent.children)
     correct = '''\
 !$omp task private(i,j) shared(a,b) depend(in: b(:,:)) depend(out: a(:,:))
-  do i = LBOUND(a, 2), UBOUND(a, 2), 1
-    do j = LBOUND(a, 1), UBOUND(a, 1), 1
+  do i = LBOUND(a, dim=2), UBOUND(a, dim=2), 1
+    do j = LBOUND(a, dim=1), UBOUND(a, dim=1), 1
       a(i,j) = b(i,j) + 1
     enddo
   enddo
@@ -3320,7 +3288,7 @@ def test_omp_task_directive_intrinsic_loop_step(fortran_reader):
         tdir.lower_to_language_level()
     assert ("IntrinsicCall not supported in the step variable of a Loop"
             " in an OMPTaskDirective node. The step expression is "
-            "'LBOUND(a, 2)'." in str(excinfo.value))
+            "'LBOUND(a, dim=2)'." in str(excinfo.value))
 
 
 def test_evaluate_write_reference_failcase():
@@ -3328,7 +3296,7 @@ def test_evaluate_write_reference_failcase():
     InternalError if provided a non-reference value for the ref argument.
     '''
     tdir = DynamicOMPTaskDirective()
-    one = Literal("1", INTEGER_TYPE)
+    one = Literal("1", ScalarType.integer_type())
     clause_lists = DynamicOMPTaskDirective._clause_lists(
             [], [], [], [], []
     )
@@ -3343,9 +3311,9 @@ def test_create_binops_from_step_and_divisors():
     ''' Tests the _create_binops_from_step_and_divisors function.
     '''
     tdir = DynamicOMPTaskDirective()
-    tmp = DataSymbol("tmp", INTEGER_TYPE)
+    tmp = DataSymbol("tmp", ScalarType.integer_type())
     ref = Reference(tmp)
-    one = Literal("1", INTEGER_TYPE)
+    one = Literal("1", ScalarType.integer_type())
     binop1 = BinaryOperation.create(BinaryOperation.Operator.ADD, ref.copy(),
                                     one.copy())
 
@@ -3359,7 +3327,7 @@ def test_create_binops_from_step_and_divisors():
     assert isinstance(res2, Reference)
 
     # Test case where literal is > step but literal % step != 0
-    val = Literal("33", INTEGER_TYPE)
+    val = Literal("33", ScalarType.integer_type())
     binop2 = BinaryOperation.create(BinaryOperation.Operator.ADD, ref.copy(),
                                     val.copy())
     res, res2 = tdir._create_binops_from_step_and_divisors(
@@ -3380,7 +3348,7 @@ def test_create_binops_from_step_and_divisors():
 
     # Test case where x + lit is an exact multiple of the step and the
     # multiple is > 1
-    val = Literal("64", INTEGER_TYPE)
+    val = Literal("64", ScalarType.integer_type())
     binop2 = BinaryOperation.create(BinaryOperation.Operator.ADD, ref.copy(),
                                     val.copy())
     res, res2 = tdir._create_binops_from_step_and_divisors(
@@ -3479,8 +3447,8 @@ def test_lowering_containing_kern_error():
     schedule = psy.invokes.invoke_list[0].schedule
     loops = schedule.walk(Loop)
     tdir = DynamicOMPTaskDirective()
-    children = loops[0].children[3].pop_all_children()
-    loops[0].children[3].addchild(tdir)
+    children = loops[0].loop_body.pop_all_children()
+    loops[0].loop_body.addchild(tdir)
     tdir.children[0].children = children
     with pytest.raises(GenerationError) as excinfo:
         tdir.lower_to_language_level()

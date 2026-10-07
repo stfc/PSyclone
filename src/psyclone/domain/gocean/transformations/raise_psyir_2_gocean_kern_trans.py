@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Raise generic PSyIR representing a kernel-layer routine to
 PSyclone kernel-layer-specific PSyIR which uses specialised classes.
@@ -44,6 +16,7 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, Routine, ScopingNode, FileContainer
 from psyclone.psyir.transformations import TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
 def find_symbol(node, name):
@@ -71,6 +44,7 @@ def find_symbol(node, name):
     return (symbol, scoping_node)
 
 
+@transformation_documentation_wrapper
 class RaisePSyIR2GOceanKernTrans(Transformation):
     '''Raise a generic PSyIR representation of a kernel-layer routine
     to a PSyclone version with specialised domain-specific nodes and
@@ -124,11 +98,10 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
         # The name of the PSyIR symbol containing the metadata
         self._metadata_name = metadata_name
 
-    def validate(self, node, options=None):
+    def validate(self, node: Container, options=None, **kwargs):
         '''Validate the supplied PSyIR tree.
 
         :param node: a PSyIR node that is the root of a PSyIR tree.
-        :type node: :py:class:`psyclone.psyir.node.Container`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str: str]]
 
@@ -142,6 +115,10 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
             routine which implements the kernel.
 
         '''
+        # TODO #2668: Deprecate options dict.
+        if not options:
+            self.validate_options(**kwargs)
+
         if not isinstance(node, Container):
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied node "
@@ -190,7 +167,7 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
                 f"that it names as implementing the kernel ('{proc_name}').")
         # TODO #288: Validate kernel arguments against metadata.
 
-    def apply(self, node, options=None):
+    def apply(self, node: Container, options=None, **kwargs):
         '''Raise the supplied language-level GOcean kernel PSyIR to
         GOcean-specific kernel PSyIR. Specialises the kernel container
         to a GOcean-specific subclass, populates this subclass with
@@ -199,12 +176,11 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
         symbol table.
 
         :param node: a kernel represented in generic PSyIR.
-        :type node: :py:class:`psyclone.psyir.node.Container`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str: str]]
 
         '''
-        self.validate(node, options=options)
+        self.validate(node, options=options, **kwargs)
 
         # Find the metadata symbol based on the supplied name.
         metadata_symbol, scoping_node = find_symbol(node, self._metadata_name)

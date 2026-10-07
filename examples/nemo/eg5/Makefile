@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2023-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified J. Henrichs, Bureau of Meteorology
+# SPDX-FileCopyrightText: Copyright (c) 2023-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
+# -----------------------------------------------------------------------------
 
 # Makefile for the 5th NEMO example. Uses PSyclone (which must
 # be installed) to generate Fortran for the tracer-advection benchmark.
@@ -47,15 +18,19 @@
 
 include ../../common.mk
 
-# There are two different extraction libraries that can be used:
-# 1) standalone, which uses Fortan binary data files to store the data
-# 2) netcdf, which uses NetCDF for writing the data files.
-# The library can be selected by setting TYPE to either 'standalone'
-# (which is the default) or 'netcdf'. Note that both libraries implement
-# the same API, so no change to any script is required for switching
-# between the two libraries, but recompilation is required (since the
-# .mod files will be different).
-TYPE ?= standalone
+# There are three different extraction libraries that can be used:
+# 1) binary, which uses Fortran binary data files to store the data
+#    (which might not be transferable between different machines or
+#     or different compilers)
+# 2) ascii, which uses Fortran ASCII data files to store the data
+#    (which might depending on compiler not have bitwise identical results)
+# 3) netcdf, which uses NetCDF for writing the data files.
+# The library can be selected by setting TYPE to either 'binary'
+# (which is the default), 'ascii', or 'netcdf'. Note that both
+# libraries implement the same API, so no change to any script is required
+# for switching between the two libraries, but recompilation is required
+# (since the .mod files will be different).
+TYPE ?= binary
 
 GENERATED_FILES += psy.f90 psy.o traadv-$(TYPE).exe output.dat
 
@@ -65,12 +40,16 @@ ifeq ($(TYPE), netcdf)
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/generic
 	READ_DIR ?= $(PSYROOT)/lib/extract/netcdf
 	F90FLAGS += $$(nf-config --fflags)
-	LDFLAGS += $$(nf-config --flibs) $$(nc-config --libs)
-	GENERATED_FILES += tra_adv-r?.nc
+	LDFLAGS += $$(nf-config --flibs)
+	GENERATED_FILES += tra_adv-tra_adv-r*.nc
+else ifeq ($(TYPE), ascii)
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/ascii/generic
+	READ_DIR ?= $(PSYROOT)/lib/extract/ascii
+	GENERATED_FILES += tra_adv-tra_adv-r*.ascii
 else
-	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/generic
-	READ_DIR ?= $(PSYROOT)/lib/extract/standalone
-	GENERATED_FILES += tra_adv-r?.binary
+	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/binary/generic
+	READ_DIR ?= $(PSYROOT)/lib/extract/binary
+	GENERATED_FILES += tra_adv-tra_adv-r*.binary
 endif
 
 F90FLAGS += -I$(EXTRACT_DIR) -I$(READ_DIR)
@@ -92,7 +71,7 @@ transform: kernels
 # Need `-l all` to ensure line-lengths in generated code are less than the
 # standard-mandated 132 chars.
 kernels: extract_kernels.py
-	$(PSYCLONE) -l all -s ./extract_kernels.py -o psy.f90 ../code/tra_adv.F90
+	$(PSYCLONE) --keep-comments --keep-directives -l all -s ./extract_kernels.py -o psy.f90 ../code/tra_adv.F90
 
 $(EXTRACT_DIR)/$(LIB_NAME):
 	${MAKE} -C $(EXTRACT_DIR)

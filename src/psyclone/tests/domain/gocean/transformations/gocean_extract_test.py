@@ -1,44 +1,15 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2025, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author I. Kavcic, Met Office
-# Modified by A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for PSyclone GOceanExtractTrans
 transformations.
 '''
+
+import re
 
 from pathlib import Path
 
@@ -48,7 +19,7 @@ from psyclone.configuration import Config
 from psyclone.domain.gocean.transformations import GOceanExtractTrans
 from psyclone.psyir.nodes import ExtractNode, Loop, OMPDirective
 from psyclone.psyir.transformations import (PSyDataTrans, TransformationError,
-                                            ACCLoopTrans)
+                                            ACCLoopTrans, OMPParallelTrans)
 from psyclone.transformations import (ACCParallelTrans, ACCEnterDataTrans,
                                       OMPParallelTrans)
 from psyclone.domain.gocean.transformations import (
@@ -86,8 +57,11 @@ def ordered_lines_in_text(lines, text):
     '''
     indx = 0
     for line in lines:
-        # index will raise a ValueException if the string is not found
-        new_index = text.index(line, indx)
+        try:
+            # index will raise a ValueException if the string is not found
+            new_index = text.index(line, indx)
+        except ValueError:
+            assert False, line + "\n -- not in --\n" + text
         indx = new_index + len(line)
 
 # --------------------------------------------------------------------------- #
@@ -223,54 +197,60 @@ def test_single_node_ompparalleldo_gocean1p0():
     etrans.apply(schedule.children[1])
 
     code = str(psy.gen)
-    output = """
+    expected = """
     CALL extract_psy_data % PreStart("psy_single_invoke_three_kernels", """ \
-    """"invoke_0-compute_cv_code-r0", 9, 3)
-    CALL extract_psy_data % PreDeclareVariable("cv_fld%internal%xstart", """ \
-                                             """cv_fld % internal % xstart)
-    CALL extract_psy_data % PreDeclareVariable("cv_fld%internal%xstop", """ \
-                                             """cv_fld % internal % xstop)
-    CALL extract_psy_data % PreDeclareVariable("cv_fld%internal%ystart", """ \
-                                             """cv_fld % internal % ystart)
-    CALL extract_psy_data % PreDeclareVariable("cv_fld%internal%ystop", """ \
-                                             """cv_fld % internal % ystop)
-    CALL extract_psy_data % PreDeclareVariable("p_fld", p_fld)
-    CALL extract_psy_data % PreDeclareVariable("v_fld", v_fld)
-    CALL extract_psy_data % PreDeclareVariable("cv_fld", cv_fld)
-    CALL extract_psy_data % PreDeclareVariable("i", i)
-    CALL extract_psy_data % PreDeclareVariable("j", j)
-    CALL extract_psy_data % PreDeclareVariable("cv_fld_post", cv_fld)
-    CALL extract_psy_data % PreDeclareVariable("i_post", i)
-    CALL extract_psy_data % PreDeclareVariable("j_post", j)
+    """"invoke_0-compute_cv_code-r0", 7, 3)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld_data", cv_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld_internal_xstart", """ \
+                                             """cv_fld_internal_xstart)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld_internal_xstop", """ \
+                                             """cv_fld_internal_xstop)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld_internal_ystart", """ \
+                                             """cv_fld_internal_ystart)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld_internal_ystop", """ \
+                                             """cv_fld_internal_ystop)
+    CALL extract_psy_data % PreDeclareVariable("p_fld_data", p_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("v_fld_data", v_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld_data_post", cv_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("p_fld_data_post", p_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("v_fld_data_post", v_fld_data)
     CALL extract_psy_data % PreEndDeclaration
-    CALL extract_psy_data % ProvideVariable("cv_fld%internal%xstart", """ \
-                                          """cv_fld % internal % xstart)
-    CALL extract_psy_data % ProvideVariable("cv_fld%internal%xstop", """ \
-                                          """cv_fld % internal % xstop)
-    CALL extract_psy_data % ProvideVariable("cv_fld%internal%ystart", """ \
-                                          """cv_fld % internal % ystart)
-    CALL extract_psy_data % ProvideVariable("cv_fld%internal%ystop", """ \
-                                          """cv_fld % internal % ystop)
-    CALL extract_psy_data % ProvideVariable("p_fld", p_fld)
-    CALL extract_psy_data % ProvideVariable("v_fld", v_fld)
-    CALL extract_psy_data % ProvideVariable("cv_fld", cv_fld)
-    CALL extract_psy_data % ProvideVariable("i", i)
-    CALL extract_psy_data % ProvideVariable("j", j)
+    CALL extract_psy_data % ProvideVariable("cv_fld_data", cv_fld_data)
+    CALL extract_psy_data % ProvideVariable("cv_fld_internal_xstart", """ \
+                                          """cv_fld_internal_xstart)
+    CALL extract_psy_data % ProvideVariable("cv_fld_internal_xstop", """ \
+                                          """cv_fld_internal_xstop)
+    CALL extract_psy_data % ProvideVariable("cv_fld_internal_ystart", """ \
+                                          """cv_fld_internal_ystart)
+    CALL extract_psy_data % ProvideVariable("cv_fld_internal_ystop", """ \
+                                          """cv_fld_internal_ystop)
+    CALL extract_psy_data % ProvideVariable("p_fld_data", p_fld_data)
+    CALL extract_psy_data % ProvideVariable("v_fld_data", v_fld_data)
     CALL extract_psy_data % PreEnd
     !$omp parallel do default(shared) private(i,j) schedule(static)
-    do j = cv_fld%internal%ystart, cv_fld%internal%ystop, 1
-      do i = cv_fld%internal%xstart, cv_fld%internal%xstop, 1
-        call compute_cv_code(i, j, cv_fld%data, p_fld%data, v_fld%data)
+    do j = cv_fld_internal_ystart, cv_fld_internal_ystop, 1
+      do i = cv_fld_internal_xstart, cv_fld_internal_xstop, 1
+        call compute_cv_code(i, j, cv_fld_data, p_fld_data, v_fld_data)
       enddo
     enddo
     !$omp end parallel do
     CALL extract_psy_data % PostStart
-    CALL extract_psy_data % ProvideVariable("cv_fld_post", cv_fld)
-    CALL extract_psy_data % ProvideVariable("i_post", i)
-    CALL extract_psy_data % ProvideVariable("j_post", j)
-    CALL extract_psy_data % PostEnd
+    CALL extract_psy_data % ProvideVariable("cv_fld_data_post", cv_fld_data)
     """
-    assert output in code
+    for line in expected.splitlines():
+        assert line in code, line
+
+    # Currently the following fields are also compared, even if DSL info tells
+    # they are only read. If we take advantage of this information, these
+    # and the associated _post declarations would be gone
+    expected = '''
+    CALL extract_psy_data % ProvideVariable("p_fld_data_post", p_fld_data)
+    CALL extract_psy_data % ProvideVariable("v_fld_data_post", v_fld_data)
+    CALL extract_psy_data % PostEnd
+    '''
+    expected_lines = expected.split("\n")
+    for line in expected_lines:
+        assert line in code
 
 
 # -----------------------------------------------------------------------------
@@ -303,40 +283,46 @@ def test_single_node_ompparalleldo_gocean1p0_const_loop():
     code = str(psy.gen)
     output = """
     CALL extract_psy_data % PreStart("psy_single_invoke_three_kernels", """ \
-    """"invoke_0-compute_cv_code-r0", 7, 3)
+    """"invoke_0-compute_cv_code-r0", 5, 3)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld_data", cv_fld_data)
     CALL extract_psy_data % PreDeclareVariable("istop", istop)
     CALL extract_psy_data % PreDeclareVariable("jstop", jstop)
-    CALL extract_psy_data % PreDeclareVariable("p_fld", p_fld)
-    CALL extract_psy_data % PreDeclareVariable("v_fld", v_fld)
-    CALL extract_psy_data % PreDeclareVariable("cv_fld", cv_fld)
-    CALL extract_psy_data % PreDeclareVariable("i", i)
-    CALL extract_psy_data % PreDeclareVariable("j", j)
-    CALL extract_psy_data % PreDeclareVariable("cv_fld_post", cv_fld)
-    CALL extract_psy_data % PreDeclareVariable("i_post", i)
-    CALL extract_psy_data % PreDeclareVariable("j_post", j)
+    CALL extract_psy_data % PreDeclareVariable("p_fld_data", p_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("v_fld_data", v_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld_data_post", cv_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("p_fld_data_post", p_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("v_fld_data_post", v_fld_data)
     CALL extract_psy_data % PreEndDeclaration
+    CALL extract_psy_data % ProvideVariable("cv_fld_data", cv_fld_data)
     CALL extract_psy_data % ProvideVariable("istop", istop)
     CALL extract_psy_data % ProvideVariable("jstop", jstop)
-    CALL extract_psy_data % ProvideVariable("p_fld", p_fld)
-    CALL extract_psy_data % ProvideVariable("v_fld", v_fld)
-    CALL extract_psy_data % ProvideVariable("cv_fld", cv_fld)
-    CALL extract_psy_data % ProvideVariable("i", i)
-    CALL extract_psy_data % ProvideVariable("j", j)
+    CALL extract_psy_data % ProvideVariable("p_fld_data", p_fld_data)
+    CALL extract_psy_data % ProvideVariable("v_fld_data", v_fld_data)
     CALL extract_psy_data % PreEnd
     !$omp parallel do default(shared) private(i,j) schedule(static)
     do j = 2, jstop + 1, 1
       do i = 2, istop, 1
-        call compute_cv_code(i, j, cv_fld%data, p_fld%data, v_fld%data)
+        call compute_cv_code(i, j, cv_fld_data, p_fld_data, v_fld_data)
       enddo
     enddo
     !$omp end parallel do
     CALL extract_psy_data % PostStart
-    CALL extract_psy_data % ProvideVariable("cv_fld_post", cv_fld)
-    CALL extract_psy_data % ProvideVariable("i_post", i)
-    CALL extract_psy_data % ProvideVariable("j_post", j)
-    CALL extract_psy_data % PostEnd
+    CALL extract_psy_data % ProvideVariable("cv_fld_data_post", cv_fld_data)
     """
-    assert output in code
+    for line in output.splitlines():
+        assert line in code, line
+
+    # Currently the following fields are also compared, even if DSL info tells
+    # they are only read. If we take advantage of this information, these
+    # and the associated _post declarations would be gone
+    expected = '''
+    CALL extract_psy_data % ProvideVariable("p_fld_data_post", p_fld_data)
+    CALL extract_psy_data % ProvideVariable("v_fld_data_post", v_fld_data)
+    CALL extract_psy_data % PostEnd
+    '''
+    expected_lines = expected.split("\n")
+    for line in expected_lines:
+        assert line in code
 
 
 # -----------------------------------------------------------------------------
@@ -372,60 +358,67 @@ def test_node_list_ompparallel_gocean1p0():
     code = str(psy.gen)
     output = """
     CALL extract_psy_data % PreStart("psy_single_invoke_three_kernels", """ \
-    """"invoke_0-r0", 9, 4)
+    """"invoke_0-r0", 7, 5)
+    CALL extract_psy_data % PreDeclareVariable("cu_fld_data", cu_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld_data", cv_fld_data)
     CALL extract_psy_data % PreDeclareVariable("istop", istop)
     CALL extract_psy_data % PreDeclareVariable("jstop", jstop)
-    CALL extract_psy_data % PreDeclareVariable("p_fld", p_fld)
-    CALL extract_psy_data % PreDeclareVariable("u_fld", u_fld)
-    CALL extract_psy_data % PreDeclareVariable("v_fld", v_fld)
-    CALL extract_psy_data % PreDeclareVariable("cu_fld", cu_fld)
-    CALL extract_psy_data % PreDeclareVariable("cv_fld", cv_fld)
-    CALL extract_psy_data % PreDeclareVariable("i", i)
-    CALL extract_psy_data % PreDeclareVariable("j", j)
-    CALL extract_psy_data % PreDeclareVariable("cu_fld_post", cu_fld)
-    CALL extract_psy_data % PreDeclareVariable("cv_fld_post", cv_fld)
-    CALL extract_psy_data % PreDeclareVariable("i_post", i)
-    CALL extract_psy_data % PreDeclareVariable("j_post", j)
+    CALL extract_psy_data % PreDeclareVariable("p_fld_data", p_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("u_fld_data", u_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("v_fld_data", v_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("cu_fld_data_post", cu_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("cv_fld_data_post", cv_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("p_fld_data_post", p_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("u_fld_data_post", u_fld_data)
+    CALL extract_psy_data % PreDeclareVariable("v_fld_data_post", v_fld_data)
     CALL extract_psy_data % PreEndDeclaration
+    CALL extract_psy_data % ProvideVariable("cu_fld_data", cu_fld_data)
+    CALL extract_psy_data % ProvideVariable("cv_fld_data", cv_fld_data)
     CALL extract_psy_data % ProvideVariable("istop", istop)
     CALL extract_psy_data % ProvideVariable("jstop", jstop)
-    CALL extract_psy_data % ProvideVariable("p_fld", p_fld)
-    CALL extract_psy_data % ProvideVariable("u_fld", u_fld)
-    CALL extract_psy_data % ProvideVariable("v_fld", v_fld)
-    CALL extract_psy_data % ProvideVariable("cu_fld", cu_fld)
-    CALL extract_psy_data % ProvideVariable("cv_fld", cv_fld)
-    CALL extract_psy_data % ProvideVariable("i", i)
-    CALL extract_psy_data % ProvideVariable("j", j)
+    CALL extract_psy_data % ProvideVariable("p_fld_data", p_fld_data)
+    CALL extract_psy_data % ProvideVariable("u_fld_data", u_fld_data)
+    CALL extract_psy_data % ProvideVariable("v_fld_data", v_fld_data)
     CALL extract_psy_data % PreEnd
     !$omp parallel default(shared) private(i,j)
     !$omp do schedule(static)
     do j = 2, jstop, 1
       do i = 2, istop + 1, 1
-        call compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
+        call compute_cu_code(i, j, cu_fld_data, p_fld_data, u_fld_data)
       enddo
     enddo
     !$omp end do
     !$omp do schedule(static)
     do j = 2, jstop + 1, 1
       do i = 2, istop, 1
-        call compute_cv_code(i, j, cv_fld%data, p_fld%data, v_fld%data)
+        call compute_cv_code(i, j, cv_fld_data, p_fld_data, v_fld_data)
       enddo
     enddo
     !$omp end do
     !$omp end parallel
     CALL extract_psy_data % PostStart
-    CALL extract_psy_data % ProvideVariable("cu_fld_post", cu_fld)
-    CALL extract_psy_data % ProvideVariable("cv_fld_post", cv_fld)
-    CALL extract_psy_data % ProvideVariable("i_post", i)
-    CALL extract_psy_data % ProvideVariable("j_post", j)
-    CALL extract_psy_data % PostEnd
+    CALL extract_psy_data % ProvideVariable("cu_fld_data_post", cu_fld_data)
+    CALL extract_psy_data % ProvideVariable("cv_fld_data_post", cv_fld_data)
     """
-    assert output in code
+    for line in output.splitlines():
+        assert line in code, line
+
+    # Currently the following fields are also compared, even if DSL info tells
+    # they are only read. If we take advantage of this information, these
+    # and the associated _post declarations would be gone
+    expected = '''
+    CALL extract_psy_data % ProvideVariable("p_fld_data_post", p_fld_data)
+    CALL extract_psy_data % ProvideVariable("u_fld_data_post", u_fld_data)
+    CALL extract_psy_data % ProvideVariable("v_fld_data_post", v_fld_data)
+    CALL extract_psy_data % PostEnd
+    '''
+    expected_lines = expected.split("\n")
+    for line in expected_lines:
+        assert line in code
 
 
 # -----------------------------------------------------------------------------
 # Testing driver generation
-
 @pytest.mark.usefixtures("change_into_tmpdir")
 @pytest.mark.parametrize("create_driver", [None, False, True])
 def test_driver_generation_flag(create_driver):
@@ -451,7 +444,7 @@ def test_driver_generation_flag(create_driver):
 
     driver = Path("driver-psy_extract_example_with_various_"
                   "variable_access_patterns-invoke_0_compute_"
-                  "kernel-compute_kernel_code-r0.f90")
+                  "kernel-compute_kernel_code-r0.F90")
     # When create_driver is None, as a default no driver should be created.
     # Since "None or False" is "False", this simple test can be used in all
     # three cases.
@@ -461,9 +454,8 @@ def test_driver_generation_flag(create_driver):
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir")
 def test_driver_loop_variables():
-    '''Test that loop variables are not stored. ATM this test
-    fails because of #641.
-
+    '''Test that loop variables are not stored, and also not
+    read in the driver.
     '''
     etrans = GOceanExtractTrans()
     psy, invoke = get_invoke("driver_test.f90",
@@ -472,26 +464,30 @@ def test_driver_loop_variables():
 
     etrans.apply(schedule.children[0], {'create_driver': True})
     # We are only interested in the driver, so ignore results.
-    str(psy.gen)
+    code = str(psy.gen)
+    # Verify that the name of the extract object is as expected:
+    assert re.search("extract_psy_data.*dx_data", code) is not None
+    # Now test the variables. Make sure to include `)` (since
+    # other variable names do contain e.g. an `i`)
+    assert re.search(r"extract_psy_data.*i\)", code) is None
+    assert re.search(r"extract_psy_data.*j\)", code) is None
 
     driver = Path("driver-psy_extract_example_with_various_"
                   "variable_access_patterns-invoke_0_compute_"
-                  "kernel-compute_kernel_code-r0.f90")
+                  "kernel-compute_kernel_code-r0.F90")
 
     assert driver.is_file()
 
     with open(driver, "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
 
-    # Since atm types are not handled, scalars are actually considered
-    # to be arrays. Once this is fixed, none of those lines should be
-    # in the code anymore (j_post should be declared as scalar):
-    unexpected_lines = ['  integer :: j_post', 'j = 0']
+    # Loop variables are not be stored, so should not be read or compared:
+    unexpected_code = ["j_post", "i_post", "ReadVariable('j', j)",
+                       "ReadVariable('i', i)", "compare('i', i, i_post)",
+                       "compare('j', j, j_post)"]
 
-    for line in unexpected_lines:
-        if line in driver_code:
-            pytest.xfail("#641 Loop variables are stored.")
-    assert False, "X-failing test working: #641 Loop variables."
+    for line in unexpected_code:
+        assert line not in driver_code
 
 
 # -----------------------------------------------------------------------------
@@ -529,13 +525,13 @@ def test_driver_scalars(fortran_writer):
     # Now test the created driver:
     # ----------------------------
     driver_name = ("driver-psy_single_invoke_scalar_float_test-"
-                   "invoke_0_bc_ssh-bc_ssh_code-r0.f90")
+                   "invoke_0_bc_ssh-bc_ssh_code-r0.F90")
     with open(str(driver_name), "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
 
     expected_lines = ["use read_kernel_data_mod, only : ReadKernelDataType",
-                      "real*8 :: a_scalar",
                       "type(ReadKernelDataType) :: extract_psy_data",
+                      "real*8 :: a_scalar",
                       ("call extract_psy_data%OpenReadModuleRegion"
                        "('psy_single_invoke_scalar_float_test', "
                        "'invoke_0_bc_ssh-bc_ssh_code-r0')"),
@@ -570,16 +566,15 @@ def test_driver_grid_properties(fortran_writer):
 
     # Test the handling of scalar and array grid properties
     expected_lines = ['CALL extract_psy_data % PreDeclareVariable("'
-                      'ssh_fld%grid%subdomain%internal%xstop", '
-                      'ssh_fld % grid % '
-                      'subdomain % internal % xstop)',
+                      'ssh_fld_grid_subdomain_internal_xstop", '
+                      'ssh_fld_grid_subdomain_internal_xstop)',
                       'CALL extract_psy_data % PreDeclareVariable('
-                      '"ssh_fld%grid%tmask", ssh_fld % grid % tmask)',
+                      '"ssh_fld_grid_tmask", ssh_fld_grid_tmask)',
                       'CALL extract_psy_data % ProvideVariable('
-                      '"ssh_fld%grid%subdomain%internal%xstop", '
-                      'ssh_fld % grid % subdomain % internal % xstop)',
+                      '"ssh_fld_grid_subdomain_internal_xstop", '
+                      'ssh_fld_grid_subdomain_internal_xstop)',
                       'CALL extract_psy_data % ProvideVariable('
-                      '"ssh_fld%grid%tmask", ssh_fld % grid % tmask)']
+                      '"ssh_fld_grid_tmask", ssh_fld_grid_tmask)']
 
     # Check that the above lines occur in the same order. There might be
     # other lines between the expected lines, which will be ignored in
@@ -589,7 +584,7 @@ def test_driver_grid_properties(fortran_writer):
     # Now test the created driver:
     # ----------------------------
     driver_name = ("driver-psy_single_invoke_scalar_float_test-"
-                   "invoke_0_bc_ssh-bc_ssh_code-r0.f90")
+                   "invoke_0_bc_ssh-bc_ssh_code-r0.F90")
     with open(str(driver_name), "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
 
@@ -600,10 +595,10 @@ def test_driver_grid_properties(fortran_writer):
                       '\'psy_single_invoke_scalar_float_test\', '
                       '\'invoke_0_bc_ssh-bc_ssh_code-r0\')',
                       'call extract_psy_data%ReadVariable('
-                      '\'ssh_fld%grid%subdomain%internal%xstop\', '
+                      '\'ssh_fld_grid_subdomain_internal_xstop\', '
                       'ssh_fld_grid_subdomain_internal_xstop)',
                       'call extract_psy_data%ReadVariable('
-                      '\'ssh_fld%grid%tmask\', ssh_fld_grid_tmask)']
+                      '\'ssh_fld_grid_tmask\', ssh_fld_grid_tmask)']
 
     # Check that the above lines occur in the same order. There might be
     # other lines between the expected lines, which will be ignored in
@@ -630,12 +625,12 @@ def test_rename_region():
                   'region_name': ("main", "update")})
 
     # Test that the extraction code contains the right names
-    assert 'CALL extract_psy_data % PreStart("main", "update", 10, 3)' \
+    assert 'CALL extract_psy_data % PreStart("main", "update",' \
         in str(psy.gen)
 
     # Now test if the created driver has the right name, and will open the
     # right file:
-    driver_name = "driver-main-update.f90"
+    driver_name = "driver-main-update.F90"
     with open(driver_name, "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
     assert ("call extract_psy_data%OpenReadModuleRegion('main', 'update')"
@@ -668,11 +663,11 @@ def test_change_prefix(monkeypatch, dist_mem):
 
     # Test that the extraction code contains the new prefix:
     gen = str(psy.gen)
-    assert 'CALL NEW_psy_data % PreStart("main", "update", 10, 3)' \
+    assert 'CALL NEW_psy_data % PreStart("main", "update",' \
         in gen
 
     # Now test if the created driver has the right prefix:
-    driver_name = "driver-main-update.f90"
+    driver_name = "driver-main-update.F90"
     with open(str(driver_name), "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
     assert ("call NEW_psy_data%OpenReadModuleRegion('main', 'update')"

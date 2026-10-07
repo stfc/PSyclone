@@ -1,41 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory.
-# Modified by: R. W. Ford, STFC Daresbury Laboratory.
-#              L. Turner, Met Office
-#              T. Vockerodt, Met Office
-#              J. Dendy, Met Office
 
 '''This module contains the LFRicAlg class which encapsulates tools for
    creating standalone LFRic algorithm-layer code.
@@ -43,7 +11,7 @@
 '''
 
 from psyclone.domain.lfric import (KernCallInvokeArgList, LFRicConstants,
-                                   LFRicSymbolTable, LFRicTypes)
+                                   LFRicTypes)
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
 from psyclone.domain.lfric import LFRicKern
@@ -52,10 +20,10 @@ from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Assignment, Container, Literal,
-                                  Reference, Routine, ScopingNode)
+                                  Reference, Routine)
 from psyclone.psyir.symbols import (
     UnresolvedType, UnsupportedFortranType, DataTypeSymbol, DataSymbol,
-    ArrayType, ImportInterface, ContainerSymbol, RoutineSymbol,
+    ArrayType, ImportInterface, ContainerSymbol, RoutineSymbol, ScalarType,
     ArgumentInterface)
 
 
@@ -65,21 +33,20 @@ class LFRicAlg:
     layer from Kernel metadata.
 
     '''
-    def create_from_kernel(self, name, kernel_path):
+    def create_from_kernel(self, name: str, kernel_path: str) -> Container:
         '''
         Generates LFRic algorithm PSyIR that calls the supplied kernel through
         an 'invoke'. All of the arguments required by the kernel are
-        constructed and intialised appropriately. Fields and scalars are all
+        constructed and initialised appropriately. Fields and scalars are all
         set to unity.
 
-        :param str name: name to use for the algorithm subroutine.
-        :param str kernel_path: location of Kernel source code.
+        :param name: name to use for the algorithm subroutine.
+        :param kernel_path: location of Kernel source code.
 
         :returns: LFRic algorithm PSyIR.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
-        :raises NotImplementedError: if the specified kernel file does not \
-            follow the LFRic naming convention by having a module with a name \
+        :raises NotImplementedError: if the specified kernel file does not
+            follow the LFRic naming convention by having a module with a name
             ending in '_mod'.
 
         '''
@@ -90,16 +57,13 @@ class LFRicAlg:
         sub = cont.walk(Routine)[0]
         table = sub.symbol_table
 
-        # Parse the kernel metadata. Currently this uses fparser1 as that's
-        # what the existing meta-data handling is based upon. Ultimately, this
-        # will be replaced by the new, fparser2-based functionality being
-        # implemented in #1631.
+        # Parse the kernel metadata
         parse_tree = get_kernel_parse_tree(kernel_path)
 
         # Get the name of the module that contains the kernel and create a
         # ContainerSymbol for it.
         kernel_mod_name = parse_tree.content[0].name
-        # TODO #1806. The current meta-data parsing requires that we specify
+        # TODO #2151. The current meta-data parsing requires that we specify
         # the name of the kernel. It would be much better if we could query the
         # meta-data for the name of the kernel. For now we require that the
         # LFRic naming scheme is strictly adhered to (since this is simpler
@@ -126,15 +90,27 @@ class LFRicAlg:
         # associated with the routine we are constructing.
         kern_args = self.construct_kernel_args(sub, kern)
 
-        # Initialise argument values to unity. Since we are using this somewhat
-        # arbitrary value, we use an *integer* literal for this, irrespective
-        # of the actual type of the scalar argument. The compiler/run-time will
-        # take care of appropriate type casting.
-        table.add_lfric_precision_symbol("i_def")
+        # Initialise argument values to unity (or True for bools). Since we
+        # are using this somewhat arbitrary value, we use an *integer* literal
+        # for numerical literals, irrespective of the actual type of the scalar
+        # argument (including whether or not it is an array). The compiler/
+        # run-time will take care of appropriate type casting.
+        LFRicTypes.add_precision_symbol(table, "i_def")
         for sym in kern_args.scalars:
-            sub.addchild(Assignment.create(
-                Reference(sym),
-                Literal("1", LFRicTypes("LFRicIntegerScalarDataType")())))
+            if sym.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
+                literal = Literal("true",
+                                  LFRicTypes("LFRicLogicalScalarDataType")())
+            else:
+                literal = Literal("1",
+                                  LFRicTypes("LFRicIntegerScalarDataType")())
+            sub.addchild(Assignment.create(Reference(sym),
+                                           literal))
+            if sym.is_array:
+                sub.children[-1].append_preceding_comment(
+                    "Since kernel metadata only specifies the *rank* of "
+                    "this 'scalar array' argument, each dimension has been "
+                    "given the arbitrary extent of 3 in order to create "
+                    "compilable code.")
 
         # We use the setval_c builtin to initialise all fields to unity.
         # As with the scalar initialisation, we don't worry about precision
@@ -143,7 +119,7 @@ class LFRicAlg:
         # integer rather than real) we rely on type casting by the
         # compiler/run-time.
         factory = LFRicBuiltinFunctorFactory.get()
-        table.add_lfric_precision_symbol("r_def")
+        LFRicTypes.add_precision_symbol(table, "r_def")
         kernel_list = []
         for sym, _ in kern_args.fields:
             kernel_list.append(
@@ -167,7 +143,7 @@ class LFRicAlg:
         return cont
 
     @staticmethod
-    def create_alg_routine(name):
+    def create_alg_routine(name: str) -> Container:
         '''
         Creates an LFRic algorithm subroutine within a module. The
         generated subroutine has three arguments:
@@ -176,11 +152,10 @@ class LFRicAlg:
          * chi: coordinate field (optional).
          * panel_id: field mapping cells to panel IDs (optional).
 
-        :param str name: the name to give the created routine. The associated \
+        :param str name: the name to give the created routine. The associated
                          container will have "_mod" appended to this name.
 
         :returns: a container.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
         :raises TypeError: if the 'name' argument is of the wrong type.
 
@@ -188,10 +163,6 @@ class LFRicAlg:
         if not isinstance(name, str):
             raise TypeError(f"Supplied routine name must be a str but got "
                             f"'{type(name).__name__}'")
-        # Make sure the scoping node creates LFRicSymbolTables
-        # pylint: disable=protected-access
-        # TODO #1954 Remove the protected access using a factory
-        ScopingNode._symbol_table_class = LFRicSymbolTable
         alg_sub = Routine.create(name)
         table = alg_sub.symbol_table
 
@@ -239,7 +210,7 @@ class LFRicAlg:
 
     def _create_function_spaces(self, prog, fspaces):
         '''
-        Adds PSyIR to the supplied Routine that declares and intialises
+        Adds PSyIR to the supplied Routine that declares and initialises
         the specified function spaces. The order of these spaces is
         set by the element_order_<h,v> variables which are provided by the
         LFRic finite_element_config_mod module.
@@ -302,24 +273,22 @@ class LFRicAlg:
             prog.addchild(cblock)
 
     @staticmethod
-    def initialise_field(prog, sym, space):
+    def initialise_field(prog: Routine, sym: DataSymbol, space: str) -> None:
         '''
         Creates the PSyIR for initialisation of the field or field vector
         represented by the supplied symbol and adds it to the supplied
         routine.
 
         :param prog: the routine to which to add initialisation code.
-        :type prog: :py:class:`psyclone.psyir.nodes.Routine`
         :param sym: the symbol representing the LFRic field.
-        :type sym: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param str space: the function space of the field.
+        :param space: the function space of the field.
 
         :raises InternalError: if the supplied symbol is of the wrong type.
 
         '''
         reader = FortranReader()
 
-        prog.symbol_table.add_lfric_precision_symbol("i_def")
+        LFRicTypes.add_precision_symbol(prog.symbol_table, "i_def")
 
         if isinstance(sym.datatype, DataTypeSymbol):
             # Single field argument.
@@ -372,7 +341,7 @@ class LFRicAlg:
     @staticmethod
     def initialise_quadrature(prog, qr_sym, shape):
         '''
-        Adds the necessary declarations and intialisation for the supplied
+        Adds the necessary declarations and initialisation for the supplied
         quadrature to the supplied routine.
 
         :param prog: the routine to which to add suitable declarations etc.
