@@ -794,13 +794,12 @@ class OMPSingleTrans(ParallelRegionTrans):
             single region.
 
         '''
+        self.validate(node_list, options=options, **kwargs)
         # TODO #2668: Deprecate options dictionary
         if options:
             nowait = options.get("nowait", self.omp_nowait)
         elif nowait is None:
             nowait = self.omp_nowait
-        else:
-            self.validate_options(nowait=nowait, **kwargs)
         self.omp_nowait = nowait
 
         super().apply(node_list, options=options, **kwargs)
