@@ -118,6 +118,7 @@ jobs:
         export MPIF90=psyclonefc
         export PSYCLONE_OPTS="--enable-cache -l output"
         export FCFLAGS="-i4 -Mr8 -O2 -Mnovect -Mnofma -g"
+        export REPRODUCIBLE=1
 
         # Compile
         cd ${PREFIX}/UKMO-NEMOv4

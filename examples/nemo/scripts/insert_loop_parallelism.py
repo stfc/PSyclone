@@ -73,12 +73,7 @@ PARALLELISATION_ISSUES = []
 # offloading directives
 OFFLOADING_ISSUES = []
 
-if NEMOV4:
-    # NEMOv4 additional exclusions
-    FILES_TO_SKIP.extend([
-        "dynspg_ts.f90",
-    ])
-else:
+if not NEMOV4:
     # NEMOv5 additional exclusions
     FILES_TO_SKIP.extend([
         # Fail in nvfortran when enabling seaice - Has unsupported implicit
@@ -88,10 +83,6 @@ else:
         "sbcclo.f90",
         # This file fails for gcc NEMOv5 BENCH
         "icedyn_rhg_evp.f90",
-    ])
-
-    SKIP_FOR_PERFORMANCE.extend([
-        "lbclnk.f90",
     ])
 
     PARALLELISATION_ISSUES.extend([
