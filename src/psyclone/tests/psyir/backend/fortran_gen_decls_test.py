@@ -12,8 +12,8 @@ import pytest
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
-    BinaryOperation, Container, IntrinsicCall, Literal, Reference, Routine,
-    Return)
+    BinaryOperation, Container, IntrinsicCall, Literal,
+    OMPDeclareTargetVariable, Reference, Routine, Return)
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, ContainerSymbol,
     GenericInterfaceSymbol,
@@ -234,6 +234,17 @@ def test_gen_decls(fortran_writer):
             "from a module and there are no wildcard imports, generic "
             "interfaces or CodeBlocks which could be bringing them into scope:"
             " 'unknown'" in str(excinfo.value))
+
+
+def test_gen_decls_with_symbol_directive(fortran_writer):
+    '''Check that a symbol's directive follows its declaration.'''
+    symbol = DataSymbol("var", ScalarType.integer_type())
+    symbol.directive = OMPDeclareTargetVariable(symbol)
+    symbol_table = SymbolTable()
+    symbol_table.add(symbol)
+
+    result = fortran_writer.gen_decls(symbol_table)
+    assert result == "integer :: var\n!$omp declare target(var)\n"
 
 
 def test_gen_decls_char(fortran_writer):
