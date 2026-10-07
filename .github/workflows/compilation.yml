@@ -104,7 +104,9 @@ jobs:
         . .runner_venv/bin/activate
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf-c/${NETCDF_C_VERSION} netcdf-fortran/${NETCDF_FORTRAN_VERSION}
-        pytest -n ${NUM_PARALLEL} --f90=nvfortran --compile --compileopencl src/psyclone/tests
+        # We need '-Mrecursive' to get the Fortran2018 behaviour of assuming
+        # all routines to be RECURSIVE unless otherwise specified.
+        pytest -n ${NUM_PARALLEL} --f90=nvfortran --f90flags='-Mrecursive' --compile --compileopencl src/psyclone/tests
     - name: Unit tests with OpenMP compilation - ifx
       run: |
         . .runner_venv/bin/activate
