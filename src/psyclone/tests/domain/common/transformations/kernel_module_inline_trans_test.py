@@ -241,6 +241,7 @@ def test_call_includes_interface_call(monkeypatch, fortran_reader,
       end subroutine sub2
     end module my_mod
     ''')
+    orig_psyir = psyir.copy()
     routines = psyir.walk(Routine)
     monkeypatch.setattr(kern_call, "_schedules", [routines[0]])
     trans = KernelModuleInlineTrans()
@@ -263,7 +264,22 @@ def test_call_includes_interface_call(monkeypatch, fortran_reader,
     assert "call compute_cv_code_inlined_" in output
     assert "call an_interface_inlined_" in output
     assert "call just_the_one_inlined_" in output
+    # Compilation (at least with nvfortran) fails because of the illegal
+    # recursive call. Therefore, repeat the test but remove the recursive
+    # call.
+    calls = orig_psyir.walk(Call)
+    assert calls[2].routine.symbol.name == "just_the_one"
+    calls[2].detach()
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
+                             idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    # Monkeypatch the kernel.
+    kern_call = schedule.children[1].loop_body[0].loop_body[0]
+    routines = orig_psyir.walk(Routine)
+    monkeypatch.setattr(kern_call, "_schedules", [routines[0]])
+    trans.apply(kern_call)
     assert GOceanBuild(tmp_path).code_compiles(psy)
+
     # Validation should fail for the second routine 'tricky_code' because it
     # calls an interface that includes external routines.
     monkeypatch.setattr(kern_call, "_schedules", [routines[1]])
