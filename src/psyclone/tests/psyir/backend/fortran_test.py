@@ -23,7 +23,7 @@ from psyclone.psyir.nodes import (
     Schedule, Routine, Return, FileContainer, IfBlock, OMPTaskloopDirective,
     OMPMasterDirective, OMPParallelDirective, Loop, OMPNumTasksClause,
     OMPDependClause, IntrinsicCall, OMPReductionClause, UnknownDirective,
-    ArrayConstructor, ComplexLiteral)
+    ArrayConstructor, ComplexLiteral, OMPDeclareTargetVariable)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ContainerSymbol, DataSymbol, GenericInterfaceSymbol,
     ImportInterface, RoutineSymbol, StaticInterface, Symbol, SymbolTable,
@@ -1131,6 +1131,48 @@ def test_fw_container_2(fortran_reader, fortran_writer, tmpdir):
         _ = fortran_writer(container)
     assert ("The Fortran backend does not support nested Containers but "
             "found: ['child']." in str(excinfo.value))
+
+
+def test_fw_container_symbol_declare_target(fortran_reader, fortran_writer):
+    '''Check that symbol directives are output after their declarations.'''
+    code = '''
+    module target_mod
+        implicit none
+        integer :: int_var
+        real :: real_var
+    end module target_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    module = psyir.children[0]
+    int_symbol = module.symbol_table.lookup("int_var")
+    real_symbol = module.symbol_table.lookup("real_var")
+    int_symbol.directive = OMPDeclareTargetVariable(int_symbol)
+    real_symbol.directive = OMPDeclareTargetVariable(real_symbol)
+
+    output = fortran_writer(psyir)
+    assert output == (
+        "module target_mod\n"
+        "  implicit none\n"
+        "  integer, public :: int_var\n"
+        "  !$omp declare target(int_var)\n"
+        "  real, public :: real_var\n"
+        "  !$omp declare target(real_var)\n"
+        "  public\n\n"
+        "  contains\n\n"
+        "end module target_mod\n")
+
+    module.symbol_table.rename_symbol(int_symbol, "renamed_int")
+    output = fortran_writer(psyir)
+    assert output == (
+        "module target_mod\n"
+        "  implicit none\n"
+        "  real, public :: real_var\n"
+        "  !$omp declare target(real_var)\n"
+        "  integer, public :: renamed_int\n"
+        "  !$omp declare target(renamed_int)\n"
+        "  public\n\n"
+        "  contains\n\n"
+        "end module target_mod\n")
 
 
 def test_fw_container_3(fortran_reader, fortran_writer, monkeypatch):
