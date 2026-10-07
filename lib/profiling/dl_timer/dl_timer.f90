@@ -66,6 +66,7 @@ contains
     character(*), intent(in) :: module_name, region_name
     integer, intent(in) :: num_pre_vars, num_post_vars
 
+!$omp critical
     if ( .not. this%registered) then
        call this%PSyDataBaseType%PreStart(module_name, region_name, &
                                           num_pre_vars, num_post_vars)
@@ -73,6 +74,7 @@ contains
                            label=module_name//":"//region_name)
        this%registered = .true.
     endif
+!$omp end critical
     if (is_enabled) call timer_start(this%timer_index)
 
   end subroutine PreStart
