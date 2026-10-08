@@ -1062,7 +1062,7 @@ class FortranWriter(LanguageWriter):
                             # Discard dependencies on RoutineSymbols (but
                             # *not* interfaces)
                             not (isinstance(sym, RoutineSymbol) and
-                                 not sym is internal_interface_symbol and
+                                 sym is not internal_interface_symbol and
                                  not isinstance(sym, GenericInterfaceSymbol))}
             decln_inputs[symbol] = dependencies
 
