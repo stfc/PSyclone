@@ -14,7 +14,7 @@ from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
     Assignment, Loop, Directive, Node, Reference, CodeBlock, Call,
     Routine, Schedule, IntrinsicCall, StructureReference, IfBlock,
-    Operation)
+    Operation, BinaryOperation)
 from psyclone.psyir.symbols import DataSymbol, ArrayType
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
@@ -143,6 +143,7 @@ def normalise_loops(
         increase_array_ranks: bool = False,
         hoist_expressions: bool = True,
         hoist_argument_expressions: bool = True,
+        hoist_cdtype_expressions: bool = True,
         ):
     ''' Normalise all loops in the given schedule so that they are in an
     appropriate form for the Parallelisation transformations to analyse
@@ -165,6 +166,8 @@ def normalise_loops(
         statements out of the loop nest.
     :param hoist_argument_expressions: whether to hoist array expressions
         out of the containing Call.
+    :param hoist_cdtype_expressions: whether to hoist character cdtype
+        comparison expressions.
     '''
 
     if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
@@ -243,10 +246,26 @@ def normalise_loops(
             hoist_expressions=hoist_expressions,
             # Make sure we never repeat this step.
             hoist_argument_expressions=False,
+            hoist_cdtype_expressions=False
         )
-    # TODO #1928: In order to perform better on the GPU, nested loops with two
-    # sibling inner loops need to be fused or apply loop fission to the
-    # top level. This would allow the collapse clause to be applied.
+
+    if hoist_cdtype_expressions:
+        # Any cdtype character comparison can be hoisted to the top of the
+        # routine as we know their values do not change in any routine but
+        # comparing values inside loops prevents offloading them.
+        name = "hoisted_cdtype"
+        cdtypes = [ref.parent for ref in schedule.walk(Reference)
+                   if ref.name == "cdtype"]
+        for expr in cdtypes:
+            if isinstance(expr, BinaryOperation):
+                DataNodeToTempTrans().apply(expr, storage_name=name)
+                # After DataNodeToTempTrans expr is the rhs of a new assignment
+                # inserted immediately before the statement that originally
+                # contained it. Knowing that it is runtime constant, we also
+                # bring it at the top of the schedule.
+                assignment = expr.parent
+                assignment.detach()
+                schedule.addchild(assignment, 0)
 
 
 def increase_rank_and_reorder_nemov5_loops(routine: Routine):
