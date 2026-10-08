@@ -33,6 +33,7 @@ from psyclone.psyir.nodes.data_sharing_attribute_mixin import (
 )
 from psyclone.psyir.nodes.directive import (
     StandaloneDirective, RegionDirective)
+from psyclone.psyir.nodes.has_symbol_mixin import HasSymbolMixin
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.loop import Loop
@@ -143,37 +144,24 @@ class OMPDeclareTargetDirective(OMPStandaloneDirective):
         super().validate_global_constraints()
 
 
-class OMPDeclareTargetVariable(OMPStandaloneDirective):
+class OMPDeclareTargetVariable(HasSymbolMixin, OMPStandaloneDirective):
     '''Class representing an OpenMP Declare Target directive for a variable.
 
     :param symbol: the symbol declared as a target.
     :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
 
-    :raises TypeError: if the supplied symbol is not a Symbol.
     '''
 
     def __init__(self, symbol, **kwargs):
-        if not isinstance(symbol, Symbol):
-            raise TypeError(
-                f"OMPDeclareTargetVariable expects a PSyIR Symbol but found "
-                f"'{type(symbol).__name__}'.")
         super().__init__(**kwargs)
-        self._symbol = symbol
-
-    @property
-    def symbol(self):
-        '''
-        :returns: the symbol declared as a target.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
-        '''
-        return self._symbol
+        self.symbol = symbol
 
     def begin_string(self):
         '''
         :returns: the opening string statement of this directive.
         :rtype: str
         '''
-        return f"omp declare target({self._symbol.name})"
+        return f"omp declare target({self.symbol.name})"
 
     def node_str(self, colour=True):
         '''
@@ -183,7 +171,7 @@ class OMPDeclareTargetVariable(OMPStandaloneDirective):
         :returns: a text description of this node.
         :rtype: str
         '''
-        return f"{self.coloured_name(colour)}[{self._symbol.name}]"
+        return f"{self.coloured_name(colour)}[{self.symbol.name}]"
 
 
 class OMPTaskwaitDirective(OMPStandaloneDirective):
