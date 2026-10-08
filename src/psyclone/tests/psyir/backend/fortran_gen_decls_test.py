@@ -53,10 +53,10 @@ def test_gen_decls_dependencies(fortran_writer):
     circ_sym.initial_value.arguments[0].replace_with(Reference(circ_sym))
     symbol_table.add(circ_sym)
     result = fortran_writer.gen_decls(symbol_table)
-    assert (result == "integer, parameter :: rlg = 8\n"
+    assert (result == "integer, parameter :: circle = HUGE(circle)\n"
+                      "integer, parameter :: rlg = 8\n"
                       "integer, parameter :: wp = rlg\n"
-                      "integer, parameter :: var = rlg + wp\n"
-                      "integer, parameter :: circle = HUGE(circle)\n")
+                      "integer, parameter :: var = rlg + wp\n")
 
     # Check that an (invalid, obviously) circular dependency is handled.
     # Replace "rlg" with a new one that depends on "wp".
@@ -107,8 +107,8 @@ def test_gen_decls_kind_dep(fortran_writer):
     result = fortran_writer.gen_decls(table)
     assert result == ("integer, parameter :: r_def = 4\n"
                       "integer, parameter :: wp = r_def\n"
-                      "real, parameter :: var2 = 1.0_wp\n"
-                      "real(kind=wp), parameter :: var = 1.0_wp\n")
+                      "real(kind=wp), parameter :: var = 1.0_wp\n"
+                      "real, parameter :: var2 = 1.0_wp\n")
 
 
 def test_gen_decls_case_insensitive(fortran_reader,
@@ -133,10 +133,10 @@ end module my_mod''')
     assert result == (
         "integer, parameter :: an_int = 6\n"
         "integer, parameter :: i_def = 4\n"
-        "integer(kind=an_int), parameter :: a_second_int = 5_i_def\n"
         "integer, parameter :: nfieldnames3d = 4\n"
         "integer, dimension(nfieldnames3d), parameter :: "
-        "InterpolationLevels = [2, 0, HUGE(InterpolationLevels) / 3, 0]\n")
+        "InterpolationLevels = [2, 0, HUGE(InterpolationLevels) / 3, 0]\n"
+        "integer(kind=an_int), parameter :: a_second_int = 5_i_def\n")
 
 
 def test_gen_decls(fortran_writer):
@@ -178,32 +178,32 @@ def test_gen_decls(fortran_writer):
     result = fortran_writer.gen_decls(symbol_table)
     # If derived type declaration is not inside a module then its components
     # cannot have accessibility attributes.
-    assert (result == "integer :: local\n"
-                      "type :: field\n"
+    assert (result == "type :: field\n"
                       "  integer :: flag\n"
                       "end type field\n"
                       "type(grid_type) :: grid\n"
+                      "integer :: local\n"
                       "integer, parameter :: rlg = 8\n")
     # Repeat but specify that these declarations are within a module.
     result = fortran_writer.gen_decls(symbol_table, is_module_scope=True)
-    assert (result == "integer, public :: local\n"
-                      "type, public :: field\n"
+    assert (result == "type, public :: field\n"
                       "  integer, public :: flag\n"
                       "end type field\n"
                       "type(grid_type), public :: grid\n"
+                      "integer, public :: local\n"
                       "integer, parameter, public :: rlg = 8\n")
     # Add a Symbol with an argument interface.
     argument_variable = DataSymbol("arg", ScalarType.integer_type(),
                                    interface=ArgumentInterface())
     symbol_table.add(argument_variable)
     result = fortran_writer.gen_decls(symbol_table)
-    assert (result == "integer :: local\n"
+    assert (result == "integer :: arg\n"
                       "type :: field\n"
                       "  integer :: flag\n"
                       "end type field\n"
                       "type(grid_type) :: grid\n"
-                      "integer, parameter :: rlg = 8\n"
-                      "integer :: arg\n")
+                      "integer :: local\n"
+                      "integer, parameter :: rlg = 8\n")
     result = fortran_writer.gen_decls(symbol_table)
 
     # Add a Symbol with PreprocessorInterface which has to be ignored by
@@ -212,13 +212,13 @@ def test_gen_decls(fortran_writer):
                                        interface=PreprocessorInterface())
     symbol_table.add(preprocessor_variable)
     result = fortran_writer.gen_decls(symbol_table)
-    assert (result == "integer :: local\n"
+    assert (result == "integer :: arg\n"
                       "type :: field\n"
                       "  integer :: flag\n"
                       "end type field\n"
                       "type(grid_type) :: grid\n"
-                      "integer, parameter :: rlg = 8\n"
-                      "integer :: arg\n")
+                      "integer :: local\n"
+                      "integer, parameter :: rlg = 8\n")
 
     # We can't have an argument if these declarations are in a module.
     with pytest.raises(VisitorError) as excinfo:
@@ -547,10 +547,10 @@ def test_non_param_in_param_decln(fortran_reader, fortran_writer, tmp_path):
     psyir = fortran_reader.psyir_from_source(code)
     output = fortran_writer(psyir)
     assert """\
-  integer, parameter, public :: x = 1
+  integer, public :: i
   integer, parameter, public :: j = 9
   integer, parameter, public :: k = 12
-  integer, public :: i
+  integer, parameter, public :: x = 1
   real, dimension(j,k), parameter, public :: threshold_wavelength = \
 RESHAPE([REAL :: 1.3, 1.5, 1.6, 1.7, (0.0, i = 1, k - 4), 1.2, 1.4, 1.2, \
 (0.0, i = 1, k - 3), (0.0, i = 1, k), (0.0, i = 1, k), (0.0, i = 1, k), \

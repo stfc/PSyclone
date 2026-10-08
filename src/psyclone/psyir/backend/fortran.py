@@ -726,10 +726,12 @@ class FortranWriter(LanguageWriter):
                 name = symbol.interface.name.lower()
                 common_blocks.setdefault(name, []).append(symbol)
 
-        # Order the symbols by their commonblock interface position
         declarations = ""
+        # Order the common-block declarations alphabetically by name.
         for name in sorted(common_blocks.keys()):
             members = common_blocks[name]
+            # Order the symbols within the commonblock by their commonblock
+            # interface position
             positions = [symbol.interface.position for symbol in members]
             if len(positions) != len(set(positions)):
                 raise VisitorError(
@@ -1049,7 +1051,7 @@ class FortranWriter(LanguageWriter):
         # with case-insensitive name comparisons because the dependent symbols
         # are not always created in the same scope.
         local_lowered_names = [sym.name.lower() for sym in all_symbols]
-        decln_inputs: dict[str, Symbol] = {}
+        decln_inputs: dict[str, set[Symbol]] = {}
         for symbol in all_symbols:
             dependencies = symbol.get_all_accessed_symbols()
             dependencies = {sym for sym in dependencies
@@ -1060,6 +1062,7 @@ class FortranWriter(LanguageWriter):
                             # Discard dependencies on RoutineSymbols (but
                             # *not* interfaces)
                             not (isinstance(sym, RoutineSymbol) and
+                                 not sym is internal_interface_symbol and
                                  not isinstance(sym, GenericInterfaceSymbol))}
             decln_inputs[symbol] = dependencies
 
@@ -1078,41 +1081,44 @@ class FortranWriter(LanguageWriter):
         declared: set[Symbol] = set()
 
         while all_symbols:
-            for symbol in all_symbols[:]:
-                inputs = decln_inputs[symbol]
-                if inputs.issubset(declared):
-                    # All inputs are satisfied so this declaration can be added
-                    declared.add(symbol)
-                    all_symbols.remove(symbol)
-                    if isinstance(symbol, RoutineSymbol):
-                        # Interfaces can be GenericInterfaceSymbols or
-                        # RoutineSymbols of UnsupportedFortranType.
-                        if isinstance(symbol, GenericInterfaceSymbol):
-                            declarations += self.gen_interfacedecl(symbol)
-                        elif isinstance(symbol.datatype, UnsupportedType):
-                            declarations += self.gen_vardecl(
-                                    symbol, include_visibility=is_module_scope)
-                        elif not (symbol.is_modulevar or symbol.is_automatic):
-                            raise VisitorError(
-                                f"Routine symbol '{symbol.name}' has "
-                                f"'{symbol.interface}'. This is not supported "
-                                f"by the Fortran back-end.")
-                    elif isinstance(symbol, DataTypeSymbol):
-                        declarations += self.gen_typedecl(
-                            symbol, include_visibility=is_module_scope)
-                    else:
-                        declarations += self.gen_vardecl(
-                            symbol, include_visibility=is_module_scope)
-                    # Now that we've created a new declaration (and thus
-                    # potentially resolved some dependencies) we go back to
-                    # the start of the list of remaining symbols.
-                    break
-            else:
+
+            # Find those Symbols which have their dependencies satisfied.
+            do_next: list[Symbol] = [sym for sym in all_symbols if
+                                     decln_inputs[sym].issubset(declared)]
+            if not do_next:
                 # We looped through all of the variables remaining to be
                 # declared and none had their dependencies satisfied.
                 raise VisitorError(
                     f"Unable to satisfy dependencies for the declarations of "
                     f"{[sym.name for sym in all_symbols]}")
+
+            # Output the declarations of those Symbols that have their
+            # dependencies satisfied, in alphabetical order.
+            for symbol in sorted(do_next, key=lambda x: x.name):
+                declared.add(symbol)
+                all_symbols.remove(symbol)
+                if isinstance(symbol, RoutineSymbol):
+                    # Interfaces can be GenericInterfaceSymbols or
+                    # RoutineSymbols of UnsupportedFortranType.
+                    if isinstance(symbol, GenericInterfaceSymbol):
+                        declarations += self.gen_interfacedecl(symbol)
+                    elif isinstance(symbol.datatype, UnsupportedType):
+                        declarations += self.gen_vardecl(
+                                symbol, include_visibility=is_module_scope)
+                    elif not (symbol.is_modulevar or symbol.is_automatic):
+                        raise VisitorError(
+                            f"Routine symbol '{symbol.name}' has "
+                            f"'{symbol.interface}'. This is not supported "
+                            f"by the Fortran back-end.")
+                elif isinstance(symbol, DataTypeSymbol):
+                    declarations += self.gen_typedecl(
+                        symbol, include_visibility=is_module_scope)
+                else:
+                    declarations += self.gen_vardecl(
+                        symbol, include_visibility=is_module_scope)
+            # Now that we've created new declaration(s) (and thus
+            # potentially resolved some dependencies) we go back to
+            # the start of the list of remaining symbols.
 
         declarations += self._gen_common_block_decls(list(declared))
 

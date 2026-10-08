@@ -8,7 +8,7 @@
 '''Performs pytest tests on PSyIR Fortran Backend for CommonBlocks '''
 
 import pytest
-from textwrap import dedent, indent
+from textwrap import dedent
 
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import Routine
@@ -43,9 +43,9 @@ def test_fw_common_blocks(fortran_reader, fortran_writer, tmpdir):
     code = fortran_writer(routine)
     assert code == dedent("""\
     subroutine sub()
-      integer :: c
-      integer :: b
       integer :: a
+      integer :: b
+      integer :: c
       real :: d
       real :: e
       real :: f
