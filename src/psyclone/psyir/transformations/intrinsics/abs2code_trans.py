@@ -13,8 +13,8 @@ than the intrinsic.
 '''
 import warnings
 
-from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
-    Intrinsic2CodeTrans)
+from psyclone.psyir.transformations.intrinsics.intrinsic2code_basetrans \
+    import Intrinsic2CodeBaseTrans
 from psyclone.psyir.nodes import (
     BinaryOperation, Assignment, Reference, Literal, IfBlock, IntrinsicCall)
 from psyclone.psyir.symbols import DataSymbol
@@ -22,7 +22,7 @@ from psyclone.utils import transformation_documentation_wrapper
 
 
 @transformation_documentation_wrapper
-class Abs2CodeTrans(Intrinsic2CodeTrans):
+class Abs2CodeTrans(Intrinsic2CodeBaseTrans):
     '''Provides a transformation from a PSyIR ABS Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
     performed.

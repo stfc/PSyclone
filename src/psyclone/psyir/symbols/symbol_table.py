@@ -1228,16 +1228,15 @@ class SymbolTable():
         return [symbol for symbol in self.imported_symbols if
                 symbol.interface.container_symbol is csymbol]
 
-    def swap(self, old_symbol, new_symbol):
+    def swap(self, old_symbol: Symbol, new_symbol: Symbol) -> None:
         '''
         Remove the `old_symbol` from the table and replace it with the
         `new_symbol`. Any references to `old_symbol` in the PSyIR tree
-        associated with this table (if any) will also be updated.
+        associated with this table (if any) will also be updated. Any tag
+        associated with `old_symbol` is moved to `new_symbol`.
 
         :param old_symbol: the symbol to remove from the table.
-        :type old_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
         :param new_symbol: the symbol to add to the table.
-        :type new_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
 
         :raises TypeError: if either old/new_symbol are not Symbols.
         :raises SymbolError: if `old_symbol` and `new_symbol` don't have
@@ -1253,13 +1252,20 @@ class SymbolTable():
             raise SymbolError(
                 f"Cannot swap symbols that have different names, got: "
                 f"'{old_symbol.name}' and '{new_symbol.name}'")
+        # Preserve any tag associated with old_symbol so that it is carried
+        # over to new_symbol rather than being silently dropped.
+        old_tag = None
+        for tag, symbol in self._tags.items():
+            if symbol is old_symbol:
+                old_tag = tag
+                break
         for sym in self.symbols:
             sym.replace_symbols_using(new_symbol)
         if self.node:
             # Update the PSyIR tree associated with this table.
             self.node.replace_symbols_using(new_symbol)
         self.remove(old_symbol)
-        self.add(new_symbol)
+        self.add(new_symbol, tag=old_tag)
 
     def _validate_remove_routinesymbol(self, symbol):
         '''
@@ -1322,6 +1328,8 @@ class SymbolTable():
         :raises KeyError: if the supplied symbol is not in the symbol table.
         :raises ValueError: if the supplied container symbol is referenced
                             by one or more DataSymbols.
+        :raises ValueError: if the supplied symbol belongs to a common block
+                            and is not its final member.
         :raises InternalError: if the supplied symbol is not the same as the
                                entry with that name in this SymbolTable.
         '''
@@ -1343,6 +1351,22 @@ class SymbolTable():
                 f"The Symbol with name '{symbol.name}' in this symbol table "
                 f"is not the same Symbol object as the one that has been "
                 f"supplied to the remove() method.")
+
+        # Removing a member from within a common block would shift every
+        # subsequent member to a different storage position. Only removal
+        # from the end preserves the existing storage sequence.
+        if symbol.is_commonblock:
+            block_name = symbol.interface.name.lower()
+            for other_symbol in self.symbols:
+                if (other_symbol.is_commonblock and
+                        other_symbol.interface.name.lower() == block_name and
+                        other_symbol.interface.position >
+                        symbol.interface.position):
+                    raise ValueError(
+                        f"Cannot remove Symbol '{symbol.name}' from common "
+                        f"block '{symbol.interface.name}' because it has a "
+                        f"subsequent member. Only the final member of a "
+                        f"common block may be removed.")
 
         # We can only remove a ContainerSymbol if no DataSymbols are
         # being imported from it

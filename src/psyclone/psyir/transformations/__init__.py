@@ -114,6 +114,10 @@ from psyclone.psyir.transformations.move_trans import (
 )
 
 # Metatransformations
+from psyclone.psyir.transformations.metatransformations.\
+    arrayintrinsic2loop_trans import ArrayIntrinsic2LoopTrans
+from psyclone.psyir.transformations.metatransformations.\
+    intrinsic2code_trans import Intrinsic2CodeTrans
 from psyclone.psyir.transformations.metatransformations.omp_cpu_routine_trans\
     import OMPCPURoutineTrans
 

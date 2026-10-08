@@ -576,14 +576,21 @@ def test_scalar_array(tmpdir, dist_mem):
                              dist_mem=dist_mem, idx=0)
 
     generated_code = str(psy.gen)
+    # Note that 'dims_integer_array' is a scalar argument, deliberately named
+    # to clash with the local array that PSyclone will create to hold the
+    # dimensions of the scalar-array argument named 'integer_array'.
     expected_subroutine = (
        "  subroutine invoke_0(f1, real_array, logical_array, integer_array, "
-       "dims_integer_array, a, f2, f3, f4, b, dims_real_array, "
-       "dims_logical_array, dims_integer_array_1)\n"
+       "dims_integer_array, a, f2, f3, f4, b)\n"
     )
+    assert expected_subroutine in generated_code
 
-    expected_declarations = (
+    expected_arg_declarations = (
         "    type(field_type), intent(in) :: f1\n"
+        "    real(kind=r_def), dimension(:,:), intent(in) :: real_array\n"
+        "    logical(kind=l_def), dimension(:), intent(in) :: logical_array\n"
+        "    integer(kind=i_def), dimension(:,:,:,:), intent(in) :: "
+        "integer_array\n"
         "    integer(kind=i_def), intent(in) :: dims_integer_array\n"
         "    integer(kind=i_def), intent(in) :: a\n"
         "    type(field_type), intent(in) :: f2\n"
@@ -614,6 +621,22 @@ def test_scalar_array(tmpdir, dist_mem):
         "dims_integer_array_1(2),dims_integer_array_1(3),"
         "dims_integer_array_1(4)), intent(in) :: integer_array\n"
     )
+    assert expected_arg_declarations in generated_code
+
+    expected_local_declns = (
+        "    integer(kind=i_def), dimension(2) :: dims_real_array\n"
+        "    integer(kind=i_def), dimension(1) :: dims_logical_array\n"
+        "    integer(kind=i_def), dimension(4) :: dims_integer_array_1\n"
+    )
+    assert expected_local_declns in generated_code
+
+    expected_init = (
+        "    ! Store dimensions of ScalarArray arguments\n"
+        "    dims_real_array = SHAPE(real_array)\n"
+        "    dims_logical_array = SHAPE(logical_array)\n"
+        "    dims_integer_array_1 = SHAPE(integer_array)\n"
+    )
+    assert expected_init in generated_code
 
     expected_calls = (
         "    do cell = loop0_start, loop0_stop, 1\n"
@@ -628,8 +651,6 @@ def test_scalar_array(tmpdir, dist_mem):
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
         "    enddo\n"
     )
-    assert expected_subroutine in generated_code
-    assert expected_declarations in generated_code
     assert expected_calls[0] in generated_code
     assert expected_calls[1] in generated_code
     assert LFRicBuild(tmpdir).code_compiles(psy)

@@ -92,15 +92,31 @@ def test_lw_arrayreference(fortran_reader, fortran_writer, tmpdir):
 def test_lw_structureref(fortran_writer):
     ''' Test the LanguageWriter support for StructureReference
     using the FortranWriter as instance. '''
-    region_type = StructureType.create([
-        ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        ("ny", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None)])
+    region_type = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
+                "ny", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+        ]
+    )
     region_type_sym = DataTypeSymbol("grid_type", region_type)
     region_array_type = ArrayType(region_type_sym, [2, 2])
-    grid_type = StructureType.create([
-        ("dx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        ("area", region_type_sym, Symbol.Visibility.PUBLIC, None),
-        ("levels", region_array_type, Symbol.Visibility.PUBLIC, None)])
+    grid_type = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "dx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
+                "area", region_type_sym, Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
+                "levels", region_array_type, Symbol.Visibility.PUBLIC, None
+            ),
+        ]
+    )
     grid_type_sym = DataTypeSymbol("grid_type", grid_type)
     grid_var = DataSymbol("grid", grid_type_sym)
     grid_ref = StructureReference.create(grid_var, ['area', 'nx'])
@@ -128,14 +144,26 @@ def test_lw_structureref(fortran_writer):
 def test_lw_arrayofstructuresmember(fortran_writer):
     ''' Test the LanguageWriter support for ArrayOfStructuresMember
     using the FortranWriter. '''
-    region_type = StructureType.create([
-        ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        ("ny", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None)])
+    region_type = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
+                "ny", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+        ]
+    )
     region_type_sym = DataTypeSymbol("grid_type", region_type)
     region_array_type = ArrayType(region_type_sym, [2, 2])
     # The grid type contains an array of region-type structures
-    grid_type = StructureType.create([
-        ("levels", region_array_type, Symbol.Visibility.PUBLIC, None)])
+    grid_type = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "levels", region_array_type, Symbol.Visibility.PUBLIC, None
+            )
+        ]
+    )
     grid_type_sym = DataTypeSymbol("grid_type", grid_type)
     grid_var = DataSymbol("grid", grid_type_sym)
     # Reference to an element of an array that is a structure
@@ -159,8 +187,13 @@ def test_lw_arrayofstructuresmember(fortran_writer):
 def test_lw_arrayofstructuresref(fortran_writer):
     ''' Test the LanguageWriter support for ArrayOfStructuresReference
     using the FortranWriter as instance. '''
-    grid_type = StructureType.create([
-        ("dx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None)])
+    grid_type = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "dx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            )
+        ]
+    )
     grid_type_sym = DataTypeSymbol("grid_type", grid_type)
     grid_array_type = ArrayType(grid_type_sym, [10])
     grid_var = DataSymbol("grid", grid_array_type)
@@ -185,14 +218,26 @@ def test_lw_arrayofstructuresref(fortran_writer):
 
 def test_member_node(fortran_writer):
     '''Explicitly test the member_node function.'''
-    region_type = StructureType.create([
-        ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        ("ny", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None)])
+    region_type = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
+                "ny", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+        ]
+    )
     region_type_sym = DataTypeSymbol("grid_type", region_type)
     region_array_type = ArrayType(region_type_sym, [2, 2])
     # The grid type contains an array of region-type structures
-    grid_type = StructureType.create([
-        ("levels", region_array_type, Symbol.Visibility.PUBLIC, None)])
+    grid_type = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "levels", region_array_type, Symbol.Visibility.PUBLIC, None
+            )
+        ]
+    )
     grid_type_sym = DataTypeSymbol("grid_type", grid_type)
     grid_var = DataSymbol("grid", grid_type_sym)
     # Reference to a member of a structure that is an element of an array

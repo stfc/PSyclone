@@ -34,10 +34,19 @@ REAL_KIND = CONTAINER_SYMBOL_TABLE.new_symbol(
 SCALAR_TYPE = ScalarType(ScalarType.Intrinsic.REAL, Reference(REAL_KIND))
 
 # Derived-type definition in container
-GRID_TYPE = StructureType.create([
-    ("dx", SCALAR_TYPE, Symbol.Visibility.PUBLIC, None),
-    ("dy", SCALAR_TYPE, Symbol.Visibility.PUBLIC,
-     Literal("1.0", SCALAR_TYPE))])
+GRID_TYPE = StructureType.create(
+    [
+        StructureType.ComponentType(
+            "dx", SCALAR_TYPE, Symbol.Visibility.PUBLIC, None
+        ),
+        StructureType.ComponentType(
+            "dy",
+            SCALAR_TYPE,
+            Symbol.Visibility.PUBLIC,
+            Literal("1.0", SCALAR_TYPE),
+        ),
+    ]
+)
 GRID_TYPE_SYMBOL = DataTypeSymbol("grid_type", GRID_TYPE)
 CONTAINER_SYMBOL_TABLE.add(GRID_TYPE_SYMBOL)
 
@@ -53,11 +62,27 @@ SYMBOL_TABLE.add(DTYPE_SYMBOL)
 
 # Create the definition of the 'field_type'
 FIELD_TYPE_DEF = StructureType.create(
-    [("data", ArrayType(SCALAR_TYPE, [10]), Symbol.Visibility.PUBLIC, None),
-     ("grid", GRID_TYPE_SYMBOL, Symbol.Visibility.PUBLIC, None),
-     ("sub_meshes", ArrayType(GRID_TYPE_SYMBOL, [3]),
-      Symbol.Visibility.PUBLIC, None),
-     ("flag", ScalarType.integer4_type(), Symbol.Visibility.PUBLIC, None)])
+    [
+        StructureType.ComponentType(
+            "data",
+            ArrayType(SCALAR_TYPE, [10]),
+            Symbol.Visibility.PUBLIC,
+            None,
+        ),
+        StructureType.ComponentType(
+            "grid", GRID_TYPE_SYMBOL, Symbol.Visibility.PUBLIC, None
+        ),
+        StructureType.ComponentType(
+            "sub_meshes",
+            ArrayType(GRID_TYPE_SYMBOL, [3]),
+            Symbol.Visibility.PUBLIC,
+            None,
+        ),
+        StructureType.ComponentType(
+            "flag", ScalarType.integer4_type(), Symbol.Visibility.PUBLIC, None
+        ),
+    ]
+)
 FIELD_TYPE_SYMBOL = DataTypeSymbol("field_type", FIELD_TYPE_DEF)
 CONTAINER_SYMBOL_TABLE.add(FIELD_TYPE_SYMBOL)
 
