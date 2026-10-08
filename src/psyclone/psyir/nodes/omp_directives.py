@@ -49,8 +49,7 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
-    ContainerSymbol, DataSymbol, ImportInterface, ScalarType, RoutineSymbol,
-    Symbol)
+    ContainerSymbol, DataSymbol, ImportInterface, ScalarType, RoutineSymbol)
 
 #: Mapping from PSyIR reduction operator to OMP reduction operator.
 MAP_REDUCTION_OP_TO_OMP = {
