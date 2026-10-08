@@ -18,11 +18,13 @@ import pytest
 
 from psyclone.core import Signature, AccessSequence, AccessType
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Container, Literal, KernelSchedule, Reference
+from psyclone.psyir.nodes import (
+    Container, KernelSchedule, Literal, OMPDeclareTargetDirective,
+    OMPDeclareTargetVariable, Reference)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ContainerSymbol,
     DataSymbol, ImportInterface, DefaultModuleInterface, StaticInterface,
-    ScalarType, AutomaticInterface, CommonBlockInterface,
+    DataTypeSymbol, ScalarType, AutomaticInterface, CommonBlockInterface,
     NoType, RoutineSymbol, Symbol, SymbolError, UnknownInterface,
     SymbolTable, UnresolvedInterface)
 
@@ -38,6 +40,7 @@ def test_symbol_initialisation():
     assert sym.name == "sym1"
     assert sym.visibility == Symbol.DEFAULT_VISIBILITY
     assert isinstance(sym.interface, AutomaticInterface)
+    assert sym.directive is None
     # Check that the default visibility is public
     assert Symbol.DEFAULT_VISIBILITY == Symbol.Visibility.PUBLIC
 
@@ -61,6 +64,54 @@ def test_symbol_initialisation():
         Symbol('sym1', interface="hello")
     assert ("The interface to a Symbol must be a SymbolInterface but got "
             "'str'" in str(error.value))
+
+
+def test_symbol_directive():
+    '''Test the Symbol directive getter and setter.'''
+    directive = OMPDeclareTargetVariable(Symbol("target"))
+    symbol = Symbol("sym", directive=directive)
+    assert symbol.directive is directive
+    assert directive.symbol is symbol
+
+    data_symbol = DataSymbol(
+        "data", ScalarType.integer_type(),
+        directive=OMPDeclareTargetVariable(Symbol("data_target")))
+    data_symbol_copy = data_symbol.copy()
+    assert isinstance(data_symbol_copy.directive, OMPDeclareTargetVariable)
+    assert data_symbol_copy.directive.symbol is data_symbol_copy
+
+    datatype_symbol = DataTypeSymbol(
+        "type", ScalarType.integer_type(),
+        directive=OMPDeclareTargetVariable(Symbol("type_target")))
+    datatype_symbol_copy = datatype_symbol.copy()
+    assert isinstance(datatype_symbol_copy.directive, OMPDeclareTargetVariable)
+    assert datatype_symbol_copy.directive.symbol is datatype_symbol_copy
+
+    with pytest.raises(TypeError) as error:
+        symbol.directive = OMPDeclareTargetDirective()
+    assert ("The directive associated with a Symbol must implement "
+            "HasSymbolMixin or be None but got "
+            "'OMPDeclareTargetDirective'." in str(error.value))
+
+    symbol.directive = None
+    assert symbol.directive is None
+
+
+def test_symbol_table_duplicate_symbol_with_directive():
+    '''Check a duplicated symbol's directive points to the duplicate.'''
+    symbol_table = SymbolTable()
+    original = DataSymbol(
+        "field", ScalarType.integer_type(),
+        directive=OMPDeclareTargetVariable(Symbol("placeholder")))
+    symbol_table.add(original)
+
+    duplicate = original.copy()
+    symbol_table.rename_symbol(original, "original_field")
+    symbol_table.add(duplicate)
+
+    assert original.directive.symbol is original
+    assert duplicate.directive.symbol is duplicate
+    assert original.directive.symbol is not duplicate.directive.symbol
 
 
 def test_symbol_interface_setter_and_is_properties():
@@ -197,12 +248,15 @@ def test_symbol_copy():
     csym = ContainerSymbol("some_mod")
     asym = Symbol("a", visibility=Symbol.Visibility.PRIVATE,
                   interface=ImportInterface(csym))
+    asym.directive = OMPDeclareTargetVariable(Symbol("target"))
     new_sym = asym.copy()
     assert new_sym is not asym
     assert new_sym.name == asym.name
     assert isinstance(new_sym.interface, ImportInterface)
     assert new_sym.interface.container_symbol is csym
     assert new_sym.visibility == asym.visibility
+    assert new_sym.directive is not asym.directive
+    assert isinstance(new_sym.directive, OMPDeclareTargetVariable)
     # Check that we can modify the interface of the new symbol without
     # affecting the original.
     new_sym.interface.container_symbol = ContainerSymbol("other_mod")
@@ -214,6 +268,7 @@ def test_symbol_copy_properties():
     csym = ContainerSymbol("some_mod")
     sym = Symbol("a", visibility=Symbol.Visibility.PRIVATE,
                  interface=ImportInterface(csym))
+    sym.directive = OMPDeclareTargetVariable(Symbol("target"))
     new_sym = Symbol("b")
     # First, exclude the interface from the update.
     new_sym.copy_properties(sym, exclude_interface=True)
@@ -228,6 +283,9 @@ def test_symbol_copy_properties():
     assert new_sym.visibility == Symbol.Visibility.PUBLIC
     # Interface should have been updated
     assert new_sym.interface == sym.interface
+    assert new_sym.directive is not sym.directive
+    assert new_sym.directive.symbol is new_sym
+    assert sym.directive.symbol is sym
 
     with pytest.raises(TypeError) as err:
         new_sym.copy_properties("hello")
@@ -315,7 +373,7 @@ def test_get_external_symbol(monkeypatch):
             "'some_mod' but could not obtain its PSyIR." in str(err.value))
 
 
-def test_get_external_symbol_missing(monkeypatch):
+def test_get_external_symbol_missing():
     '''
     Test that get_external_symbol() raises the expected error when the
     requested symbol cannot be found in the Container from which it is

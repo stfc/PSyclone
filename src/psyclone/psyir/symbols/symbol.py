@@ -19,7 +19,8 @@ from psyclone.psyir.symbols.interfaces import (
     CommonBlockInterface, DefaultModuleInterface, StaticInterface)
 from psyclone.psyir.commentable_mixin import CommentableMixin
 if TYPE_CHECKING:
-    from psyclone.psyir.nodes import Node
+    from psyclone.psyir.nodes.has_symbol_mixin import HasSymbolMixin
+    from psyclone.psyir.nodes.node import Node
     from psyclone.psyir.symbols import SymbolTable
 
 
@@ -51,6 +52,8 @@ class Symbol(CommentableMixin):
         :py:class:`psyclone.psyir.symbols.AutomaticInterface`
     :type interface: Optional[ \
         :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`]
+    :param directive: optional symbol-associated PSyIR directive.
+    :type directive: Optional[:py:class:`psyclone.psyir.nodes.HasSymbolMixin`]
 
     :raises TypeError: if the name is not a str.
 
@@ -73,7 +76,8 @@ class Symbol(CommentableMixin):
     # given an explicit visibility.
     DEFAULT_VISIBILITY = Visibility.PUBLIC
 
-    def __init__(self, name, visibility=DEFAULT_VISIBILITY, interface=None):
+    def __init__(self, name, visibility=DEFAULT_VISIBILITY, interface=None,
+                 directive=None):
 
         if not isinstance(name, str):
             raise TypeError(
@@ -85,21 +89,24 @@ class Symbol(CommentableMixin):
         # The following attributes have a setter method (with error checking)
         self._visibility = None
         self._interface = None
+        self._directive = None
 
-        self._process_arguments(visibility=visibility, interface=interface)
+        self._process_arguments(visibility=visibility, interface=interface,
+                                directive=directive)
 
-    def _process_arguments(self, visibility=None, interface=None):
+    def _process_arguments(self,
+                           visibility: Optional[Symbol.Visibility] = None,
+                           interface: Optional[SymbolInterface] = None,
+                           directive: Optional[HasSymbolMixin] = None):
         ''' Process the visibility and interface arguments of the constructor
         and the specialise methods.
 
         :param visibility: the visibility of the symbol.
-        :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
-        :param interface: optional object describing the interface to this \
-            symbol (i.e. whether it is passed as a routine argument or \
-            accessed in some other way). Defaults to \
+        :param interface: optional object describing the interface to this
+            symbol (i.e. whether it is passed as a routine argument or
+            accessed in some other way). Defaults to
             :py:class:`psyclone.psyir.symbols.AutomaticInterface`
-        :type interface: Optional[ \
-            :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`]
+        :param directive: optional symbol-associated PSyIR directive.
 
         '''
         if interface:
@@ -109,6 +116,8 @@ class Symbol(CommentableMixin):
 
         if visibility:
             self.visibility = visibility
+        if directive is not None:
+            self.directive = directive
 
     def copy(self):
         '''Create and return a copy of this object. Any references to the
@@ -123,7 +132,9 @@ class Symbol(CommentableMixin):
         # The constructors for all Symbol-based classes have 'name' as the
         # first positional argument.
         copy = type(self)(self.name, visibility=self.visibility,
-                          interface=self.interface.copy())
+                          interface=self.interface.copy(),
+                          directive=(self.directive.copy()
+                                     if self.directive is not None else None))
         copy.preceding_comment = self.preceding_comment
         copy.inline_comment = self.inline_comment
         return copy
@@ -147,6 +158,8 @@ class Symbol(CommentableMixin):
                             f"found '{type(symbol_in).__name__}'.")
         if not exclude_interface:
             self._interface = symbol_in.interface
+        self.directive = (symbol_in.directive.copy()
+                          if symbol_in.directive is not None else None)
 
     def specialise(self, subclass, **kwargs):
         '''Specialise this symbol so that it becomes an instance of the class
@@ -313,6 +326,35 @@ class Symbol(CommentableMixin):
                             f"SymbolInterface but got "
                             f"'{type(value).__name__}'")
         self._interface = value
+
+    @property
+    def directive(self) -> Optional["HasSymbolMixin"]:
+        '''
+        :returns: the symbol-associated directive, if any.
+        '''
+        return self._directive
+
+    @directive.setter
+    def directive(self, value: Optional["HasSymbolMixin"]):
+        '''
+        Setter for the directive associated with this Symbol.
+
+        :param value: the symbol-associated directive, if any.
+
+        :raises TypeError: if the supplied value is not a HasSymbolMixin or
+            None.
+        '''
+        # This import has to be local to avoid a circular dependency.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.has_symbol_mixin import HasSymbolMixin
+        if value is not None and not isinstance(value, HasSymbolMixin):
+            raise TypeError(
+                f"The directive associated with a Symbol must implement "
+                f"HasSymbolMixin or be None but got "
+                f"'{type(value).__name__}'.")
+        if value is not None:
+            value.symbol = self
+        self._directive = value
 
     @property
     def is_automatic(self):

@@ -54,6 +54,7 @@ from psyclone.psyir.nodes.call import Call, CallMatchingArgumentsNotFound
 from psyclone.psyir.nodes.file_container import FileContainer
 from psyclone.psyir.nodes.directive import (
     Directive, StandaloneDirective, RegionDirective)
+from psyclone.psyir.nodes.has_symbol_mixin import HasSymbolMixin
 from psyclone.psyir.nodes.dynamic_omp_task_directive import (
     DynamicOMPTaskDirective)
 from psyclone.psyir.nodes.acc_directives import (
@@ -66,7 +67,7 @@ from psyclone.psyir.nodes.omp_directives import (
     OMPParallelDoDirective, OMPSingleDirective, OMPMasterDirective,
     OMPSerialDirective, OMPTaskloopDirective, OMPTaskwaitDirective,
     OMPStandaloneDirective, OMPRegionDirective, OMPTargetDirective,
-    OMPLoopDirective, OMPDeclareTargetDirective,
+    OMPLoopDirective, OMPDeclareTargetDirective, OMPDeclareTargetVariable,
     OMPTeamsDistributeParallelDoDirective, OMPAtomicDirective,
     OMPSimdDirective, OMPTeamsLoopDirective, OMPBarrierDirective,
     OMPCriticalDirective)
@@ -129,6 +130,7 @@ __all__ = [
         'Directive',
         'RegionDirective',
         'StandaloneDirective',
+        'HasSymbolMixin',
         # OpenACC Directive Nodes
         'ACCAtomicDirective',
         'ACCDirective',
@@ -164,6 +166,7 @@ __all__ = [
         'OMPTargetDirective',
         'OMPLoopDirective',
         'OMPDeclareTargetDirective',
+        'OMPDeclareTargetVariable',
         'OMPSimdDirective',
         'OMPTeamsDistributeParallelDoDirective',
         'OMPTeamsLoopDirective',

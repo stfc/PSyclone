@@ -33,6 +33,7 @@ from psyclone.psyir.nodes.data_sharing_attribute_mixin import (
 )
 from psyclone.psyir.nodes.directive import (
     StandaloneDirective, RegionDirective)
+from psyclone.psyir.nodes.has_symbol_mixin import HasSymbolMixin
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.loop import Loop
@@ -140,6 +141,36 @@ class OMPDeclareTargetDirective(OMPStandaloneDirective):
                 f"{type(self.parent).__name__}.")
 
         super().validate_global_constraints()
+
+
+class OMPDeclareTargetVariable(HasSymbolMixin, OMPStandaloneDirective):
+    '''Class representing an OpenMP Declare Target directive for a variable.
+
+    :param symbol: the symbol declared as a target.
+    :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+
+    '''
+
+    def __init__(self, symbol, **kwargs):
+        super().__init__(**kwargs)
+        self.symbol = symbol
+
+    def begin_string(self):
+        '''
+        :returns: the opening string statement of this directive.
+        :rtype: str
+        '''
+        return f"omp declare target({self.symbol.name})"
+
+    def node_str(self, colour=True):
+        '''
+        :param bool colour: whether or not to include control codes for
+            coloured output.
+
+        :returns: a text description of this node.
+        :rtype: str
+        '''
+        return f"{self.coloured_name(colour)}[{self.symbol.name}]"
 
 
 class OMPTaskwaitDirective(OMPStandaloneDirective):
