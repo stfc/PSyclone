@@ -598,7 +598,7 @@ def test_abstract_interface_decln(fortran_reader, fortran_writer):
   end module test_mod'''
     psyir = fortran_reader.psyir_from_source(code)
     output = fortran_writer(psyir)
-    assert """END TYPE ftam_typ
+    assert """  end type ftam_typ
   abstract interface
   subroutine rst_interface(self, piom_ctl, pvar_ctl)
     import :: fiom_ctl_typ, fvar_ctl_typ

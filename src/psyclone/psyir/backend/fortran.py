@@ -712,7 +712,7 @@ class FortranWriter(LanguageWriter):
 
         :param symbols: symbols that may belong to common blocks.
 
-        :returns: the common-block declarations.
+        :returns: the common-block declarations, ordered by name.
 
         :raises VisitorError: if two Symbols in the same common block have
             the same position.
@@ -728,7 +728,8 @@ class FortranWriter(LanguageWriter):
 
         # Order the symbols by their commonblock interface position
         declarations = ""
-        for name, members in common_blocks.items():
+        for name in sorted(common_blocks.keys()):
+            members = common_blocks[name]
             positions = [symbol.interface.position for symbol in members]
             if len(positions) != len(set(positions)):
                 raise VisitorError(
@@ -1113,7 +1114,7 @@ class FortranWriter(LanguageWriter):
                     f"Unable to satisfy dependencies for the declarations of "
                     f"{[sym.name for sym in all_symbols]}")
 
-        declarations += self._gen_common_block_decls(all_symbols)
+        declarations += self._gen_common_block_decls(list(declared))
 
         return declarations
 
