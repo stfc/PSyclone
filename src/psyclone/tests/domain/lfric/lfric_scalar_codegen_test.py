@@ -11,6 +11,8 @@ LFRic scalar arguments.
 '''
 
 import os
+from textwrap import dedent, indent
+
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 
@@ -585,43 +587,19 @@ def test_scalar_array(tmpdir, dist_mem):
     )
     assert expected_subroutine in generated_code
 
-    expected_arg_declarations = (
-        "    type(field_type), intent(in) :: f1\n"
-        "    real(kind=r_def), dimension(:,:), intent(in) :: real_array\n"
-        "    logical(kind=l_def), dimension(:), intent(in) :: logical_array\n"
-        "    integer(kind=i_def), dimension(:,:,:,:), intent(in) :: "
-        "integer_array\n"
-        "    integer(kind=i_def), intent(in) :: dims_integer_array\n"
-        "    integer(kind=i_def), intent(in) :: a\n"
-        "    type(field_type), intent(in) :: f2\n"
-        "    type(field_type), intent(in) :: f3\n"
-        "    type(field_type), intent(in) :: f4\n"
-        "    integer(kind=i_def), intent(in) :: b\n")
-    if dist_mem:
-        expected_declarations += (
-            "    type(mesh_type), pointer :: mesh => null()\n"
-            "    integer(kind=i_def) :: max_halo_depth_mesh\n")
-    expected_declarations += (
-        "    real(kind=r_def), pointer, dimension(:) :: f1_data => null()\n"
-        "    real(kind=r_def), pointer, dimension(:) :: f2_data => null()\n"
-        "    real(kind=r_def), pointer, dimension(:) :: f3_data => null()\n"
-        "    real(kind=r_def), pointer, dimension(:) :: f4_data => null()\n"
-        "    integer(kind=i_def) :: nlayers_f1\n"
-        "    integer(kind=i_def), dimension(2), intent(in) :: "
-        "dims_real_array\n"
-        "    real(kind=r_def), dimension(dims_real_array(1),"
-        "dims_real_array(2)), intent(in) :: real_array\n"
-        "    integer(kind=i_def), dimension(1), intent(in) :: "
-        "dims_logical_array\n"
-        "    logical(kind=l_def), dimension(dims_logical_array(1)), "
-        "intent(in) :: logical_array\n"
-        "    integer(kind=i_def), dimension(4), intent(in) :: "
-        "dims_integer_array_1\n"
-        "    integer(kind=i_def), dimension(dims_integer_array_1(1),"
-        "dims_integer_array_1(2),dims_integer_array_1(3),"
-        "dims_integer_array_1(4)), intent(in) :: integer_array\n"
-    )
-    assert expected_arg_declarations in generated_code
+    expected_arg_declarations = """\
+        type(field_type), intent(in) :: f1
+        real(kind=r_def), dimension(:,:), intent(in) :: real_array
+        logical(kind=l_def), dimension(:), intent(in) :: logical_array
+        integer(kind=i_def), dimension(:,:,:,:), intent(in) :: integer_array
+        integer(kind=i_def), intent(in) :: dims_integer_array
+        integer(kind=i_def), intent(in) :: a
+        type(field_type), intent(in) :: f2
+        type(field_type), intent(in) :: f3
+        type(field_type), intent(in) :: f4
+        integer(kind=i_def), intent(in) :: b"""
+
+    assert indent(dedent(expected_arg_declarations), 4*" ") in generated_code
 
     expected_local_declns = (
         "    integer(kind=i_def), dimension(2) :: dims_real_array\n"
