@@ -38,8 +38,6 @@ class LFRicColourAndOMPTrans(Transformation):
         Validates the input options of the LFRicColourAndOMPTrans.
 
         :param node: the Routine node to transform
-        :param reprod: whether to use reproducible form of OpenMP reduction.
-            If none, the default value from the configuration is used.
         '''
         self.validate_options(reprod=reprod, **kwargs)
 

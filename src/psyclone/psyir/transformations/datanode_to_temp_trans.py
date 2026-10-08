@@ -232,6 +232,8 @@ class DataNodeToTempTrans(Transformation):
                 )
             raise TransformationError(message)
 
+        super().validate(node, **kwargs)
+
     def apply(self, node: DataNode, storage_name: str = "",
               verbose: bool = False, **kwargs):
         """Applies the DataNodeToTempTrans to the input arguments.

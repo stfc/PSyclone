@@ -79,6 +79,8 @@ class Intrinsic2CodeTrans(Transformation):
                 f"received '{type(node).__name__}'."
             )
 
+        super().validate(node, **kwargs)
+
     def _split_kwargs(self, **kwargs) -> \
             tuple[dict[str, Any],
                   dict[IntrinsicCall.Intrinsic, dict[str, Any]]]:
