@@ -10,7 +10,9 @@
 from psyclone.psyir.nodes import FileContainer
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyGen import TransInfo
-from psyclone.psyir.domain.gocean.transformations import GOceanOMPParallelLoopTrans
+from psyclone.psyir.domain.gocean.transformations import (
+    GOceanOMPParallelLoopTrans)
+
 
 def trans(psyir: FileContainer):
     '''
