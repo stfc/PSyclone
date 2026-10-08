@@ -605,10 +605,16 @@ def test_outer_scope_accesses_unresolved(fortran_reader):
       subroutine call_it()
         call a_routine()
       end subroutine call_it
+      subroutine a_routine()
+        write(*,*) "This is not a problem"
+      end subroutine
     end module my_mod
     ''')
     rt0 = psyir.children[0].children[0]
     call = rt0.children[0]
+    # A *call* to a local Routine is not flagged as it is possible to solve
+    # this (provided that it then doesn't access module-scope data).
+    rt0.check_outer_scope_accesses(call, "call")
 
     # Mistakenly add symbols without adding them to the symbol table
     rt0.addchild(Assignment.create(Reference(Symbol("a")),
@@ -617,6 +623,32 @@ def test_outer_scope_accesses_unresolved(fortran_reader):
         rt0.check_outer_scope_accesses(call, "call")
     assert ("'call_it' contains accesses to 'a' but the origin of "
             "this" in str(err.value))
+
+
+def test_outer_scope_accesses_unsupported_type(fortran_reader):
+    '''
+    Test that check_outer_scope_accesses rejects symbols of
+    UnsupportedFortranType that have no partial datatype.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+    module my_mod
+      use some_mod
+    contains
+      subroutine call_it(arg)
+        procedure(func) :: arg
+        call arg()
+      end subroutine call_it
+    end module my_mod
+    ''')
+    routines = psyir.walk(Routine)
+    rt0 = routines[0]
+    assert rt0.symbol.name == "call_it"
+    call = rt0.walk(Call)[0]
+    with pytest.raises(SymbolError,
+                       match=("contains accesses to 'arg' which is of "
+                              "UnsupportedFortranType")):
+        rt0.check_outer_scope_accesses(call, "call")
 
 
 def test_outer_scope_accesses_multi_wildcards(fortran_reader):
