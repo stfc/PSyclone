@@ -97,6 +97,23 @@ def test_symbol_directive():
     assert symbol.directive is None
 
 
+def test_symbol_table_duplicate_symbol_with_directive():
+    '''Check a duplicated symbol's directive points to the duplicate.'''
+    symbol_table = SymbolTable()
+    original = DataSymbol(
+        "field", ScalarType.integer_type(),
+        directive=OMPDeclareTargetVariable(Symbol("placeholder")))
+    symbol_table.add(original)
+
+    duplicate = original.copy()
+    symbol_table.rename_symbol(original, "original_field")
+    symbol_table.add(duplicate)
+
+    assert original.directive.symbol is original
+    assert duplicate.directive.symbol is duplicate
+    assert original.directive.symbol is not duplicate.directive.symbol
+
+
 def test_symbol_interface_setter_and_is_properties():
     '''Test that the Symbol interface setter behaves as expected,
     including raising an exception if the input is of the wrong
