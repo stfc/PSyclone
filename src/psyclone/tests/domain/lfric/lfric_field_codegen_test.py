@@ -22,7 +22,9 @@ from psyclone.tests.utilities import get_invoke, get_psylayer_schedule
 
 # Constants
 BASE_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    ),
     "test_files",
     "lfric",
 )
@@ -34,7 +36,9 @@ def test_field(tmpdir):
     no distributed memory, produces correct code.
 
     """
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=TEST_API)
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"), api=TEST_API
+    )
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
 
     generated_code = psy.gen
@@ -132,7 +136,8 @@ def test_field_deref(tmpdir, dist_mem):
 
     """
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "1.13_single_invoke_field_deref.f90"), api=TEST_API
+        os.path.join(BASE_PATH, "1.13_single_invoke_field_deref.f90"),
+        api=TEST_API,
     )
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     generated_code = str(psy.gen)
@@ -199,9 +204,7 @@ def test_field_deref(tmpdir, dist_mem):
     )
     assert output in generated_code
     if dist_mem:
-        output = (
-            "\n    ! Create a mesh object\n    mesh => f1_proxy%vspace%get_mesh()\n"
-        )
+        output = "\n    ! Create a mesh object\n    mesh => f1_proxy%vspace%get_mesh()\n"
         assert output in generated_code
     output = (
         "\n"
@@ -248,7 +251,9 @@ def test_field_deref(tmpdir, dist_mem):
         assert output in generated_code
     else:
         assert "loop0_stop = f1_proxy%vspace%get_ncell()\n" in generated_code
-        output = "    ! Call kernels\n    do cell = loop0_start, loop0_stop, 1\n"
+        output = (
+            "    ! Call kernels\n    do cell = loop0_start, loop0_stop, 1\n"
+        )
         assert output in generated_code
     output = (
         "      call testkern_code(nlayers_f1, a, f1_data, est_f2_data, "
@@ -555,15 +560,22 @@ f6, m5, m6, m7)
 def test_vector_field(tmpdir):
     """Tests that a vector field is declared correctly in the PSy
     layer."""
-    _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field.f90"), api=TEST_API)
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "8_vector_field.f90"), api=TEST_API
+    )
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "subroutine invoke_0_testkern_coord_w0_type(f1, chi, f2)" in generated_code
+    assert (
+        "subroutine invoke_0_testkern_coord_w0_type(f1, chi, f2)"
+        in generated_code
+    )
     assert "type(field_type), intent(in) :: f1" in generated_code
-    assert "type(field_type), dimension(3), intent(in) :: chi" in generated_code
+    assert (
+        "type(field_type), dimension(3), intent(in) :: chi" in generated_code
+    )
     assert "type(field_type), intent(in) :: f2" in generated_code
 
 
@@ -593,7 +605,10 @@ def test_mkern_invoke_vec_fields():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     # 1st test for duplication of name vector-field declaration
-    assert "type(field_type), intent(in) :: f1, chi(3), chi(3)" not in generated_code
+    assert (
+        "type(field_type), intent(in) :: f1, chi(3), chi(3)"
+        not in generated_code
+    )
     # 2nd test for duplication of name vector-field declaration
     assert (
         "type(field_proxy_type) f1_proxy, chi_proxy(3), chi_proxy(3)"
@@ -608,7 +623,9 @@ def test_int_field_fs(tmp_path):
     """Tests that a call with a set of integer-valued fields making use of
     all function spaces and no basis functions produces correct code."""
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "1.5.5_single_invoke_write_multi_fs_int_field.f90"),
+        os.path.join(
+            BASE_PATH, "1.5.5_single_invoke_write_multi_fs_int_field.f90"
+        ),
         api=TEST_API,
     )
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -634,12 +651,17 @@ m4, f5, f6, m5, m6, f7, f8, m7)
     for prefix, ubound in [("f", 9), ("m", 7)]:
         declns: list[str] = []
         for idx in range(1, ubound):
-            declns.append(f"type(integer_field_type), intent(in) :: {prefix}{idx}")
+            declns.append(
+                f"type(integer_field_type), intent(in) :: {prefix}{idx}"
+            )
 
             declns.append(
-                f"integer(kind=i_def), pointer, dimension(:) :: {prefix}{idx}_data => null()"
+                f"integer(kind=i_def), pointer, dimension(:) :: "
+                f"{prefix}{idx}_data => null()"
             )
-            declns.append(f"type(integer_field_proxy_type) :: {prefix}{idx}_proxy")
+            declns.append(
+                f"type(integer_field_proxy_type) :: {prefix}{idx}_proxy"
+            )
 
         expected: str = indent("\n".join(declns), "    ")
         assert expected in generated_code
@@ -861,7 +883,9 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
 
     """
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "1.1.9_single_invoke_2qr_shapes_int_field.f90"),
+        os.path.join(
+            BASE_PATH, "1.1.9_single_invoke_2qr_shapes_int_field.f90"
+        ),
         api=TEST_API,
     )
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
@@ -1144,8 +1168,11 @@ def test_field_nlevels():
 
     """
     with pytest.raises(NotImplementedError) as err:
-        _ = get_psylayer_schedule("1.5.6_single_invoke_nlevels_ndata.f90", TEST_API)
+        _ = get_psylayer_schedule(
+            "1.5.6_single_invoke_nlevels_ndata.f90", TEST_API
+        )
     # TODO #868 - code generation yet to be implemented.
-    assert "Cannot generate arguments for kernel 'testkern_nlevels_ndata_code'" in str(
-        err.value
+    assert (
+        "Cannot generate arguments for kernel 'testkern_nlevels_ndata_code'"
+        in str(err.value)
     )
