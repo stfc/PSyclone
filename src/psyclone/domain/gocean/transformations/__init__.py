@@ -27,3 +27,4 @@ from psyclone.domain.gocean.transformations.gocean_omp_loop_trans import \
     GOceanOMPLoopTrans
 from psyclone.domain.gocean.transformations.gocean_omp_parallel_loop_trans \
     import GOceanOMPParallelLoopTrans
+

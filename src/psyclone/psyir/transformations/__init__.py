@@ -132,8 +132,6 @@ __all__ = [
     "ChunkLoopTrans",
     "ExtractTrans",
     "FoldConditionalReturnExpressionsTrans",
-    "GOceanOMPLoopTrans",
-    "GOceanOMPParallelLoopTrans",
     "HoistLocalArraysTrans",
     "HoistLoopBoundExprTrans",
     "HoistTrans",
