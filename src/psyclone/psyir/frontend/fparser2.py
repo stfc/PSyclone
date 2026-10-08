@@ -388,7 +388,7 @@ def _find_or_create_psyclone_internal_cmp(node):
             container.symbol_table.add(symbol)
             symbol = container.symbol_table.lookup(name_interface)
             # Add the appropriate tag to find it regardless of the name
-            container.symbol_table.tags_dict['psyclone_internal_cmp'] = symbol
+            container.symbol_table.add_tag(symbol, 'psyclone_internal_cmp')
             return symbol
 
     raise NotImplementedError(
@@ -6271,15 +6271,23 @@ class Fparser2Reader():
         try:
             subprog_part = _first_type_match(
                 node.children, Fortran2003.Module_Subprogram_Part)
-            module_subprograms = \
-                [subprogram for subprogram in subprog_part.children
-                 if not isinstance(subprogram, Fortran2003.Contains_Stmt)]
-            if module_subprograms:
-                self.process_nodes(parent=container, nodes=module_subprograms)
-        except SymbolError as err:
-            raise NotImplementedError(str(err.value))
         except ValueError:
+            # No module subprogram found
             pass
+        else:
+            # Process each subprogram component
+            for subprogram in subprog_part.children:
+                if isinstance(subprogram, Fortran2003.Contains_Stmt):
+                    continue  # Skip CONTAINS statement
+                try:
+                    self.process_nodes(parent=container, nodes=[subprogram])
+                except SymbolError as err:
+                    # This happens when the problematic symbol has not been
+                    # caputred by a UnsupportedType or Codeblock. This happens
+                    # with implicit functions, but since PSyIR output is always
+                    # 'implicit none', we need to put the whole parent module
+                    # in a CodeBlock to preserve the 'implicit' code.
+                    raise NotImplementedError(str(err.value)) from err
 
         return container
 
