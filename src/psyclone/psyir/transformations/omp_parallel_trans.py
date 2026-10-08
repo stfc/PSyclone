@@ -31,12 +31,13 @@ class OMPParallelTrans(ParallelRegionTrans):
     example:
 
     >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> from psyclone.domain.gocean.transformations import GOceanOMPLoopTrans
     >>> filename = "nemolite2d_alg_mod.f90"
     >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>>
     >>> from psyclone.psyGen import TransInfo
     >>> t = TransInfo()
-    >>> ltrans = t.get_trans_name('GOceanOMPLoopTrans')
+    >>> ltrans = GOceanOMPLoopTrans()
     >>> from psyclone.psyir.transformations import OMPParallelTrans
     >>> rtrans = OMPParallelTrans()
     >>>
