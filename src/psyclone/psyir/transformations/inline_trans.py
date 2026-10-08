@@ -353,7 +353,7 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
             # TODO #3124: We need a special case for LFRicLoops because they
             # still miss their argument references. Here we use domain
             # knowledge to guarantee that their automatic array shape don't
-            # change (these are sized by fields ndfs, undfs with are runtime
+            # change (these are sized by fields' ndfs, undfs which are runtime
             # constant).
             if (isinstance(loop, LFRicLoop) or
                     not writes_to_a_shape_symbol):
