@@ -93,9 +93,9 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
     assert (
         "  integer, intent(in) :: c\n"
         "  integer :: symbol1\n"
+        "  integer :: symbol1_1\n"
         "  integer :: symbol2\n"
         "  integer :: symbol2_1\n"
-        "  integer :: symbol1_1\n"
         "\n") in result
     assert Compile(tmpdir).string_compiles(result)
 
@@ -134,8 +134,8 @@ def test_fw_routine_nameclash(fortran_writer):
         symbols.DataSymbol("var1_1", symbols.ScalarType.integer_type()))
     result = fortran_writer(routine)
     assert ("  integer :: var1\n"
-            "  integer :: var1_2\n"
             "  integer :: var1_1\n"
+            "  integer :: var1_2\n"
             "\n"
             "  if (.true.) then\n"
             "    var1 = 1\n"
@@ -148,10 +148,10 @@ def test_fw_routine_nameclash(fortran_writer):
         symbols.DataSymbol("var1_2",
                            symbols.ScalarType.integer_type()))
     result = fortran_writer(routine)
-    assert ("  integer :: var1_2\n"
-            "  integer :: var1\n"
-            "  integer :: var1_3\n"
+    assert ("  integer :: var1\n"
             "  integer :: var1_1\n"
+            "  integer :: var1_2\n"
+            "  integer :: var1_3\n"
             "\n"
             "  if (.true.) then\n"
             "    var1 = 1\n"
@@ -198,8 +198,8 @@ def test_fw_routine_function(fortran_reader, fortran_writer, tmpdir,
             f"real :: a\n"
             f"contains\n"
             f"function tmp(b) result(val)\n"
-            f"  {result_decl}\n"
             f"  real :: b\n"
+            f"  {result_decl}\n"
             f"  val = a + b\n"
             f"end function tmp\n"
             f"end module test")
@@ -209,8 +209,8 @@ def test_fw_routine_function(fortran_reader, fortran_writer, tmpdir,
     assert (
         f"  contains\n"
         f"  function tmp(b) result(val)\n"
-        f"    {result_decl}\n"
-        f"    real :: b\n\n"
+        f"    real :: b\n"
+        f"    {result_decl}\n\n"
         f"    val = a + b\n\n"
         f"  end function tmp\n" in result.lower())
     assert Compile(tmpdir).string_compiles(result)

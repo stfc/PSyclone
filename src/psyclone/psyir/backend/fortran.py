@@ -1024,6 +1024,10 @@ class FortranWriter(LanguageWriter):
 
         internal_interface_symbol = symbol_table.lookup(
             "_psyclone_internal_interface", otherwise=None)
+        if internal_interface_symbol and (internal_interface_symbol in
+                                          all_symbols):
+            # We will declare an abstract interface last.
+            all_symbols.remove(internal_interface_symbol)
 
         if unresolved_symbols and not (
                 symbol_table.wildcard_imports() or
@@ -1119,6 +1123,11 @@ class FortranWriter(LanguageWriter):
             # Now that we've created new declaration(s) (and thus
             # potentially resolved some dependencies) we go back to
             # the start of the list of remaining symbols.
+
+        if internal_interface_symbol:
+            declarations += self.gen_vardecl(
+                internal_interface_symbol,
+                include_visibility=is_module_scope)
 
         declarations += self._gen_common_block_decls(list(declared))
 

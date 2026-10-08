@@ -5,13 +5,14 @@
 # See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
-'''
+"""
 Module containing pytest tests for PSy-layer code generation for the
 LFRic field arguments.
-'''
+"""
 
 import os
 import pytest
+from textwrap import indent
 
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -21,19 +22,19 @@ from psyclone.tests.utilities import get_invoke, get_psylayer_schedule
 
 # Constants
 BASE_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__)))),
-    "test_files", "lfric")
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "test_files",
+    "lfric",
+)
 TEST_API = "lfric"
 
 
 def test_field(tmpdir):
-    ''' Tests that a call with a set of fields, no basis functions and
+    """Tests that a call with a set of fields, no basis functions and
     no distributed memory, produces correct code.
 
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api=TEST_API)
+    """
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
 
     generated_code = psy.gen
@@ -48,32 +49,32 @@ def test_field(tmpdir):
         "  contains\n"
         "  subroutine invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
         "    use constants_mod, only : i_def\n"
-        "    integer(kind=i_def) :: cell\n"
         "    real(kind=r_def), intent(in) :: a\n"
+        "    integer(kind=i_def) :: cell\n"
         "    type(field_type), intent(in) :: f1\n"
-        "    type(field_type), intent(in) :: f2\n"
-        "    type(field_type), intent(in) :: m1\n"
-        "    type(field_type), intent(in) :: m2\n"
         "    real(kind=r_def), pointer, dimension(:) :: f1_data => null()\n"
+        "    type(field_proxy_type) :: f1_proxy\n"
+        "    type(field_type), intent(in) :: f2\n"
         "    real(kind=r_def), pointer, dimension(:) :: f2_data => null()\n"
+        "    type(field_proxy_type) :: f2_proxy\n"
+        "    integer(kind=i_def) :: loop0_start\n"
+        "    integer(kind=i_def) :: loop0_stop\n"
+        "    type(field_type), intent(in) :: m1\n"
         "    real(kind=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "    type(field_proxy_type) :: m1_proxy\n"
+        "    type(field_type), intent(in) :: m2\n"
         "    real(kind=r_def), pointer, dimension(:) :: m2_data => null()\n"
-        "    integer(kind=i_def) :: nlayers_f1\n"
-        "    integer(kind=i_def) :: ndf_w1\n"
-        "    integer(kind=i_def) :: undf_w1\n"
-        "    integer(kind=i_def) :: ndf_w2\n"
-        "    integer(kind=i_def) :: undf_w2\n"
-        "    integer(kind=i_def) :: ndf_w3\n"
-        "    integer(kind=i_def) :: undf_w3\n"
+        "    type(field_proxy_type) :: m2_proxy\n"
         "    integer(kind=i_def), pointer :: map_w1(:,:) => null()\n"
         "    integer(kind=i_def), pointer :: map_w2(:,:) => null()\n"
         "    integer(kind=i_def), pointer :: map_w3(:,:) => null()\n"
-        "    type(field_proxy_type) :: f1_proxy\n"
-        "    type(field_proxy_type) :: f2_proxy\n"
-        "    type(field_proxy_type) :: m1_proxy\n"
-        "    type(field_proxy_type) :: m2_proxy\n"
-        "    integer(kind=i_def) :: loop0_start\n"
-        "    integer(kind=i_def) :: loop0_stop\n"
+        "    integer(kind=i_def) :: ndf_w1\n"
+        "    integer(kind=i_def) :: ndf_w2\n"
+        "    integer(kind=i_def) :: ndf_w3\n"
+        "    integer(kind=i_def) :: nlayers_f1\n"
+        "    integer(kind=i_def) :: undf_w1\n"
+        "    integer(kind=i_def) :: undf_w2\n"
+        "    integer(kind=i_def) :: undf_w3\n"
         "\n"
         "    ! Initialise field and/or operator proxies\n"
         "    f1_proxy = f1%get_proxy()\n"
@@ -118,26 +119,24 @@ def test_field(tmpdir):
         "\n"
         "  end subroutine invoke_0_testkern_type\n"
         "\n"
-        "end module single_invoke_psy\n")
+        "end module single_invoke_psy\n"
+    )
     assert output == str(generated_code)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_field_deref(tmpdir, dist_mem):
-    ''' Tests that a call with a set of fields (some obtained by
+    """Tests that a call with a set of fields (some obtained by
     de-referencing derived types) and no basis functions produces
     correct code.
 
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "1.13_single_invoke_field_deref.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
+    """
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1.13_single_invoke_field_deref.f90"), api=TEST_API
+    )
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     generated_code = str(psy.gen)
-    output = (
-        "  subroutine invoke_0_testkern_type(a, f1, est_f2, m1, "
-        "est_m2)\n")
+    output = "  subroutine invoke_0_testkern_type(a, f1, est_f2, m1, est_m2)\n"
     assert output in generated_code
     assert "use testkern_mod, only : testkern_code\n" in generated_code
     if dist_mem:
@@ -147,42 +146,42 @@ def test_field_deref(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output = (
-        "    integer(kind=i_def) :: cell\n"
         "    real(kind=r_def), intent(in) :: a\n"
-        "    type(field_type), intent(in) :: f1\n"
+        "    integer(kind=i_def) :: cell\n"
         "    type(field_type), intent(in) :: est_f2\n"
-        "    type(field_type), intent(in) :: m1\n"
-        "    type(field_type), intent(in) :: est_m2\n"
-    )
-    assert output in generated_code
-    output = (
-        "    real(kind=r_def), pointer, dimension(:) :: f1_data => null()\n"
         "    real(kind=r_def), pointer, dimension(:) :: est_f2_data => "
         "null()\n"
-        "    real(kind=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "    type(field_proxy_type) :: est_f2_proxy\n"
+        "    type(field_type), intent(in) :: est_m2\n"
         "    real(kind=r_def), pointer, dimension(:) :: est_m2_data => "
         "null()\n"
-        "    integer(kind=i_def) :: nlayers_f1\n"
-        "    integer(kind=i_def) :: ndf_w1\n"
-        "    integer(kind=i_def) :: undf_w1\n"
-        "    integer(kind=i_def) :: ndf_w2\n"
-        "    integer(kind=i_def) :: undf_w2\n"
-        "    integer(kind=i_def) :: ndf_w3\n"
-        "    integer(kind=i_def) :: undf_w3\n"
+        "    type(field_proxy_type) :: est_m2_proxy\n"
+        "    type(field_type), intent(in) :: f1\n"
+        "    real(kind=r_def), pointer, dimension(:) :: f1_data => null()\n"
+        "    type(field_proxy_type) :: f1_proxy\n"
+        "    integer(kind=i_def) :: loop0_start\n"
+        "    integer(kind=i_def) :: loop0_stop\n"
+        "    type(field_type), intent(in) :: m1\n"
+        "    real(kind=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "    type(field_proxy_type) :: m1_proxy\n"
         "    integer(kind=i_def), pointer :: map_w1(:,:) => null()\n"
         "    integer(kind=i_def), pointer :: map_w2(:,:) => null()\n"
         "    integer(kind=i_def), pointer :: map_w3(:,:) => null()\n"
-        "    type(field_proxy_type) :: f1_proxy\n"
-        "    type(field_proxy_type) :: est_f2_proxy\n"
-        "    type(field_proxy_type) :: m1_proxy\n"
-        "    type(field_proxy_type) :: est_m2_proxy\n"
-        "    integer(kind=i_def) :: loop0_start\n"
-        "    integer(kind=i_def) :: loop0_stop\n"
+    )
+    assert output in generated_code
+    output = (
+        "    integer(kind=i_def) :: ndf_w1\n"
+        "    integer(kind=i_def) :: ndf_w2\n"
+        "    integer(kind=i_def) :: ndf_w3\n"
+        "    integer(kind=i_def) :: nlayers_f1\n"
+        "    integer(kind=i_def) :: undf_w1\n"
+        "    integer(kind=i_def) :: undf_w2\n"
+        "    integer(kind=i_def) :: undf_w3\n"
     )
     assert output in generated_code
     if dist_mem:
-        output = "    type(mesh_type), pointer :: mesh => null()\n"
-        assert output in generated_code
+        assert "type(mesh_type), pointer :: mesh => null()\n" in generated_code
+
     output = (
         "\n"
         "    ! Initialise field and/or operator proxies\n"
@@ -196,13 +195,12 @@ def test_field_deref(tmpdir, dist_mem):
         "    est_m2_data => est_m2_proxy%data\n"
         "\n"
         "    ! Initialise number of layers\n"
-        "    nlayers_f1 = f1_proxy%vspace%get_nlayers()\n")
+        "    nlayers_f1 = f1_proxy%vspace%get_nlayers()\n"
+    )
     assert output in generated_code
     if dist_mem:
         output = (
-            "\n"
-            "    ! Create a mesh object\n"
-            "    mesh => f1_proxy%vspace%get_mesh()\n"
+            "\n    ! Create a mesh object\n    mesh => f1_proxy%vspace%get_mesh()\n"
         )
         assert output in generated_code
     output = (
@@ -211,7 +209,8 @@ def test_field_deref(tmpdir, dist_mem):
         "    map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
         "    map_w2 => est_f2_proxy%vspace%get_whole_dofmap()\n"
         "    map_w3 => est_m2_proxy%vspace%get_whole_dofmap()\n"
-        "\n")
+        "\n"
+    )
     assert output in generated_code
     output = (
         "    ! Initialise number of DoFs for w1\n"
@@ -225,7 +224,8 @@ def test_field_deref(tmpdir, dist_mem):
         "    ! Initialise number of DoFs for w3\n"
         "    ndf_w3 = est_m2_proxy%vspace%get_ndf()\n"
         "    undf_w3 = est_m2_proxy%vspace%get_undf()\n"
-        "\n")
+        "\n"
+    )
     assert output in generated_code
     if dist_mem:
         assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in generated_code
@@ -243,19 +243,19 @@ def test_field_deref(tmpdir, dist_mem):
             "    if (est_m2_proxy%is_dirty(depth=1)) then\n"
             "      call est_m2_proxy%halo_exchange(depth=1)\n"
             "    end if\n"
-            "    do cell = loop0_start, loop0_stop, 1\n")
+            "    do cell = loop0_start, loop0_stop, 1\n"
+        )
         assert output in generated_code
     else:
         assert "loop0_stop = f1_proxy%vspace%get_ncell()\n" in generated_code
-        output = (
-            "    ! Call kernels\n"
-            "    do cell = loop0_start, loop0_stop, 1\n")
+        output = "    ! Call kernels\n    do cell = loop0_start, loop0_stop, 1\n"
         assert output in generated_code
     output = (
         "      call testkern_code(nlayers_f1, a, f1_data, est_f2_data, "
         "m1_data, est_m2_data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, "
         "undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
-        "    enddo\n")
+        "    enddo\n"
+    )
     assert output in generated_code
     if dist_mem:
         output = (
@@ -263,17 +263,18 @@ def test_field_deref(tmpdir, dist_mem):
             "    ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
             "    call f1_proxy%set_dirty()\n"
-            )
+        )
         assert output in generated_code
 
 
 def test_field_fs(tmpdir):
-    ''' Tests that a call with a set of fields making use of all
+    """Tests that a call with a set of fields making use of all
     function spaces and no basis functions produces correct code.
 
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1.5_single_invoke_fs.f90"),
-                           api=TEST_API)
+    """
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1.5_single_invoke_fs.f90"), api=TEST_API
+    )
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -294,60 +295,46 @@ f6, m5, m6, m7)
     use constants_mod, only : i_def
     integer(kind=i_def) :: cell
     type(field_type), intent(in) :: f1
-    type(field_type), intent(in) :: f2
-    type(field_type), intent(in) :: m1
-    type(field_type), intent(in) :: m2
-    type(field_type), intent(in) :: f3
-    type(field_type), intent(in) :: f4
-    type(field_type), intent(in) :: m3
-    type(field_type), intent(in) :: m4
-    type(field_type), intent(in) :: f5
-    type(field_type), intent(in) :: f6
-    type(field_type), intent(in) :: m5
-    type(field_type), intent(in) :: m6
-    type(field_type), intent(in) :: m7
-    type(mesh_type), pointer :: mesh => null()
-    integer(kind=i_def) :: max_halo_depth_mesh
     real(kind=r_def), pointer, dimension(:) :: f1_data => null()
+    type(field_proxy_type) :: f1_proxy
+    type(field_type), intent(in) :: f2
     real(kind=r_def), pointer, dimension(:) :: f2_data => null()
-    real(kind=r_def), pointer, dimension(:) :: m1_data => null()
-    real(kind=r_def), pointer, dimension(:) :: m2_data => null()
+    type(field_proxy_type) :: f2_proxy
+    type(field_type), intent(in) :: f3
     real(kind=r_def), pointer, dimension(:) :: f3_data => null()
+    type(field_proxy_type) :: f3_proxy
+    type(field_type), intent(in) :: f4
     real(kind=r_def), pointer, dimension(:) :: f4_data => null()
-    real(kind=r_def), pointer, dimension(:) :: m3_data => null()
-    real(kind=r_def), pointer, dimension(:) :: m4_data => null()
+    type(field_proxy_type) :: f4_proxy
+    type(field_type), intent(in) :: f5
     real(kind=r_def), pointer, dimension(:) :: f5_data => null()
+    type(field_proxy_type) :: f5_proxy
+    type(field_type), intent(in) :: f6
     real(kind=r_def), pointer, dimension(:) :: f6_data => null()
+    type(field_proxy_type) :: f6_proxy
+    integer(kind=i_def) :: loop0_start
+    integer(kind=i_def) :: loop0_stop
+    type(field_type), intent(in) :: m1
+    real(kind=r_def), pointer, dimension(:) :: m1_data => null()
+    type(field_proxy_type) :: m1_proxy
+    type(field_type), intent(in) :: m2
+    real(kind=r_def), pointer, dimension(:) :: m2_data => null()
+    type(field_proxy_type) :: m2_proxy
+    type(field_type), intent(in) :: m3
+    real(kind=r_def), pointer, dimension(:) :: m3_data => null()
+    type(field_proxy_type) :: m3_proxy
+    type(field_type), intent(in) :: m4
+    real(kind=r_def), pointer, dimension(:) :: m4_data => null()
+    type(field_proxy_type) :: m4_proxy
+    type(field_type), intent(in) :: m5
     real(kind=r_def), pointer, dimension(:) :: m5_data => null()
+    type(field_proxy_type) :: m5_proxy
+    type(field_type), intent(in) :: m6
     real(kind=r_def), pointer, dimension(:) :: m6_data => null()
+    type(field_proxy_type) :: m6_proxy
+    type(field_type), intent(in) :: m7
     real(kind=r_def), pointer, dimension(:) :: m7_data => null()
-    integer(kind=i_def) :: nlayers_f1
-    integer(kind=i_def) :: ndf_w1
-    integer(kind=i_def) :: undf_w1
-    integer(kind=i_def) :: ndf_w2
-    integer(kind=i_def) :: undf_w2
-    integer(kind=i_def) :: ndf_w0
-    integer(kind=i_def) :: undf_w0
-    integer(kind=i_def) :: ndf_w3
-    integer(kind=i_def) :: undf_w3
-    integer(kind=i_def) :: ndf_wtheta
-    integer(kind=i_def) :: undf_wtheta
-    integer(kind=i_def) :: ndf_w2h
-    integer(kind=i_def) :: undf_w2h
-    integer(kind=i_def) :: ndf_w2v
-    integer(kind=i_def) :: undf_w2v
-    integer(kind=i_def) :: ndf_w2broken
-    integer(kind=i_def) :: undf_w2broken
-    integer(kind=i_def) :: ndf_w2trace
-    integer(kind=i_def) :: undf_w2trace
-    integer(kind=i_def) :: ndf_w2htrace
-    integer(kind=i_def) :: undf_w2htrace
-    integer(kind=i_def) :: ndf_w2vtrace
-    integer(kind=i_def) :: undf_w2vtrace
-    integer(kind=i_def) :: ndf_wchi
-    integer(kind=i_def) :: undf_wchi
-    integer(kind=i_def) :: ndf_any_w2
-    integer(kind=i_def) :: undf_any_w2
+    type(field_proxy_type) :: m7_proxy
     integer(kind=i_def), pointer :: map_any_w2(:,:) => null()
     integer(kind=i_def), pointer :: map_w0(:,:) => null()
     integer(kind=i_def), pointer :: map_w1(:,:) => null()
@@ -361,21 +348,35 @@ f6, m5, m6, m7)
     integer(kind=i_def), pointer :: map_w3(:,:) => null()
     integer(kind=i_def), pointer :: map_wchi(:,:) => null()
     integer(kind=i_def), pointer :: map_wtheta(:,:) => null()
-    type(field_proxy_type) :: f1_proxy
-    type(field_proxy_type) :: f2_proxy
-    type(field_proxy_type) :: m1_proxy
-    type(field_proxy_type) :: m2_proxy
-    type(field_proxy_type) :: f3_proxy
-    type(field_proxy_type) :: f4_proxy
-    type(field_proxy_type) :: m3_proxy
-    type(field_proxy_type) :: m4_proxy
-    type(field_proxy_type) :: f5_proxy
-    type(field_proxy_type) :: f6_proxy
-    type(field_proxy_type) :: m5_proxy
-    type(field_proxy_type) :: m6_proxy
-    type(field_proxy_type) :: m7_proxy
-    integer(kind=i_def) :: loop0_start
-    integer(kind=i_def) :: loop0_stop
+    integer(kind=i_def) :: max_halo_depth_mesh
+    type(mesh_type), pointer :: mesh => null()
+    integer(kind=i_def) :: ndf_any_w2
+    integer(kind=i_def) :: ndf_w0
+    integer(kind=i_def) :: ndf_w1
+    integer(kind=i_def) :: ndf_w2
+    integer(kind=i_def) :: ndf_w2broken
+    integer(kind=i_def) :: ndf_w2h
+    integer(kind=i_def) :: ndf_w2htrace
+    integer(kind=i_def) :: ndf_w2trace
+    integer(kind=i_def) :: ndf_w2v
+    integer(kind=i_def) :: ndf_w2vtrace
+    integer(kind=i_def) :: ndf_w3
+    integer(kind=i_def) :: ndf_wchi
+    integer(kind=i_def) :: ndf_wtheta
+    integer(kind=i_def) :: nlayers_f1
+    integer(kind=i_def) :: undf_any_w2
+    integer(kind=i_def) :: undf_w0
+    integer(kind=i_def) :: undf_w1
+    integer(kind=i_def) :: undf_w2
+    integer(kind=i_def) :: undf_w2broken
+    integer(kind=i_def) :: undf_w2h
+    integer(kind=i_def) :: undf_w2htrace
+    integer(kind=i_def) :: undf_w2trace
+    integer(kind=i_def) :: undf_w2v
+    integer(kind=i_def) :: undf_w2vtrace
+    integer(kind=i_def) :: undf_w3
+    integer(kind=i_def) :: undf_wchi
+    integer(kind=i_def) :: undf_wtheta
 """
     assert output in generated_code
     output = (
@@ -546,32 +547,31 @@ f6, m5, m6, m7)
         "\n"
         "  end subroutine invoke_0_testkern_fs_type\n"
         "\n"
-        "end module single_invoke_fs_psy")
+        "end module single_invoke_fs_psy"
+    )
     assert output in generated_code
 
 
 def test_vector_field(tmpdir):
-    ''' Tests that a vector field is declared correctly in the PSy
-    layer. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field.f90"),
-                           api=TEST_API)
+    """Tests that a vector field is declared correctly in the PSy
+    layer."""
+    _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field.f90"), api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert ("subroutine invoke_0_testkern_coord_w0_type(f1, chi, f2)" in
-            generated_code)
+    assert "subroutine invoke_0_testkern_coord_w0_type(f1, chi, f2)" in generated_code
     assert "type(field_type), intent(in) :: f1" in generated_code
-    assert ("type(field_type), dimension(3), intent(in) :: chi"
-            in generated_code)
+    assert "type(field_type), dimension(3), intent(in) :: chi" in generated_code
     assert "type(field_type), intent(in) :: f2" in generated_code
 
 
 def test_vector_field_2(tmpdir):
-    ''' Tests that a vector field is indexed correctly in the PSy layer. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field_2.f90"),
-                           api=TEST_API)
+    """Tests that a vector field is indexed correctly in the PSy layer."""
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "8_vector_field_2.f90"), api=TEST_API
+    )
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
@@ -581,53 +581,42 @@ def test_vector_field_2(tmpdir):
     assert "chi_proxy%" not in generated_code
     assert generated_code.count("chi_proxy(1)%vspace") == 5
     # Use each chi field individually in the kernel
-    assert ("chi_1_data, chi_2_data, chi_3_data" in
-            generated_code)
+    assert "chi_1_data, chi_2_data, chi_3_data" in generated_code
 
 
 def test_mkern_invoke_vec_fields():
-    ''' Test that correct code is produced when there are multiple
-    kernels within an invoke with vector fields '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "4.2_multikernel_invokes.f90"),
-                           api=TEST_API)
+    """Test that correct code is produced when there are multiple
+    kernels within an invoke with vector fields"""
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.2_multikernel_invokes.f90"), api=TEST_API
+    )
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     # 1st test for duplication of name vector-field declaration
-    assert ("type(field_type), intent(in) :: f1, chi(3), chi(3)"
-            not in generated_code)
+    assert "type(field_type), intent(in) :: f1, chi(3), chi(3)" not in generated_code
     # 2nd test for duplication of name vector-field declaration
-    assert ("type(field_proxy_type) f1_proxy, chi_proxy(3), chi_proxy(3)"
-            not in generated_code)
+    assert (
+        "type(field_proxy_type) f1_proxy, chi_proxy(3), chi_proxy(3)"
+        not in generated_code
+    )
 
 
 # Tests for Invokes calling kernels that contain integer-valued fields
 
 
-def test_int_field_fs(tmpdir):
-    ''' Tests that a call with a set of integer-valued fields making use of
-    all function spaces and no basis functions produces correct code. '''
+def test_int_field_fs(tmp_path):
+    """Tests that a call with a set of integer-valued fields making use of
+    all function spaces and no basis functions produces correct code."""
     _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.5.5_single_invoke_write_multi_fs_int_field.f90"),
-        api=TEST_API)
+        os.path.join(BASE_PATH, "1.5.5_single_invoke_write_multi_fs_int_field.f90"),
+        api=TEST_API,
+    )
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
 
     generated_code = str(psy.gen)
-    # Shorten the test by generating some of the expected output.
-    fld_names = ["f1", "f2", "m1", "m2", "f3", "f4", "m3", "m4", "f5", "f6",
-                 "m5", "m6", "f7", "f8", "m7"]
-    declarations = []
-    data_ptrs = []
-    for fld in fld_names:
-        declarations.append(
-            f"    type(integer_field_type), intent(in) :: {fld}")
-        data_ptrs.append(
-            f"    integer(kind=i_def), pointer, dimension(:) :: {fld}_data "
-            f"=> null()")
-    decln_text = "\n".join(declarations)
-    ptrs_text = "\n".join(data_ptrs)
-    assert f"""module single_invoke_fs_int_field_psy
+
+    assert (
+        """module single_invoke_fs_int_field_psy
   use integer_field_mod, only : integer_field_proxy_type, integer_field_type
   use testkern_fs_int_field_mod, only : testkern_fs_int_field_code
   use constants_mod, only : i_def
@@ -635,77 +624,33 @@ def test_int_field_fs(tmpdir):
   public
 
   contains
-  subroutine invoke_0_testkern_fs_int_field_type({', '.join(fld_names)})
+  subroutine invoke_0_testkern_fs_int_field_type(f1, f2, m1, m2, f3, f4, m3, \
+m4, f5, f6, m5, m6, f7, f8, m7)
     use mesh_mod, only : mesh_type
-    integer(kind=i_def) :: cell
-{decln_text}
-    type(mesh_type), pointer :: mesh => null()
+    integer(kind=i_def) :: cell"""
+        in generated_code
+    )
+
+    for prefix, ubound in [("f", 9), ("m", 7)]:
+        declns: list[str] = []
+        for idx in range(1, ubound):
+            declns.append(f"type(integer_field_type), intent(in) :: {prefix}{idx}")
+
+            declns.append(
+                f"integer(kind=i_def), pointer, dimension(:) :: {prefix}{idx}_data => null()"
+            )
+            declns.append(f"type(integer_field_proxy_type) :: {prefix}{idx}_proxy")
+
+        expected: str = indent("\n".join(declns), "    ")
+        assert expected in generated_code
+
+    assert (
+        """\
     integer(kind=i_def) :: max_halo_depth_mesh
-{ptrs_text}
-    integer(kind=i_def) :: nlayers_f1
-    integer(kind=i_def) :: ndf_w1
-    integer(kind=i_def) :: undf_w1
-    integer(kind=i_def) :: ndf_w2
-    integer(kind=i_def) :: undf_w2
-    integer(kind=i_def) :: ndf_w0
-    integer(kind=i_def) :: undf_w0
-    integer(kind=i_def) :: ndf_w3
-    integer(kind=i_def) :: undf_w3
-    integer(kind=i_def) :: ndf_wtheta
-    integer(kind=i_def) :: undf_wtheta
-    integer(kind=i_def) :: ndf_w2h
-    integer(kind=i_def) :: undf_w2h
-    integer(kind=i_def) :: ndf_w2v
-    integer(kind=i_def) :: undf_w2v
-    integer(kind=i_def) :: ndf_w2broken
-    integer(kind=i_def) :: undf_w2broken
-    integer(kind=i_def) :: ndf_w2trace
-    integer(kind=i_def) :: undf_w2trace
-    integer(kind=i_def) :: ndf_w2htrace
-    integer(kind=i_def) :: undf_w2htrace
-    integer(kind=i_def) :: ndf_w2vtrace
-    integer(kind=i_def) :: undf_w2vtrace
-    integer(kind=i_def) :: ndf_wchi
-    integer(kind=i_def) :: undf_wchi
-    integer(kind=i_def) :: ndf_any_w2
-    integer(kind=i_def) :: undf_any_w2
-    integer(kind=i_def) :: ndf_as1_f8
-    integer(kind=i_def) :: undf_as1_f8
-    integer(kind=i_def) :: ndf_ads1_m7
-    integer(kind=i_def) :: undf_ads1_m7
-    integer(kind=i_def), pointer :: map_ads1_m7(:,:) => null()
-    integer(kind=i_def), pointer :: map_any_w2(:,:) => null()
-    integer(kind=i_def), pointer :: map_as1_f8(:,:) => null()
-    integer(kind=i_def), pointer :: map_w0(:,:) => null()
-    integer(kind=i_def), pointer :: map_w1(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2broken(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2h(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2htrace(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2trace(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2v(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2vtrace(:,:) => null()
-    integer(kind=i_def), pointer :: map_w3(:,:) => null()
-    integer(kind=i_def), pointer :: map_wchi(:,:) => null()
-    integer(kind=i_def), pointer :: map_wtheta(:,:) => null()
-    type(integer_field_proxy_type) :: f1_proxy
-    type(integer_field_proxy_type) :: f2_proxy
-    type(integer_field_proxy_type) :: m1_proxy
-    type(integer_field_proxy_type) :: m2_proxy
-    type(integer_field_proxy_type) :: f3_proxy
-    type(integer_field_proxy_type) :: f4_proxy
-    type(integer_field_proxy_type) :: m3_proxy
-    type(integer_field_proxy_type) :: m4_proxy
-    type(integer_field_proxy_type) :: f5_proxy
-    type(integer_field_proxy_type) :: f6_proxy
-    type(integer_field_proxy_type) :: m5_proxy
-    type(integer_field_proxy_type) :: m6_proxy
-    type(integer_field_proxy_type) :: f7_proxy
-    type(integer_field_proxy_type) :: f8_proxy
-    type(integer_field_proxy_type) :: m7_proxy
-    integer(kind=i_def) :: loop0_start
-    integer(kind=i_def) :: loop0_stop
-""" in generated_code
+    type(mesh_type), pointer :: mesh => null()"""
+        in generated_code
+    )
+
     output = (
         "    ! Initialise field and/or operator proxies\n"
         "    f1_proxy = f1%get_proxy()\n"
@@ -900,30 +845,32 @@ def test_int_field_fs(tmpdir):
         "\n"
         "  end subroutine invoke_0_testkern_fs_int_field_type\n"
         "\n"
-        "end module single_invoke_fs_int_field_psy\n")
+        "end module single_invoke_fs_int_field_psy\n"
+    )
     for line in output.split("\n"):
         if line:
             assert line in generated_code, line
-    assert LFRicBuild(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
 def test_int_field_2qr_shapes(dist_mem, tmpdir):
-    ''' Check that we can generate correct call for a kernel that requires
+    """Check that we can generate correct call for a kernel that requires
     two types of quadrature (here XYoZ and face) for integer fields
     Note: Basis and differential basis functions for all fields (real and
     integer) are real-valued.
 
-    '''
+    """
     _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "1.1.9_single_invoke_2qr_shapes_int_field.f90"),
-        api=TEST_API)
+        os.path.join(BASE_PATH, "1.1.9_single_invoke_2qr_shapes_int_field.f90"),
+        api=TEST_API,
+    )
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
     # Check that the qr-related variables are all declared
-    assert ("    type(quadrature_xyoz_type), intent(in) :: qr_xyoz\n"
-            "    type(quadrature_face_type), intent(in) :: qr_face\n"
-            in code)
+    assert (
+        "    type(quadrature_xyoz_type), intent(in) :: qr_xyoz\n"
+        "    type(quadrature_face_type), intent(in) :: qr_face\n" in code
+    )
     expected = """
     real(kind=r_def), allocatable :: basis_w2_qr_xyoz(:,:,:,:)
     real(kind=r_def), allocatable :: basis_w2_qr_face(:,:,:,:)
@@ -936,41 +883,46 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
 """
     for line in expected.split("\n"):
         assert line in code, line
-    assert ("    real(kind=r_def), pointer, dimension(:,:) :: "
-            "weights_xyz_qr_face => null()\n" in code)
+    assert (
+        "    real(kind=r_def), pointer, dimension(:,:) :: "
+        "weights_xyz_qr_face => null()\n" in code
+    )
     assert "    integer(kind=i_def) :: np_xyz_qr_face\n" in code
     assert "    integer(kind=i_def) :: nfaces_qr_face\n" in code
     assert (
-            "    integer(kind=i_def) :: np_xy_qr_xyoz\n"
-            "    integer(kind=i_def) :: np_z_qr_xyoz\n"
-            "    real(kind=r_def), pointer :: weights_xy_qr_xyoz(:) => "
-            "null()\n"
-            "    real(kind=r_def), pointer :: weights_z_qr_xyoz(:) => "
-            "null()\n"
-            in code)
+        "    integer(kind=i_def) :: np_xy_qr_xyoz\n"
+        "    integer(kind=i_def) :: np_z_qr_xyoz\n"
+        "    real(kind=r_def), pointer :: weights_xy_qr_xyoz(:) => "
+        "null()\n"
+        "    real(kind=r_def), pointer :: weights_z_qr_xyoz(:) => "
+        "null()\n" in code
+    )
     assert "type(quadrature_face_proxy_type) :: qr_face_proxy\n" in code
     assert "type(quadrature_xyoz_proxy_type) :: qr_xyoz_proxy\n" in code
     # Allocation and computation of (some of) the basis/differential
     # basis functions
-    assert ("    ALLOCATE(basis_ads1_f3_qr_xyoz(dim_ads1_f3,"
-            "ndf_ads1_f3,np_xy_qr_xyoz,np_z_qr_xyoz))\n"
-            "    ALLOCATE(diff_basis_ads1_f3_qr_xyoz(diff_dim_ads1_f3,"
-            "ndf_ads1_f3,np_xy_qr_xyoz,np_z_qr_xyoz))\n"
-            "    ALLOCATE(basis_ads1_f3_qr_face(dim_ads1_f3,"
-            "ndf_ads1_f3,np_xyz_qr_face,nfaces_qr_face))\n"
-            "    ALLOCATE(diff_basis_ads1_f3_qr_face(diff_dim_ads1_f3,"
-            "ndf_ads1_f3,np_xyz_qr_face,nfaces_qr_face))\n"
-            in code)
-    assert ("    call qr_xyoz%compute_function(BASIS, f3_proxy%vspace, "
-            "dim_ads1_f3, ndf_ads1_f3, basis_ads1_f3_qr_xyoz)\n"
-            "    call qr_xyoz%compute_function(DIFF_BASIS, "
-            "f3_proxy%vspace, diff_dim_ads1_f3, ndf_ads1_f3, "
-            "diff_basis_ads1_f3_qr_xyoz)\n"
-            "    call qr_face%compute_function(BASIS, f3_proxy%vspace, "
-            "dim_ads1_f3, ndf_ads1_f3, basis_ads1_f3_qr_face)\n"
-            "    call qr_face%compute_function(DIFF_BASIS, "
-            "f3_proxy%vspace, diff_dim_ads1_f3, ndf_ads1_f3, "
-            "diff_basis_ads1_f3_qr_face)\n" in code)
+    assert (
+        "    ALLOCATE(basis_ads1_f3_qr_xyoz(dim_ads1_f3,"
+        "ndf_ads1_f3,np_xy_qr_xyoz,np_z_qr_xyoz))\n"
+        "    ALLOCATE(diff_basis_ads1_f3_qr_xyoz(diff_dim_ads1_f3,"
+        "ndf_ads1_f3,np_xy_qr_xyoz,np_z_qr_xyoz))\n"
+        "    ALLOCATE(basis_ads1_f3_qr_face(dim_ads1_f3,"
+        "ndf_ads1_f3,np_xyz_qr_face,nfaces_qr_face))\n"
+        "    ALLOCATE(diff_basis_ads1_f3_qr_face(diff_dim_ads1_f3,"
+        "ndf_ads1_f3,np_xyz_qr_face,nfaces_qr_face))\n" in code
+    )
+    assert (
+        "    call qr_xyoz%compute_function(BASIS, f3_proxy%vspace, "
+        "dim_ads1_f3, ndf_ads1_f3, basis_ads1_f3_qr_xyoz)\n"
+        "    call qr_xyoz%compute_function(DIFF_BASIS, "
+        "f3_proxy%vspace, diff_dim_ads1_f3, ndf_ads1_f3, "
+        "diff_basis_ads1_f3_qr_xyoz)\n"
+        "    call qr_face%compute_function(BASIS, f3_proxy%vspace, "
+        "dim_ads1_f3, ndf_ads1_f3, basis_ads1_f3_qr_face)\n"
+        "    call qr_face%compute_function(DIFF_BASIS, "
+        "f3_proxy%vspace, diff_dim_ads1_f3, ndf_ads1_f3, "
+        "diff_basis_ads1_f3_qr_face)\n" in code
+    )
     # Check that the kernel call itself is correct
     assert (
         "testkern_2qr_int_field_code(nlayers_f1, f1_data, "
@@ -982,7 +934,8 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
         "basis_ads1_f3_qr_face, diff_basis_ads1_f3_qr_xyoz, "
         "diff_basis_ads1_f3_qr_face, np_xy_qr_xyoz, np_z_qr_xyoz, "
         "weights_xy_qr_xyoz, weights_z_qr_xyoz, nfaces_qr_face, "
-        "np_xyz_qr_face, weights_xyz_qr_face)\n" in code)
+        "np_xyz_qr_face, weights_xyz_qr_face)\n" in code
+    )
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -991,13 +944,17 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
 
 
 def test_int_real_field_fs(dist_mem, tmpdir):
-    ''' Tests that an invoke calling a kernel with integer-valued
+    """Tests that an invoke calling a kernel with integer-valued
     fields and a kernel with real-valued fields on all function
     spaces produces correct code.
 
-    '''
-    psy, _ = get_invoke("4.14_multikernel_invokes_real_int_field_fs.f90",
-                        api=TEST_API, dist_mem=dist_mem, idx=0)
+    """
+    psy, _ = get_invoke(
+        "4.14_multikernel_invokes_real_int_field_fs.f90",
+        api=TEST_API,
+        dist_mem=dist_mem,
+        idx=0,
+    )
     generated_code = str(psy.gen)
 
     output = (
@@ -1013,9 +970,11 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         "  contains\n"
         "  subroutine invoke_integer_and_real_field(i1, i2, n1, n2, i3, "
         "i4, n3, n4, i5, i6, n5, n6, i7, i8, n7, f1, f2, m1, m2, f3, f4, "
-        "m3, m4, f5, f6, m5, m6, m7)\n")
+        "m3, m4, f5, f6, m5, m6, m7)\n"
+    )
     assert output in generated_code
-    assert """
+    assert (
+        """
     type(integer_field_type), intent(in) :: i1
     type(integer_field_type), intent(in) :: i2
     type(integer_field_type), intent(in) :: n1
@@ -1044,8 +1003,11 @@ def test_int_real_field_fs(dist_mem, tmpdir):
     type(field_type), intent(in) :: m5
     type(field_type), intent(in) :: m6
     type(field_type), intent(in) :: m7
-    """ in generated_code
-    assert """
+    """
+        in generated_code
+    )
+    assert (
+        """
     real(kind=r_def), pointer, dimension(:) :: f1_data => null()
     real(kind=r_def), pointer, dimension(:) :: f2_data => null()
     real(kind=r_def), pointer, dimension(:) :: m1_data => null()
@@ -1074,7 +1036,9 @@ def test_int_real_field_fs(dist_mem, tmpdir):
     integer(kind=i_def), pointer, dimension(:) :: i7_data => null()
     integer(kind=i_def), pointer, dimension(:) :: i8_data => null()
     integer(kind=i_def), pointer, dimension(:) :: n7_data => null()
-""" in generated_code
+"""
+        in generated_code
+    )
     # Number of layers and the mesh are determined from the first integer
     # field. Maps for function spaces are determined from the first kernel
     # call with integer fields
@@ -1082,13 +1046,15 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         "    ! Initialise number of layers\n"
         "    nlayers_f1 = f1_proxy%vspace%get_nlayers()\n"
         "    nlayers_i1 = i1_proxy%vspace%get_nlayers()\n"
-        "\n")
+        "\n"
+    )
     if dist_mem:
         output += (
             "    ! Create a mesh object\n"
             "    mesh => i1_proxy%vspace%get_mesh()\n"
             "    max_halo_depth_mesh = mesh%get_halo_depth()\n"
-            "\n")
+            "\n"
+        )
     output += (
         "    ! Look-up dofmaps for each function space\n"
         "    map_w1 => i1_proxy%vspace%get_whole_dofmap()\n"
@@ -1105,7 +1071,8 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         "    map_wchi => n6_proxy%vspace%get_whole_dofmap()\n"
         "    map_any_w2 => i7_proxy%vspace%get_whole_dofmap()\n"
         "    map_as1_i8 => i8_proxy%vspace%get_whole_dofmap()\n"
-        "    map_ads1_n7 => n7_proxy%vspace%get_whole_dofmap()\n")
+        "    map_ads1_n7 => n7_proxy%vspace%get_whole_dofmap()\n"
+    )
     assert output in generated_code
     # Kernel calls are the same regardless of distributed memory
     kern1_call = (
@@ -1124,7 +1091,8 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         "map_w2vtrace(:,cell), ndf_wchi, undf_wchi, map_wchi(:,cell), "
         "ndf_any_w2, undf_any_w2, map_any_w2(:,cell), ndf_as1_i8, "
         "undf_as1_i8, map_as1_i8(:,cell), ndf_ads1_n7, "
-        "undf_ads1_n7, map_ads1_n7(:,cell))\n")
+        "undf_ads1_n7, map_ads1_n7(:,cell))\n"
+    )
     assert kern1_call in generated_code
     kern2_call = (
         "      call testkern_fs_code(nlayers_f1, f1_data, f2_data, "
@@ -1139,7 +1107,8 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         "map_w2trace(:,cell), ndf_w2htrace, undf_w2htrace, "
         "map_w2htrace(:,cell), ndf_w2vtrace, undf_w2vtrace, "
         "map_w2vtrace(:,cell), ndf_wchi, undf_wchi, map_wchi(:,cell), "
-        "ndf_any_w2, undf_any_w2, map_any_w2(:,cell))\n")
+        "ndf_any_w2, undf_any_w2, map_any_w2(:,cell))\n"
+    )
     assert kern2_call in generated_code
     # Check loop bounds for kernel calls
     if not dist_mem:
@@ -1156,11 +1125,13 @@ def test_int_real_field_fs(dist_mem, tmpdir):
             "    call i3_proxy%set_clean(1)\n"
             "    call i8_proxy%set_dirty()\n"
             "    call n7_proxy%set_dirty()\n"
-            "    call n7_proxy%set_clean(1)\n")
+            "    call n7_proxy%set_clean(1)\n"
+        )
         halo2_flags = (
             "    call f1_proxy%set_dirty()\n"
             "    call f3_proxy%set_dirty()\n"
-            "    call f3_proxy%set_clean(1)\n")
+            "    call f3_proxy%set_clean(1)\n"
+        )
         assert halo1_flags in generated_code
         assert halo2_flags in generated_code
 
@@ -1168,13 +1139,13 @@ def test_int_real_field_fs(dist_mem, tmpdir):
 
 
 def test_field_nlevels():
-    '''Test for a kernel that has arguments with non-default values of
+    """Test for a kernel that has arguments with non-default values of
     NLEVELS and NDATA.
 
-    '''
+    """
     with pytest.raises(NotImplementedError) as err:
-        _ = get_psylayer_schedule("1.5.6_single_invoke_nlevels_ndata.f90",
-                                  TEST_API)
+        _ = get_psylayer_schedule("1.5.6_single_invoke_nlevels_ndata.f90", TEST_API)
     # TODO #868 - code generation yet to be implemented.
-    assert ("Cannot generate arguments for kernel "
-            "'testkern_nlevels_ndata_code'" in str(err.value))
+    assert "Cannot generate arguments for kernel 'testkern_nlevels_ndata_code'" in str(
+        err.value
+    )

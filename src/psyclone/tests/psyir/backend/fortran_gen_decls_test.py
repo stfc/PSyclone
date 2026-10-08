@@ -587,6 +587,8 @@ def test_abstract_interface_decln(fortran_reader, fortran_writer):
 
     ABSTRACT INTERFACE
 
+      ! This interface depends on the 'ftam_typ' type but that type
+      ! references this interface.
       SUBROUTINE rst_interface(self, piom_ctl, pvar_ctl)
         IMPORT :: fiom_ctl_typ, fvar_ctl_typ
 
@@ -598,6 +600,8 @@ def test_abstract_interface_decln(fortran_reader, fortran_writer):
   end module test_mod'''
     psyir = fortran_reader.psyir_from_source(code)
     output = fortran_writer(psyir)
+    # The abstract interface must come after the definition of the type(s)
+    # that it references.
     assert """  end type ftam_typ
   abstract interface
   subroutine rst_interface(self, piom_ctl, pvar_ctl)
@@ -668,11 +672,11 @@ def test_complex_decl_with_deps(fortran_reader, fortran_writer, tmp_path):
     psyir = fortran_reader.psyir_from_source(code)
     output = fortran_writer(psyir)
     assert """\
+  integer, public :: a_var
   integer, parameter, public :: dp = KIND(1.0d0)
-  integer, parameter, public :: np = 5
   complex, parameter, public :: i = (0, 1)
-  complex(kind=dp), dimension(np), save, public :: myvar = i
-  integer, public :: a_var""" in output
+  integer, parameter, public :: np = 5
+  complex(kind=dp), dimension(np), save, public :: myvar = i""" in output
     assert Compile(tmp_path).string_compiles(output)
 
 
