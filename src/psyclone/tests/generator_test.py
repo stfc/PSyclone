@@ -17,6 +17,7 @@ from pathlib import Path
 import re
 import shutil
 import stat
+from textwrap import dedent
 from typing import Optional
 import pytest
 
@@ -120,9 +121,9 @@ this is invalid python
             api="lfric", script_name=error_syntax)
     assert "invalid syntax (test_script.py, line 2)" in str(err.value)
 
-    error_import = script_factory(tmp_path, """
-import non_existent
-    """)
+    error_import = script_factory(tmp_path, dedent("""
+        import non_existent
+        """))
     with pytest.raises(Exception) as err:
         _, _ = generate(
             str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
@@ -138,11 +139,11 @@ def test_script_invalid_content_runtime(tmp_path):
     to create its required arguments.
 
     '''
-    runtime_error = script_factory(tmp_path, """
-def trans(psyir):
-    # this will produce a runtime error as b has not been assigned
-    psyir = b
-    """)
+    runtime_error = script_factory(tmp_path, dedent("""
+        def trans(psyir):
+            # this will produce a runtime error as b has not been assigned
+            psyir = b
+        """))
     with pytest.raises(Exception) as error:
         _, _ = generate(
             str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
@@ -158,13 +159,13 @@ def test_script_no_trans(tmp_path):
     arguments.
 
     '''
-    no_trans_script = script_factory(tmp_path, """
-def nottrans(psyir):
-    pass
+    no_trans_script = script_factory(tmp_path, dedent("""
+        def nottrans(psyir):
+            pass
 
-def tran():
-    pass
-""")
+        def tran():
+            pass
+        """))
     with pytest.raises(GenerationError) as error:
         _, _ = generate(
             str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
@@ -202,13 +203,14 @@ def test_script_with_legacy_trans_signature(capsys, tmp_path):
     This will eventually be deprecated.
 
     '''
-    legacy_script = script_factory(tmp_path, """
-def trans(psy):
-    # The following are backwards-compatible expressions with legacy scripts
-    _ = psy.invokes.invoke_list
-    _ = psy.invokes.names
-    return psy
-""")
+    legacy_script = script_factory(tmp_path, dedent("""
+        def trans(psy):
+            # The following are backwards-compatible expressions
+            # with legacy scripts
+            _ = psy.invokes.invoke_list
+            _ = psy.invokes.names
+            return psy
+        """))
     _, _ = generate(str(GOCEAN_BASE_PATH / "single_invoke.f90"),
                     api="gocean", script_name=legacy_script)
 
@@ -387,22 +389,51 @@ def test_no_script_gocean():
     assert "module psy_single_invoke_test" in str(psy)
 
 
-def test_script_gocean(tmp_path):
+def test_script_gocean_no_output(tmp_path, capsys):
     '''Test that the generate function in generator.py returns
     successfully if a script (containing both trans_alg() and trans()
-    functions) is specified.
+    functions) is specified. It also checks that the file_path
+    is set to None (since no output algorithm name is specified).
 
     '''
-    alg_script = script_factory(tmp_path, """
-def trans_alg(psyir):
-    pass
+    alg_script = script_factory(tmp_path, dedent("""
+        def trans_alg(psyir):
+            print("trans_alg file_path:", psyir.file_path)
 
-def trans(psyir):
-    pass
-    """)
+        def trans(psyir):
+            print("trans file_path:", psyir.file_path)
+        """))
 
     _, _ = generate(str(GOCEAN_BASE_PATH / "single_invoke.f90"),
                     api="gocean", script_name=alg_script)
+    stdout, _ = capsys.readouterr()
+    assert "trans_alg file_path: None" in stdout
+    assert "trans file_path: None" in stdout
+
+
+def test_script_gocean_with_output(tmp_path, capsys):
+    '''Test that the generate function in generator.py returns
+    successfully if a script (containing both trans_alg() and trans()
+    functions) is specified. It also checks that the file_path
+    is set to the expected output filename.
+
+    '''
+    alg_script = script_factory(tmp_path, dedent("""
+        def trans_alg(psyir):
+            print("trans_alg file_path:", psyir.file_path)
+
+        def trans(psyir):
+            print("trans file_path:", psyir.file_path)
+        """))
+    alg = tmp_path / "alg.f90"
+    psy = tmp_path / "psy.f90"
+    _, _ = generate(str(GOCEAN_BASE_PATH / "single_invoke.f90"),
+                    oalg=alg,
+                    opsy=psy,
+                    api="gocean", script_name=alg_script)
+    stdout, _ = capsys.readouterr()
+    assert f"trans_alg file_path: {alg}" in stdout
+    assert f"trans file_path: {psy}" in stdout
 
 
 def test_profile_gocean():
@@ -445,18 +476,18 @@ def test_script_attr_error(tmp_path):
     file contains a trans() function which raises an attribute error.
 
     '''
-    error_script = script_factory(tmp_path, """
-from psyclone.psyGen import Loop
-from psyclone.transformations import ColourTrans
+    error_script = script_factory(tmp_path, dedent("""
+        from psyclone.psyGen import Loop
+        from psyclone.transformations import ColourTrans
 
-def trans(psyir):
-    ''' A valid trans function which produces an attribute error as
-    we have mistyped apply()'''
-    ctrans = ColourTrans()
-    for child in psyir.walk(Loop):
-        if isinstance(child, Loop) and child.field_space != "w3":
-            ctrans.appy(child)
-""")
+        def trans(psyir):
+            ''' A valid trans function which produces an attribute error as
+            we have mistyped apply()'''
+            ctrans = ColourTrans()
+            for child in psyir.walk(Loop):
+                if isinstance(child, Loop) and child.field_space != "w3":
+                    ctrans.appy(child)
+        """))
     with pytest.raises(Exception) as excinfo:
         _, _ = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
                         api="lfric", script_name=error_script)
@@ -513,16 +544,16 @@ def test_script_trans_lfric(tmp_path):
     correctly.
 
     '''
-    fuse_loop_script = script_factory(tmp_path, """
-from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-def trans(psyir):
-    module = psyir.children[0]
-    schedule = [x for x in module.children if x.name == "invoke_0"][0]
-    loop1 = schedule.children[4]
-    loop2 = schedule.children[5]
-    transform = LFRicLoopFuseTrans()
-    transform.apply(loop1, loop2)
-""")
+    fuse_loop_script = script_factory(tmp_path, dedent("""
+        from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+        def trans(psyir):
+            module = psyir.children[0]
+            schedule = [x for x in module.children if x.name == "invoke_0"][0]
+            loop1 = schedule.children[4]
+            loop2 = schedule.children[5]
+            transform = LFRicLoopFuseTrans()
+            transform.apply(loop1, loop2)
+        """))
     # First loop fuse explicitly (without using generator.py)
     parse_file = str(LFRIC_BASE_PATH / "4_multikernel_invokes.f90")
     _, invoke_info = parse(parse_file, api="lfric")
@@ -813,40 +844,40 @@ def test_keep_comments_and_keep_directives(capsys, caplog, tmp_path):
     main([str(filename), "--keep-comments"])
     output, _ = capsys.readouterr()
 
-    correct = """subroutine a()
-  ! Here is a comment
-  integer :: a
+    correct = dedent("""      subroutine a()
+        ! Here is a comment
+        integer :: a
 
-  ! comment 1
-  ! comment 2
-  do a = 1, 100, 1
-  enddo
+        ! comment 1
+        ! comment 2
+        do a = 1, 100, 1
+        enddo
 
-end subroutine a
+      end subroutine a
 
-"""
+    """)
     assert output == correct
 
     main([str(filename), "--keep-comments", "--keep-directives"])
     output, _ = capsys.readouterr()
 
-    correct = """subroutine a()
-  ! Here is a comment
-  integer :: a
+    correct = dedent("""        subroutine a()
+          ! Here is a comment
+          integer :: a
 
-  ! comment 1
-  !$omp parallel
-  !$omp do
+          ! comment 1
+          !$omp parallel
+          !$omp do
 
-  ! comment 2
-  do a = 1, 100, 1
-  enddo
-  !$omp end do
-  !$omp end parallel
+          ! comment 2
+          do a = 1, 100, 1
+          enddo
+          !$omp end do
+          !$omp end parallel
 
-end subroutine a
+        end subroutine a
 
-"""
+        """)
     assert output == correct
 
     with caplog.at_level(logging.WARNING, logger="psyclone.generator"):
@@ -873,29 +904,29 @@ def test_conditional_openmp_statements(capsys, tmp_path):
         wfile.write(code)
     main([str(filename)])
     output, _ = capsys.readouterr()
-    correct = """subroutine x()
-  integer :: i
+    correct = dedent("""      subroutine x()
+        integer :: i
 
-  i = 1
+        i = 1
 
-end subroutine x
+      end subroutine x
 
-"""
+      """)
     assert output == correct
 
     main([str(filename), "--keep-conditional-openmp-statements"])
     output, _ = capsys.readouterr()
-    correct = """subroutine x()
-  use omp_lib
-  integer :: i
-  integer :: omp_threads
+    correct = dedent("""       subroutine x()
+         use omp_lib
+         integer :: i
+         integer :: omp_threads
 
-  i = 1
-  omp_threads = omp_get_num_threads()
+         i = 1
+         omp_threads = omp_get_num_threads()
 
-end subroutine x
+       end subroutine x
 
-"""
+    """)
     assert output == correct
 
 
@@ -1019,12 +1050,12 @@ def test_code_transformation_skip_files_error(tmp_path, capsys):
        MoDUle             MYmod
        enD    Module      MYmod
     '''
-    recipe = '''
-FILES_TO_SKIP = ["funny_syntax.f90"]
+    recipe = dedent('''
+        FILES_TO_SKIP = ["funny_syntax.f90"]
 
-def trans(psyir):
-    assert False
-    '''
+        def trans(psyir):
+            assert False
+        ''')
     inputfile = tmp_path / "funny_syntax.f90"
     with open(inputfile, "w", encoding='utf-8') as my_file:
         my_file.write(code)
@@ -1095,19 +1126,20 @@ def test_code_transformation_resolve_imports(tmp_path, capsys, monkeypatch,
             end subroutine mytest
         end module test
     '''
-    recipe = f'''
-from psyclone.psyir.nodes import Reference, Literal
-from psyclone.psyir.symbols import ScalarType
+    recipe = dedent(f'''
+        from psyclone.psyir.nodes import Reference, Literal
+        from psyclone.psyir.symbols import ScalarType
 
-RESOLVE_IMPORTS = {value}
+        RESOLVE_IMPORTS = {value}
 
-def trans(psyir):
-    # Replace all integer references with literal '1', it can only be done if
-    # we have the type of the symbol (resolved from the module).
-    for ref in psyir.walk(Reference):
-        if ref.datatype == ScalarType.integer_type():
-            ref.replace_with(Literal("1", ScalarType.integer_type()))
-    '''
+        def trans(psyir):
+            # Replace all integer references with literal '1', it can only
+            # be done if we have the type of the symbol (resolved from the
+            # module).
+            for ref in psyir.walk(Reference):
+                if ref.datatype == ScalarType.integer_type():
+                    ref.replace_with(Literal("1", ScalarType.integer_type()))
+    ''')
     recipe_name = f"replace_integers_{idx}.py"
     for filename, content in [("module1.f90", module1),
                               ("module2.f90", module2),
@@ -1135,10 +1167,10 @@ def test_code_transformation_trans(tmp_path):
        MoDUle             MYmod
        enD    Module      MYmod
     '''
-    recipe = '''
-def trans(psyir):
-    psyir.children[0].name = "newname"
-    '''
+    recipe = dedent('''
+        def trans(psyir):
+            psyir.children[0].name = "newname"
+        ''')
     inputfile = tmp_path / "funny_syntax.f90"
     with open(inputfile, "w", encoding='utf-8') as my_file:
         my_file.write(code)
@@ -1167,36 +1199,38 @@ def test_code_transformation_free_form(tmp_path, capsys):
         my_file.write(code)
     main([str(inputfile), "--free-form"])
     captured, _ = capsys.readouterr()
-    correct = """subroutine test()
-  integer :: n
+    correct = dedent("""        subroutine test()
+          integer :: n
 
-  n = 3 + 4
+          n = 3 + 4
 
-end subroutine test"""
+        end subroutine test
+        """)
     assert correct in captured
 
 
 def test_code_transformation_fixed_form(tmp_path, capsys, caplog):
     ''' Test that the fixed-form option works for code transformation.'''
-    code = '''
-      subroutine test
-c     Comment here.
-      integer n
+    code = dedent('''
+              subroutine test
+        c     Comment here.
+              integer n
 
-      n = 3 +
-     &4
-      end subroutine'''
+              n = 3 +
+             &4
+              end subroutine''')
     inputfile = tmp_path / "fixed_form.f90"
     with open(inputfile, "w", encoding='utf-8') as my_file:
         my_file.write(code)
     main([str(inputfile), "--fixed-form"])
     captured, _ = capsys.readouterr()
-    correct = """subroutine test()
-  integer :: n
+    correct = dedent("""       subroutine test()
+         integer :: n
 
-  n = 3 + 4
+         n = 3 + 4
 
-end subroutine test"""
+       end subroutine test
+        """)
     assert correct in captured
 
     with pytest.raises(SystemExit) as error:
@@ -1210,25 +1244,25 @@ end subroutine test"""
 
     # Check that if we use a fixed form file extension we get the expected
     # behaviour.
-    code = '''
-      subroutine test
-c     Comment here.
-      integer n
+    code = dedent('''
+              subroutine test
+        c     Comment here.
+              integer n
 
-      n = 3 +
-     &4
-      end subroutine'''
+              n = 3 +
+             &4
+              end subroutine''')
     inputfile = tmp_path / "fixed_form.f"
     with open(inputfile, "w", encoding='utf-8') as my_file:
         my_file.write(code)
     main([str(inputfile)])
     captured, _ = capsys.readouterr()
-    correct = """subroutine test()
-  integer :: n
+    correct = dedent("""        subroutine test()
+          integer :: n
 
-  n = 3 + 4
+          n = 3 + 4
 
-end subroutine test"""
+        end subroutine test""")
     assert correct in captured
 
     caplog.clear()
@@ -1601,13 +1635,12 @@ def test_enable_cache_flag(tmp_path, monkeypatch):
             end subroutine mytest
         end module test
     '''
-    recipe = '''
+    recipe = dedent('''
+        RESOLVE_IMPORTS = True
 
-RESOLVE_IMPORTS = True
-
-def trans(psyir):
-    pass
-    '''
+        def trans(psyir):
+            pass
+        ''')
     recipe_name = "test_cache.py"
     for filename, content in [("module1.f90", module1),
                               ("module2.f90", module2),
@@ -1799,13 +1832,13 @@ def test_script_lfric_new(monkeypatch, tmp_path):
     monkeypatching.
 
     '''
-    alg_script = script_factory(tmp_path, """
-def trans_alg(psyir):
-    pass
+    alg_script = script_factory(tmp_path, dedent("""
+        def trans_alg(psyir):
+            pass
 
-def trans(psyir):
-    pass
-    """)
+        def trans(psyir):
+            pass
+        """))
     monkeypatch.setattr(generator, "LFRIC_TESTING", True)
     alg, _ = generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"),
                       api="lfric", script_name=alg_script)
@@ -2001,16 +2034,46 @@ def test_config_overwrite() -> None:
             "'DOES_NOT_EXIST=27'" in str(err.value))
 
 
+def test_script_arguments_generic(tmp_path, capsys):
+    """
+    Tests that script arguments are received as expected using the
+    transformation arguments. This test creates a dummy script that prints
+    the arguments for trans and trans_alg, which we check for.
+    """
+
+    recipe = dedent('''
+        def trans(psyir, **kwargs):
+            print("trans args:", kwargs)
+            print("trans file_path:", psyir.file_path)
+
+        def trans_alg(psyir, **kwargs):
+            print("trans_alg args:", kwargs)
+            print("trans_alg file_path:", psyir.file_path)
+        ''')
+    script_path = tmp_path / "print_args_lfric_testing.py"
+    script_path.write_text(recipe)
+
+    input_file = NEMO_BASE_PATH / "explicit_do.f90"
+    out_file = tmp_path / "out.f90"
+    main([str(input_file), "-s", str(script_path),
+          "--script-kwargs", "b: True",
+          "-o", str(out_file)])
+    stdout, _ = capsys.readouterr()
+    assert "trans args: {'b': True}" in stdout
+    assert "trans_alg" not in stdout
+    assert f"trans file_path: {out_file}" in stdout
+
+
 def test_script_arguments_transform(tmp_path, capsys):
     """Tests that script arguments are received as expected when transforming
     generic Fortran code. This test creates a dummy script that prints the
     arguments, which we check for using capsys
 
     """
-    recipe = '''
-def trans(psyir, **kwargs):
-    print("ARGS:", kwargs)
-    '''
+    recipe = dedent('''
+        def trans(psyir, **kwargs):
+            print("ARGS:", kwargs)
+        ''')
     script_path = tmp_path / "print_args_transform.py"
     script_path.write_text(recipe)
 
@@ -2035,13 +2098,14 @@ def test_script_arguments_lfric_testing(tmp_path, capsys, monkeypatch):
     """
     monkeypatch.setattr(generator, "LFRIC_TESTING", True)
 
-    recipe = '''
-def trans(psyir, **kwargs):
-    print("trans args:", kwargs)
+    recipe = dedent('''
+        def trans(psyir, **kwargs):
+            print("trans args:", kwargs)
 
-def trans_alg(psyir, **kwargs):
-    print("trans_alg args:", kwargs)
-    '''
+        def trans_alg(psyir, **kwargs):
+            print("trans_alg args:", kwargs)
+            print("trans_alg file_path:", psyir.file_path)
+        ''')
     script_path = tmp_path / "print_args_lfric_testing.py"
     script_path.write_text(recipe)
 
@@ -2055,6 +2119,7 @@ def trans_alg(psyir, **kwargs):
     stdout, _ = capsys.readouterr()
     assert "trans args: {'b': True}" in stdout
     assert "trans_alg args: {'b': True}" in stdout
+    assert f"trans_alg file_path: {alg_file}" in stdout
 
 
 def test_script_arguments_lfric_default(tmp_path, capsys):
@@ -2064,13 +2129,13 @@ def test_script_arguments_lfric_default(tmp_path, capsys):
     LFRic handling, which does not call trans_alg.
     """
 
-    recipe = '''
-def trans(psyir, **kwargs):
-    print("trans args:", kwargs)
+    recipe = dedent('''
+        def trans(psyir, **kwargs):
+            print("trans args:", kwargs)
 
-def trans_alg(psyir, **kwargs):
-    print("trans_alg args:", kwargs)
-    '''
+        def trans_alg(psyir, **kwargs):
+            print("trans_alg args:", kwargs)
+        ''')
     script_path = tmp_path / "print_args_lfric_default.py"
     script_path.write_text(recipe)
 
