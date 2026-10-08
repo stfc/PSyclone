@@ -8,7 +8,7 @@
 ''' Module containing tests for the IncreaseRankLoopArraysTrans class. '''
 
 import pytest
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Loop, Routine
 from psyclone.psyir.transformations import IncreaseRankLoopArraysTrans
 from psyclone.tests.utilities import Compile
 from psyclone.transformations import TransformationError
@@ -46,7 +46,7 @@ def test_irla_validate(fortran_reader):
 
     routine = psyir.children[0]
     with pytest.raises(TransformationError) as err:
-        trans.apply(routine.children[0])
+        trans.apply(routine.children[0], arrays=['a'])
     assert ("The target of the IncreaseRankLoopArraysTrans transformation "
             "should be a Loop, but found 'Assignment'." in str(err.value))
 
@@ -221,8 +221,13 @@ def test_irla_apply_accesses_outside_loop(
          size_of_ztmp_dim = SIZE(ztmp, dim=1)
      end program
     """)
+    routine: Routine = psyir.walk(Routine)[0]
+    a_symbol = routine.symbol_table.lookup("ztmp")
+
     trans = IncreaseRankLoopArraysTrans()
-    trans.apply(psyir.walk(Loop)[1], arrays=['ztmp'])
+    # We hand over the same symbol twice to cover another
+    # branch taking care of it.
+    trans.apply(psyir.walk(Loop)[1], arrays=[a_symbol, "ztmp"])
     code = fortran_writer(psyir)
     # Check the ztmp accesses outside the target loop
     assert "ztmp = 1" in code  # This already indexes the whole array
@@ -232,3 +237,249 @@ def test_irla_apply_accesses_outside_loop(
     assert "ztmp(j,i) = ztmp(j,i) + 4" in code
     assert "ztmp(:,i) = 5" in code
     assert Compile(tmpdir).string_compiles(code)
+
+
+def test_irla_apply_to_function_return_array(fortran_reader):
+    '''Check that transformation is rejected on function return array'''
+    psyir = fortran_reader.psyir_from_source("""
+module dummy_module
+    implicit none
+contains
+    function make_array() result(a)
+        real, dimension(10) :: a
+        integer :: i
+
+        do j = 1, m
+            do i = 1, n
+                a(i) = real(i)
+            end do
+        end do
+    end function
+
+end module
+    """)
+    trans = IncreaseRankLoopArraysTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.apply(psyir.walk(Loop)[0], arrays=['a'])
+
+    assert ("IncreaseRankLoopArraysTrans can't be applied to return"
+            " variables." in str(err.value))
+
+
+def test_irla_apply_to_character_array(fortran_reader):
+    '''Check that transformation is rejected on character arrays.'''
+    psyir = fortran_reader.psyir_from_source("""
+module dummy_module
+    implicit none
+contains
+    subroutine make_array()
+        character, dimension(10,10) :: a
+        integer :: i, j
+
+        do j = 1, 10
+            do i = 1, 10
+                a(i,:) = "hello"
+            end do
+        end do
+    end subroutine
+
+end module
+""")
+
+    trans = IncreaseRankLoopArraysTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.apply(psyir.walk(Loop)[0], arrays=['a'])
+
+    assert ("IncreaseRankLoopArraysTrans can't be applied to character"
+            " arrays." in str(err.value))
+
+
+def test_irla_reject_existing_loop_index(fortran_reader):
+    '''Check that transformation is rejected if the
+    loop variable is already used as an index in the array.'''
+    psyir = fortran_reader.psyir_from_source("""
+module dummy_module
+    implicit none
+contains
+    subroutine make_array()
+        real, dimension(10,10) :: a
+        integer :: i, j
+
+        do j = 1, 10
+            do i = 1, 10
+                a(j,i) = 1
+            end do
+        end do
+    end subroutine
+
+end module
+""")
+
+    with pytest.raises(TransformationError) as err:
+        trans = IncreaseRankLoopArraysTrans()
+        trans.apply(psyir.walk(Loop)[0], arrays=['a'])
+
+    assert ("IncreaseRankLoopArraysTrans does not support arrays that are"
+            " indexed with the loop variable of the target loop, but"
+            in str(err.value))
+
+
+def test_irla_reject_array_without_index(fortran_reader):
+    '''Check that transformation is rejected if the
+    loop variable is already used as an index in the array.'''
+    psyir = fortran_reader.psyir_from_source("""
+module dummy_module
+    implicit none
+contains
+    subroutine make_array()
+        real, dimension(10,10) :: a
+        integer :: i, j
+
+        do j = 1, 10
+            do i = 1, 10
+                a(j,i) = 1
+            end do
+        end do
+    end subroutine
+
+end module
+""")
+
+    trans = IncreaseRankLoopArraysTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.apply(psyir.walk(Loop)[0], arrays=['a'])
+
+    assert ("IncreaseRankLoopArraysTrans does not support arrays that are"
+            " indexed with the loop variable of the target loop, but"
+            in str(err.value))
+
+
+def test_irla_assignment_to_range_array_with_call_on_rhs(fortran_reader):
+    '''Reject if assignment to range of array on l.h.s
+    and call on r.h.s.'''
+    psyir = fortran_reader.psyir_from_source("""
+module dummy_module
+    use dummy
+    implicit none
+contains
+    subroutine make_array()
+        real, dimension(10,10) :: a
+        integer :: i, j, k
+
+        ! Reject because of such an assignment
+        a(1,:) = 1 + dummy_func()
+
+        do k = 1, 10
+            do j = 1, 10
+                do i = 1, 10
+                    a(j,i) = 1
+                end do
+            end do
+        end do
+    end subroutine
+
+end module
+""")
+
+    trans = IncreaseRankLoopArraysTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.apply(psyir.walk(Loop)[0], arrays=['a'])
+
+    assert ("IncreaseRankLoopArraysTrans No call on r.h.s. of"
+            " a range array is allowed." in str(err.value))
+
+
+def test_irla_assignment_to_full_array_with_call_on_rhs(fortran_reader):
+    '''Reject if assignment to range of array on l.h.s
+    and call on r.h.s.'''
+    psyir = fortran_reader.psyir_from_source("""
+module dummy_module
+    use dummy
+    implicit none
+contains
+    subroutine make_array()
+        real, dimension(10,10) :: a
+        integer :: i, j, k
+
+        ! Reject because of such an assignment
+        a = 1 + dummy_func()
+
+        do k = 1, 10
+            do j = 1, 10
+                do i = 1, 10
+                    a(j,i) = 1
+                end do
+            end do
+        end do
+    end subroutine
+
+end module
+""")
+
+    trans = IncreaseRankLoopArraysTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.apply(psyir.walk(Loop)[0], arrays=['a'])
+
+    assert ("IncreaseRankLoopArraysTrans No call on r.h.s. of"
+            " a range array is allowed." in str(err.value))
+
+
+def test_irla_allocatable_array(fortran_reader):
+    '''Reject if the array is allocatable since this would also
+    require modifying the allocate statement.'''
+    psyir = fortran_reader.psyir_from_source("""
+module dummy_module
+    use dummy
+    implicit none
+contains
+    subroutine make_array()
+        real, dimension(:,:), allocatable :: a
+        integer :: i, j, k
+
+        do k = 1, 10
+            do j = 1, 10
+                do i = 1, 10
+                    a(j,i) = 1
+                end do
+            end do
+        end do
+    end subroutine
+
+end module
+""")
+
+    trans = IncreaseRankLoopArraysTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.apply(psyir.walk(Loop)[0], arrays=['a'])
+
+    assert ("IncreaseRankLoopArraysTrans does not support arrays that are"
+            " allocatable, but 'a' is." in str(err.value))
+
+
+def test_irla_array_without_indices(fortran_reader):
+    '''Trigger exception that array without indices is used.'''
+    psyir = fortran_reader.psyir_from_source("""
+module dummy_module
+    use dummy
+    implicit none
+contains
+    subroutine make_array()
+        real, dimension(:,:) :: a
+        integer :: i, j
+
+        do i = 1, 10
+            do j = 1, 10
+                a = 1
+            end do
+        end do
+    end subroutine
+
+end module
+""")
+
+    trans = IncreaseRankLoopArraysTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.apply(psyir.walk(Loop)[0], arrays=['a'])
+
+    assert ("IncreaseRankLoopArraysTrans can't be applied to"
+            " arrays without indices." in str(err.value))
