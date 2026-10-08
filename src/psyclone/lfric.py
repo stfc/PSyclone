@@ -56,7 +56,7 @@ from psyclone.psyir.symbols import (
 
 def qr_basis_alloc_args(table: SymbolTable,
                         first_dim: DataSymbol,
-                        basis_fn: dict[str]) -> list[str]:
+                        basis_fn: dict[str, Any]) -> list[str]:
     '''
     Generate the list of dimensions required to allocate the
     supplied basis/diff-basis function
@@ -71,7 +71,7 @@ def qr_basis_alloc_args(table: SymbolTable,
     :return: list of dimensions to use to allocate array
 
     :raises InternalError: if an unrecognised quadrature shape is encountered.
-    :raises NotImplementedError: if a quadrature shape other than \
+    :raises NotImplementedError: if a quadrature shape other than
                                  "gh_quadrature_xyoz" is supplied.
     '''
     const = LFRicConstants()
