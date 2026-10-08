@@ -29,7 +29,7 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
     '''
     def __init__(self, name, datatype, **kwargs):
         self._datatype = None
-        super(TypedSymbol, self).__init__(name)
+        super().__init__(name)
         self._process_arguments(datatype=datatype, **kwargs)
 
     def _process_arguments(self, **kwargs):
@@ -103,7 +103,9 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         # first positional argument.
         copy = type(self)(self.name, self.datatype.copy(),
                           visibility=self.visibility,
-                          interface=self.interface.copy())
+                          interface=self.interface.copy(),
+                          directive=(self.directive.copy()
+                                     if self.directive is not None else None))
         copy.preceding_comment = self.preceding_comment
         copy.inline_comment = self.inline_comment
         return copy

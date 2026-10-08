@@ -19,11 +19,12 @@ import pytest
 from psyclone.core import Signature, AccessSequence, AccessType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
-    Container, KernelSchedule, Literal, OMPDeclareTargetDirective, Reference)
+    Container, KernelSchedule, Literal, OMPDeclareTargetDirective,
+    OMPDeclareTargetVariable, Reference)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ContainerSymbol,
     DataSymbol, ImportInterface, DefaultModuleInterface, StaticInterface,
-    ScalarType, AutomaticInterface, CommonBlockInterface,
+    DataTypeSymbol, ScalarType, AutomaticInterface, CommonBlockInterface,
     NoType, RoutineSymbol, Symbol, SymbolError, UnknownInterface,
     SymbolTable, UnresolvedInterface)
 
@@ -67,17 +68,33 @@ def test_symbol_initialisation():
 
 def test_symbol_directive():
     '''Test the Symbol directive getter and setter.'''
-    symbol = Symbol("sym")
-    directive = OMPDeclareTargetDirective()
-    symbol.directive = directive
+    directive = OMPDeclareTargetVariable(Symbol("target"))
+    symbol = Symbol("sym", directive=directive)
     assert symbol.directive is directive
-    symbol.directive = None
-    assert symbol.directive is None
+    assert directive.symbol is symbol
+
+    data_symbol = DataSymbol(
+        "data", ScalarType.integer_type(),
+        directive=OMPDeclareTargetVariable(Symbol("data_target")))
+    data_symbol_copy = data_symbol.copy()
+    assert isinstance(data_symbol_copy.directive, OMPDeclareTargetVariable)
+    assert data_symbol_copy.directive.symbol is data_symbol_copy
+
+    datatype_symbol = DataTypeSymbol(
+        "type", ScalarType.integer_type(),
+        directive=OMPDeclareTargetVariable(Symbol("type_target")))
+    datatype_symbol_copy = datatype_symbol.copy()
+    assert isinstance(datatype_symbol_copy.directive, OMPDeclareTargetVariable)
+    assert datatype_symbol_copy.directive.symbol is datatype_symbol_copy
 
     with pytest.raises(TypeError) as error:
-        symbol.directive = "not a PSyIR node"
-    assert ("The directive associated with a Symbol must be a PSyIR Node or "
-            "None but got 'str'." in str(error.value))
+        symbol.directive = OMPDeclareTargetDirective()
+    assert ("The directive associated with a Symbol must implement "
+            "HasSymbolMixin or be None but got "
+            "'OMPDeclareTargetDirective'." in str(error.value))
+
+    symbol.directive = None
+    assert symbol.directive is None
 
 
 def test_symbol_interface_setter_and_is_properties():
@@ -214,7 +231,7 @@ def test_symbol_copy():
     csym = ContainerSymbol("some_mod")
     asym = Symbol("a", visibility=Symbol.Visibility.PRIVATE,
                   interface=ImportInterface(csym))
-    asym.directive = OMPDeclareTargetDirective()
+    asym.directive = OMPDeclareTargetVariable(Symbol("target"))
     new_sym = asym.copy()
     assert new_sym is not asym
     assert new_sym.name == asym.name
@@ -222,7 +239,7 @@ def test_symbol_copy():
     assert new_sym.interface.container_symbol is csym
     assert new_sym.visibility == asym.visibility
     assert new_sym.directive is not asym.directive
-    assert isinstance(new_sym.directive, OMPDeclareTargetDirective)
+    assert isinstance(new_sym.directive, OMPDeclareTargetVariable)
     # Check that we can modify the interface of the new symbol without
     # affecting the original.
     new_sym.interface.container_symbol = ContainerSymbol("other_mod")
@@ -234,7 +251,7 @@ def test_symbol_copy_properties():
     csym = ContainerSymbol("some_mod")
     sym = Symbol("a", visibility=Symbol.Visibility.PRIVATE,
                  interface=ImportInterface(csym))
-    sym.directive = OMPDeclareTargetDirective()
+    sym.directive = OMPDeclareTargetVariable(Symbol("target"))
     new_sym = Symbol("b")
     # First, exclude the interface from the update.
     new_sym.copy_properties(sym, exclude_interface=True)
@@ -249,7 +266,9 @@ def test_symbol_copy_properties():
     assert new_sym.visibility == Symbol.Visibility.PUBLIC
     # Interface should have been updated
     assert new_sym.interface == sym.interface
-    assert new_sym.directive is sym.directive
+    assert new_sym.directive is not sym.directive
+    assert new_sym.directive.symbol is new_sym
+    assert sym.directive.symbol is sym
 
     with pytest.raises(TypeError) as err:
         new_sym.copy_properties("hello")
