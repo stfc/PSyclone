@@ -1,3 +1,6 @@
+   64) PR #3622 for #2895. Switches all NEMOv4 ITs to use spack and improve
+   transformation scripts/source for GPU performance.
+
    63) PR #3617 for #3609. Improve AsyncTransMixin to allow adding nowaits
    when the ancestor loops of a directive are iteration-independent.
 
