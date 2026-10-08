@@ -1,3 +1,6 @@
+   65) PR #3611 towards #3601. Enable routines with automatic arrays to be
+   inlined by making the arrays allocatable.
+ 
    64) PR #3622 for #2895. Switches all NEMOv4 ITs to use spack and improve
    transformation scripts/source for GPU performance.
 
