@@ -3608,7 +3608,6 @@ class LFRicBasisFunctions(LFRicCollection):
         # pylint: disable=too-many-locals
         const = LFRicConstants()
 
-        loop_var_list = set()
         op_name_list = []
 
         # add calls to compute the values of any basis arrays
@@ -3637,7 +3636,7 @@ class LFRicBasisFunctions(LFRicCollection):
                     f"'{basis_fn['''type''']}'. Expected one of 'basis' or "
                     f"'diff-basis'.")
             if basis_fn["shape"] in const.VALID_QUADRATURE_SHAPES:
-                op_name, op_tag = basis_fn["fspace"].\
+                _, op_tag = basis_fn["fspace"].\
                     get_operator_name(basis_name, qr_var=basis_fn["qr_var"])
                 if op_tag in op_name_list:
                     # Jump over any basis arrays we've seen before
@@ -3667,23 +3666,21 @@ class LFRicBasisFunctions(LFRicCollection):
                 # We have an evaluator. We may need this on more than one
                 # function space.
                 for space in basis_fn["nodal_fspaces"]:
-                    op_name, op_tag = basis_fn["fspace"].\
+                    _, op_tag = basis_fn["fspace"].\
                         get_operator_name(basis_name, on_space=space)
                     if op_tag in op_name_list:
                         # Jump over any basis arrays we've seen before
                         continue
                     op_name_list.append(op_tag)
 
-                    nodal_loop_var = "df_nodal"
-                    loop_var_list.add(nodal_loop_var)
-
                     # Loop over dofs of target function space
-                    symbol = self.symtab.find_or_create_tag(
-                        nodal_loop_var,
+                    nodal_loop_symbol = self.symtab.find_or_create_tag(
+                        "df_nodal",
                         symbol_type=DataSymbol,
                         datatype=LFRicTypes("LFRicIntegerScalarDataType")())
                     loop = Loop.create(
-                            symbol, Literal('1', ScalarType.integer_type()),
+                            nodal_loop_symbol,
+                            Literal('1', ScalarType.integer_type()),
                             Reference(
                                 self.symtab.lookup_with_tag(space.ndf_tag)),
                             Literal('1', ScalarType.integer_type()), [])
@@ -3694,17 +3691,15 @@ class LFRicBasisFunctions(LFRicCollection):
                     self._invoke.schedule.addchild(loop, cursor)
                     cursor += 1
 
-                    dof_loop_var = "df_" + basis_fn["fspace"].mangled_name
-                    loop_var_list.add(dof_loop_var)
-
-                    symbol = self.symtab.find_or_create_tag(
-                        dof_loop_var,
-                        root_name=(
-                            f"df_{basis_fn['fspace'].short_mangled_name}"),
+                    # Find or create a loop variable for dofs
+                    df_symbol = self.symtab.find_or_create_tag(
+                        "dof_loop_idx",
+                        root_name="df",
                         symbol_type=DataSymbol,
                         datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+
                     inner_loop = Loop.create(
-                            symbol, Literal('1', ScalarType.integer_type()),
+                            df_symbol, Literal('1', ScalarType.integer_type()),
                             Reference(self.symtab.lookup_with_tag(
                                 basis_fn["fspace"].ndf_tag)),
                             Literal('1', ScalarType.integer_type()), [])
@@ -3714,18 +3709,16 @@ class LFRicBasisFunctions(LFRicCollection):
                     rhs = basis_fn['arg'].generate_method_call(
                         "call_function", function_space=basis_fn['fspace'])
                     rhs.addchild(Reference(self.symtab.lookup(basis_type)))
-                    rhs.addchild(Reference(self.symtab.lookup(dof_loop_var)))
+                    rhs.addchild(Reference(df_symbol))
                     rhs.addchild(ArrayReference.create(
                             self.symtab.lookup(f"nodes_{space.mangled_name}"),
-                            [":", Reference(self.symtab.lookup(
-                                                    nodal_loop_var))]))
+                            [":", Reference(nodal_loop_symbol)]))
                     inner_loop.loop_body.addchild(
                         Assignment.create(
                             lhs=ArrayReference.create(symbol, [
                                 ":",
-                                Reference(self.symtab.lookup(
-                                    f"df_{basis_fn['fspace'].mangled_name}")),
-                                Reference(self.symtab.lookup("df_nodal"))
+                                Reference(df_symbol),
+                                Reference(nodal_loop_symbol)
                             ]),
                             rhs=rhs))
             else:
@@ -3757,7 +3750,7 @@ class LFRicBasisFunctions(LFRicCollection):
                     f"'{basis_fn['''type''']}'. Should be one of 'basis' or "
                     f"'diff-basis'.")
             for fspace in basis_fn["nodal_fspaces"]:
-                op_name, op_tag = basis_fn["fspace"].\
+                _, op_tag = basis_fn["fspace"].\
                     get_operator_name(basis_name,
                                       qr_var=basis_fn["qr_var"],
                                       on_space=fspace)
