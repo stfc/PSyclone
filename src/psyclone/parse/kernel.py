@@ -708,8 +708,6 @@ def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
     :raises ParseError: if 'var_name' is not found in the metadata.
     :raises ParseError: if 'var_name' is not an array.
     :raises ParseError: if 'var_name' is not a 1D array.
-    :raises ParseError: if the structure constructor uses '[...]' \
-                        as only '(/.../)' is supported.
     :raises ParseError: if the argument metadata is invalid and cannot \
                         be parsed.
     :raises ParseError: if the dimensions specified do not tally with \
