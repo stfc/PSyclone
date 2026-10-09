@@ -35,12 +35,6 @@ main_psy.o:	testkern_w0_kernel_mod.o
 main_alg.o:	main_psy.o
 testkern_w0_kernel_mod.o: $(LFRIC_LIB)
 
-%.o: %.F90
-	$(F90) $(F90FLAGS) -c $<
-
-%.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
-
 # Keep the generated psy and alg files
 .precious: main_psy.f90 main_alg.f90
 

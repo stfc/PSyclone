@@ -102,7 +102,7 @@ class LFRicFields(LFRicCollection):
         fld_args = psyGen.args_filter(
             self._kernel.args, arg_types=const.VALID_FIELD_NAMES)
         for fld in fld_args:
-            undf_name = fld.function_space.undf_name
+            undf_tag = fld.function_space.undf_tag
             fld_kind = fld.precision
 
             # Check for invalid descriptor data type
@@ -126,7 +126,7 @@ class LFRicFields(LFRicCollection):
                 intr = ScalarType(ScalarType.Intrinsic.INTEGER,
                                   Reference(kind_sym))
 
-            undf_sym = self.symtab.find_or_create(undf_name)
+            undf_sym = self.symtab.find_or_create_tag(undf_tag)
             datatype = ArrayType(intr, [Reference(undf_sym)])
 
             if fld.intent == "in":
