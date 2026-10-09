@@ -34,7 +34,8 @@ will therefore provide inconsistent results.
 
 You have to compile the GOcean infrastructure library
 dl_esm_inf, and the corresponding profile wrapper library in
-``lib/profiling``. Also, make sure that openmp is enabled when
+``lib/profiling``, which will happen as part of the build process.
+If you compile them separately, make sure that openmp is enabled when
 compiling these libraries.
 
 By default, the compilation uses the version
