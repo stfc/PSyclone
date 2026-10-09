@@ -5,30 +5,37 @@
 # See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
-'''
+"""
 Module containing pytest tests for PSy-layer code generation for the
 LFRic scalar arguments.
-'''
+"""
 
 import os
+from pathlib import Path
+from textwrap import dedent, indent
+
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 
 # Constants
 BASE_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__)))),
-    "test_files", "lfric")
+    os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    ),
+    "test_files",
+    "lfric",
+)
 TEST_API = "lfric"
 
 
 def test_real_scalar(tmpdir):
-    ''' Tests that we generate correct code when a kernel takes a single,
+    """Tests that we generate correct code when a kernel takes a single,
     real scalar argument (plus fields).
 
-    '''
-    psy, _ = get_invoke("1_single_invoke.f90", api=TEST_API, idx=0,
-                        dist_mem=True)
+    """
+    psy, _ = get_invoke(
+        "1_single_invoke.f90", api=TEST_API, idx=0, dist_mem=True
+    )
     generated_code = str(psy.gen)
 
     assert "use testkern_mod, only : testkern_code\n" in generated_code
@@ -38,33 +45,33 @@ def test_real_scalar(tmpdir):
         "    use mesh_mod, only : mesh_type\n"
         "    use constants_mod, only : i_def\n"
         "    real(kind=r_def), intent(in) :: a\n"
-        "    type(field_type), intent(in) :: f1\n"
-        "    type(field_type), intent(in) :: f2\n"
-        "    type(field_type), intent(in) :: m1\n"
-        "    type(field_type), intent(in) :: m2\n"
         "    integer(kind=i_def) :: cell\n"
-        "    type(mesh_type), pointer :: mesh => null()\n"
-        "    integer(kind=i_def) :: max_halo_depth_mesh\n"
+        "    type(field_type), intent(in) :: f1\n"
         "    real(kind=r_def), pointer, dimension(:) :: f1_data => null()\n"
+        "    type(field_proxy_type) :: f1_proxy\n"
+        "    type(field_type), intent(in) :: f2\n"
         "    real(kind=r_def), pointer, dimension(:) :: f2_data => null()\n"
+        "    type(field_proxy_type) :: f2_proxy\n"
+        "    integer(kind=i_def) :: loop0_start\n"
+        "    integer(kind=i_def) :: loop0_stop\n"
+        "    type(field_type), intent(in) :: m1\n"
         "    real(kind=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "    type(field_proxy_type) :: m1_proxy\n"
+        "    type(field_type), intent(in) :: m2\n"
         "    real(kind=r_def), pointer, dimension(:) :: m2_data => null()\n"
-        "    integer(kind=i_def) :: nlayers_f1\n"
-        "    integer(kind=i_def) :: ndf_w1\n"
-        "    integer(kind=i_def) :: undf_w1\n"
-        "    integer(kind=i_def) :: ndf_w2\n"
-        "    integer(kind=i_def) :: undf_w2\n"
-        "    integer(kind=i_def) :: ndf_w3\n"
-        "    integer(kind=i_def) :: undf_w3\n"
+        "    type(field_proxy_type) :: m2_proxy\n"
         "    integer(kind=i_def), pointer :: map_w1(:,:) => null()\n"
         "    integer(kind=i_def), pointer :: map_w2(:,:) => null()\n"
         "    integer(kind=i_def), pointer :: map_w3(:,:) => null()\n"
-        "    type(field_proxy_type) :: f1_proxy\n"
-        "    type(field_proxy_type) :: f2_proxy\n"
-        "    type(field_proxy_type) :: m1_proxy\n"
-        "    type(field_proxy_type) :: m2_proxy\n"
-        "    integer(kind=i_def) :: loop0_start\n"
-        "    integer(kind=i_def) :: loop0_stop\n"
+        "    integer(kind=i_def) :: max_halo_depth_mesh\n"
+        "    type(mesh_type), pointer :: mesh => null()\n"
+        "    integer(kind=i_def) :: ndf_w1\n"
+        "    integer(kind=i_def) :: ndf_w2\n"
+        "    integer(kind=i_def) :: ndf_w3\n"
+        "    integer(kind=i_def) :: nlayers_f1\n"
+        "    integer(kind=i_def) :: undf_w1\n"
+        "    integer(kind=i_def) :: undf_w2\n"
+        "    integer(kind=i_def) :: undf_w3\n"
         "\n"
         "    ! Initialise field and/or operator proxies\n"
         "    f1_proxy = f1%get_proxy()\n"
@@ -120,55 +127,62 @@ def test_real_scalar(tmpdir):
         "    do cell = loop0_start, loop0_stop, 1\n"
         "      call testkern_code(nlayers_f1, a, f1_data, f2_data,"
         " m1_data, m2_data, ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n")
+        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
+    )
     assert expected in generated_code
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_int_scalar(tmpdir):
-    ''' Tests that we generate correct code when a kernel takes a single,
+    """Tests that we generate correct code when a kernel takes a single,
     integer scalar argument (plus fields).
 
-    '''
-    psy, _ = get_invoke("1.6.1_single_invoke_1_int_scalar.f90", dist_mem=True,
-                        api=TEST_API, idx=0)
+    """
+    psy, _ = get_invoke(
+        "1.6.1_single_invoke_1_int_scalar.f90",
+        dist_mem=True,
+        api=TEST_API,
+        idx=0,
+    )
     generated_code = str(psy.gen)
 
-    assert ("use testkern_one_int_scalar_mod, only : "
-            "testkern_one_int_scalar_code\n" in generated_code)
+    assert (
+        "use testkern_one_int_scalar_mod, only : "
+        "testkern_one_int_scalar_code\n" in generated_code
+    )
 
     expected = (
         "  subroutine invoke_0_testkern_one_int_scalar_type"
         "(f1, iflag, f2, m1, m2)\n"
         "    use mesh_mod, only : mesh_type\n"
-        "    type(field_type), intent(in) :: f1\n"
-        "    integer(kind=i_def), intent(in) :: iflag\n"
-        "    type(field_type), intent(in) :: f2\n"
-        "    type(field_type), intent(in) :: m1\n"
-        "    type(field_type), intent(in) :: m2\n"
         "    integer(kind=i_def) :: cell\n"
-        "    type(mesh_type), pointer :: mesh => null()\n"
-        "    integer(kind=i_def) :: max_halo_depth_mesh\n"
+        "    type(field_type), intent(in) :: f1\n"
         "    real(kind=r_def), pointer, dimension(:) :: f1_data => null()\n"
+        "    type(field_proxy_type) :: f1_proxy\n"
+        "    type(field_type), intent(in) :: f2\n"
         "    real(kind=r_def), pointer, dimension(:) :: f2_data => null()\n"
+        "    type(field_proxy_type) :: f2_proxy\n"
+        "    integer(kind=i_def), intent(in) :: iflag\n"
+        "    integer(kind=i_def) :: loop0_start\n"
+        "    integer(kind=i_def) :: loop0_stop\n"
+        "    type(field_type), intent(in) :: m1\n"
         "    real(kind=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "    type(field_proxy_type) :: m1_proxy\n"
+        "    type(field_type), intent(in) :: m2\n"
         "    real(kind=r_def), pointer, dimension(:) :: m2_data => null()\n"
-        "    integer(kind=i_def) :: nlayers_f1\n"
-        "    integer(kind=i_def) :: ndf_w1\n"
-        "    integer(kind=i_def) :: undf_w1\n"
-        "    integer(kind=i_def) :: ndf_w2\n"
-        "    integer(kind=i_def) :: undf_w2\n"
-        "    integer(kind=i_def) :: ndf_w3\n"
-        "    integer(kind=i_def) :: undf_w3\n"
+        "    type(field_proxy_type) :: m2_proxy\n"
         "    integer(kind=i_def), pointer :: map_w1(:,:) => null()\n"
         "    integer(kind=i_def), pointer :: map_w2(:,:) => null()\n"
         "    integer(kind=i_def), pointer :: map_w3(:,:) => null()\n"
-        "    type(field_proxy_type) :: f1_proxy\n"
-        "    type(field_proxy_type) :: f2_proxy\n"
-        "    type(field_proxy_type) :: m1_proxy\n"
-        "    type(field_proxy_type) :: m2_proxy\n"
-        "    integer(kind=i_def) :: loop0_start\n"
-        "    integer(kind=i_def) :: loop0_stop\n"
+        "    integer(kind=i_def) :: max_halo_depth_mesh\n"
+        "    type(mesh_type), pointer :: mesh => null()\n"
+        "    integer(kind=i_def) :: ndf_w1\n"
+        "    integer(kind=i_def) :: ndf_w2\n"
+        "    integer(kind=i_def) :: ndf_w3\n"
+        "    integer(kind=i_def) :: nlayers_f1\n"
+        "    integer(kind=i_def) :: undf_w1\n"
+        "    integer(kind=i_def) :: undf_w2\n"
+        "    integer(kind=i_def) :: undf_w3\n"
         "\n"
         "    ! Initialise field and/or operator proxies\n"
         "    f1_proxy = f1%get_proxy()\n"
@@ -225,22 +239,29 @@ def test_int_scalar(tmpdir):
         "      call testkern_one_int_scalar_code(nlayers_f1, f1_data, "
         "iflag, f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
-        "map_w3(:,cell))\n")
+        "map_w3(:,cell))\n"
+    )
     assert expected in generated_code
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_two_real_scalars(tmpdir):
-    ''' Tests that we generate correct code when a kernel has two real,
+    """Tests that we generate correct code when a kernel has two real,
     scalar arguments.
 
-    '''
-    psy, _ = get_invoke("1.9_single_invoke_2_real_scalars.f90", api=TEST_API,
-                        dist_mem=True, idx=0)
+    """
+    psy, _ = get_invoke(
+        "1.9_single_invoke_2_real_scalars.f90",
+        api=TEST_API,
+        dist_mem=True,
+        idx=0,
+    )
     generated_code = str(psy.gen)
 
-    assert ("use testkern_two_real_scalars_mod, only : "
-            "testkern_two_real_scalars_code\n" in generated_code)
+    assert (
+        "use testkern_two_real_scalars_mod, only : "
+        "testkern_two_real_scalars_code\n" in generated_code
+    )
 
     expected = (
         "  subroutine invoke_0_testkern_two_real_scalars_type(a, f1, f2, "
@@ -248,34 +269,34 @@ def test_two_real_scalars(tmpdir):
         "    use mesh_mod, only : mesh_type\n"
         "    use constants_mod, only : i_def\n"
         "    real(kind=r_def), intent(in) :: a\n"
-        "    type(field_type), intent(in) :: f1\n"
-        "    type(field_type), intent(in) :: f2\n"
-        "    type(field_type), intent(in) :: m1\n"
-        "    type(field_type), intent(in) :: m2\n"
         "    real(kind=r_def), intent(in) :: b\n"
         "    integer(kind=i_def) :: cell\n"
-        "    type(mesh_type), pointer :: mesh => null()\n"
-        "    integer(kind=i_def) :: max_halo_depth_mesh\n"
+        "    type(field_type), intent(in) :: f1\n"
         "    real(kind=r_def), pointer, dimension(:) :: f1_data => null()\n"
+        "    type(field_proxy_type) :: f1_proxy\n"
+        "    type(field_type), intent(in) :: f2\n"
         "    real(kind=r_def), pointer, dimension(:) :: f2_data => null()\n"
+        "    type(field_proxy_type) :: f2_proxy\n"
+        "    integer(kind=i_def) :: loop0_start\n"
+        "    integer(kind=i_def) :: loop0_stop\n"
+        "    type(field_type), intent(in) :: m1\n"
         "    real(kind=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "    type(field_proxy_type) :: m1_proxy\n"
+        "    type(field_type), intent(in) :: m2\n"
         "    real(kind=r_def), pointer, dimension(:) :: m2_data => null()\n"
-        "    integer(kind=i_def) :: nlayers_f1\n"
-        "    integer(kind=i_def) :: ndf_w1\n"
-        "    integer(kind=i_def) :: undf_w1\n"
-        "    integer(kind=i_def) :: ndf_w2\n"
-        "    integer(kind=i_def) :: undf_w2\n"
-        "    integer(kind=i_def) :: ndf_w3\n"
-        "    integer(kind=i_def) :: undf_w3\n"
+        "    type(field_proxy_type) :: m2_proxy\n"
         "    integer(kind=i_def), pointer :: map_w1(:,:) => null()\n"
         "    integer(kind=i_def), pointer :: map_w2(:,:) => null()\n"
         "    integer(kind=i_def), pointer :: map_w3(:,:) => null()\n"
-        "    type(field_proxy_type) :: f1_proxy\n"
-        "    type(field_proxy_type) :: f2_proxy\n"
-        "    type(field_proxy_type) :: m1_proxy\n"
-        "    type(field_proxy_type) :: m2_proxy\n"
-        "    integer(kind=i_def) :: loop0_start\n"
-        "    integer(kind=i_def) :: loop0_stop\n"
+        "    integer(kind=i_def) :: max_halo_depth_mesh\n"
+        "    type(mesh_type), pointer :: mesh => null()\n"
+        "    integer(kind=i_def) :: ndf_w1\n"
+        "    integer(kind=i_def) :: ndf_w2\n"
+        "    integer(kind=i_def) :: ndf_w3\n"
+        "    integer(kind=i_def) :: nlayers_f1\n"
+        "    integer(kind=i_def) :: undf_w1\n"
+        "    integer(kind=i_def) :: undf_w2\n"
+        "    integer(kind=i_def) :: undf_w3\n"
         "\n"
         "    ! Initialise field and/or operator proxies\n"
         "    f1_proxy = f1%get_proxy()\n"
@@ -332,57 +353,64 @@ def test_two_real_scalars(tmpdir):
         "      call testkern_two_real_scalars_code(nlayers_f1, a, "
         "f1_data, f2_data, m1_data, m2_data, "
         "b, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
-        "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n")
+        "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
+    )
     assert expected in generated_code
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_two_int_scalars(tmpdir):
-    ''' Tests that we generate correct code when a kernel has two integer,
+    """Tests that we generate correct code when a kernel has two integer,
     scalar arguments.
 
-    '''
-    psy, _ = get_invoke("1.6_single_invoke_2_int_scalars.f90", api=TEST_API,
-                        dist_mem=True, idx=0)
+    """
+    psy, _ = get_invoke(
+        "1.6_single_invoke_2_int_scalars.f90",
+        api=TEST_API,
+        dist_mem=True,
+        idx=0,
+    )
     generated_code = str(psy.gen)
 
-    assert ("use testkern_two_int_scalars_mod, only : "
-            "testkern_two_int_scalars_code\n" in generated_code)
+    assert (
+        "use testkern_two_int_scalars_mod, only : "
+        "testkern_two_int_scalars_code\n" in generated_code
+    )
 
     expected = (
         "  subroutine invoke_0(iflag, f1, f2, m1, m2, istep)\n"
         "    use mesh_mod, only : mesh_type\n"
-        "    integer(kind=i_def), intent(in) :: iflag\n"
-        "    type(field_type), intent(in) :: f1\n"
-        "    type(field_type), intent(in) :: f2\n"
-        "    type(field_type), intent(in) :: m1\n"
-        "    type(field_type), intent(in) :: m2\n"
-        "    integer(kind=i_def), intent(in) :: istep\n"
         "    integer(kind=i_def) :: cell\n"
-        "    type(mesh_type), pointer :: mesh => null()\n"
-        "    integer(kind=i_def) :: max_halo_depth_mesh\n"
+        "    type(field_type), intent(in) :: f1\n"
         "    real(kind=r_def), pointer, dimension(:) :: f1_data => null()\n"
-        "    real(kind=r_def), pointer, dimension(:) :: f2_data => null()\n"
-        "    real(kind=r_def), pointer, dimension(:) :: m1_data => null()\n"
-        "    real(kind=r_def), pointer, dimension(:) :: m2_data => null()\n"
-        "    integer(kind=i_def) :: nlayers_f1\n"
-        "    integer(kind=i_def) :: ndf_w1\n"
-        "    integer(kind=i_def) :: undf_w1\n"
-        "    integer(kind=i_def) :: ndf_w2\n"
-        "    integer(kind=i_def) :: undf_w2\n"
-        "    integer(kind=i_def) :: ndf_w3\n"
-        "    integer(kind=i_def) :: undf_w3\n"
-        "    integer(kind=i_def), pointer :: map_w1(:,:) => null()\n"
-        "    integer(kind=i_def), pointer :: map_w2(:,:) => null()\n"
-        "    integer(kind=i_def), pointer :: map_w3(:,:) => null()\n"
         "    type(field_proxy_type) :: f1_proxy\n"
+        "    type(field_type), intent(in) :: f2\n"
+        "    real(kind=r_def), pointer, dimension(:) :: f2_data => null()\n"
         "    type(field_proxy_type) :: f2_proxy\n"
-        "    type(field_proxy_type) :: m1_proxy\n"
-        "    type(field_proxy_type) :: m2_proxy\n"
+        "    integer(kind=i_def), intent(in) :: iflag\n"
+        "    integer(kind=i_def), intent(in) :: istep\n"
         "    integer(kind=i_def) :: loop0_start\n"
         "    integer(kind=i_def) :: loop0_stop\n"
         "    integer(kind=i_def) :: loop1_start\n"
         "    integer(kind=i_def) :: loop1_stop\n"
+        "    type(field_type), intent(in) :: m1\n"
+        "    real(kind=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "    type(field_proxy_type) :: m1_proxy\n"
+        "    type(field_type), intent(in) :: m2\n"
+        "    real(kind=r_def), pointer, dimension(:) :: m2_data => null()\n"
+        "    type(field_proxy_type) :: m2_proxy\n"
+        "    integer(kind=i_def), pointer :: map_w1(:,:) => null()\n"
+        "    integer(kind=i_def), pointer :: map_w2(:,:) => null()\n"
+        "    integer(kind=i_def), pointer :: map_w3(:,:) => null()\n"
+        "    integer(kind=i_def) :: max_halo_depth_mesh\n"
+        "    type(mesh_type), pointer :: mesh => null()\n"
+        "    integer(kind=i_def) :: ndf_w1\n"
+        "    integer(kind=i_def) :: ndf_w2\n"
+        "    integer(kind=i_def) :: ndf_w3\n"
+        "    integer(kind=i_def) :: nlayers_f1\n"
+        "    integer(kind=i_def) :: undf_w1\n"
+        "    integer(kind=i_def) :: undf_w2\n"
+        "    integer(kind=i_def) :: undf_w3\n"
         "\n"
         "    ! Initialise field and/or operator proxies\n"
         "    f1_proxy = f1%get_proxy()\n"
@@ -441,7 +469,8 @@ def test_two_int_scalars(tmpdir):
         "      call testkern_two_int_scalars_code(nlayers_f1, iflag, "
         "f1_data, f2_data, m1_data, m2_data, istep, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
-        "ndf_w3, undf_w3, map_w3(:,cell))\n")
+        "ndf_w3, undf_w3, map_w3(:,cell))\n"
+    )
     assert expected in generated_code
     # Check that we pass iflag by value in the second kernel call
     expected = (
@@ -449,18 +478,20 @@ def test_two_int_scalars(tmpdir):
         "      call testkern_two_int_scalars_code(nlayers_f1, 1, "
         "f1_data, f2_data, m1_data, m2_data, iflag, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
-        "ndf_w3, undf_w3, map_w3(:,cell))\n")
+        "ndf_w3, undf_w3, map_w3(:,cell))\n"
+    )
     assert expected in generated_code
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_three_scalars(tmpdir):
-    ''' Tests that we generate correct code when a kernel has all three
+    """Tests that we generate correct code when a kernel has all three
     types of valid scalar argument: 'real', 'integer' and 'logical'.
 
-    '''
-    psy, _ = get_invoke("1.7_single_invoke_3scalar.f90", api=TEST_API,
-                        dist_mem=True, idx=0)
+    """
+    psy, _ = get_invoke(
+        "1.7_single_invoke_3scalar.f90", api=TEST_API, dist_mem=True, idx=0
+    )
 
     generated_code = str(psy.gen)
     expected = (
@@ -477,35 +508,35 @@ def test_three_scalars(tmpdir):
         "m2, lswitch, istep)\n"
         "    use mesh_mod, only : mesh_type\n"
         "    real(kind=r_def), intent(in) :: a\n"
-        "    type(field_type), intent(in) :: f1\n"
-        "    type(field_type), intent(in) :: f2\n"
-        "    type(field_type), intent(in) :: m1\n"
-        "    type(field_type), intent(in) :: m2\n"
-        "    logical(kind=l_def), intent(in) :: lswitch\n"
-        "    integer(kind=i_def), intent(in) :: istep\n"
         "    integer(kind=i_def) :: cell\n"
-        "    type(mesh_type), pointer :: mesh => null()\n"
-        "    integer(kind=i_def) :: max_halo_depth_mesh\n"
+        "    type(field_type), intent(in) :: f1\n"
         "    real(kind=r_def), pointer, dimension(:) :: f1_data => null()\n"
+        "    type(field_proxy_type) :: f1_proxy\n"
+        "    type(field_type), intent(in) :: f2\n"
         "    real(kind=r_def), pointer, dimension(:) :: f2_data => null()\n"
+        "    type(field_proxy_type) :: f2_proxy\n"
+        "    integer(kind=i_def), intent(in) :: istep\n"
+        "    integer(kind=i_def) :: loop0_start\n"
+        "    integer(kind=i_def) :: loop0_stop\n"
+        "    logical(kind=l_def), intent(in) :: lswitch\n"
+        "    type(field_type), intent(in) :: m1\n"
         "    real(kind=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "    type(field_proxy_type) :: m1_proxy\n"
+        "    type(field_type), intent(in) :: m2\n"
         "    real(kind=r_def), pointer, dimension(:) :: m2_data => null()\n"
-        "    integer(kind=i_def) :: nlayers_f1\n"
-        "    integer(kind=i_def) :: ndf_w1\n"
-        "    integer(kind=i_def) :: undf_w1\n"
-        "    integer(kind=i_def) :: ndf_w2\n"
-        "    integer(kind=i_def) :: undf_w2\n"
-        "    integer(kind=i_def) :: ndf_w3\n"
-        "    integer(kind=i_def) :: undf_w3\n"
+        "    type(field_proxy_type) :: m2_proxy\n"
         "    integer(kind=i_def), pointer :: map_w1(:,:) => null()\n"
         "    integer(kind=i_def), pointer :: map_w2(:,:) => null()\n"
         "    integer(kind=i_def), pointer :: map_w3(:,:) => null()\n"
-        "    type(field_proxy_type) :: f1_proxy\n"
-        "    type(field_proxy_type) :: f2_proxy\n"
-        "    type(field_proxy_type) :: m1_proxy\n"
-        "    type(field_proxy_type) :: m2_proxy\n"
-        "    integer(kind=i_def) :: loop0_start\n"
-        "    integer(kind=i_def) :: loop0_stop\n"
+        "    integer(kind=i_def) :: max_halo_depth_mesh\n"
+        "    type(mesh_type), pointer :: mesh => null()\n"
+        "    integer(kind=i_def) :: ndf_w1\n"
+        "    integer(kind=i_def) :: ndf_w2\n"
+        "    integer(kind=i_def) :: ndf_w3\n"
+        "    integer(kind=i_def) :: nlayers_f1\n"
+        "    integer(kind=i_def) :: undf_w1\n"
+        "    integer(kind=i_def) :: undf_w2\n"
+        "    integer(kind=i_def) :: undf_w3\n"
         "\n"
         "    ! Initialise field and/or operator proxies\n"
         "    f1_proxy = f1%get_proxy()\n"
@@ -562,50 +593,54 @@ def test_three_scalars(tmpdir):
         "      call testkern_three_scalars_code(nlayers_f1, a, f1_data, "
         "f2_data, m1_data, m2_data, lswitch, istep, ndf_w1, undf_w1, "
         "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
-        " map_w3(:,cell))\n")
+        " map_w3(:,cell))\n"
+    )
     assert expected in generated_code
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_scalar_array(tmpdir, dist_mem):
-    ''' Tests that we generate correct code when a kernel has all three
+def test_scalar_array(tmp_path: Path, dist_mem: bool):
+    """Tests that we generate correct code when a kernel has all three
     types of valid scalar array argument: 'real', 'integer' and 'logical'.
 
-    '''
-    psy, invoke = get_invoke("28.scalar_array_invoke.f90", TEST_API,
-                             dist_mem=dist_mem, idx=0)
+    """
+    psy, invoke = get_invoke(
+        "28.scalar_array_invoke.f90", TEST_API, dist_mem=dist_mem, idx=0
+    )
 
     generated_code = str(psy.gen)
     # Note that 'dims_integer_array' is a scalar argument, deliberately named
     # to clash with the local array that PSyclone will create to hold the
     # dimensions of the scalar-array argument named 'integer_array'.
     expected_subroutine = (
-       "  subroutine invoke_0(f1, real_array, logical_array, integer_array, "
-       "dims_integer_array, a, f2, f3, f4, b)\n"
+        "  subroutine invoke_0(f1, real_array, logical_array, integer_array, "
+        "dims_integer_array, a, f2, f3, f4, b)\n"
     )
     assert expected_subroutine in generated_code
 
-    expected_arg_declarations = (
-        "    type(field_type), intent(in) :: f1\n"
-        "    real(kind=r_def), dimension(:,:), intent(in) :: real_array\n"
-        "    logical(kind=l_def), dimension(:), intent(in) :: logical_array\n"
-        "    integer(kind=i_def), dimension(:,:,:,:), intent(in) :: "
-        "integer_array\n"
-        "    integer(kind=i_def), intent(in) :: dims_integer_array\n"
-        "    integer(kind=i_def), intent(in) :: a\n"
-        "    type(field_type), intent(in) :: f2\n"
-        "    type(field_type), intent(in) :: f3\n"
-        "    type(field_type), intent(in) :: f4\n"
-        "    integer(kind=i_def), intent(in) :: b\n"
-    )
-    assert expected_arg_declarations in generated_code
+    expected_declarations = """\
+        integer(kind=i_def), intent(in) :: a
+        integer(kind=i_def), intent(in) :: b
+        integer(kind=i_def) :: cell
+        integer(kind=i_def), intent(in) :: dims_integer_array
+        integer(kind=i_def), dimension(4) :: dims_integer_array_1
+        integer(kind=i_def), dimension(1) :: dims_logical_array
+        integer(kind=i_def), dimension(2) :: dims_real_array
+        type(field_type), intent(in) :: f1"""
+    assert indent(dedent(expected_declarations), 4 * " ") in generated_code
 
-    expected_local_declns = (
-        "    integer(kind=i_def), dimension(2) :: dims_real_array\n"
-        "    integer(kind=i_def), dimension(1) :: dims_logical_array\n"
-        "    integer(kind=i_def), dimension(4) :: dims_integer_array_1\n"
+    assert (
+        "real(kind=r_def), dimension(:,:), intent(in) :: real_array"
+        in generated_code
     )
-    assert expected_local_declns in generated_code
+    assert (
+        "integer(kind=i_def), dimension(:,:,:,:), intent(in) :: integer_array"
+        in generated_code
+    )
+    assert (
+        "logical(kind=l_def), dimension(:), intent(in) :: logical_array"
+        in generated_code
+    )
 
     expected_init = (
         "    ! Store dimensions of ScalarArray arguments\n"
@@ -616,18 +651,23 @@ def test_scalar_array(tmpdir, dist_mem):
     assert expected_init in generated_code
 
     expected_calls = (
-        "    do cell = loop0_start, loop0_stop, 1\n"
-        "      call testkern_scalar_array_code(nlayers_f1, f1_data, "
-        "dims_real_array, real_array, dims_logical_array, logical_array, "
-        "dims_integer_array_1, integer_array, dims_integer_array, ndf_w1, "
-        "undf_w1, map_w1(:,cell))\n"
-        "    enddo\n",
-        "    do cell = loop1_start, loop1_stop, 1\n"
-        "      call testkern_two_int_scalars_code(nlayers_f1, a, f1_data, "
-        "f2_data, f3_data, f4_data, b, ndf_w1, undf_w1, map_w1(:,cell), "
-        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
-        "    enddo\n"
+        (
+            "    do cell = loop0_start, loop0_stop, 1\n"
+            "      call testkern_scalar_array_code(nlayers_f1, f1_data, "
+            "dims_real_array, real_array, dims_logical_array, logical_array, "
+            "dims_integer_array_1, integer_array, dims_integer_array, ndf_w1, "
+            "undf_w1, map_w1(:,cell))\n"
+            "    enddo\n"
+        ),
+        (
+            "    do cell = loop1_start, loop1_stop, 1\n"
+            "      call testkern_two_int_scalars_code(nlayers_f1, a, f1_data, "
+            "f2_data, f3_data, f4_data, b, ndf_w1, undf_w1, map_w1(:,cell), "
+            "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
+            "map_w3(:,cell))\n"
+            "    enddo\n"
+        ),
     )
     assert expected_calls[0] in generated_code
     assert expected_calls[1] in generated_code
-    assert LFRicBuild(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmp_path).code_compiles(psy)

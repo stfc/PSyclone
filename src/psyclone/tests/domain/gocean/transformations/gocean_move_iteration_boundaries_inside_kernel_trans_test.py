@@ -159,19 +159,19 @@ def test_go_move_iteration_boundaries_inside_kernel_two_kernels_apply_twice(
 
     expected = '''subroutine invoke_0(cu_fld, p_fld, u_fld, unew_fld, uold_fld)
   type(r2d_field), intent(inout) :: cu_fld
+  integer :: i
+  integer :: j
   type(r2d_field), intent(inout) :: p_fld
   type(r2d_field), intent(inout) :: u_fld
   type(r2d_field), intent(inout) :: unew_fld
   type(r2d_field), intent(inout) :: uold_fld
-  integer :: j
-  integer :: i
   integer :: xstart
-  integer :: xstop
-  integer :: ystart
-  integer :: ystop
   integer :: xstart_1
+  integer :: xstop
   integer :: xstop_1
+  integer :: ystart
   integer :: ystart_1
+  integer :: ystop
   integer :: ystop_1
 
   xstart = cu_fld%internal%xstart

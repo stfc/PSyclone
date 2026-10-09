@@ -237,12 +237,12 @@ def test_kernelimportstoarguments_multiple_kernels():
          "real(kind=go_wp), intent(in) :: rdt"],
         ["subroutine kernel_with_use2_code_inlined_(ji, jj, istep, ssha, "
          "tmask, cbfr, rdt)",
-         "real(kind=go_wp), intent(inout) :: cbfr\n    real(kind=go_wp), "
-         "intent(in) :: rdt"],
+         "real(kind=go_wp), intent(inout) :: cbfr",
+         "real(kind=go_wp), intent(in) :: rdt"],
         ["subroutine kernel_with_use_code_inlined_(ji, jj, istep, ssha, "
          "tmask, rdt, magic)",
-         "real(kind=go_wp), intent(in) :: rdt\n    real(kind=go_wp), "
-         "intent(inout) :: magic"]]
+         "real(kind=go_wp), intent(in) :: rdt",
+         "real(kind=go_wp), intent(inout) :: magic"]]
 
     # Ensure the ModuleManager can find the necessary files.
     mod_man = ModuleManager.get()
