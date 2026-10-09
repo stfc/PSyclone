@@ -760,7 +760,27 @@ end module my_mod
 """
     assert Compile(tmpdir).string_compiles(output)
 
-# str
+
+def test_pure_routine(fortran_reader):
+    ''' Test the the transformation is not applied to pure routines. '''
+    code = (
+        "module my_mod\n"
+        "contains\n"
+        "elemental integer function test()\n"  # An elemental is also pure
+        "  integer :: i\n"
+        "  real :: a(10)\n"
+        "  do i=1,10\n"
+        "    a(i) = 1.0\n"
+        "  end do\n"
+        "end function test\n"
+        "end module my_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    hoist_trans = HoistLocalArraysTrans()
+    with pytest.raises(TransformationError) as err:
+        hoist_trans.validate(routine)
+    assert ("HoistLocalArraysTrans cannot be applied to 'test' because it "
+            "is a pure routine." in str(err.value))
 
 
 def test_str_method():

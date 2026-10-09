@@ -330,7 +330,7 @@ def test_fw_routine_prefixes(fortran_reader, fortran_writer):
     routine = container.walk(Routine)[0]
     rsym = routine._symbol
     assert rsym.is_elemental
-    assert rsym.is_pure is None
+    assert rsym.is_pure
     assert "elemental" in output
     # elemental => pure unless impure specified.
     assert "impure" not in output
