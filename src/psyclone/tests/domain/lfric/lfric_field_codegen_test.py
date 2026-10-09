@@ -891,10 +891,9 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
     # Check that the qr-related variables are all declared
-    assert (
-        "    type(quadrature_xyoz_type), intent(in) :: qr_xyoz\n"
-        "    type(quadrature_face_type), intent(in) :: qr_face\n" in code
-    )
+    assert "type(quadrature_xyoz_type), intent(in) :: qr_xyoz\n" in code
+    assert "type(quadrature_face_type), intent(in) :: qr_face\n" in code
+
     expected = """
     real(kind=r_def), allocatable :: basis_w2_qr_xyoz(:,:,:,:)
     real(kind=r_def), allocatable :: basis_w2_qr_face(:,:,:,:)
@@ -915,9 +914,13 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
     assert "    integer(kind=i_def) :: nfaces_qr_face\n" in code
     assert (
         "    integer(kind=i_def) :: np_xy_qr_xyoz\n"
-        "    integer(kind=i_def) :: np_z_qr_xyoz\n"
+        "    integer(kind=i_def) :: np_xyz_qr_face\n"
+        "    integer(kind=i_def) :: np_z_qr_xyoz\n" in code)
+    assert (
         "    real(kind=r_def), pointer :: weights_xy_qr_xyoz(:) => "
         "null()\n"
+        "    real(kind=r_def), pointer, dimension(:,:) :: weights_xyz_qr_face "
+        "=> null()\n\n"
         "    real(kind=r_def), pointer :: weights_z_qr_xyoz(:) => "
         "null()\n" in code
     )
@@ -997,7 +1000,7 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         "m3, m4, f5, f6, m5, m6, m7)\n"
     )
     assert output in generated_code
-    assert (
+    expected = (
         """
     type(integer_field_type), intent(in) :: i1
     type(integer_field_type), intent(in) :: i2
@@ -1027,10 +1030,11 @@ def test_int_real_field_fs(dist_mem, tmpdir):
     type(field_type), intent(in) :: m5
     type(field_type), intent(in) :: m6
     type(field_type), intent(in) :: m7
-    """
-        in generated_code
-    )
-    assert (
+    """)
+    for line in expected.split("\n"):
+        assert line in generated_code, line
+
+    expected = (
         """
     real(kind=r_def), pointer, dimension(:) :: f1_data => null()
     real(kind=r_def), pointer, dimension(:) :: f2_data => null()
@@ -1060,9 +1064,10 @@ def test_int_real_field_fs(dist_mem, tmpdir):
     integer(kind=i_def), pointer, dimension(:) :: i7_data => null()
     integer(kind=i_def), pointer, dimension(:) :: i8_data => null()
     integer(kind=i_def), pointer, dimension(:) :: n7_data => null()
-"""
-        in generated_code
-    )
+""")
+    for line in expected.split("\n"):
+        assert line in generated_code, line
+
     # Number of layers and the mesh are determined from the first integer
     # field. Maps for function spaces are determined from the first kernel
     # call with integer fields
