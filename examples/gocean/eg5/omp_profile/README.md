@@ -21,7 +21,7 @@ profile wrapper libraries:
 - tau
 - vernier
 
-By default (``make`` without an argument) the ``template`` library will 
+By default (``make`` without an argument) the ``template`` library will
 be used, which just prints the name of the regions called.
 In order to test any of the other libraries, just use the
 command ``make <wrapper library name>`` and use the name listed above
@@ -34,7 +34,10 @@ will therefore provide inconsistent results.
 
 You have to compile the GOcean infrastructure library
 dl_esm_inf, and the corresponding profile wrapper library in
-``lib/profiling``. By default, the compilation uses the version
+``lib/profiling``. Also, make sure that openmp is enabled when
+compiling these libraries.
+
+By default, the compilation uses the version
 of the dl_esm_inf library provided as a git submodule (under
 ``external/dl_esm_inf ``- see
 https://psyclone.readthedocs.io/en/latest/developer_guide/working_practises.html)
@@ -107,6 +110,6 @@ library, you should see:
  PostEnd called for module 'psy_test' region 'invoke_0-r0'
  PreStart called for module 'psy_test' region 'invoke_1_update_field-r0'
  PostEnd called for module 'psy_test' region 'invoke_1_update_field-r0'
- ...  
+ ...
  profile_PSyDataShutdown called
 ```

@@ -32,7 +32,7 @@ KERNELS = init_field_mod.o update_field_mod.o
 # The name of the executable
 NAME=profile_test
 .PHONY: compile transform all template simple_timing drhook dl_timer lfric
-.PHONY: template_lib simple_timing_lib drhook_lib dl_timer_lib lfric_lib
+.PHONY: template_lib simple_timing_lib drhook_lib dl_timer_lib lfric_lib vernier_lib
 
 run: compile
 	./profile_test.template
@@ -46,7 +46,7 @@ template:
 	        WRAPPER_NAME="dummy"                  \
 	        template_lib $(NAME).template
 
-simple_timing: 
+simple_timing:
 	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/simple_timing" \
 	        WRAPPER_NAME="simple_timing"               \
 	        simple_timing_lib $(NAME).simple_timing
@@ -69,7 +69,7 @@ vernier:
 	        WRAPPER_NAME="vernier_psy"                          \
 			PROFILE_LINK="-L $(VERNIER_DIR)/local/lib           \
 			-lvernier_f -lvernier_c -lvernier"                  \
-	        $(NAME).vernier
+	        vernier_lib $(NAME).vernier
 
 TAU_DIR?=$(ROOT_DIR)/../tau
 # By adding the dependency to INF_LIB here, we will be invoking the original
@@ -85,11 +85,10 @@ tau: $(INF_LIB)
 # https://github.com/stfc/dl_timer
 # As default assume dl_timer is installed 'next' to PSyclone.
 DL_TIMER_ROOT?=$(ROOT_DIR)/../dl_timer
-# Needs to link with openmp because the dl_timer library needs openmp.
 dl_timer:
-	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/dl_timer"                     \
-	        WRAPPER_NAME="dl_timer_psy"                               \
-			PROFILE_LINK="-L$(DL_TIMER_ROOT) -ldl_timer_omp -fopenmp" \
+	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/dl_timer"            \
+	        WRAPPER_NAME="dl_timer_psy"                      \
+			PROFILE_LINK="-L$(DL_TIMER_ROOT) -ldl_timer_omp" \
 	        dl_timer_lib $(NAME).dl_timer
 
 # The LFRic timer can be used for gocean as well - the wrapper provides
@@ -122,32 +121,29 @@ alg.f90 psy.f90: test.x90
 		     -opsy psy.f90 -oalg alg.f90 test.x90
 
 # Make sure the infrastructure library is compiled, so the mods are found
-$(KERNELS): $(INF_LIB) $(DEP_LIB)
+$(KERNELS): $(INF_LIB)
 
 # The dl_esm_inf library
 $(INF_LIB):
-	$(MAKE) -C $(INF_DIR)
+	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)
 
 drhook_lib :
-	$(MAKE) DRHOOK_ROOT=$(DRHOOK_DIR) -C $(WRAPPER_DIR)
+	$(MAKE) F90FLAGS="$(F90FLAGS)" DRHOOK_ROOT=$(DRHOOK_DIR) -C $(WRAPPER_DIR)
 
 vernier_lib :
-	$(MAKE) VERNIER_ROOT=$(VERNIER_DIR) -C $(WRAPPER_DIR)
+	$(MAKE) F90FLAGS="$(F90FLAGS)" VERNIER_ROOT=$(VERNIER_DIR) -C $(WRAPPER_DIR)
 
 tau_lib :
-	$(MAKE) F90=tau_f90.sh TAU_ROOT=$(TAU_DIR) -C $(WRAPPER_DIR)
+	$(MAKE) F90FLAGS="$(F90FLAGS)" F90=tau_f90.sh TAU_ROOT=$(TAU_DIR) -C $(WRAPPER_DIR)
 
 dl_timer_lib:
-	$(MAKE) DL_TIMER_ROOT=$(DL_TIMER_ROOT) -C $(WRAPPER_DIR)
+	$(MAKE) F90FLAGS="$(F90FLAGS)" DL_TIMER_ROOT=$(DL_TIMER_ROOT) -C $(WRAPPER_DIR)
 
 lfric_lib:
-	$(MAKE) DL_TIMER_ROOT=$(DL_TIMER_ROOT) -C $(WRAPPER_DIR)
+	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(WRAPPER_DIR)
 
 template_lib simple_timing_lib:
-	$(MAKE) -C $(WRAPPER_DIR)
-
-$(DEP_LIB):
-	$(MAKE) -C $(PROFILE_DIR)/simple_timing
+	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(WRAPPER_DIR)
 
 # Special rule to create psy_LIBNAME.o for each wrapper library (required
 # since PSyDataType will differ from one wrapper library to the next)
