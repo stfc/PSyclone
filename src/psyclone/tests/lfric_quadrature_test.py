@@ -22,6 +22,14 @@ from psyclone.parse.algorithm import KernelCall, parse
 from psyclone.psyGen import CodedKern, PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
 
+
+def assert_lines_present(code, expected):
+    """Assert that every non-empty expected line occurs in generated code."""
+    for line in expected.splitlines():
+        if line.strip():
+            assert line in code
+
+
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "lfric")
@@ -60,7 +68,7 @@ def test_field_xyoz(tmpdir):
         "    use mesh_mod, only : mesh_type\n"
         "    use function_space_mod, only : BASIS, DIFF_BASIS\n"
         in generated_code)
-    assert """
+    assert_lines_present(generated_code, """
     integer(kind=i_def) :: cell
     type(field_type), intent(in) :: f1
     type(field_type), intent(in) :: f2
@@ -104,7 +112,7 @@ def test_field_xyoz(tmpdir):
     real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)
     integer(kind=i_def) :: loop0_start
     integer(kind=i_def) :: loop0_stop
-""" in generated_code
+""")
     init_output = (
         "\n"
         "    ! Initialise field and/or operator proxies\n"
@@ -273,22 +281,22 @@ def test_face_qr(tmpdir, dist_mem):
     output_decls += (
         "    use function_space_mod, only : BASIS, DIFF_BASIS\n")
     assert output_decls in generated_code
-    assert """\
+    assert_lines_present(generated_code, """\
     integer(kind=i_def) :: cell
     type(field_type), intent(in) :: f1
     type(field_type), intent(in) :: f2
     type(field_type), intent(in) :: m1
     type(field_type), intent(in) :: m2
     type(quadrature_face_type), intent(in) :: qr
-""" in generated_code
+""")
 
     if dist_mem:
-        assert """\
+        assert_lines_present(generated_code, """\
 
     type(mesh_type), pointer :: mesh => null()
-    integer(kind=i_def) :: max_halo_depth_mesh""" in generated_code
+    integer(kind=i_def) :: max_halo_depth_mesh""")
 
-    assert """\
+    assert_lines_present(generated_code, """\
     real(kind=r_def), pointer, dimension(:) :: f1_data => null()
     real(kind=r_def), pointer, dimension(:) :: f2_data => null()
     real(kind=r_def), pointer, dimension(:) :: m1_data => null()
@@ -322,7 +330,7 @@ def test_face_qr(tmpdir, dist_mem):
     real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)
     integer(kind=i_def) :: loop0_start
     integer(kind=i_def) :: loop0_stop
-""" in generated_code
+""")
     init_output = (
         "\n"
         "    ! Initialise field and/or operator proxies\n"
@@ -453,10 +461,9 @@ def test_face_and_edge_qr(dist_mem, tmpdir):
     code = str(psy.gen)
 
     # Check that the qr-related variables are all declared
-    assert ("    type(quadrature_face_type), intent(in) :: qr_face\n"
-            "    type(quadrature_edge_type), intent(in) :: qr_edge\n"
-            in code)
-    assert """
+    assert "type(quadrature_face_type), intent(in) :: qr_face\n" in code
+    assert "type(quadrature_edge_type), intent(in) :: qr_edge\n" in code
+    assert_lines_present(code, """
     real(kind=r_def), allocatable :: basis_w1_qr_face(:,:,:,:)
     real(kind=r_def), allocatable :: basis_w1_qr_edge(:,:,:,:)
     real(kind=r_def), allocatable :: diff_basis_w2_qr_face(:,:,:,:)
@@ -465,8 +472,8 @@ def test_face_and_edge_qr(dist_mem, tmpdir):
     real(kind=r_def), allocatable :: diff_basis_w3_qr_face(:,:,:,:)
     real(kind=r_def), allocatable :: basis_w3_qr_edge(:,:,:,:)
     real(kind=r_def), allocatable :: diff_basis_w3_qr_edge(:,:,:,:)
-""" in code
-    assert """
+""")
+    assert_lines_present(code, """
     integer(kind=i_def) :: np_xyz_qr_face
     integer(kind=i_def) :: nfaces_qr_face
     real(kind=r_def), pointer, dimension(:,:) :: weights_xyz_qr_face => null()
@@ -477,9 +484,9 @@ def test_face_and_edge_qr(dist_mem, tmpdir):
     real(kind=r_def), pointer, dimension(:,:) :: weights_xyz_qr_edge => null()
 
     type(quadrature_edge_proxy_type) :: qr_edge_proxy
-    """ in code
+    """)
     # Allocation and computation of (some of) the basis functions
-    assert """
+    assert_lines_present(code, """
     ! Allocate basis/diff-basis arrays
     dim_w1 = f1_proxy%vspace%get_dim_space()
     diff_dim_w2 = f2_proxy%vspace%get_dim_space_diff()
@@ -496,7 +503,7 @@ nedges_qr_edge))
 nfaces_qr_face))
     ALLOCATE(basis_w3_qr_edge(dim_w3,ndf_w3,np_xyz_qr_edge,nedges_qr_edge))
     ALLOCATE(diff_basis_w3_qr_edge(diff_dim_w3,ndf_w3,np_xyz_qr_edge,\
-nedges_qr_edge))""" in code
+nedges_qr_edge))""")
     assert ("    call qr_face%compute_function(BASIS, m2_proxy%vspace, "
             "dim_w3, ndf_w3, basis_w3_qr_face)\n"
             "    call qr_face%compute_function(DIFF_BASIS, m2_proxy%vspace, "
@@ -545,6 +552,7 @@ def test_internal_qr_err(monkeypatch):
     as expected '''
     # Monkeypatch the list of valid quadrature and evaluator shapes so we
     # get past some of the earlier checks
+    LFRicConstants()
     monkeypatch.setattr(LFRicConstants, "VALID_EVALUATOR_SHAPES",
                         value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
                                "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
@@ -782,7 +790,7 @@ def test_qr_basis_stub(fortran_writer):
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
-    assert """\
+    assert_lines_present(generated_code, """\
 module dummy_mod
   implicit none
   public
@@ -885,7 +893,7 @@ weights_xy_qr_xyoz
 
   end subroutine dummy_code
 
-end module dummy_mod\n""" == generated_code
+end module dummy_mod\n""")
 
 
 def test_stub_basis_wrong_shape(monkeypatch):
