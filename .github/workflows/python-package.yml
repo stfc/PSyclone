@@ -74,7 +74,7 @@ jobs:
           # This setting causes the tests to 'fail' if [skip ci] is specified
           fail-fast: true
           commit-filter: '[skip ci]'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.15'
       - run: sudo apt-get install -y graphviz doxygen
@@ -108,7 +108,7 @@ jobs:
           fail-fast: true
           commit-filter: '[skip ci]'
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
