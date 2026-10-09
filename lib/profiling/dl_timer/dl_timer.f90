@@ -17,8 +17,12 @@ module profile_psy_data_mod
   implicit none
 
   type, extends(PSyDataBaseType) :: profile_PSyDataType
-      integer                   :: timer_index
-      logical                   :: registered = .false.
+      ! For each thread keep track if a timer was registered,
+      ! and what the timer id is
+      integer, allocatable, dimension(:) :: timer_index
+      logical, allocatable, dimension(:) :: registered
+      ! Keeps track if the allocatable fields have been allocated
+      logical                            :: initialised = .false.
   contains
       ! The profiling API uses only the two following calls:
       procedure :: PreStart
@@ -58,6 +62,7 @@ contains
   subroutine PreStart(this, module_name, region_name, num_pre_vars, &
                       num_post_vars)
 
+!$  use omp_lib, only : omp_get_max_threads, omp_get_thread_num
     use dl_timer, only : timer_register, timer_start
 
     implicit none
@@ -65,17 +70,32 @@ contains
     class(profile_PSyDataType), intent(inout), target :: this
     character(*), intent(in) :: module_name, region_name
     integer, intent(in) :: num_pre_vars, num_post_vars
+    integer :: nthreads, thread_id
 
+    ! Very first call to start the timer: allocate the data structures
+    ! for each thread
 !$omp critical
-    if ( .not. this%registered) then
-       call this%PSyDataBaseType%PreStart(module_name, region_name, &
-                                          num_pre_vars, num_post_vars)
-       call timer_register(this%timer_index, &
-                           label=module_name//":"//region_name)
-       this%registered = .true.
+    if (.not. this%initialised) then
+      nthreads = 1
+  !$  nthreads = omp_get_max_threads()
+      allocate(this%registered(nthreads), this%timer_index(nthreads))
+      this%registered(:) = .false.
+      this%timer_index(:) = -1
+      this%initialised = .true.
     endif
 !$omp end critical
-    if (is_enabled) call timer_start(this%timer_index)
+
+    ! Each thread must register a region
+    thread_id = 1
+!$  thread_id = omp_get_thread_num() + 1
+    if ( .not. this%registered(thread_id)) then
+       call this%PSyDataBaseType%PreStart(module_name, region_name, &
+                                          num_pre_vars, num_post_vars)
+       call timer_register(this%timer_index(thread_id), &
+                           label=module_name//":"//region_name)
+       this%registered(thread_id) = .true.
+    endif
+    if (is_enabled) call timer_start(this%timer_index(thread_id))
 
   end subroutine PreStart
 
@@ -86,13 +106,17 @@ contains
   !
   subroutine PostEnd(this)
 
+!$  use omp_lib, only : omp_get_thread_num
     use dl_timer, only : timer_stop
 
     implicit none
 
     class(profile_PSyDataType), intent(inout), target :: this
+    integer :: thread_id
 
-    if (is_enabled) call timer_stop(this%timer_index)
+    thread_id = 1
+!$  thread_id = omp_get_thread_num() + 1
+    if (is_enabled) call timer_stop(this%timer_index(thread_id))
 
   end subroutine PostEnd
 
