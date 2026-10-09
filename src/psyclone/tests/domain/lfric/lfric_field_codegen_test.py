@@ -204,7 +204,8 @@ def test_field_deref(tmpdir, dist_mem):
     )
     assert output in generated_code
     if dist_mem:
-        output = "\n    ! Create a mesh object\n    mesh => f1_proxy%vspace%get_mesh()\n"
+        output = ("\n    ! Create a mesh object\n"
+                  "    mesh => f1_proxy%vspace%get_mesh()\n")
         assert output in generated_code
     output = (
         "\n"

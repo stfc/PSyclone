@@ -17,7 +17,9 @@ from fparser import api as fpapi
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicKernMetadata, LFRicLoop
-from psyclone.domain.lfric.transformations import LFRicRedundantComputationTrans
+from psyclone.domain.lfric.transformations import (
+    LFRicRedundantComputationTrans,
+)
 from psyclone.lfric import LFRicHaloExchange
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -34,7 +36,9 @@ def setup():
 
 
 BASE_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    ),
     "test_files",
     "lfric",
 )
@@ -135,7 +139,8 @@ def test_upper_bounds(monkeypatch, annexed, dist_mem, tmpdir):
         )
     elif not annexed and dist_mem:
         expected = (
-            "    loop0_start = 1\n    loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
+            "    loop0_start = 1\n"
+            "    loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
         )
 
     # Shared memory
@@ -251,7 +256,9 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
     monkeypatch.setattr(lfric_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "4.17_multikernel_invokes_cell_dof_builtin.f90"),
+        os.path.join(
+            BASE_PATH, "4.17_multikernel_invokes_cell_dof_builtin.f90"
+        ),
         api=TEST_API,
     )
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
@@ -308,9 +315,15 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
     # a field vector.
     if dist_mem:
         if annexed:
-            assert "loop0_stop = field_vec_proxy(1)%vspace%get_last_dof_annexed" in code
+            assert (
+                "loop0_stop = field_vec_proxy(1)%vspace%get_last_dof_annexed"
+                in code
+            )
         else:
-            assert "loop0_stop = field_vec_proxy(1)%vspace%get_last_dof_owned" in code
+            assert (
+                "loop0_stop = field_vec_proxy(1)%vspace%get_last_dof_owned"
+                in code
+            )
     else:
         assert "loop0_stop = undf_w1" in code
 

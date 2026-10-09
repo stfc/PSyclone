@@ -663,7 +663,8 @@ def test_scalar_array(tmp_path: Path, dist_mem: bool):
             "    do cell = loop1_start, loop1_stop, 1\n"
             "      call testkern_two_int_scalars_code(nlayers_f1, a, f1_data, "
             "f2_data, f3_data, f4_data, b, ndf_w1, undf_w1, map_w1(:,cell), "
-            "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
+            "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
+            "map_w3(:,cell))\n"
             "    enddo\n"
         ),
     )
