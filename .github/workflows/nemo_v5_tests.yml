@@ -45,7 +45,7 @@ env:
   GNU_TOOLCHAIN: gnu14_openmpi
   NVHPC_TOOLCHAIN: nvhpc26_9_openmpi
   INTEL_TOOLCHAIN: intel25_3_openmpi
-  PYTHON_VERSION: "3.14"
+  PYTHON_VERSION: "3.15"
   NUM_PARALLEL: 16
 
 jobs:
@@ -63,7 +63,7 @@ jobs:
       orca2_nvfortran_omp_offload_async: ${{ steps.orca2_nvfortran_omp_offload_async.outputs.time }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
       with:
         submodules: recursive
         # This is required to get the commit history for merge commits for

@@ -59,7 +59,7 @@ env:
   NETCDF_FORTRAN_VERSION: "4.6"
   NVFORTRAN_VERSION: "26.9"
   OPENMPI_VERSION: "5.0"
-  PYTHON_VERSION: "3.14"
+  PYTHON_VERSION: "3.15"
   NUM_PARALLEL: 16
 
 jobs:
@@ -68,7 +68,7 @@ jobs:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
       with:
         submodules: recursive
         # This is required to get the commit history for merge commits for
