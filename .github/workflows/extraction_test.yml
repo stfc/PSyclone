@@ -59,7 +59,7 @@ jobs:
       RUNDIR: "/archive/psyclone-tests/latest-run"
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
       with:
         submodules: recursive
         # This is required to get the commit history for merge commits for

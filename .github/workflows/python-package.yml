@@ -62,7 +62,7 @@ jobs:
     env:
       GITHUB_PR_NUMBER: ${{ github.event.number }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
           # This is required to get the commit history for merge commits for
@@ -95,7 +95,7 @@ jobs:
       matrix:
         python-version: ['3.9', '3.15']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
           # This is required to get the commit history for merge commits for

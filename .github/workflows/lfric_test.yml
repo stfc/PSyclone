@@ -64,7 +64,7 @@ jobs:
       lfric_atm_build: ${{ steps.lfric_atm.outputs.build_time }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
       with:
         submodules: recursive
         # This is required to get the commit history for merge commits for

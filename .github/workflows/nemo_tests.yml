@@ -65,7 +65,7 @@ jobs:
       nemo_omp_offload_async: ${{ steps.nemo_omp_offload_async.outputs.time }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
       with:
         submodules: recursive
         # This is required to get the commit history for merge commits for
