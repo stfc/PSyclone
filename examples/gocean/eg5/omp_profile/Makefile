@@ -64,11 +64,18 @@ drhook:
 # Needs to additionally link with the Vernier library
 # As default assume Vernier is installed 'next' to PSyclone
 VERNIER_DIR?=$(ROOT_DIR)/../Vernier
+
+# Test whether VERNIER_DIR/local/lib exists
+ifneq ($(wildcard $(VERNIER_DIR)/local/lib),)
+    VERNIER_LIB := $(VERNIER_DIR)/local/lib
+else
+    VERNIER_LIB := $(VERNIER_DIR)/local/lib64
+endif
 vernier:
-	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/vernier"                \
-	        WRAPPER_NAME="vernier_psy"                          \
-			PROFILE_LINK="-L $(VERNIER_DIR)/local/lib           \
-			-lvernier_f -lvernier_c -lvernier"                  \
+	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/vernier" \
+	        WRAPPER_NAME="vernier_psy"           \
+			PROFILE_LINK="-L $(VERNIER_LIB)      \
+			-lvernier_f -lvernier_c -lvernier"   \
 	        vernier_lib $(NAME).vernier
 
 TAU_DIR?=$(ROOT_DIR)/../tau
