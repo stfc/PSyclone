@@ -22,6 +22,7 @@ Program test
     TYPE(r2d_field)                :: a_fld, b_fld, c_fld, d_fld
     TYPE(grid_type), target        :: grid
     type(decomposition_type)       :: decomp
+    integer                        :: i
 
     call profile_PSyDataInit()
     call parallel_init()
@@ -43,7 +44,9 @@ Program test
                  init_field(c_fld, 3.0), &
                  init_field(d_fld, 4.0)    )
 
-    call invoke (update_field(a_fld, b_fld, c_fld, d_fld) )
+    do i=1, 10
+        call invoke (update_field(a_fld, b_fld, c_fld, d_fld) )
+    enddo
 
     print *,a_fld%data(1:5, 1:5)
     call profile_PSyDataShutdown()

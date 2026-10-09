@@ -12,6 +12,8 @@
 # must be accessible from this directory as well as lib/...
 ROOT_DIR = $(realpath ../../../..)
 
+# common.mk sets the default flags without openmp, so set it here:
+F90FLAGS ?= -fopenmp -g -O0
 include $(ROOT_DIR)/examples/common.mk
 
 GENERATED_FILES += *.o *.mod profile_test.* alg.f90 psy.f90
@@ -30,7 +32,7 @@ KERNELS = init_field_mod.o update_field_mod.o
 # The name of the executable
 NAME=profile_test
 .PHONY: compile transform all template simple_timing drhook dl_timer lfric
-.PHONY: template_lib simple_timing_lib drhook_lib dl_timer_lib lfric_lib
+.PHONY: template_lib simple_timing_lib drhook_lib dl_timer_lib lfric_lib vernier_lib
 
 run: compile
 	./profile_test.template
@@ -62,12 +64,19 @@ drhook:
 # Needs to additionally link with the Vernier library
 # As default assume Vernier is installed 'next' to PSyclone
 VERNIER_DIR?=$(ROOT_DIR)/../Vernier
+
+# Test whether VERNIER_DIR/local/lib exists
+ifneq ($(wildcard $(VERNIER_DIR)/local/lib),)
+    VERNIER_LIB := $(VERNIER_DIR)/local/lib
+else
+    VERNIER_LIB := $(VERNIER_DIR)/local/lib64
+endif
 vernier:
-	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/vernier"                \
-	        WRAPPER_NAME="vernier_psy"                          \
-			PROFILE_LINK="-L $(VERNIER_DIR)/local/lib           \
-			-lvernier_f -lvernier_c -lvernier"                  \
-	        $(NAME).vernier
+	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/vernier" \
+	        WRAPPER_NAME="vernier_psy"           \
+			PROFILE_LINK="-L $(VERNIER_LIB)      \
+			-lvernier_f -lvernier_c -lvernier"   \
+	        vernier_lib $(NAME).vernier
 
 TAU_DIR?=$(ROOT_DIR)/../tau
 # By adding the dependency to INF_LIB here, we will be invoking the original
@@ -83,11 +92,10 @@ tau: $(INF_LIB)
 # https://github.com/stfc/dl_timer
 # As default assume dl_timer is installed 'next' to PSyclone.
 DL_TIMER_ROOT?=$(ROOT_DIR)/../dl_timer
-# Needs to link with openmp because the dl_timer library needs openmp.
 dl_timer:
-	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/dl_timer"                     \
-	        WRAPPER_NAME="dl_timer_psy"                               \
-			PROFILE_LINK="-L$(DL_TIMER_ROOT) -ldl_timer_omp -fopenmp" \
+	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/dl_timer"            \
+	        WRAPPER_NAME="dl_timer_psy"                      \
+			PROFILE_LINK="-L$(DL_TIMER_ROOT) -ldl_timer_omp" \
 	        dl_timer_lib $(NAME).dl_timer
 
 # The LFRic timer can be used for gocean as well - the wrapper provides
@@ -115,7 +123,8 @@ $(NAME).%: $(INF_LIB) $(WRAPPER_DIR)/lib$(WRAPPER_NAME).a $(KERNELS) psy.o alg.o
 		   $(PROFILE_LINK) $(INF_LIB)
 
 alg.f90 psy.f90: test.x90
-	${PSYCLONE} --profile invokes -api "gocean" \
+	${PSYCLONE} --profile kernels -api "gocean"  \
+			 -s openmp_combined.py               \
 		     -opsy psy.f90 -oalg alg.f90 test.x90
 
 # Make sure the infrastructure library is compiled, so the mods are found
