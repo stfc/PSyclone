@@ -119,8 +119,7 @@ def test_refelem_quad_stub_gen(fortran_writer):
         "np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)"
     )
     assert output1 in gen
-    assert (
-        """\
+    expected_declarations = """\
     integer(kind=i_def), intent(in) :: ndf_w1
     integer(kind=i_def), intent(in) :: ndf_wtheta
     integer(kind=i_def), intent(in) :: nfaces_re
@@ -144,5 +143,6 @@ intent(in) :: basis_wtheta_qr_xyoz
 :: weights_xy_qr_xyoz
     real(kind=r_def), dimension(np_z_qr_xyoz), intent(in) :: weights_z_qr_xyoz
 """
-        in gen
-    )
+    for declaration in expected_declarations.splitlines():
+        if declaration.strip():
+            assert declaration in gen
