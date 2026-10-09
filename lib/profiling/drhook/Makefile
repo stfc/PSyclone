@@ -18,8 +18,6 @@ DRHOOK_INCLUDE ?= $(DRHOOK_ROOT)/include
 DRHOOK_MODULES ?= $(DRHOOK_ROOT)/build/module
 # -----------------------------------------------------------------------------
 
-F90FLAGS += -I$(DRHOOK_INCLUDE) -I$(DRHOOK_MODULES)
-
 PSYDATA_LIB_NAME = drhook_psy
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
@@ -33,7 +31,7 @@ $(PSYDATA_LIB): $(OBJS)
 	ar rs $(PSYDATA_LIB) $(OBJS)
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) -I$(DRHOOK_INCLUDE) -I$(DRHOOK_MODULES) -c $<
 
 clean:
 	rm -f *.o *.mod $(PSYDATA_LIB)
