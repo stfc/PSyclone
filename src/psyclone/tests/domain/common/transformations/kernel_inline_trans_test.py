@@ -12,6 +12,8 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.domain.common.transformations import (
     KernelInlineTrans, KernelModuleInlineTrans)
+from psyclone.domain.lfric import LFRicKern
+from psyclone.domain.lfric.transformations import LFRicColourAndOMPTrans
 from psyclone.psyGen import CodedKern
 from psyclone.psyir.nodes import (
     ArrayReference, Assignment, Call, CodeBlock, Fparser2CodeBlock, Literal,
@@ -124,7 +126,7 @@ def test_kernel_inline_trans_defers_body_validation(parser, capsys):
         "InlineTrans.apply() to override.)\n")
 
 
-def test_kernel_inline_trans_lfric_colouring(tmpdir):
+def test_kernel_inline_trans_lfric_colouring(tmp_path):
     """Test deferred LFRic arguments, loop bounds and generated code."""
     psy, invoke = get_invoke("1_single_invoke.f90", "lfric",
                              idx=0, dist_mem=False)
@@ -149,7 +151,7 @@ def test_kernel_inline_trans_lfric_colouring(tmpdir):
     # Code generation lowers a copy and must preserve the DSL-level original.
     assert isinstance(invoke.schedule.walk(CodedKern)[0], CodedKern)
     assert invoke.schedule.walk(CodedKern)[0].inline
-    assert LFRicBuild(tmpdir).code_compiles(psy)
+    assert LFRicBuild(tmp_path).code_compiles(psy)
 
 
 def test_kernel_inline_trans_gocean(capsys, tmp_path):
@@ -232,3 +234,65 @@ def test_kernel_inline_trans_rechecks_callees(monkeypatch, capsys):
         "'testkern_code_inlined_' because its call has 2 possible callees. "
         "The 'allow_no_args_check_if_only_one_callee' option requires exactly "
         "one callee.\n")
+
+
+def test_lfric_kernel_with_automatic_array(tmp_path, monkeypatch):
+    '''
+    Test that Colouring, adding OpenMP and then Inlining a kernel that has
+    temporary automatic arrays and is polymorphic works as expected.
+
+
+    '''
+    # TODO #3601: Polymorphic kernels are not inlined yet, so monkeypatch
+    # callee resolution to select the double-precision implementation.
+    get_callees = LFRicKern.get_callees
+
+    def get_double_precision_callee(kernel):
+        routines = get_callees(kernel)
+        if kernel.name == "dg_matrix_vector_code":
+            routines = [routine for routine in routines
+                        if routine.name == "dg_matrix_vector_code_r_double"]
+            # Module inlining also needs the call to name this implementation.
+            kernel.routine = Reference(routines[0].symbol)
+            kernel._schedules = routines
+        return routines
+
+    monkeypatch.setattr(LFRicKern, "get_callees", get_double_precision_callee)
+
+    psy, invoke = get_invoke("15.1.11_builtin_and_op_kernel_invoke.f90",
+                             idx=0, api="lfric", dist_mem=True)
+
+    kmit = KernelModuleInlineTrans()
+    ompt = LFRicColourAndOMPTrans()
+    inline_trans = KernelInlineTrans()
+    ompt.apply(invoke.schedule)
+    for ker in invoke.schedule.walk(CodedKern):
+        kmit.apply(ker)
+        inline_trans.apply(ker)
+
+    assert """
+    allocate(x_e(ndf_as1_f2))
+    allocate(lhs_e(ndf_ads1_f4))
+    !$omp parallel default(shared) private(cell)
+    !$omp do schedule(static)
+    do cell = loop1_start, loop1_stop, 1
+      ! deferred-inline successful for kernel 'dg_matrix_vector_code_r_\
+double_inlined_'
+      do k = 0, nlayers_f4 - 1, 1_i_def
+        do df_1 = 1, ndf_as1_f2, 1_i_def
+          x_e(df_1) = f2_data(map_as1_f2(df_1 - 1 + lbound(map_as1_f2, \
+dim=1),cell) + k)
+        enddo
+        ik = (cell - 1) * nlayers_f4 + k + 1
+        lhs_e = matmul(mass_matrix_local_stencil(:,:,ik), x_e)
+        do df_1 = 1, ndf_ads1_f4, 1_i_def
+          f4_data(map_ads1_f4(df_1 - 1 + lbound(map_ads1_f4, dim=1),cell) \
++ k) = lhs_e(df_1)
+        enddo
+      enddo
+    enddo
+    !$omp end do
+    !$omp end parallel
+    deallocate(lhs_e)
+    deallocate(x_e)""" in str(psy.gen).lower()
+    assert LFRicBuild(tmp_path).code_compiles(psy)
