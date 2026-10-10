@@ -56,8 +56,9 @@ PROFILING_IGNORE = ["flo_dom", "macho", "mpp_", "nemo_gcm", "dyn_ldf"
 # functions, the following subroutines contains known statement functions
 CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 
-# Consider the same envvar than in insert_loop_parallelism.py
+# Follow the same envvar knobs than insert_loop_parallelism.py
 REPRODUCIBLE = os.environ.get('REPRODUCIBLE', False)
+NEMOV4 = os.environ.get('NEMOV4', False)
 
 
 def inline_calls(schedule):
@@ -184,7 +185,7 @@ def normalise_loops(
         # Convert all array implicit loops to explicit loops
         explicit_loops = ArrayAssignment2LoopsTrans()
         for assignment in schedule.walk(Assignment):
-            if REPRODUCIBLE:
+            if REPRODUCIBLE and NEMOV4:
                 if isinstance(assignment.lhs, Reference):
                     if assignment.lhs.name.lower() == "zsshp2_e":
                         # Both the Fortran and the psyclone transformation
@@ -357,7 +358,6 @@ def insert_explicit_loop_parallelism(
         clauses automatically.
 
     '''
-    nemo_v4 = os.environ.get('NEMOV4', False)
     # TODO #2937: These are both in "dynspg_ts.f90", they have a WaW dependency
     # but we currently ignore these.
     if schedule.name in ("ts_wgt", "ts_rst"):
@@ -388,7 +388,7 @@ def insert_explicit_loop_parallelism(
                 "and is not the inner loop")
             continue
 
-        if nemo_v4:
+        if NEMOV4:
             # Skip if it is an array operation loop on an ice routine if along
             # the third dim or higher or if the loop nests a loop over ice
             # points (npti) or if the loop and array dims do not match.

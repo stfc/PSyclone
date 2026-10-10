@@ -112,7 +112,7 @@ ASYNC_ISSUES = [
 ]
 
 
-def select_transformations():
+def select_transformations(filename):
     '''
     Use the PARALLEL_DIRECTIVES global to select what specific transformations
     to apply to insert the desired directives.
@@ -126,9 +126,17 @@ def select_transformations():
         gpu_loop_trans.omp_directive = "teamsloop"
         process_directives = process_directives.replace('omp_offloading', '')
     elif 'acc_offloading' in process_directives:
-        offload_region_trans = ACCParallelTrans(default_present=False)
-        mark_for_gpu_trans = ACCRoutineTrans()
-        gpu_loop_trans = ACCLoopTrans()
+        if filename == "stpctl.f90":
+            # This file need reductions to parallelise the loops, but our
+            # OpenACC still doesn't support reductions, use OMP for now.
+            offload_region_trans = OMPTargetTrans()
+            mark_for_gpu_trans = OMPDeclareTargetTrans()
+            gpu_loop_trans = OMPLoopTrans(omp_schedule="none")
+            gpu_loop_trans.omp_directive = "teamsloop"
+        else:
+            offload_region_trans = ACCParallelTrans(default_present=False)
+            mark_for_gpu_trans = ACCRoutineTrans()
+            gpu_loop_trans = ACCLoopTrans()
         process_directives = process_directives.replace('acc_offloading', '')
     else:
         offload_region_trans = None
@@ -201,7 +209,7 @@ def trans(psyir):
         return
 
     (offload_region_trans, mark_for_gpu_trans, gpu_loop_trans,
-     cpu_loop_trans) = select_transformations()
+     cpu_loop_trans) = select_transformations(psyir.name)
 
     disable_profiling_for = []
     enable_async = ASYNC_PARALLEL and psyir.name not in ASYNC_ISSUES
