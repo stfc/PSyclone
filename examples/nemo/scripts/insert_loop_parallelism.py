@@ -83,6 +83,9 @@ if not NEMOV4:
         "sbcclo.f90",
         # This file fails for gcc NEMOv5 BENCH
         "icedyn_rhg_evp.f90",
+        # Accesses Illegal Address during kernel execution if '*_init'
+        # subroutines are also offloaded
+        "fldread.f90",
     ])
 
     PARALLELISATION_ISSUES.extend([
@@ -127,7 +130,7 @@ def select_transformations(filename):
         process_directives = process_directives.replace('omp_offloading', '')
     elif 'acc_offloading' in process_directives:
         if filename == "stpctl.f90":
-            # This file need reductions to parallelise the loops, but our
+            # This file needs reductions to parallelise the loops, but our
             # OpenACC still doesn't support reductions, use OMP for now.
             offload_region_trans = OMPTargetTrans()
             mark_for_gpu_trans = OMPDeclareTargetTrans()
@@ -216,9 +219,9 @@ def trans(psyir):
 
     for subroutine in psyir.walk(Routine):
 
-        # Skip initialisation and diagnostic subroutines
+        # Skip initialisation and diagnostic subroutines (keep '*_init' as
+        # these are faster offloaded, and some are inside the timestepping)
         if (subroutine.name.endswith('_alloc') or
-                subroutine.name.endswith('_init') or
                 subroutine.name.startswith('init_') or
                 subroutine.name.startswith('Agrif') or
                 subroutine.name.startswith('dia_') or
@@ -237,7 +240,7 @@ def trans(psyir):
 
         normalise_loops(
                 subroutine,
-                hoist_local_arrays=False,
+                hoist_local_arrays=NEMOV4,
                 convert_array_notation=True,
                 loopify_array_intrinsics=True,
                 convert_range_loops=True,
