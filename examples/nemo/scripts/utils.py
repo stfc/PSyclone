@@ -15,7 +15,7 @@ from psyclone.psyir.nodes import (
     Assignment, Loop, Directive, Node, Reference, CodeBlock, Call,
     Routine, Schedule, IntrinsicCall, StructureReference, IfBlock,
     Operation, BinaryOperation)
-from psyclone.psyir.symbols import DataSymbol, ArrayType
+from psyclone.psyir.symbols import ArrayType
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
     HoistTrans, InlineTrans, ProfileTrans, OMPMinimiseSyncTrans,
@@ -31,7 +31,7 @@ NEMO_MODULES_TO_IMPORT = [
     "ldfdyn", "sbcapr", "sbctide", "zdfgls", "sbcrnf", "sbcisf", "dynldf_iso",
     "stopts", "icb_oce", "domvvl", "sms_pisces", "zdfmfc", "abl", "ice1d",
     "sed", "p2zlim", "oce_trc", "p4zpoc", "tide_mod", "sbcwave", "isf_oce",
-    "step_oce", "bdyice", "lbcnfd"
+    "step_oce", "bdyice", "lbcnfd", "dynvor"
 ]
 
 # Files that PSyclone could process but would reduce the performance.
@@ -56,21 +56,9 @@ PROFILING_IGNORE = ["flo_dom", "macho", "mpp_", "nemo_gcm", "dyn_ldf"
 # functions, the following subroutines contains known statement functions
 CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
 
-
-def _it_should_be(symbol, of_type, instance):
-    ''' Make sure that symbol has the datatype as provided.
-
-    :param symbol: the symbol to check.
-    :type symbol: :py:class:`psyclone.psyir.symbol.Symbol`
-    :param type of_type: the datatype type that it must be.
-    :param instance: the instance of Datatype to assign as the symbol datatype.
-    :type instance: :py:class:`psyclone.psyir.symbol.DataType`
-
-    '''
-    if not isinstance(symbol, DataSymbol):
-        symbol.specialise(DataSymbol, datatype=instance)
-    elif not isinstance(symbol.datatype, of_type):
-        symbol.datatype = instance
+# Follow the same envvar knobs than insert_loop_parallelism.py
+REPRODUCIBLE = os.environ.get('REPRODUCIBLE', False)
+NEMOV4 = os.environ.get('NEMOV4', False)
 
 
 def inline_calls(schedule):
@@ -197,6 +185,14 @@ def normalise_loops(
         # Convert all array implicit loops to explicit loops
         explicit_loops = ArrayAssignment2LoopsTrans()
         for assignment in schedule.walk(Assignment):
+            if REPRODUCIBLE and NEMOV4:
+                if isinstance(assignment.lhs, Reference):
+                    if assignment.lhs.name.lower() == "zsshp2_e":
+                        # Both the Fortran and the psyclone transformation
+                        # seem semantically correct, the different value could
+                        # be NVFortran evaluating the multi-term floating-point
+                        # expression differently
+                        continue
             try:
                 explicit_loops.apply(
                     assignment, options={'verbose': True})
@@ -362,7 +358,6 @@ def insert_explicit_loop_parallelism(
         clauses automatically.
 
     '''
-    nemo_v4 = os.environ.get('NEMOV4', False)
     # TODO #2937: These are both in "dynspg_ts.f90", they have a WaW dependency
     # but we currently ignore these.
     if schedule.name in ("ts_wgt", "ts_rst"):
@@ -393,7 +388,7 @@ def insert_explicit_loop_parallelism(
                 "and is not the inner loop")
             continue
 
-        if nemo_v4:
+        if NEMOV4:
             # Skip if it is an array operation loop on an ice routine if along
             # the third dim or higher or if the loop nests a loop over ice
             # points (npti) or if the loop and array dims do not match.

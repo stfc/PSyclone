@@ -73,12 +73,7 @@ PARALLELISATION_ISSUES = []
 # offloading directives
 OFFLOADING_ISSUES = []
 
-if NEMOV4:
-    # NEMOv4 additional exclusions
-    FILES_TO_SKIP.extend([
-        "dynspg_ts.f90",
-    ])
-else:
+if not NEMOV4:
     # NEMOv5 additional exclusions
     FILES_TO_SKIP.extend([
         # Fail in nvfortran when enabling seaice - Has unsupported implicit
@@ -88,10 +83,9 @@ else:
         "sbcclo.f90",
         # This file fails for gcc NEMOv5 BENCH
         "icedyn_rhg_evp.f90",
-    ])
-
-    SKIP_FOR_PERFORMANCE.extend([
-        "lbclnk.f90",
+        # Accesses Illegal Address during kernel execution if '*_init'
+        # subroutines are also offloaded
+        "fldread.f90",
     ])
 
     PARALLELISATION_ISSUES.extend([
@@ -121,7 +115,7 @@ ASYNC_ISSUES = [
 ]
 
 
-def select_transformations():
+def select_transformations(filename):
     '''
     Use the PARALLEL_DIRECTIVES global to select what specific transformations
     to apply to insert the desired directives.
@@ -135,9 +129,17 @@ def select_transformations():
         gpu_loop_trans.omp_directive = "teamsloop"
         process_directives = process_directives.replace('omp_offloading', '')
     elif 'acc_offloading' in process_directives:
-        offload_region_trans = ACCParallelTrans(default_present=False)
-        mark_for_gpu_trans = ACCRoutineTrans()
-        gpu_loop_trans = ACCLoopTrans()
+        if filename == "stpctl.f90":
+            # This file needs reductions to parallelise the loops, but our
+            # OpenACC still doesn't support reductions, use OMP for now.
+            offload_region_trans = OMPTargetTrans()
+            mark_for_gpu_trans = OMPDeclareTargetTrans()
+            gpu_loop_trans = OMPLoopTrans(omp_schedule="none")
+            gpu_loop_trans.omp_directive = "teamsloop"
+        else:
+            offload_region_trans = ACCParallelTrans(default_present=False)
+            mark_for_gpu_trans = ACCRoutineTrans()
+            gpu_loop_trans = ACCLoopTrans()
         process_directives = process_directives.replace('acc_offloading', '')
     else:
         offload_region_trans = None
@@ -210,16 +212,16 @@ def trans(psyir):
         return
 
     (offload_region_trans, mark_for_gpu_trans, gpu_loop_trans,
-     cpu_loop_trans) = select_transformations()
+     cpu_loop_trans) = select_transformations(psyir.name)
 
     disable_profiling_for = []
     enable_async = ASYNC_PARALLEL and psyir.name not in ASYNC_ISSUES
 
     for subroutine in psyir.walk(Routine):
 
-        # Skip initialisation and diagnostic subroutines
+        # Skip initialisation and diagnostic subroutines (keep '*_init' as
+        # these are faster offloaded, and some are inside the timestepping)
         if (subroutine.name.endswith('_alloc') or
-                subroutine.name.endswith('_init') or
                 subroutine.name.startswith('init_') or
                 subroutine.name.startswith('Agrif') or
                 subroutine.name.startswith('dia_') or
@@ -238,7 +240,7 @@ def trans(psyir):
 
         normalise_loops(
                 subroutine,
-                hoist_local_arrays=False,
+                hoist_local_arrays=NEMOV4,
                 convert_array_notation=True,
                 loopify_array_intrinsics=True,
                 convert_range_loops=True,
