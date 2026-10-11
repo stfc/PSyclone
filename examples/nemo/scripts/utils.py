@@ -54,7 +54,7 @@ PROFILING_IGNORE = ["flo_dom", "macho", "mpp_", "nemo_gcm", "dyn_ldf"
 
 # Currently fparser has no way of distinguishing array accesses from statement
 # functions, the following subroutines contains known statement functions
-CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
+CONTAINS_STMT_FUNCTIONS = ["sbc_dcy", "eos_rprof"]
 
 # Follow the same envvar knobs than insert_loop_parallelism.py
 REPRODUCIBLE = os.environ.get('REPRODUCIBLE', False)
