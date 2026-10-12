@@ -4,7 +4,80 @@
 # Copyright (c) 2026, Science and Technology Facilities Council.
 # All rights reserved.
 # -----------------------------------------------------------------------------
-"""Immutable LFRic kernel metadata built from language-level PSyIR."""
+"""
+The LFRic kernel metadata is stored with the following immutable nested
+dataclasses, built from language-level PSyIR:
+
+LFRicKernelMetadata:
+    operates_on: Optional[str]
+    shapes: tuple[str, ...]
+    evaluator_targets: tuple[str, ...]
+    meta_args: tuple[Union[
+        ScalarArgMetadata:
+            datatype: str
+            access: str
+        ScalarArrayArgMetadata:
+            datatype: str
+            access: str
+            array_ndims: int
+        FieldArgMetadata:
+            datatype: str
+            access: str
+            function_space: str
+            stencil: Optional[str]
+            nlevels: Optional[str]
+            ndata: Optional[str]
+        FieldVectorArgMetadata:
+            datatype: str
+            access: str
+            function_space: str
+            vector_length: str
+            stencil: Optional[str]
+            nlevels: Optional[str]
+            ndata: Optional[str]
+        InterGridArgMetadata:
+            datatype: str
+            access: str
+            function_space: str
+            mesh_arg: str
+            stencil: Optional[str]
+            nlevels: Optional[str]
+            ndata: Optional[str]
+        InterGridVectorArgMetadata:
+            datatype: str
+            access: str
+            function_space: str
+            mesh_arg: str
+            vector_length: str
+            stencil: Optional[str]
+            nlevels: Optional[str]
+            ndata: Optional[str]
+        OperatorArgMetadata:
+            datatype: str
+            access: str
+            function_space_to: str
+            function_space_from: str
+        ColumnwiseOperatorArgMetadata:
+            datatype: str
+            access: str
+            function_space_to: str
+            function_space_from: str
+    ], ...]
+    meta_funcs: tuple[MetaFuncsArgMetadata:
+        function_space: str
+        basis_function: bool
+        diff_basis_function: bool
+    , ...]
+    meta_ref_element: tuple[MetaRefElementArgMetadata:
+        reference_element: str
+    , ...]
+    meta_mesh: tuple[MetaMeshArgMetadata:
+        mesh: str
+    , ...]
+    procedure_name: Optional[str]
+    name: Optional[str]
+
+"""
 
 from __future__ import annotations
 
