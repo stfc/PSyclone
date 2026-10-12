@@ -12,10 +12,12 @@ import re
 import logging
 
 import pytest
+import yaml
 
 from psyclone.configuration import Config
 from psyclone.core import Signature, AccessSequence
 from psyclone.domain.lfric import LFRicKern
+from psyclone.generator import main
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.nodes import CodeBlock, Reference, Schedule
@@ -84,7 +86,7 @@ def test_call_tree_compute_all_non_locals_non_kernel():
     psyir = \
         container_node.find_routine_psyir("calling_unknown_subroutine")
     info = ctu._compute_all_non_locals(psyir)
-    assert info == [("routine", None, Signature("unknown_subroutine"))]
+    assert info == [("routine", "", Signature("unknown_subroutine"))]
 
     # Check calling an imported subroutine
     psyir = \
@@ -194,7 +196,7 @@ def test_call_tree_get_used_symbols_from_modules():
             ("unknown", "module_with_var_mod", "module_var_a"),
             ("unknown", "module_with_var_mod", "module_function"),
             ("routine", "testkern_import_symbols_mod", "local_subroutine"),
-            ("routine", None, "unknown_subroutine")]
+            ("routine", "", "unknown_subroutine")]
             )
     for x in non_locals_without_access:
         assert x in expected, str(x) + " not found"
@@ -300,6 +302,13 @@ def test_get_non_local_read_write_info(caplog):
     # not included:
     assert (('module_with_var_mod', Signature("module_const"))
             not in rw_info.read_list)
+
+    for call_info in [('module_with_var_mod', Signature('module_function')),
+                      ('module_with_var_mod', Signature('module_subroutine')),
+                      ('testkern_import_symbols_mod', Signature('local_func')),
+                      ('testkern_import_symbols_mod',
+                       Signature('local_subroutine'))]:
+        assert call_info in rw_info.call_list
 
     # Check that we can ignore a module:
     mod_man.add_ignore_module("constants_mod")
@@ -631,6 +640,13 @@ def testcall_tree_utils_non_local_inout_parameters(caplog):
             in rw_info.write_list)
     assert (('testkern_import_symbols_mod', Signature("dummy_module_variable"))
             in rw_info.write_list)
+    assert set(rw_info.call_list) == set(
+        [('module_with_var_mod', Signature('module_function')),
+         ('module_with_var_mod', Signature('module_subroutine')),
+         ('testkern_import_symbols_mod', Signature('local_func')),
+         ('testkern_import_symbols_mod', Signature('local_subroutine')),
+         ('testkern_import_symbols_mod',
+          Signature('testkern_import_symbols_code'))])
 
 
 # -----------------------------------------------------------------------------
@@ -681,3 +697,46 @@ def test_call_tree_error_module_is_codeblock(capsys):
     assert ("_symbols_mod.f90' does contain module "
             "'testkern_import_symbols_mod' but PSyclone is unable to create "
             "the PSyIR of it." in out)
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("clear_module_manager_instance", "lfric_config")
+def test_call_tree_utils_write_call_tree_info_from_generator(tmp_path):
+    '''Test writing call-tree information through the PSyclone generator.'''
+    algorithm_file = os.path.join(
+        get_base_path("lfric"), "driver_creation",
+        "invoke_kernel_with_imported_symbols.f90")
+    kernel_dir = os.path.join(get_base_path("lfric"), "driver_creation")
+    infrastructure_dir = get_infrastructure_path("lfric")
+    yaml_file = tmp_path / "call_tree.yaml"
+    script_file = tmp_path / "write_call_tree.py"
+    psy_file = tmp_path / "psy.f90"
+    alg_file = tmp_path / "alg.f90"
+
+    script_file.write_text(
+        "from psyclone.psyir.tools import CallTreeUtils\n\n"
+        "def trans(psyir):\n"
+        f"    CallTreeUtils().write_call_tree_info(psyir, '{yaml_file}')\n",
+        encoding="utf-8")
+
+    main([algorithm_file, "-api", "lfric", "-s", str(script_file),
+            "-d", kernel_dir, "-d", infrastructure_dir,
+            "-opsy", str(psy_file),
+            "-oalg", str(alg_file)])
+
+    with yaml_file.open(encoding="utf-8") as yaml_stream:
+        result = yaml.safe_load(yaml_stream)
+
+    assert result == {
+        "module_with_name_clash_mod": {
+            "routines": ["module_function"],
+            "symbols": ["f1_data", "f2_data"]},
+        "module_with_var_mod": {
+            "routines": ["module_function", "module_subroutine"],
+            "symbols": ["const_size_array", "module_var_a", "module_var_b"]},
+        "testkern_import_symbols_mod": {
+            "routines": ["local_func", "local_subroutine", "testkern_import_symbols_code"],
+            "symbols": ["dummy_module_variable"]},
+        "testkern_import_symbols_name_clash_mod": {
+            "routines": ["testkern_import_symbols_name_clash_code"],
+            "symbols": []}}
