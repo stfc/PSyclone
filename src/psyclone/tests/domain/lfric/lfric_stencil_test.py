@@ -11,7 +11,7 @@ import os
 
 import pytest
 
-from psyclone.domain.common.kernel import KernelInfo
+from psyclone.domain.common.kernel import Kernel
 from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
                                    LFRicKernelMetadata, LFRicStencils)
 from psyclone.lfric import LFRicKernelArguments
@@ -58,14 +58,14 @@ def test_invalid_stencil_metadata(stencil, fortran_reader):
     code = STENCIL_CODE.replace("stencil(cross)", stencil)
     psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(ParseError):
-        KernelInfo.create_from_psyir(LFRicKernelMetadata, psyir)
+        Kernel.create_from_psyir(LFRicKernelMetadata, psyir)
 
 
 def test_fixed_stencil_extent(fortran_reader):
     """A valid fixed extent is recognised but remains unsupported."""
     code = STENCIL_CODE.replace("stencil(cross)", "stencil(cross,2)")
     with pytest.raises(NotImplementedError, match="fixed stencil extents"):
-        KernelInfo.create_from_psyir(
+        Kernel.create_from_psyir(
             LFRicKernelMetadata, fortran_reader.psyir_from_source(code))
 
 

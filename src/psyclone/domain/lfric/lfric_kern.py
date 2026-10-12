@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from psyclone.configuration import Config
-from psyclone.domain.common.kernel import KernelInfo
+from psyclone.domain.common.kernel import Kernel
 from psyclone.core import AccessType, VariablesAccessMap
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
@@ -219,7 +219,7 @@ class LFRicKern(CodedKern):
             args.append(Arg("variable", "halo_depth"))
 
         self._setup(
-            KernelInfo(ktype), "dummy_name", args, None, check=False)
+            Kernel(ktype), "dummy_name", args, None, check=False)
 
     def _setup_basis(self, kmetadata):
         '''
@@ -247,7 +247,7 @@ class LFRicKern(CodedKern):
         '''Internal setup of kernel information.
 
         :param kernel: parsed metadata and implementation information.
-        :type kernel: :py:class:`psyclone.domain.common.kernel.KernelInfo`
+        :type kernel: :py:class:`psyclone.domain.common.kernel.Kernel`
         :param module_name: name of the Fortran module containing this Kernel.
         :param args: the Arg objects produced by the parser for the
                      arguments of this kernel call.

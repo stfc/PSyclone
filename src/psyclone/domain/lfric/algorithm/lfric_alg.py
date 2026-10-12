@@ -10,6 +10,7 @@
 
 '''
 
+from psyclone.domain.common.kernel import Kernel
 from psyclone.domain.lfric import (KernCallInvokeArgList, LFRicConstants,
                                    LFRicTypes)
 from psyclone.domain.lfric.algorithm.psyir import (
@@ -402,8 +403,8 @@ class LFRicAlg:
                             be found in the supplied parse tree.
         '''
         try:
-            ktype = LFRicKernelMetadata.create_from_kernel_psyir(
-                psyir, name=kernel_name).metadata
+            ktype = Kernel.create_from_psyir(
+                LFRicKernelMetadata, psyir, name=kernel_name).metadata
         except (ParseError, TypeError) as err:
             raise ValueError(
                 f"Failed to find kernel '{kernel_name}' in supplied "

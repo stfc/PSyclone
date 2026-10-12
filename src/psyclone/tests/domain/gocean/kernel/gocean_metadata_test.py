@@ -11,6 +11,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
+from psyclone.domain.common.kernel import Kernel
 from psyclone.configuration import Config
 from psyclone.domain.gocean.kernel import (
     GOceanContainer, GOceanFieldArgMetadata,
@@ -58,8 +59,8 @@ def _expression(source):
 def test_metadata_from_psyir(fortran_reader):
     """Metadata is extracted from a complete language-level PSyIR tree."""
     root = fortran_reader.psyir_from_source(MODULE)
-    kernel = GOceanKernelMetadata.create_from_kernel_psyir(
-        root, "compute_cu")
+    kernel = Kernel.create_from_psyir(
+        GOceanKernelMetadata, root, "compute_cu")
     metadata = kernel.metadata
 
     assert metadata.name == "compute_cu"
@@ -75,8 +76,8 @@ def test_metadata_from_psyir(fortran_reader):
         metadata.name = "changed"
 
     # Metadata lookup remains case-insensitive.
-    assert GOceanKernelMetadata.create_from_kernel_psyir(
-        root, "CoMpUtE_Cu").metadata == metadata
+    assert Kernel.create_from_psyir(
+        GOceanKernelMetadata, root, "CoMpUtE_Cu").metadata == metadata
 
 
 def test_gocean_container_create():
@@ -118,13 +119,13 @@ def test_metadata_fortran_round_trip(fortran_reader):
     assert root.children[0].symbol_table.lookup("compute_cu")
 
 
-def test_kernel_info_path():
+def test_kernel_path():
     """Test the common kernel-information loading path."""
     Config.get().api = "gocean"
     mdata_code = MODULE
     kernel_metadata = FortranReader().psyir_from_source(mdata_code)
-    ktype = GOceanKernelMetadata.create_from_kernel_psyir(
-        kernel_metadata, name="compute_cu").metadata
+    ktype = Kernel.create_from_psyir(
+        GOceanKernelMetadata, kernel_metadata, name="compute_cu").metadata
 
     assert isinstance(ktype, GOceanKernelMetadata)
     assert ktype.name == "compute_cu"
@@ -210,7 +211,8 @@ def test_kernel_metadata_validation():
 
 def test_kernel_metadata_common_properties():
     """Test kernel information, counts, lowering and string output."""
-    kernel = GOceanKernelMetadata.create_from_kernel_psyir(
+    kernel = Kernel.create_from_psyir(
+        GOceanKernelMetadata,
         FortranReader().psyir_from_source(MODULE), "compute_cu")
     metadata = kernel.metadata
     assert kernel.procedures[0].name == "compute_cu_code"
@@ -249,7 +251,7 @@ def test_create_from_psyir_errors():
         GOceanKernelMetadata.create_from_psyir(bad_symbol)
 
 
-def test_create_from_kernel_psyir_missing_routine():
+def test_kernel_missing_routine():
     """Test that the implementation named by metadata must exist."""
     source = MODULE.replace(
         "subroutine compute_cu_code()", "subroutine different_code()").replace(
@@ -257,7 +259,7 @@ def test_create_from_kernel_psyir_missing_routine():
             "end subroutine different_code")
     root = FortranReader().psyir_from_source(source)
     with pytest.raises(ParseError, match="compute_cu_code.*not found"):
-        GOceanKernelMetadata.create_from_kernel_psyir(root, "compute_cu")
+        Kernel.create_from_psyir(GOceanKernelMetadata, root, "compute_cu")
 
 
 def test_create_from_psyir_discovery_errors(fortran_reader):
@@ -352,18 +354,18 @@ def test_declaration_errors(declaration, message):
         GOceanKernelMetadata.create_from_psyir(symbol)
 
 
-def test_create_from_kernel_psyir_discovery_errors():
+def test_kernel_discovery_errors():
     """Test type, absence and ambiguity errors in metadata discovery."""
     with pytest.raises(TypeError, match="Expected PSyIR"):
-        GOceanKernelMetadata.create_from_kernel_psyir("not psyir")
+        Kernel.create_from_psyir(GOceanKernelMetadata, "not psyir")
     reader = FortranReader()
     root = reader.psyir_from_source("module empty\nend module empty")
     with pytest.raises(ParseError, match="does not exist"):
-        GOceanKernelMetadata.create_from_kernel_psyir(root)
+        Kernel.create_from_psyir(GOceanKernelMetadata, root)
     root = reader.psyir_from_source(
         "module both\n" + METADATA + METADATA.replace(
             "compute_cu", "compute_cv") + "\nend module both")
     with pytest.raises(ParseError, match="not unique"):
-        GOceanKernelMetadata.create_from_kernel_psyir(root)
+        Kernel.create_from_psyir(GOceanKernelMetadata, root)
     with pytest.raises(ParseError, match="'absent'.*does not exist"):
-        GOceanKernelMetadata.create_from_kernel_psyir(root, "absent")
+        Kernel.create_from_psyir(GOceanKernelMetadata, root, "absent")

@@ -9,7 +9,7 @@
 
 import pytest
 
-from psyclone.domain.common.kernel import KernelInfo
+from psyclone.domain.common.kernel import Kernel
 from psyclone.domain.common.kernel.metadata import (
     array_component_values, kernel_metadata_symbols)
 from psyclone.domain.gocean.kernel import GOceanKernelMetadata
@@ -52,15 +52,23 @@ def test_kernel_metadata_symbols_invalid_input():
         kernel_metadata_symbols(None)
 
 
-def test_kernel_info_from_psyir(fortran_reader):
+def test_kernel_from_psyir(fortran_reader):
     """The common container extracts metadata and routines from PSyIR."""
     psyir = fortran_reader.psyir_from_source(GOCEAN_SOURCE)
-    kernel = KernelInfo.create_from_psyir(GOceanKernelMetadata, psyir)
+    kernel = Kernel.create_from_psyir(GOceanKernelMetadata, psyir)
     assert kernel.metadata.name == "demo_type"
     assert kernel.procedure_name == "demo_code"
     assert [routine.name for routine in kernel.procedures] == ["demo_code"]
 
     with pytest.raises(TypeError, match="must implement KernelMetadata"):
-        KernelInfo(object())
+        Kernel(object())
     with pytest.raises(TypeError, match="tuple of Routines"):
-        KernelInfo(kernel.metadata, procedures=(object(),))
+        Kernel(kernel.metadata, procedures=(object(),))
+
+
+@pytest.mark.parametrize("metadata_type", [None, object])
+def test_kernel_unsupported_metadata(metadata_type, fortran_reader):
+    """Full kernel assembly requires a supported API metadata class."""
+    psyir = fortran_reader.psyir_from_source(GOCEAN_SOURCE)
+    with pytest.raises(TypeError, match="Expected an LFRic or GOcean"):
+        Kernel.create_from_psyir(metadata_type, psyir)

@@ -11,7 +11,6 @@ from typing import ClassVar, Optional, TypeAlias
 
 from psyclone.domain.common.kernel.metadata import (
     array_component_values, kernel_metadata_symbol, kernel_metadata_symbols,
-    KernelInfo,
     KernelMetadata, metadata_structure,
     metadata_value, normalise as _normalise)
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
@@ -1375,58 +1374,6 @@ class LFRicKernelMetadata(KernelMetadata):
             )
         return result + f"END TYPE {self.name}\n"
 
-    @classmethod
-    def create_from_kernel_psyir(
-        cls, psyir: Node, name: Optional[str] = None
-    ) -> KernelInfo:
-        """Extract this API's metadata and procedures from kernel PSyIR."""
-        if not isinstance(psyir, Node):
-            raise TypeError(
-                f"Expected PSyIR Node but found '{type(psyir).__name__}'."
-            )
-        containers = [
-            node for node in psyir.walk(Container)
-            if not isinstance(node, FileContainer)
-        ]
-        if not containers:
-            raise ParseError(
-                "The file does not contain a module. Is it a Kernel file?"
-            )
-        if name is None:
-            if len(containers) != 1:
-                raise ParseError(
-                    "A metadata name is required for multiple modules."
-                )
-            module_name = containers[0].name
-            if len(module_name) < 5:
-                raise ParseError(
-                    f"Module name '{module_name}' is too short to have "
-                    "'_mod' as an extension."
-                )
-            if not module_name.lower().endswith("_mod"):
-                raise ParseError(
-                    f"Module name '{module_name}' does not have '_mod' as "
-                    "an extension."
-                )
-            name = module_name[:-4] + "_type"
-        matches = kernel_metadata_symbols(psyir, name=name)
-        if not matches:
-            raise ParseError(f"Kernel type {name} does not exist.")
-        if len(matches) > 1:
-            raise ParseError(f"Kernel type {name} is not unique.")
-        container, symbol = matches[0]
-        try:
-            metadata = cls.create_from_psyir(symbol)
-            metadata.validate()
-        except (TypeError, ValueError) as err:
-            raise ParseError(
-                f"Invalid LFRic metadata in '{symbol.name}': {err}"
-            ) from err
-        procedure_name, implementations = _kernel_procedure(
-            container, metadata)
-        return KernelInfo(
-            metadata, psyir, implementations, procedure_name)
-
 
 def _parse_arg(
     node: Node,
@@ -1657,7 +1604,7 @@ def _parse_func(node: Node) -> MetaFuncsArgMetadata:
     )
 
 
-def _kernel_procedure(
+def get_kernel_procedure(
     container: Container, metadata: LFRicKernelMetadata
 ) -> tuple[str, tuple[Routine, ...]]:
     """Resolve kernel procedure implementations from PSyIR.
@@ -1705,3 +1652,55 @@ def _kernel_procedure(
             f"Not all procedures for interface '{interface.name}' exist."
         )
     return interface.name.lower(), implementations
+
+
+def get_kernel_metadata(psyir, name=None, metadata_type=LFRicKernelMetadata):
+    """Find and validate LFRic metadata within a complete kernel PSyIR tree.
+
+    :param psyir: the complete kernel PSyIR.
+    :param name: optional metadata type name; otherwise inferred from the
+        module.
+    :param metadata_type: the metadata class to construct.
+
+    :returns: the containing module and validated metadata.
+    :raises ParseError: if discovery or metadata validation fails.
+    """
+    containers = [
+        node for node in psyir.walk(Container)
+        if not isinstance(node, FileContainer)
+    ]
+    if not containers:
+        raise ParseError(
+            "The file does not contain a module. Is it a Kernel file?"
+        )
+    if name is None:
+        if len(containers) != 1:
+            raise ParseError(
+                "A metadata name is required for multiple modules."
+            )
+        module_name = containers[0].name
+        if len(module_name) < 5:
+            raise ParseError(
+                f"Module name '{module_name}' is too short to have "
+                "'_mod' as an extension."
+            )
+        if not module_name.lower().endswith("_mod"):
+            raise ParseError(
+                f"Module name '{module_name}' does not have '_mod' as "
+                "an extension."
+            )
+        name = module_name[:-4] + "_type"
+    matches = kernel_metadata_symbols(psyir, name=name)
+    if not matches:
+        raise ParseError(f"Kernel type {name} does not exist.")
+    if len(matches) > 1:
+        raise ParseError(f"Kernel type {name} is not unique.")
+    container, symbol = matches[0]
+    try:
+        metadata = metadata_type.create_from_psyir(symbol)
+        metadata.validate()
+    except (TypeError, ValueError) as err:
+        raise ParseError(
+            f"Invalid LFRic metadata in '{symbol.name}': {err}"
+        ) from err
+    return container, metadata

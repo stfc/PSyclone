@@ -13,7 +13,7 @@
 from __future__ import print_function
 import os
 
-from psyclone.domain.common.kernel import KernelInfo
+from psyclone.domain.common.kernel import Kernel
 from psyclone.domain.lfric import LFRicKern, LFRicKernelMetadata
 from psyclone.errors import GenerationError
 from psyclone.parse.utils import ParseError
@@ -60,7 +60,7 @@ def generate(filename, api=""):
                          f"Fortran in '{filename}': {error}.") from error
 
     try:
-        kernel_info = KernelInfo.create_from_psyir(LFRicKernelMetadata, psyir)
+        kernel_info = Kernel.create_from_psyir(LFRicKernelMetadata, psyir)
     except ParseError as error:
         raise ParseError(f"Kernel stub generator: Code appears to be invalid "
                          f"Fortran: {error}.") from error

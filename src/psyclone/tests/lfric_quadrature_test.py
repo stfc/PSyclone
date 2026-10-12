@@ -13,7 +13,7 @@ import os
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.domain.common.kernel import KernelInfo
+from psyclone.domain.common.kernel import Kernel
 from psyclone.domain.lfric import (
     LFRicConstants, LFRicKern, LFRicKernelMetadata)
 from psyclone.lfric import LFRicBasisFunctions, qr_basis_alloc_args
@@ -721,7 +721,7 @@ def test_lfrickern_setup(monkeypatch, fortran_reader):
     dkm = LFRicKernelMetadata.create_from_psyir(psyir, name=name)
     # Finally, call the _setup() method
     with pytest.raises(InternalError) as excinfo:
-        kern._setup(KernelInfo(dkm), "my module", None, None)
+        kern._setup(Kernel(dkm), "my module", None, None)
     assert ("Evaluator shape(s) ['gh_wrong_shape'] is/are not "
             "recognised" in str(excinfo.value))
 

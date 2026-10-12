@@ -8,6 +8,7 @@
 ''' Module containing pytest fixtures for the LFRic-specific tests. '''
 
 import pytest
+from psyclone.domain.common.kernel import Kernel
 from psyclone.configuration import Config
 from psyclone.domain.lfric.kernel import LFRicKernelMetadata
 from psyclone.domain.lfric.lfric_kern import LFRicKern
@@ -54,7 +55,8 @@ contains
 end module testkern_field_mod
 '''
     kernel_metadata = FortranReader().psyir_from_source(mdata_code)
-    ktype = LFRicKernelMetadata.create_from_kernel_psyir(
+    ktype = Kernel.create_from_psyir(
+        LFRicKernelMetadata,
         kernel_metadata, name="testkern_field_type").metadata
     kern = LFRicKern()
     kern.load_meta(ktype)
@@ -91,7 +93,8 @@ contains
 end module testkern_field_mod
 '''
     kernel_metadata = FortranReader().psyir_from_source(mdata_code)
-    ktype = LFRicKernelMetadata.create_from_kernel_psyir(
+    ktype = Kernel.create_from_psyir(
+        LFRicKernelMetadata,
         kernel_metadata, name="testkern_field_type").metadata
     kern = LFRicKern()
     kern.load_meta(ktype)
@@ -130,7 +133,8 @@ contains
 end module testkern_field_mod
 '''
     kernel_metadata = FortranReader().psyir_from_source(mdata_code)
-    ktype = LFRicKernelMetadata.create_from_kernel_psyir(
+    ktype = Kernel.create_from_psyir(
+        LFRicKernelMetadata,
         kernel_metadata, name="testkern_field_type").metadata
     kern = LFRicKern()
     kern.load_meta(ktype)

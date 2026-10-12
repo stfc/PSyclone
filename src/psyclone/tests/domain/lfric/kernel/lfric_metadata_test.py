@@ -15,7 +15,7 @@ from psyclone.domain.lfric.kernel import (
     MetaRefElementArgMetadata, OperatorArgMetadata, ScalarArgMetadata,
     ScalarArrayArgMetadata)
 from psyclone.domain.lfric.kernel import metadata as metadata_mod
-from psyclone.domain.common.kernel import KernelInfo
+from psyclone.domain.common.kernel import Kernel
 from psyclone.domain.lfric.transformations import RaisePSyIR2LFRicKernTrans
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -68,7 +68,8 @@ contains
 end module testkern_field_mod
 '''
     kernel_metadata = FortranReader().psyir_from_source(mdata_code)
-    ktype = LFRicKernelMetadata.create_from_kernel_psyir(
+    ktype = Kernel.create_from_psyir(
+        LFRicKernelMetadata,
         kernel_metadata, name="testkern_field_type").metadata
 
     assert isinstance(ktype, LFRicKernelMetadata)
@@ -83,7 +84,8 @@ end module testkern_field_mod
     assert kernel.iterates_over == "cell_column"
 
     # Metadata lookup remains case-insensitive.
-    assert LFRicKernelMetadata.create_from_kernel_psyir(
+    assert Kernel.create_from_psyir(
+        LFRicKernelMetadata,
         kernel_metadata, name="TeStKeRn_FiElD_TyPe").metadata == ktype
 
 
@@ -425,7 +427,7 @@ def test_optional_metadata_requires_constructor(
         "  CONTAINS")
     with pytest.raises(ParseError,
                        match="Expected a metadata constructor.*Literal"):
-        KernelInfo.create_from_psyir(
+        Kernel.create_from_psyir(
             LFRicKernelMetadata, fortran_reader.psyir_from_source(
                 f"module test_mod\n{source}\ncontains\n"
                 "subroutine test_code()\nend subroutine\nend module"))
@@ -477,8 +479,8 @@ contains
 end module rich_mod
 '''
     kernel_metadata = FortranReader().psyir_from_source(mdata_code)
-    ktype = LFRicKernelMetadata.create_from_kernel_psyir(
-        kernel_metadata, name="rich_type").metadata
+    ktype = Kernel.create_from_psyir(
+        LFRicKernelMetadata, kernel_metadata, name="rich_type").metadata
 
     assert ktype.eval_targets == ("w0",)
     assert len(ktype.meta_ref_element) == 1
@@ -489,20 +491,20 @@ def test_create_from_psyir_discovery_errors():
     """Test metadata discovery errors and module-name inference."""
     reader = FortranReader()
     with pytest.raises(TypeError, match="Expected PSyIR"):
-        LFRicKernelMetadata.create_from_kernel_psyir("not psyir")
+        Kernel.create_from_psyir(LFRicKernelMetadata, "not psyir")
     root = reader.psyir_from_source("subroutine code()\nend subroutine code")
     with pytest.raises(ParseError, match="does not contain a module"):
-        LFRicKernelMetadata.create_from_kernel_psyir(root)
+        Kernel.create_from_psyir(LFRicKernelMetadata, root)
 
     root = reader.psyir_from_source("module abc\nend module abc")
     with pytest.raises(ParseError, match="too short"):
-        LFRicKernelMetadata.create_from_kernel_psyir(root)
+        Kernel.create_from_psyir(LFRicKernelMetadata, root)
     root = reader.psyir_from_source("module kernel\nend module kernel")
     with pytest.raises(ParseError, match="does not have '_mod'"):
-        LFRicKernelMetadata.create_from_kernel_psyir(root)
+        Kernel.create_from_psyir(LFRicKernelMetadata, root)
     root = reader.psyir_from_source("module kernel_mod\nend module kernel_mod")
     with pytest.raises(ParseError, match="kernel_type does not exist"):
-        LFRicKernelMetadata.create_from_kernel_psyir(root)
+        Kernel.create_from_psyir(LFRicKernelMetadata, root)
 
     two_modules = '''
 module one_mod
@@ -516,9 +518,9 @@ end module two_mod
 '''
     root = reader.psyir_from_source(two_modules)
     with pytest.raises(ParseError, match="required for multiple modules"):
-        LFRicKernelMetadata.create_from_kernel_psyir(root)
+        Kernel.create_from_psyir(LFRicKernelMetadata, root)
     with pytest.raises(ParseError, match="not unique"):
-        LFRicKernelMetadata.create_from_kernel_psyir(root, "common_type")
+        Kernel.create_from_psyir(LFRicKernelMetadata, root, "common_type")
 
 
 def test_missing_bound_procedure(fortran_reader):
@@ -536,7 +538,7 @@ module missing_mod
 '''
     psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(ParseError, match="absent_code.*not found"):
-        LFRicKernelMetadata.create_from_kernel_psyir(psyir)
+        Kernel.create_from_psyir(LFRicKernelMetadata, psyir)
 
     invalid = code.replace("gh_real", "invalid_datatype").replace(
         "absent_code", "present_code").replace(
@@ -544,7 +546,7 @@ module missing_mod
             "  subroutine present_code()\n  end subroutine present_code")
     invalid_psyir = fortran_reader.psyir_from_source(invalid)
     with pytest.raises(ParseError, match="Invalid LFRic metadata"):
-        LFRicKernelMetadata.create_from_kernel_psyir(invalid_psyir)
+        Kernel.create_from_psyir(LFRicKernelMetadata, invalid_psyir)
 
 
 def test_generic_interface_procedure(fortran_reader):
@@ -567,7 +569,7 @@ contains
 end module generic_mod
 '''
     psyir = fortran_reader.psyir_from_source(code)
-    kernel = KernelInfo.create_from_psyir(LFRicKernelMetadata, psyir)
+    kernel = Kernel.create_from_psyir(LFRicKernelMetadata, psyir)
     assert kernel.procedure_name == "generic_code"
     assert len(kernel.procedures) == 2
 
@@ -577,7 +579,7 @@ end module generic_mod
         "  end interface generic_code\n", "")
     no_interface_psyir = fortran_reader.psyir_from_source(no_interface)
     with pytest.raises(ParseError, match="exactly one generic interface"):
-        LFRicKernelMetadata.create_from_kernel_psyir(no_interface_psyir)
+        Kernel.create_from_psyir(LFRicKernelMetadata, no_interface_psyir)
 
     missing_implementation = code.replace(
         "module procedure code_one, code_two",
@@ -585,4 +587,4 @@ end module generic_mod
             "  subroutine code_two()\n  end subroutine code_two\n", "")
     missing_psyir = fortran_reader.psyir_from_source(missing_implementation)
     with pytest.raises(ParseError, match="Not all procedures"):
-        LFRicKernelMetadata.create_from_kernel_psyir(missing_psyir)
+        Kernel.create_from_psyir(LFRicKernelMetadata, missing_psyir)
