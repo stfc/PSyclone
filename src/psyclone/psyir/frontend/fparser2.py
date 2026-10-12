@@ -4131,7 +4131,7 @@ class Fparser2Reader():
                 tmp_type = f"{select_type.guard_type[idx]}"
                 if not select_type.intrinsic_type_name[idx]:
                     # This is a type declaration
-                    partial_type=parent.scope.symbol_table.lookup(
+                    partial_type = parent.scope.symbol_table.lookup(
                         tmp_type, otherwise=None)
                     tmp_type = f"type({tmp_type})"
                 else:

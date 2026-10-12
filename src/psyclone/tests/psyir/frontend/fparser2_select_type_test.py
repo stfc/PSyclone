@@ -9,7 +9,6 @@
 construction for the Fparser->PSyIR frontend.
 
 '''
-from pyparsing import results
 import pytest
 
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
