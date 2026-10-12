@@ -545,7 +545,7 @@ module missing_mod
             "end type missing_type", "end type missing_type\ncontains\n"
             "  subroutine present_code()\n  end subroutine present_code")
     invalid_psyir = fortran_reader.psyir_from_source(invalid)
-    with pytest.raises(ParseError, match="Invalid LFRic metadata"):
+    with pytest.raises(ParseError, match="Invalid kernel metadata"):
         Kernel.create_from_psyir(LFRicKernelMetadata, invalid_psyir)
 
 

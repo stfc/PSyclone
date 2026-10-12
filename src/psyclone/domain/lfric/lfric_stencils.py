@@ -8,6 +8,8 @@
 ''' This module implements the stencil information and code generation
     associated with a PSy-layer routine or Kernel stub in the LFRic API.  '''
 
+from __future__ import annotations
+
 from psyclone.domain.lfric import LFRicTypes
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
@@ -19,6 +21,12 @@ from psyclone.psyir.symbols import (
     DataSymbol, UnsupportedFortranType, ScalarType,
     ArgumentInterface, UnresolvedType, ContainerSymbol,
     ImportInterface, ArrayType, DataTypeSymbol)
+
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from psyclone.lfric import LFRicKernelArgument
 
 
 class LFRicStencils(LFRicCollection):
@@ -108,7 +116,7 @@ class LFRicStencils(LFRicCollection):
         return Reference(self.symtab.lookup(extent_arg.varname))
 
     @staticmethod
-    def stencil_unique_str(arg, context):
+    def stencil_unique_str(arg: LFRicKernelArgument, context: str) -> str:
         '''
         Creates a unique identifier for a stencil. As a stencil
         differs due to the function space it operates on, type of
@@ -270,7 +278,7 @@ class LFRicStencils(LFRicCollection):
                                 "impossible.")
         return names
 
-    def _declare_unique_extent_vars(self):
+    def _declare_unique_extent_vars(self) -> None:
         '''
         Declare all unique extent arguments as integers with intent 'in'.
 
@@ -493,7 +501,7 @@ class LFRicStencils(LFRicCollection):
                 "Initialise stencil dofmaps")
         return cursor
 
-    def _declare_maps_invoke(self):
+    def _declare_maps_invoke(self) -> None:
         '''
         Declare all stencil maps in the PSy layer.
 
@@ -598,7 +606,7 @@ class LFRicStencils(LFRicCollection):
                     f"integer(kind=i_def), pointer, dimension(:,:,:) "
                     f":: {dofmap_symbol.name} => null()")
 
-    def _declare_maps_stub(self):
+    def _declare_maps_stub(self) -> None:
         '''
         Add declarations for all stencil maps to a kernel stub. (Note that
         the order of arguments will be redefined later on by ArgOrdering)

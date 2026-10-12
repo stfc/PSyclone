@@ -8,9 +8,11 @@
 ''' This module implements the PSyclone LFRic API by specialising the required
     base class Kern in psyGen.py '''
 
+from __future__ import annotations
+
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from psyclone.configuration import Config
 from psyclone.domain.common.kernel import Kernel
@@ -30,6 +32,10 @@ from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     GenericInterfaceSymbol, ImportInterface, SymbolTable,
     UnresolvedType, ScalarType, UnsupportedFortranType)
+
+if TYPE_CHECKING:
+    from psyclone.domain.lfric.kernel import LFRicKernelMetadata
+    from psyclone.psyir.nodes import Node
 
 
 class LFRicKern(CodedKern):
@@ -126,7 +132,7 @@ class LFRicKern(CodedKern):
         var_accesses.update(super().reference_accesses())
         return var_accesses
 
-    def load(self, call, parent=None):
+    def load(self, call: KernelCall, parent: Optional[Node] = None) -> None:
         '''
         Sets up kernel information with the call object which is
         created by the parser. This object includes information about
@@ -142,7 +148,7 @@ class LFRicKern(CodedKern):
         self._setup_basis(call.kernel.metadata)
         self._setup(call.kernel, call.module_name, call.args, parent)
 
-    def load_meta(self, ktype):
+    def load_meta(self, ktype: LFRicKernelMetadata) -> None:
         '''
         Sets up kernel information with the kernel type object
         which is created by the parser. The object includes the
@@ -221,7 +227,7 @@ class LFRicKern(CodedKern):
         self._setup(
             Kernel(ktype), "dummy_name", args, None, check=False)
 
-    def _setup_basis(self, kmetadata):
+    def _setup_basis(self, kmetadata: LFRicKernelMetadata) -> None:
         '''
         Initialisation of the basis/diff basis information. This may be
         needed before general setup so is computed in a separate method.
@@ -237,11 +243,11 @@ class LFRicKern(CodedKern):
                 break
 
     def _setup(self,
-               kernel,
+               kernel: Kernel,
                module_name: str,
                args: List[Arg],
-               parent,
-               check: bool = True):
+               parent: Optional[Node],
+               check: bool = True) -> None:
         # pylint: disable=too-many-arguments
         # pylint: disable=too-many-branches, too-many-locals
         '''Internal setup of kernel information.

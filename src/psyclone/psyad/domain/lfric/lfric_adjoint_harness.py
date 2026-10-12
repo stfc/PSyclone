@@ -7,7 +7,9 @@
 
 ''' Provides LFRic-specific PSyclone adjoint test-harness functionality. '''
 
-from typing import Optional
+from __future__ import annotations
+
+from typing import Optional, TYPE_CHECKING
 
 from psyclone.core import AccessType
 from psyclone.domain.lfric import (
@@ -30,6 +32,11 @@ from psyclone.psyir.symbols import (
 #: The tolerance applied to the comparison of the inner product values in
 #: the generated test-harness code.
 #: TODO #1346 this tolerance should be user configurable.
+
+if TYPE_CHECKING:
+    from psyclone.domain.lfric import LFRicKern
+
+
 INNER_PRODUCT_TOLERANCE = 1500.0
 
 
@@ -355,7 +362,13 @@ def _init_scalar_value(scalar_arg, routine, input_symbols):
                                            Reference(scalar_arg)))
 
 
-def _validate_geom_arg(kern, arg_idx, name, valid_spaces, vec_len):
+def _validate_geom_arg(
+        kern: LFRicKern,
+        arg_idx: int,
+        name: str,
+        valid_spaces: list[str],
+        vec_len: int,
+) -> None:
     '''
     Check that the argument at the supplied index is consistent with the
     properties of the field that it is supposed to represent.
@@ -498,8 +511,7 @@ def generate_lfric_adjoint_harness(
     panel_id_arg_idx: Optional[int] = None,
     test_name: str = "adjoint_test"
 ) -> Container:
-    '''
-    Constructs and returns the PSyIR for a Container and Routine that
+    """Constructs and returns the PSyIR for a Container and Routine that
     implements a test harness for the adjoint of the supplied tangent-linear
     kernel. The base name to use for the Container and Routine is given by
     the test_name argument.
@@ -521,7 +533,8 @@ def generate_lfric_adjoint_harness(
     :raises ValueError: if the name of the Container (module) in the supplied
         PSyIR does not follow the LFRic naming convention of ending in '_mod'.
 
-    '''
+    :raises GenerationError: if the tangent-linear kernel writes an operator.
+    """
     # pylint: disable=too-many-statements, too-many-locals, too-many-branches
     tl_container = find_container(tl_psyir)
     if not tl_container:

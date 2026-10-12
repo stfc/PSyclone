@@ -11,6 +11,8 @@
     The LFRicBuiltInCallFactory creates the Python object required for
     a given built-in call. '''
 
+from __future__ import annotations
+
 # pylint: disable=too-many-lines
 import abc
 from enum import Enum, auto
@@ -35,6 +37,15 @@ from psyclone.utils import a_or_an
 # Each built-in class supplies its metadata using its ``metadata()`` method.
 # The built-in operations F90 capitalised names are dictionary keys and need
 # to be converted to lower case for invoke-generation purpose.
+
+
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from psyclone.domain.lfric import LFRicLoop
+    from psyclone.domain.lfric.kernel.metadata import KernelArgumentMetadata
+    from psyclone.parse.algorithm import BuiltInCall
+    from psyclone.psyir.nodes import Schedule
 
 
 def get_lowercase_builtin_map(builtin_map_capitalised_dict):
@@ -68,23 +79,26 @@ class LFRicBuiltInCallFactory():
         return "Factory for a call to an LFRic built-in."
 
     @staticmethod
-    def create(call, parent=None):
-        '''
-        Create the objects needed for a call to the built-in described in
+    def create(
+            call: BuiltInCall,
+            parent: Optional[Schedule] = None,
+    ) -> LFRicLoop:
+        """Create the objects needed for a call to the built-in described in
         the call (BuiltInCall) object.
 
-        :param call: details of the call to this built-in in the \
-                     Algorithm layer.
+        :param call: details of the call to this built-in in the
+            Algorithm layer.
         :type call: :py:class:`psyclone.parse.algorithm.BuiltInCall`
-        :param parent: the schedule instance to which the built-in call \
-                       belongs.
+        :param parent: the schedule instance to which the built-in call
+            belongs.
         :type parent: :py:class:`psyclone.domain.lfric.LFRicInvokeSchedule`
 
-        :raises ParseError: if the name of the function being called is \
-                            not a recognised built-in.
+        :raises ParseError: if the name of the function being called is
+            not a recognised built-in.
         :raises InternalError: if the built-in does not iterate over DoFs.
 
-        '''
+        :returns: the loop containing the built-in call.
+        """
         if call.func_name not in BUILTIN_MAP:
             raise ParseError(
                 f"Unrecognised built-in call in LFRic API: found "
@@ -170,7 +184,11 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''Must be overridden by subclass.'''
 
     @classmethod
-    def _builtin_metadata(cls, meta_args, operates_on="dof"):
+    def _builtin_metadata(
+            cls,
+            meta_args: list[KernelArgumentMetadata],
+            operates_on: str = 'dof',
+    ) -> LFRicKernelMetadata:
         '''Utility to take 'meta_args' metadata and return LFRic kernel
         metadata for a built-in. Assumes the metadata describes a
         built-in kernel that operates on a DoF and that the naming
@@ -242,7 +260,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         var_accesses.update(written)
         return var_accesses
 
-    def load(self, call, parent=None):
+    def load(self, call: BuiltInCall, parent: Optional[Node] = None) -> None:
         '''
         Populate the state of this object using the supplied call object.
 
@@ -266,7 +284,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         # Check that this built-in kernel is valid
         self._validate()
 
-    def _validate(self):
+    def _validate(self) -> None:
         '''
         Check that this built-in conforms to the LFRic API.
 
@@ -2295,7 +2313,7 @@ class LFRicSetvalRandomKern(LFRicBuiltIn):
     _datatype = "real"
 
     @classmethod
-    def metadata(cls):
+    def metadata(cls) -> LFRicKernelMetadata:
         '''Returns the kernel metadata describing this built-in.
 
         :returns: kernel metadata describing this built-in.

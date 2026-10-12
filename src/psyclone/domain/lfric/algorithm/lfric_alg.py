@@ -10,6 +10,8 @@
 
 '''
 
+from __future__ import annotations
+
 from psyclone.domain.common.kernel import Kernel
 from psyclone.domain.lfric import (KernCallInvokeArgList, LFRicConstants,
                                    LFRicTypes)
@@ -28,6 +30,12 @@ from psyclone.psyir.symbols import (
     ArgumentInterface)
 
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from psyclone.psyir.nodes import Node
+
+
 class LFRicAlg:
     '''
     Encapsulates the functionality for generating an LFRic Algorithm
@@ -35,8 +43,8 @@ class LFRicAlg:
 
     '''
     def create_from_kernel(self, name: str, kernel_path: str) -> Container:
-        '''
-        Generates LFRic algorithm PSyIR that calls the supplied kernel through
+        """Generates LFRic algorithm PSyIR that calls the supplied kernel
+        through
         an 'invoke'. All of the arguments required by the kernel are
         constructed and initialised appropriately. Fields and scalars are all
         set to unity.
@@ -50,7 +58,8 @@ class LFRicAlg:
             follow the LFRic naming convention by having a module with a name
             ending in '_mod'.
 
-        '''
+        :raises ParseError: if the source does not contain exactly one module.
+        """
         # pylint: disable=too-many-locals
 
         # Create PSyIR for an algorithm routine.
@@ -386,7 +395,7 @@ class LFRicAlg:
                                       f"'{shape}' is not yet implemented.")
 
     @staticmethod
-    def kernel_from_metadata(psyir, kernel_name):
+    def kernel_from_metadata(psyir: Node, kernel_name: str) -> LFRicKern:
         '''
         Given language-level PSyIR for an LFRic kernel, create and return an
         LFRicKern object.

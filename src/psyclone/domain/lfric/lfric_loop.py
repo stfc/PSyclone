@@ -9,7 +9,9 @@
     base class from psyGen.py.
     '''
 
-from typing import Optional
+from __future__ import annotations
+
+from typing import Optional, TYPE_CHECKING
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessMap, Signature
@@ -25,6 +27,9 @@ from psyclone.psyir.nodes import (
     Node, Routine)
 from psyclone.psyir.symbols import (
     AutomaticInterface, DataSymbol, ScalarType, UnresolvedType)
+
+if TYPE_CHECKING:
+    from psyclone.lfric import LFRicKernelArgument
 
 
 class LFRicLoop(PSyLoop):
@@ -659,7 +664,7 @@ class LFRicLoop(PSyLoop):
             f"Unsupported upper bound name '{self._upper_bound_name}' found "
             f"in lfricloop.upper_bound_fortran()")
 
-    def _halo_read_access(self, arg):
+    def _halo_read_access(self, arg: LFRicKernelArgument) -> bool:
         '''
         Determines whether the supplied argument has (or might have) its
         halo data read within this loop. Returns True if it does, or if

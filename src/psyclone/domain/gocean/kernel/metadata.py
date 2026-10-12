@@ -33,14 +33,15 @@ The common :class:`Kernel` container associates this language-level
 metadata with the PSyIR and any resolved implementation routines.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 import re
-from typing import ClassVar, Optional
+from typing import ClassVar, Optional, TYPE_CHECKING, Union
 
 from psyclone.configuration import Config
 from psyclone.domain.common.kernel.metadata import (
-    array_component_values, kernel_metadata_symbol, kernel_metadata_symbols,
-    KernelMetadata, metadata_structure, metadata_value, normalise)
+    KernelMetadata, normalise)
 from psyclone.domain.gocean.gocean_constants import GOceanConstants
 from psyclone.errors import GenerationError
 from psyclone.parse.utils import ParseError
@@ -49,8 +50,12 @@ from psyclone.psyir.nodes import (
     ArrayConstructor, Call, Node, Routine)
 from psyclone.psyir.symbols import DataTypeSymbol
 
+if TYPE_CHECKING:
+    from psyclone.core import AccessType
+    from psyclone.psyir.nodes import Container
 
-@dataclass(frozen=True, slots=True)
+
+@dataclass(frozen=True)
 class GOceanStencilMetadata:
     """GOcean stencil metadata"""
 
@@ -120,7 +125,7 @@ class GOceanStencilMetadata:
         return int(self.rows[1 - index1][index0 + 1])
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class GOceanFieldArgMetadata:
     """GOcean field argument."""
 
@@ -160,7 +165,7 @@ class GOceanFieldArgMetadata:
         )
 
     @property
-    def access_type(self):
+    def access_type(self) -> AccessType:
         """:returns: the generic access type for this argument."""
         return GOceanConstants().ACCESS_MAPPING[self.access]
 
@@ -180,7 +185,7 @@ class GOceanFieldArgMetadata:
         )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class GOceanScalarArgMetadata:
     """Metadata for one GOcean scalar argument."""
 
@@ -214,12 +219,12 @@ class GOceanScalarArgMetadata:
         return f"go_arg({self.access}, {self.datatype}, {self.form})"
 
     @property
-    def access_type(self):
+    def access_type(self) -> AccessType:
         """:returns: the generic access type for this argument."""
         return GOceanConstants().ACCESS_MAPPING[self.access]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class GOceanGridPropertyArgMetadata:
     """Metadata for one GOcean grid-property argument."""
 
@@ -254,7 +259,7 @@ class GOceanGridPropertyArgMetadata:
         return f"go_arg({self.access}, {self.name})"
 
     @property
-    def access_type(self):
+    def access_type(self) -> AccessType:
         """:returns: the generic access type for this argument."""
         return GOceanConstants().ACCESS_MAPPING[self.access]
 
@@ -266,18 +271,18 @@ _META_ARG_TYPES = (
 )
 
 
-@dataclass(frozen=True, slots=True)
+GOceanArgumentMetadata = Union[
+    GOceanFieldArgMetadata, GOceanScalarArgMetadata,
+    GOceanGridPropertyArgMetadata]
+
+
+@dataclass(frozen=True)
 class GOceanKernelMetadata(KernelMetadata):
     """GOcean kernel metadata."""
 
     iterates_over: str
     index_offset: str
-    meta_args: tuple[
-        GOceanFieldArgMetadata
-        | GOceanScalarArgMetadata
-        | GOceanGridPropertyArgMetadata,
-        ...,
-    ]
+    meta_args: tuple[GOceanArgumentMetadata, ...]
     procedure_name: str
     name: str
 
@@ -334,7 +339,7 @@ class GOceanKernelMetadata(KernelMetadata):
 
     @classmethod
     def create_from_psyir(
-        cls, psyir: DataTypeSymbol | Node, name: Optional[str] = None
+        cls, psyir: Union[DataTypeSymbol, Node], name: Optional[str] = None
     ) -> "GOceanKernelMetadata":
         """Create metadata from a PSyIR tree or type symbol.
 
@@ -347,8 +352,8 @@ class GOceanKernelMetadata(KernelMetadata):
         :raises TypeError: if its datatype is not a StructureType.
         :raises ParseError: if the metadata declaration is invalid.
         """
-        symbol = kernel_metadata_symbol(psyir, "GOcean", name=name)
-        datatype = metadata_structure(symbol, "GOcean")
+        symbol = cls._validate_and_get_symbol(psyir, "GOcean", name=name)
+        datatype = cls._validate_and_get_structure(symbol, "GOcean")
 
         components = datatype.components
         missing = {
@@ -367,7 +372,8 @@ class GOceanKernelMetadata(KernelMetadata):
                 raise ParseError("meta_args must be an array constructor.")
             arguments = tuple(
                 _parse_meta_arg(node)
-                for node in array_component_values(meta_args, "meta_args")
+                for node in cls._validate_and_get_array_values(
+                    meta_args, "meta_args")
             )
 
             if not datatype.procedure_components:
@@ -376,11 +382,11 @@ class GOceanKernelMetadata(KernelMetadata):
                 )
             procedure = next(iter(datatype.procedure_components.values()))
             procedure_name = (
-                metadata_value(procedure.initial_value)
+                cls._validate_and_get_value(procedure.initial_value)
                 if procedure.initial_value else procedure.name
             )
             scalar_values = [
-                metadata_value(components[name].initial_value)
+                cls._validate_and_get_value(components[name].initial_value)
                 for name in ("iterates_over", "index_offset")
             ]
 
@@ -434,14 +440,57 @@ class GOceanKernelMetadata(KernelMetadata):
             f"{self.index_offset}, iterates-over = {self.iterates_over}"
         )
 
+    @classmethod
+    def find_symbol(
+            cls,
+            psyir: Node,
+            name: Optional[str] = None,
+    ) -> tuple[Container, DataTypeSymbol]:
+        """Find the module and metadata symbol using this API's naming rules.
+
+        :param psyir: the complete kernel PSyIR.
+        :param name: optional metadata type name.
+
+        :returns: the containing module and metadata symbol.
+        :raises ParseError: if discovery fails.
+        """
+        candidates = cls.find_symbols(psyir, name=name)
+        if not candidates:
+            description = f" '{name}'" if name else ""
+            raise ParseError(
+                f"GOcean kernel metadata{description} does not exist in "
+                "PSyIR."
+            )
+        if len(candidates) != 1:
+            raise ParseError("GOcean kernel metadata is not unique in PSyIR.")
+        return candidates[0]
+
+    def resolve_procedures(
+            self,
+            container: Container,
+    ) -> tuple[str, tuple[Routine, ...]]:
+        """Resolve this kernel's procedure implementations from its module.
+
+        :param container: the module containing the kernel.
+
+        :returns: the resolved procedure name and tuple of implementations.
+        :raises ParseError: if the implementation cannot be resolved.
+        """
+        routines = [
+            routine
+            for routine in container.walk(Routine)
+            if routine.name.lower() == self.procedure_name
+        ]
+        if not routines:
+            raise ParseError(
+                f"Kernel subroutine '{self.procedure_name}' not found."
+            )
+        return self.procedure_name, tuple(routines)
+
 
 def _parse_meta_arg(
     node: Node,
-) -> (
-    GOceanFieldArgMetadata
-    | GOceanScalarArgMetadata
-    | GOceanGridPropertyArgMetadata
-):
+) -> GOceanArgumentMetadata:
     """Convert one go_arg PSyIR constructor to typed metadata.
 
     :param node: the ``go_arg`` constructor to convert.
@@ -467,8 +516,8 @@ def _parse_meta_arg(
             "Each go_arg constructor must contain two or three arguments "
             f"but found {len(arguments)}."
         )
-    access = metadata_value(arguments[0])
-    second = metadata_value(arguments[1])
+    access = KernelMetadata._validate_and_get_value(arguments[0])
+    second = KernelMetadata._validate_and_get_value(arguments[1])
     if len(arguments) == 2:
         return GOceanGridPropertyArgMetadata(access, second)
     const = GOceanConstants()
@@ -479,10 +528,11 @@ def _parse_meta_arg(
                 raise ParseError(
                     "A field metadata call must use go_stencil."
                 )
-            rows = tuple(metadata_value(value) for value in form.arguments)
+            rows = tuple(KernelMetadata._validate_and_get_value(value)
+                         for value in form.arguments)
             stencil = GOceanStencilMetadata(rows)
         else:
-            value = metadata_value(form)
+            value = KernelMetadata._validate_and_get_value(form)
             if value not in const.VALID_STENCIL_NAMES:
                 raise ValueError(
                     f"Expected field access form to be one of "
@@ -493,53 +543,9 @@ def _parse_meta_arg(
         return GOceanFieldArgMetadata(access, second, stencil)
     if second in const.VALID_SCALAR_TYPES:
         return GOceanScalarArgMetadata(
-            access, second, metadata_value(arguments[2]))
+            access, second,
+            KernelMetadata._validate_and_get_value(arguments[2]))
     raise ParseError(
         "Expected the second go_arg entry to identify a field or scalar, "
         f"but found '{second}'."
     )
-
-
-def get_kernel_metadata(psyir, name=None, metadata_type=GOceanKernelMetadata):
-    """Find GOcean metadata within a complete kernel PSyIR tree.
-
-    :param psyir: the complete kernel PSyIR.
-    :param name: optional metadata type name.
-    :param metadata_type: the metadata class to construct.
-
-    :returns: the containing module and parsed metadata.
-    :raises ParseError: if discovery or metadata validation fails.
-    """
-    candidates = kernel_metadata_symbols(psyir, name=name)
-    if not candidates:
-        description = f" '{name}'" if name else ""
-        raise ParseError(
-            f"GOcean kernel metadata{description} does not exist in "
-            "PSyIR."
-        )
-    if len(candidates) != 1:
-        raise ParseError("GOcean kernel metadata is not unique in PSyIR.")
-    container, symbol = candidates[0]
-    metadata = metadata_type.create_from_psyir(symbol)
-    return container, metadata
-
-
-def get_kernel_procedure(container, metadata):
-    """Resolve the GOcean kernel implementation.
-
-    :param container: the module containing the kernel.
-    :param metadata: the parsed kernel metadata.
-
-    :returns: the procedure name and implementing routines.
-    :raises ParseError: if the implementation is missing.
-    """
-    routines = [
-        routine
-        for routine in container.walk(Routine)
-        if routine.name.lower() == metadata.procedure_name
-    ]
-    if not routines:
-        raise ParseError(
-            f"Kernel subroutine '{metadata.procedure_name}' not found."
-        )
-    return metadata.procedure_name, tuple(routines)

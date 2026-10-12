@@ -10,6 +10,8 @@
     call a stub) when presented with Kernel Metadata.
 '''
 
+from __future__ import annotations
+
 from __future__ import print_function
 import os
 
@@ -22,7 +24,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 
 
-def generate(filename, api=""):
+def generate(filename: str, api: str = '') -> str:
     '''
     Generates an empty kernel subroutine with the required arguments
     and datatypes (which we call a stub) when presented with Kernel

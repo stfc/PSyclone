@@ -14,6 +14,8 @@
     from within another Python program.
 '''
 
+from __future__ import annotations
+
 import argparse
 import importlib
 import logging
@@ -907,7 +909,7 @@ def code_transformation_mode(input_file: str,
                              keep_conditional_openmp_statements: bool,
                              kwargs_str: Optional[str] = None,
                              free_form: bool = True,
-                             line_length: str = "off"):
+                             line_length: str = "off") -> None:
     '''
     Process the input_file with the transformations script specified in
     `script_name` and store it in the output_file.

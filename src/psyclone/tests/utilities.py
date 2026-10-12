@@ -7,6 +7,8 @@
 
 ''' Test utilities including support for testing that code compiles. '''
 
+from __future__ import annotations
+
 from contextlib import contextmanager
 import difflib
 import os
@@ -14,7 +16,7 @@ from pathlib import Path
 from pprint import pprint
 import subprocess
 import sys
-from typing import Optional, Tuple, Union
+from typing import Optional, TYPE_CHECKING, Tuple, Union
 
 import pytest
 
@@ -29,6 +31,11 @@ from psyclone.errors import PSycloneError
 from psyclone.psyir.nodes import ScopingNode
 
 # The various file suffixes we recognise as being Fortran
+
+if TYPE_CHECKING:
+    from psyclone.domain.lfric.kernel import LFRicKernelMetadata
+
+
 FORTRAN_SUFFIXES = ["f90", "F90", "x90"]
 
 
@@ -611,7 +618,10 @@ def get_examples_path(relative_path: str):
         relative_path)
 
 
-def create_lfric_metadata(psyir, name=None):
+def create_lfric_metadata(
+        psyir: Node,
+        name: Optional[str] = None,
+) -> LFRicKernelMetadata:
     """Create and validate LFRic metadata from PSyIR.
 
     :param psyir: PSyIR containing an LFRic metadata declaration.

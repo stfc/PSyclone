@@ -11,6 +11,8 @@ adjoint code.
 
 '''
 
+from __future__ import annotations
+
 import logging
 from dataclasses import replace
 
@@ -31,6 +33,13 @@ from psyclone.psyir.symbols.symbol import (
 
 
 # pylint: disable=too-many-locals
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from psyclone.domain.lfric.kernel import LFRicKernelMetadata
+    from psyclone.psyir.symbols import DataSymbol
+
+
 def generate_lfric_adjoint(
     tl_psyir: Node,
     active_variables: list[str]
@@ -157,7 +166,11 @@ def generate_lfric_adjoint(
 
 
 # pylint: disable=too-many-branches
-def _update_access_metadata(var_name, arg_symbols, metadata):
+def _update_access_metadata(
+        var_name: str,
+        arg_symbols: list[DataSymbol],
+        metadata: LFRicKernelMetadata,
+) -> tuple[Optional[str], LFRicKernelMetadata]:
     '''If the access metadata for the variable var_name is incorrect then
     update it.
 

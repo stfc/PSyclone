@@ -17,9 +17,11 @@
 
 '''
 
+from __future__ import annotations
+
 import re
 
-from typing import Optional
+from typing import Optional, Union
 
 from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
 from fparser.two.parser import ParserFactory
@@ -940,7 +942,7 @@ class GOKern(CodedKern):
         inner_symbol: Symbol,
         outer_symbol: Symbol,
         parent: Optional[Node] = None
-    ):
+    ) -> None:
         super().__init__(GOKernelArguments, call, parent, check=False)
         # Store the name of this kernel type (i.e. the name of the
         # Fortran derived type containing its metadata).
@@ -1078,7 +1080,7 @@ class GOKern(CodedKern):
         ''' The grid index-offset convention that this kernel expects '''
         return self._index_offset
 
-    def get_callees(self):
+    def get_callees(self) -> list[GOKernelSchedule]:
         '''
         Obtains and returns the PSyIR Schedule representing the kernel code.
 
@@ -1119,7 +1121,7 @@ class GOKern(CodedKern):
 
 
 class GOKernelArguments(Arguments):
-    '''Provides information about GOcean kernel-call arguments
+    """Provides information about GOcean kernel-call arguments
     collectively, as specified by the kernel argument metadata. This
     class ensures that initialisation is performed correctly. It also
     overrides the iteration_space_arg method to supply a
@@ -1130,13 +1132,19 @@ class GOKernelArguments(Arguments):
     :type call: :py:class:`psyclone.parse.KernelCall`
     :param parent_call: the kernel-call object.
     :type parent_call: :py:class:`psyclone.gocean1p0.GOKern`
-    :param bool check: whether to check for consistency between the \
-        kernel metadata and the algorithm layer. Defaults to \
-        True. Currently does nothing in this API.
+    :param bool check: whether to check for consistency between the
+        kernel metadata and the algorithm layer. Defaults to         True.
+        Currently does nothing in this API.
 
-    '''
+    :raises ParseError: if an argument has an unsupported metadata type.
+    """
 
-    def __init__(self, call, parent_call, check=True):
+    def __init__(
+            self,
+            call: KernelCall,
+            parent_call: GOKern,
+            check: bool = True,
+    ) -> None:
         # pylint: disable=unused-argument
         Arguments.__init__(self, parent_call)
 
@@ -1256,7 +1264,7 @@ class GOKernelArguments(Arguments):
         args = args_filter(self._args, arg_types=["scalar"])
         return [arg.name for arg in args]
 
-    def append(self, name, argument_type):
+    def append(self, name: str, argument_type: str) -> None:
         ''' Create and append a GOKernelArgument to the Argument list.
 
         :param str name: name of the appended argument.
@@ -1285,10 +1293,22 @@ class GOKernelArguments(Arguments):
 
 
 class GOKernelArgument(KernelArgument):
-    ''' Provides information about individual GOcean kernel call arguments
-        as specified by the kernel argument metadata. '''
+    """Provides information about individual GOcean kernel call arguments
+    as specified by the kernel argument metadata.
 
-    def __init__(self, arg, arg_info, call, metadata_index=None):
+    :param arg: the field or scalar argument metadata.
+    :param arg_info: the corresponding argument in the Algorithm layer.
+    :param call: the kernel call to which the argument belongs.
+    :param metadata_index: optional position in the kernel metadata.
+    """
+
+    def __init__(
+            self,
+            arg: Union[GOceanFieldArgMetadata, GOceanScalarArgMetadata],
+            arg_info: Arg,
+            call: GOKern,
+            metadata_index: Optional[int] = None,
+    ) -> None:
 
         self._arg = arg
         KernelArgument.__init__(
@@ -1415,7 +1435,7 @@ class GOKernelArgument(KernelArgument):
         return ""
 
     @property
-    def argument_type(self):
+    def argument_type(self) -> str:
         '''
         Return the type of this kernel argument - whether it is a field,
         a scalar or a grid_property (to be supplied by the PSy layer).
@@ -1430,9 +1450,12 @@ class GOKernelArgument(KernelArgument):
         return "scalar"
 
     @property
-    def function_space(self):
-        ''' Returns the expected finite difference space for this
-            argument as specified by the kernel argument metadata.'''
+    def function_space(self) -> str:
+        """Returns the expected finite difference space for this
+        argument as specified by the kernel argument metadata.
+
+        :returns: the grid-point type for a field, or the scalar datatype.
+        """
         return self.space
 
     @property
@@ -1458,7 +1481,11 @@ class GOKernelGridArgument(Argument):
 
     '''
 
-    def __init__(self, arg, kernel_call):
+    def __init__(
+            self,
+            arg: GOceanGridPropertyArgMetadata,
+            kernel_call: GOKern,
+    ) -> None:
         super().__init__(None, None, arg.access_type)
         # Complete the argument initialisation as in some APIs it
         # needs to be separated.

@@ -826,8 +826,10 @@ class KernCallArgList(ArgOrdering):
         sym = self.append_array_reference(base_name, [":", ":"])
         self.append(sym.name, var_accesses)
 
-    def mesh_properties(self,
-                        var_accesses: Optional[VariablesAccessMap] = None):
+    def mesh_properties(
+            self,
+            var_accesses: Optional[VariablesAccessMap] = None,
+    ) -> None:
         '''Provide the kernel arguments required for the mesh properties
         specified in the kernel metadata. If supplied it also stores this
         access in var_accesses.

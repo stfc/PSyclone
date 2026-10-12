@@ -17,7 +17,7 @@ import os
 import sys
 from collections import OrderedDict
 import abc
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Sequence, TYPE_CHECKING, Union
 import warnings
 
 
@@ -38,6 +38,15 @@ from psyclone.utils import stringify_annotation
 
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
+
+if TYPE_CHECKING:
+    from fparser.two.Fortran2003 import Program
+    from psyclone.domain.gocean.kernel.metadata import (
+        GOceanArgumentMetadata, GOceanStencilMetadata)
+    from psyclone.domain.lfric.kernel.metadata import KernelArgumentMetadata
+    from psyclone.parse.algorithm import Arg, InvokeCall, ParsedCall
+
+
 FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
 
 
@@ -65,7 +74,12 @@ def object_index(alist, item):
     raise ValueError(f"Item '{item}' not found in list: {alist}")
 
 
-def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None):
+def args_filter(
+        arg_list: list[KernelArgument],
+        arg_types: Optional[list[str]] = None,
+        arg_accesses: Optional[list[AccessType]] = None,
+        arg_meshes: Optional[list[str]] = None,
+) -> list[KernelArgument]:
     '''
     Return all arguments in the supplied list that are of type
     arg_types and with access in arg_accesses. If these are not set
@@ -327,7 +341,13 @@ class Invoke():
 
     '''
 
-    def __init__(self, alg_invocation, idx, schedule_class, invokes):
+    def __init__(
+            self,
+            alg_invocation: Optional[InvokeCall],
+            idx: Optional[int],
+            schedule_class: type[InvokeSchedule],
+            invokes: Invokes,
+    ) -> None:
         '''Construct an invoke object.'''
 
         self._invokes = invokes
@@ -766,7 +786,14 @@ class Kern(Statement):
     # Textual representation of the valid children for this node.
     _children_valid_format = "<LeafNode>"
 
-    def __init__(self, parent, call, name, ArgumentsClass, check=True):
+    def __init__(
+            self,
+            parent: Optional[Node],
+            call: ParsedCall,
+            name: str,
+            ArgumentsClass: type[Arguments],
+            check: bool = True,
+    ) -> None:
         # pylint: disable=too-many-arguments
         super().__init__(parent=parent)
         self._name = name
@@ -1048,12 +1075,21 @@ class Kern(Statement):
         return Reference(local_var)
 
     @property
-    def arg_metadata(self):
+    def arg_metadata(
+            self,
+    ) -> Optional[Sequence[
+            Union[KernelArgumentMetadata, GOceanArgumentMetadata]]]:
         """:returns: the typed metadata for this kernel's arguments."""
         return self._arg_metadata
 
     @arg_metadata.setter
-    def arg_metadata(self, obj):
+    def arg_metadata(
+            self,
+            obj: Sequence[
+                Union[KernelArgumentMetadata, GOceanArgumentMetadata]],
+    ) -> None:
+        """:param obj: the typed metadata records for the kernel arguments.
+        """
         self._arg_metadata = obj
 
     @property
@@ -1155,7 +1191,7 @@ class CodedKern(Kern):
                  KernelArguments: type,
                  call: KernelCall,
                  parent: Optional[Node] = None,
-                 check: Optional[bool] = True):
+                 check: Optional[bool] = True) -> None:
         # Set module_name first in case there is an error when
         # processing arguments, as we can then return the module_name
         # from where it happened.
@@ -1402,7 +1438,7 @@ class CodedKern(Kern):
                                  f"access")
 
     @property
-    def ast(self):
+    def ast(self) -> Program:
         '''
         Generate and return the fparser2 AST of the kernel source.
 
@@ -1485,7 +1521,7 @@ class BuiltIn(Kern):
     _text_name = "BuiltIn"
     _colour = "magenta"
 
-    def __init__(self):
+    def __init__(self) -> None:
         # We cannot call Kern.__init__ as don't have necessary information
         # here. Instead we provide a load() method that can be called once
         # that information is available.
@@ -1503,8 +1539,18 @@ class BuiltIn(Kern):
         _, position = self._find_position(self.ancestor(Routine))
         return f"builtin_{self.name}_{position}"
 
-    def load(self, call, arguments, parent=None):
-        ''' Set-up the state of this BuiltIn call '''
+    def load(
+            self,
+            call: BuiltInCall,
+            arguments: type[Arguments],
+            parent: Optional[Node] = None,
+    ) -> None:
+        """Set-up the state of this BuiltIn call
+
+        :param call: the parsed built-in invocation.
+        :param arguments: the API-specific arguments class to instantiate.
+        :param parent: optional parent node for the built-in call.
+        """
         name = call.kernel.metadata.name
         super(BuiltIn, self).__init__(parent, call, name, arguments)
 
@@ -2224,29 +2270,37 @@ class Argument():
 
 
 class KernelArgument(Argument):
-    '''
-    This class provides information about individual kernel-call
+    """This class provides information about individual kernel-call
     arguments as specified by the kernel argument metadata and the
     kernel invocation in the Algorithm layer.
 
-    :param arg: information obtained from the metadata for this kernel \
-                argument.
+    :param arg: information obtained from the metadata for this kernel
+        argument.
     :type arg: API-specific kernel argument metadata
-    :param arg_info: information on how this argument is specified in \
-                     the Algorithm layer.
+    :param arg_info: information on how this argument is specified in
+        the Algorithm layer.
     :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
     :param call: the PSyIR kernel node to which this argument pertains.
     :type call: :py:class:`psyclone.psyGen.Kern`
 
-    '''
-    def __init__(self, arg, arg_info, call, metadata_index=None):
+    :param metadata_index: optional argument position in the kernel metadata.
+    """
+    def __init__(
+            self,
+            arg: Union[KernelArgumentMetadata, GOceanArgumentMetadata],
+            arg_info: Arg,
+            call: Kern,
+            metadata_index: Optional[int] = None,
+    ) -> None:
         self._arg = arg
         self._metadata_index = metadata_index
         access = getattr(arg, "access_type", arg.access)
         super().__init__(call, arg_info, access)
 
     @property
-    def space(self):
+    def space(self) -> str:
+        """:returns: the function space, grid-point type or scalar datatype.
+        """
         if hasattr(self._arg, "function_space"):
             return self._arg.function_space
         if hasattr(self._arg, "grid_point_type"):
@@ -2254,7 +2308,10 @@ class KernelArgument(Argument):
         return self._arg.datatype
 
     @property
-    def stencil(self):
+    def stencil(self) -> Optional[Union[str, GOceanStencilMetadata]]:
+        """:returns: the stencil metadata, or None if the argument has no
+        stencil.
+        """
         return getattr(self._arg, "stencil", None)
 
     @property
@@ -2264,7 +2321,7 @@ class KernelArgument(Argument):
         :rtype: bool'''
 
     @property
-    def metadata_index(self):
+    def metadata_index(self) -> int:
         '''
         :returns: the position of the corresponding argument descriptor in \
                   the kernel metadata.
