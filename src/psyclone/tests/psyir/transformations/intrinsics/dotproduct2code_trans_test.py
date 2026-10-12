@@ -265,10 +265,10 @@ def test_apply_known_dims(
         f"result = dot_product(v1,v2)\n"
         f"end subroutine\n")
     expected = (
-        f"  integer :: i\n"
-        f"  integer, intent(in) :: n\n"
-        f"  real*4 :: res_dot_product\n"
-        f"  real*4 :: result\n")
+        "  integer :: i\n"
+        "  integer, intent(in) :: n\n"
+        "  real*4 :: res_dot_product\n"
+        "  real*4 :: result\n")
     if "n" in dim1 and "n" not in dim2:
         expected += (f"  real*4, dimension({dim2}), intent(in) :: v2\n"
                      f"  real*4, dimension({dim1}), intent(in) :: v1\n")

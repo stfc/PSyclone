@@ -107,8 +107,8 @@ def test_parallel_two_loops(fortran_reader, fortran_writer, tmpdir):
     data_trans.apply(schedule[0])
     code = fortran_writer(psyir).lower()
     assert ("program do_loop\n"
-            "  integer, parameter :: jpi = 11\n"
             "  integer :: ji\n"
+            "  integer, parameter :: jpi = 11\n"
             "  real, dimension(jpi) :: sto_tmp\n"
             "  real, dimension(jpi) :: sto_tmp2\n"
             "\n"
