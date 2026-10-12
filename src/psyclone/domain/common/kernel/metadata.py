@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Optional
 
-from psyclone.parse.utils import check_line_length, ParseError
+from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     ArrayConstructor, Container, FileContainer, Literal, Node, Reference,
@@ -171,35 +171,6 @@ class KernelInfo:
     def create_from_psyir(cls, metadata_type, psyir, name=None):
         """Create kernel information using an API-specific metadata class."""
         return metadata_type.create_from_kernel_psyir(psyir, name=name)
-
-    @classmethod
-    def create_from_file(cls, metadata_type, path, name=None,
-                         line_length=False):
-        """Create kernel information from a Fortran file."""
-        if line_length:
-            check_line_length(path)
-        try:
-            psyir = FortranReader().psyir_from_file(path)
-        except Exception as err:
-            raise ParseError(
-                f"Failed to parse kernel code '{path}'. Is the Fortran "
-                f"correct?\nError:\n'{err}'.") from err
-        return cls.create_from_psyir(metadata_type, psyir, name=name)
-
-    @classmethod
-    def create_from_source(cls, metadata_type, source, name=None):
-        """Create kernel information from complete Fortran source."""
-        if not isinstance(source, str):
-            raise TypeError(
-                "Kernel source must be supplied as a string but found "
-                f"'{type(source).__name__}'.")
-        try:
-            psyir = FortranReader().psyir_from_source(source)
-        except Exception as err:
-            raise ParseError(
-                "Failed to parse kernel source. Is the Fortran correct?"
-            ) from err
-        return cls.create_from_psyir(metadata_type, psyir, name=name)
 
 
 class KernelMetadata(ABC):

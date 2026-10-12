@@ -52,10 +52,10 @@ def test_kernel_metadata_symbols_invalid_input():
         kernel_metadata_symbols(None)
 
 
-def test_kernel_info_from_source():
-    """The common container delegates language parsing to the API model."""
-    kernel = KernelInfo.create_from_source(
-        GOceanKernelMetadata, GOCEAN_SOURCE)
+def test_kernel_info_from_psyir(fortran_reader):
+    """The common container extracts metadata and routines from PSyIR."""
+    psyir = fortran_reader.psyir_from_source(GOCEAN_SOURCE)
+    kernel = KernelInfo.create_from_psyir(GOceanKernelMetadata, psyir)
     assert kernel.metadata.name == "demo_type"
     assert kernel.procedure_name == "demo_code"
     assert [routine.name for routine in kernel.procedures] == ["demo_code"]
@@ -64,24 +64,3 @@ def test_kernel_info_from_source():
         KernelInfo(object())
     with pytest.raises(TypeError, match="tuple of Routines"):
         KernelInfo(kernel.metadata, procedures=(object(),))
-
-
-def test_kernel_info_invalid_source():
-    """The common container validates and reports invalid source."""
-    with pytest.raises(TypeError, match="supplied as a string"):
-        KernelInfo.create_from_source(GOceanKernelMetadata, None)
-
-
-def test_kernel_info_from_file(tmp_path):
-    """Test parsing and error translation from a Fortran file."""
-    source_file = tmp_path / "demo_mod.f90"
-    source_file.write_text(GOCEAN_SOURCE, encoding="utf-8")
-    kernel = KernelInfo.create_from_file(
-        GOceanKernelMetadata, str(source_file))
-    assert kernel.metadata.name == "demo_type"
-
-    invalid_file = tmp_path / "invalid.f90"
-    invalid_file.write_text("this is not Fortran", encoding="utf-8")
-    with pytest.raises(ParseError, match="Failed to parse kernel code"):
-        KernelInfo.create_from_file(
-            GOceanKernelMetadata, str(invalid_file))

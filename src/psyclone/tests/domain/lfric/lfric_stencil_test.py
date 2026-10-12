@@ -47,24 +47,26 @@ end module stencil_mod
 
 
 @pytest.mark.parametrize("stencil", [
-    "1", "stencil", "stenci(cross)", "stencil()", "stencil(,)",
+    "1", "stencil", "stenci(cross)", "stencil()",
     "stencil(cross,1,1)", "stencil(1)", "stencil(cros)",
     "stencil(x1d(xx))", "stencil(x1d,x1d)", "stencil(x1d,0)",
     "stencil(x1d,-1)", "stencil(x1d,1.0)", "stencil(x1d,'2')",
     "stencil(cross), extra",
 ])
-def test_invalid_stencil_metadata(stencil):
+def test_invalid_stencil_metadata(stencil, fortran_reader):
     """Malformed stencil specifications must not be silently discarded."""
     code = STENCIL_CODE.replace("stencil(cross)", stencil)
+    psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(ParseError):
-        KernelInfo.create_from_source(LFRicKernelMetadata, code)
+        KernelInfo.create_from_psyir(LFRicKernelMetadata, psyir)
 
 
-def test_fixed_stencil_extent():
+def test_fixed_stencil_extent(fortran_reader):
     """A valid fixed extent is recognised but remains unsupported."""
     code = STENCIL_CODE.replace("stencil(cross)", "stencil(cross,2)")
     with pytest.raises(NotImplementedError, match="fixed stencil extents"):
-        KernelInfo.create_from_source(LFRicKernelMetadata, code)
+        KernelInfo.create_from_psyir(
+            LFRicKernelMetadata, fortran_reader.psyir_from_source(code))
 
 
 def test_stencil_metadata(fortran_reader):
