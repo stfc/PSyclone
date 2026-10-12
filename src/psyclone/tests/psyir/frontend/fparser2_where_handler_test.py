@@ -526,13 +526,13 @@ def test_where_with_scalar_assignment(fortran_reader, fortran_writer):
     assert isinstance(loops[1].loop_body[0], IfBlock)
     out = fortran_writer(fake_parent)
     correct = '''subroutine sub()
+  integer :: depth
   integer, dimension(100,100,100) :: dry
-  integer, dimension(100,100,100) :: z1_st
   integer, dimension(100,100,100) :: ptsu
   integer :: var1
-  integer :: depth
-  integer :: widx2
   integer :: widx1
+  integer :: widx2
+  integer, dimension(100,100,100) :: z1_st
 
   do widx2 = 1, 100, 1
     do widx1 = 1, 100, 1
