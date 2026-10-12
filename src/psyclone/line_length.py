@@ -170,7 +170,11 @@ class FortLineLength():
                         continue
                     break_point = find_break_point(
                         line, self._line_length-len(c_end), key_list)
-
+                # Create variables to handle breaks occuring before we
+                # reach an inline comment
+                next_l = None
+                fline = None
+                current_removed_length = break_point
                 if line_type != "comment":
                     # Check whether the proposed break point falls within an
                     # in-line comment.
@@ -187,8 +191,12 @@ class FortLineLength():
                     # as FortranStringReader returns a single Comment object
                     # for the whole thing:
                     # (TODO https://github.com/stfc/fparser/issues/468).
+                    try:
+                        next_l = freader.next()
+                    except StopIteration:
+                        pass
                     if ((break_point - indent_size) > len(fline.line) and
-                            isinstance(freader.next(), Comment)):
+                            isinstance(next_l, Comment)):
                         # Breakpoint is inside a comment so change the chars
                         # used for the line-continuation end and start.
                         line_type = "comment"
@@ -202,8 +210,28 @@ class FortLineLength():
                     break_point = find_break_point(
                         line, self._line_length-len(c_end)-len(c_start),
                         key_list)
-                    fortran_out += c_start + line[:break_point] + c_end + "\n"
+                    # If we move into the part of an inline comment to break
+                    # then we need to update the line_type for the remainder
+                    # of the line breaks.
+                    if (line_type != "comment" and fline and next_l and
+                        (current_removed_length + break_point - indent_size) >
+                            len(fline.line) and isinstance(next_l, Comment)):
+                        old_c_start = c_start
+                        line_type = "comment"
+                        c_start = self._cont_start[line_type]
+                        c_end = self._cont_end[line_type]
+                        key_list = self._key_lists[line_type]
+                        # This line didn't start as a comment, so we need to
+                        # use the previous line type's c_start.
+                        fortran_out += (old_c_start + line[:break_point]
+                                        + c_end + "\n")
+                    else:
+                        fortran_out += (c_start + line[:break_point] +
+                                        c_end + "\n")
+
                     line = line[break_point:]
+                    current_removed_length = (current_removed_length +
+                                              break_point)
                 if line:
                     fortran_out += c_start + line + "\n"
             else:

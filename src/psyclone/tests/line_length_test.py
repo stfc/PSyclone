@@ -499,3 +499,23 @@ def test_find_break_point_exception():
 
     assert ("Error in find_break_point. No suitable break point found for line"
             " 'allocate(x, y, z)' and keys '['+']'" in str(excinfo.value))
+
+
+def test_long_inline_comment():
+    '''Test that a long inline comment has the correct line continuation
+    added.'''
+    input_string = ("""subroutine test
+    REAL(wp), PARAMETER ::   zmax_strength = 200.e3_wp ! Max strength \
+for R75 formulation. Richter-Menge and Elder (1998) estimate maximum in \
+Beaufort Sea in wintertime of the order 150 kN/m.
+end subroutine test""")
+    fll = FortLineLength(line_length=70)
+    out = fll.process(input_string)
+    # String formatting due to trailing whitespace on end of Fortran linse.
+    correct = """subroutine test
+    REAL(wp), &
+&PARAMETER ::   zmax_strength = 200.e3_wp ! Max strength for R75 \n\
+!& formulation. Richter-Menge and Elder (1998) estimate maximum in \n\
+!& Beaufort Sea in wintertime of the order 150 kN/m.
+end subroutine test"""
+    assert correct in out
