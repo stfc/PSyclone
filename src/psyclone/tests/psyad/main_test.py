@@ -89,14 +89,14 @@ end module tl_foo_kernel_mod'''
 EXPECTED_HARNESS_CODE = '''program adj_test
   use my_mod, only : kern
   use adj_my_mod, only : adj_kern
+  real :: machinetol
   integer, parameter :: array_extent = 20
-  real :: inner1
-  real :: inner2
   real :: field
   real :: field_input
-  real :: machinetol
-  real :: relative_diff
+  real :: inner1
+  real :: inner2
   real, parameter :: overall_tolerance = 1500.0
+  real :: relative_diff
 
   ! initialise the kernel arguments and keep copies of them
   call random_number(field)
