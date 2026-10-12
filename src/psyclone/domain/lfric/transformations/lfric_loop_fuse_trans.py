@@ -8,10 +8,10 @@
 '''This module provides the LFRic-specific loop fusion transformation.
 '''
 
-from typing import Iterable
+from typing import Iterable, Union
 
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import LFRicConstants, LFRicLoop
+from psyclone.domain.lfric import LFRicConstants, LFRicLoop, FunctionSpace
 from psyclone.psyGen import args_filter, InvokeSchedule, Kern
 from psyclone.psyir.nodes import (
     ArrayOfStructuresReference, BinaryOperation, Call, IfBlock,
@@ -69,6 +69,61 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         return ("Fuse two adjacent loops together with LFRic-specific "
                 "validity checks")
 
+    def _compute_any_space_actual_fields(
+        self, nodes: Iterable[LFRicLoop], const: LFRicConstants
+    ) -> tuple[Union[FunctionSpace, None], Union[FunctionSpace, None]]:
+        '''
+        Computes the actual fields for any space fields.
+
+        :param nodes: The nodes provided to the transformations.
+        :param const: An instance of LFRicConstants.
+
+        :returns: The two computed function spaces for the input nodes, or
+                  None if no non-any space function space was found.
+        '''
+        node1 = nodes[0]
+        node2 = nodes[1]
+        node1_fs_name = node1.field_space.orig_name
+        node2_fs_name = node2.field_space.orig_name
+        # If one or more is on any space then we need to search for the space.
+        found_space1 = node1.field_space
+        found_space2 = node2.field_space
+        invokeschedule = node1.ancestor(InvokeSchedule)
+        # Find all the Kerns in the InvokeSchedule
+        kerns = invokeschedule.walk(Kern)
+
+        if node1_fs_name in const.VALID_ANY_SPACE_NAMES:
+            it_space_arg1 = node1.kernel.arguments.iteration_space_arg()
+            found_space1 = None
+        if node2_fs_name in const.VALID_ANY_SPACE_NAMES:
+            it_space_arg2 = node2.kernel.arguments.iteration_space_arg()
+            found_space2 = None
+
+        # Check if the it_space_args appear in any of the other kernels
+        for kern in kerns:
+            for arg in kern.arguments.args:
+                if found_space1 is None and arg.name == it_space_arg1.name:
+                    # If one does, we can use it as the iteration space for
+                    # the relevant arg.
+                    fs = arg.function_space
+                    fs_name = fs.orig_name
+                    if fs_name not in const.VALID_ANY_SPACE_NAMES:
+                        found_space1 = fs
+                if found_space2 is None and arg.name == it_space_arg2.name:
+                    # If one does, we can use it as the iteration space for
+                    # the relevant arg.
+                    fs = arg.function_space
+                    fs_name = fs.orig_name
+                    if fs_name not in const.VALID_ANY_SPACE_NAMES:
+                        found_space2 = fs
+                # If both are found then we can stop.
+                if found_space1 is not None and found_space2 is not None:
+                    break
+            # If both are found then we can stop.
+            if found_space1 is not None and found_space2 is not None:
+                break
+        return found_space1, found_space2
+
     def validate(self, nodes: Iterable[LFRicLoop],
                  options=None, **kwargs):
         ''' Performs various checks to ensure that it is valid to apply
@@ -101,6 +156,13 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                                      access.
         :raises TransformationError: if there is a dependency between the
             loops.
+        :raises TransformationError: if we have continuous ANY_SPACE field
+            written to by one of the input loops, we can't find
+            another access to the field in the invoke to compute the field, and
+            same_space nor conditional_fusion are enabled.
+        :raises TransformationError: if we have any continuous ANY_SPACE
+            fields written to by the input loops and after resolving the space
+            we determine the accesses are to fields on different spaces.
         '''
         # pylint: disable=too-many-locals,too-many-branches
         # Call the parent class validation first
@@ -110,10 +172,13 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         if not options:
             self.validate_options(**kwargs)
             same_space = self.get_option("same_space", **kwargs)
+            conditional_fusion = self.get_option("conditional_fusion",
+                                                 **kwargs)
         else:
             my_options = options.copy()
             my_options["force"] = True
             same_space = my_options.get("same_space", False)
+            conditional_fusion = my_options.get("conditional_fusion", False)
         # TODO #2498: access information for LFRic kernels do not have any
         # index information for field accesses, and the loop fusion dependency
         # tests will therefore fail. To avoid this, disable the dependency test
@@ -273,6 +338,44 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                         f"{halo_field.name}."
                     )
 
+        # The remaining checks can be skipped if same_space is provided, or
+        # the kernels are on the same fields, or if we have loops on
+        # colours (which can be when argX_field is None), or if both fields
+        # are on a discontinuous field.
+        both_discontinuous = (
+            node1_fs_name in const.VALID_DISCONTINUOUS_NAMES and
+            node2_fs_name in const.VALID_DISCONTINUOUS_NAMES
+        )
+        if arg1_field is None or arg2_field is None:
+            return
+        if (same_space or arg1_field is None or arg2_field is None or
+                arg1_field.name == arg2_field.name or both_discontinuous):
+            return
+        # 8) If one or more is on any space then we need to search for the
+        # space and if we can't compute it we can't fuse the loops without.
+        found_space1, found_space2 = self._compute_any_space_actual_fields(
+            nodes, const
+        )
+        if ((found_space1 is None or found_space2 is None) and
+                not conditional_fusion):
+            # Couldn't work out the space and aren't doing conditional fusion
+            # so we should stop.
+            raise TransformationError(
+                f"Error in {self.name}: Couldn't lookup the field space "
+                f"for one or more of the ANY_SPACE fields being operated on "
+                f"and conditional fusion wasn't specified."
+            )
+
+        if found_space1 is not None and found_space2 is not None:
+            if found_space1.orig_name != found_space2.orig_name:
+                # They're on different spaces so we can't fuse.
+                raise TransformationError(
+                    f"Error in {self.name}: The kernels provided are on "
+                    f"different spaces so can't be fused. Computed spaces "
+                    f"were '{found_space1.orig_name}' and "
+                    f"'{found_space2.orig_name}'."
+                )
+
     def apply(self, nodes: Iterable[LFRicLoop],
               options=None, same_space: bool = False,
               conditional_fusion: bool = False, **kwargs):
@@ -292,13 +395,6 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
             the spaces), this option tells PSyclone whether to add a runtime
             check to determine whether the loops should be fused or not.
 
-        :raises TransformationError: if we have continuous ANY_SPACE field
-            written to by one of the input loops, we can't find
-            another access to the field in the invoke to compute the field, and
-            same_space nor conditional_fusion are enabled.
-        :raises TransformationError: if we have any continuous ANY_SPACE
-            fields written to by the input loops and after resolving the space
-            we determine the accesses are to fields on different spaces.
         '''
         # TODO #2668: Deprecate options dict.
         self.validate(nodes, options=options, same_space=same_space,
@@ -334,6 +430,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
             # keyword argument.
             kwargs["force"] = True
             super().apply((node1, node2), same_space=same_space,
+                          conditional_fusion=conditional_fusion,
                           **kwargs)
             return
 
@@ -347,6 +444,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
             # keyword argument.
             kwargs["force"] = True
             super().apply((node1, node2), same_space=same_space,
+                          conditional_fusion=conditional_fusion,
                           **kwargs)
             return
 
@@ -360,6 +458,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                 # duplicated keyword argument.
                 kwargs["force"] = True
                 super().apply((node1, node2),
+                              conditional_fusion=conditional_fusion,
                               **kwargs)
                 return
 
@@ -377,70 +476,20 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
             return
 
         # If one or more is on any space then we need to search for the space.
-        found_space1 = node1.field_space
-        found_space2 = node2.field_space
-        invokeschedule = node1.ancestor(InvokeSchedule)
-        # Find all the Kerns in the InvokeSchedule
-        kerns = invokeschedule.walk(Kern)
-
-        if node1_fs_name in const.VALID_ANY_SPACE_NAMES:
-            it_space_arg1 = node1.kernel.arguments.iteration_space_arg()
-            found_space1 = None
-        if node2_fs_name in const.VALID_ANY_SPACE_NAMES:
-            it_space_arg2 = node2.kernel.arguments.iteration_space_arg()
-            found_space2 = None
-
-        # Check if the it_space_args appear in any of the other kernels
-        for kern in kerns:
-            for arg in kern.arguments.args:
-                if found_space1 is None and arg.name == it_space_arg1.name:
-                    # If one does, we can use it as the iteration space for
-                    # the relevant arg.
-                    fs = arg.function_space
-                    fs_name = fs.orig_name
-                    if fs_name not in const.VALID_ANY_SPACE_NAMES:
-                        found_space1 = fs
-                if found_space2 is None and arg.name == it_space_arg2.name:
-                    # If one does, we can use it as the iteration space for
-                    # the relevant arg.
-                    fs = arg.function_space
-                    fs_name = fs.orig_name
-                    if fs_name not in const.VALID_ANY_SPACE_NAMES:
-                        found_space2 = fs
-                # If both are found then we can stop.
-                if found_space1 is not None and found_space2 is not None:
-                    break
-            # If both are found then we can stop.
-            if found_space1 is not None and found_space2 is not None:
-                break
-
-        if ((found_space1 is None or found_space2 is None) and
-                not conditional_fusion):
-            # Couldn't work out the space and aren't doing conditional fusion
-            # so we should stop.
-            raise TransformationError(
-                f"Error in {self.name}: Couldn't lookup the field space "
-                f"for one or more of the ANY_SPACE fields being operated on "
-                f"and conditional fusion wasn't specified."
-            )
+        found_space1, found_space2 = self._compute_any_space_actual_fields(
+            nodes, const
+        )
 
         if found_space1 is not None and found_space2 is not None:
-            if found_space1.orig_name == found_space2.orig_name:
-                # They are on the same space so we can fuse them.
-                # We always add force so need to make sure its not a
-                # duplicated keyword argument.
-                kwargs["force"] = True
-                super().apply((node1, node2),
-                              **kwargs)
-                return
-            else:
-                # They're on different spaces so we can't fuse.
-                raise TransformationError(
-                    f"Error in {self.name}: The kernels provided are on "
-                    f"different spaces so can't be fused. Computed spaces "
-                    f"were '{found_space1.orig_name}' and "
-                    f"'{found_space2.orig_name}'."
-                )
+            # They are on the same space so we can fuse them.
+            # We always add force so need to make sure its not a
+            # duplicated keyword argument.
+            # We know this as validation would fail otherwise.
+            kwargs["force"] = True
+            super().apply((node1, node2),
+                          conditional_fusion=conditional_fusion,
+                          **kwargs)
+            return
 
         # Otherwise we have at least one node on any space, and have met
         # all other criteria for fusion, so we can fuse with a runtime check.
@@ -485,6 +534,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         # keyword argument.
         kwargs["force"] = True
         super().apply((node1, node2), same_space=same_space,
+                      conditional_fusion=conditional_fusion,
                       **kwargs)
 
 
