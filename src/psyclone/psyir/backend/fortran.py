@@ -1098,7 +1098,7 @@ class FortranWriter(LanguageWriter):
 
             # Output the declarations of those Symbols that have their
             # dependencies satisfied, in alphabetical order.
-            for symbol in sorted(do_next, key=lambda x: x.name):
+            for symbol in sorted(do_next, key=lambda x: x.name.lower()):
                 declared.add(symbol)
                 all_symbols.remove(symbol)
                 if isinstance(symbol, RoutineSymbol):

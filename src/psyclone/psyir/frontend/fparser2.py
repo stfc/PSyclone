@@ -4118,6 +4118,10 @@ class Fparser2Reader():
                 # the string could potentially be too short.
 
                 tmp_type = "CHARACTER(LEN=256)"
+                partial_type = ScalarType(
+                    ScalarType.Intrinsic.CHARACTER,
+                    ScalarType.Precision.UNDEFINED,
+                    length=Literal("256", ScalarType.integer_type()))
                 # The type spec for a character intrinsic within the
                 # type is and class is clauses must always be assumed
                 type_spec = "CHARACTER(LEN = *)"
@@ -4127,17 +4131,25 @@ class Fparser2Reader():
                 tmp_type = f"{select_type.guard_type[idx]}"
                 if not select_type.intrinsic_type_name[idx]:
                     # This is a type declaration
+                    partial_type=parent.scope.symbol_table.lookup(
+                        tmp_type, otherwise=None)
                     tmp_type = f"type({tmp_type})"
+                else:
+                    partial_type = ScalarType(
+                        TYPE_MAP_FROM_FORTRAN[
+                            select_type.intrinsic_type_name[idx]],
+                        ScalarType.Precision.UNDEFINED)
                 # Use the variable declaration for the type spec in
                 # the type is and class is clauses
                 type_spec = select_type.guard_type[idx]
 
-            # Create a pointer that points to the specific type from
-            # the appropriate select type clause so that the specific
-            # type can be used in a subsequent if block hierarchy
-            # (otherwise Fortran complains that the type is generic).
+            # Create a pointer that points to the specific type from the
+            # appropriate select type clause so that the specific type can be
+            # used in a subsequent if block hierarchy (otherwise Fortran
+            # complains that the type is generic).
             pointer_type = UnsupportedFortranType(
-                f"{tmp_type}, pointer :: {pointer_name} => null()")
+                f"{tmp_type}, pointer :: {pointer_name} => null()",
+                partial_datatype=partial_type)
             pointer_symbol = DataSymbol(pointer_name, pointer_type)
             parent.scope.symbol_table.add(pointer_symbol)
             pointer_symbols.append(pointer_symbol)
