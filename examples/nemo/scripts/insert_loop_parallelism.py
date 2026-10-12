@@ -131,13 +131,8 @@ def select_transformations():
     if 'omp_offloading' in process_directives:
         offload_region_trans = OMPTargetTrans()
         mark_for_gpu_trans = OMPDeclareTargetTrans()
-        if NEMOV4:
-            # TODO #2895: Explore why loop/teams loop diverge for NEMOv4
-            gpu_loop_trans = OMPLoopTrans(omp_schedule="none")
-            gpu_loop_trans.omp_directive = "loop"
-        else:
-            gpu_loop_trans = OMPLoopTrans(omp_schedule="none")
-            gpu_loop_trans.omp_directive = "teamsloop"
+        gpu_loop_trans = OMPLoopTrans(omp_schedule="none")
+        gpu_loop_trans.omp_directive = "teamsloop"
         process_directives = process_directives.replace('omp_offloading', '')
     elif 'acc_offloading' in process_directives:
         offload_region_trans = ACCParallelTrans(default_present=False)
