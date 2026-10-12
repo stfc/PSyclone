@@ -56,7 +56,7 @@ PROFILING_IGNORE = ["flo_dom", "macho", "mpp_", "nemo_gcm", "dyn_ldf"
 # functions, the following subroutines contains known statement functions
 CONTAINS_STMT_FUNCTIONS = ["sbc_dcy", "eos_rprof"]
 
-# Follow the same envvar knobs than insert_loop_parallelism.py
+# Follow the same envvar knobs as insert_loop_parallelism.py
 REPRODUCIBLE = os.environ.get('REPRODUCIBLE', False)
 NEMOV4 = os.environ.get('NEMOV4', False)
 
@@ -188,10 +188,10 @@ def normalise_loops(
             if REPRODUCIBLE and NEMOV4:
                 if isinstance(assignment.lhs, Reference):
                     if assignment.lhs.name.lower() == "zsshp2_e":
-                        # Both the Fortran and the psyclone transformation
-                        # seem semantically correct, the different value could
-                        # be NVFortran evaluating the multi-term floating-point
-                        # expression differently
+                        # TODO #3642: Both the Fortran and the psyclone
+                        # transformation seem semantically correct, the
+                        # different value could be NVFortran evaluating the
+                        # multi-term floating-point expression differently
                         continue
             try:
                 explicit_loops.apply(

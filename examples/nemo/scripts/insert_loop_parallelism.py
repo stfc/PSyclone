@@ -130,8 +130,8 @@ def select_transformations(filename):
         process_directives = process_directives.replace('omp_offloading', '')
     elif 'acc_offloading' in process_directives:
         if filename == "stpctl.f90":
-            # This file needs reductions to parallelise the loops, but our
-            # OpenACC still doesn't support reductions, use OMP for now.
+            # TODO #3639: This file needs reductions to parallelise the loops,
+            # but our OpenACC still doesn't support reductions, use OMP for now
             offload_region_trans = OMPTargetTrans()
             mark_for_gpu_trans = OMPDeclareTargetTrans()
             gpu_loop_trans = OMPLoopTrans(omp_schedule="none")
