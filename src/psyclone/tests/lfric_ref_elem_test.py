@@ -12,7 +12,7 @@ of the LFRic API.
 
 import pytest
 from psyclone.configuration import Config
-from psyclone.domain.common.kernel import KernelInfo
+from psyclone.domain.common.kernel import Kernel
 from psyclone.domain.lfric.kernel import LFRicKernelMetadata
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
@@ -56,7 +56,7 @@ def setup():
 
 def test_mdata_parse(fortran_reader):
     """Preserve the requested reference-element properties and their order."""
-    metadata = KernelInfo.create_from_psyir(
+    metadata = Kernel.create_from_psyir(
         LFRicKernelMetadata,
         fortran_reader.psyir_from_source(REF_ELEM_MDATA)).metadata
     assert [item.reference_element for item in metadata.meta_ref_element] == [
@@ -82,7 +82,7 @@ def test_mdata_parse(fortran_reader):
 def test_mdata_invalid(old, new, message, fortran_reader):
     """Reject invalid reference-element declarations through the PSyIR API."""
     with pytest.raises(ParseError, match=message):
-        KernelInfo.create_from_psyir(
+        Kernel.create_from_psyir(
             LFRicKernelMetadata,
             fortran_reader.psyir_from_source(REF_ELEM_MDATA.replace(old, new)))
 

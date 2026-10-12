@@ -8,12 +8,12 @@
 """Common support for API-specific kernel metadata."""
 
 from psyclone.domain.common.kernel.metadata import (
-    KernelInfo,
+    Kernel,
     KernelMetadata,
     metadata_structure,
 )
 __all__ = [
-    "KernelInfo",
+    "Kernel",
     "KernelMetadata",
     "metadata_structure",
 ]

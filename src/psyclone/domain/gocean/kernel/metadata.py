@@ -29,7 +29,7 @@ GOceanKernelMetadata:
     procedure_name: str
     name: str
 
-The common :class:`KernelInfo` container associates this language-level
+The common :class:`Kernel` container associates this language-level
 metadata with the PSyIR and any resolved implementation routines.
 """
 
@@ -40,7 +40,6 @@ from typing import ClassVar, Optional
 from psyclone.configuration import Config
 from psyclone.domain.common.kernel.metadata import (
     array_component_values, kernel_metadata_symbol, kernel_metadata_symbols,
-    KernelInfo,
     KernelMetadata, metadata_structure, metadata_value, normalise)
 from psyclone.domain.gocean.gocean_constants import GOceanConstants
 from psyclone.errors import GenerationError
@@ -397,46 +396,6 @@ class GOceanKernelMetadata(KernelMetadata):
                 f"Invalid GOcean metadata '{symbol.name}': {err}"
             ) from err
 
-    @classmethod
-    def create_from_kernel_psyir(
-        cls, psyir: Node, name: Optional[str] = None
-    ) -> KernelInfo:
-        """Extract the unique named GOcean metadata from complete PSyIR.
-
-        :param psyir: the complete PSyIR containing the kernel.
-        :param name: optional name of the metadata type to extract.
-
-        :returns: the extracted metadata and kernel implementation.
-
-        :raises TypeError: if ``psyir`` is not a PSyIR tree.
-        :raises ParseError: if the metadata or implementation is not found.
-        """
-        if not isinstance(psyir, Node):
-            raise TypeError(
-                f"Expected PSyIR Node but found '{type(psyir).__name__}'."
-            )
-        candidates = kernel_metadata_symbols(psyir, name=name)
-        if not candidates:
-            description = f" '{name}'" if name else ""
-            raise ParseError(
-                f"GOcean kernel metadata{description} does not exist in "
-                "PSyIR."
-            )
-        if len(candidates) != 1:
-            raise ParseError("GOcean kernel metadata is not unique in PSyIR.")
-        container, symbol = candidates[0]
-        metadata = cls.create_from_psyir(symbol)
-        routines = [
-            routine
-            for routine in container.walk(Routine)
-            if routine.name.lower() == metadata.procedure_name
-        ]
-        if not routines:
-            raise ParseError(
-                f"Kernel subroutine '{metadata.procedure_name}' not found."
-            )
-        return KernelInfo(metadata, psyir, tuple(routines))
-
     @property
     def nargs(self) -> int:
         """
@@ -539,3 +498,48 @@ def _parse_meta_arg(
         "Expected the second go_arg entry to identify a field or scalar, "
         f"but found '{second}'."
     )
+
+
+def get_kernel_metadata(psyir, name=None, metadata_type=GOceanKernelMetadata):
+    """Find GOcean metadata within a complete kernel PSyIR tree.
+
+    :param psyir: the complete kernel PSyIR.
+    :param name: optional metadata type name.
+    :param metadata_type: the metadata class to construct.
+
+    :returns: the containing module and parsed metadata.
+    :raises ParseError: if discovery or metadata validation fails.
+    """
+    candidates = kernel_metadata_symbols(psyir, name=name)
+    if not candidates:
+        description = f" '{name}'" if name else ""
+        raise ParseError(
+            f"GOcean kernel metadata{description} does not exist in "
+            "PSyIR."
+        )
+    if len(candidates) != 1:
+        raise ParseError("GOcean kernel metadata is not unique in PSyIR.")
+    container, symbol = candidates[0]
+    metadata = metadata_type.create_from_psyir(symbol)
+    return container, metadata
+
+
+def get_kernel_procedure(container, metadata):
+    """Resolve the GOcean kernel implementation.
+
+    :param container: the module containing the kernel.
+    :param metadata: the parsed kernel metadata.
+
+    :returns: the procedure name and implementing routines.
+    :raises ParseError: if the implementation is missing.
+    """
+    routines = [
+        routine
+        for routine in container.walk(Routine)
+        if routine.name.lower() == metadata.procedure_name
+    ]
+    if not routines:
+        raise ParseError(
+            f"Kernel subroutine '{metadata.procedure_name}' not found."
+        )
+    return metadata.procedure_name, tuple(routines)

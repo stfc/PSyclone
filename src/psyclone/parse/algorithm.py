@@ -30,7 +30,7 @@ from fparser.two.Fortran2003 import (
 
 from psyclone.configuration import (
     Config, GOCEAN_API_NAMES, LFRIC_API_NAMES)
-from psyclone.domain.common.kernel import KernelInfo
+from psyclone.domain.common.kernel import Kernel
 from psyclone.errors import InternalError
 from psyclone.parse import ModuleManager
 from psyclone.parse.utils import check_api, check_line_length, ParseError, \
@@ -384,7 +384,7 @@ class Parser():
 
         metadata = self._builtin_name_map[kernel_name.lower()].metadata()
         metadata.validate()
-        return BuiltInCall(KernelInfo(metadata), args)
+        return BuiltInCall(Kernel(metadata), args)
 
     def create_coded_kernel_call(self, kernel_name, args):
         '''Takes a coded kernel name and a list of Arg objects which
@@ -436,7 +436,7 @@ class Parser():
             raise ParseError(
                 f"Failed to parse kernel code '{module_info.filename}'. "
                 f"Is the Fortran correct?\nError:\n'{err}'.") from err
-        kernel = KernelInfo.create_from_psyir(
+        kernel = Kernel.create_from_psyir(
             self._metadata_type, psyir, name=kernel_name)
         return KernelCall(module_name, kernel, args)
 
@@ -918,7 +918,7 @@ class ParsedCall():
     kernel.
 
     :param kernel: metadata and optional implementation of the kernel.
-    :type kernel: :py:class:`psyclone.domain.common.kernel.KernelInfo`
+    :type kernel: :py:class:`psyclone.domain.common.kernel.Kernel`
     :param args: a list of Arg instances which capture the relevant \
         information about the arguments associated with the call to the \
         kernel or builtin.

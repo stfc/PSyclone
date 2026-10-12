@@ -15,7 +15,7 @@ import os
 import pytest
 
 from psyclone.core import Signature
-from psyclone.domain.common.kernel import KernelInfo
+from psyclone.domain.common.kernel import Kernel
 from psyclone.domain.lfric import lfric_builtins
 from psyclone.domain.lfric.kernel import (
     LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata,
@@ -251,7 +251,7 @@ def test_lfricbuiltin_not_dofs():
                    FieldArgMetadata("gh_real", "gh_read", "w0")),
         name="x_plus_y", procedure_name="x_plus_y_code")
     object.__setattr__(metadata, "operates_on", "wrong")
-    bincall = BuiltInCall(KernelInfo(metadata), ["a", "b"])
+    bincall = BuiltInCall(Kernel(metadata), ["a", "b"])
     with pytest.raises(InternalError) as err:
         factory.create(bincall)
     assert ("An LFRic built-in must iterate over one of ['dof', 'owned_dof'] "

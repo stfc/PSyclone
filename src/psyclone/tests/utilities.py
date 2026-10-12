@@ -18,6 +18,7 @@ from typing import Optional, Tuple, Union
 
 import pytest
 
+from psyclone.domain.common.kernel import Kernel
 from psyclone.configuration import Config
 from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleInfo, FileInfo, ModuleManager
@@ -623,8 +624,8 @@ def create_lfric_metadata(psyir, name=None):
     # test utilities does not initialise an API-specific domain package.
     from psyclone.domain.lfric import LFRicKernelMetadata
 
-    return LFRicKernelMetadata.create_from_kernel_psyir(
-        psyir, name=name).metadata
+    return Kernel.create_from_psyir(
+        LFRicKernelMetadata, psyir, name=name).metadata
 
 
 def check_links(parent: Node, children: list[Node]) -> None:

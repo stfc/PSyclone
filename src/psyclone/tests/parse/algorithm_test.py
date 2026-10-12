@@ -23,7 +23,7 @@ from psyclone.parse.algorithm import Parser, get_invoke_label, \
 from psyclone.parse import ModuleManager
 from psyclone.parse.utils import ParseError, parse_fp2
 from psyclone.errors import InternalError
-from psyclone.domain.common.kernel import KernelInfo
+from psyclone.domain.common.kernel import Kernel
 from psyclone.domain.lfric.kernel import (
     FieldArgMetadata, LFRicKernelMetadata)
 
@@ -837,7 +837,7 @@ def test_kernelcall_repr():
         meta_args=(FieldArgMetadata("gh_real", "gh_write", "w0"),
                    FieldArgMetadata("gh_real", "gh_read", "w0")),
         name="dummy", procedure_name="dummy_code")
-    tmp = KernelCall("module_name", KernelInfo(metadata), ["a", "b"])
+    tmp = KernelCall("module_name", Kernel(metadata), ["a", "b"])
     assert repr(tmp) == "KernelCall('dummy', ['a', 'b'])"
 
 
@@ -855,7 +855,7 @@ def test_builtincall_repr():
         meta_args=(FieldArgMetadata("gh_real", "gh_write", "w0"),
                    FieldArgMetadata("gh_real", "gh_read", "w0")),
         name="dummy", procedure_name="dummy_code")
-    tmp = BuiltInCall(KernelInfo(metadata), ["a", "b"])
+    tmp = BuiltInCall(Kernel(metadata), ["a", "b"])
     assert repr(tmp) == "BuiltInCall('dummy', ['a', 'b'])"
 
 # Class Arg() tests

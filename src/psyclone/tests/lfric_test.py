@@ -13,6 +13,7 @@ from dataclasses import FrozenInstanceError, replace
 from types import SimpleNamespace
 import pytest
 
+from psyclone.domain.common.kernel import Kernel
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import (FunctionSpace,
@@ -52,8 +53,8 @@ def get_kernel_psyir_from_file(filename):
 
 def create_kernel_metadata(psyir, name=None):
     """Create typed LFRic metadata from complete kernel PSyIR."""
-    return LFRicKernelMetadata.create_from_kernel_psyir(
-        psyir, name=name).metadata
+    return Kernel.create_from_psyir(
+        LFRicKernelMetadata, psyir, name=name).metadata
 
 
 # constants
@@ -1005,7 +1006,7 @@ def test_stub_file_content_not_fortran():
     with pytest.raises(ParseError) as excinfo:
         generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               "lfric_test.py"), api=TEST_API)
-    assert "Failed to parse kernel code" in str(excinfo.value)
+    assert "Code appears to be invalid Fortran" in str(excinfo.value)
 
 
 def test_stub_file_fortran_invalid():
@@ -1013,7 +1014,7 @@ def test_stub_file_fortran_invalid():
     with pytest.raises(ParseError) as excinfo:
         generate(os.path.join(BASE_PATH, "testkern_invalid_fortran_mod.f90"),
                  api=TEST_API)
-    assert "Failed to parse kernel code" in str(excinfo.value)
+    assert "Code appears to be invalid Fortran" in str(excinfo.value)
 
 
 def test_file_fortran_not_kernel():

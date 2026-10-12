@@ -20,6 +20,98 @@ from psyclone.psyir.symbols import (
     ArrayType, DataTypeSymbol, StructureType)
 
 
+@dataclass(frozen=True, slots=True)
+class Kernel:
+    """The psyir of its source implementation together with its metadata"""
+
+    metadata: "KernelMetadata"
+    psyir: Optional[Node] = None
+    procedures: tuple[Routine, ...] = ()
+    resolved_procedure_name: Optional[str] = None
+
+    def __post_init__(self):
+        """Validate the common kernel-information container."""
+        if not isinstance(self.metadata, KernelMetadata):
+            raise TypeError(
+                "Kernel metadata must implement KernelMetadata but "
+                f"found '{type(self.metadata).__name__}'."
+            )
+        if not isinstance(self.procedures, tuple) or not all(
+                isinstance(procedure, Routine)
+                for procedure in self.procedures):
+            raise TypeError(
+                "Kernel procedures must be a tuple of Routines.")
+
+    @property
+    def procedure_name(self):
+        """:returns: the resolved procedure or interface name."""
+        return (self.resolved_procedure_name or
+                getattr(self.metadata, "procedure_name", None))
+
+    @classmethod
+    def create_from_psyir(cls, metadata_type, psyir, name=None):
+        """Assemble metadata and implementation from complete kernel PSyIR.
+
+        :param metadata_type: the LFRic or GOcean metadata class to construct.
+        :param psyir: the complete kernel PSyIR tree.
+        :param name: optional metadata type name.
+
+        :returns: the metadata, source PSyIR and resolved implementations.
+        :raises TypeError: if the PSyIR or metadata class is unsupported.
+        :raises ParseError: if metadata or implementation resolution fails.
+        """
+        # Import here because the API metadata classes extend KernelMetadata.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.gocean.kernel import metadata as gocean
+        from psyclone.domain.lfric.kernel import metadata as lfric
+
+        if not isinstance(psyir, Node):
+            raise TypeError(
+                f"Expected PSyIR Node but found '{type(psyir).__name__}'.")
+        if (isinstance(metadata_type, type) and
+                issubclass(metadata_type, lfric.LFRicKernelMetadata)):
+            api = lfric
+        elif (isinstance(metadata_type, type) and
+              issubclass(metadata_type, gocean.GOceanKernelMetadata)):
+            api = gocean
+        else:
+            raise TypeError(
+                "Expected an LFRic or GOcean kernel metadata class but found "
+                f"'{metadata_type}'.")
+        container, metadata = api.get_kernel_metadata(
+            psyir, name=name, metadata_type=metadata_type)
+        procedure_name, implementations = api.get_kernel_procedure(
+            container, metadata)
+        return cls(metadata, psyir, implementations, procedure_name)
+
+
+class KernelMetadata(ABC):
+    """Common interface implemented by API-specific kernel metadata."""
+
+    @classmethod
+    @abstractmethod
+    def create_from_psyir(cls, psyir, name=None):
+        """Create metadata from language-level PSyIR."""
+
+    @property
+    @abstractmethod
+    def nargs(self):
+        """:returns: the number of algorithm-layer arguments."""
+
+    @abstractmethod
+    def fortran_string(self):
+        """:returns: the metadata as a Fortran derived-type declaration."""
+
+    def lower_to_psyir(self):
+        """:returns: a language-level PSyIR symbol for this metadata."""
+        source = (f"module metadata_mod\n{self.fortran_string()}"
+                  "end module metadata_mod\n")
+        container = next(
+            node for node in FortranReader().psyir_from_source(source).walk(
+                Container) if not isinstance(node, FileContainer))
+        return container.symbol_table.lookup(getattr(self, "name"))
+
+
 def normalise(value, description, valid_values=None):
     """Validate and lower-case one metadata name."""
     if not isinstance(value, str):
@@ -139,78 +231,12 @@ def metadata_structure(symbol, api_name):
     return datatype
 
 
-@dataclass(frozen=True, slots=True)
-class KernelInfo:
-    """A metadata declaration together with its source implementation."""
-
-    metadata: "KernelMetadata"
-    psyir: Optional[Node] = None
-    procedures: tuple[Routine, ...] = ()
-    resolved_procedure_name: Optional[str] = None
-
-    def __post_init__(self):
-        """Validate the common kernel-information container."""
-        if not isinstance(self.metadata, KernelMetadata):
-            raise TypeError(
-                "KernelInfo metadata must implement KernelMetadata but "
-                f"found '{type(self.metadata).__name__}'."
-            )
-        if not isinstance(self.procedures, tuple) or not all(
-                isinstance(procedure, Routine)
-                for procedure in self.procedures):
-            raise TypeError(
-                "KernelInfo procedures must be a tuple of Routines.")
-
-    @property
-    def procedure_name(self):
-        """:returns: the resolved procedure or interface name."""
-        return (self.resolved_procedure_name or
-                getattr(self.metadata, "procedure_name", None))
-
-    @classmethod
-    def create_from_psyir(cls, metadata_type, psyir, name=None):
-        """Create kernel information using an API-specific metadata class."""
-        return metadata_type.create_from_kernel_psyir(psyir, name=name)
-
-
-class KernelMetadata(ABC):
-    """Common interface implemented by API-specific kernel metadata."""
-
-    @classmethod
-    @abstractmethod
-    def create_from_psyir(cls, psyir, name=None):
-        """Create metadata from language-level PSyIR."""
-
-    @classmethod
-    @abstractmethod
-    def create_from_kernel_psyir(cls, psyir, name=None):
-        """Extract metadata and procedures from complete kernel PSyIR."""
-
-    @property
-    @abstractmethod
-    def nargs(self):
-        """:returns: the number of algorithm-layer arguments."""
-
-    @abstractmethod
-    def fortran_string(self):
-        """:returns: the metadata as a Fortran derived-type declaration."""
-
-    def lower_to_psyir(self):
-        """:returns: a language-level PSyIR symbol for this metadata."""
-        source = (f"module metadata_mod\n{self.fortran_string()}"
-                  "end module metadata_mod\n")
-        container = next(
-            node for node in FortranReader().psyir_from_source(source).walk(
-                Container) if not isinstance(node, FileContainer))
-        return container.symbol_table.lookup(getattr(self, "name"))
-
-
 __all__ = [
     "array_component_values",
     "kernel_metadata_symbol",
     "kernel_metadata_symbols",
     "metadata_structure",
-    "KernelInfo",
+    "Kernel",
     "KernelMetadata",
     "metadata_value",
     "normalise",
