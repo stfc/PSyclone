@@ -67,8 +67,9 @@ def trans(psyir):
                 except TransformationError:
                     # If fusion fails we move to the next loop.
                     current_index = current_index + 1
-            print(f"Fused {num_fused} loops for invoke {subroutine.name} in "
-                  f"{psyir.name}")
+            if num_fused <> 0:
+                print(f"Fused {num_fused} loops for invoke {subroutine.name} "
+                      f"in {psyir.name}")
         if ENABLE_REDUNDANT_COMPUTATION:
             # Make setval_* compute redundantly to the level 1 halo if it
             # is in its own loop and is not restricted to owned dofs only.
