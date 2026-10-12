@@ -171,7 +171,7 @@ class FortLineLength():
                     break_point = find_break_point(
                         line, self._line_length-len(c_end), key_list)
                 # Create variables to handle breaks occuring before we
-                # reach an inline comment
+                # reach an inline comment that also needs line breaks.
                 next_l = None
                 fline = None
                 current_removed_length = break_point
