@@ -944,7 +944,7 @@ intent(in) :: op_12
 op_3
     real(kind=r_def), dimension(op_4_ncell_3d,ndf_w2h,ndf_w2h), intent(in) :: \
 op_4
-    real(kind=r_def), dimension(op_5_ncell_3d,ndf_w2v,ndf_w2v), intent(inout) \
+    real(kind=r_def), dimension(op_5_ncell_3d,ndf_w2v,ndf_w2v), intent(inout)\
  :: op_5
     real(kind=r_def), dimension(op_6_ncell_3d,ndf_w2broken,ndf_w2broken), \
 intent(inout) :: op_6
