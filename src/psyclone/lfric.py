@@ -15,7 +15,7 @@ from __future__ import annotations
 from enum import Enum
 from collections import OrderedDict, namedtuple
 from dataclasses import dataclass
-from typing import Any, List, Optional
+from typing import Any, List, Optional, TYPE_CHECKING, Union
 
 from psyclone import psyGen
 from psyclone.configuration import Config
@@ -48,6 +48,12 @@ from psyclone.psyir.symbols import (
 #
 
 # ---------- Functions ------------------------------------------------------ #
+
+if TYPE_CHECKING:
+    from psyclone.core import VariablesAccessMap
+    from psyclone.domain.lfric import LFRicInvoke
+    from psyclone.domain.lfric.kernel.metadata import KernelArgumentMetadata
+    from psyclone.parse.algorithm import ParsedCall
 
 
 def qr_basis_alloc_args(first_dim, basis_fn):
@@ -163,7 +169,7 @@ class LFRicMeshProperties(LFRicCollection):
 
     '''
 
-    def __init__(self, node):
+    def __init__(self, node: Union[LFRicKern, LFRicInvoke]) -> None:
         super().__init__(node)
 
         # The (ordered) list of mesh properties required by this invoke or
@@ -207,8 +213,12 @@ class LFRicMeshProperties(LFRicCollection):
                     symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
-    def kern_args(self, stub=False, var_accesses=None,
-                  kern_call_arg_list=None):
+    def kern_args(
+            self,
+            stub: bool = False,
+            var_accesses: Optional[VariablesAccessMap] = None,
+            kern_call_arg_list: Optional[KernCallArgList] = None,
+    ) -> list[str]:
         # pylint: disable=too-many-locals, too-many-branches
         '''
         Provides the list of kernel arguments associated with the mesh
@@ -543,7 +553,7 @@ class LFRicReferenceElement(LFRicCollection):
     '''
 
     # pylint: disable=too-many-instance-attributes
-    def __init__(self, node):
+    def __init__(self, node: Union[LFRicKern, LFRicInvoke]) -> None:
         # pylint: disable=too-many-branches, too-many-statements
         super().__init__(node)
 
@@ -1687,8 +1697,7 @@ class LFRicCMAOperators(LFRicCollection):
 
 
 class LFRicMeshes():
-    '''
-    Holds all mesh-related information (including colour maps if
+    """Holds all mesh-related information (including colour maps if
     required).  If there are no inter-grid kernels then there is only
     one mesh object required (when calling kernels with operates_on==domain,
     colouring, doing distributed memory or querying the reference element).
@@ -1700,15 +1709,21 @@ class LFRicMeshes():
     is "restriction" where a field on a fine mesh is mapped onto a coarse
     mesh.
 
-    :param invoke: the Invoke for which to extract information on all \
-                   required inter-grid operations.
+    :param invoke: the Invoke for which to extract information on all
+        required inter-grid operations.
     :type invoke: :py:class:`psyclone.domain.lfric.LFRicInvoke`
     :param unique_psy_vars: list of arguments to the PSy-layer routine.
-    :type unique_psy_vars: list of \
-                      :py:class:`psyclone.lfric.LFRicKernelArgument` objects.
-    '''
+    :type unique_psy_vars: list of
+        :py:class:`psyclone.lfric.LFRicKernelArgument` objects.
 
-    def __init__(self, invoke, unique_psy_vars):
+    :raises GenerationError: if an invoke mixes inter-grid and other kernels.
+    """
+
+    def __init__(
+            self,
+            invoke: LFRicInvoke,
+            unique_psy_vars: list[LFRicKernelArgument],
+    ) -> None:
         # List of names of unique mesh variables referenced in the Invoke
         self._mesh_tag_names = []
         # Whether or not the associated Invoke requires colourmap information
@@ -4717,7 +4732,7 @@ class HaloReadAccess(HaloDepth):
         '''
         return self._stencil_type
 
-    def _compute_from_field(self, field: LFRicKernelArgument):
+    def _compute_from_field(self, field: LFRicKernelArgument) -> None:
         '''Internal method to compute which parts of a field's halo are read
         in a certain kernel and loop. The information computed is the
         depth of access and the access pattern. The depth of access
@@ -4902,21 +4917,31 @@ class FSDescriptor():
         self._descriptor = descriptor
 
     @property
-    def requires_basis(self):
-        ''' Returns True if a basis function is associated with this
-        function space, otherwise it returns False. '''
+    def requires_basis(self) -> bool:
+        """Returns True if a basis function is associated with this
+        function space, otherwise it returns False.
+
+        :returns: whether the function space requires basis functions.
+        """
         return self._descriptor.basis_function
 
     @property
-    def requires_diff_basis(self):
-        ''' Returns True if a differential basis function is
+    def requires_diff_basis(self) -> bool:
+        """Returns True if a differential basis function is
         associated with this function space, otherwise it returns
-        False. '''
+        False.
+
+        :returns: whether the function space requires differential basis
+            functions.
+        """
         return self._descriptor.diff_basis_function
 
     @property
-    def fs_name(self):
-        ''' Returns the raw metadata value of this function space. '''
+    def fs_name(self) -> str:
+        """Returns the raw metadata value of this function space.
+
+        :returns: the function-space name specified in the metadata.
+        """
         return self._descriptor.function_space
 
 
@@ -4974,7 +4999,7 @@ class FSDescriptors():
         return self._descriptors
 
 
-def check_args(call, parent_call):
+def check_args(call: ParsedCall, parent_call: Kern) -> None:
     '''
     Checks that the kernel arguments provided via the invoke call are
     consistent with the information expected, as specified by the
@@ -4986,7 +5011,7 @@ def check_args(call, parent_call):
     :param parent_call: the kernel-call object.
     :type parent_call: :py:class:`psyclone.domain.lfric.LFRicKern`
 
-    :raises: GenerationError if the kernel arguments in the Algorithm layer
+    :raises GenerationError: if the kernel arguments in the Algorithm layer
              do not match up with the kernel metadata.
     '''
     # stencil arguments
@@ -5071,7 +5096,7 @@ class LFRicKernelArguments(Arguments):
     def __init__(self,
                  call: KernelCall,
                  parent_call: LFRicKern,
-                 check: bool = True):
+                 check: bool = True) -> None:
         # pylint: disable=too-many-branches
         super().__init__(parent_call)
 
@@ -5392,8 +5417,7 @@ class LFRicKernelArguments(Arguments):
 
 
 class LFRicKernelArgument(KernelArgument):
-    '''
-    This class provides information about individual LFRic kernel call
+    """This class provides information about individual LFRic kernel call
     arguments as specified by the kernel argument metadata and the
     kernel invocation in the Algorithm layer.
 
@@ -5410,15 +5434,16 @@ class LFRicKernelArgument(KernelArgument):
     :raises InternalError: for an unsupported metadata in the argument
                            descriptor data type.
 
-    '''
+    :param metadata_index: the argument position in the kernel metadata.
+    """
     # pylint: disable=too-many-public-methods, too-many-instance-attributes
     def __init__(self,
                  kernel_args: LFRicKernelArguments,
-                 arg_meta_data,
+                 arg_meta_data: KernelArgumentMetadata,
                  arg_info: Arg,
                  call: LFRicKern,
                  metadata_index: int,
-                 check: Optional[bool] = True):
+                 check: Optional[bool] = True) -> None:
         # Keep a reference to LFRicKernelArguments object that contains
         # this argument. This permits us to manage name-mangling for
         # any-space function spaces.
@@ -5570,7 +5595,7 @@ class LFRicKernelArgument(KernelArgument):
         return StructureReference.create(
             symbol, [self.ref_name(function_space)])
 
-    def ref_name(self, function_space=None):
+    def ref_name(self, function_space: Optional[FunctionSpace] = None) -> str:
         '''
         Returns the name used to dereference this type of argument (depends
         on whether it is a field or operator and, if the latter, whether it
@@ -5922,12 +5947,12 @@ class LFRicKernelArgument(KernelArgument):
         return self._argument_type in const.VALID_OPERATOR_NAMES
 
     @property
-    def metadata_stencil(self):
+    def metadata_stencil(self) -> Optional[dict[str, Union[str, int]]]:
         """:returns: stencil information from the typed metadata record."""
         return self._metadata_stencil
 
     @property
-    def metadata_datatype(self):
+    def metadata_datatype(self) -> str:
         """:returns: the API datatype from the typed metadata record."""
         return self._metadata_datatype
 

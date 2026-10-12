@@ -10,10 +10,8 @@
 from psyclone.domain.common.kernel.metadata import (
     Kernel,
     KernelMetadata,
-    metadata_structure,
 )
 __all__ = [
     "Kernel",
     "KernelMetadata",
-    "metadata_structure",
 ]

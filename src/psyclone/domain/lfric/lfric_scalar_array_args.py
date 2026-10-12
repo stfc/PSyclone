@@ -11,6 +11,8 @@ declarations of ScalarArray arguments to the kernel found in either
 an Invoke or a Kernel stub.
 '''
 
+from __future__ import annotations
+
 # Imports
 from collections import Counter
 from typing import Union
@@ -110,7 +112,7 @@ class LFRicScalarArrayArgs(LFRicCollection):
         # Create declarations
         self._create_declarations()
 
-    def stub_declarations(self):
+    def stub_declarations(self) -> None:
         '''
         Create and add declarations for all ScalarArray arguments in
         a Kernel stub.

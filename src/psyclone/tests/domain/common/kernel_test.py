@@ -9,12 +9,10 @@
 
 import pytest
 
-from psyclone.domain.common.kernel import Kernel
-from psyclone.domain.common.kernel.metadata import (
-    array_component_values, kernel_metadata_symbols)
+from psyclone.domain.common.kernel import Kernel, KernelMetadata
 from psyclone.domain.gocean.kernel import GOceanKernelMetadata
 from psyclone.parse.utils import ParseError
-from psyclone.psyir.nodes import Literal
+from psyclone.psyir.nodes import Literal, Routine
 from psyclone.psyir.symbols import ArrayType, DataSymbol, ScalarType
 
 
@@ -42,14 +40,14 @@ def test_metadata_array_noninteger_extent():
          Literal("2.0", ScalarType.real_type()))])
     component = DataSymbol("meta_args", datatype)
     with pytest.raises(ParseError, match="must have a literal extent") as err:
-        array_component_values(component, "meta_args")
+        KernelMetadata._validate_and_get_array_values(component, "meta_args")
     assert isinstance(err.value.__cause__, ValueError)
 
 
-def test_kernel_metadata_symbols_invalid_input():
+def test_find_symbols_invalid_input():
     """Metadata discovery requires a PSyIR node."""
     with pytest.raises(TypeError, match="Expected PSyIR Node.*NoneType"):
-        kernel_metadata_symbols(None)
+        KernelMetadata.find_symbols(None)
 
 
 def test_kernel_from_psyir(fortran_reader):
@@ -70,5 +68,38 @@ def test_kernel_from_psyir(fortran_reader):
 def test_kernel_unsupported_metadata(metadata_type, fortran_reader):
     """Full kernel assembly requires a supported API metadata class."""
     psyir = fortran_reader.psyir_from_source(GOCEAN_SOURCE)
-    with pytest.raises(TypeError, match="Expected an LFRic or GOcean"):
+    with pytest.raises(TypeError, match="Expected a KernelMetadata subclass"):
         Kernel.create_from_psyir(metadata_type, psyir)
+
+
+def test_kernel_custom_metadata(fortran_reader):
+    """Kernel assembly supports another API through the metadata interface."""
+    class CustomMetadata(KernelMetadata):
+        @classmethod
+        def find_symbol(cls, psyir, name=None):
+            return cls.find_symbols(psyir, name)[0]
+
+        @classmethod
+        def create_from_psyir(cls, psyir, name=None):
+            metadata = cls()
+            metadata.name = psyir.name
+            return metadata
+
+        def resolve_procedures(self, container):
+            routines = tuple(container.walk(Routine))
+            return routines[0].name, routines
+
+        @property
+        def nargs(self):
+            return 1
+
+        def fortran_string(self):
+            return ""
+
+    psyir = fortran_reader.psyir_from_source(GOCEAN_SOURCE)
+    kernel = Kernel.create_from_psyir(CustomMetadata, psyir, name="demo_type")
+    assert isinstance(kernel.metadata, CustomMetadata)
+    assert kernel.metadata.name == "demo_type"
+    assert kernel.psyir is psyir
+    assert kernel.procedure_name == "demo_code"
+    assert kernel.procedures == tuple(psyir.walk(Routine))

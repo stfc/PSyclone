@@ -11,6 +11,8 @@ declarations for field arguments required by an Invoke or
 Kernel stub.
 '''
 
+from __future__ import annotations
+
 # Imports
 from collections import OrderedDict
 
@@ -88,7 +90,7 @@ class LFRicFields(LFRicCollection):
                 arg_symbol = self.symtab.lookup(arg.name)
                 arg_symbol.interface.access = ArgumentInterface.Access.READ
 
-    def stub_declarations(self):
+    def stub_declarations(self) -> None:
         '''
         Add field-related declarations to a Kernel stub.
 

@@ -9,6 +9,8 @@
 kernel calls.
 '''
 
+from __future__ import annotations
+
 import abc
 from typing import Optional, Union
 
@@ -323,7 +325,7 @@ class ArgOrdering:
         '''
         return self._arg_index_to_metadata_index[idx]
 
-    def generate(self, var_accesses: VariablesAccessMap = None):
+    def generate(self, var_accesses: VariablesAccessMap = None) -> None:
         # pylint: disable=too-many-statements, too-many-branches
         '''
         Specifies which arguments appear in an argument list, their type
@@ -926,7 +928,10 @@ class ArgOrdering:
         self.append_array_reference(map_name, [":"], tag=map_name)
         self.append(map_name, var_accesses)
 
-    def ref_element_properties(self, var_accesses=None):
+    def ref_element_properties(
+            self,
+            var_accesses: Optional[VariablesAccessMap] = None,
+    ) -> None:
         '''Add kernel arguments relating to properties of the reference
         element. If supplied it also stores this access in var_accesses.
 

@@ -6,13 +6,13 @@
 # -----------------------------------------------------------------------------
 """Immutable LFRic kernel metadata built from language-level PSyIR."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import ClassVar, Optional, TypeAlias
+from typing import ClassVar, Optional, TYPE_CHECKING, Union
 
 from psyclone.domain.common.kernel.metadata import (
-    array_component_values, kernel_metadata_symbol, kernel_metadata_symbols,
-    KernelMetadata, metadata_structure,
-    metadata_value, normalise as _normalise)
+    KernelMetadata, normalise as _normalise)
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
@@ -37,17 +37,20 @@ from psyclone.psyir.symbols import (
 # Metadata records naturally contain more state than behavioural classes.
 # pylint: disable=too-many-instance-attributes,too-many-lines
 
+if TYPE_CHECKING:
+    from psyclone.core import AccessType
+
 
 class LFRicArgMetadata:  # pylint: disable=too-few-public-methods
     """Common behaviour of all typed LFRic argument records."""
 
     @property
-    def access_type(self):
+    def access_type(self) -> AccessType:
         """:returns: the generic access type for this argument."""
         return LFRicConstants().ACCESS_MAPPING[getattr(self, "access")]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class ScalarArgMetadata(LFRicArgMetadata):
     """Metadata for a scalar kernel argument."""
 
@@ -93,7 +96,7 @@ class ScalarArgMetadata(LFRicArgMetadata):
         return f"arg_type({self.form}, {self.datatype}, {self.access})"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class ScalarArrayArgMetadata(LFRicArgMetadata):
     """Metadata for a scalar-array kernel argument."""
 
@@ -144,7 +147,7 @@ class ScalarArrayArgMetadata(LFRicArgMetadata):
         )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class FieldArgMetadata(LFRicArgMetadata):
     """Metadata for a field kernel argument."""
 
@@ -229,7 +232,7 @@ class FieldArgMetadata(LFRicArgMetadata):
         return result + ")"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class FieldVectorArgMetadata(LFRicArgMetadata):
     """Metadata for a field-vector kernel argument."""
 
@@ -294,7 +297,7 @@ class FieldVectorArgMetadata(LFRicArgMetadata):
         return result + ")"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class InterGridArgMetadata(LFRicArgMetadata):
     """Metadata for an inter-grid field argument."""
 
@@ -355,7 +358,7 @@ class InterGridArgMetadata(LFRicArgMetadata):
         return f"{result[:-1]}, mesh_arg={self.mesh_arg})"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class InterGridVectorArgMetadata(LFRicArgMetadata):
     """Metadata for an inter-grid field-vector argument."""
 
@@ -420,7 +423,7 @@ class InterGridVectorArgMetadata(LFRicArgMetadata):
         return f"{result[:-1]}, mesh_arg={self.mesh_arg})"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class OperatorArgMetadata(LFRicArgMetadata):
     """Metadata for an LMA operator argument."""
 
@@ -477,7 +480,7 @@ class OperatorArgMetadata(LFRicArgMetadata):
         )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class ColumnwiseOperatorArgMetadata(OperatorArgMetadata):
     """Metadata for a columnwise operator argument."""
 
@@ -485,7 +488,7 @@ class ColumnwiseOperatorArgMetadata(OperatorArgMetadata):
     check_name: ClassVar[str] = "columnwise-operator"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class MetaFuncsArgMetadata:
     """Metadata describing basis functions on one function space."""
 
@@ -530,7 +533,7 @@ class MetaFuncsArgMetadata:
         return f"func_type({', '.join(values)})"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class MetaRefElementArgMetadata:
     """One requested reference-element property."""
 
@@ -562,7 +565,7 @@ class MetaRefElementArgMetadata:
         )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class MetaMeshArgMetadata:
     """One requested mesh property."""
 
@@ -590,16 +593,12 @@ class MetaMeshArgMetadata:
         return f"mesh_data_type({self.mesh})"
 
 
-KernelArgumentMetadata: TypeAlias = (
-    ScalarArgMetadata
-    | ScalarArrayArgMetadata
-    | FieldArgMetadata
-    | FieldVectorArgMetadata
-    | InterGridArgMetadata
-    | InterGridVectorArgMetadata
-    | OperatorArgMetadata
-    | ColumnwiseOperatorArgMetadata
-)
+KernelArgumentMetadata = Union[
+    ScalarArgMetadata, ScalarArrayArgMetadata, FieldArgMetadata,
+    FieldVectorArgMetadata, InterGridArgMetadata, InterGridVectorArgMetadata,
+    OperatorArgMetadata, ColumnwiseOperatorArgMetadata,
+]
+
 
 _ARG_TYPES = (
     ScalarArgMetadata,
@@ -613,7 +612,7 @@ _ARG_TYPES = (
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class LFRicKernelMetadata(KernelMetadata):
     """Typed, immutable language-level LFRic metadata."""
 
@@ -738,7 +737,7 @@ class LFRicKernelMetadata(KernelMetadata):
 
     @classmethod
     def create_from_psyir(
-        cls, psyir: DataTypeSymbol | Node, name: Optional[str] = None
+        cls, psyir: Union[DataTypeSymbol, Node], name: Optional[str] = None
     ) -> "LFRicKernelMetadata":
         """Create typed metadata from a PSyIR tree or type symbol.
 
@@ -751,8 +750,8 @@ class LFRicKernelMetadata(KernelMetadata):
         :raises ParseError: if the metadata declaration is invalid.
         """
         # pylint: disable=too-many-branches,too-many-locals
-        symbol = kernel_metadata_symbol(psyir, "LFRic", name=name)
-        datatype = metadata_structure(symbol, "LFRic")
+        symbol = cls._validate_and_get_symbol(psyir, "LFRic", name=name)
+        datatype = cls._validate_and_get_structure(symbol, "LFRic")
 
         components = datatype.components
         valid_components = {
@@ -775,8 +774,13 @@ class LFRicKernelMetadata(KernelMetadata):
             )
 
         def array_values(component_name: str) -> tuple[Node, ...]:
-            """Return and validate values of an array component."""
-            return array_component_values(
+            """Return and validate values of an array component.
+
+            :param component_name: the metadata array component to read.
+            :returns: the component's validated initial values.
+            :raises ParseError: if the array declaration or extent is invalid.
+            """
+            return cls._validate_and_get_array_values(
                 components[component_name], component_name)
 
         meta_args = tuple(
@@ -790,7 +794,13 @@ class LFRicKernelMetadata(KernelMetadata):
             )
 
         def names(component_name: str) -> tuple[str, ...]:
-            """Return scalar names from an optional component."""
+            """Return scalar names from an optional component.
+
+            :param component_name: the optional metadata component to read.
+            :returns: the component's lower-case values, or an empty tuple if
+                absent.
+            :raises ParseError: if the values or array declaration are invalid.
+            """
             if component_name not in components:
                 return ()
             initial_value = components[component_name].initial_value
@@ -799,7 +809,8 @@ class LFRicKernelMetadata(KernelMetadata):
                 if isinstance(initial_value, ArrayConstructor)
                 else (initial_value,)
             )
-            return tuple(metadata_value(value) for value in values)
+            return tuple(cls._validate_and_get_value(value)
+                         for value in values)
 
         ref_element = ()
         if "meta_reference_element" in components:
@@ -816,7 +827,7 @@ class LFRicKernelMetadata(KernelMetadata):
                         "meta_reference_element entries must use the "
                         "reference_element_data_type constructor.")
                 ref_element_values.append(MetaRefElementArgMetadata(
-                    metadata_value(node.arguments[0])))
+                    cls._validate_and_get_value(node.arguments[0])))
             ref_element = tuple(ref_element_values)
             if len({item.reference_element for item in ref_element}) != len(
                     ref_element):
@@ -837,7 +848,7 @@ class LFRicKernelMetadata(KernelMetadata):
                         "meta_mesh entries must use the mesh_data_type "
                         "constructor.")
                 mesh_values.append(MetaMeshArgMetadata(
-                    metadata_value(node.arguments[0])))
+                    cls._validate_and_get_value(node.arguments[0])))
             mesh = tuple(mesh_values)
             if len({item.mesh for item in mesh}) != len(mesh):
                 raise ParseError("meta_mesh must not contain duplicates.")
@@ -846,7 +857,7 @@ class LFRicKernelMetadata(KernelMetadata):
         if datatype.procedure_components:
             procedure = next(iter(datatype.procedure_components.values()))
             procedure_name = (
-                metadata_value(procedure.initial_value)
+                cls._validate_and_get_value(procedure.initial_value)
                 if procedure.initial_value else procedure.name
             )
 
@@ -959,6 +970,8 @@ class LFRicKernelMetadata(KernelMetadata):
         """Validate inter-grid constraints.
 
         :raises ParseError: if an inter-grid constraint is violated.
+
+        :raises InternalError: if the API defines other than two mesh types.
         """
         if self.operates_on != "cell_column":
             raise ParseError(
@@ -1096,7 +1109,7 @@ class LFRicKernelMetadata(KernelMetadata):
         return "cma-matrix-matrix"
 
     def meta_args_get(
-        self, types: type | list[type]
+        self, types: Union[type, list[type]]
     ) -> list[KernelArgumentMetadata]:
         """Return meta_args entries whose concrete types match.
 
@@ -1110,7 +1123,7 @@ class LFRicKernelMetadata(KernelMetadata):
         ]
 
     def field_meta_args_on_fs(
-        self, types: type | list[type], function_space: str
+        self, types: Union[type, list[type]], function_space: str
     ) -> list[KernelArgumentMetadata]:
         """Return field arguments of the requested types on a space.
 
@@ -1128,7 +1141,7 @@ class LFRicKernelMetadata(KernelMetadata):
         ]
 
     def operator_meta_args_on_fs(
-        self, types: type | list[type], function_space: str
+        self, types: Union[type, list[type]], function_space: str
     ) -> list[KernelArgumentMetadata]:
         """Return operators connected to the supplied function space.
 
@@ -1161,7 +1174,11 @@ class LFRicKernelMetadata(KernelMetadata):
         self._validate_domain_dof(needs_evaluator)
 
     def _validate_field_accesses(self) -> None:
-        """Validate field access modes for the iteration space."""
+        """Validate field access modes for the iteration space.
+
+        :raises ParseError: if a field access is invalid for its iteration
+            space.
+        """
         const = LFRicConstants()
         for argument in self.meta_args:
             if not isinstance(argument, (FieldArgMetadata,
@@ -1182,8 +1199,13 @@ class LFRicKernelMetadata(KernelMetadata):
                     f"'{argument.access}'.")
 
     @staticmethod
-    def _argument_spaces(argument) -> tuple[str, ...]:
-        """Return the function spaces used by one typed argument."""
+    def _argument_spaces(argument: KernelArgumentMetadata) -> tuple[str, ...]:
+        """Return the function spaces used by one typed argument.
+
+        :param argument: the argument metadata whose function spaces are
+            required.
+        :returns: the field or operator spaces, or an empty tuple for a scalar.
+        """
         if isinstance(argument, (OperatorArgMetadata,
                                  ColumnwiseOperatorArgMetadata)):
             return (argument.function_space_to,
@@ -1192,7 +1214,12 @@ class LFRicKernelMetadata(KernelMetadata):
         return (function_space,) if function_space else ()
 
     def _validate_writes(self) -> None:
-        """Validate that the kernel has a permitted written argument."""
+        """Validate that the kernel has a permitted written argument.
+
+        :raises ParseError: if a read-only space or a user-kernel scalar is
+            written,
+            or no argument is updated.
+        """
         # Avoid a circular import with the built-in metadata definitions.
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
@@ -1228,7 +1255,13 @@ class LFRicKernelMetadata(KernelMetadata):
             )
 
     def _validate_evaluators(self) -> bool:
-        """Validate evaluator metadata and return whether it is needed."""
+        """Validate evaluator metadata and return whether it is needed.
+
+        :returns: whether any argument requires basis or differential basis
+            data.
+        :raises ParseError: if function spaces, shapes or evaluator targets are
+            missing, repeated or inconsistent with the arguments.
+        """
         spaces = {
             space for argument in self.meta_args
             for space in self._argument_spaces(argument)
@@ -1280,7 +1313,13 @@ class LFRicKernelMetadata(KernelMetadata):
         _ = self.cma_operation
 
     def _validate_domain_dof(self, need: bool) -> None:
-        """Validate domain and degree-of-freedom kernel restrictions."""
+        """Validate domain and degree-of-freedom kernel restrictions.
+
+        :param need: whether the kernel requires evaluator data.
+        :raises ParseError: if the iteration space has unsupported argument
+            types,
+            evaluator or mesh data, or inconsistent function spaces.
+        """
         if self.operates_on not in ("domain", "dof"):
             return
         # Avoid a circular import with the built-in metadata definitions.
@@ -1379,6 +1418,100 @@ class LFRicKernelMetadata(KernelMetadata):
             )
         return result + f"END TYPE {self.name}\n"
 
+    @classmethod
+    def find_symbol(
+            cls,
+            psyir: Node,
+            name: Optional[str] = None,
+    ) -> tuple[Container, DataTypeSymbol]:
+        """Find the module and metadata symbol using this API's naming rules.
+
+        :param psyir: the complete kernel PSyIR.
+        :param name: optional metadata type name.
+
+        :returns: the containing module and metadata symbol.
+        :raises ParseError: if discovery fails.
+        """
+        containers = [
+            node for node in psyir.walk(Container)
+            if not isinstance(node, FileContainer)
+        ]
+        if not containers:
+            raise ParseError(
+                "The file does not contain a module. Is it a Kernel file?"
+            )
+        if name is None:
+            if len(containers) != 1:
+                raise ParseError(
+                    "A metadata name is required for multiple modules."
+                )
+            module_name = containers[0].name
+            if len(module_name) < 5:
+                raise ParseError(
+                    f"Module name '{module_name}' is too short to have "
+                    "'_mod' as an extension."
+                )
+            if not module_name.lower().endswith("_mod"):
+                raise ParseError(
+                    f"Module name '{module_name}' does not have '_mod' as "
+                    "an extension."
+                )
+            name = module_name[:-4] + "_type"
+        matches = cls.find_symbols(psyir, name=name)
+        if not matches:
+            raise ParseError(f"Kernel type {name} does not exist.")
+        if len(matches) > 1:
+            raise ParseError(f"Kernel type {name} is not unique.")
+        return matches[0]
+
+    def resolve_procedures(
+            self,
+            container: Container,
+    ) -> tuple[str, tuple[Routine, ...]]:
+        """Resolve this kernel's procedure implementations from its module.
+
+        :param container: the module containing the kernel.
+
+        :returns: the resolved procedure name and tuple of implementations.
+        :raises ParseError: if the implementation cannot be resolved.
+        """
+        routines = tuple(container.walk(Routine))
+        if self.procedure_name:
+            implementations = tuple(
+                routine
+                for routine in routines
+                if routine.name.lower() == self.procedure_name.lower()
+            )
+            if not implementations:
+                raise ParseError(
+                    f"Kernel subroutine '{self.procedure_name}' not found."
+                )
+            return self.procedure_name.lower(), implementations
+        interfaces = [
+            symbol
+            for symbol in container.symbol_table.symbols
+            if isinstance(symbol, GenericInterfaceSymbol)
+        ]
+        if len(interfaces) != 1:
+            raise ParseError(
+                f"Kernel '{self.name}' requires exactly one generic "
+                "interface when it has no type-bound procedure."
+            )
+        interface = interfaces[0]
+        names = {
+            info.symbol.name.lower()
+            for info in interface.routines
+            if info.from_container
+        }
+        implementations = tuple(
+            routine for routine in routines if routine.name.lower() in names
+        )
+        if len(implementations) != len(names):
+            raise ParseError(
+                f"Not all procedures for interface '{interface.name}' exist."
+            )
+        return interface.name.lower(), implementations
+
 
 def _parse_arg(
     node: Node,
@@ -1407,7 +1540,7 @@ def _parse_arg(
             "Each meta_args entry must use the arg_type constructor."
         )
     arguments = tuple(node.arguments)
-    value_name = metadata_value
+    value_name = KernelMetadata._validate_and_get_value
     names = tuple(node.argument_names)
     if len(arguments) < 3:
         raise ParseError(
@@ -1607,105 +1740,3 @@ def _parse_func(node: Node) -> MetaFuncsArgMetadata:
         basis_function="gh_basis" in operators,
         diff_basis_function="gh_diff_basis" in operators,
     )
-
-
-def get_kernel_procedure(
-    container: Container, metadata: LFRicKernelMetadata
-) -> tuple[str, tuple[Routine, ...]]:
-    """Resolve kernel procedure implementations from PSyIR.
-
-    :param container: the module containing the kernel.
-    :param metadata: the language-level kernel metadata.
-
-    :returns: the resolved procedure and its implementation or variants.
-
-    :raises ParseError: if the procedure metadata cannot be resolved.
-    """
-    routines = tuple(container.walk(Routine))
-    if metadata.procedure_name:
-        implementations = tuple(
-            routine
-            for routine in routines
-            if routine.name.lower() == metadata.procedure_name.lower()
-        )
-        if not implementations:
-            raise ParseError(
-                f"Kernel subroutine '{metadata.procedure_name}' not found."
-            )
-        return metadata.procedure_name.lower(), implementations
-    interfaces = [
-        symbol
-        for symbol in container.symbol_table.symbols
-        if isinstance(symbol, GenericInterfaceSymbol)
-    ]
-    if len(interfaces) != 1:
-        raise ParseError(
-            f"Kernel '{metadata.name}' requires exactly one generic "
-            "interface when it has no type-bound procedure."
-        )
-    interface = interfaces[0]
-    names = {
-        info.symbol.name.lower()
-        for info in interface.routines
-        if info.from_container
-    }
-    implementations = tuple(
-        routine for routine in routines if routine.name.lower() in names
-    )
-    if len(implementations) != len(names):
-        raise ParseError(
-            f"Not all procedures for interface '{interface.name}' exist."
-        )
-    return interface.name.lower(), implementations
-
-
-def get_kernel_metadata(psyir, name=None, metadata_type=LFRicKernelMetadata):
-    """Find and validate LFRic metadata within a complete kernel PSyIR tree.
-
-    :param psyir: the complete kernel PSyIR.
-    :param name: optional metadata type name; otherwise inferred from the
-        module.
-    :param metadata_type: the metadata class to construct.
-
-    :returns: the containing module and validated metadata.
-    :raises ParseError: if discovery or metadata validation fails.
-    """
-    containers = [
-        node for node in psyir.walk(Container)
-        if not isinstance(node, FileContainer)
-    ]
-    if not containers:
-        raise ParseError(
-            "The file does not contain a module. Is it a Kernel file?"
-        )
-    if name is None:
-        if len(containers) != 1:
-            raise ParseError(
-                "A metadata name is required for multiple modules."
-            )
-        module_name = containers[0].name
-        if len(module_name) < 5:
-            raise ParseError(
-                f"Module name '{module_name}' is too short to have "
-                "'_mod' as an extension."
-            )
-        if not module_name.lower().endswith("_mod"):
-            raise ParseError(
-                f"Module name '{module_name}' does not have '_mod' as "
-                "an extension."
-            )
-        name = module_name[:-4] + "_type"
-    matches = kernel_metadata_symbols(psyir, name=name)
-    if not matches:
-        raise ParseError(f"Kernel type {name} does not exist.")
-    if len(matches) > 1:
-        raise ParseError(f"Kernel type {name} is not unique.")
-    container, symbol = matches[0]
-    try:
-        metadata = metadata_type.create_from_psyir(symbol)
-        metadata.validate()
-    except (TypeError, ValueError) as err:
-        raise ParseError(
-            f"Invalid LFRic metadata in '{symbol.name}': {err}"
-        ) from err
-    return container, metadata

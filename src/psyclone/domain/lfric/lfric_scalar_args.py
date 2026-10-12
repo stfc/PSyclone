@@ -11,6 +11,8 @@ declarations of scalar arguments to the kernel found in either
 an Invoke or a Kernel stub.
 '''
 
+from __future__ import annotations
+
 # Imports
 from collections import OrderedDict, Counter
 
@@ -112,7 +114,7 @@ class LFRicScalarArgs(LFRicCollection):
         # Create declarations
         self._create_declarations()
 
-    def stub_declarations(self):
+    def stub_declarations(self) -> None:
         '''
         Create and add declarations for all scalar arguments in
         a Kernel stub.
