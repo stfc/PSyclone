@@ -19,6 +19,7 @@ from psyclone.errors import GenerationError
 from psyclone.parse.utils import ParseError
 from psyclone.configuration import Config, LFRIC_API_NAMES
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.frontend.fortran import FortranReader
 
 
 def generate(filename, api=""):
@@ -53,8 +54,13 @@ def generate(filename, api=""):
         raise IOError(f"Kernel stub generator: File '{filename}' not found.")
 
     try:
-        kernel_info = KernelInfo.create_from_file(
-            LFRicKernelMetadata, filename)
+        psyir = FortranReader().psyir_from_file(filename)
+    except Exception as error:
+        raise ParseError(f"Kernel stub generator: Code appears to be invalid "
+                         f"Fortran in '{filename}': {error}.") from error
+
+    try:
+        kernel_info = KernelInfo.create_from_psyir(LFRicKernelMetadata, psyir)
     except ParseError as error:
         raise ParseError(f"Kernel stub generator: Code appears to be invalid "
                          f"Fortran: {error}.") from error

@@ -428,9 +428,16 @@ class Parser():
         if module_info is None:
             raise ParseError(
                 f"Could not find source file for module '{module_name}'.")
-        kernel = KernelInfo.create_from_file(
-            self._metadata_type, module_info.filename, name=kernel_name,
-            line_length=self._line_length)
+        if self._line_length:
+            check_line_length(module_info.filename)
+        try:
+            psyir = FortranReader().psyir_from_file(module_info.filename)
+        except Exception as err:
+            raise ParseError(
+                f"Failed to parse kernel code '{module_info.filename}'. "
+                f"Is the Fortran correct?\nError:\n'{err}'.") from err
+        kernel = KernelInfo.create_from_psyir(
+            self._metadata_type, psyir, name=kernel_name)
         return KernelCall(module_name, kernel, args)
 
     def update_arg_to_module_map(self, statement):

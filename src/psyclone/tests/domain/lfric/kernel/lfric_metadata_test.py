@@ -415,18 +415,20 @@ def test_create_language_metadata_from_psyir_errors():
     ("meta_reference_element", "reference_element_data_type"),
     ("meta_mesh", "mesh_data_type"),
 ])
-def test_optional_metadata_requires_constructor(component, constructor):
+def test_optional_metadata_requires_constructor(
+        component, constructor, fortran_reader):
     """Optional metadata arrays must contain structure constructors."""
-    metadata = _kernel_metadata([FieldArgMetadata("gh_real", "gh_write", "w0")])
+    metadata = _kernel_metadata([
+        FieldArgMetadata("gh_real", "gh_write", "w0")])
     source = metadata.fortran_string().replace(
         "  CONTAINS", f"  type({constructor}) :: {component}(1) = (/1/)\n"
         "  CONTAINS")
     with pytest.raises(ParseError,
                        match="Expected a metadata constructor.*Literal"):
-        KernelInfo.create_from_source(
-            LFRicKernelMetadata,
-            f"module test_mod\n{source}\ncontains\n"
-            "subroutine test_code()\nend subroutine\nend module")
+        KernelInfo.create_from_psyir(
+            LFRicKernelMetadata, fortran_reader.psyir_from_source(
+                f"module test_mod\n{source}\ncontains\n"
+                "subroutine test_code()\nend subroutine\nend module"))
 
 
 def test_declaration_errors():

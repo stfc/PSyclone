@@ -54,10 +54,11 @@ def setup():
     Config.get().api = "lfric"
 
 
-def test_mdata_parse():
+def test_mdata_parse(fortran_reader):
     """Preserve the requested reference-element properties and their order."""
-    metadata = KernelInfo.create_from_source(
-        LFRicKernelMetadata, REF_ELEM_MDATA).metadata
+    metadata = KernelInfo.create_from_psyir(
+        LFRicKernelMetadata,
+        fortran_reader.psyir_from_source(REF_ELEM_MDATA)).metadata
     assert [item.reference_element for item in metadata.meta_ref_element] == [
         "outward_normals_to_faces", "normals_to_horizontal_faces",
         "normals_to_vertical_faces"]
@@ -78,11 +79,12 @@ def test_mdata_parse():
      "must not contain duplicates"),
 ], ids=["invalid-property", "extent", "component-name", "constructor",
         "duplicate"])
-def test_mdata_invalid(old, new, message):
+def test_mdata_invalid(old, new, message, fortran_reader):
     """Reject invalid reference-element declarations through the PSyIR API."""
     with pytest.raises(ParseError, match=message):
-        KernelInfo.create_from_source(
-            LFRicKernelMetadata, REF_ELEM_MDATA.replace(old, new))
+        KernelInfo.create_from_psyir(
+            LFRicKernelMetadata,
+            fortran_reader.psyir_from_source(REF_ELEM_MDATA.replace(old, new)))
 
 
 def test_refelem_arglist_err():
