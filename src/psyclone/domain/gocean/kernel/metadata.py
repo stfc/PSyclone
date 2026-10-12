@@ -29,8 +29,6 @@ GOceanKernelMetadata:
     procedure_name: str
     name: str
 
-The common :class:`Kernel` container associates this language-level
-metadata with the PSyIR and any resolved implementation routines.
 """
 
 from __future__ import annotations
