@@ -9,12 +9,14 @@
 
 
 from dataclasses import replace
+from types import SimpleNamespace
 import os
 import logging
 import warnings
 
 import pytest
 
+from fparser.api import parse as parse_fortran
 from fparser.two import Fortran2003
 
 from psyclone import transformations
@@ -2116,3 +2118,25 @@ def test_walk(fortran_reader):
 
     binary_op_list = psyir.walk(BinaryOperation, Loop)
     assert not binary_op_list
+
+
+def test_kern_ast_legacy_source(fortran_writer):
+    """Legacy fparser1 kernel source still yields a cached fparser2 AST."""
+    _, invoke = get_invoke("nemolite2d_alg_mod.f90", "gocean", idx=0)
+    kern = invoke.schedule.coded_kernels()[0]
+    source = fortran_writer(kern._module_code)
+    kern._module_code = parse_fortran(source, analyze=False)
+    ast = kern.ast
+    assert isinstance(ast, Fortran2003.Program)
+    assert kern.name.lower() in str(ast).lower()
+    assert kern.ast is ast
+
+
+def test_kernel_argument_legacy_metadata_index(monkeypatch):
+    """An explicit index takes precedence over a legacy descriptor's index."""
+    _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
+    argument = invoke.schedule.coded_kernels()[0].arguments.args[0]
+    monkeypatch.setattr(argument, "_arg", SimpleNamespace(metadata_index=7))
+    assert argument.metadata_index == 0
+    monkeypatch.setattr(argument, "_metadata_index", None)
+    assert argument.metadata_index == 7

@@ -20,6 +20,7 @@ from fparser.two.parser import ParserFactory
 from psyclone.parse.algorithm import Parser, get_invoke_label, \
     get_kernel, create_var_name, KernelCall, BuiltInCall, Arg, \
     parse, AlgFileInfo
+from psyclone.configuration import Config
 from psyclone.parse import ModuleManager
 from psyclone.parse.utils import ParseError, parse_fp2
 from psyclone.errors import InternalError
@@ -896,3 +897,23 @@ def test_arg_datatype():
     assert tmp._datatype is None
     tmp = Arg("variable", "var", varname="var", datatype="info")
     assert tmp._datatype == ("info")
+
+
+def test_parser_registered_api_without_metadata(monkeypatch):
+    """A registered API without kernel support has no metadata parser."""
+    monkeypatch.setattr(Config, "_supported_api_list",
+                        Config.get().supported_apis + ["custom"])
+    parser = Parser("custom")
+    assert parser._metadata_type is None
+    assert parser._builtin_name_map == {}
+
+
+@pytest.mark.usefixtures("clear_module_manager_instance")
+def test_parser_ignored_kernel_module():
+    """Ignoring a required kernel module produces a useful parse error."""
+    ModuleManager.get().add_ignore_module("testkern_mod")
+    filename = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
+    with pytest.raises(ParseError) as err:
+        parse(filename, api="lfric")
+    assert ("Could not find source file for module 'testkern_mod'."
+            in str(err.value))

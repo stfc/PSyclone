@@ -28,7 +28,7 @@ from psyclone.alg_gen import NoInvokesError
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.generator import (
     generate, main, check_psyir, add_builtins_use, code_transformation_mode)
 from psyclone.parse import ModuleManager
@@ -2113,3 +2113,33 @@ def test_script_args_with_no_script(capsys):
 
     assert ("The '--script-kwargs' argument is only valid if a script is "
             "specified using the '--script' option" in err)
+
+
+@pytest.mark.parametrize("error_type", [InternalError, ValueError, IOError])
+def test_kernel_psyir_creation_error(error_type, monkeypatch, caplog, capsys):
+    """Errors reading kernel PSyIR after metadata parsing are reported."""
+    original = FortranReader.psyir_from_file
+    kernel_reads = 0
+    kernel_file = GOCEAN_BASE_PATH / "compute_cu_mod.f90"
+
+    def fail_second_kernel_read(reader, filename):
+        """Let metadata parsing succeed, then fail kernel PSyIR generation."""
+        nonlocal kernel_reads
+        if Path(filename) == kernel_file:
+            kernel_reads += 1
+            if kernel_reads == 2:
+                raise error_type("Kernel PSyIR creation failed")
+        return original(reader, filename)
+
+    monkeypatch.setattr(FortranReader, "psyir_from_file",
+                        fail_second_kernel_read)
+    with caplog.at_level(logging.ERROR, logger="psyclone.generator"):
+        with pytest.raises(SystemExit) as err:
+            generate(str(GOCEAN_BASE_PATH / "single_invoke.f90"), api="gocean")
+    assert err.value.code == 1
+    assert kernel_reads == 2
+    assert "Kernel PSyIR creation failed" in caplog.text
+    assert "Traceback" in caplog.text
+    _, diagnostic = capsys.readouterr()
+    assert (f"Failed to create PSyIR from kernel file '{kernel_file}'"
+            in diagnostic)
