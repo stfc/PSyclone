@@ -190,8 +190,8 @@ def test_omptargetrans_apply_nowait(fortran_reader, fortran_writer):
     targettrans.apply(loops[1], nowait=True)
     out = fortran_writer(psyir)
     correct = """subroutine x()
-  integer :: i
   integer, dimension(100) :: arr
+  integer :: i
 
   !$omp target nowait
   do i = 1, 100, 1
@@ -230,10 +230,10 @@ end subroutine x
     targettrans.apply(loops[1], nowait=True)
     out = fortran_writer(psyir)
     correct = """subroutine x()
-  integer :: i
-  integer :: j
   integer, dimension(100) :: arr
   integer, dimension(100) :: arr2
+  integer :: i
+  integer :: j
 
   !$omp target nowait
   do i = 1, 100, 1
@@ -293,9 +293,9 @@ end subroutine x
     out = fortran_writer(psyir)
 
     correct = """subroutine X()
+  integer, dimension(100) :: arr
   integer :: i
   integer :: j
-  integer, dimension(100) :: arr
 
   !$omp target nowait
   do i = 1, 100, 1
@@ -334,9 +334,9 @@ end subroutine X
     targettrans.apply(loops[0], options={"nowait": True})
     out = fortran_writer(psyir)
     correct = """subroutine x()
+  integer, dimension(100) :: arr
   integer :: i
   integer :: j
-  integer, dimension(100) :: arr
 
   !$omp target nowait
   arr(1) = 1

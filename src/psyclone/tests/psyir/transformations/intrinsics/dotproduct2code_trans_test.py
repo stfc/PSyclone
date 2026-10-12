@@ -266,7 +266,17 @@ def test_apply_known_dims(
         f"end subroutine\n")
     expected = (
         f"  integer :: i\n"
-        f"  real*4 :: res_dot_product\n\n"
+        f"  integer, intent(in) :: n\n"
+        f"  real*4 :: res_dot_product\n"
+        f"  real*4 :: result\n")
+    if "n" in dim1 and "n" not in dim2:
+        expected += (f"  real*4, dimension({dim2}), intent(in) :: v2\n"
+                     f"  real*4, dimension({dim1}), intent(in) :: v1\n")
+    else:
+        expected += (f"  real*4, dimension({dim1}), intent(in) :: v1\n"
+                     f"  real*4, dimension({dim2}), intent(in) :: v2\n")
+    expected += (
+        f"\n"
         f"  res_dot_product = 0.0\n"
         f"  do i = 1, {upper_bound}, 1\n"
         f"    res_dot_product = res_dot_product + v1(i) * v2(i)\n"
@@ -289,9 +299,12 @@ def test_apply_unknown_dims(tmpdir, fortran_reader, fortran_writer):
         "result = dot_product(v1,v2)\n"
         "end subroutine\n")
     expected = (
-        "  real(kind=r_def) :: result\n"
         "  integer :: i\n"
-        "  real(kind=r_def) :: res_dot_product\n\n"
+        "  integer, parameter :: r_def = 4\n"
+        "  real(kind=r_def) :: res_dot_product\n"
+        "  real(kind=r_def) :: result\n"
+        "  real(kind=r_def), dimension(:), intent(in) :: v1\n"
+        "  real(kind=r_def), dimension(:), intent(in) :: v2\n\n"
         "  res_dot_product = 0.0\n"
         "  do i = LBOUND(v1, dim=1), UBOUND(v1, dim=1), 1\n"
         "    res_dot_product = res_dot_product + v1(i) * v2(i)\n"
@@ -314,7 +327,10 @@ def test_apply_multi_rhs(tmpdir, fortran_reader, fortran_writer):
         "end subroutine\n")
     expected = (
         "  integer :: i\n"
-        "  real :: res_dot_product\n\n"
+        "  real :: res_dot_product\n"
+        "  real :: result\n"
+        "  real, dimension(10), intent(in) :: v1\n"
+        "  real, dimension(:), intent(in) :: v2\n\n"
         "  res_dot_product = 0.0\n"
         "  do i = 1, 10, 1\n"
         "    res_dot_product = res_dot_product + v1(i) * v2(i)\n"
@@ -340,7 +356,10 @@ def test_apply_array_notation(
         f"end subroutine\n")
     expected = (
         "  integer :: i\n"
-        "  real :: res_dot_product\n\n"
+        "  real :: res_dot_product\n"
+        "  real :: result\n"
+        "  real, dimension(:), intent(in) :: v1\n"
+        "  real, dimension(:), intent(in) :: v2\n\n"
         "  res_dot_product = 0.0\n"
         "  do i = LBOUND(v1, dim=1), UBOUND(v1, dim=1), 1\n"
         "    res_dot_product = res_dot_product + v1(i) * v2(i)\n"
@@ -368,7 +387,11 @@ def test_apply_extra_dims(tmpdir, fortran_reader, fortran_writer, arg1, arg2,
         f"end subroutine\n")
     expected = (
         f"  integer :: i\n"
-        f"  real :: res_dot_product\n\n"
+        f"  integer :: n\n"
+        f"  real :: res_dot_product\n"
+        f"  real :: result\n"
+        f"  real, dimension(:,:), intent(in) :: v1\n"
+        f"  real, dimension(:,:), intent(in) :: v2\n\n"
         f"  res_dot_product = 0.0\n"
         f"  do i = LBOUND(v1, dim=1), UBOUND(v1, dim=1), 1\n"
         f"    res_dot_product = res_dot_product + v1{res1} * v2{res2}\n"
@@ -397,7 +420,11 @@ def test_apply_extra_dims_sizes(tmpdir, fortran_reader, fortran_writer,
         f"end subroutine\n")
     expected = (
         f"  integer :: i\n"
-        f"  real :: res_dot_product\n\n"
+        f"  integer :: n\n"
+        f"  real :: res_dot_product\n"
+        f"  real :: result\n"
+        f"  real, dimension{dims1}, intent(in) :: v1\n"
+        f"  real, dimension{dims2}, intent(in) :: v2\n\n"
         f"  res_dot_product = 0.0\n"
         f"  do i = LBOUND(v1, dim=1), UBOUND(v1, dim=1), 1\n"
         f"    res_dot_product = res_dot_product + v1{res1} * v2{res2}\n"
@@ -420,9 +447,12 @@ def test_apply_multi_same_line(tmpdir, fortran_reader, fortran_writer):
         "end subroutine\n")
     expected = (
         "  integer :: i\n"
-        "  real :: res_dot_product\n"
         "  integer :: i_1\n"
-        "  real :: res_dot_product_1\n\n"
+        "  real :: res_dot_product\n"
+        "  real :: res_dot_product_1\n"
+        "  real :: result\n"
+        "  real, dimension(10), intent(in) :: v1\n"
+        "  real, dimension(:), intent(in) :: v2\n\n"
         "  res_dot_product = 0.0\n"
         "  do i = 1, 10, 1\n"
         "    res_dot_product = res_dot_product + v1(i) * v2(i)\n"
@@ -450,9 +480,12 @@ def test_apply_multi_different_line(tmpdir, fortran_reader, fortran_writer):
         "end subroutine\n")
     expected = (
         "  integer :: i\n"
-        "  real :: res_dot_product\n"
         "  integer :: i_1\n"
-        "  real :: res_dot_product_1\n\n"
+        "  real :: res_dot_product\n"
+        "  real :: res_dot_product_1\n"
+        "  real :: result\n"
+        "  real, dimension(10), intent(in) :: v1\n"
+        "  real, dimension(:), intent(in) :: v2\n\n"
         "  res_dot_product = 0.0\n"
         "  do i = 1, 10, 1\n"
         "    res_dot_product = res_dot_product + v1(i) * v2(i)\n"
@@ -480,11 +513,11 @@ def test_apply_explicit_range(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n")
     expected = (
         "subroutine dot_product_test(basis_w1)\n"
-        "  real, dimension(3) :: wind\n"
         "  real, dimension(:) :: basis_w1\n"
-        "  integer :: result\n"
         "  integer :: i\n"
-        "  real :: res_dot_product\n\n"
+        "  real :: res_dot_product\n"
+        "  integer :: result\n"
+        "  real, dimension(3) :: wind\n\n"
         "  res_dot_product = 0.0\n"
         "  do i = 1, 3, 1\n"
         "    res_dot_product = res_dot_product + basis_w1(i) * wind(i)\n"

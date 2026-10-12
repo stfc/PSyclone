@@ -351,9 +351,8 @@ enddo""" in out
     assign = psyir.walk(Assignment)[0]
     dtrans.apply(assign.rhs)
     out = fortran_writer(psyir)
-    assert """  integer, allocatable, dimension(:) :: tmp
-
-  if (.NOT.ALLOCATED(tmp)) then
+    assert "  integer, allocatable, dimension(:) :: tmp" in out
+    assert """  if (.NOT.ALLOCATED(tmp)) then
     ALLOCATE(tmp(i:j))
   end if
   tmp = 3 * b

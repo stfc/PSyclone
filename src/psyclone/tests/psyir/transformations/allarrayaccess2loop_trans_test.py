@@ -92,7 +92,7 @@ def test_apply_no_change(tmpdir):
         "  end do\n")
     expected_result = (
         "  real, dimension(10,10) :: a\n  real, dimension(10,10) :: b\n"
-        "  integer :: n\n  integer :: ji\n  integer :: jj\n\n"
+        "  integer :: ji\n  integer :: jj\n  integer :: n\n\n"
         "  do jj = 1, n, 1\n"
         "    do ji = 1, n, 1\n"
         "      a(ji,jj) = b(ji,jj)\n"
@@ -112,7 +112,7 @@ def test_apply_multi_change(tmpdir):
         "  a(1,n) = b(1,n)\n")
     expected_result = (
         "  real, dimension(10,10) :: a\n  real, dimension(10,10) :: b\n"
-        "  integer :: n\n  integer :: idx\n  integer :: idx_1\n\n"
+        "  integer :: idx\n  integer :: idx_1\n  integer :: n\n\n"
         "  do idx = 1, 1, 1\n"
         "    do idx_1 = n, n, 1\n"
         "      a(idx,idx_1) = b(idx,idx_1)\n"
@@ -137,8 +137,8 @@ def test_apply_mixed(tmpdir):
         "  end do\n")
     expected_result = (
         "  real, dimension(10,10,10) :: a\n  real, dimension(10,10,10) :: b\n"
-        "  integer :: n\n  integer :: jj\n  integer :: idx\n"
-        "  integer :: idx_1\n\n"
+        "  integer :: idx\n  integer :: idx_1\n  integer :: jj\n"
+        "  integer :: n\n\n"
         "  do jj = 1, n, 1\n"
         "    do idx = 1, 1, 1\n"
         "      do idx_1 = n, n, 1\n"

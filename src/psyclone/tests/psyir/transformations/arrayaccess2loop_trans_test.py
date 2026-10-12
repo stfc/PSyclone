@@ -132,7 +132,7 @@ def test_apply_second_dim_var(tmpdir):
         "  a(1,n) = b(1,n)\n")
     expected_result = (
         "  real, dimension(10,10) :: a\n  real, dimension(10,10) :: b\n"
-        "  integer :: n\n  integer :: idx\n\n"
+        "  integer :: idx\n  integer :: n\n\n"
         "  b(:,:) = 0.0\n"
         "  do idx = n, n, 1\n"
         "    a(1,idx) = b(1,idx)\n"
@@ -153,7 +153,7 @@ def test_apply_third_dim_expr(tmpdir):
         "  a(1,n,2*n+1) = b(1,n,2*n+1)\n")
     expected_result = (
         "  real, dimension(10,10,10) :: a\n  real, dimension(10,10,10) :: b\n"
-        "  integer :: n\n  integer :: idx\n\n"
+        "  integer :: idx\n  integer :: n\n\n"
         "  do idx = 2 * n + 1, 2 * n + 1, 1\n"
         "    a(1,n,idx) = b(1,n,idx)\n"
         "  enddo\n\n")
@@ -175,9 +175,9 @@ def test_apply_indirection(tmpdir):
     expected_result = (
         "  real, dimension(10) :: a\n"
         "  real, dimension(10) :: b\n"
+        "  integer :: idx\n"
         "  integer, dimension(10) :: lookup\n"
-        "  integer :: n\n"
-        "  integer :: idx\n\n"
+        "  integer :: n\n\n"
         "  do idx = lookup(n), lookup(n), 1\n"
         "    a(idx) = b(idx)\n"
         "  enddo\n\n")
@@ -203,8 +203,8 @@ def test_apply_loop_order(tmpdir):
         "  enddo\n")
     expected_result = (
         "  real, dimension(10,10,10) :: a\n  real, dimension(10,10,10) :: b\n"
-        "  integer :: ji\n  integer :: n\n  integer :: jk\n"
-        "  integer :: idx\n\n"
+        "  integer :: idx\n  integer :: ji\n  integer :: jk\n"
+        "  integer :: n\n\n"
         "  do jk = 1, 10, 1\n"
         "    do ji = 1, 10, 1\n"
         "      do idx = n, n, 1\n"
@@ -229,7 +229,7 @@ def test_apply_ranges(tmpdir):
 
     expected_result = (
         "  real, dimension(10,10,10) :: a\n  real, dimension(10,10,10) :: b\n"
-        "  integer :: jpk\n  integer :: idx\n\n"
+        "  integer :: idx\n  integer :: jpk\n\n"
         "  do idx = jpk, jpk, 1\n"
         "    a(:,:,idx) = 0.0e0\n"
         "  enddo\n\n")
@@ -266,7 +266,7 @@ def test_apply_multi_iterator(tmpdir):
     expected_code = (
         "program test\n"
         "  real, dimension(10,10) :: a\n"
-        "  integer :: i\n  integer :: j\n  integer :: idx\n\n"
+        "  integer :: i\n  integer :: idx\n  integer :: j\n\n"
         "  do j = 1, 10, 1\n"
         "    do i = 1, 10, 1\n"
         "      do idx = 10, 10, 1\n"
@@ -334,7 +334,7 @@ def test_apply_index_order(tmpdir):
     expected_code = (
         "program test\n"
         "  real, dimension(10,10,10) :: a\n"
-        "  integer :: i\n  integer :: j\n  integer :: idx\n\n"
+        "  integer :: i\n  integer :: idx\n  integer :: j\n\n"
         "  do j = 1, 10, 1\n"
         "    do i = 1, 10, 1\n"
         "      do idx = 10, 10, 1\n"
@@ -490,7 +490,7 @@ def test_validate_same_index_error(tmpdir):
         "  a(n+1) = b(1+n)\n")
     expected_result = (
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  integer :: n\n  integer :: idx\n\n"
+        "  integer :: idx\n  integer :: n\n\n"
         "  do idx = n + 1, n + 1, 1\n"
         "    a(idx) = b(idx)\n"
         "  enddo\n\n")
@@ -521,8 +521,8 @@ def test_validate_indirection(tmpdir):
         "  a(lookup(n)) = b(lookup(n))\n")
     expected_result = (
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  integer, dimension(10) :: lookup\n  integer :: n\n"
-        "  integer :: idx\n\n"
+        "  integer :: idx\n"
+        "  integer, dimension(10) :: lookup\n  integer :: n\n\n"
         "  do idx = lookup(n), lookup(n), 1\n"
         "    a(idx) = b(idx)\n"
         "  enddo\n\n")

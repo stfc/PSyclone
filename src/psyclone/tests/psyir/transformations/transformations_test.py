@@ -597,8 +597,8 @@ def test_omplooptrans_apply_nowait(fortran_reader, fortran_writer):
     looptrans.apply(loops[1], options={"nowait": True})
     out = fortran_writer(psyir)
     correct = """subroutine x()
-  integer :: i
   integer, dimension(100) :: arr
+  integer :: i
 
   !$omp parallel default(shared) private(i)
   !$omp do schedule(auto)
@@ -641,10 +641,10 @@ end subroutine x"""
     looptrans.apply(loops[1], options={"nowait": True})
     out = fortran_writer(psyir)
     correct = """subroutine x()
-  integer :: i
-  integer :: j
   integer, dimension(100) :: arr
   integer, dimension(100) :: arr2
+  integer :: i
+  integer :: j
 
   !$omp parallel default(shared) private(i,j)
   !$omp do schedule(auto)

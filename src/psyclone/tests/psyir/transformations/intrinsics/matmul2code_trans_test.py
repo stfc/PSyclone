@@ -579,12 +579,12 @@ def test_apply_matvect(tmpdir):
     result = writer(root)
     assert (
         "subroutine my_kern()\n"
+        "  integer :: i\n"
         "  integer, parameter :: idx = 3\n"
+        "  integer :: j\n"
+        "  real, dimension(10) :: result\n"
         "  real, dimension(5,10,15) :: x\n"
         "  real, dimension(10,20,10) :: y\n"
-        "  real, dimension(10) :: result\n"
-        "  integer :: i\n"
-        "  integer :: j\n"
         "\n"
         "  do i = 1, 5, 1\n"
         "    result(i) = 0.0\n"
@@ -613,12 +613,12 @@ def test_apply_matvect_additional_indices(tmpdir, fortran_writer):
     result = fortran_writer(root)
     assert (
         "subroutine my_kern()\n"
+        "  integer :: i\n"
         "  integer, parameter :: idx = 3\n"
+        "  integer :: j\n"
+        "  real, dimension(10) :: result\n"
         "  real, dimension(5,10,15) :: x\n"
         "  real, dimension(10,20,10) :: y\n"
-        "  real, dimension(10) :: result\n"
-        "  integer :: i\n"
-        "  integer :: j\n"
         "\n"
         "  do i = 1, 5, 1\n"
         "    result(i) = 0.0\n"
@@ -663,12 +663,12 @@ def test_apply_matvect_no_indices(tmpdir, fortran_writer):
     result = fortran_writer(root)
     assert (
         "subroutine my_kern()\n"
+        "  integer :: i\n"
         "  integer, parameter :: idx = 3\n"
+        "  integer :: j\n"
+        "  real, dimension(10) :: result\n"
         "  real, dimension(10,20) :: x\n"
         "  real, dimension(20) :: y\n"
-        "  real, dimension(10) :: result\n"
-        "  integer :: i\n"
-        "  integer :: j\n"
         "\n"
         "  do i = 1, 10, 1\n"
         "    result(i) = 0.0\n"
@@ -700,12 +700,12 @@ def test_apply_matmat_no_indices(tmpdir, fortran_reader, fortran_writer):
     out = fortran_writer(psyir)
     assert (
         "subroutine my_sub()\n"
+        "  integer :: i\n"
+        "  integer :: ii\n"
+        "  integer :: j\n"
         "  real, dimension(2,3) :: jac\n"
         "  real, dimension(3,4) :: jac_inv\n"
         "  real, dimension(2,4) :: result\n"
-        "  integer :: i\n"
-        "  integer :: j\n"
-        "  integer :: ii\n"
         "\n"
         "  do j = 1, 4, 1\n"
         "    do i = 1, 2, 1\n"
@@ -740,12 +740,12 @@ def test_apply_matmat_extra_indices(tmpdir, fortran_reader, fortran_writer):
     trans.apply(assign.rhs)
     out = fortran_writer(psyir)
     assert (
+        "  integer :: i\n"
+        "  integer :: ii\n"
+        "  integer :: j\n"
         "  real, dimension(2,6,4) :: jac\n"
         "  real, dimension(6,3,4) :: jac_inv\n"
         "  real, dimension(2,3) :: result\n"
-        "  integer :: i\n"
-        "  integer :: j\n"
-        "  integer :: ii\n"
         "\n"
         "  do j = 1, 3, 1\n"
         "    do i = 1, 2, 1\n"
@@ -770,12 +770,12 @@ def test_apply_matmat_extra_indices(tmpdir, fortran_reader, fortran_writer):
     trans.apply(assign.rhs)
     out = fortran_writer(psyir)
     assert (
+        "  integer :: i\n"
+        "  integer :: ii\n"
+        "  integer :: j\n"
         "  real, dimension(2,6) :: jac\n"
         "  real, dimension(6,3,4,5,6) :: jac_inv\n"
         "  real, dimension(2,3) :: result\n"
-        "  integer :: i\n"
-        "  integer :: j\n"
-        "  integer :: ii\n"
         "\n"
         "  do j = 1, 3, 1\n"
         "    do i = 1, 2, 1\n"
@@ -800,12 +800,12 @@ def test_apply_matmat_extra_indices(tmpdir, fortran_reader, fortran_writer):
     trans.apply(assign.rhs)
     out = fortran_writer(psyir)
     assert (
+        "  integer :: i\n"
+        "  integer :: ii\n"
+        "  integer :: j\n"
         "  real, dimension(2,6) :: jac\n"
         "  real, dimension(6,3) :: jac_inv\n"
         "  real, dimension(2,3,4,4) :: result\n"
-        "  integer :: i\n"
-        "  integer :: j\n"
-        "  integer :: ii\n"
         "\n"
         "  do j = 1, 3, 1\n"
         "    do i = 1, 2, 1\n"
@@ -838,12 +838,14 @@ def test_apply_matmat_name_clashes(tmpdir, fortran_reader, fortran_writer):
     trans.apply(assign.rhs)
     out = fortran_writer(psyir)
     assert (
+        "  integer :: i_1\n"
+        "  real :: ii\n"
+        "  integer :: ii_1\n"
+        "  real :: j\n"
+        "  integer :: j_1\n"
         "  real, dimension(2,6,4) :: jac\n"
         "  real, dimension(6,3,4) :: jac_inv\n"
         "  real, dimension(2,3,2) :: result\n"
-        "  integer :: i_1\n"
-        "  integer :: j_1\n"
-        "  integer :: ii_1\n"
         "\n"
         "  do j_1 = 1, 3, 1\n"
         "    do i_1 = 1, 2, 1\n"
@@ -877,12 +879,12 @@ def test_apply_matmat_reordered(tmpdir, fortran_reader, fortran_writer):
     trans.apply(assign.rhs)
     out = fortran_writer(psyir)
     assert (
+        "  integer :: i\n"
+        "  integer :: ii\n"
+        "  integer :: j\n"
         "  real, dimension(2,4,6) :: jac\n"
         "  real, dimension(6,3,4) :: jac_inv\n"
         "  real, dimension(1,2,3) :: result\n"
-        "  integer :: i\n"
-        "  integer :: j\n"
-        "  integer :: ii\n"
         "\n"
         "  do j = 1, 3, 1\n"
         "    do i = 1, 2, 1\n"
@@ -917,12 +919,12 @@ def test_apply_matvec_varexpr_index(tmpdir, fortran_reader, fortran_writer):
     trans.apply(assign.rhs)
     out = fortran_writer(psyir)
     assert (
-        "  real, dimension(2,4,6) :: jac\n"
-        "  real, dimension(4,6,3) :: jac_inv\n"
-        "  real, dimension(2) :: result\n"
         "  integer, parameter :: arg = 0\n"
         "  integer :: i\n"
         "  integer :: j\n"
+        "  real, dimension(2,4,6) :: jac\n"
+        "  real, dimension(4,6,3) :: jac_inv\n"
+        "  real, dimension(2) :: result\n"
         "\n"
         "  do i = 1, 2, 1\n"
         "    result(i) = 0.0\n"
