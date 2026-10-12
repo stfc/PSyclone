@@ -183,7 +183,7 @@ class KernelInfo:
         except Exception as err:
             raise ParseError(
                 f"Failed to parse kernel code '{path}'. Is the Fortran "
-                "correct?") from err
+                f"correct?\nError:\n'{err}'.") from err
         return cls.create_from_psyir(metadata_type, psyir, name=name)
 
     @classmethod

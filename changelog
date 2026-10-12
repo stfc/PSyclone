@@ -1,3 +1,33 @@
+   65) PR #3611 towards #3601. Enable routines with automatic arrays to be
+   inlined by making the arrays allocatable.
+ 
+   64) PR #3622 for #2895. Switches all NEMOv4 ITs to use spack and improve
+   transformation scripts/source for GPU performance.
+
+   63) PR #3617 for #3609. Improve AsyncTransMixin to allow adding nowaits
+   when the ancestor loops of a directive are iteration-independent.
+
+   62) PR #3580 for #3576. Update LFRic extraction integration tests.
+
+   61) PR #3618 for #3614. Ensures any kernel-parsing errors are
+   propagated back to the user.
+ 
+   60) PR #3616 for #3509. Fixes failing test on master (colour codes
+   in PSyIR node output).
+ 
+   59) PR #3604 towards #2668. Moves more Transformations over to using
+   keyword arguments instead of 'options'.
+ 
+   58) PR #3572 for #1948. Add stencil support for LFRic domain kernels.
+
+   57) PR #3593 for #3503. Adds a LFRicColourAndOMPTrans metatransformation
+   to perform both colouring and OpenMP to loops in the LFRic domain.
+
+   56) PR #3607. Removes the support for the "Dynamo0p3" prefix on
+   LFRic-specific transformations. 
+
+   55) PR #3603 for #1770. Make lfric/eg20 compile.
+
    54) PR #3587 towards #2216. Adds a new KernelInlineTrans to do
    a deferred InlineTrans on Kernels after lower the PSy layer.
  

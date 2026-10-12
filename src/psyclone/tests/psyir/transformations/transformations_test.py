@@ -707,6 +707,91 @@ end subroutine x"""
     out = fortran_writer(psyir)
     assert "nowait" not in out
 
+    # Check nowait is added when there is no other dependency and all the
+    # ancestor Loops are iteration independent.
+    code = """
+    subroutine x()
+        integer :: i, j, k
+        integer, dimension(100, 100, 100) :: arr
+        do i = 1, 100
+          do j = 1, 100
+            do k = 1, 100
+              arr(i, j, k) = i + j + k
+            end do
+          end do
+        end do
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    otrans = OMPParallelTrans()
+    looptrans = OMPLoopTrans(omp_directive="do")
+    routine = psyir.walk(Routine)[0]
+    loops = psyir.walk(Loop)
+    otrans.apply(loops[0])
+    looptrans.apply(loops[2], nowait=True)
+    out = fortran_writer(psyir)
+    assert "nowait" in out
+
+    # Check nowait is not added when one of the ancestor Loops cause a
+    # dependency (regardless of middle loops that are iteration
+    # indepenedent).
+    # TODO #3624: Inserting the correct barriers in the middle of the
+    # loop nest could make the nowait possible here.
+    code = """
+    subroutine x()
+        integer :: i, j, k
+        integer, dimension(100, 100) :: arr
+        do i = 1, 50
+          do j = 1, 100
+            do k = 1, 50
+              arr(i + k, j) = i + j + k
+            end do
+          end do
+        end do
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    otrans = OMPParallelTrans()
+    looptrans = OMPLoopTrans(omp_directive="do")
+    routine = psyir.walk(Routine)[0]
+    loops = psyir.walk(Loop)
+    otrans.apply(loops[0])
+    looptrans.apply(loops[2], nowait=True)
+    out = fortran_writer(psyir)
+    assert "nowait" not in out
+
+    # Check nowait is added for the case seen in the real use cases
+    code = """subroutine x()
+    integer, parameter :: r_um = 8
+    real, dimension(:,:,:) :: um_array
+    real, dimension(:) :: lfric_array
+    integer, dimension(:,:) :: map
+    integer :: i, k, nlayers, seg_len
+
+    do k = 1, nlayers
+      do i = 1, seg_len
+        um_array(i, 1, k) = real(lfric_array(map(1, i) + k), r_um)
+      end do
+    end do
+    end subroutine x"""
+    psyir = fortran_reader.psyir_from_source(code)
+    otrans = OMPParallelTrans()
+    looptrans = OMPLoopTrans(omp_directive="do")
+    routine = psyir.walk(Routine)[0]
+    loops = psyir.walk(Loop)
+    otrans.apply(loops[0])
+    looptrans.apply(loops[1], nowait=True)
+    out = fortran_writer(psyir)
+    correct = """  !$omp parallel default(shared) private(i,k)
+  do k = 1, nlayers, 1
+    !$omp do schedule(auto)
+    do i = 1, seg_len, 1
+      um_array(i,1,k) = REAL(lfric_array(map(1,i) + k), kind=r_um)
+    enddo
+    !$omp end do nowait
+  enddo
+  !$omp barrier
+  !$omp end parallel"""
+    assert correct in out
+
 
 def test_regiontrans_wrong_children():
     ''' Check that the validate method raises the expected error if

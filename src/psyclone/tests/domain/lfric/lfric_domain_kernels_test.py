@@ -101,9 +101,8 @@ end module testkern_domain_mod
             "spaces but found 'w2'" in str(err.value))
 
 
-def test_no_stencil_domain_kernel(fortran_reader):
-    ''' Check that we reject a domain kernel if it has an argument with a
-    stencil access. '''
+def test_stencil_domain_kernel(fortran_reader):
+    ''' Check that we accept a domain kernel with a stencil argument. '''
     psyir = fortran_reader.psyir_from_source('''module testkern_domain_mod
   type, extends(kernel_type) :: testkern_domain_type
      type(arg_type), dimension(3) :: meta_args =                              &
@@ -120,11 +119,10 @@ contains
 end subroutine testkern_domain_code
 end module testkern_domain_mod
 ''')
-    with pytest.raises(ParseError) as err:
-        create_lfric_metadata(psyir, name="testkern_domain_type")
-    assert ("Domain kernels may not have arguments with a stencil access "
-            "but found 'arg_type(gh_field, gh_real, gh_read, w3, "
-            "stencil(cross))'" in str(err.value))
+    metadata = create_lfric_metadata(psyir, name="testkern_domain_type")
+    assert metadata.operates_on == "domain"
+    assert metadata.meta_args[2].stencil == "cross"
+    assert metadata.meta_args[2].form == "gh_field"
 
 
 def test_invalid_basis_domain_kernel(fortran_reader):

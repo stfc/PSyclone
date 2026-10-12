@@ -9,6 +9,8 @@
 '''
 
 import os
+from typing import Union
+import warnings
 
 from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
@@ -28,8 +30,10 @@ from psyclone.psyir.symbols import (
     ScalarType)
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class GOOpenCLTrans(Transformation):
     '''
     Switches on/off the generation of an OpenCL PSy layer for a given
@@ -85,21 +89,15 @@ class GOOpenCLTrans(Transformation):
         '''
         return "GOOpenCLTrans"
 
-    def validate(self, node, options=None):
+    def validate(self, node: GOInvokeSchedule, options=None,
+                 **kwargs) -> None:
         '''
         Checks that the supplied InvokeSchedule is valid and that an OpenCL
         version of it can be generated.
 
         :param node: the Schedule to check.
-        :type node: :py:class:`psyclone.psyGen.InvokeSchedule`
         :param options: a dictionary with options for transformations.
         :type options: dict of str:value or None
-        :param bool options["enable_profiling"]: whether or not to set up the
-                OpenCL environment with the profiling option enabled.
-        :param bool options["out_of_order"]: whether or not to set up the
-                OpenCL environment with the out_of_order option enabled.
-        :param bool options["end_barrier"]: whether or not to add an OpenCL
-                barrier at the end of the transformed invoke.
 
         :raises TransformationError: if the InvokeSchedule is not for the
                                      GOcean API.
@@ -125,9 +123,11 @@ class GOOpenCLTrans(Transformation):
                 f"Error in GOOpenCLTrans: the supplied node must be a (sub-"
                 f"class of) InvokeSchedule but got {type(node)}")
 
+        # TODO #2668: Deprecate options dict.
         # Validate options map
         valid_options = ['end_barrier', 'enable_profiling', 'out_of_order']
         if options:
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
             for key, value in options.items():
                 if key in valid_options:
                     # All current options should contain boolean values
@@ -140,19 +140,24 @@ class GOOpenCLTrans(Transformation):
                         f"InvokeSchedule does not support the OpenCL option "
                         f"'{key}'. The supported options are: "
                         f"{valid_options}.")
+            enable_profiling = options.get("enable_profiling",
+                                           self._enable_profiling)
+            out_of_order = options.get("out_of_order", self._out_of_order)
+        else:
+            self.validate_options(**kwargs)
+            enable_profiling = self.get_option("enable_profiling", **kwargs)
+            out_of_order = self.get_option("out_of_order", **kwargs)
 
         # Validate that the options are valid with previously generated OpenCL
         if self._transformed_invokes > 0:
-            if ('enable_profiling' in options and
-                    self._enable_profiling != options['enable_profiling']):
+            if self._enable_profiling != enable_profiling:
                 raise TransformationError(
                     f"Can't generate an OpenCL Invoke with enable_profiling='"
                     f"{options['enable_profiling']}' since a previous "
                     f"transformation used a different value, and their OpenCL"
                     f" environments must match.")
 
-            if ('out_of_order' in options and
-                    self._out_of_order != options['out_of_order']):
+            if self._out_of_order != out_of_order:
                 raise TransformationError(
                     f"Can't generate an OpenCL Invoke with out_of_order='"
                     f"{options['out_of_order']}' since a previous "
@@ -206,7 +211,10 @@ class GOOpenCLTrans(Transformation):
                     f"the GOMoveIterationBoundariesInsideKernelTrans to each "
                     f"kernel before the GOOpenCLTrans.")
 
-    def apply(self, node, options=None):
+    def apply(self, node: GOInvokeSchedule, options=None,
+              enable_profiling: Union[bool, None] = None,
+              out_of_order: Union[bool, None] = None,
+              end_barrier: bool = True, **kwargs) -> None:
         '''
         Apply the OpenCL transformation to the supplied GOInvokeSchedule. This
         causes PSyclone to generate an OpenCL version of the corresponding
@@ -218,31 +226,40 @@ class GOOpenCLTrans(Transformation):
         :type node: :py:class:`psyclone.psyGen.GOInvokeSchedule`
         :param options: set of option to tune the OpenCL generation.
         :type options: dict of str:value or None
-        :param bool options["enable_profiling"]: whether or not to set up the \
+        :param enable_profiling: whether or not to set up the
                 OpenCL environment with the profiling option enabled.
-        :param bool options["out_of_order"]: whether or not to set up the \
+        :param out_of_order: whether or not to set up the
                 OpenCL environment with the out_of_order option enabled.
-        :param bool options["end_barrier"]: whether or not to add an OpenCL \
+        :param end_barrier: whether or not to add an OpenCL
                 barrier at the end of the transformed invoke.
 
         '''
+        # Load state if enable_profiling and out_of_order are None.
         if not options:
-            options = {}
-
-        self.validate(node, options)
+            if enable_profiling is None:
+                enable_profiling = self._enable_profiling
+            if out_of_order is None:
+                out_of_order = self._out_of_order
+        self.validate(node, options=options, enable_profiling=enable_profiling,
+                      out_of_order=out_of_order, end_barrier=end_barrier,
+                      **kwargs)
         api_config = Config.get().api_conf("gocean")
 
         # Update class attributes
-        if 'enable_profiling' in options:
-            self._enable_profiling = options['enable_profiling']
+        # TODO 2668: Deprecate options dict.
+        if options:
+            if 'enable_profiling' in options:
+                self._enable_profiling = options['enable_profiling']
 
-        if 'out_of_order' in options:
-            self._out_of_order = options['out_of_order']
+            if 'out_of_order' in options:
+                self._out_of_order = options['out_of_order']
+            # Get end_barrier option
+            end_barrier = options.get('end_barrier', True)
+        else:
+            self._enable_profiling = enable_profiling
+            self._out_of_order = out_of_order
 
         self._transformed_invokes += 1
-
-        # Get end_barrier option
-        end_barrier = options.get('end_barrier', True)
 
         # Update the maximum value that the queue_number have.
         for kernel in node.coded_kernels():

@@ -15,6 +15,7 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, ScopingNode, FileContainer
 from psyclone.psyir.transformations import TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
 # TODO issue #1877. Find an appropriate place for the find_symbol()
@@ -46,6 +47,7 @@ def find_symbol(node, name):
     return (None, None)
 
 
+@transformation_documentation_wrapper
 class RaisePSyIR2LFRicKernTrans(Transformation):
     '''Raise a generic PSyIR representation of a kernel-layer routine and
     metadata to an LFRic version with specialised domain-specific
@@ -82,11 +84,10 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
     def __init__(self):
         super().__init__()
 
-    def validate(self, node, options=None):
+    def validate(self, node: Container, options=None, **kwargs) -> None:
         '''Validate the supplied PSyIR tree.
 
         :param node: a PSyIR node that is the root of a PSyIR tree.
-        :type node: :py:class:`psyclone.psyir.node.Container`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str: str]]
 
@@ -102,7 +103,10 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
             reside in a Container (as opposed to a FileContainer).
 
         '''
-        super().validate(node, options=options)
+        super().validate(node, options=options, **kwargs)
+
+        if not options:
+            self.validate_options(**kwargs)
 
         if not isinstance(node, Container):
             raise TransformationError(
@@ -157,7 +161,7 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
         # Check that the metadata can be generated without any errors.
         _ = LFRicKernelMetadata.create_from_psyir(metadata_symbol)
 
-    def apply(self, node, options=None):
+    def apply(self, node: Container, options=None, **kwargs) -> None:
         '''Raise the supplied language-level kernel to LFRic-specific kernel
         PSyIR. Specialises the kernel container to an LFRic-specific
         subclass, populates this subclass with the kernel metadata
@@ -166,13 +170,12 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
         removes the symbol from the symbol table.
 
         :param node: a kernel represented in generic PSyIR.
-        :type node: :py:class:`psyclone.psyir.node.Container`
-        :param options: a dictionary with options for transformations. \
+        :param options: a dictionary with options for transformations.
             This is expected to contain the metadata_name.
         :type options: Optional[Dict[str: str]]
 
         '''
-        self.validate(node, options=options)
+        self.validate(node, options=options, **kwargs)
 
         # The name of the PSyIR symbol containing the metadata.
         metadata_name = options["metadata_name"]
