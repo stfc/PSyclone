@@ -544,7 +544,7 @@ def test_find_or_create_psyclone_internal_cmp(fortran_writer):
     # supporting functions, an easy way to do it is remove the existing tag
     # so the existing symbols remain but are not considered the ones we are
     # looking for
-    del container.symbol_table.tags_dict['psyclone_internal_cmp']
+    container.symbol_table.remove_tag('psyclone_internal_cmp')
     another_symbol = _find_or_create_psyclone_internal_cmp(node_in_subroutine)
     assert another_symbol is not symbol
     assert another_symbol.name == "test_psyclone_internal_cmp_1"
