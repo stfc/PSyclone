@@ -13,7 +13,6 @@ import pytest
 from psyclone.errors import InternalError
 from psyclone.line_length import FortLineLength, find_break_point
 from psyclone.generator import generate
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 
 # functions
