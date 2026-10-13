@@ -172,9 +172,12 @@ class FortLineLength():
                         line, self._line_length-len(c_end), key_list)
                 # Create variables to handle breaks occuring before we
                 # reach an inline comment that also needs line breaks.
-                next_l = None
-                fline = None
+                next_l = None  # Holds the next line after fline or None.
+                fline = None  # Holds the first line from the fparser output.
+                # The amount of the original fortran source that has had
+                # line breaking applied.
                 current_removed_length = break_point
+                indent_size = 0
                 if line_type != "comment":
                     # Check whether the proposed break point falls within an
                     # in-line comment.
@@ -194,6 +197,9 @@ class FortLineLength():
                     try:
                         next_l = freader.next()
                     except StopIteration:
+                        # If there is no following line from fparser (i.e.
+                        # one object is created for the full input) then
+                        # we skip it and next_l remains as None.
                         pass
                     if ((break_point - indent_size) > len(fline.line) and
                             isinstance(next_l, Comment)):
@@ -213,7 +219,7 @@ class FortLineLength():
                     # If we move into the part of an inline comment to break
                     # then we need to update the line_type for the remainder
                     # of the line breaks.
-                    if (line_type != "comment" and fline and next_l and
+                    if (line_type != "comment" and next_l and
                         (current_removed_length + break_point - indent_size) >
                             len(fline.line) and isinstance(next_l, Comment)):
                         old_c_start = c_start
@@ -226,6 +232,7 @@ class FortLineLength():
                         fortran_out += (old_c_start + line[:break_point]
                                         + c_end + "\n")
                     else:
+                        # Line type doesn't change so break the line.
                         fortran_out += (c_start + line[:break_point] +
                                         c_end + "\n")
 

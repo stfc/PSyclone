@@ -512,7 +512,6 @@ may exist to describe the variable, and we break before the PARAMETER.
 end subroutine test"""
     fll = FortLineLength(line_length=70)
     out = fll.process(input_string)
-    print(out)
     # String formatting due to trailing whitespace on end of Fortran linse.
     correct = """subroutine test
     REAL(wp), &
