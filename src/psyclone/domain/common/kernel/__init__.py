@@ -11,6 +11,7 @@ from psyclone.domain.common.kernel.metadata import (
     Kernel,
     KernelMetadata,
 )
+
 __all__ = [
     "Kernel",
     "KernelMetadata",

@@ -18,6 +18,7 @@ import os
 import re
 
 from psyclone.errors import InternalError
+from psyclone.parse.utils import ParseError
 from psyclone.parse.file_info import FileInfo
 from psyclone.parse.module_info import ModuleInfo, ModuleInfoError
 from psyclone.psyir.nodes import Container, Node, Routine
@@ -53,6 +54,66 @@ class ModuleManager:
             ModuleManager._instance = ModuleManager()
 
         return ModuleManager._instance
+
+    @staticmethod
+    def find_kernel_file(module_name, kernel_paths, alg_filename=None):
+        """Locate a kernel source file by its module-based filename.
+
+        This independent lookup does not inspect module declarations or use
+        or update the manager's caches, search paths or ignore settings.
+
+        Search paths are recursive. If no paths are supplied then only the
+        directory containing the algorithm file is searched.
+
+        :param str module_name: name of the kernel module.
+        :param kernel_paths: directories in which to search.
+        :type kernel_paths: Iterable[str]
+        :param Optional[str] alg_filename: associated algorithm filename.
+
+        :returns: absolute path of the unique matching file.
+        :rtype: str
+
+        :raises ParseError: if a path is unreadable or the match is not unique.
+        """
+        search_name = f"{module_name}.f90".lower()
+        matches = set()
+        search_directory = (
+            os.path.abspath(os.path.dirname(alg_filename))
+            if alg_filename else os.getcwd()
+        )
+
+        for kernel_path in kernel_paths:
+            search_directory = os.path.abspath(kernel_path)
+            if not os.access(search_directory, os.R_OK):
+                raise ParseError(
+                    "Supplied kernel search path does not exist or cannot be "
+                    f"read: {search_directory}"
+                )
+            for root, _, filenames in os.walk(search_directory):
+                matches.update(
+                    os.path.join(root, filename)
+                    for filename in filenames
+                    if filename.lower() == search_name
+                )
+
+        if not kernel_paths:
+            matches.update(
+                os.path.join(search_directory, filename)
+                for filename in os.listdir(search_directory)
+                if filename.lower() == search_name
+            )
+
+        if not matches:
+            raise ParseError(
+                f"Kernel file '{module_name}.[fF]90' not found in "
+                f"{search_directory}"
+            )
+        if len(matches) > 1:
+            raise ParseError(
+                "More than one match for kernel file "
+                f"'{module_name}.[fF]90' found: {matches}"
+            )
+        return matches.pop()
 
     # ------------------------------------------------------------------------
     def __init__(self):
@@ -252,17 +313,13 @@ class ModuleManager:
                         self._original_search_paths.append(new_dir)
 
     # ------------------------------------------------------------------------
-    def _add_all_files_from_dir(
-            self, directory: str, cache: bool = True) -> list[FileInfo]:
-        '''This function creates FileInfo objects for all files
-        with a Fortran file extension in the given directory. By default,
-        files already known to the manager are skipped and new objects are
-        cached. If caching is disabled, all matching objects are returned
-        without modifying the manager.
+    def _add_all_files_from_dir(self, directory: str) -> list[FileInfo]:
+        '''This function creates (and caches) FileInfo objects for all files
+        with a Fortran file extension in the given directory that have
+        not previously been visited. The new FileInfo objects are returned.
 
         :param directory: the directory containing Fortran files
             to analyse.
-        :param cache: whether to add newly discovered files to the manager.
 
         :returns: the FileInfo objects for any files that we have not
                   previously visited.
@@ -277,35 +334,31 @@ class ModuleManager:
                     continue
                 full_path = os.path.join(directory, entry.name)
                 if full_path in self._visited_files:
-                    if not cache:
-                        new_files.append(self._visited_files[full_path])
                     continue
                 # Check if the full path contains an ignore pattern:
                 if any(i in full_path for i in self._ignore_files):
                     continue
-                file_info = FileInfo(
-                    full_path,
-                    cache_active=self._cache_active,
-                    cache_path=self._cache_path,
-                    resolve_imports=self._resolve_indirect_imports)
-                if cache:
-                    self._visited_files[full_path] = file_info
-                new_files.append(file_info)
+                self._visited_files[full_path] = \
+                    FileInfo(
+                            full_path,
+                            cache_active=self._cache_active,
+                            cache_path=self._cache_path,
+                            resolve_imports=self._resolve_indirect_imports
+                        )
+                new_files.append(self._visited_files[full_path])
         return new_files
 
     # ------------------------------------------------------------------------
     def _find_module_in_files(
             self,
             name: str,
-            file_list: Iterable[FileInfo],
-            cache: bool = True) -> Union[None, ModuleInfo]:
+            file_list: Iterable[FileInfo]) -> Union[None, ModuleInfo]:
         '''
         Searches the files represented by the supplied list of FileInfo objects
         to find the one defining the named Fortran module.
 
         :param name: the name of the module to locate.
         :param file_list: the files to search.
-        :param cache: whether to add the matching module to the manager.
 
         :returns: information on the file that contains the module or None if
                   it wasn't found.
@@ -324,10 +377,9 @@ class ModuleManager:
                 mod_names = self.get_modules_in_file(finfo)
                 if name in mod_names:
                     # We've found the module we want. Create a ModuleInfo
-                    # object and optionally cache it.
+                    # object for it and cache it.
                     mod_info = ModuleInfo(name, finfo)
-                    if cache:
-                        self._modules[name] = mod_info
+                    self._modules[name] = mod_info
                     # A file that has been (or does not require)
                     # preprocessing always takes precedence.
                     if self._doesnt_need_preprocessing(finfo.filename):
@@ -512,53 +564,23 @@ class ModuleManager:
                 ext.islower() and
                 not ext.startswith(".x"))
 
-    def get_module_info(
-            self, module_name: str,
-            search_paths: Optional[list[Union[str, Path]]] = None
-    ) -> Optional[ModuleInfo]:
+    def get_module_info(self, module_name: str) -> Optional[ModuleInfo]:
         """This function returns the ModuleInfo for the specified
         module.
 
         :param module_name: Name of the module.
-        :param search_paths: optional directories to which this lookup must
-            be restricted. Subdirectories are searched recursively.
 
         :returns: object describing the requested module or None if the
                   manager has been configured to ignore this module.
 
         :raises FileNotFoundError: if the module_name is not found in
             either the cached data nor in the search path.
-        :raises IOError: if a supplied search path cannot be read.
 
         """
         mod_lower = module_name.lower()
 
         if mod_lower in self._ignore_modules:
             return None
-
-        if search_paths is not None:
-            # A caller-supplied search path defines the scope of this lookup.
-            # This is important when the singleton manager already contains a
-            # module of the same name found during an earlier operation.
-            files = []
-            for search_path in search_paths:
-                directory = str(search_path)
-                if not os.access(directory, os.R_OK):
-                    raise IOError(
-                        f"Directory '{directory}' does not exist or cannot "
-                        "be read.")
-                for root, _, _ in os.walk(directory):
-                    files.extend(self._add_all_files_from_dir(
-                        root, cache=False))
-            mod_info = self._find_module_in_files(
-                mod_lower, files, cache=False)
-            if mod_info:
-                return mod_info
-            raise FileNotFoundError(
-                f"Could not find source file for module '{module_name}' in "
-                f"any of the directories "
-                f"'{', '.join(str(path) for path in search_paths)}'. You can "
-                "add search paths using the '-d' command line option.")
 
         # First check if we have already seen this module. We only end the
         # search early if the file we've found does not require pre-processing.
