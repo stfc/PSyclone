@@ -11,7 +11,6 @@ TODO #2683 - rename this to {Privatise,Copy,Move}RoutineToLocalContainerTrans
 and move it to psyir/transformations/.
 
 '''
-import logging
 from typing import Any, Optional, Union
 import warnings
 
@@ -142,6 +141,8 @@ class KernelModuleInlineTrans(Transformation):
         # Check that the PSyIR of the routine/kernel can be retrieved.
         kname = node.routine.symbol.name
         try:
+            # TODO #3646 - we could potentially just use `get_callee()` here
+            # once we have improved the interface-matching implementation.
             routines = node.get_callees()
         except Exception as error:
             raise TransformationError(
@@ -163,7 +164,12 @@ class KernelModuleInlineTrans(Transformation):
                 interfaces_permitted = True
                 break
 
-        if len(routines) > 1 and not interfaces_permitted:
+        # TODO #3646 - this check is duplicated with that in
+        # _validate_routine(). Can we call that routine earlier and remove
+        # this duplication?
+        if (not interfaces_permitted and
+                len(routines) > 1 or isinstance(node.routine.symbol,
+                                                GenericInterfaceSymbol)):
             raise TransformationError(
                 f"Cannot copy the target of the call to '{kname}' since "
                 f"it is a polymorphic routine (i.e. an interface) and the "
@@ -241,21 +247,20 @@ class KernelModuleInlineTrans(Transformation):
             symbol = call.routine.symbol
             if symbol.is_import:
                 continue
-            # Allow for calls to interfaces. If an interface includes one
-            # or more external routines then we reject it. (This is done to
-            # keep the implementation simple - since interfaces must be added
-            # at Container scope, we *could* make such external routines
-            # available in Container scope at the call site but this is an
-            # edge case.)
+            # Allow for calls to interfaces.
             routine_names = container.resolve_routine(symbol.name)
             if not interfaces_permitted and (
-                    isinstance(symbol, GenericInterfaceSymbol) or
-                    len(routine_names) > 1):
+                    (isinstance(symbol, GenericInterfaceSymbol) or
+                     len(routine_names) > 1)):
                 raise TransformationError(
                     f"Cannot apply {self.name} to {kern_or_call} '{kname}' "
                     f"because it is an interface and the call-site lacks a "
                     f"module to which it could be added.")
-
+            # If an interface includes one or more external routines then we
+            # reject it. (This is done to keep the implementation simple -
+            # since interfaces must be added at Container scope, we *could*
+            # make such external routines available in Container scope at the
+            # call site but this is an edge case.)
             for rt_name in routine_names:
                 rt_psyir = container.find_routine_psyir(
                     rt_name, allow_private=True)
@@ -468,11 +473,6 @@ class KernelModuleInlineTrans(Transformation):
                     (rt_sym.is_import or rt_sym.is_unresolved)):
                 return False
 
-        logger = logging.getLogger(__name__)
-        logger.info(
-            f"The target of '{node.debug_string().strip()}' is already "
-            f"present in the local scope.")
-
         return True
 
     def apply(self,
@@ -505,11 +505,12 @@ class KernelModuleInlineTrans(Transformation):
         external_callee_name = None
         if isinstance(node, CodedKern):
             caller_name = node.name
+            caller_sym = node.scope.symbol_table.lookup(caller_name)
         else:
-            caller_name = node.routine.symbol.name
-            if (node.routine.symbol.is_import and
-                    node.routine.symbol.interface.orig_name):
-                external_callee_name = node.routine.symbol.interface.orig_name
+            caller_sym = node.routine.symbol
+            caller_name = caller_sym.name
+            if caller_sym.is_import and caller_sym.interface.orig_name:
+                external_callee_name = caller_sym.interface.orig_name
         if not external_callee_name:
             external_callee_name = caller_name
 
@@ -518,6 +519,9 @@ class KernelModuleInlineTrans(Transformation):
 
         # We will construct a dict of interfaces to copy in. Keys are the
         # interface names, values are a list of procedure names.
+        # TODO #3646 - once the implementation that matches interfaces is
+        # improved, we may be able to just copy in the one, resolved,
+        # routine implementation.
         inlined_interfaces: dict[str, list[str]] = {}
         if len(codes_to_inline) > 1:
             # If there are multiple routines then the target of the call must
@@ -581,6 +585,8 @@ class KernelModuleInlineTrans(Transformation):
                 if isinstance(call, IntrinsicCall):
                     continue
                 call_name = call.symbol.name.lower()
+                # Need to allow for shadowing
+                # e.g. and call.routine.symbol is caller_sym:
                 if call_name in name_map:
                     call.routine.symbol = name_map[call_name]
 

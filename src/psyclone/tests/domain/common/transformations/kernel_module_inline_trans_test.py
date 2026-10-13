@@ -7,7 +7,6 @@
 
 ''' Tests of the KernelModuleInlineTrans PSyIR transformation. '''
 
-import logging
 import warnings
 import re
 import pytest
@@ -230,6 +229,15 @@ def test_call_includes_interface_call(monkeypatch, fortran_reader,
         call an_interface(1)
         call a_2nd_interface(1.0)
       end subroutine tricky_code
+      subroutine compute_cv_code2(i, j, fld1_data, fld2_data, fld3_data)
+        integer, intent(in) :: i, j
+        real(8), dimension(:,:) :: fld1_data, fld2_data, fld3_data
+        call with_shadow()
+      end subroutine compute_cv_code2
+      subroutine with_shadow()
+        use some_other_mod, only: an_interface
+        call an_interface()
+      end subroutine with_shadow
       subroutine sub1(iarg)
         integer, intent(in) :: iarg
         ! This is a recursive call. (Valid Fortran2018 and later.)
@@ -273,6 +281,57 @@ def test_call_includes_interface_call(monkeypatch, fortran_reader,
                               " 'a_2nd_interface' and that interface includes "
                               "external routine 'sub3'")):
         trans.validate(kern_call)
+
+
+def test_call_includes_call_with_shadow(fortran_reader, fortran_writer,
+                                        monkeypatch):
+    '''
+    Test that a call to a shadowed routine is preserved when module
+    inlining.
+    '''
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
+                             idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    # Get a valid kernel and then monkeypatch it to the case we want to test.
+    kern_call = schedule.children[1].loop_body[0].loop_body[0]
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+      implicit none
+      private
+      ! An interface referring only to local routines
+      interface AN_interface
+        module procedure with_shadow
+      end interface
+      public compute_cv_code, tricky_code
+    contains
+      subroutine compute_cv_code(i, j, fld1_data, fld2_data, fld3_data)
+        integer, intent(in) :: i, j
+        real(8), dimension(:,:) :: fld1_data, fld2_data, fld3_data
+        call step1()
+      end subroutine compute_cv_code
+      subroutine step1()
+        call an_interface()
+      end subroutine step1
+      subroutine with_shadow(arg)
+        use some_other_mod, only: an_interface
+        real, intent(in) :: arg
+        ! calls the imported 'an_interface', *not* the local one.
+        call an_interface()
+      end subroutine with_shadow
+    end module my_mod
+    ''')
+    routines = psyir.walk(Routine)
+    monkeypatch.setattr(kern_call, "_schedules", [routines[0]])
+    trans = KernelModuleInlineTrans()
+    trans.apply(kern_call)
+    output = fortran_writer(schedule.parent).lower()
+    # Check that the call to a shadowed routine is left intact.
+    assert """\
+  subroutine with_shadow_inlined_(arg)
+    use some_other_mod, only : an_interface
+    real, intent(in) :: arg
+
+    call an_interface_inlined()""" in output
 
 
 def test_apply_name_clashes():
@@ -405,7 +464,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
 
 def test_validate_already_existing_local_routine(fortran_reader, caplog):
     '''Test that validate accepts a call to a routine that is already present
-    in the current Container but logs a warning.'''
+    in the current Container.'''
     psyir = fortran_reader.psyir_from_source('''
     module my_mod
         integer, parameter :: r_def = kind(1.0d0)
@@ -422,10 +481,7 @@ def test_validate_already_existing_local_routine(fortran_reader, caplog):
     ''')
     call = psyir.walk(Call)[0]
     inline_trans = KernelModuleInlineTrans()
-    with caplog.at_level(logging.INFO, logger=TEST_LOGGER):
-        inline_trans.apply(call)
-    assert ("The target of 'call do_something(a)' is already present in the "
-            "local scope." in caplog.text)
+    inline_trans.validate(call)
 
 
 def test_validate_rejects_local_data_access_in_sub_call(fortran_reader,
