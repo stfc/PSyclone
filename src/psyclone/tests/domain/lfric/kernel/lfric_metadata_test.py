@@ -37,7 +37,8 @@ def _kernel_metadata(arguments, **kwargs):
     return LFRicKernelMetadata(**values)
 
 
-def test_parse_metadata():
+@pytest.mark.parametrize("square_brackets", [False, True])
+def test_parse_metadata(square_brackets):
     """Test extraction of representative LFRic metadata from PSyIR."""
     Config.get().api = "lfric"
     mdata_code = '''
@@ -67,6 +68,8 @@ contains
   end subroutine testkern_field_code
 end module testkern_field_mod
 '''
+    if square_brackets:
+        mdata_code = mdata_code.replace("(/", "[").replace("/)", "]")
     kernel_metadata = FortranReader().psyir_from_source(mdata_code)
     ktype = Kernel.create_from_psyir(
         LFRicKernelMetadata,
