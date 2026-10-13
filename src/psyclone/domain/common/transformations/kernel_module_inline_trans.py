@@ -221,11 +221,11 @@ class KernelModuleInlineTrans(Transformation):
         # do this yet).
         try:
             routine.check_outer_scope_accesses(
-                node, kern_or_call, ignore_non_data_accesses=True)
+                node, kern_or_call, permit_unresolved=False)
         except SymbolError as err:
             raise TransformationError(
                 f"Cannot apply {self.name} to {kern_or_call} '{kname}' "
-                f"because it accesses data from its outer scope: "
+                f"because: "
                 f"{err.value}") from err
 
         # Check for any static Symbols that are not compile-time constants. We
@@ -505,7 +505,6 @@ class KernelModuleInlineTrans(Transformation):
         external_callee_name = None
         if isinstance(node, CodedKern):
             caller_name = node.name
-            caller_sym = node.scope.symbol_table.lookup(caller_name)
         else:
             caller_sym = node.routine.symbol
             caller_name = caller_sym.name
@@ -587,7 +586,8 @@ class KernelModuleInlineTrans(Transformation):
                 sym = call.symbol
                 call_name = sym.name.lower()
                 # If the target of the call is an import then we leave it
-                # unchanged as it shadows.
+                # unchanged as it shadows. (Any unresolved symbols will have
+                # been rejected during validation.)
                 if call_name in name_map and not sym.is_import:
                     call.routine.symbol = name_map[call_name]
 

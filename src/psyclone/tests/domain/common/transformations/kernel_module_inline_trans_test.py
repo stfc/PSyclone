@@ -17,7 +17,8 @@ from psyclone.parse import ModuleManager
 from psyclone.psyGen import CodedKern, Kern
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    Container, Routine, CodeBlock, Call, IntrinsicCall, Fparser2CodeBlock)
+    Container, Routine, CodeBlock, Call, IntrinsicCall, Fparser2CodeBlock,
+    Schedule)
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, GenericInterfaceSymbol, ImportInterface,
     RoutineSymbol, ScalarType, StaticInterface, Symbol, SymbolError,
@@ -329,6 +330,49 @@ def test_call_includes_call_with_shadow(fortran_reader, fortran_writer,
     call an_interface()""" in output
 
 
+def test_call_with_unresolved_call_rejected(fortran_reader, monkeypatch):
+    '''
+    Test that a call to a potentially unresolved symbol somewhere down the
+    stack is rejected.
+    '''
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
+                           idx=0, dist_mem=False)
+    schedule: Schedule = invoke.schedule
+    # Get a valid kernel and then monkeypatch it to the case we want to test.
+    kern_call = schedule.children[1].loop_body[0].loop_body[0]
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+      implicit none
+      private
+      ! An interface referring only to local routines
+      interface AN_interface
+        module procedure :: with_unknown_shadow
+      end interface
+      public compute_cv_code
+    contains
+      subroutine compute_cv_code(i, j, fld1_data, fld2_data, fld3_data)
+        integer, intent(in) :: i, j
+        real(8), dimension(:,:) :: fld1_data, fld2_data, fld3_data
+        call step1()
+      end subroutine compute_cv_code
+      subroutine step1()
+        call an_interface()
+      end subroutine step1
+      subroutine with_unknown_shadow(iarg)
+        use some_other_mod
+        integer, intent(in) :: iarg
+        ! calls the imported 'an_interface' but this is not obvious
+        call an_interface()
+      end subroutine with_unknown_shadow
+    end module my_mod
+    ''')
+    routines = psyir.walk(Routine)
+    monkeypatch.setattr(kern_call, "_schedules", [routines[0]])
+    trans = KernelModuleInlineTrans()
+    with pytest.raises(TransformationError):
+        trans.validate(kern_call)
+
+
 def test_apply_name_clashes():
     ''' Test that if the module-inline transformation finds the kernel name
     already used in the Container scope it renames the copy appropriately.
@@ -514,7 +558,7 @@ def test_validate_rejects_local_data_access_in_sub_call(fortran_reader,
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(kern_call)
     assert ("apply KernelModuleInlineTrans to routine 'compute_cv_code->"
-            "do_something' because it accesses" in str(err.value))
+            "do_something' because: " in str(err.value))
     assert ("routine 'do_something' contains accesses to 'some_state' which "
             "is declared" in str(err.value))
 
