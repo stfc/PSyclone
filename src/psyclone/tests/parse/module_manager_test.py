@@ -554,12 +554,15 @@ def test_kernel_source_helpers(tmp_path):
     first = tmp_path / "one"
     first.mkdir()
     kernel_file = first / "demo_mod.F90"
-    kernel_file.write_text("module demo_mod\nend module demo_mod\n", encoding="utf-8")
+    kernel_file.write_text("module demo_mod\nend module demo_mod\n",
+                           encoding="utf-8")
 
-    assert ModuleManager.find_kernel_file("Demo_Mod", [str(first)]) == str(kernel_file)
+    assert ModuleManager.find_kernel_file(
+        "Demo_Mod", [str(first)]) == str(kernel_file)
     second = tmp_path / "two"
     second.mkdir()
-    (second / "DEMO_MOD.f90").write_text("module demo_mod\nend module demo_mod\n", encoding="utf-8")
+    (second / "DEMO_MOD.f90").write_text(
+        "module demo_mod\nend module demo_mod\n", encoding="utf-8")
     with pytest.raises(ParseError, match="More than one match"):
         ModuleManager.find_kernel_file("demo_mod", [str(tmp_path)])
 
@@ -574,7 +577,8 @@ def test_find_kernel_file_search_paths(tmp_path):
     algorithm_file.write_text("program algorithm\nend program algorithm\n",
                               encoding="utf-8")
     kernel_file = algorithm_dir / "Demo_Mod.F90"
-    kernel_file.write_text("module demo_mod\nend module demo_mod\n", encoding="utf-8")
+    kernel_file.write_text("module demo_mod\nend module demo_mod\n",
+                           encoding="utf-8")
 
     # With no explicit search path, use the algorithm-file directory and
     # match the kernel module name case-insensitively.
@@ -585,9 +589,10 @@ def test_find_kernel_file_search_paths(tmp_path):
     nested = search_root / "nested"
     nested.mkdir(parents=True)
     nested_kernel = nested / "other_mod.f90"
-    nested_kernel.write_text("module demo_mod\nend module demo_mod\n", encoding="utf-8")
-    assert ModuleManager.find_kernel_file("OTHER_MOD", [str(search_root)]) == str(
-        nested_kernel)
+    nested_kernel.write_text("module demo_mod\nend module demo_mod\n",
+                             encoding="utf-8")
+    assert ModuleManager.find_kernel_file(
+        "OTHER_MOD", [str(search_root)]) == str(nested_kernel)
 
     # Repeated and multiple search paths must not make a unique file appear
     # ambiguous.
