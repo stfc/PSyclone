@@ -229,15 +229,6 @@ def test_call_includes_interface_call(monkeypatch, fortran_reader,
         call an_interface(1)
         call a_2nd_interface(1.0)
       end subroutine tricky_code
-      subroutine compute_cv_code2(i, j, fld1_data, fld2_data, fld3_data)
-        integer, intent(in) :: i, j
-        real(8), dimension(:,:) :: fld1_data, fld2_data, fld3_data
-        call with_shadow()
-      end subroutine compute_cv_code2
-      subroutine with_shadow()
-        use some_other_mod, only: an_interface
-        call an_interface()
-      end subroutine with_shadow
       subroutine sub1(iarg)
         integer, intent(in) :: iarg
         ! This is a recursive call. (Valid Fortran2018 and later.)
@@ -300,7 +291,7 @@ def test_call_includes_call_with_shadow(fortran_reader, fortran_writer,
       private
       ! An interface referring only to local routines
       interface AN_interface
-        module procedure with_shadow
+        module procedure :: with_shadow
       end interface
       public compute_cv_code, tricky_code
     contains
@@ -327,11 +318,15 @@ def test_call_includes_call_with_shadow(fortran_reader, fortran_writer,
     output = fortran_writer(schedule.parent).lower()
     # Check that the call to a shadowed routine is left intact.
     assert """\
+  interface an_interface_inlined_
+    module procedure :: with_shadow_inlined_
+  end interface an_interface_inlined_""" in output
+    assert """\
   subroutine with_shadow_inlined_(arg)
     use some_other_mod, only : an_interface
     real, intent(in) :: arg
 
-    call an_interface_inlined()""" in output
+    call an_interface()""" in output
 
 
 def test_apply_name_clashes():
@@ -620,7 +615,7 @@ def test_validate_nested_scopes(fortran_reader, monkeypatch):
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_module_inline_apply_transformation(tmpdir, fortran_writer):
+def test_module_inline_apply_transformation(tmpdir):
     ''' Test that we can successfully inline a basic kernel subroutine
     routine into the PSy layer module using a transformation '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",

@@ -584,10 +584,11 @@ class KernelModuleInlineTrans(Transformation):
             for call in code_to_inline.walk(Call):
                 if isinstance(call, IntrinsicCall):
                     continue
-                call_name = call.symbol.name.lower()
-                # Need to allow for shadowing
-                # e.g. and call.routine.symbol is caller_sym:
-                if call_name in name_map:
+                sym = call.symbol
+                call_name = sym.name.lower()
+                # If the target of the call is an import then we leave it
+                # unchanged as it shadows.
+                if call_name in name_map and not sym.is_import:
                     call.routine.symbol = name_map[call_name]
 
         if update_all:
