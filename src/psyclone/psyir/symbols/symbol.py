@@ -19,7 +19,7 @@ from psyclone.psyir.symbols.interfaces import (
     CommonBlockInterface, DefaultModuleInterface, StaticInterface)
 from psyclone.psyir.commentable_mixin import CommentableMixin
 if TYPE_CHECKING:
-    from psyclone.psyir.nodes.has_symbol_mixin import HasSymbolMixin
+    from psyclone.psyir.nodes.symbol_directive import SymbolDirective
     from psyclone.psyir.nodes.node import Node
     from psyclone.psyir.symbols import SymbolTable
 
@@ -53,7 +53,7 @@ class Symbol(CommentableMixin):
     :type interface: Optional[ \
         :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`]
     :param directive: optional symbol-associated PSyIR directive.
-    :type directive: Optional[:py:class:`psyclone.psyir.nodes.HasSymbolMixin`]
+    :type directive: Optional[:py:class:`psyclone.psyir.nodes.SymbolDirective`]
 
     :raises TypeError: if the name is not a str.
 
@@ -97,7 +97,7 @@ class Symbol(CommentableMixin):
     def _process_arguments(self,
                            visibility: Optional[Symbol.Visibility] = None,
                            interface: Optional[SymbolInterface] = None,
-                           directive: Optional[HasSymbolMixin] = None):
+                           directive: Optional[SymbolDirective] = None):
         ''' Process the visibility and interface arguments of the constructor
         and the specialise methods.
 
@@ -134,10 +134,10 @@ class Symbol(CommentableMixin):
         copy = type(self)(self.name, visibility=self.visibility,
                           interface=self.interface.copy())
 
-        copied_directive: Optional[HasSymbolMixin] = None
+        copied_directive: Optional[SymbolDirective] = None
         if self.directive is not None:
             copied_directive = self.directive.copy()
-            copied_directive.symbol = copy
+            copied_directive.parent_symbol = copy
         copy.directive = copied_directive
         copy.preceding_comment = self.preceding_comment
         copy.inline_comment = self.inline_comment
@@ -166,7 +166,7 @@ class Symbol(CommentableMixin):
         if symbol_in.directive:
             copied_directive = symbol_in.directive.copy()
         if copied_directive:
-            copied_directive.symbol = self
+            copied_directive.parent_symbol = self
         self.directive = copied_directive
 
     def specialise(self, subclass, **kwargs):
@@ -336,37 +336,40 @@ class Symbol(CommentableMixin):
         self._interface = value
 
     @property
-    def directive(self) -> Optional["HasSymbolMixin"]:
+    def directive(self) -> Optional["SymbolDirective"]:
         '''
         :returns: the symbol-associated directive, if any.
         '''
         return self._directive
 
     @directive.setter
-    def directive(self, directive: Optional["HasSymbolMixin"] = None):
+    def directive(self, directive: Optional["SymbolDirective"] = None):
         '''
         Setter for the directive associated with this Symbol.
 
         :param directive: the symbol-associated directive, if any.
 
-        :raises TypeError: if the supplied directive is not a HasSymbolMixin or
-            None.
+        :raises TypeError: if the supplied directive is not a SymbolDirective
+            or None.
         '''
         # This import has to be local to avoid a circular dependency.
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes.has_symbol_mixin import HasSymbolMixin
-        if directive is not None and not isinstance(directive, HasSymbolMixin):
+        from psyclone.psyir.nodes.symbol_directive import SymbolDirective
+        if directive is not None and not isinstance(directive,
+                                                    SymbolDirective):
             raise TypeError(
                 f"The directive associated with a Symbol must implement "
-                f"HasSymbolMixin or be None but got "
+                f"SymbolDirective or be None but got "
                 f"'{type(directive).__name__}'.")
         if directive is not None:
-            if directive.symbol is not None and directive.symbol is not self:
+            if (directive.parent_symbol is not None and
+                    directive.parent_symbol is not self):
                 raise SymbolError(
                     f"The directive '{directive}' is already associated with "
-                    f"the symbol '{directive.symbol.name}' and cannot be "
+                    f"the symbol '{directive.parent_symbol.name}' and "
+                    f"cannot be "
                     f"associated with the symbol '{self.name}'.")
-            directive.symbol = self
+            directive.parent_symbol = self
         self._directive = directive
 
     @property

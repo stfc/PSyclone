@@ -307,7 +307,7 @@ class DataSymbol(TypedSymbol):
         copied_directive = None
         if self.directive:
             copied_directive = self.directive.copy()
-            copied_directive.symbol = copy
+            copied_directive.parent_symbol = copy
         copy.directive = copied_directive
 
         copy.preceding_comment = self.preceding_comment

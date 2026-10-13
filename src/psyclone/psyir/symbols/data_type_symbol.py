@@ -24,7 +24,7 @@ class DataTypeSymbol(Symbol):
     :param interface: the interface to this symbol.
     :type interface: :py:class:`psyclone.psyir.symbols.SymbolInterface`
     :param directive: optional symbol-associated PSyIR directive.
-    :type directive: Optional[:py:class:`psyclone.psyir.nodes.HasSymbolMixin`]
+    :type directive: Optional[:py:class:`psyclone.psyir.nodes.SymbolDirective`]
 
     '''
     def __init__(self, name, datatype,
@@ -52,7 +52,7 @@ class DataTypeSymbol(Symbol):
         copied_directive = None
         if self.directive:
             copied_directive = self.directive.copy()
-            copied_directive.symbol = copy
+            copied_directive.parent_symbol = copy
         copy.directive = copied_directive
         copy.preceding_comment = self.preceding_comment
         copy.inline_comment = self.inline_comment

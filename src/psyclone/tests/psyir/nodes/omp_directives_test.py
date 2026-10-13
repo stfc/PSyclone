@@ -1487,14 +1487,14 @@ def test_omp_declare_target_variable_constructor_and_strings():
     '''Test the OMPDeclareTargetVariable constructor and output string.'''
     symbol = DataSymbol("var", ScalarType.integer_single_type())
     target = OMPDeclareTargetVariable(symbol)
-    assert target.symbol is symbol
+    assert target.parent_symbol is symbol
     assert target.begin_string() == "omp declare target(var)"
     assert str(target) == "OMPDeclareTargetVariable[var]"
 
     with pytest.raises(TypeError) as err:
         OMPDeclareTargetVariable("var")
-    assert ("The OMPDeclareTargetVariable symbol setter expects a PSyIR "
-            "Symbol but found 'str'." in str(err.value))
+        assert ("The OMPDeclareTargetVariable parent_symbol setter expects a "
+                "PSyIR Symbol but found 'str'." in str(err.value))
 
 
 def test_omp_declare_target_directive_validate_global_constraints():

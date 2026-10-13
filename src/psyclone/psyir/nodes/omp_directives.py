@@ -33,7 +33,7 @@ from psyclone.psyir.nodes.data_sharing_attribute_mixin import (
 )
 from psyclone.psyir.nodes.directive import (
     StandaloneDirective, RegionDirective)
-from psyclone.psyir.nodes.has_symbol_mixin import HasSymbolMixin
+from psyclone.psyir.nodes.symbol_directive import SymbolDirective
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.loop import Loop
@@ -144,14 +144,14 @@ class OMPDeclareTargetDirective(OMPStandaloneDirective):
         super().validate_global_constraints()
 
 
-class OMPDeclareTargetVariable(HasSymbolMixin, OMPStandaloneDirective):
+class OMPDeclareTargetVariable(SymbolDirective, OMPStandaloneDirective):
     '''Class representing an OpenMP Declare Target directive for a variable.
     Note that it is not based on `OMPDeclareTargetDirective`, because the
     latter has validation that it is at the beggining of the implementation of
     a routine, while this version of the directive is only allowed in the
     declaration.
 
-    The symbol is optional. If a HasSymbolMixin directive is attached to
+    The symbol is optional. If a SymbolDirective directive is attached to
     a symbol, it will either verify that the symbol matches, or (if the
     symbol is None), the symbol of the directive will be set to symbol
     the directive is attached to. Conceptually, the symbol indicates
@@ -165,7 +165,7 @@ class OMPDeclareTargetVariable(HasSymbolMixin, OMPStandaloneDirective):
 
     def __init__(self, symbol: Optional[Symbol] = None, **kwargs):
         super().__init__(**kwargs)
-        self.symbol = symbol
+        self.parent_symbol = symbol
 
     def begin_string(self) -> str:
         '''
@@ -175,9 +175,9 @@ class OMPDeclareTargetVariable(HasSymbolMixin, OMPStandaloneDirective):
             during code creation time, so at this stage there must be a symbol
             set.
         '''
-        if not self.symbol:
+        if not self.parent_symbol:
             raise ValueError("OMPDeclareTargetVariable must have a symbol")
-        return f"omp declare target({self.symbol.name})"
+        return f"omp declare target({self.parent_symbol.name})"
 
     def node_str(self, colour: bool = True) -> str:
         '''
@@ -190,9 +190,9 @@ class OMPDeclareTargetVariable(HasSymbolMixin, OMPStandaloneDirective):
 
         :returns: a text description of this node.
         '''
-        if not self.symbol:
+        if not self.parent_symbol:
             return f"{self.coloured_name(colour)}[NONE]"
-        return f"{self.coloured_name(colour)}[{self.symbol.name}]"
+        return f"{self.coloured_name(colour)}[{self.parent_symbol.name}]"
 
 
 class OMPTaskwaitDirective(OMPStandaloneDirective):

@@ -71,26 +71,26 @@ def test_symbol_directive():
     directive = OMPDeclareTargetVariable()
     symbol = Symbol("sym", directive=directive)
     assert symbol.directive is directive
-    assert directive.symbol is symbol
+    assert directive.parent_symbol is symbol
 
     data_symbol = DataSymbol(
         "data", ScalarType.integer_type(),
         directive=OMPDeclareTargetVariable())
     data_symbol_copy = data_symbol.copy()
     assert isinstance(data_symbol_copy.directive, OMPDeclareTargetVariable)
-    assert data_symbol_copy.directive.symbol is data_symbol_copy
+    assert data_symbol_copy.directive.parent_symbol is data_symbol_copy
 
     datatype_symbol = DataTypeSymbol(
         "type", ScalarType.integer_type(),
         directive=OMPDeclareTargetVariable())
     datatype_symbol_copy = datatype_symbol.copy()
     assert isinstance(datatype_symbol_copy.directive, OMPDeclareTargetVariable)
-    assert datatype_symbol_copy.directive.symbol is datatype_symbol_copy
+    assert datatype_symbol_copy.directive.parent_symbol is datatype_symbol_copy
 
     with pytest.raises(TypeError) as error:
         symbol.directive = OMPDeclareTargetDirective()
     assert ("The directive associated with a Symbol must implement "
-            "HasSymbolMixin or be None but got "
+            "SymbolDirective or be None but got "
             "'OMPDeclareTargetDirective'." in str(error.value))
 
     existing = Symbol("existing")
@@ -118,9 +118,9 @@ def test_symbol_table_duplicate_symbol_with_directive():
     symbol_table.rename_symbol(original, "original_field")
     symbol_table.add(duplicate)
 
-    assert original.directive.symbol is original
-    assert duplicate.directive.symbol is duplicate
-    assert original.directive.symbol is not duplicate.directive.symbol
+    assert original.directive.parent_symbol is original
+    assert duplicate.directive.parent_symbol is duplicate
+    assert original.directive.parent_symbol is not duplicate.directive.parent_symbol
 
 
 def test_symbol_interface_setter_and_is_properties():
@@ -293,8 +293,8 @@ def test_symbol_copy_properties():
     # Interface should have been updated
     assert new_sym.interface == sym.interface
     assert new_sym.directive is not sym.directive
-    assert new_sym.directive.symbol is new_sym
-    assert sym.directive.symbol is sym
+    assert new_sym.directive.parent_symbol is new_sym
+    assert sym.directive.parent_symbol is sym
 
     with pytest.raises(TypeError) as err:
         new_sym.copy_properties("hello")

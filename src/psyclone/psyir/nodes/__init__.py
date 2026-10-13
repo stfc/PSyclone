@@ -54,7 +54,7 @@ from psyclone.psyir.nodes.call import Call, CallMatchingArgumentsNotFound
 from psyclone.psyir.nodes.file_container import FileContainer
 from psyclone.psyir.nodes.directive import (
     Directive, StandaloneDirective, RegionDirective)
-from psyclone.psyir.nodes.has_symbol_mixin import HasSymbolMixin
+from psyclone.psyir.nodes.symbol_directive import SymbolDirective
 from psyclone.psyir.nodes.dynamic_omp_task_directive import (
     DynamicOMPTaskDirective)
 from psyclone.psyir.nodes.acc_directives import (
@@ -130,7 +130,7 @@ __all__ = [
         'Directive',
         'RegionDirective',
         'StandaloneDirective',
-        'HasSymbolMixin',
+        'SymbolDirective',
         # OpenACC Directive Nodes
         'ACCAtomicDirective',
         'ACCDirective',
