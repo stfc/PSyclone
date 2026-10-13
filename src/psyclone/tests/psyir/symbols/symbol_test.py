@@ -68,21 +68,21 @@ def test_symbol_initialisation():
 
 def test_symbol_directive():
     '''Test the Symbol directive getter and setter.'''
-    directive = OMPDeclareTargetVariable(Symbol("target"))
+    directive = OMPDeclareTargetVariable()
     symbol = Symbol("sym", directive=directive)
     assert symbol.directive is directive
     assert directive.symbol is symbol
 
     data_symbol = DataSymbol(
         "data", ScalarType.integer_type(),
-        directive=OMPDeclareTargetVariable(Symbol("data_target")))
+        directive=OMPDeclareTargetVariable())
     data_symbol_copy = data_symbol.copy()
     assert isinstance(data_symbol_copy.directive, OMPDeclareTargetVariable)
     assert data_symbol_copy.directive.symbol is data_symbol_copy
 
     datatype_symbol = DataTypeSymbol(
         "type", ScalarType.integer_type(),
-        directive=OMPDeclareTargetVariable(Symbol("type_target")))
+        directive=OMPDeclareTargetVariable())
     datatype_symbol_copy = datatype_symbol.copy()
     assert isinstance(datatype_symbol_copy.directive, OMPDeclareTargetVariable)
     assert datatype_symbol_copy.directive.symbol is datatype_symbol_copy
@@ -93,6 +93,15 @@ def test_symbol_directive():
             "HasSymbolMixin or be None but got "
             "'OMPDeclareTargetDirective'." in str(error.value))
 
+    existing = Symbol("existing")
+    directive = OMPDeclareTargetVariable()
+    existing.directive = directive
+
+    new_symbol = Symbol("new")
+    with pytest.raises(SymbolError) as err:
+        new_symbol.directive = directive
+    assert "already associated with the symbol 'existing'" in str(err.value)
+
     symbol.directive = None
     assert symbol.directive is None
 
@@ -102,7 +111,7 @@ def test_symbol_table_duplicate_symbol_with_directive():
     symbol_table = SymbolTable()
     original = DataSymbol(
         "field", ScalarType.integer_type(),
-        directive=OMPDeclareTargetVariable(Symbol("placeholder")))
+        directive=OMPDeclareTargetVariable())
     symbol_table.add(original)
 
     duplicate = original.copy()
@@ -248,7 +257,7 @@ def test_symbol_copy():
     csym = ContainerSymbol("some_mod")
     asym = Symbol("a", visibility=Symbol.Visibility.PRIVATE,
                   interface=ImportInterface(csym))
-    asym.directive = OMPDeclareTargetVariable(Symbol("target"))
+    asym.directive = OMPDeclareTargetVariable(asym)
     new_sym = asym.copy()
     assert new_sym is not asym
     assert new_sym.name == asym.name
@@ -268,7 +277,7 @@ def test_symbol_copy_properties():
     csym = ContainerSymbol("some_mod")
     sym = Symbol("a", visibility=Symbol.Visibility.PRIVATE,
                  interface=ImportInterface(csym))
-    sym.directive = OMPDeclareTargetVariable(Symbol("target"))
+    sym.directive = OMPDeclareTargetVariable(sym)
     new_sym = Symbol("b")
     # First, exclude the interface from the update.
     new_sym.copy_properties(sym, exclude_interface=True)

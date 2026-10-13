@@ -25,21 +25,21 @@ class HasSymbolMixin:
         return self._symbol
 
     @symbol.setter
-    def symbol(self, value: Symbol):
+    def symbol(self, symbol: Symbol):
         '''Set the Symbol associated with this node.
 
-        :param value: the Symbol associated with this node.
+        :param symbol: the Symbol associated with this node.
 
-        :raises TypeError: if value is not a Symbol.
+        :raises TypeError: if symbol is not a Symbol.
         '''
         # Import locally to avoid a circular dependency.
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.symbols import Symbol
-        if not isinstance(value, Symbol):
+        if symbol and not isinstance(symbol, Symbol):
             raise TypeError(
                 f"The {type(self).__name__} symbol setter expects a PSyIR "
-                f"Symbol but found '{type(value).__name__}'.")
-        self._symbol = value
+                f"Symbol but found '{type(symbol).__name__}'.")
+        self._symbol = symbol
 
 
 __all__ = ["HasSymbolMixin"]

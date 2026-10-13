@@ -132,9 +132,13 @@ class Symbol(CommentableMixin):
         # The constructors for all Symbol-based classes have 'name' as the
         # first positional argument.
         copy = type(self)(self.name, visibility=self.visibility,
-                          interface=self.interface.copy(),
-                          directive=(self.directive.copy()
-                                     if self.directive is not None else None))
+                          interface=self.interface.copy())
+
+        copied_directive: Optional[HasSymbolMixin] = None
+        if self.directive is not None:
+            copied_directive = self.directive.copy()
+            copied_directive.symbol = copy
+        copy.directive = copied_directive
         copy.preceding_comment = self.preceding_comment
         copy.inline_comment = self.inline_comment
         return copy
@@ -158,8 +162,12 @@ class Symbol(CommentableMixin):
                             f"found '{type(symbol_in).__name__}'.")
         if not exclude_interface:
             self._interface = symbol_in.interface
-        self.directive = (symbol_in.directive.copy()
-                          if symbol_in.directive is not None else None)
+        copied_directive = None
+        if symbol_in.directive:
+            copied_directive = symbol_in.directive.copy()
+        if copied_directive:
+            copied_directive.symbol = self
+        self.directive = copied_directive
 
     def specialise(self, subclass, **kwargs):
         '''Specialise this symbol so that it becomes an instance of the class
@@ -335,26 +343,31 @@ class Symbol(CommentableMixin):
         return self._directive
 
     @directive.setter
-    def directive(self, value: Optional["HasSymbolMixin"]):
+    def directive(self, directive: Optional["HasSymbolMixin"] = None):
         '''
         Setter for the directive associated with this Symbol.
 
-        :param value: the symbol-associated directive, if any.
+        :param directive: the symbol-associated directive, if any.
 
-        :raises TypeError: if the supplied value is not a HasSymbolMixin or
+        :raises TypeError: if the supplied directive is not a HasSymbolMixin or
             None.
         '''
         # This import has to be local to avoid a circular dependency.
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.has_symbol_mixin import HasSymbolMixin
-        if value is not None and not isinstance(value, HasSymbolMixin):
+        if directive is not None and not isinstance(directive, HasSymbolMixin):
             raise TypeError(
                 f"The directive associated with a Symbol must implement "
                 f"HasSymbolMixin or be None but got "
-                f"'{type(value).__name__}'.")
-        if value is not None:
-            value.symbol = self
-        self._directive = value
+                f"'{type(directive).__name__}'.")
+        if directive is not None:
+            if directive.symbol is not None and directive.symbol is not self:
+                raise SymbolError(
+                    f"The directive '{directive}' is already associated with "
+                    f"the symbol '{directive.symbol.name}' and cannot be "
+                    f"associated with the symbol '{self.name}'.")
+            directive.symbol = self
+        self._directive = directive
 
     @property
     def is_automatic(self):

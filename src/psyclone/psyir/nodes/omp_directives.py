@@ -14,7 +14,7 @@ import itertools
 import sympy
 import logging
 
-from typing import List
+from typing import List, Optional
 
 from psyclone.configuration import Config
 from psyclone.errors import (GenerationError,
@@ -49,7 +49,8 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
-    ContainerSymbol, DataSymbol, ImportInterface, ScalarType, RoutineSymbol)
+    ContainerSymbol, DataSymbol, ImportInterface, RoutineSymbol, ScalarType,
+    Symbol)
 
 #: Mapping from PSyIR reduction operator to OMP reduction operator.
 MAP_REDUCTION_OP_TO_OMP = {
@@ -145,31 +146,52 @@ class OMPDeclareTargetDirective(OMPStandaloneDirective):
 
 class OMPDeclareTargetVariable(HasSymbolMixin, OMPStandaloneDirective):
     '''Class representing an OpenMP Declare Target directive for a variable.
+    Note that it is not based on `OMPDeclareTargetDirective`, because the
+    latter has validation that it is at the beggining of the implementation of
+    a routine, while this version of the directive is only allowed in the
+    declaration.
+
+    The symbol is optional. If a HasSymbolMixin directive is attached to
+    a symbol, it will either verify that the symbol matches, or (if the
+    symbol is None), the symbol of the directive will be set to symbol
+    the directive is attached to. Conceptually, the symbol indicates
+    more the 'parent' of this directive (and while this directive
+    as a PSyIR node has a parent, a parent must be a PSyIR node, which
+    a symbol is not).
 
     :param symbol: the symbol declared as a target.
-    :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
 
     '''
 
-    def __init__(self, symbol, **kwargs):
+    def __init__(self, symbol: Optional[Symbol] = None, **kwargs):
         super().__init__(**kwargs)
         self.symbol = symbol
 
-    def begin_string(self):
+    def begin_string(self) -> str:
         '''
         :returns: the opening string statement of this directive.
-        :rtype: str
+
+        :raises ValueError: if the symbol is not set. This function is called
+            during code creation time, so at this stage there must be a symbol
+            set.
         '''
+        if not self.symbol:
+            raise ValueError("OMPDeclareTargetVariable must have a symbol")
         return f"omp declare target({self.symbol.name})"
 
-    def node_str(self, colour=True):
+    def node_str(self, colour: bool = True) -> str:
         '''
-        :param bool colour: whether or not to include control codes for
+        Returns a text description of this node. Since this function is mostly
+        used for debugging/visualisation of PSyIR, it will not raise an error
+        if the symbol is not set, but will return "NONE" in the description.
+
+        :param colour: whether or not to include control codes for
             coloured output.
 
         :returns: a text description of this node.
-        :rtype: str
         '''
+        if not self.symbol:
+            return f"{self.coloured_name(colour)}[NONE]"
         return f"{self.coloured_name(colour)}[{self.symbol.name}]"
 
 

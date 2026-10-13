@@ -302,10 +302,14 @@ class DataSymbol(TypedSymbol):
         copy = DataSymbol(self.name, new_datatype,
                           visibility=self.visibility,
                           interface=self.interface.copy(),
-                          directive=(self.directive.copy()
-                                     if self.directive is not None else None),
                           is_constant=self.is_constant,
                           initial_value=new_init_value)
+        copied_directive = None
+        if self.directive:
+            copied_directive = self.directive.copy()
+            copied_directive.symbol = copy
+        copy.directive = copied_directive
+
         copy.preceding_comment = self.preceding_comment
         copy.inline_comment = self.inline_comment
         return copy
