@@ -62,14 +62,14 @@ def test_get_metadata():
     fparser2_tree = InterGridVectorArgMetadata.create_fparser2(
         metadata, encoding=Fortran2003.Structure_Constructor)
     (datatype, access, function_space, mesh_arg, vector_length, stencil,
-     nlevels, ndata) = InterGridVectorArgMetadata._get_metadata(fparser2_tree)
+     nlayers, ndata) = InterGridVectorArgMetadata._get_metadata(fparser2_tree)
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
     assert function_space == "W0"
     assert mesh_arg == "GH_COARSE"
     assert vector_length == "3"
     assert stencil is None
-    assert nlevels is None
+    assert nlayers is None
     assert ndata is None
 
 
@@ -83,14 +83,14 @@ def test_get_metadata_stencil():
     fparser2_tree = InterGridVectorArgMetadata.create_fparser2(
         metadata, encoding=Fortran2003.Structure_Constructor)
     (datatype, access, function_space, mesh_arg, vector_length, stencil,
-     nlevels, ndata) = InterGridVectorArgMetadata._get_metadata(fparser2_tree)
+     nlayers, ndata) = InterGridVectorArgMetadata._get_metadata(fparser2_tree)
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
     assert function_space == "W0"
     assert mesh_arg == "GH_COARSE"
     assert vector_length == "3"
     assert stencil == "xory1d"
-    assert nlevels is None
+    assert nlayers is None
     assert ndata is None
 
 

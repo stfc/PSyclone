@@ -17,7 +17,7 @@ import os
 from enum import Enum
 from collections import OrderedDict, namedtuple
 from dataclasses import dataclass
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Union
 
 from psyclone import psyGen
 from psyclone.configuration import Config
@@ -54,12 +54,14 @@ from psyclone.psyir.symbols import (
 # ---------- Functions ------------------------------------------------------ #
 
 
-def qr_basis_alloc_args(first_dim, basis_fn):
+def qr_basis_alloc_args(table: SymbolTable,
+                        first_dim: DataSymbol,
+                        basis_fn: dict[str, Any]) -> list[str]:
     '''
     Generate the list of dimensions required to allocate the
     supplied basis/diff-basis function
 
-    :param str first_dim: the variable name for the first dimension
+    :param first_dim: the variable name for the first dimension
     :param basis_fn: dict holding details on the basis function
                      we want to allocate
     :type basis_fn: dict containing 'shape', 'fspace' and and 'qr_var' keys
@@ -67,10 +69,9 @@ def qr_basis_alloc_args(first_dim, basis_fn):
                     of the associated quadrature variable (as specified in the
                     Algorithm layer), respectively
     :return: list of dimensions to use to allocate array
-    :rtype: list of strings
 
     :raises InternalError: if an unrecognised quadrature shape is encountered.
-    :raises NotImplementedError: if a quadrature shape other than \
+    :raises NotImplementedError: if a quadrature shape other than
                                  "gh_quadrature_xyoz" is supplied.
     '''
     const = LFRicConstants()
@@ -80,7 +81,10 @@ def qr_basis_alloc_args(first_dim, basis_fn):
             f"lfric.qr_basis_alloc_args(). Should be one of: "
             f"{const.VALID_QUADRATURE_SHAPES}")
 
+    fspace = basis_fn['fspace']
     qr_var = "_" + basis_fn["qr_var"]
+    ndf_sym = table.lookup_with_tag(fspace.ndf_tag)
+    first = first_dim
 
     # Dimensionality of the basis arrays depends on the
     # type of quadrature...
@@ -88,7 +92,7 @@ def qr_basis_alloc_args(first_dim, basis_fn):
     #     alloc_args = [first_dim, basis_fn["fspace"].ndf_name,
     #          "np_xyz"+"_"+basis_fn["qr_var"]]
     if basis_fn["shape"] == "gh_quadrature_xyoz":
-        alloc_args = [first_dim, basis_fn["fspace"].ndf_name,
+        alloc_args = [first, ndf_sym.name,
                       "np_xy"+qr_var, "np_z"+qr_var]
     # elif basis_fn["shape"] == "gh_quadrature_xoyoz":
     #     alloc_args = [first_dim, basis_fn["fspace"].ndf_name,
@@ -96,11 +100,13 @@ def qr_basis_alloc_args(first_dim, basis_fn):
     #                   "np_y"+"_"+basis_fn["qr_var"],
     #                   "np_z"+"_"+basis_fn["qr_var"]]
     elif basis_fn["shape"] == "gh_quadrature_face":
-        alloc_args = [first_dim, basis_fn["fspace"].ndf_name,
+        alloc_args = [first_dim, ndf_sym.name,
                       "np_xyz"+qr_var, "nfaces"+qr_var]
     elif basis_fn["shape"] == "gh_quadrature_edge":
-        alloc_args = [first_dim, basis_fn["fspace"].ndf_name,
-                      "np_xyz"+qr_var, "nedges"+qr_var]
+        alloc_args = [first,
+                      ndf_sym.name,
+                      "np_xyz"+qr_var,
+                      "nedges"+qr_var]
     else:
         raise NotImplementedError(
             f"Unrecognised shape '{basis_fn['''shape''']}' specified in "
@@ -1118,17 +1124,21 @@ class LFRicFunctionSpaces(LFRicCollection):
         else:
             self._function_spaces = self.kernel_calls[0].arguments.unique_fss
 
-        self._var_list = []
+        # TODO use dataclass? - store both tag and shorter root name in list
+        self._var_list: list[tuple[str, str]] = []
 
         # Loop over all unique function spaces used by our kernel(s)
         for function_space in self._function_spaces:
+
+            short_name = function_space.short_mangled_name
 
             # We need ndf for a space if a kernel operates on cell-columns,
             # has a field or operator on that space and is not a
             # CMA kernel performing a matrix-matrix operation.
             if self._invoke and not self._dofs_only or \
                self._kernel and self._kernel.cma_operation != "matrix-matrix":
-                self._var_list.append(function_space.ndf_name)
+                self._var_list.append((function_space.ndf_tag,
+                                       function_space.ndf_name))
 
             # If there is a field on this space then add undf to list
             # to declare later. However, if the invoke contains only
@@ -1137,10 +1147,12 @@ class LFRicFunctionSpaces(LFRicCollection):
             # field proxy and undf is not required.
             if self._invoke and self._invoke.field_on_space(function_space):
                 if not (self._dofs_only and Config.get().distributed_memory):
-                    self._var_list.append(function_space.undf_name)
+                    self._var_list.append(
+                        (function_space.undf_tag, function_space.undf_name))
             elif self._kernel and \
                     function_space.field_on_space(self._kernel.arguments):
-                self._var_list.append(function_space.undf_name)
+                self._var_list.append(
+                    (function_space.undf_tag, f"undf_{short_name}"))
 
     def stub_declarations(self):
         '''
@@ -1149,9 +1161,9 @@ class LFRicFunctionSpaces(LFRicCollection):
 
         '''
         super().stub_declarations()
-        for var in self._var_list:
-            arg = self.symtab.find_or_create(
-                var, symbol_type=DataSymbol,
+        for tag, var in self._var_list:
+            arg = self.symtab.find_or_create_tag(
+                tag, root_name=var, symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
             arg.interface = ArgumentInterface(ArgumentInterface.Access.READ)
             self.symtab.append_argument(arg)
@@ -1162,9 +1174,10 @@ class LFRicFunctionSpaces(LFRicCollection):
 
         '''
         super().invoke_declarations()
-        for var in self._var_list:
+        for tag, var in self._var_list:
             self.symtab.new_symbol(
                 var,
+                tag=tag,
                 symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
@@ -1186,19 +1199,19 @@ class LFRicFunctionSpaces(LFRicCollection):
             # will need ndf and undf. If we don't then we only need undf
             # (for the upper bound of the loop over dofs) if we're not
             # doing DM.
+            mangled_name = function_space.mangled_name
 
             # Find argument proxy name used to dereference the argument
             arg = self._invoke.arg_for_funcspace(function_space)
             # Initialise ndf for this function space.
             if not self._dofs_only:
-                ndf_name = function_space.ndf_name
+                sym = self.symtab.lookup_with_tag(f"ndf:{mangled_name}")
                 assignment = Assignment.create(
-                        lhs=Reference(self.symtab.lookup(ndf_name)),
+                        lhs=Reference(sym),
                         rhs=arg.generate_method_call(
                               "get_ndf", function_space=function_space))
                 assignment.preceding_comment = (
-                    f"Initialise number of DoFs for "
-                    f"{function_space.mangled_name}")
+                    f"Initialise number of DoFs for {mangled_name}")
                 self._invoke.schedule.addchild(assignment, cursor)
                 cursor += 1
             # If there is a field on this space then initialise undf
@@ -1208,10 +1221,10 @@ class LFRicFunctionSpaces(LFRicCollection):
             # from the field proxy and undf is not required.
             if not (self._dofs_only and Config.get().distributed_memory):
                 if self._invoke.field_on_space(function_space):
-                    undf_name = function_space.undf_name
+                    sym = self.symtab.lookup_with_tag(f"undf:{mangled_name}")
                     self._invoke.schedule.addchild(
                         Assignment.create(
-                            lhs=Reference(self.symtab.lookup(undf_name)),
+                            lhs=Reference(sym),
                             rhs=arg.generate_method_call(
                                 "get_undf", function_space=function_space)),
                         cursor)
@@ -1574,10 +1587,10 @@ class LFRicLMAOperators(LFRicCollection):
             size_sym.interface = ArgumentInterface(
                                         ArgumentInterface.Access.READ)
             self.symtab.append_argument(size_sym)
-            ndf_name_to = self.symtab.lookup(
-                                    arg.function_space_to.ndf_name)
-            ndf_name_from = self.symtab.lookup(
-                                    arg.function_space_from.ndf_name)
+            ndf_to = self.symtab.lookup_with_tag(
+                arg.function_space_to.ndf_tag)
+            ndf_from = self.symtab.lookup_with_tag(
+                arg.function_space_from.ndf_tag)
 
             # Create the PSyIR intrinsic DataType
             kind_sym = self.symtab.find_or_create(
@@ -1604,8 +1617,8 @@ class LFRicLMAOperators(LFRicCollection):
                 arg.name, symbol_type=DataSymbol,
                 datatype=ArrayType(intr_type, [
                     Reference(size_sym),
-                    Reference(ndf_name_to),
-                    Reference(ndf_name_from),
+                    Reference(ndf_to),
+                    Reference(ndf_from),
                 ]))
             arg_sym.interface = ArgumentInterface(intent)
             self.symtab.append_argument(arg_sym)
@@ -2718,6 +2731,18 @@ class LFRicInterGrid():
         return self._last_cell_tile_var_symbol
 
 
+@dataclass(frozen=True)
+class BasisInfo:
+    '''
+    Holds information on a basis/differential-basis array.
+    '''
+    #: The base name to use when generating a name.
+    base_name: str
+    #: The names of symbols used to dimension the array. (Excludes any
+    ## integer literals.)
+    dim_vars: list[str]
+
+
 class LFRicBasisFunctions(LFRicCollection):
     ''' Holds all information on the basis and differential basis
     functions required by an invoke or kernel call. This covers both those
@@ -2803,20 +2828,6 @@ class LFRicBasisFunctions(LFRicCollection):
             self._setup_basis_fns_for_call(call)
 
     @staticmethod
-    def basis_first_dim_name(function_space):
-        '''
-        Get the name of the variable holding the first dimension of a
-        basis function
-
-        :param function_space: the function space the basis function is for
-        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :return: a Fortran variable name
-        :rtype: str
-
-        '''
-        return "dim_" + function_space.mangled_name
-
-    @staticmethod
     def basis_first_dim_value(function_space):
         '''
         Get the size of the first dimension of a basis function.
@@ -2844,21 +2855,6 @@ class LFRicBasisFunctions(LFRicCollection):
                 f"expecting one of {const.VALID_FUNCTION_SPACES} but found "
                 f"'{function_space.orig_name}'")
         return first_dim
-
-    @staticmethod
-    def diff_basis_first_dim_name(function_space):
-        '''
-        Get the name of the variable holding the first dimension of a
-        differential basis function.
-
-        :param function_space: the function space the diff-basis function \
-                               is for.
-        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :return: a Fortran variable name.
-        :rtype: str
-
-        '''
-        return "diff_dim_" + function_space.mangled_name
 
     @staticmethod
     def diff_basis_first_dim_value(function_space):
@@ -2894,16 +2890,15 @@ class LFRicBasisFunctions(LFRicCollection):
                 f"'{function_space.orig_name}'")
         return first_dim
 
-    def _setup_basis_fns_for_call(self, call):
+    def _setup_basis_fns_for_call(self, call: LFRicKern):
         '''
         Populates self._basis_fns with entries describing the basis
         functions required by the supplied Call.
 
         :param call: the kernel call for which basis functions are required.
-        :type call: :py:class:`psyclone.domain.lfric.LFRicKern`
 
         :raises InternalError: if the supplied call is of incorrect type.
-        :raises InternalError: if the supplied call has an unrecognised \
+        :raises InternalError: if the supplied call has an unrecognised
                                evaluator shape.
         '''
         if not isinstance(call, LFRicKern):
@@ -2993,17 +2988,17 @@ class LFRicBasisFunctions(LFRicCollection):
 
         for basis in basis_arrays:
             dims = []
-            for value in basis_arrays[basis]:
+            for value in basis_arrays[basis].dim_vars:
                 try:
                     dims.append(Literal(value, ScalarType.integer_type()))
-                except ValueError:
-                    dims.append(Reference(self.symtab.find_or_create(value)))
+                except (ValueError, TypeError):
+                    dims.append(Reference(self.symtab.lookup(value)))
             kind_sym = LFRicTypes.add_precision_symbol(self.symtab, "r_def")
             arr_type = ArrayType(ScalarType(ScalarType.Intrinsic.REAL,
                                             Reference(kind_sym)), dims)
             arg = self.symtab.find_or_create_tag(
-                basis, symbol_type=DataSymbol,
-                datatype=arr_type)
+                basis, root_name=basis_arrays[basis].base_name,
+                symbol_type=DataSymbol, datatype=arr_type)
             arg.interface = ArgumentInterface(ArgumentInterface.Access.READ)
             self.symtab.append_argument(arg)
 
@@ -3182,17 +3177,23 @@ class LFRicBasisFunctions(LFRicCollection):
         for (fspace, arg) in self._eval_targets.values():
             # We need the list of nodes for each unique FS upon which we need
             # to evaluate basis/diff-basis functions
-            nodes_name = "nodes_" + fspace.mangled_name
+            nodes_name = f"nodes_{fspace.mangled_name}"
             kind = api_config.default_kind["real"]
             LFRicTypes.add_precision_symbol(self.symtab, kind)
-            symbol = self.symtab.new_symbol(
-                nodes_name, symbol_type=DataSymbol,
-                datatype=UnsupportedFortranType(
-                    f"real(kind={kind}), pointer :: {nodes_name}"
-                    f"(:,:) => null()",
-                    partial_datatype=ArrayType(
-                        LFRicTypes("LFRicRealScalarDataType")(),
-                        [ArrayType.Extent.DEFERRED]*2)
+            try:
+                symbol = self.symtab.lookup_with_tag(nodes_name)
+            except KeyError:
+                name = self.symtab.next_available_name(nodes_name)
+                symbol = self.symtab.find_or_create_tag(
+                    nodes_name,
+                    root_name=name,
+                    symbol_type=DataSymbol,
+                    datatype=UnsupportedFortranType(
+                        f"real(kind={kind}), pointer :: {name}"
+                        f"(:,:) => null()",
+                        partial_datatype=ArrayType(
+                            LFRicTypes("LFRicRealScalarDataType")(),
+                            [ArrayType.Extent.DEFERRED]*2)
                     ))
             assignment = Assignment.create(
                     lhs=Reference(symbol),
@@ -3210,13 +3211,16 @@ class LFRicBasisFunctions(LFRicCollection):
         init_cursor = cursor
         var_dim_list = []
         for basis_fn in self._basis_fns:
+            mangled_name = basis_fn["fspace"].mangled_name
+            short_name = basis_fn["fspace"].short_name
             # Get the extent of the first dimension of the basis array.
             if basis_fn['type'] == "basis":
-                first_dim = self.basis_first_dim_name(basis_fn["fspace"])
+                first_dim = f"dim_{short_name}"
+                tag = f"dim:{mangled_name}"
                 dim_space = "get_dim_space"
             elif basis_fn['type'] == "diff-basis":
-                first_dim = self.diff_basis_first_dim_name(
-                    basis_fn["fspace"])
+                first_dim = f"diff_dim_{short_name}"
+                tag = f"diff_dim:{mangled_name}"
                 dim_space = "get_dim_space_diff"
             else:
                 raise InternalError(
@@ -3224,10 +3228,10 @@ class LFRicBasisFunctions(LFRicCollection):
                     f"'{basis_fn['''type''']}'. Should be either 'basis' or "
                     f"'diff-basis'.")
 
-            if first_dim not in var_dim_list:
-                var_dim_list.append(first_dim)
-                symbol = self.symtab.find_or_create(
-                    first_dim, symbol_type=DataSymbol,
+            if tag not in var_dim_list:
+                var_dim_list.append(tag)
+                symbol = self.symtab.find_or_create_tag(
+                    tag, root_name=first_dim, symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
                 assignment = Assignment.create(
@@ -3241,10 +3245,11 @@ class LFRicBasisFunctions(LFRicCollection):
 
         # Allocate basis arrays
         for basis in basis_arrays:
-            dims = "("+",".join([":"]*len(basis_arrays[basis]))+")"
-            new_name = self.symtab.next_available_name(basis)
+            dims = "("+",".join([":"]*len(basis_arrays[basis].dim_vars))+")"
+            base_name = basis_arrays[basis].base_name
+            new_name = self.symtab.next_available_name(base_name)
             symbol = self.symtab.find_or_create_tag(
-                new_name, symbol_type=DataSymbol,
+                tag=basis, root_name=new_name, symbol_type=DataSymbol,
                 datatype=UnsupportedFortranType(
                     f"real(kind=r_def), allocatable :: {new_name}{dims}"
                 ))
@@ -3252,11 +3257,9 @@ class LFRicBasisFunctions(LFRicCollection):
                 IntrinsicCall.Intrinsic.ALLOCATE,
                 [ArrayReference.create(
                     symbol,
-                    [Reference(self.symtab.find_or_create(
-                                bn, symbol_type=DataSymbol,
-                                datatype=UnresolvedType()))
-                     for bn in basis_arrays[basis]])]
-            )
+                    [Reference(self.symtab.lookup(bn)) for
+                     bn in basis_arrays[basis].dim_vars]
+                )])
             self._invoke.schedule.addchild(alloc, cursor)
             cursor += 1
 
@@ -3267,27 +3270,28 @@ class LFRicBasisFunctions(LFRicCollection):
                 "Allocate basis/diff-basis arrays")
         return cursor
 
-    def _basis_fn_declns(self):
+    def _basis_fn_declns(self) -> tuple[list[str], dict[str, BasisInfo]]:
         '''
         Extracts all information relating to the necessary declarations
         for basis-function arrays.
 
-        :returns: a 2-tuple containing a list of dimensioning variables & a \
-                  dict of basis arrays.
-        :rtype: (list of str, dict)
+        :returns: a 2-tuple containing a list of all unique variables used
+            in dimensioning the basis arrays plus a dict mapping each of the
+            basis arrays to BasisInfo holding a base name and a list of
+            the array dimensions.
 
         :raises InternalError: if neither self._invoke or self._kernel are set.
-        :raises InternalError: if an unrecognised type of basis function is \
+        :raises InternalError: if an unrecognised type of basis function is
                                encountered.
-        :raises InternalError: if an unrecognised evaluator shape is \
+        :raises InternalError: if an unrecognised evaluator shape is
                                encountered.
-        :raises InternalError: if there is no name for the quadrature object \
+        :raises InternalError: if there is no name for the quadrature object
                                when generating PSy-layer code.
 
         '''
         # pylint: disable=too-many-branches
-        # Dictionary of basis arrays where key values are the array names and
-        # entries are a list of dimensions.
+        # Dictionary of basis arrays where key values are tags for the array
+        # symbols and entries are a list of dimensions.
         basis_arrays = OrderedDict()
         # List of names of dimensioning (scalar) variables
         var_dim_list = []
@@ -3302,7 +3306,12 @@ class LFRicBasisFunctions(LFRicCollection):
             # function and we store the required diff basis name in basis_name.
             if basis_fn['type'] == "basis":
                 if self._invoke:
-                    first_dim = self.basis_first_dim_name(basis_fn["fspace"])
+                    sym = self.symtab.find_or_create_tag(
+                        f"dim:{basis_fn['fspace'].mangled_name}",
+                        root_name=f"dim_{basis_fn['fspace'].short_name}",
+                        symbol_type=DataSymbol,
+                        datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                    first_dim = sym.name
                 elif self._kernel:
                     first_dim = self.basis_first_dim_value(basis_fn["fspace"])
                 else:
@@ -3312,8 +3321,9 @@ class LFRicBasisFunctions(LFRicCollection):
                 basis_name = "gh_basis"
             elif basis_fn['type'] == "diff-basis":
                 if self._invoke:
-                    first_dim = self.diff_basis_first_dim_name(
-                        basis_fn["fspace"])
+                    sym = self.symtab.lookup_with_tag(
+                        f"diff_dim:{basis_fn['fspace'].mangled_name}")
+                    first_dim = sym.name
                 elif self._kernel:
                     first_dim = self.diff_basis_first_dim_value(
                         basis_fn["fspace"])
@@ -3339,39 +3349,43 @@ class LFRicBasisFunctions(LFRicCollection):
                         f"Quadrature '{basis_fn['''shape''']}' is required but"
                         f" have no name for the associated Quadrature object.")
 
-                op_name = basis_fn["fspace"].get_operator_name(basis_name,
-                                                               qr_var=qr_var)
-                if op_name in basis_arrays:
+                op_name, op_tag = basis_fn["fspace"].get_operator_name(
+                    basis_name, qr_var=qr_var)
+                if op_tag in basis_arrays:
                     # We've already seen a basis with this name so skip
                     continue
 
                 # Dimensionality of the basis arrays depends on the
                 # type of quadrature...
-                alloc_args = qr_basis_alloc_args(first_dim, basis_fn)
+                alloc_args = qr_basis_alloc_args(
+                    self.symtab, first_dim, basis_fn)
                 for arg in alloc_args:
                     # In a kernel stub the first dimension of the array is
                     # a numerical value so make sure we don't try and declare
                     # it as a variable.
-                    if not arg[0].isdigit() and arg not in var_dim_list:
+                    if not arg.isnumeric() and (arg not in var_dim_list):
                         var_dim_list.append(arg)
-                basis_arrays[op_name] = alloc_args
+                basis_arrays[op_tag] = BasisInfo(op_name, alloc_args)
 
             elif basis_fn["shape"].lower() == "gh_evaluator":
                 # This is an evaluator and thus may be required on more than
                 # one function space
                 for target_space in basis_fn["nodal_fspaces"]:
-                    op_name = basis_fn["fspace"].\
+                    op_name, op_tag = basis_fn["fspace"].\
                         get_operator_name(basis_name,
                                           qr_var=basis_fn["qr_var"],
                                           on_space=target_space)
-                    if op_name in basis_arrays:
+                    if op_tag in basis_arrays:
                         continue
                     # We haven't seen a basis with this name before so
                     # need to store its dimensions
-                    basis_arrays[op_name] = [
-                        first_dim,
-                        basis_fn["fspace"].ndf_name,
-                        target_space.ndf_name]
+                    basis_arrays[op_tag] = BasisInfo(
+                        op_name,
+                        [first_dim,
+                         self.symtab.lookup_with_tag(
+                             basis_fn['fspace'].ndf_tag).name,
+                         self.symtab.lookup_with_tag(
+                             target_space.ndf_tag).name])
             else:
                 raise InternalError(
                     f"Unrecognised evaluator shape: '{basis_fn['''shape''']}'."
@@ -3581,26 +3595,26 @@ class LFRicBasisFunctions(LFRicCollection):
 
         return cursor
 
-    def _compute_basis_fns(self, cursor):
+    def _compute_basis_fns(self, cursor: int) -> int:
         '''
         Generates the necessary Fortran to compute the values of
         any basis/diff-basis arrays required
 
-        :param int cursor: position where to add the next initialisation
-            statements.
+        :param cursor: position to add the next initialisation statements.
+
         :returns: Updated cursor value.
-        :rtype: int
 
         '''
         # pylint: disable=too-many-locals
         const = LFRicConstants()
 
-        loop_var_list = set()
         op_name_list = []
 
         # add calls to compute the values of any basis arrays
         first = True
         for basis_fn in self._basis_fns:
+
+            mangled_name = basis_fn['fspace'].mangled_name
 
             # Currently there are only two possible types of basis function
             # and we store the corresponding strings to use in basis_name,
@@ -3609,31 +3623,33 @@ class LFRicBasisFunctions(LFRicCollection):
             if basis_fn["type"] == "diff-basis":
                 basis_name = "gh_diff_basis"
                 basis_type = "DIFF_BASIS"
-                first_dim = self.diff_basis_first_dim_name(basis_fn["fspace"])
+                first_dim_sym = self.symtab.lookup_with_tag(
+                    f"diff_dim:{mangled_name}")
             elif basis_fn["type"] == "basis":
                 basis_name = "gh_basis"
                 basis_type = "BASIS"
-                first_dim = self.basis_first_dim_name(basis_fn["fspace"])
+                first_dim_sym = self.symtab.lookup_with_tag(
+                    f"dim:{mangled_name}")
             else:
                 raise InternalError(
                     f"Unrecognised type of basis function: "
                     f"'{basis_fn['''type''']}'. Expected one of 'basis' or "
                     f"'diff-basis'.")
             if basis_fn["shape"] in const.VALID_QUADRATURE_SHAPES:
-                op_name = basis_fn["fspace"].\
+                _, op_tag = basis_fn["fspace"].\
                     get_operator_name(basis_name, qr_var=basis_fn["qr_var"])
-                if op_name in op_name_list:
+                if op_tag in op_name_list:
                     # Jump over any basis arrays we've seen before
                     continue
-                op_name_list.append(op_name)
+                op_name_list.append(op_tag)
 
+                ndf_sym = self.symtab.lookup_with_tag(f"ndf:{mangled_name}")
                 # Create the argument list
                 args = [Reference(self.symtab.lookup(basis_type)),
                         basis_fn["arg"].generate_accessor(basis_fn["fspace"]),
-                        Reference(self.symtab.lookup(first_dim)),
-                        Reference(self.symtab.lookup(
-                            basis_fn["fspace"].ndf_name)),
-                        Reference(self.symtab.lookup_with_tag(op_name))]
+                        Reference(first_dim_sym),
+                        Reference(ndf_sym),
+                        Reference(self.symtab.lookup_with_tag(op_tag))]
 
                 # insert the basis array call
                 call = Call.create(
@@ -3650,24 +3666,23 @@ class LFRicBasisFunctions(LFRicCollection):
                 # We have an evaluator. We may need this on more than one
                 # function space.
                 for space in basis_fn["nodal_fspaces"]:
-                    op_name = basis_fn["fspace"].\
+                    _, op_tag = basis_fn["fspace"].\
                         get_operator_name(basis_name, on_space=space)
-                    if op_name in op_name_list:
+                    if op_tag in op_name_list:
                         # Jump over any basis arrays we've seen before
                         continue
-                    op_name_list.append(op_name)
-
-                    nodal_loop_var = "df_nodal"
-                    loop_var_list.add(nodal_loop_var)
+                    op_name_list.append(op_tag)
 
                     # Loop over dofs of target function space
-                    symbol = self.symtab.find_or_create_tag(
-                        nodal_loop_var,
+                    nodal_loop_symbol = self.symtab.find_or_create_tag(
+                        "df_nodal",
                         symbol_type=DataSymbol,
                         datatype=LFRicTypes("LFRicIntegerScalarDataType")())
                     loop = Loop.create(
-                            symbol, Literal('1', ScalarType.integer_type()),
-                            Reference(self.symtab.lookup(space.ndf_name)),
+                            nodal_loop_symbol,
+                            Literal('1', ScalarType.integer_type()),
+                            Reference(
+                                self.symtab.lookup_with_tag(space.ndf_tag)),
                             Literal('1', ScalarType.integer_type()), [])
                     if first:
                         loop.preceding_comment = (
@@ -3676,36 +3691,34 @@ class LFRicBasisFunctions(LFRicCollection):
                     self._invoke.schedule.addchild(loop, cursor)
                     cursor += 1
 
-                    dof_loop_var = "df_" + basis_fn["fspace"].mangled_name
-                    loop_var_list.add(dof_loop_var)
-
-                    symbol = self.symtab.find_or_create_tag(
-                        dof_loop_var,
+                    # Find or create a loop variable for dofs
+                    df_symbol = self.symtab.find_or_create_tag(
+                        "dof_loop_idx",
+                        root_name="df",
                         symbol_type=DataSymbol,
                         datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+
                     inner_loop = Loop.create(
-                            symbol, Literal('1', ScalarType.integer_type()),
-                            Reference(self.symtab.lookup(
-                                        basis_fn["fspace"].ndf_name)),
+                            df_symbol, Literal('1', ScalarType.integer_type()),
+                            Reference(self.symtab.lookup_with_tag(
+                                basis_fn["fspace"].ndf_tag)),
                             Literal('1', ScalarType.integer_type()), [])
                     loop.loop_body.addchild(inner_loop)
 
-                    symbol = self.symtab.lookup_with_tag(op_name)
+                    symbol = self.symtab.lookup_with_tag(op_tag)
                     rhs = basis_fn['arg'].generate_method_call(
                         "call_function", function_space=basis_fn['fspace'])
                     rhs.addchild(Reference(self.symtab.lookup(basis_type)))
-                    rhs.addchild(Reference(self.symtab.lookup(dof_loop_var)))
+                    rhs.addchild(Reference(df_symbol))
                     rhs.addchild(ArrayReference.create(
                             self.symtab.lookup(f"nodes_{space.mangled_name}"),
-                            [":", Reference(self.symtab.lookup(
-                                                    nodal_loop_var))]))
+                            [":", Reference(nodal_loop_symbol)]))
                     inner_loop.loop_body.addchild(
                         Assignment.create(
                             lhs=ArrayReference.create(symbol, [
                                 ":",
-                                Reference(self.symtab.lookup(
-                                    f"df_{basis_fn['fspace'].mangled_name}")),
-                                Reference(self.symtab.lookup("df_nodal"))
+                                Reference(df_symbol),
+                                Reference(nodal_loop_symbol)
                             ]),
                             rhs=rhs))
             else:
@@ -3737,11 +3750,11 @@ class LFRicBasisFunctions(LFRicCollection):
                     f"'{basis_fn['''type''']}'. Should be one of 'basis' or "
                     f"'diff-basis'.")
             for fspace in basis_fn["nodal_fspaces"]:
-                op_name = basis_fn["fspace"].\
+                _, op_tag = basis_fn["fspace"].\
                     get_operator_name(basis_name,
                                       qr_var=basis_fn["qr_var"],
                                       on_space=fspace)
-                func_space_var_names.add(op_name)
+                func_space_var_names.add(op_tag)
 
         first = True
         if func_space_var_names:
@@ -3839,10 +3852,11 @@ class LFRicBoundaryConditions(LFRicCollection):
         super().stub_declarations()
         for dofs in self._boundary_dofs:
             name = "boundary_dofs_" + dofs.argument.name
-            ndf_name = self.symtab.lookup(dofs.function_space.ndf_name)
+            ndf_sym = self.symtab.lookup_with_tag(
+                dofs.function_space.ndf_tag)
             dtype = ArrayType(
                 LFRicTypes("LFRicIntegerScalarDataType")(),
-                [Reference(ndf_name), Literal("2", ScalarType.integer_type())])
+                [Reference(ndf_sym), Literal("2", ScalarType.integer_type())])
             new_symbol = self.symtab.new_symbol(
                 name,
                 symbol_type=DataSymbol,
@@ -5248,8 +5262,6 @@ class LFRicKernelArguments(Arguments):
         kernel metadata and the algorithm layer. Defaults to True.
 
     :raises GenerationError: if the kernel metadata specifies stencil extent.
-    :raises NotImplementedError: if the kernel metadata specifies arguments
-      with either NDATA or NLEVELS.
 
     '''
     def __init__(self,
@@ -5265,7 +5277,7 @@ class LFRicKernelArguments(Arguments):
 
         # create our arguments and add in stencil information where
         # appropriate.
-        self._args = []
+        self._args: list[LFRicKernelArgument] = []
         idx = 0
         for arg in call.ktype.arg_descriptors:
             lfric_argument = LFRicKernelArgument(self, arg, call.args[idx],
@@ -5350,13 +5362,6 @@ class LFRicKernelArguments(Arguments):
         # List of corresponding unique function-space objects
         self._unique_fss = []
         for arg in self._args:
-            if arg.nlevels or arg.ndata != "1":
-                name = (f"'{self._parent_call.name}'" if self._parent_call
-                        else "stub")
-                raise NotImplementedError(
-                    f"Cannot generate arguments for kernel {name}: code "
-                    f"generation for kernels specifying NLEVELS or NDATA in "
-                    f"their metadata is not yet supported - TODO #868")
             for fspace in arg.function_spaces:
                 # We check that function_space is not None because scalar
                 # args don't have one and fields only have one (only
@@ -5615,10 +5620,10 @@ class LFRicKernelArgument(KernelArgument):
             self._mesh = arg_meta_data.mesh.lower()
         else:
             self._mesh = None
-        # The number of vertical levels (for a field/operator)
-        self._nlevels = arg_meta_data.nlevels
+        # The number of vertical layers (for a field/operator)
+        self._nlayers: Optional[str] = arg_meta_data.nlayers
         # The number of data values associated with each DoF of a field
-        self._ndata = arg_meta_data.ndata
+        self._ndata: Optional[str] = arg_meta_data.ndata
 
         # The list of function-space objects for this argument. Each
         # object can be queried for its original name and for the
@@ -5631,13 +5636,16 @@ class LFRicKernelArgument(KernelArgument):
         if self.is_operator:
 
             fs1 = FunctionSpace(arg_meta_data.function_space_to,
-                                self._kernel_args)
+                                self._kernel_args, self._nlayers,
+                                self._ndata)
             fs2 = FunctionSpace(arg_meta_data.function_space_from,
-                                self._kernel_args)
+                                self._kernel_args, self._nlayers,
+                                self._ndata)
         else:
             if arg_meta_data.function_space:
                 fs1 = FunctionSpace(arg_meta_data.function_space,
-                                    self._kernel_args)
+                                    self._kernel_args, self._nlayers,
+                                    self._ndata)
         self._function_spaces = [fs1, fs2]
 
         # Set the argument's intrinsic type from its descriptor's
@@ -6145,15 +6153,15 @@ class LFRicKernelArgument(KernelArgument):
         return self._name
 
     @property
-    def nlevels(self) -> Optional[str]:
+    def nlayers(self) -> Optional[str]:
         '''
-        :returns: the number of vertical levels of this (field/operator)
+        :returns: the number of vertical layers of this (field/operator)
             argument, as specified in the Kernel metadata. Default is None
             in which case the value is the same as that of the first
             field/operator argument.
 
         '''
-        return self._nlevels
+        return self._nlayers
 
     @property
     def ndata(self) -> str:
@@ -6266,24 +6274,21 @@ class LFRicKernelArgument(KernelArgument):
         return self.proxy_name
 
     @property
-    def proxy_data_type(self):
+    def proxy_data_type(self) -> Union[str, None]:
         '''
-        :returns: the type of this argument's proxy (if it exists) as \
+        :returns: the type of this argument's proxy (if it exists) as
                   defined in LFRic infrastructure.
-        :rtype: str or NoneType
-
         '''
         return self._proxy_data_type
 
     @property
-    def function_space(self):
+    def function_space(self) -> FunctionSpace:
         '''
         Returns the expected finite element function space for a kernel
         argument as specified by the kernel argument metadata: a single
         function space for a field and function_space_from for an operator.
 
         :returns: function space for this argument.
-        :rtype: :py:class:`psyclone.domain.lfric.FunctionSpace`
         '''
         if self._argument_type == "gh_operator":
             # We return the 'from' space for an operator argument
@@ -6291,23 +6296,21 @@ class LFRicKernelArgument(KernelArgument):
         return self._function_spaces[0]
 
     @property
-    def function_space_to(self):
+    def function_space_to(self) -> FunctionSpace:
         '''
         :returns: the 'to' function space of an operator.
-        :rtype: str
         '''
         return self._function_spaces[0]
 
     @property
-    def function_space_from(self):
+    def function_space_from(self) -> FunctionSpace:
         '''
-        :returns:  the 'from' function space of an operator.
-        :rtype: str
+        :returns: the 'from' function space of an operator.
         '''
         return self._function_spaces[1]
 
     @property
-    def function_spaces(self):
+    def function_spaces(self) -> list[FunctionSpace]:
         '''
         Returns the expected finite element function space for a kernel
         argument as specified by the kernel argument metadata: a single
@@ -6315,7 +6318,6 @@ class LFRicKernelArgument(KernelArgument):
         function_space_to and function_space_from for an operator.
 
         :returns: function space(s) for this argument.
-        :rtype: list of :py:class:`psyclone.domain.lfric.FunctionSpace`
 
         '''
         return self._function_spaces

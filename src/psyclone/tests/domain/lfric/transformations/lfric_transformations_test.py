@@ -288,9 +288,9 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
         "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, "
         "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
-        "ndf_as1_afield, undf_as1_afield, "
-        "map_as1_afield(:,cmap(colour,cell)), cbanded_map_as1_afield, "
-        "ndf_as2_lma_op1, cbanded_map_as2_lma_op1)\n"
+        "ndf_as1_afield__1, undf_as1_afield__1, "
+        "map_as1_afield__1(:,cmap(colour,cell)), cbanded_map_as1_afield__1, "
+        "ndf_as2_lma_op1__1, cbanded_map_as2_lma_op1__1)\n"
         "      enddo\n"
         "    enddo\n") in gen
 
@@ -1330,9 +1330,9 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
 
     assert (
         "    ! Look-up required column-banded dofmaps\n"
-        "    cbanded_map_as1_afield => "
+        "    cbanded_map_as1_afield__1 => "
         "cma_op1_proxy%column_banded_dofmap_to\n"
-        "    cbanded_map_as2_lma_op1 => "
+        "    cbanded_map_as2_lma_op1__1 => "
         "cma_op1_proxy%column_banded_dofmap_from\n") in code
     assert (
         "    ! Look-up information for each CMA operator\n"
@@ -1350,9 +1350,10 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
         "ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
         "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
-        "cma_op1_gamma_m, cma_op1_gamma_p, ndf_as1_afield, "
-        "undf_as1_afield, map_as1_afield(:,cell), "
-        "cbanded_map_as1_afield, ndf_as2_lma_op1, cbanded_map_as2_lma_op1)\n"
+        "cma_op1_gamma_m, cma_op1_gamma_p, ndf_as1_afield__1, "
+        "undf_as1_afield__1, map_as1_afield__1(:,cell), "
+        "cbanded_map_as1_afield__1, ndf_as2_lma_op1__1, "
+        "cbanded_map_as2_lma_op1__1)\n"
         "      call testkern_two_real_scalars_code(nlayers_afield, scalar1, "
         "afield_data, bfield_data, cfield_data, "
         "dfield_data, scalar2, ndf_w1, undf_w1, map_w1(:,cell), "
@@ -1930,7 +1931,7 @@ def test_reduction_real_do(tmpdir, dist_mem):
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n") in code
     else:
-        assert "loop0_stop = undf_as1_f1\n" in code
+        assert "loop0_stop = undf_as1_f1__1\n" in code
         assert (
             "    !$omp parallel default(shared) private(df)\n"
             "    !$omp do schedule(static) reduction(+: asum)\n"
@@ -1993,8 +1994,8 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "    global_sum%value = asum\n"
             "    asum = global_sum%get_sum()\n") in code
     else:
-        assert "loop0_stop = undf_as1_f1\n" in code
-        assert "loop1_stop = undf_as1_f1\n" in code
+        assert "loop0_stop = undf_as1_f1__1\n" in code
+        assert "loop1_stop = undf_as1_f1__1\n" in code
         assert (
             "    asum = 0.0_r_def\n"
             "\n"
@@ -5555,8 +5556,8 @@ def test_async_hex_move_2(tmpdir, monkeypatch):
         "    call f2_proxy%halo_exchange_start(depth=1)\n"
         "    do cell = loop3_start, loop3_stop, 1\n"
         "      call testkern_any_space_3_code(cell, nlayers_op, "
-        "op_proxy%ncell_3d, op_local_stencil, ndf_as1_op, "
-        "ndf_as2_op)\n"
+        "op_proxy%ncell_3d, op_local_stencil, ndf_as1_op__1, "
+        "ndf_as2_op__1)\n"
         "    enddo\n"
         "    call f2_proxy%halo_exchange_finish(depth=1)\n") in result
 
