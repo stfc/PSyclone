@@ -239,7 +239,7 @@ def test_gen_decls(fortran_writer):
 def test_gen_decls_with_symbol_directive(fortran_writer):
     '''Check that a symbol's directive follows its declaration.'''
     symbol = DataSymbol("var", ScalarType.integer_type())
-    symbol.directive = OMPDeclareTargetVariable(symbol)
+    symbol.directive = OMPDeclareTargetVariable()
     symbol_table = SymbolTable()
     symbol_table.add(symbol)
 

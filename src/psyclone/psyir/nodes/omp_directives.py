@@ -14,7 +14,7 @@ import itertools
 import sympy
 import logging
 
-from typing import List, Optional
+from typing import List
 
 from psyclone.configuration import Config
 from psyclone.errors import (GenerationError,
@@ -49,8 +49,7 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
-    ContainerSymbol, DataSymbol, ImportInterface, RoutineSymbol, ScalarType,
-    Symbol)
+    ContainerSymbol, DataSymbol, ImportInterface, RoutineSymbol, ScalarType)
 
 #: Mapping from PSyIR reduction operator to OMP reduction operator.
 MAP_REDUCTION_OP_TO_OMP = {
@@ -151,21 +150,16 @@ class OMPDeclareTargetVariable(SymbolDirective, OMPStandaloneDirective):
     a routine, while this version of the directive is only allowed in the
     declaration.
 
-    The symbol is optional. If a SymbolDirective directive is attached to
-    a symbol, it will either verify that the symbol matches, or (if the
-    symbol is None), the symbol of the directive will be set to symbol
-    the directive is attached to. Conceptually, the symbol indicates
-    more the 'parent' of this directive (and while this directive
-    as a PSyIR node has a parent, a parent must be a PSyIR node, which
-    a symbol is not).
-
-    :param symbol: the symbol declared as a target.
+    The symbol of this directive is set when the directive is attached to
+    a symbol. Conceptually, the symbol indicates more the 'parent' of this
+    directive (and while this directive as a PSyIR node has a parent, a
+    parent must be a PSyIR node, which a symbol is not).
 
     '''
 
-    def __init__(self, symbol: Optional[Symbol] = None, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.parent_symbol = symbol
+        self.parent_symbol = None
 
     def begin_string(self) -> str:
         '''

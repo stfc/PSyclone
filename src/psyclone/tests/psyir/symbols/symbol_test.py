@@ -120,7 +120,8 @@ def test_symbol_table_duplicate_symbol_with_directive():
 
     assert original.directive.parent_symbol is original
     assert duplicate.directive.parent_symbol is duplicate
-    assert original.directive.parent_symbol is not duplicate.directive.parent_symbol
+    assert (original.directive.parent_symbol is not
+            duplicate.directive.parent_symbol)
 
 
 def test_symbol_interface_setter_and_is_properties():
@@ -257,7 +258,7 @@ def test_symbol_copy():
     csym = ContainerSymbol("some_mod")
     asym = Symbol("a", visibility=Symbol.Visibility.PRIVATE,
                   interface=ImportInterface(csym))
-    asym.directive = OMPDeclareTargetVariable(asym)
+    asym.directive = OMPDeclareTargetVariable()
     new_sym = asym.copy()
     assert new_sym is not asym
     assert new_sym.name == asym.name
@@ -277,7 +278,7 @@ def test_symbol_copy_properties():
     csym = ContainerSymbol("some_mod")
     sym = Symbol("a", visibility=Symbol.Visibility.PRIVATE,
                  interface=ImportInterface(csym))
-    sym.directive = OMPDeclareTargetVariable(sym)
+    sym.directive = OMPDeclareTargetVariable()
     new_sym = Symbol("b")
     # First, exclude the interface from the update.
     new_sym.copy_properties(sym, exclude_interface=True)

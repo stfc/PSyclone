@@ -1146,8 +1146,8 @@ def test_fw_container_symbol_declare_target(fortran_reader, fortran_writer):
     module = psyir.children[0]
     int_symbol = module.symbol_table.lookup("int_var")
     real_symbol = module.symbol_table.lookup("real_var")
-    int_symbol.directive = OMPDeclareTargetVariable(int_symbol)
-    real_symbol.directive = OMPDeclareTargetVariable(real_symbol)
+    int_symbol.directive = OMPDeclareTargetVariable()
+    real_symbol.directive = OMPDeclareTargetVariable()
 
     output = fortran_writer(psyir)
     assert output == (
