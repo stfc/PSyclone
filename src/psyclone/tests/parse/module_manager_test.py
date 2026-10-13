@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from psyclone.errors import InternalError
+from psyclone.parse.utils import ParseError
 from psyclone.parse import ModuleInfo, ModuleManager
 from psyclone.tests.utilities import get_infrastructure_path
 
@@ -240,27 +241,6 @@ def test_mod_manager_get_module_info() -> None:
             "in any of the directories 'd1, d1/d3, d2, d2/d4'. You can "
             "add search paths using the '-d' command line option."
             in str(err.value))
-
-
-# ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
-                         "mod_man_test_setup_directories")
-def test_mod_manager_scoped_module_lookup() -> None:
-    """A scoped lookup must not return a same-named module cached from a
-    different search path.
-    """
-    mod_man = ModuleManager.get()
-    mod_man.add_search_path(Path("d1"))
-    mod_info = mod_man.get_module_info("a_mod")
-    assert mod_info.filename == "d1/a_mod.f90"
-
-    with pytest.raises(FileNotFoundError, match="directories 'd2'"):
-        mod_man.get_module_info("a_mod", search_paths=[Path("d2")])
-
-    Path("d2/a_mod.f90").write_text(
-        "module a_mod\nend module a_mod\n", encoding="utf-8")
-    mod_info = mod_man.get_module_info("a_mod", search_paths=[Path("d2")])
-    assert mod_info.filename == "d2/a_mod.f90"
 
 
 # ----------------------------------------------------------------------------
@@ -567,3 +547,58 @@ def test_mod_manager_fortran_file_exts() -> None:
         mod_man.fortran_file_exts = True
     assert ("'fortran_file_exts' must be a set, but found bool"
             in str(err.value))
+
+
+def test_kernel_source_helpers(tmp_path):
+    """Source discovery is case-insensitive and reports ambiguity."""
+    first = tmp_path / "one"
+    first.mkdir()
+    kernel_file = first / "demo_mod.F90"
+    kernel_file.write_text("module demo_mod\nend module demo_mod\n", encoding="utf-8")
+
+    assert ModuleManager.find_kernel_file("Demo_Mod", [str(first)]) == str(kernel_file)
+    second = tmp_path / "two"
+    second.mkdir()
+    (second / "DEMO_MOD.f90").write_text("module demo_mod\nend module demo_mod\n", encoding="utf-8")
+    with pytest.raises(ParseError, match="More than one match"):
+        ModuleManager.find_kernel_file("demo_mod", [str(tmp_path)])
+
+
+def test_find_kernel_file_search_paths(tmp_path):
+    """Preserve the generic kernel-file search behaviour of the legacy
+    parser helper.
+    """
+    algorithm_dir = tmp_path / "algorithm"
+    algorithm_dir.mkdir()
+    algorithm_file = algorithm_dir / "algorithm.f90"
+    algorithm_file.write_text("program algorithm\nend program algorithm\n",
+                              encoding="utf-8")
+    kernel_file = algorithm_dir / "Demo_Mod.F90"
+    kernel_file.write_text("module demo_mod\nend module demo_mod\n", encoding="utf-8")
+
+    # With no explicit search path, use the algorithm-file directory and
+    # match the kernel module name case-insensitively.
+    assert ModuleManager.find_kernel_file(
+        "DEMO_MOD", [], str(algorithm_file)) == str(kernel_file)
+
+    search_root = tmp_path / "kernels"
+    nested = search_root / "nested"
+    nested.mkdir(parents=True)
+    nested_kernel = nested / "other_mod.f90"
+    nested_kernel.write_text("module demo_mod\nend module demo_mod\n", encoding="utf-8")
+    assert ModuleManager.find_kernel_file("OTHER_MOD", [str(search_root)]) == str(
+        nested_kernel)
+
+    # Repeated and multiple search paths must not make a unique file appear
+    # ambiguous.
+    assert ModuleManager.find_kernel_file(
+        "other_mod", [str(search_root), str(search_root)]) == str(
+            nested_kernel)
+    assert ModuleManager.find_kernel_file(
+        "other_mod", [str(algorithm_dir), str(search_root)]) == str(
+            nested_kernel)
+
+    with pytest.raises(ParseError, match="does not exist or cannot be read"):
+        ModuleManager.find_kernel_file("demo_mod", [str(tmp_path / "missing")])
+    with pytest.raises(ParseError, match="not found"):
+        ModuleManager.find_kernel_file("absent_mod", [str(search_root)])

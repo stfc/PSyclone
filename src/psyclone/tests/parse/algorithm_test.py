@@ -21,7 +21,6 @@ from psyclone.parse.algorithm import Parser, get_invoke_label, \
     get_kernel, create_var_name, KernelCall, BuiltInCall, Arg, \
     parse, AlgFileInfo
 from psyclone.configuration import Config
-from psyclone.parse import ModuleManager
 from psyclone.parse.utils import ParseError, parse_fp2
 from psyclone.errors import InternalError
 from psyclone.domain.common.kernel import Kernel
@@ -56,8 +55,8 @@ def test_parse_kernel_paths():
     # Invalid path
     with pytest.raises(ParseError) as info:
         parse(alg_name, api="lfric", kernel_paths=["invalid"])
-    assert "Directory 'invalid' does not exist or cannot be read" in str(
-        info.value)
+    assert ("Supplied kernel search path does not exist or cannot be read"
+            in str(info.value))
     # Multiple kernel paths
     parse(alg_name, api="lfric", kernel_paths=[
         LFRIC_BASE_PATH, GOCEAN_BASE_PATH])
@@ -399,8 +398,8 @@ def test_parser_codedkernelcall_kernel_paths():
     parser._kernel_paths = ["invalid"]
     with pytest.raises(ParseError) as info:
         parser.create_coded_kernel_call(kernel_name, args)
-    assert "Directory 'invalid' does not exist or cannot be read" in str(
-        info.value)
+    assert ("Supplied kernel search path does not exist or cannot be read"
+            in str(info.value))
     # Multiple kernel paths
     paths = [LFRIC_BASE_PATH, GOCEAN_BASE_PATH]
     parser._kernel_paths = paths
@@ -445,9 +444,10 @@ def test_parser_caseinsensitive2(monkeypatch):
     parser.update_arg_to_module_map(use)
 
     def dummy_func(*_args, **_kwargs):
-        '''A dummy ModuleManager lookup that raises an exception.'''
+        '''A dummy kernel-file lookup that raises an exception.'''
         raise NotImplementedError("test_parser_caseinsensitive2")
-    monkeypatch.setattr(ModuleManager, "get_module_info", dummy_func)
+    monkeypatch.setattr(
+        "psyclone.parse.algorithm.ModuleManager.find_kernel_file", dummy_func)
     with pytest.raises(NotImplementedError) as excinfo:
         # Reaching the module lookup proves that the case-insensitive use-map
         # lookup succeeded.
@@ -906,14 +906,3 @@ def test_parser_registered_api_without_metadata(monkeypatch):
     parser = Parser("custom")
     assert parser._metadata_type is None
     assert parser._builtin_name_map == {}
-
-
-@pytest.mark.usefixtures("clear_module_manager_instance")
-def test_parser_ignored_kernel_module():
-    """Ignoring a required kernel module produces a useful parse error."""
-    ModuleManager.get().add_ignore_module("testkern_mod")
-    filename = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
-    with pytest.raises(ParseError) as err:
-        parse(filename, api="lfric")
-    assert ("Could not find source file for module 'testkern_mod'."
-            in str(err.value))

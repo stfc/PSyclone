@@ -373,11 +373,8 @@ def generate(filename: str,
                     raise GenerationError(message)
                 container_symbol = kern.symbol.interface.container_symbol
 
-                search_paths = kernel_paths or [
-                    os.path.dirname(os.path.abspath(filename))]
-                module_info = ModuleManager.get().get_module_info(
-                    container_symbol.name, search_paths=search_paths)
-                filepath = module_info.filename
+                filepath = ModuleManager.find_kernel_file(
+                    container_symbol.name, kernel_paths, filename)
 
                 try:
                     # Create language-level PSyIR from the kernel file

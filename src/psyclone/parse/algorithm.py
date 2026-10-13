@@ -11,7 +11,6 @@ PSyclone-conformant Algorithm code.
 '''
 from __future__ import annotations
 from collections import OrderedDict
-import os
 from typing import Optional, TYPE_CHECKING, Union
 
 from fparser.two.utils import walk
@@ -31,8 +30,8 @@ from fparser.two.Fortran2003 import (
 from psyclone.configuration import (
     Config, GOCEAN_API_NAMES, LFRIC_API_NAMES)
 from psyclone.domain.common.kernel import Kernel
-from psyclone.errors import InternalError
 from psyclone.parse import ModuleManager
+from psyclone.errors import InternalError
 from psyclone.parse.utils import check_api, check_line_length, ParseError, \
     parse_fp2
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -433,24 +432,15 @@ class Parser():
                 f"this API)")
             raise ParseError(message) from info
 
-        search_paths = self._kernel_paths or [
-            os.path.dirname(os.path.abspath(self._alg_filename))]
-        module_manager = ModuleManager.get()
-        try:
-            module_info = module_manager.get_module_info(
-                module_name, search_paths=search_paths)
-        except OSError as err:
-            raise ParseError(str(err)) from err
-        if module_info is None:
-            raise ParseError(
-                f"Could not find source file for module '{module_name}'.")
+        file_path = ModuleManager.find_kernel_file(
+            module_name, self._kernel_paths, self._alg_filename)
         if self._line_length:
-            check_line_length(module_info.filename)
+            check_line_length(file_path)
         try:
-            psyir = FortranReader().psyir_from_file(module_info.filename)
+            psyir = FortranReader().psyir_from_file(file_path)
         except Exception as err:
             raise ParseError(
-                f"Failed to parse kernel code '{module_info.filename}'. "
+                f"Failed to parse kernel code '{file_path}'. "
                 f"Is the Fortran correct?\nError:\n'{err}'.") from err
         kernel = Kernel.create_from_psyir(
             self._metadata_type, psyir, name=kernel_name)
