@@ -1,3 +1,7 @@
+   66) PR #3631 for #3628. Removes unnecessary check on use of '[]' in
+   kernel metadata. Allows kernels previously transformed by PSyclone
+   to still be parsed as DSL kernels.   
+
    65) PR #3611 towards #3601. Enable routines with automatic arrays to be
    inlined by making the arrays allocatable.
  
