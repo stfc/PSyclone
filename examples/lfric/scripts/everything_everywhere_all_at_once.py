@@ -67,7 +67,7 @@ def trans(psyir):
                 except TransformationError:
                     # If fusion fails we move to the next loop.
                     current_index = current_index + 1
-            if num_fused <> 0:
+            if num_fused > 0:
                 print(f"Fused {num_fused} loops for invoke {subroutine.name} "
                       f"in {psyir.name}")
         if ENABLE_REDUNDANT_COMPUTATION:
