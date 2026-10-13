@@ -520,34 +520,3 @@ end subroutine test"""
 !& exist to describe the variable, and we break before the PARAMETER.
 end subroutine test"""
     assert correct in out
-
-
-def test_multiline_in_codeblock_bug(fortran_writer):
-    """Test that if we have a multiline write in a f77 codeblock that
-    we get the expected crash. This is probably due to the presence of
-    ''' in the source Fortran."""
-    code = """integer*4 function myfunc (nc)
-      implicit none
-      integer*4 nc
-      integer*4 nclo
-      external nclo
-      integer*4 stdout
-      parameter (stdout=6)
-
-      write(stdout,'(/1x,4A/)') 'long write statement over many ',
-     &                  'lines with some variable and also ',
-     &                  'more other stuff because needed''', nc, '''.'
-      return
-      end"""
-    fortran_reader = FortranReader(free_form=False)
-    psyir = fortran_reader.psyir_from_source(code)
-    output = fortran_writer(psyir)
-    fll = FortLineLength()
-    with pytest.raises(AttributeError,
-                       match="'MultiLine' object has no attribute 'line'"):
-        output = fll.process(output)
-    pytest.xfail(
-        "#3644 Specific fail case in FortLineLength due to fparser creating "
-        "a MultiLine object. This may be an fparser bug or poor handling in "
-        "PSyclone."
-    )

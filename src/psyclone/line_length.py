@@ -188,7 +188,7 @@ class FortLineLength():
                     freader = FortranStringReader(line, ignore_comments=False,
                                                   process_directives=True)
                     # Use free format.
-                    freader.set_format(FortranFormat(True, True))
+                    freader.set_format(FortranFormat(True, False))
                     fline = freader.next()
                     # This won't work for a directive with an in-line comment
                     # as FortranStringReader returns a single Comment object
