@@ -233,7 +233,7 @@ class DriverCreator:
             program: Routine,
             psy_data: DataSymbol,
             original_symtab: SymbolTable,
-            read_write_info: ReadWriteInfo,
+            read_write_info: "ReadWriteInfo",
             postfix: str,
             vars_to_ignore: list[tuple[str, Signature]],
             ) -> list[tuple[Symbol, Symbol]]:
@@ -515,7 +515,7 @@ class DriverCreator:
     # -------------------------------------------------------------------------
     def create(self,
                nodes: list[Node],
-               read_write_info: ReadWriteInfo,
+               read_write_info: "ReadWriteInfo",
                prefix: str,
                postfix: str,
                region_name: tuple[str, str],
@@ -615,7 +615,7 @@ class DriverCreator:
     # -------------------------------------------------------------------------
     def get_driver_as_string(self,
                              nodes: list[Node],
-                             read_write_info: ReadWriteInfo,
+                             read_write_info: "ReadWriteInfo",
                              prefix: str,
                              postfix: str,
                              region_name: tuple[str, str],
@@ -684,7 +684,7 @@ class DriverCreator:
     # -------------------------------------------------------------------------
     def write_driver(self,
                      nodes: list[Node],
-                     read_write_info: ReadWriteInfo,
+                     read_write_info: "ReadWriteInfo",
                      prefix: str,
                      postfix: str,
                      region_name: tuple[str, str],
