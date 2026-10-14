@@ -83,6 +83,9 @@ def test_omp_paralleldo_loop(tmpdir, fortran_writer):
     schedule = invoke.schedule
 
     omp = GOceanOMPParallelLoopTrans()
+    assert str(omp) == \
+    "Add an OpenMP Parallel Do directive to a GOcean loop"
+
     cbtrans = GOConstLoopBoundsTrans()
     omp.apply(schedule[0])
 
