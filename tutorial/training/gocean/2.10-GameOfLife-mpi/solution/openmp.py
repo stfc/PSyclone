@@ -14,8 +14,8 @@ halo-exchange nodes that are added by PSyclone into account.
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyGen import InvokeSchedule
 from psyclone.psyir.nodes import FileContainer
-from psyclone.transformations import GOceanOMPParallelLoopTrans
-
+from psyclone.domain.gocean.transformations import (
+    GOceanOMPParallelLoopTrans)
 from copy_kernels_and_fuse_loops import trans as fuse_trans
 
 

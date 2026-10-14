@@ -19,12 +19,13 @@ from psyclone.gocean1p0 import GOKern
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Container, Loop
-from psyclone.psyir.transformations import LoopFuseTrans, \
-    LoopTrans, TransformationError, ACCLoopTrans, OMPParallelTrans
-from psyclone.transformations import ACCRoutineTrans, \
-    GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, \
-    OMPLoopTrans, ACCParallelTrans, ACCEnterDataTrans
-from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
+from psyclone.psyir.transformations import (
+    LoopFuseTrans, LoopTrans, TransformationError, ACCLoopTrans,
+    OMPParallelTrans)
+from psyclone.transformations import (
+    ACCRoutineTrans, OMPLoopTrans, ACCParallelTrans, ACCEnterDataTrans)
+from psyclone.domain.gocean.transformations import (
+    GOConstLoopBoundsTrans, GOceanOMPLoopTrans, GOceanOMPParallelLoopTrans)
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.utilities import count_lines, get_invoke, get_base_path
 
@@ -46,6 +47,8 @@ def test_loop_fuse_error():
     schedule = invoke.schedule
 
     lftrans = GOceanLoopFuseTrans()
+
+    # Also test the str method of GOceanLoopFuseTrans
     assert str(lftrans) == "Fuse two adjacent loops together with " \
                            "GOcean-specific validity checks"
 
@@ -82,6 +85,11 @@ def test_omp_paralleldo_loop(tmpdir, fortran_writer):
     schedule = invoke.schedule
 
     omp = GOceanOMPParallelLoopTrans()
+
+    # Also test the str method of GOceanOMPParallelLoopTrans
+    assert str(omp) == \
+        "Add an OpenMP Parallel Do directive to a GOcean loop"
+
     cbtrans = GOConstLoopBoundsTrans()
     omp.apply(schedule[0])
 
@@ -397,6 +405,10 @@ def test_omp_region_retains_kernel_order3(tmpdir):
 
     ompr = OMPParallelTrans()
     ompl = GOceanOMPLoopTrans()
+
+    # Also test the str method of GOceanOMPLoopTrans
+    assert str(ompl) == \
+        "Add the selected OpenMP loop directive to a GOcean loop"
 
     # Put an OMP Do around the 2nd loop of the schedule
     ompl.apply(schedule.children[1])
