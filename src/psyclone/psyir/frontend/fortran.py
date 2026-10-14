@@ -7,11 +7,13 @@
 
 ''' This module provides the PSyIR Fortran front-end.'''
 
+from pathlib import Path
 import re
 
-from typing import Optional, Union, List
+from typing import cast, Optional, Union
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import Assignment, Node, Routine, Schedule
+from psyclone.psyir.nodes import (Assignment, FileContainer, Node, Routine,
+                                  Schedule)
 from psyclone.psyir.symbols import SymbolTable
 
 
@@ -45,7 +47,7 @@ class FortranReader():
                  ignore_directives: bool = True,
                  conditional_openmp_statements: bool = False,
                  last_comments_as_codeblocks: bool = False,
-                 resolve_modules: Union[bool, List[str]] = False):
+                 resolve_modules: Union[bool, list[str]] = False):
 
         if ignore_comments and not ignore_directives:
             raise ValueError(
@@ -183,19 +185,22 @@ class FortranReader():
         self._processor.process_nodes(fake_parent, tree.children)
         return fake_parent[0].detach()
 
-    def psyir_from_file(self, file_path) -> Node:
+    def psyir_from_file(self, file_path: Union[str, Path]) -> FileContainer:
         ''' Generate the PSyIR tree representing the given Fortran file.
 
         :param file_path: path of the file to be read and parsed.
-        :type file_path: str or any Python Path format.
 
         :returns: PSyIR representing the provided Fortran file.
 
         '''
-        tree = self._processor.generate_parse_tree_from_file(file_path)
-        psyir = self._processor.generate_psyir(tree)
-        psyir.name = str(file_path).rsplit('/', maxsplit=1)[-1]
-        return psyir
+        path = Path(file_path)
+        tree = self._processor.generate_parse_tree_from_file(path)
+        file_container = self._processor.generate_psyir(tree)
+        # Since we are parsing a file, we have a FileContainer:
+        file_container = cast(FileContainer, file_container)
+        file_container.file_path = path
+        file_container.name = path.name
+        return file_container
 
 
 # For Sphinx AutoAPI documentation generation

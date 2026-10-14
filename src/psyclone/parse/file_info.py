@@ -13,6 +13,7 @@ import copy
 import hashlib
 import logging
 import os
+from pathlib import Path
 import pickle
 from typing import Optional, Union, Iterable
 
@@ -476,12 +477,13 @@ class FileInfo:
 
         # We generate PSyIR from the fparser tree using the same options as
         # were provided to the PSyclone invocation.
-        _, filename = os.path.split(self.filename)
         processor = Fparser2Reader(
             resolve_modules=self._resolve_imports
         )
         self._psyir_node = processor.generate_psyir(fparse_tree)
-        self._psyir_node.name = filename
+        file_path = Path(self.filename)
+        self._psyir_node.name = file_path.name
+        self._psyir_node.file_path = file_path
 
         # TODO #2786: Uncomment if psyir nodes are serializable
         # self._cache_save()
