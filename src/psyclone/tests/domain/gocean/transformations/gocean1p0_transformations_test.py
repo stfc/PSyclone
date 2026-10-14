@@ -84,7 +84,7 @@ def test_omp_paralleldo_loop(tmpdir, fortran_writer):
 
     omp = GOceanOMPParallelLoopTrans()
     assert str(omp) == \
-    "Add an OpenMP Parallel Do directive to a GOcean loop"
+        "Add an OpenMP Parallel Do directive to a GOcean loop"
 
     cbtrans = GOConstLoopBoundsTrans()
     omp.apply(schedule[0])
@@ -402,9 +402,8 @@ def test_omp_region_retains_kernel_order3(tmpdir):
     ompr = OMPParallelTrans()
     ompl = GOceanOMPLoopTrans()
 
-
     assert str(ompl) == \
-    "Add the selected OpenMP loop directive to a GOcean loop"
+        "Add the selected OpenMP loop directive to a GOcean loop"
 
     # Put an OMP Do around the 2nd loop of the schedule
     ompl.apply(schedule.children[1])
