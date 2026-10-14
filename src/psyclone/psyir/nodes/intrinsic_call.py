@@ -5166,9 +5166,9 @@ class IntrinsicCall(Call):
         :type intrinsic: py:class:`psyclone.psyir.IntrinsicCall.Intrinsic`
         :param arguments: list of arguments for this intrinsic, these
             can be PSyIR nodes or tuples of string,Node for named arguments.
-        :type arguments: Optional[Iterable[\
+        :type arguments: Iterable[\
             Union[:py:class:`psyclone.psyir.nodes.DataNode`,\
-                  Tuple[str, :py:class:`psyclone.psyir.nodes.DataNode`]]]]
+                  Tuple[str, :py:class:`psyclone.psyir.nodes.DataNode`]]]
 
         :returns: an instance of this class.
         :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
