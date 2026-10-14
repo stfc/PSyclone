@@ -47,6 +47,8 @@ def test_loop_fuse_error():
     schedule = invoke.schedule
 
     lftrans = GOceanLoopFuseTrans()
+
+    # Also test the str method of GOceanLoopFuseTrans
     assert str(lftrans) == "Fuse two adjacent loops together with " \
                            "GOcean-specific validity checks"
 
@@ -83,6 +85,8 @@ def test_omp_paralleldo_loop(tmpdir, fortran_writer):
     schedule = invoke.schedule
 
     omp = GOceanOMPParallelLoopTrans()
+
+    # Also test the str method of GOceanOMPParallelLoopTrans
     assert str(omp) == \
         "Add an OpenMP Parallel Do directive to a GOcean loop"
 
@@ -402,6 +406,7 @@ def test_omp_region_retains_kernel_order3(tmpdir):
     ompr = OMPParallelTrans()
     ompl = GOceanOMPLoopTrans()
 
+    # Also test the str method of GOceanOMPLoopTrans
     assert str(ompl) == \
         "Add the selected OpenMP loop directive to a GOcean loop"
 
