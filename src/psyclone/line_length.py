@@ -190,16 +190,16 @@ class FortLineLength():
                     # Use free format.
                     freader.set_format(FortranFormat(True, False))
                     fline = freader.next()
-                    # This won't work for a directive with an in-line comment
-                    # as FortranStringReader returns a single Comment object
-                    # for the whole thing:
-                    # (TODO https://github.com/stfc/fparser/issues/468).
                     try:
                         next_l = freader.next()
                     except StopIteration:
-                        # If there is no following line from fparser (i.e.
-                        # one object is created for the full input) then
-                        # we skip it and next_l remains as None.
+                        # If there is no following line from fparser (i.e. one
+                        # object is created for the full input) then we skip it
+                        # and next_l remains as None. This is necessary since
+                        # FortranStringReader will strip an inline Comment from
+                        # a line and return it as a separate Line but only if
+                        # that line is not a directive.
+                        # (TODO https://github.com/stfc/fparser/issues/468).
                         pass
                     if ((break_point - indent_size) > len(fline.line) and
                             isinstance(next_l, Comment)):
