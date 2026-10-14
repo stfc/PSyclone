@@ -17,6 +17,24 @@ if TYPE_CHECKING:
 class SymbolDirective:
     '''Mixin for PSyIR nodes associated with a parent Symbol.'''
 
+    def __init__(self):
+        super().__init__()
+        self._parent_symbol: Optional[Symbol] = None
+
+    def copy(self) -> SymbolDirective:
+        '''Create a copy of this node. The parent_symbol is not copied as it
+        is expected that the copy will be added to a new parent node.
+
+        :returns: a copy of this node.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        # As a mixin class, this has no superclass with a copy function,
+        # but the class it is mixed in with has.
+        new_node = super().copy()   # pylint: disable=no-member
+        new_node.parent_symbol = None
+        return new_node
+
     @property
     def parent_symbol(self) -> Optional[Symbol]:
         '''
