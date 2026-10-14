@@ -1,3 +1,16 @@
+   67) PR #3641. Improve NEMOv4 GPU performance by tweaking the transformation
+   script (updating omitted files, using OMP for reduction in stpctl).
+ 
+   66) PR #3631 for #3628. Removes unnecessary check on use of '[]' in
+   kernel metadata. Allows kernels previously transformed by PSyclone
+   to still be parsed as DSL kernels.   
+
+   65) PR #3611 towards #3601. Enable routines with automatic arrays to be
+   inlined by making the arrays allocatable.
+ 
+   64) PR #3622 for #2895. Switches all NEMOv4 ITs to use spack and improve
+   transformation scripts/source for GPU performance.
+
    63) PR #3617 for #3609. Improve AsyncTransMixin to allow adding nowaits
    when the ancestor loops of a directive are iteration-independent.
 
