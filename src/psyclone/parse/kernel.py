@@ -708,8 +708,6 @@ def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
     :raises ParseError: if 'var_name' is not found in the metadata.
     :raises ParseError: if 'var_name' is not an array.
     :raises ParseError: if 'var_name' is not a 1D array.
-    :raises ParseError: if the structure constructor uses '[...]' \
-                        as only '(/.../)' is supported.
     :raises ParseError: if the argument metadata is invalid and cannot \
                         be parsed.
     :raises ParseError: if the dimensions specified do not tally with \
@@ -734,11 +732,6 @@ def getkerneldescriptors(name, ast, var_name='meta_args', var_type=None):
         raise ParseError(
             f"In kernel metadata '{name}': '{var_name}' variable must be a 1 "
             f"dimensional array.")
-    if descs.init.find("[") != -1 and descs.init.find("]") != -1:
-        # there is a bug in fparser1
-        raise ParseError(
-            f"Parser does not currently support '[...]' initialisation for "
-            f"'{var_name}', please use '(/.../)' instead.")
     try:
         inits = expr.FORT_EXPRESSION.parseString(descs.init)[0]
     except ParseException as err:
