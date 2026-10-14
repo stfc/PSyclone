@@ -136,6 +136,11 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
         faster to not create the list and b) a mismatch in the number
         of expected and actual arguments can cause an index error.
 
+        TODO #1618: This implementation changes the functionality described
+        in the superclass. And the name is not really representative, it
+        creates or validates the arguments, not just 'get' them. Also, does
+        it really need kwargs / are these the same kwargs as in apply?
+
         :param node: an LFRic algorithm invoke call.
         :param kernels: this option provides a list of LFRic kernels for
             this LFRic Algorithm Invoke call.

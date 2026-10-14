@@ -71,6 +71,8 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
     def get_arguments(self, node: AlgorithmInvokeCall,
                       **kwargs: Any) -> list[Node]:
         '''
+        Create the algorithm layer argument list for the given invoke call.
+
         :param node: a PSyIR algorithm invoke call node.
         :param kwargs: additional keyword arguments.
         '''

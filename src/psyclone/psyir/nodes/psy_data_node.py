@@ -510,8 +510,12 @@ class PSyDataNode(Statement):
                 region_name = f"{routine_schedule.name}-{region_name}"
             self._region_name = region_name
 
-    def lower_to_language_level(self, *, pre_var_list=None, post_var_list=None,
-                                pre_var_postfix="", post_var_postfix=""):
+    def lower_to_language_level(
+        self, *,
+        pre_var_list: Optional[list[tuple[str, Signature]]] = None,
+        post_var_list: Optional[list[tuple[str, Signature]]] = None,
+        pre_var_postfix: str = "", post_var_postfix: str = ""
+    ) -> Node:
         # pylint: disable=arguments-differ
         # pylint: disable=too-many-branches, too-many-statements
         '''
@@ -523,45 +527,40 @@ class PSyDataNode(Statement):
         the Fortran backend is capable of producing code representing the
         PSyDataNode.
 
-        :param pre_var_list: container- and variable-names to be \
-            supplied before the first child. The container names are \
-            supported to be able to handle variables that are imported from \
+        :param pre_var_list: container- and variable-names to be
+            supplied before the first child. The container names are
+            supported to be able to handle variables that are imported from
             a different container (module in Fortran).
-        :type pre_var_list: list[tuple[str,
-            :py:class:`psyclone.core.Signature`]]
-        :param post_var_list: container- and variable-names to be \
-            supplied after the last child. The container names are \
-            supported to be able to handle variables that are imported from \
+        :param post_var_list: container- and variable-names to be
+            supplied after the last child. The container names are
+            supported to be able to handle variables that are imported from
             a different container (module in Fortran).
-        :type post_var_list: list[tuple[str,
-            :py:class:`psyclone.core.Signature`]]
-        :param str pre_var_postfix: an optional postfix that will \
+        :param pre_var_postfix: an optional postfix that will
             be added to each variable name in the pre_var_list.
-        :param str post_var_postfix: an optional postfix that will \
+        :param post_var_postfix: an optional postfix that will
             be added to each variable name in the post_var_list.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         :raises GenerationError: if the node is not inside a Routine.
 
         '''
-        def gen_type_bound_call(typename, methodname, argument_list=None,
-                                annotations=None):
+        def gen_type_bound_call(
+            typename: str, methodname: str,
+            argument_list: Optional[list[str]] = None,
+            annotations: Optional[list[str]] = None
+        ) -> CodeBlock:
             ''' Helper utility to generate type-bound calls. Since this is
             not directly supported in the PSyIR the call is inserted in a
             PSyIR CodeBlock.
 
-            :param str typename: the name of the base type.
-            :param str methodname: the name of the method to be called.
+            :param typename: the name of the base type.
+            :param methodname: the name of the method to be called.
             :param argument_list: the list of arguments in the method call.
-            :type argument_list: list[str]
-            :param annotations: the list of node annotations to add to the \
+            :param annotations: the list of node annotations to add to the
                                 generated CodeBlock.
-            :type annotations: list[str]
 
             :returns: a CodeBlock representing the type bound call.
-            :rtype: :py:class:`psyclone.psyir.nodes.CodeBlock`
 
             '''
             argument_str = ""
