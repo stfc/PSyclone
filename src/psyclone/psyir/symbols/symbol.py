@@ -132,13 +132,10 @@ class Symbol(CommentableMixin):
         # The constructors for all Symbol-based classes have 'name' as the
         # first positional argument.
         copy = type(self)(self.name, visibility=self.visibility,
-                          interface=self.interface.copy())
+                          interface=self.interface.copy(),
+                          directive=(self.directive.copy()
+                                     if self.directive is not None else None))
 
-        copied_directive: Optional[SymbolDirective] = None
-        if self.directive is not None:
-            copied_directive = self.directive.copy()
-            copied_directive.parent_symbol = copy
-        copy.directive = copied_directive
         copy.preceding_comment = self.preceding_comment
         copy.inline_comment = self.inline_comment
         return copy

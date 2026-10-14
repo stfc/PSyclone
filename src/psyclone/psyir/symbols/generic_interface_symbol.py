@@ -215,12 +215,9 @@ class GenericInterfaceSymbol(RoutineSymbol):
         rt_info = [(rt.symbol, rt.from_container) for rt in self.routines]
         copy = type(self)(self.name, rt_info,
                           visibility=self.visibility,
-                          interface=self.interface.copy())
-        copied_directive = None
-        if self.directive:
-            copied_directive = self.directive.copy()
-            copied_directive.parent_symbol = copy
-        copy.directive = copied_directive
+                          interface=self.interface.copy(),
+                          directive=(self.directive.copy()
+                                     if self.directive is not None else None))
         copy.preceding_comment = self.preceding_comment
         copy.inline_comment = self.inline_comment
         return copy
