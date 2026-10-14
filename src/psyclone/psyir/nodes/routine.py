@@ -199,7 +199,8 @@ class Routine(Schedule, CommentableMixin):
         :raises SymbolError: if there is a symbol of UnsupportedType that
             does not have partial datatype information.
         :raises SymbolError: if there is an access to a symbol that is
-            declared in the parent scope of this routine.
+            declared in the parent scope of this routine and is not already
+            in scope at the call site.
 
         '''
         # TODO #2424 - this suffers from the limitation that
@@ -245,12 +246,19 @@ class Routine(Schedule, CommentableMixin):
 
             if not symbol.is_import and symbol.name not in table:
                 # This Symbol is local to the Container.
-                if isinstance(symbol, RoutineSymbol) and vam[sig].is_called():
+                if isinstance(symbol, RoutineSymbol) and (
+                        vam[sig].is_called() and
+                        not vam[sig].has_data_access()):
                     # Calls to local Routines can be OK so we don't flag
-                    # them here.
+                    # them here. Note the check for `not has_data_accesses`
+                    # protects us from RoutineSymbols also being e.g. passed
+                    # as an argument to a Call.
                     continue
-                # The only option would be to make this Symbol public but
-                # that would risk namespace collisions in the generated code.
+
+                # Unless this Symbol happens to be the same instance as the one
+                # at the call site (e.g. this Routine is in the same Container
+                # as the call site), then this Routine accesses a symbol from
+                # its outer scope.
                 sym_at_call_site = call.scope.symbol_table.lookup(
                     sig.var_name, otherwise=None)
                 if sym_at_call_site is not symbol:
