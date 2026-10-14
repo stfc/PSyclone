@@ -32,7 +32,7 @@ from psyclone.psyir.nodes import (
     IntrinsicCall, BinaryOperation, FileContainer, OMPParallelDirective)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, ScalarType,
-    UnresolvedType, ImportInterface, RoutineSymbol)
+    Symbol, UnresolvedType, ImportInterface, RoutineSymbol)
 from psyclone.psyir.symbols.symbol_table import SymbolTable
 from psyclone.utils import stringify_annotation
 
