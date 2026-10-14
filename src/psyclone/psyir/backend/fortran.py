@@ -642,6 +642,8 @@ class FortranWriter(LanguageWriter):
                     result += (f" {self._COMMENT_PREFIX}"
                                f"{symbol.inline_comment}")
                 result += "\n"
+                if isinstance(symbol, Symbol) and symbol.directive:
+                    result += self._visit(symbol.directive)
                 return result
             # The Fortran backend only handles UnsupportedFortranType
             # declarations.
@@ -703,7 +705,10 @@ class FortranWriter(LanguageWriter):
         if symbol.inline_comment != "":
             result += f" {self._COMMENT_PREFIX}{symbol.inline_comment}"
 
-        return result + "\n"
+        result += "\n"
+        if isinstance(symbol, Symbol) and symbol.directive:
+            result += self._visit(symbol.directive)
+        return result
 
     def _gen_common_block_decls(self, symbols: list[Symbol]) -> str:
         '''Generate declarations for all common blocks represented by the
@@ -1002,7 +1007,7 @@ class FortranWriter(LanguageWriter):
                     # All inputs are satisfied so this declaration can be added
                     declared.add(symbol)
                     local_constants.remove(symbol)
-                    declarations += self._gen_vardecl_with_directive(
+                    declarations += self.gen_vardecl(
                         symbol, include_visibility=is_module_scope)
                     break
             else:
@@ -1012,21 +1017,6 @@ class FortranWriter(LanguageWriter):
                     f"Unable to satisfy dependencies for the declarations of "
                     f"{[sym.name for sym in local_constants]}")
         return declarations
-
-    def _gen_vardecl_with_directive(
-            self, symbol: Union[Symbol, Member],
-            include_visibility: bool = False) -> str:
-        '''Generate a symbol declaration and its associated directive, if any.
-
-        :param symbol: the symbol to be declared.
-        :param include_visibility: whether to include its visibility.
-
-        :returns: the declaration followed by the symbol's directive, if any.
-        '''
-        result = self.gen_vardecl(symbol, include_visibility)
-        if isinstance(symbol, Symbol) and symbol.directive is not None:
-            result += self._visit(symbol.directive)
-        return result
 
     def gen_decls(self,
                   symbol_table: SymbolTable,
@@ -1132,7 +1122,7 @@ class FortranWriter(LanguageWriter):
             if isinstance(sym, GenericInterfaceSymbol):
                 declarations += self.gen_interfacedecl(sym)
             elif isinstance(sym.datatype, UnsupportedType):
-                declarations += self._gen_vardecl_with_directive(
+                declarations += self.gen_vardecl(
                         sym, include_visibility=is_module_scope)
             elif not (sym.is_modulevar or sym.is_automatic):
                 raise VisitorError(
@@ -1157,7 +1147,7 @@ class FortranWriter(LanguageWriter):
         # We use symbol_table.argument_datasymbols because it has the
         # symbol order that we need
         for symbol in symbol_table.argument_datasymbols:
-            declarations += self._gen_vardecl_with_directive(
+            declarations += self.gen_vardecl(
                 symbol, include_visibility=is_module_scope)
             all_symbols.remove(symbol)
 
@@ -1171,7 +1161,7 @@ class FortranWriter(LanguageWriter):
 
         # 5: The rest of the symbols
         for symbol in all_symbols:
-            declarations += self._gen_vardecl_with_directive(
+            declarations += self.gen_vardecl(
                 symbol, include_visibility=is_module_scope)
 
         declarations += self._gen_common_block_decls(all_symbols)
