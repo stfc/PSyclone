@@ -81,7 +81,7 @@ def test_all_transformation_validate_calls_super():
                 found = True
                 break
             pending.extend(ast.iter_child_nodes(node))
-        if not found:
+        if not found:  # pragma: no cover
             missing.append(f"{cls.__module__}.{cls.__qualname__}")
 
     assert not missing, ("validate() overrides missing super().validate():\n" +
