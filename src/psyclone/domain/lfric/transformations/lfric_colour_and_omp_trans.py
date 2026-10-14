@@ -39,6 +39,8 @@ class LFRicColourAndOMPTrans(Transformation):
 
         :param node: the Routine node to transform
         '''
+
+        super().validate(node, reprod=reprod, **kwargs)
         self.validate_options(reprod=reprod, **kwargs)
 
         if not isinstance(node, Routine):

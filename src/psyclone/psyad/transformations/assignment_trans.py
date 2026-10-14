@@ -196,6 +196,8 @@ class AssignmentTrans(AdjointTransformation):
             to the required tangent-linear structure.
 
         '''
+
+        super().validate(node, options=options, **kwargs)
         if not options:
             self.validate_options(**kwargs)
 

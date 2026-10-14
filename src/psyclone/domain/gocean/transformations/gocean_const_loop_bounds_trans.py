@@ -88,6 +88,8 @@ class GOConstLoopBoundsTrans(Transformation):
             field argument.
 
         '''
+
+        super().validate(node, options=options, **kwargs)
         if not options:
             self.validate_options(**kwargs)
         if not isinstance(node, GOInvokeSchedule):

@@ -112,6 +112,8 @@ class GOOpenCLTrans(Transformation):
             the whole grid.
 
         '''
+
+        super().validate(node, options=options, **kwargs)
         if isinstance(node, InvokeSchedule):
             if not isinstance(node, GOInvokeSchedule):
                 raise TransformationError(

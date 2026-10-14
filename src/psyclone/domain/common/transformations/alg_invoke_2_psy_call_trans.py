@@ -51,6 +51,8 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
         :raises InternalError: if no corresponding 'invoke' symbol is present.
 
         '''
+
+        super().validate(node, **kwargs)
         self.validate_options(**kwargs)
 
         if not isinstance(node, AlgorithmInvokeCall):

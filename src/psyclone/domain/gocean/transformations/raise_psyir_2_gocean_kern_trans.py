@@ -118,6 +118,8 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
             routine which implements the kernel.
 
         '''
+
+        super().validate(node, options=options, **kwargs)
         # TODO #2668: Deprecate options dict.
         if not options:
             self.validate_options(**kwargs)

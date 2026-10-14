@@ -19,7 +19,7 @@ from psyclone.domain.lfric.kernel import (
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
 from psyclone.domain.lfric.transformations import (
     LFRicAlgTrans, LFRicAlgInvoke2PSyCallTrans)
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import (
     Call, Routine, Reference, Container, FileContainer, Literal)
 from psyclone.psyir.symbols import (
@@ -114,6 +114,11 @@ def test_lfai2psycall_validate():
         name="kernel_type")
     psyir = LFRicKernelContainer.create(
         "kernel_mod", metadata, SymbolTable(), [])
+    routine = Routine.create("test", children=[call])
+    # Parent validation must reject an invoke without its symbol.
+    with pytest.raises(InternalError, match="No 'invoke' symbol found"):
+        trans.validate(call, kernels={id(kernel_functor): psyir})
+    routine.symbol_table.add(RoutineSymbol("invoke"))
     trans.validate(call, kernels={id(kernel_functor): psyir})
 
 

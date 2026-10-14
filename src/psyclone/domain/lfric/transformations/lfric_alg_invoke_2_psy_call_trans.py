@@ -82,6 +82,8 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
         # Check the algorithm arguments and kernel metadata match.
         self.get_arguments(node, kernels=kernels, check_args=True)
 
+        super().validate(node, **kwargs)
+
     @staticmethod
     def _get_metadata(kernel):
         '''Utility method to extract the kernel metadata from an LFRic

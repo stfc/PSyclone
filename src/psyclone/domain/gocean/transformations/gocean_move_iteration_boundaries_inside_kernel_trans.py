@@ -81,6 +81,8 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation,
         :raises TransformationError: if the node is not a GOKern.
 
         '''
+
+        super().validate(node, options=options, **kwargs)
         if not options:
             self.validate_options(**kwargs)
         if not isinstance(node, GOKern):
