@@ -11,7 +11,7 @@ PSyclone-conformant Algorithm code.
 '''
 from __future__ import annotations
 from collections import OrderedDict
-from typing import Union
+from typing import Optional, TYPE_CHECKING, Union
 
 from fparser.two.utils import walk
 # pylint: disable=no-name-in-module
@@ -27,10 +27,11 @@ from fparser.two.Fortran2003 import (
     Data_Component_Def_Stmt, Component_Decl)
 # pylint: enable=no-name-in-module
 
-from psyclone.configuration import Config, LFRIC_API_NAMES
+from psyclone.configuration import (
+    Config, GOCEAN_API_NAMES, LFRIC_API_NAMES)
+from psyclone.domain.common.kernel import Kernel
+from psyclone.parse import ModuleManager
 from psyclone.errors import InternalError
-from psyclone.parse.kernel import (
-    BuiltInKernelTypeFactory, get_kernel_ast, KernelType, KernelTypeFactory)
 from psyclone.parse.utils import check_api, check_line_length, ParseError, \
     parse_fp2
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -39,6 +40,9 @@ from psyclone.psyir.frontend.fortran import FortranReader
 # pylint: disable=too-many-branches
 
 # Section 1: parse the algorithm file
+
+if TYPE_CHECKING:
+    from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 
 
 def parse(alg_filename, api="", invoke_name="invoke", kernel_paths=None,
@@ -100,8 +104,13 @@ class Parser():
 
     '''
 
-    def __init__(self, api="", invoke_name="invoke", kernel_paths=None,
-                 line_length=False):
+    def __init__(
+            self,
+            api: str = '',
+            invoke_name: str = 'invoke',
+            kernel_paths: Optional[list[str]] = None,
+            line_length: bool = False,
+    ) -> None:
 
         self._invoke_name = invoke_name
         if kernel_paths is None:
@@ -121,12 +130,17 @@ class Parser():
         self._arg_type_defns = {}
         self._unique_invoke_labels = []
 
-        # Use the get_builtin_defs helper function to access
-        # information about the builtins supported by this API. The
-        # first argument contains the names of the builtins and the
-        # second is the file where these names are defined.
-        self._builtin_name_map, \
-            self._builtin_defs_file = get_builtin_defs(self._api)
+        self._builtin_name_map = get_builtin_map(self._api)
+        # Select the domain parser once, rather than dispatching every kernel
+        # through a factory in the generic parse package.
+        if api in LFRIC_API_NAMES:
+            from psyclone.domain.lfric.kernel import LFRicKernelMetadata
+            self._metadata_type = LFRicKernelMetadata
+        elif api in GOCEAN_API_NAMES:
+            from psyclone.domain.gocean.kernel import GOceanKernelMetadata
+            self._metadata_type = GOceanKernelMetadata
+        else:
+            self._metadata_type = None
 
         self._alg_filename = None
 
@@ -349,7 +363,11 @@ class Parser():
 
         return kernel_call
 
-    def create_builtin_kernel_call(self, kernel_name, args):
+    def create_builtin_kernel_call(
+            self,
+            kernel_name: str,
+            args: list[Arg],
+    ) -> BuiltInCall:
         '''Takes the builtin kernel name and a list of Arg objects which
         capture information about the builtin call arguments and
         returns a BuiltinCall instance with content specific to the
@@ -375,11 +393,15 @@ class Parser():
                 f"'{self._arg_name_to_module_name[kernel_name.lower()]}' in "
                 f"file {self._alg_filename}")
 
-        return BuiltInCall(BuiltInKernelTypeFactory(api=self._api).create(
-            self._builtin_name_map.keys(), self._builtin_defs_file,
-            name=kernel_name.lower()), args)
+        metadata = self._builtin_name_map[kernel_name.lower()].metadata()
+        metadata.validate()
+        return BuiltInCall(Kernel(metadata), args)
 
-    def create_coded_kernel_call(self, kernel_name, args):
+    def create_coded_kernel_call(
+            self,
+            kernel_name: str,
+            args: list[Arg],
+    ) -> KernelCall:
         '''Takes a coded kernel name and a list of Arg objects which
         capture information about the coded call arguments and
         returns a KernelCall instance with content specific to the
@@ -410,11 +432,19 @@ class Parser():
                 f"this API)")
             raise ParseError(message) from info
 
-        modast = get_kernel_ast(module_name, self._alg_filename,
-                                self._kernel_paths, self._line_length)
-        return KernelCall(module_name,
-                          KernelTypeFactory(api=self._api).create(
-                              modast, name=kernel_name), args)
+        file_path = ModuleManager.find_kernel_file(
+            module_name, self._kernel_paths, self._alg_filename)
+        if self._line_length:
+            check_line_length(file_path)
+        try:
+            psyir = FortranReader().psyir_from_file(file_path)
+        except Exception as err:
+            raise ParseError(
+                f"Failed to parse kernel code '{file_path}'. "
+                f"Is the Fortran correct?\nError:\n'{err}'.") from err
+        kernel = Kernel.create_from_psyir(
+            self._metadata_type, psyir, name=kernel_name)
+        return KernelCall(module_name, kernel, args)
 
     def update_arg_to_module_map(self, statement):
         '''Takes a use statement and adds its contents to the internal
@@ -474,15 +504,13 @@ class Parser():
 # Section 2: Support functions
 
 
-def get_builtin_defs(api):
+def get_builtin_map(api: str) -> dict[str, type[LFRicBuiltIn]]:
     '''
-    Get the names of the supported built-in operations and the file
-    containing the associated meta-data for the supplied API
+    Get the supported built-in operations for the supplied API.
 
     :param str api: the specified PSyclone API.
-    :returns: a 2-tuple containing a dictionary of the supported \
-              built-ins and the filename where these built-ins are specified.
-    :rtype: (dict, str)
+    :returns: mapping of built-in names to their implementation classes.
+    :rtype: dict
 
     '''
 
@@ -493,13 +521,10 @@ def get_builtin_defs(api):
     if api in LFRIC_API_NAMES:
         from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP \
             as builtins
-        from psyclone.domain.lfric.lfric_builtins import \
-            BUILTIN_DEFINITIONS_FILE as fname
     else:
         # We don't support any built-ins for this API
         builtins = {}
-        fname = None
-    return builtins, fname
+    return builtins
 
 
 def get_invoke_label(parse_tree, alg_filename, identifier="name"):
@@ -895,47 +920,40 @@ class InvokeCall():
 
 
 class ParsedCall():
-    '''Base class for information about a user-supplied or built-in
+    """Base class for information about a user-supplied or built-in
     kernel.
 
-    :param ktype: information about a kernel or builtin. Provides \
-        access to the PSyclone description metadata and the code if it \
-        exists.
-    :type ktype: API-specific specialisation of \
-        :py:class:`psyclone.parse.kernel.KernelType`
-    :param args: a list of Arg instances which capture the relevant \
-        information about the arguments associated with the call to the \
+    :param kernel: metadata and optional implementation of the kernel.
+    :type kernel: :py:class:`psyclone.domain.common.kernel.Kernel`
+    :param args: a list of Arg instances which capture the relevant
+        information about the arguments associated with the call to the
         kernel or builtin.
     :type args: list of :py:class:`psyclone.parse.algorithm.Arg`
 
-    '''
-    def __init__(self, ktype, args):
-        self._ktype = ktype
+    :raises ParseError: if fewer arguments are supplied than the metadata
+        requires.
+    """
+    def __init__(self, kernel: Kernel, args: list[Arg]) -> None:
+        self._kernel = kernel
         self._args = args
-        if len(self._args) < self._ktype.nargs:
+        metadata = self._kernel.metadata
+        if len(self._args) < metadata.nargs:
             # we cannot test for equality here as API's may have extra
             # arguments passed in from the algorithm layer (e.g. 'QR'
             # in lfric), but we do expect there to be at least the
             # same number of real arguments as arguments specified in
             # the metadata.
             raise ParseError(
-                f"Kernel '{self._ktype.name}' called from the algorithm layer "
+                f"Kernel '{metadata.name}' called from the algorithm layer "
                 f"with an insufficient number of arguments as specified by "
-                f"the metadata. Expected at least '{self._ktype.nargs}' but "
+                f"the metadata. Expected at least '{metadata.nargs}' but "
                 f"found '{len(self._args)}'.")
         self._module_name = None
 
     @property
-    def ktype(self):
-        '''
-        :returns: information about a kernel or builtin. Provides \
-            access to the PSyclone description metadata and the code if it \
-            exists.
-        :rtype: API-specific specialisation of \
-            :py:class:`psyclone.parse.kernel.KernelType`
-
-        '''
-        return self._ktype
+    def kernel(self) -> Kernel:
+        """:returns: metadata and optional implementation for this kernel."""
+        return self._kernel
 
     @property
     def args(self):
@@ -965,14 +983,18 @@ class KernelCall(ParsedCall):
     type for distinguishing this class.
 
     :param module_name: the name of the kernel module.
-    :param ktype: information about the kernel. Provides access to the
-        PSyclone description metadata and the code.
+    :param kernel: metadata and implementation information for the kernel.
     :param args: a list of Arg instances which capture the relevant
         information about the arguments associated with the call to the kernel.
 
     '''
-    def __init__(self, module_name: str, ktype: KernelType, args: list[Arg]):
-        ParsedCall.__init__(self, ktype, args)
+    def __init__(
+            self,
+            module_name: str,
+            kernel: Kernel,
+            args: list[Arg],
+    ) -> None:
+        ParsedCall.__init__(self, kernel, args)
         self._module_name = module_name
 
     @property
@@ -984,8 +1006,11 @@ class KernelCall(ParsedCall):
         '''
         return "kernelCall"
 
-    def __repr__(self):
-        return f"KernelCall('{self.ktype.name}', {self.args})"
+    def __repr__(self) -> str:
+        """:returns: a representation of the kernel name and Algorithm-layer
+        arguments.
+        """
+        return f"KernelCall('{self.kernel.metadata.name}', {self.args})"
 
 
 class BuiltInCall(ParsedCall):
@@ -994,19 +1019,16 @@ class BuiltInCall(ParsedCall):
     name method (the name of the builtin) and a type for
     distinguishing this class.
 
-    :param ktype: information about this builtin. Provides \
-    access to the PSyclone description metadata.
-    :type ktype: API-specific specialisation of \
-    :py:class:`psyclone.parse.kernel.KernelType`
+    :param kernel: metadata for this built-in.
     :param args: a list of Arg instances which capture the relevant \
     information about the arguments associated with the call to the \
     kernel or builtin
     :type args: list of :py:class:`psyclone.parse.algorithm.Arg`
 
     '''
-    def __init__(self, ktype, args):
-        ParsedCall.__init__(self, ktype, args)
-        self._func_name = ktype.name
+    def __init__(self, kernel: Kernel, args: list[Arg]) -> None:
+        ParsedCall.__init__(self, kernel, args)
+        self._func_name = kernel.metadata.name
 
     @property
     def func_name(self):
@@ -1026,8 +1048,11 @@ class BuiltInCall(ParsedCall):
         '''
         return "BuiltInCall"
 
-    def __repr__(self):
-        return f"BuiltInCall('{self.ktype.name}', {self.args})"
+    def __repr__(self) -> str:
+        """:returns: a representation of the built-in name and Algorithm-layer
+        arguments.
+        """
+        return f"BuiltInCall('{self.kernel.metadata.name}', {self.args})"
 
 
 class Arg():
@@ -1120,6 +1145,6 @@ class Arg():
 
 
 # For auto-API documentation generation.
-__all__ = ["parse", "Parser", "get_builtin_defs", "get_invoke_label",
+__all__ = ["parse", "Parser", "get_builtin_map", "get_invoke_label",
            "get_kernel", "create_var_name", "AlgFileInfo", "InvokeCall",
            "ParsedCall", "KernelCall", "BuiltInCall", "Arg"]

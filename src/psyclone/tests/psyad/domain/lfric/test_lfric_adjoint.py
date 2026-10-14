@@ -11,6 +11,7 @@ psyad/domain/lfric/lfric_adjoint.py file.
 
 '''
 import logging
+from types import SimpleNamespace
 
 import pytest
 
@@ -202,10 +203,10 @@ def test_generate_lfric_adjoint_type_and_procedure_names(
     '''
     psyir = fortran_reader.psyir_from_source(SINGLE_ROUTINE_CODE)
     adj_psyir = generate_lfric_adjoint(psyir, ["var1", "var2"])
-    result = fortran_writer(adj_psyir)
-    assert "type, public, extends(kernel_type) :: adj_test_type" in result
-    assert "END TYPE adj_test_type" in result
-    assert "PROCEDURE, NOPASS :: adj_kern_code" in result
+    result = fortran_writer(adj_psyir).lower()
+    assert "type, extends(kernel_type), public :: adj_test_type" in result
+    assert "end type adj_test_type" in result
+    assert "procedure, nopass :: code => adj_kern_code" in result
 
 
 def test_generate_lfric_adjoint_multi_precision(
@@ -251,15 +252,13 @@ def test_generate_lfric_adjoint_multi_precision(
     # Remove procedure metadata
     test_type_symbol.datatype.procedure_components.clear()
     ad_psyir = generate_lfric_adjoint(psyir, ["field_1_w0", "field_2_w0"])
-    result = fortran_writer(ad_psyir)
+    result = fortran_writer(ad_psyir).lower()
     # Check that the metadata type name is updated.
-    assert "type, public, extends(kernel_type) :: adj_test_type" in result
-    assert "END TYPE adj_test_type" in result
+    assert "type, extends(kernel_type), public :: adj_test_type" in result
+    assert "end type adj_test_type" in result
     # Check that the metadata intents (gh_inc etc.) do not change.
-    assert (
-        "  type(ARG_TYPE) :: META_ARGS(2) = (/ &\n"
-        "    arg_type(gh_field, gh_real, gh_inc, w0), &\n"
-        "    arg_type(gh_field, gh_real, gh_read, w0)/)\n" in result)
+    assert "arg_type(gh_field, gh_real, gh_inc, w0)" in result
+    assert "arg_type(gh_field, gh_real, gh_read, w0)" in result
 
 
 def test_generate_lfric_adjoint_check_add_access_symbol(
@@ -330,6 +329,18 @@ def get_metadata_args():
     return (metadata, dummy, field_1, field_2, field_3, scalar, operator)
 
 
+def test_update_access_metadata_metaarg(monkeypatch):
+    """The adjoint consumer diagnoses an unexpected metadata record."""
+    metadata = SimpleNamespace(meta_args=(None,))
+    field = DataSymbol("field", ScalarType.real_type(),
+                       interface=ArgumentInterface(
+                           ArgumentInterface.Access.READWRITE))
+    monkeypatch.setattr(ArgIndexToMetadataIndex, "mapping", lambda _: {0: 0})
+    with pytest.raises(InternalError,
+                       match="Found unexpected meta arg class 'NoneType'"):
+        _update_access_metadata("field", [field], metadata)
+
+
 def test_update_access_metadata_none():
     '''Test that the update_access_metadata method returns None and does
     not modify the metadata if the supplied symbol name is not an
@@ -345,8 +356,10 @@ def test_update_access_metadata_none():
     assert metadata.meta_args[4].access.lower() == "gh_read"
     arguments = [
         dummy, dummy, field_1, field_2, field_3, scalar, dummy, operator]
-    access = _update_access_metadata("internal", arguments, metadata)
+    access, updated = _update_access_metadata(
+        "internal", arguments, metadata)
     assert access is None
+    assert updated is metadata
     assert metadata.meta_args[0].access.lower() == "gh_write"
     assert metadata.meta_args[1].access.lower() == "gh_read"
     assert metadata.meta_args[2].access.lower() == "gh_read"
@@ -388,9 +401,9 @@ def test_update_access_metadata_scalar_reduction():
     assert metadata.meta_args[3].access.lower() == "gh_read"
     arguments = [
         dummy, dummy, field_1, field_2, field_3, scalar, dummy, operator]
-    access = _update_access_metadata("scalar", arguments, metadata)
+    access, updated = _update_access_metadata("scalar", arguments, metadata)
     assert access.lower() == "gh_reduction"
-    assert metadata.meta_args[3].access.lower() == access.lower()
+    assert updated.meta_args[3].access.lower() == access.lower()
 
 
 def test_update_access_metadata_operator_readwrite():
@@ -403,9 +416,10 @@ def test_update_access_metadata_operator_readwrite():
     assert metadata.meta_args[4].access.lower() == "gh_read"
     arguments = [
         dummy, dummy, field_1, field_2, field_3, scalar, dummy, operator]
-    access = _update_access_metadata("operator", arguments, metadata)
+    access, updated = _update_access_metadata(
+        "operator", arguments, metadata)
     assert access.lower() == "gh_readwrite"
-    assert metadata.meta_args[4].access.lower() == access.lower()
+    assert updated.meta_args[4].access.lower() == access.lower()
 
 
 def test_update_access_metadata_inc():
@@ -418,9 +432,10 @@ def test_update_access_metadata_inc():
     assert metadata.meta_args[1].access.lower() == "gh_read"
     arguments = [
         dummy, dummy, field_1, field_2, field_3, scalar, dummy, operator]
-    access = _update_access_metadata("field_2", arguments, metadata)
+    access, updated = _update_access_metadata(
+        "field_2", arguments, metadata)
     assert access.lower() == "gh_readwrite"
-    assert metadata.meta_args[1].access.lower() == access.lower()
+    assert updated.meta_args[1].access.lower() == access.lower()
 
 
 def test_update_access_metadata_field_inc():
@@ -433,28 +448,10 @@ def test_update_access_metadata_field_inc():
     assert metadata.meta_args[2].access.lower() == "gh_read"
     arguments = [
         dummy, dummy, field_1, field_2, field_3, scalar, dummy, operator]
-    access = _update_access_metadata("field_3", arguments, metadata)
+    access, updated = _update_access_metadata(
+        "field_3", arguments, metadata)
     assert access.lower() == "gh_inc"
-    assert metadata.meta_args[2].access.lower() == access.lower()
-
-
-def test_update_access_metadata_metaarg(monkeypatch):
-    '''Test that the _update_access_metadata method raises the expected
-    exception when an unsupported metaarg is found. We need to
-    monkeypatch to force this exception.
-
-    '''
-    metadata, dummy, field_1, field_2, _1, _2, _3 = \
-        get_metadata_args()
-    monkeypatch.setattr(metadata._meta_args, "_meta_args_args",
-                        [metadata.meta_args[0], None])
-    # Avoid validity checks
-    monkeypatch.setattr(
-        ArgIndexToMetadataIndex, "mapping", lambda _: {1: 0, 2: 1})
-    arguments = [dummy, field_1, field_2]
-    with pytest.raises(InternalError) as info:
-        _ = _update_access_metadata("field_2", arguments, metadata)
-    assert "Found unexpected meta arg class 'NoneType'." in str(info.value)
+    assert updated.meta_args[2].access.lower() == access.lower()
 
 
 def test_update_access_metadata_write(monkeypatch):
@@ -469,9 +466,10 @@ def test_update_access_metadata_write(monkeypatch):
         field_2.interface, "_access", ArgumentInterface.Access.WRITE)
     arguments = [
         dummy, dummy, field_1, field_2, field_3, scalar, dummy, operator]
-    access = _update_access_metadata("field_2", arguments, metadata)
+    access, updated = _update_access_metadata(
+        "field_2", arguments, metadata)
     assert access.lower() == "gh_write"
-    assert metadata.meta_args[1].access.lower() == access.lower()
+    assert updated.meta_args[1].access.lower() == access.lower()
 
 
 def test_update_access_metadata_read(monkeypatch):
@@ -488,9 +486,10 @@ def test_update_access_metadata_read(monkeypatch):
         field_1.interface, "_access", ArgumentInterface.Access.READ)
     arguments = [
         dummy, dummy, field_1, field_2, field_3, scalar, dummy, operator]
-    access = _update_access_metadata("field_1", arguments, metadata)
+    access, updated = _update_access_metadata(
+        "field_1", arguments, metadata)
     assert access.lower() == "gh_read"
-    assert metadata.meta_args[1].access.lower() == access.lower()
+    assert updated.meta_args[0].access.lower() == access.lower()
 
 
 def test_update_access_metadata_unexpected(monkeypatch):

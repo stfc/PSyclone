@@ -9,6 +9,8 @@
 module which contains the MetadataToArgumentsRules class.
 
 '''
+from types import SimpleNamespace
+
 import pytest
 
 from psyclone.domain.lfric import MetadataToArgumentsRules
@@ -18,6 +20,17 @@ from psyclone.domain.lfric.kernel import (
     MetaFuncsArgMetadata, OperatorArgMetadata, MetaRefElementArgMetadata,
     ScalarArgMetadata)
 from psyclone.errors import InternalError
+
+
+def test_generate_exception(monkeypatch):
+    """An unexpected record must raise the argument generator's own error."""
+    metadata = SimpleNamespace(
+        meta_args=(None,), meta_args_get=lambda _: [],
+        operates_on="cell_column", kernel_type="general-purpose")
+    monkeypatch.setattr(MetadataToArgumentsRules, "_metadata", metadata)
+    with pytest.raises(InternalError,
+                       match="Unexpected meta_arg type 'NoneType'"):
+        MetadataToArgumentsRules._generate()
 
 
 def check_called(monkeypatch, function, method_name, metadata):
@@ -150,7 +163,8 @@ def test_generate_mesh_ncell2d(monkeypatch):
 
     '''
     meta_args = [
-        ColumnwiseOperatorArgMetadata("GH_REAL", "GH_READWRITE", "W0", "W1")]
+        ColumnwiseOperatorArgMetadata("GH_REAL", "GH_READWRITE", "W0", "W1"),
+        ColumnwiseOperatorArgMetadata("GH_REAL", "GH_READ", "W0", "W1")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
     metadata.validate()
@@ -249,7 +263,8 @@ def test_generate_cma_operator(monkeypatch):
 
     '''
     meta_args = [
-        ColumnwiseOperatorArgMetadata("GH_REAL", "GH_READWRITE", "W0", "W1")]
+        ColumnwiseOperatorArgMetadata("GH_REAL", "GH_READWRITE", "W0", "W1"),
+        ColumnwiseOperatorArgMetadata("GH_REAL", "GH_READ", "W0", "W1")]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
     metadata.validate()
@@ -359,7 +374,7 @@ def test_generate_basis(monkeypatch):
         MetaFuncsArgMetadata("W0", basis_function=True)]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args,
-        meta_funcs=meta_funcs)
+        meta_funcs=meta_funcs, shapes=["gh_quadrature_xyoz"])
     metadata.validate()
 
     def _basis(_):
@@ -379,7 +394,7 @@ def test_generate_diff_basis(monkeypatch):
         MetaFuncsArgMetadata("W0", diff_basis_function=True)]
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args,
-        meta_funcs=meta_funcs)
+        meta_funcs=meta_funcs, shapes=["gh_quadrature_xyoz"])
     metadata.validate()
 
     def _diff_basis(_):
@@ -562,7 +577,7 @@ def test_generate_banded_dofmap(monkeypatch):
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
     metadata.validate()
-    assert metadata._get_kernel_type() == "cma-assembly"
+    assert metadata.kernel_type == "cma-assembly"
 
     def _banded_dofmap(_):
         raise Exception("_banded_dofmap")
@@ -581,29 +596,9 @@ def test_generate_indirection_dofmap(monkeypatch):
     metadata = LFRicKernelMetadata(
         operates_on="cell_column", meta_args=meta_args)
     metadata.validate()
-    assert metadata._get_kernel_type() == "cma-apply"
+    assert metadata.kernel_type == "cma-apply"
 
     def _indirection_dofmap(_):
         raise Exception("_indirection_dofmap")
     check_called(monkeypatch, _indirection_dofmap,
                  "_indirection_dofmap", metadata)
-
-
-def test_generate_exception(monkeypatch):
-    '''Test the MetadataToArgumentRules class _generate method raises the
-    expected exception if an an unexpected meta_arg type is found.
-
-    '''
-    meta_args = [
-        FieldArgMetadata("GH_REAL", "GH_INC", "W0")]
-    metadata = LFRicKernelMetadata(
-        operates_on="cell_column", meta_args=meta_args)
-    metadata.validate()
-    monkeypatch.setattr(metadata, "_validate_general_purpose_kernel",
-                        lambda: None)
-    monkeypatch.setattr(metadata._meta_args, "_meta_args_args", [None])
-    monkeypatch.setattr(MetadataToArgumentsRules, "_metadata", metadata)
-    with pytest.raises(InternalError) as info:
-        MetadataToArgumentsRules._generate()
-    assert ("PSyclone internal error: Unexpected meta_arg type 'NoneType' "
-            "found." in str(info.value))

@@ -6,7 +6,7 @@
 ! -----------------------------------------------------------------------------
 
 !> Test kernel that contains an unqualified USE statement.
-module kernel_with_use_mod
+module kernel_with_unqualified_use_mod
   use argument_mod
   use grid_mod
   use kernel_mod
@@ -63,4 +63,4 @@ contains
 
   end subroutine kernel_with_use_code
 
-end module kernel_with_use_mod
+end module kernel_with_unqualified_use_mod

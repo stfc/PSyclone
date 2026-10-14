@@ -13,15 +13,14 @@ functionality (e.g. metadata, parsing, invoke calls).
 import os
 import pytest
 import fparser
-from fparser import api as fpapi
 
-from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
-                                   LFRicKern, LFRicKernMetadata,
+from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
                                    LFRicScalarArgs, LFRicScalarArrayArgs)
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
+from psyclone.tests.utilities import create_lfric_metadata
 
 # Constants
 BASE_PATH = os.path.join(
@@ -34,7 +33,7 @@ TEST_API = "lfric"
 CODE = '''
 module testkern_qr
   type, extends(kernel_type) :: testkern_qr_type
-     type(arg_type), meta_args(7) =                              &
+     type(arg_type), dimension(7) :: meta_args =                              &
           (/ arg_type(gh_scalar,   gh_real,    gh_read),         &
              arg_type(gh_field,    gh_real,    gh_inc,  w1),     &
              arg_type(gh_field,    gh_real,    gh_read, w2),     &
@@ -54,28 +53,13 @@ module testkern_qr
      procedure, nopass :: code => testkern_qr_code
   end type testkern_qr_type
 contains
-  subroutine testkern_qr_code(a, b, c, d)
-  end subroutine testkern_qr_code
+  subroutine testkern_qr_code()
+end subroutine testkern_qr_code
 end module testkern_qr
 '''
 
 
-def test_ad_scalar_init_wrong_argument_type():
-    ''' Test that an error is raised if something other than a scalar
-    is passed to the LFRicArgDescriptor._init_scalar() method. '''
-    ast = fpapi.parse(CODE, ignore_comments=False)
-    name = "testkern_qr_type"
-    metadata = LFRicKernMetadata(ast, name=name)
-    # Get an argument which is not a scalar
-    wrong_arg = metadata._inits[3]
-    with pytest.raises(InternalError) as excinfo:
-        LFRicArgDescriptor(
-            wrong_arg, metadata.iterates_over, 0)._init_scalar(wrong_arg)
-    assert ("Expected a scalar argument but got an argument of type "
-            "'gh_operator'." in str(excinfo.value))
-
-
-def test_ad_scalar_type_too_few_args():
+def test_ad_scalar_type_too_few_args(fortran_reader):
     ''' Tests that an error is raised when the argument descriptor
     metadata for a scalar has fewer than 3 args.
     Note: This general check is also valid for all other argument types.
@@ -87,15 +71,13 @@ def test_ad_scalar_type_too_few_args():
     for argname in const.VALID_SCALAR_NAMES:
         code = CODE.replace("arg_type(" + argname + ",   gh_real,    gh_read)",
                             "arg_type(" + argname + ",   gh_real)", 1)
-        ast = fpapi.parse(code, ignore_comments=False)
+        psyir = fortran_reader.psyir_from_source(code)
         with pytest.raises(ParseError) as excinfo:
-            _ = LFRicKernMetadata(ast, name=name)
-        assert ("In the LFRic API each 'meta_arg' entry must have at least "
-                "3 args, but found 2 in 'arg_type(gh_scalar, gh_real)'."
-                in str(excinfo.value))
+            _ = create_lfric_metadata(psyir, name=name)
+        assert "must have at least three arguments" in str(excinfo.value)
 
 
-def test_ad_scalar_type_too_many_args():
+def test_ad_scalar_type_too_many_args(fortran_reader):
     ''' Tests that an error is raised when the argument descriptor
     metadata for a scalar has more than 3 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -105,55 +87,28 @@ def test_ad_scalar_type_too_many_args():
         code = CODE.replace(
             "arg_type(" + argname + ",   gh_integer, gh_read)",
             "arg_type(" + argname + ",   gh_integer, gh_read, w1)", 1)
-        ast = fpapi.parse(code, ignore_comments=False)
+        psyir = fortran_reader.psyir_from_source(code)
         with pytest.raises(ParseError) as excinfo:
-            _ = LFRicKernMetadata(ast, name=name)
-        assert ("each 'meta_arg' entry must have 3 arguments if its first "
-                "argument is 'gh_scalar', but found 4 in "
-                "'arg_type(gh_scalar, gh_integer, gh_read, w1)'." in
-                str(excinfo.value))
+            _ = create_lfric_metadata(psyir, name=name)
+        assert "Scalar metadata must have three arguments" in str(
+            excinfo.value)
 
 
-def test_ad_scalar_invalid_data_type():
+def test_ad_scalar_invalid_data_type(fortran_reader):
     ''' Tests that an error is raised when the argument descriptor
     metadata for a scalar has an invalid data type. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
     code = CODE.replace("arg_type(gh_scalar,   gh_real,    gh_read)",
                         "arg_type(gh_scalar, gh_unreal, gh_read)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    const = LFRicConstants()
+    psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert (f"In the LFRic API the 2nd argument of a 'meta_arg' entry should "
-            f"be a valid data type (one of {const.VALID_SCALAR_DATA_TYPES}), "
-            f"but found 'gh_unreal' in 'arg_type(gh_scalar, gh_unreal, "
-            f"gh_read)'." in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "scalar datatype descriptor" in str(excinfo.value)
+    assert "'gh_unreal'" in str(excinfo.value)
 
 
-def test_ad_scalar_init_wrong_data_type(monkeypatch):
-    ''' Test that an error is raised if an invalid data type
-    is passed to the LFRicArgDescriptor._init_scalar() method. '''
-    ast = fpapi.parse(CODE, ignore_comments=False)
-    name = "testkern_qr_type"
-    metadata = LFRicKernMetadata(ast, name=name)
-    # Get a scalar argument descriptor and set a wrong data type
-    scalar_arg = metadata._inits[0]
-    scalar_arg.args[1].name = "gh_double"
-    const = LFRicConstants()
-    # Now try to trip the error by making the initial test think
-    # that 'gh_double' is actually a valid data type
-    monkeypatch.setattr(
-        target=LFRicConstants, name="VALID_ARG_DATA_TYPES",
-        value=LFRicConstants.VALID_ARG_DATA_TYPES + ["gh_double"])
-    with pytest.raises(InternalError) as excinfo:
-        LFRicArgDescriptor(
-            scalar_arg, metadata.iterates_over, 0)._init_scalar(scalar_arg)
-    assert (f"Expected one of {const.VALID_SCALAR_DATA_TYPES} as the scalar "
-            f"data type but got 'gh_double'." in str(excinfo.value))
-
-
-def test_ad_scalar_type_no_write():
+def test_ad_scalar_type_no_write(fortran_reader):
     ''' Tests that an error is raised when the argument descriptor
     metadata for a scalar specifies 'GH_WRITE' access. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -163,15 +118,14 @@ def test_ad_scalar_type_no_write():
         code = CODE.replace(
             "arg_type(" + argname + ",   gh_integer, gh_read)",
             "arg_type(" + argname + ",   gh_integer, gh_write)", 1)
-        ast = fpapi.parse(code, ignore_comments=False)
+        psyir = fortran_reader.psyir_from_source(code)
         with pytest.raises(ParseError) as excinfo:
-            _ = LFRicKernMetadata(ast, name=name)
-        assert ("scalar arguments must have read-only ('gh_read') or a "
-                "reduction ('gh_reduction') access but found "
-                "'gh_write'" in str(excinfo.value))
+            _ = create_lfric_metadata(psyir, name=name)
+        assert "scalar access descriptor" in str(excinfo.value)
+        assert "'gh_write'" in str(excinfo.value)
 
 
-def test_ad_scalar_type_no_inc():
+def test_ad_scalar_type_no_inc(fortran_reader):
     ''' Tests that an error is raised when the argument descriptor
     metadata for a scalar specifies 'GH_INC' access. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -180,15 +134,14 @@ def test_ad_scalar_type_no_inc():
     for argname in const.VALID_SCALAR_NAMES:
         code = CODE.replace("arg_type(" + argname + ",   gh_real,    gh_read)",
                             "arg_type(" + argname + ",   gh_real, gh_inc)", 1)
-        ast = fpapi.parse(code, ignore_comments=False)
+        psyir = fortran_reader.psyir_from_source(code)
         with pytest.raises(ParseError) as excinfo:
-            _ = LFRicKernMetadata(ast, name=name)
-        assert ("scalar arguments must have read-only ('gh_read') or a "
-                "reduction ('gh_reduction') access but found "
-                "'gh_inc'" in str(excinfo.value))
+            _ = create_lfric_metadata(psyir, name=name)
+        assert "scalar access descriptor" in str(excinfo.value)
+        assert "'gh_inc'" in str(excinfo.value)
 
 
-def test_ad_scalar_type_no_readwrite():
+def test_ad_scalar_type_no_readwrite(fortran_reader):
     ''' Tests that an error is raised when the argument descriptor
     metadata for a scalar specifies 'GH_READWRITE' access. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -198,16 +151,15 @@ def test_ad_scalar_type_no_readwrite():
         code = CODE.replace(
             "arg_type(" + argname + ",   gh_logical, gh_read)",
             "arg_type(" + argname + ",   gh_logical, gh_readwrite)", 1)
-        ast = fpapi.parse(code, ignore_comments=False)
+        psyir = fortran_reader.psyir_from_source(code)
         with pytest.raises(ParseError) as excinfo:
-            _ = LFRicKernMetadata(ast, name=name)
-        assert ("scalar arguments must have read-only ('gh_read') or a "
-                "reduction ('gh_reduction') access but found "
-                "'gh_readwrite'" in str(excinfo.value))
+            _ = create_lfric_metadata(psyir, name=name)
+        assert "scalar access descriptor" in str(excinfo.value)
+        assert "'gh_readwrite'" in str(excinfo.value)
 
 
 @pytest.mark.parametrize("scalar_type", ["gh_integer", "gh_logical"])
-def test_ad_integer_logical_scalar_type_no_sum(scalar_type):
+def test_ad_integer_logical_scalar_type_no_sum(scalar_type, fortran_reader):
     ''' Tests that an error is raised when the argument descriptor
     metadata for an 'integer' or a 'logical' scalar specifies 'GH_REDUCTION'
     access (reduction).
@@ -217,16 +169,15 @@ def test_ad_integer_logical_scalar_type_no_sum(scalar_type):
     code = CODE.replace(
         f"arg_type(gh_scalar,   {scalar_type}, gh_read)",
         f"arg_type(gh_scalar,   {scalar_type}, gh_reduction)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert (f"reduction access 'gh_reduction' is only valid with a real "
-            f"scalar argument, but a scalar argument with '{scalar_type}' "
-            f"data type " in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "Reduction access is only valid for a real scalar" in str(
+        excinfo.value)
 
 
-def test_no_vector_scalar():
+def test_no_vector_scalar(fortran_reader):
     ''' Tests that we raise an error when kernel metadata erroneously
     specifies a vector scalar argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -236,44 +187,32 @@ def test_no_vector_scalar():
         vectname = argname + " * 3"
         code = CODE.replace("arg_type(" + argname + ",   gh_real,    gh_read)",
                             "arg_type(" + vectname + ", gh_real, gh_read)", 1)
-        ast = fpapi.parse(code, ignore_comments=False)
+        psyir = fortran_reader.psyir_from_source(code)
         with pytest.raises(ParseError) as excinfo:
-            _ = LFRicKernMetadata(ast, name=name)
-        assert (f"vector notation is only supported for ['gh_field'] argument "
-                f"types but found '{vectname}'" in str(excinfo.value))
+            _ = create_lfric_metadata(psyir, name=name)
+        assert "Vector notation is only supported for gh_field" in str(
+            excinfo.value)
+        assert f"'{argname}'" in str(excinfo.value)
 
 
 @pytest.mark.parametrize("scalar_ind, scalar_type", [
     (0, "gh_real"), (6, "gh_integer"), (5, "gh_logical")])
-def test_arg_descriptor_scalar(scalar_ind, scalar_type):
-    ''' Test that the LFRicArgDescriptor argument representation works
+def test_arg_descriptor_scalar(scalar_ind, scalar_type, fortran_reader):
+    ''' Test that the typed argument-metadata representation works
     as expected for all three types of valid scalar argument:
     'real', 'integer' and 'logical'.
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    ast = fpapi.parse(CODE, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast, name="testkern_qr_type")
-    scalar_descriptor = metadata.arg_descriptors[scalar_ind]
+    psyir = fortran_reader.psyir_from_source(CODE)
+    metadata = create_lfric_metadata(psyir, name="testkern_qr_type")
+    scalar_descriptor = metadata.meta_args[scalar_ind]
 
-    # Assert correct string representation from LFRicArgDescriptor
-    result = str(scalar_descriptor)
-    expected_output = (
-        f"LFRicArgDescriptor object\n"
-        f"  argument_type[0]='gh_scalar'\n"
-        f"  data_type[1]='{scalar_type}'\n"
-        f"  access_descriptor[2]='gh_read'\n")
-    assert expected_output in result
-
-    # Check LFRicArgDescriptor argument properties
-    assert scalar_descriptor.argument_type == "gh_scalar"
-    assert scalar_descriptor.data_type == scalar_type
-    assert scalar_descriptor.function_space is None
-    assert scalar_descriptor.function_spaces == []
-    assert str(scalar_descriptor.access) == "READ"
-    assert scalar_descriptor.mesh is None
-    assert scalar_descriptor.stencil is None
-    assert scalar_descriptor.vector_size == 0
+    assert scalar_descriptor.form == "gh_scalar"
+    assert scalar_descriptor.datatype == scalar_type
+    assert scalar_descriptor.access == "gh_read"
+    assert scalar_descriptor.fortran_string() == (
+        f"arg_type(gh_scalar, {scalar_type}, gh_read)")
 
 
 def test_lfricscalars_call_err1():
@@ -403,16 +342,16 @@ def test_scalar_invoke_uniq_declns_valid_intrinsic():
     assert scalars_logical == ["lswitch"]
 
 
-def test_scalar_arg_lfricconst_properties(monkeypatch):
+def test_scalar_arg_lfricconst_properties(monkeypatch, fortran_reader):
     ''' Tests that properties of all supported types of user-defined,
     read-only, scalar arguments ('real', 'integer' and 'logical') defined
     in LFRicConstants are correctly set up in the LFRicKernelArgument class.
 
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    ast = fpapi.parse(CODE, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(CODE)
     name = "testkern_qr_type"
-    metadata = LFRicKernMetadata(ast, name=name)
+    metadata = create_lfric_metadata(psyir, name=name)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
 
@@ -473,19 +412,19 @@ def test_scalar_reduction_lfricconst_properties():
     assert reduction_arg.precision == "r_def"
 
 
-def test_multiple_updated_scalar_args():
+def test_multiple_updated_scalar_args(fortran_reader):
     ''' Check that we raise the expected exception when we encounter a
     kernel that writes to more than one of its field and scalar arguments '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace("arg_type(gh_scalar,   gh_real,    gh_read)",
                         "arg_type(gh_scalar,   gh_real,    gh_reduction)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
+        _ = create_lfric_metadata(psyir, name=name)
     assert ("A user-supplied LFRic kernel must not write/update a scalar "
-            "argument but kernel 'testkern_qr_type' has a scalar "
-            "argument with 'gh_reduction' access." in str(excinfo.value))
+            "argument but kernel 'testkern_qr_type' does" in
+            str(excinfo.value))
 
 
 def test_scalar_different_data_types_invoke():
@@ -497,7 +436,6 @@ def test_scalar_different_data_types_invoke():
         os.path.join(BASE_PATH,
                      "4.16_multikernel_invokes_real_int_scalar_invalid.f90"),
         api=TEST_API)
-
     const = LFRicConstants()
     with pytest.raises(GenerationError) as excinfo:
         _ = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
@@ -516,11 +454,10 @@ def test_scalar_array_different_data_types_invoke():
         os.path.join(BASE_PATH,
                      "28.1_multikernel_invokes_scalar_array_invalid.f90"),
         api=TEST_API)
-
-    with pytest.raises(GenerationError):
+    with pytest.raises(GenerationError) as excinfo:
         _ = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-
     assert ("ScalarArray argument(s) ['b'] in Invoke "
             "'invoke_real_and_logical_scalars' is/are passed to more than "
             "one kernel and the kernel metadata for the corresponding "
-            "arguments specifies different intrinsic types.")
+            "arguments specifies different intrinsic types." in
+            str(excinfo.value))

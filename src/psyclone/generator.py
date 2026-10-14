@@ -14,6 +14,8 @@
     from within another Python program.
 '''
 
+from __future__ import annotations
+
 import argparse
 import importlib
 import logging
@@ -43,7 +45,6 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
 from psyclone.parse.algorithm import parse
-from psyclone.parse.kernel import get_kernel_filepath
 from psyclone.parse.utils import ParseError, parse_fp2
 from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory, Transformation
@@ -268,8 +269,7 @@ def generate(filename: str,
             raise IOError(
                 f"Kernel search path '{kernel_path}' not found")
 
-    # TODO #2011: investigate if kernel search path and module manager
-    # can be combined.
+    # Make explicitly supplied kernel paths available when resolving imports.
     ModuleManager.get().add_search_path(kernel_paths)
 
     ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
@@ -373,8 +373,7 @@ def generate(filename: str,
                     raise GenerationError(message)
                 container_symbol = kern.symbol.interface.container_symbol
 
-                # Find the kernel file containing the container
-                filepath = get_kernel_filepath(
+                filepath = ModuleManager.find_kernel_file(
                     container_symbol.name, kernel_paths, filename)
 
                 try:
@@ -907,7 +906,7 @@ def code_transformation_mode(input_file: str,
                              keep_conditional_openmp_statements: bool,
                              kwargs_str: Optional[str] = None,
                              free_form: bool = True,
-                             line_length: str = "off"):
+                             line_length: str = "off") -> None:
     '''
     Process the input_file with the transformations script specified in
     `script_name` and store it in the output_file.
@@ -1005,5 +1004,8 @@ def code_transformation_mode(input_file: str,
             print(f"File '{input_file}' skipped because it is listed in "
                   "FILES_TO_SKIP.", file=sys.stdout)
 
-    # TODO #3514: proper cleanup using with
-    del sys.path[0]
+    # load_script() prepends the script directory to sys.path. Only remove it
+    # when a script was actually loaded.
+    if script_name:
+        # TODO #3514: proper cleanup using with
+        del sys.path[0]

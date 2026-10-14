@@ -10,18 +10,21 @@
     call a stub) when presented with Kernel Metadata.
 '''
 
+from __future__ import annotations
+
 from __future__ import print_function
 import os
 
-import fparser
-from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
+from psyclone.domain.common.kernel import Kernel
+from psyclone.domain.lfric import LFRicKern, LFRicKernelMetadata
 from psyclone.errors import GenerationError
 from psyclone.parse.utils import ParseError
 from psyclone.configuration import Config, LFRIC_API_NAMES
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.frontend.fortran import FortranReader
 
 
-def generate(filename, api=""):
+def generate(filename: str, api: str = '') -> str:
     '''
     Generates an empty kernel subroutine with the required arguments
     and datatypes (which we call a stub) when presented with Kernel
@@ -47,24 +50,24 @@ def generate(filename, api=""):
         raise GenerationError(
             f"Kernel stub generator: Unsupported API '{api}' specified. "
             f"Supported APIs are {LFRIC_API_NAMES[0]}.")
-    else:
-        Config.get().api = api
+    Config.get().api = api
 
     if not os.path.isfile(filename):
         raise IOError(f"Kernel stub generator: File '{filename}' not found.")
 
-    # Drop cache
-    fparser.one.parsefortran.FortranParser.cache.clear()
-    fparser.logging.disable(fparser.logging.CRITICAL)
     try:
-        ast = fparser.api.parse(filename, ignore_comments=False)
-
-    except (fparser.common.utils.AnalyzeError, AttributeError) as error:
+        psyir = FortranReader().psyir_from_file(filename)
+    except Exception as error:
         raise ParseError(f"Kernel stub generator: Code appears to be invalid "
-                         f"Fortran: {error}.")
+                         f"Fortran in '{filename}': {error}.") from error
 
-    metadata = LFRicKernMetadata(ast)
+    try:
+        kernel_info = Kernel.create_from_psyir(LFRicKernelMetadata, psyir)
+    except ParseError as error:
+        raise ParseError(f"Kernel stub generator: Code appears to be invalid "
+                         f"Fortran: {error}.") from error
+
     kernel = LFRicKern()
-    kernel.load_meta(metadata)
+    kernel.load_meta(kernel_info.metadata)
 
     return FortranWriter()(kernel.gen_stub)

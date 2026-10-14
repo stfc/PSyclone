@@ -11,8 +11,7 @@ functionality of the LFRic API.
 '''
 
 import os
-from fparser import api as fpapi
-from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
+from psyclone.domain.lfric import LFRicKern, LFRicKernelMetadata
 
 
 # Constants
@@ -26,7 +25,7 @@ module testkern_refelem_quad_mod
     type(arg_type), dimension(2) :: meta_args =       &
         (/ arg_type(gh_field, gh_real, gh_read,  w1), &
            arg_type(gh_field, gh_real, gh_write, wtheta) /)
-    type(func_type), meta_funcs(2) = &
+    type(func_type), dimension(2) :: meta_funcs = &
         (/ func_type(w1, gh_basis),  &
            func_type(wtheta, gh_basis) /)
     type(reference_element_data_type), dimension(2) ::          &
@@ -45,13 +44,12 @@ end module testkern_refelem_quad_mod
 '''
 
 
-def test_refelem_stub_gen(fortran_writer):
+def test_refelem_stub_gen(fortran_writer, fortran_reader):
     ''' Check that correct kernel stub code is produced when the kernel
     metadata contain reference element properties. '''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_ref_elem_mod.F90"),
-                      ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_file(
+        os.path.join(BASE_PATH, "testkern_ref_elem_mod.F90"))
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     gen = fortran_writer(kernel.gen_stub)
@@ -96,12 +94,12 @@ end module testkern_ref_elem_mod
 """ == gen
 
 
-def test_refelem_quad_stub_gen(fortran_writer):
+def test_refelem_quad_stub_gen(fortran_writer, fortran_reader):
     ''' Check that correct stub code is produced when the kernel metadata
     contain reference element and quadrature properties (quadrature
     properties should be placed at the end of subroutine argument list). '''
-    ast = fpapi.parse(REF_ELEM_QUAD_MDATA, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(REF_ELEM_QUAD_MDATA)
+    metadata = LFRicKernelMetadata.create_from_psyir(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     gen = fortran_writer(kernel.gen_stub)

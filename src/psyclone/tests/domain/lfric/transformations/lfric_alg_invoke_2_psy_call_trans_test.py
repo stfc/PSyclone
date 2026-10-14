@@ -9,6 +9,8 @@
 transformation.
 
 '''
+from dataclasses import replace
+
 import pytest
 
 from psyclone.domain.lfric.algorithm import (
@@ -176,7 +178,9 @@ def test_lfai2psycall_get_arguments():
             in str(err.value))
 
     # OK
-    metadata.meta_args = [FieldArgMetadata("gh_real", "gh_write", "w3")]
+    metadata = replace(
+        metadata,
+        meta_args=(FieldArgMetadata("gh_real", "gh_write", "w3"),))
     psyir = LFRicKernelContainer.create(
         "kernel_mod", metadata, SymbolTable(), [])
     args = trans.get_arguments(
@@ -216,11 +220,14 @@ def test_lfai2psycall_get_arguments():
     kernel_functor = LFRicFunctor.create(data_type_symbol, arguments)
     call = LFRicAlgorithmInvokeCall.create(
         RoutineSymbol("mysub"), [kernel_functor], 0)
-    metadata.meta_args = [
-        FieldArgMetadata("gh_real", "gh_write", "w3"),
-        FieldArgMetadata("gh_real", "gh_read", "w3", stencil="xory1d")]
-    metadata.meta_funcs = [MetaFuncsArgMetadata("w3", basis_function=True)]
-    metadata.shapes = ["gh_quadrature_xyoz", "gh_quadrature_face"]
+    metadata = replace(
+        metadata,
+        meta_args=(
+            FieldArgMetadata("gh_real", "gh_write", "w3"),
+            FieldArgMetadata(
+                "gh_real", "gh_read", "w3", stencil="xory1d")),
+        meta_funcs=(MetaFuncsArgMetadata("w3", basis_function=True),),
+        shapes=("gh_quadrature_xyoz", "gh_quadrature_face"))
     psyir = LFRicKernelContainer.create(
         "kernel_mod", metadata, SymbolTable(), [])
     args = trans.get_arguments(
