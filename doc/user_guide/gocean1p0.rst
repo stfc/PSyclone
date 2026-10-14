@@ -857,13 +857,13 @@ the GOcean 1.0 API. For an overview of transformations in general see
 
 ####
 
-.. autoclass:: psyclone.transformations.GOceanOMPParallelLoopTrans
+.. autoclass:: psyclone.domain.gocean.transformations.GOceanOMPParallelLoopTrans
    :members:
    :no-index:
 
 ####
 
-.. autoclass:: psyclone.transformations.GOceanOMPLoopTrans
+.. autoclass:: psyclone.domain.gocean.transformations.GOceanOMPLoopTrans
    :members:
    :no-index:
 
