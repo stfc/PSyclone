@@ -402,6 +402,10 @@ def test_omp_region_retains_kernel_order3(tmpdir):
     ompr = OMPParallelTrans()
     ompl = GOceanOMPLoopTrans()
 
+
+    assert str(ompl) == \
+    "Add the selected OpenMP loop directive to a GOcean loop"
+
     # Put an OMP Do around the 2nd loop of the schedule
     ompl.apply(schedule.children[1])
 
