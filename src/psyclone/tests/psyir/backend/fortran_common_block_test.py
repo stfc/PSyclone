@@ -73,5 +73,5 @@ def test_fw_common_block_duplicate_positions(fortran_writer):
     with pytest.raises(VisitorError) as err:
         _ = fortran_writer(routine)
 
-    assert ("Common block 'somegroup' has Symbols with duplicate positions: "
-            "[0, 0]." in str(err.value))
+    assert ("common block 'somegroup' has symbols with duplicate positions: "
+            "[0, 0]." in str(err.value).lower())

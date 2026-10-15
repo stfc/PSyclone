@@ -83,8 +83,8 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
     >>> # print(psyir.walk(Routine)[0].view())
     >>> print(FortranWriter()(psyir.walk(Routine)[0]))
     subroutine run_it()
-      integer :: i
       real, dimension(10) :: a
+      integer :: i
     <BLANKLINE>
       do i = 1, 10, 1
         a(i) = 1.0

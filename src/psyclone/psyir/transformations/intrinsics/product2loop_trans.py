@@ -95,10 +95,10 @@ class Product2LoopTrans(ArrayReductionBaseTrans):
     >>> print(FortranWriter()(psyir))
     subroutine product_test(array)
       real, dimension(10,10) :: array
-      real :: result
       integer :: idx
       integer :: idx_1
       real :: reduction_var
+      real :: result
     <BLANKLINE>
       reduction_var = 1.0
       do idx = 1, 10, 1

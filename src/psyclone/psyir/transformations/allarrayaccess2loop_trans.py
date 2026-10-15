@@ -42,9 +42,9 @@ class AllArrayAccess2LoopTrans(Transformation):
     program example
       real, dimension(10,10) :: a
       real, dimension(10,10) :: b
-      integer :: n
       integer :: idx
       integer :: idx_1
+      integer :: n
     <BLANKLINE>
       do idx = 1, 1, 1
         do idx_1 = n - 1, n - 1, 1
