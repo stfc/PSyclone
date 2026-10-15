@@ -2939,30 +2939,27 @@ class Fparser2Reader():
                     f"declarations are not supported.") from err
 
     @staticmethod
-    def _process_data_statements(nodes, psyir_parent):
+    def _process_data_statements(nodes: list[Base],
+                                 psyir_parent: ScopingNode) -> None:
         '''Limited support for data statements: they will be converted
         to UnsupportedFortranTypes, and added to the symbol table
         using an internal PSyclone name. The complexity of data
         statements come from implicit loops, e.g.:
         DATA (es(ies),ies = 0, 5) / 0.966483e-02,... /
 
+        The UnsupportedFortranType that is created is given a fake
+        partial_datatype as a way of capturing the Symbols that the DATA
+        statement depends upon.
+
         :param nodes: fparser2 AST nodes containing declaration statements.
-        :type nodes: List[:py:class:`fparser.two.utils.Base`]
         :param psyir_parent: the PSyIR Node with a symbol table in which to
             add the data statements and update the interfaces of the symbols
             used in the data statement.
-        :type psyir_parent: :py:class:`psyclone.psyir.nodes.ScopingNode`
-        '''
 
+        '''
         # Traverse the tree, and find all Data_Stmt_Object_Lists, which
         # contain the variables defined in the data statement.
         for data_stmt in walk(nodes, Fortran2003.Data_Stmt):
-            # Add the data statement as a special symbol to the symbol
-            # table, so the backend can recreate the data statement
-            psyir_parent.symbol_table.new_symbol(
-                root_name="_PSYCLONE_INTERNAL_DATA_STMT",
-                symbol_type=DataSymbol,
-                datatype=UnsupportedFortranType(str(data_stmt)))
             # Each Data_Stmt_Object_List contains either a variable
             # (which is a Name or PartRef), or a (potentially nested)
             # implied do loop ... which at the end will have an array_element
@@ -2987,7 +2984,10 @@ class Fparser2Reader():
                         all_vars.add(str(name))
 
             # Variables in a data statement have an implied static attribute.
-            # Add this explicit:
+            # Add this explicitly and also construct the components of a fake
+            # StructureType that we will use to capture the dependencies of
+            # this statement.
+            fake_components = []
             for var_name in all_vars:
                 try:
                     sym = psyir_parent.symbol_table.lookup(var_name)
@@ -2996,6 +2996,28 @@ class Fparser2Reader():
                         psyir_parent, var_name, symbol_type=DataSymbol,
                         datatype=UnresolvedType())
                 sym.interface = StaticInterface()
+
+                # Make a ComponentType to capture a Reference to this Symbol.
+                fake_components.append(
+                    StructureType.ComponentType(f"fake_{sym.name}",
+                                                ScalarType.integer_type(),
+                                                Symbol.Visibility.PRIVATE,
+                                                initial_value=Reference(sym)))
+
+            # Combine the ComponentTypes into a StructureType.
+            fake_type = StructureType.create(fake_components)
+
+            # Finally, make the UnsupportedFortranType and supply the
+            # StructureType as its partial_datatype.
+            utype = UnsupportedFortranType(
+                str(data_stmt), partial_datatype=fake_type)
+
+            # Add the data statement as a special symbol to the symbol
+            # table, so the backend can recreate the data statement
+            psyir_parent.symbol_table.new_symbol(
+                root_name="_PSYCLONE_INTERNAL_DATA_STMT",
+                symbol_type=DataSymbol,
+                datatype=utype)
 
     @staticmethod
     def _process_common_blocks(nodes: list[Base], psyir_parent: ScopingNode):

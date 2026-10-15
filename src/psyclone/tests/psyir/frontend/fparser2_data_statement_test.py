@@ -14,7 +14,7 @@ some stage we need more information.
 
 import pytest
 from psyclone.psyir.nodes import Routine
-from psyclone.psyir.symbols import (DataSymbol, StaticInterface,
+from psyclone.psyir.symbols import (DataSymbol, StaticInterface, StructureType,
                                     UnresolvedType, UnsupportedFortranType)
 
 
@@ -31,13 +31,23 @@ def test_simple_data_statement(fortran_reader):
 
     routine = psyir.walk(Routine)[0]
     symtab = routine.symbol_table
-    assert isinstance(symtab.lookup("a").interface, StaticInterface)
-    assert isinstance(symtab.lookup("b").interface, StaticInterface)
-    assert isinstance(symtab.lookup("c").interface, StaticInterface)
+    asym = symtab.lookup("a")
+    assert isinstance(asym.interface, StaticInterface)
+    bsym = symtab.lookup("b")
+    assert isinstance(bsym.interface, StaticInterface)
+    csym = symtab.lookup("c")
+    assert isinstance(csym.interface, StaticInterface)
 
     # There is a data_stmt in the symbol table:
     data = symtab.lookup("_PSYCLONE_INTERNAL_DATA_STMT")
     assert isinstance(data.datatype, UnsupportedFortranType)
+    # The data stmt symbol is given a fake datatype to capture its
+    # dependencies (so that we get the ordering correct when generating
+    # declarations in the backend).
+    assert isinstance(data.datatype.partial_datatype, StructureType)
+    all_syms = data.datatype.get_all_accessed_symbols()
+    assert all(sym in all_syms for sym in [asym, bsym, csym])
+
     assert data.datatype.declaration == "DATA a / 1 /, b / 2 /, c / 3 /"
 
     # Test with a single data statement
@@ -99,10 +109,12 @@ def test_data_statement_implicit_loop(fortran_reader):
     routine = psyir.walk(Routine)[0]
     symtab = routine.symbol_table
 
-    assert isinstance(symtab.lookup("c").interface, StaticInterface)
+    csym = symtab.lookup("c")
+    assert isinstance(csym.interface, StaticInterface)
     # There is a data_stmt in the symbol table:
     data = symtab.lookup("_PSYCLONE_INTERNAL_DATA_STMT")
     assert isinstance(data.datatype, UnsupportedFortranType)
+    assert csym in data.datatype.get_all_accessed_symbols()
     assert (data.datatype.declaration ==
             "DATA (c(i), i = 1, 5) / 5, 4, 3, 2, 1 /")
 
