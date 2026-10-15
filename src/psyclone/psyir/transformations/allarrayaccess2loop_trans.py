@@ -104,6 +104,7 @@ class AllArrayAccess2LoopTrans(Transformation):
                 f"Error in AllArrayAccess2LoopTrans transformation. The "
                 f"supplied node argument should be a PSyIR Assignment, "
                 f"but found '{type(node).__name__}'.")
+        super().validate(node, options=options, **kwargs)
 
     def __str__(self):
         return (

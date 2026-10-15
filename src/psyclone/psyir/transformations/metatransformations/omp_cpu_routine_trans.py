@@ -42,6 +42,8 @@ class OMPCPURoutineTrans(Transformation):
 
         :param node: The Routine node to validate.
         '''
+
+        super().validate(node, **kwargs)
         # Validate the provided options are allowed and typed correctly.
         self.validate_options(**kwargs)
         # Sub transformation validation is done in the apply function
