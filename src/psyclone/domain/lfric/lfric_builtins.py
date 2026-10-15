@@ -2761,7 +2761,7 @@ class LFRicMinvalXKern(LFRicBuiltIn):
     ) -> IntrinsicCall:
         '''
         Creates the initial value for the reduction variable used for this
-        Kern or builtin.
+        MIN reduction.
 
         :param variable: the variable which is having the initial value
                          assigned to.
@@ -2819,7 +2819,7 @@ class LFRicMaxvalXKern(LFRicBuiltIn):
     ) -> UnaryOperation:
         '''
         Creates the initial value for the reduction variable used for this
-        Kern or builtin.
+        MAX reduction.
 
         :param variable: the variable which is having the initial value
                          assigned to.

@@ -856,7 +856,7 @@ class Kern(Statement):
             return ancestor.reprod
         return False
 
-    def _create_reduction_initial_value(self, variable: Symbol) -> Literal:
+    def _create_reduction_initial_value(self, variable: Symbol) -> Node:
         '''
         Creates the initial value for the reduction variable used for this
         Kern or builtin. The base classes defaults to a Literal with value
