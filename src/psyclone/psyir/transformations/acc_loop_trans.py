@@ -7,7 +7,7 @@
 
 ''' This module contains the ACCLoopTrans transformation.'''
 
-from typing import Union
+from typing import Any, Optional
 
 from psyclone.psyir.transformations.parallel_loop_trans import (
     ParallelLoopTrans)
@@ -58,14 +58,14 @@ class ACCLoopTrans(ParallelLoopTrans):
         return "Adds an 'OpenACC loop' directive to a loop"
 
     def _directive(
-        self, children: list[Node], collapse: Union[int, None] = None
+        self, children: list[Node], collapse: Optional[int] = None
     ) -> ACCLoopDirective:
         '''
         Creates the ACCLoopDirective needed by this sub-class of
         transformation.
 
         :param children: list of child nodes of the new directive Node.
-        :param int collapse: number of nested loops to collapse or None if
+        :param collapse: number of nested loops to collapse or None if
                              no collapse attribute is required.
         '''
         directive = ACCLoopDirective(children=children,
@@ -76,11 +76,11 @@ class ACCLoopTrans(ParallelLoopTrans):
                                      vector=self._vector)
         return directive
 
-    def apply(self, node: Loop, options=None,
+    def apply(self, node: Loop, options: Optional[dict[str, Any]] = None,
               independent: bool = True,
               sequential: bool = False,
               gang: bool = False, vector: bool = False,
-              **kwargs) -> None:
+              **kwargs: Any) -> None:
         '''
         Apply the ACCLoop transformation to the specified node. This node
         must be a Loop since this transformation corresponds to
@@ -99,7 +99,6 @@ class ACCLoopTrans(ParallelLoopTrans):
         :param node: the supplied node to which we will apply the
                      Loop transformation.
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
         :param independent: whether to add the "independent"
                 clause to the directive (not strictly necessary within
                 PARALLEL regions).

@@ -71,6 +71,8 @@ class RaisePSyIR2AlgTrans(Transformation):
             PSyIR ArrayReference or CodeBlock.
 
         '''
+
+        super().validate(node, options=options, **kwargs)
         if not options:
             self.validate_options(**kwargs)
 
