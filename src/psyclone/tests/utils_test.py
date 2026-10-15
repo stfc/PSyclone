@@ -38,6 +38,7 @@ def test_all_transformation_validate_calls_super():
     This checks syntax, not whether every execution path reaches the call.
     No transformation is instantiated and no validate method is executed.
     '''
+    # TODO #2668: This test is unnecessary once options dicts are removed.
     packages = [psyclone]
 
     # Collect all transformation classes
