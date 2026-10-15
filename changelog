@@ -1,3 +1,6 @@
+   69) PR #3649 for #3647. Fix issues with initialisation in LFRic MIN/MAX
+   global reductions.
+ 
    68) PR #3643 for #3637 and #3644. Fixes line-length limiter issues when
    line breaks occur in an in-line comment.
  
