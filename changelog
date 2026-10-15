@@ -1,3 +1,6 @@
+   70) PR #3649 for #3647. Fix issues with initialisation in LFRic MIN/MAX
+   global reductions.
+ 
    69) PR #3612 for #2668. Adds keyword argument support to all remaining
    Transformations ready for option dict removal.
 
