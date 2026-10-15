@@ -23,7 +23,6 @@ from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.lfric_loop import LFRicLoop
-from psyclone.lfric import LFRicHaloExchangeEnd, LFRicHaloExchangeStart
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule)
@@ -921,7 +920,6 @@ class ACCParallelTrans(ParallelRegionTrans):
         # of the nodes being enclosed and at the original location
         # of the first of these nodes
         node_parent.addchild(directive, index=node_position)
-
 
 
 class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
