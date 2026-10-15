@@ -12,7 +12,8 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicKern
-from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+from psyclone.domain.lfric.transformations import (
+    LFRicLoopFuseTrans, LFRicOMPLoopTrans)
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.profiler import Profiler
 from psyclone.psyir.nodes import (
@@ -24,8 +25,8 @@ from psyclone.psyir.transformations import (
     ACCKernelsTrans, ProfileTrans, TransformationError,
     OMPParallelTrans)
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import (
-    GOceanOMPLoopTrans, LFRicOMPLoopTrans)
+from psyclone.domain.gocean.transformations import (
+    GOceanOMPLoopTrans)
 from psyclone.utils import colored
 
 

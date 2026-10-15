@@ -23,7 +23,6 @@ from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
 from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.lfric_loop import LFRicLoop
-from psyclone.lfric import LFRicHaloExchangeEnd, LFRicHaloExchangeStart
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule)
@@ -265,95 +264,6 @@ class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
                              **par_kwargs)
                 return
         super().apply(node, options=options, **kwargs)
-
-
-class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
-
-    '''GOcean specific OpenMP Do loop transformation. Adds GOcean
-       specific validity checks (that supplied Loop is an inner or outer
-       loop). Actual transformation is done by
-       :py:class:`base class <OMPParallelLoopTrans>`.
-
-        :param str omp_directive: choose which OpenMP loop directive to use. \
-            Defaults to "do".
-        :param str omp_schedule: the OpenMP schedule to use. Must be one of \
-            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to \
-            'static'.
-
-    '''
-    def __init__(self, omp_directive="do", omp_schedule="static"):
-        super().__init__(omp_directive=omp_directive,
-                         omp_schedule=omp_schedule)
-
-    def __str__(self):
-        return "Add an OpenMP Parallel Do directive to a GOcean loop"
-
-    def apply(self, node, options=None):
-        ''' Perform GOcean-specific loop validity checks then call
-        :py:meth:`OMPParallelLoopTrans.apply`.
-
-        :param node: a Loop node from an AST.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param options: a dictionary with options for transformations\
-                        and validation.
-        :type options: Optional[Dict[str, Any]]
-
-        :raises TransformationError: if the supplied node is not an inner or\
-            outer loop.
-
-        '''
-        self.validate(node, options=options)
-
-        # Check we are either an inner or outer loop
-        if node.loop_type not in ["inner", "outer"]:
-            raise TransformationError(
-                "Error in "+self.name+" transformation.  The requested loop"
-                " is not of type inner or outer.")
-
-        OMPParallelLoopTrans.apply(self, node)
-
-
-class GOceanOMPLoopTrans(OMPLoopTrans):
-
-    ''' GOcean-specific orphan OpenMP loop transformation. Adds GOcean
-        specific validity checks (that the node is either an inner or outer
-        Loop).
-
-        :param str omp_directive: choose which OpenMP loop directive to use. \
-            Defaults to "do".
-        :param str omp_schedule: the OpenMP schedule to use. Must be one of \
-            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to \
-            'static'.
-
-        '''
-    def __init__(self, omp_directive="do", omp_schedule="static"):
-        super().__init__(omp_directive=omp_directive,
-                         omp_schedule=omp_schedule)
-
-    def __str__(self):
-        return "Add the selected OpenMP loop directive to a GOcean loop"
-
-    def validate(self, node, options=None, **kwargs):
-        '''
-        Checks that the supplied node is a valid target for parallelisation
-        using OMP directives.
-
-        :param node: the candidate loop for parallelising using OMP Do.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-
-        :raises TransformationError: if the loop_type of the supplied Loop is \
-                                     not "inner" or "outer".
-
-        '''
-        super().validate(node, options=options)
-
-        # Check we are either an inner or outer loop
-        if node.loop_type not in ["inner", "outer"]:
-            raise TransformationError("Error in "+self.name+" transformation."
-                                      " The requested loop is not of type "
-                                      "inner or outer.")
 
 
 class ColourTrans(LoopTrans):
@@ -1010,76 +920,6 @@ class ACCParallelTrans(ParallelRegionTrans):
         # of the nodes being enclosed and at the original location
         # of the first of these nodes
         node_parent.addchild(directive, index=node_position)
-
-
-class LFRicAsyncHaloExchangeTrans(Transformation):
-    '''Splits a synchronous halo exchange into a halo exchange start and
-    halo exchange end.
-
-    '''
-
-    def __str__(self):
-        return "Changes a synchronous halo exchange into an asynchronous one."
-
-    @property
-    def name(self):
-        '''
-        :returns: the name of this transformation as a string.
-        :rtype: str
-        '''
-        return "LFRicAsyncHaloExchangeTrans"
-
-    def apply(self, node, options=None):
-        '''Transforms a synchronous halo exchange, represented by a
-        HaloExchange node, into an asynchronous halo exchange,
-        represented by HaloExchangeStart and HaloExchangeEnd nodes.
-
-        :param node: a synchronous haloexchange node.
-        :type node: :py:obj:`psyclone.psygen.HaloExchange`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-
-        '''
-        self.validate(node, options)
-
-        # add asynchronous start and end halo exchanges and initialise
-        # them using information from the existing synchronous halo
-        # exchange
-        # pylint: disable=protected-access
-        node.parent.addchild(
-            LFRicHaloExchangeStart(
-                node.field, check_dirty=node._check_dirty,
-                vector_index=node.vector_index, parent=node.parent),
-            index=node.position)
-        node.parent.addchild(
-            LFRicHaloExchangeEnd(
-                node.field, check_dirty=node._check_dirty,
-                vector_index=node.vector_index, parent=node.parent),
-            index=node.position)
-
-        # remove the existing synchronous halo exchange
-        node.detach()
-
-    def validate(self, node, options):
-        # pylint: disable=signature-differs
-        '''Internal method to check whether the node is valid for this
-        transformation.
-
-        :param node: a synchronous Halo Exchange node
-        :type node: :py:obj:`psyclone.psygen.HaloExchange`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-
-        :raises TransformationError: if the node argument is not a
-                         HaloExchange (or subclass thereof)
-
-        '''
-        if not isinstance(node, psyGen.HaloExchange) or \
-           isinstance(node, (LFRicHaloExchangeStart, LFRicHaloExchangeEnd)):
-            raise TransformationError(
-                f"Error in LFRicAsyncHaloExchange transformation. Supplied"
-                f" node must be a synchronous halo exchange but found "
-                f"'{type(node)}'.")
 
 
 class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
@@ -2013,13 +1853,9 @@ __all__ = [
    "ACCParallelTrans",
    "ACCRoutineTrans",
    "ColourTrans",
-   "LFRicAsyncHaloExchangeTrans",
    "LFRicColourTrans",
    "LFRicKernelConstTrans",
    "LFRicOMPLoopTrans",
-   "LFRicOMPParallelLoopTrans",
-   "GOceanOMPLoopTrans",
-   "GOceanOMPParallelLoopTrans",
    "KernelImportsToArguments",
    "OMPMasterTrans",
    "OMPSingleTrans",
