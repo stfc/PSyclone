@@ -69,25 +69,26 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         return ("Fuse two adjacent loops together with LFRic-specific "
                 "validity checks")
 
-    def _compute_any_space_actual_fields(
+    def _resolve_function_spaces(
         self, nodes: Iterable[LFRicLoop], const: LFRicConstants
     ) -> tuple[Union[FunctionSpace, None], Union[FunctionSpace, None]]:
         '''
-        Computes the actual fields for any space fields.
+        Attempts to determine the actual fields for any fields that are
+        on ANY_SPACE.
 
         :param nodes: The nodes provided to the transformations.
         :param const: An instance of LFRicConstants.
 
-        :returns: The two computed function spaces for the input nodes, or
-                  None if no non-any space function space was found.
+        :returns: A 2-tuple containing the resolved function spaces for the
+                  input nodes, or None if the actual function space can't be
+                  resolved for an ANY_SPACE input field.
         '''
         node1 = nodes[0]
         node2 = nodes[1]
-        node1_fs_name = node1.field_space.orig_name
-        node2_fs_name = node2.field_space.orig_name
-        # If one or more is on any space then we need to search for the space.
         found_space1 = node1.field_space
         found_space2 = node2.field_space
+        node1_fs_name = found_space1.orig_name
+        node2_fs_name = found_space2.orig_name
         invokeschedule = node1.ancestor(InvokeSchedule)
         # Find all the Kerns in the InvokeSchedule
         kerns = invokeschedule.walk(Kern)
@@ -98,6 +99,9 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         if node2_fs_name in const.VALID_ANY_SPACE_NAMES:
             it_space_arg2 = node2.kernel.arguments.iteration_space_arg()
             found_space2 = None
+        # If one or more is on any space then we need to search for the space.
+        if found_space1 and found_space2:
+            return (found_space1, found_space2)
 
         # Check if the it_space_args appear in any of the other kernels
         for kern in kerns:
@@ -353,7 +357,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
             return
         # 8) If one or more is on any space then we need to search for the
         # space and if we can't compute it we can't fuse the loops without.
-        found_space1, found_space2 = self._compute_any_space_actual_fields(
+        found_space1, found_space2 = self._resolve_function_spaces(
             nodes, const
         )
         if ((found_space1 is None or found_space2 is None) and
@@ -476,7 +480,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
             return
 
         # If one or more is on any space then we need to search for the space.
-        found_space1, found_space2 = self._compute_any_space_actual_fields(
+        found_space1, found_space2 = self._resolve_function_spaces(
             nodes, const
         )
 
