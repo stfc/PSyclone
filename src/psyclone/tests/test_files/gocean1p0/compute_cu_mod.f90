@@ -1,3 +1,10 @@
+! -----------------------------------------------------------------------------
+! SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+!                         Facilities Council
+! SPDX-License-Identifier: BSD-3-Clause
+! See the full LICENSE file in the project root for details.
+! -----------------------------------------------------------------------------
+
 !> \brief Compute the mass flux in the x direction, cu
 !! \detail Given the current pressure and velocity fields,
 !! computes the mass flux in the x direction.
@@ -5,7 +12,7 @@ module compute_cu_mod
   use argument_mod
   use field_mod
   use grid_mod
-  use kind_params_mod
+  use kind_params_mod, only: go_wp
   use kernel_mod
   implicit none
 
@@ -43,7 +50,7 @@ contains
   !! compute_cu_code().
   subroutine invoke_compute_cu(cufld, pfld, ufld)
     implicit none
-    type(r2d_field), intent(inout) :: cufld
+    type(r2d_field), intent(out)   :: cufld
     type(r2d_field), intent(in)    :: pfld, ufld
     ! Locals
     integer :: I, J

@@ -1,39 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified I. Kavcic and L. Turner, Met Office
-# Modified J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the LFric KernCallArg class.'''
 
@@ -42,21 +12,25 @@ import re
 import pytest
 
 from psyclone.core import Signature, VariablesAccessMap
-from psyclone.domain.lfric import (KernCallArgList, LFRicSymbolTable,
+from psyclone.domain.lfric import (KernCallArgList,
                                    LFRicTypes, LFRicKern)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Literal, Loop, Reference, UnaryOperation
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.nodes import Literal, Loop, Node, Reference, UnaryOperation
 from psyclone.psyir.symbols import (
-    ArrayType, ScalarType, UnsupportedFortranType)
+    ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol, ScalarType,
+    SymbolTable, UnsupportedFortranType)
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import LFRicColourTrans
 
 TEST_API = "lfric"
 
 
-def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
+def check_psyir_results(create_arg_list: KernCallArgList,
+                        fortran_writer: FortranWriter,
+                        valid_classes: tuple[Node] = None):
     '''Helper function to check if the PSyIR representation of the arguments
     is identical to the old style textual representation. It checks that each
     member of the psyir_arglist is a Reference, and that the textual
@@ -64,13 +38,9 @@ def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
     verified).
 
     :param create_arg_list: a KernCallArgList instance.
-    :type create_arg_list: :py:class:`psyclone.domain.lfric.KernCallArgList`
     :param fortran_writer: a FortranWriter instance.
-    :type fortran_writer:
-        :py:class:`psyclone.psyir.backend.fortran.FortranWriter`
     :param valid_classes: a tuple of classes that are expected in the PSyIR
         argument list. Defaults to `(Reference)`.
-    :type valid_classes: Tuple[:py:class:`psyclone.psyir.nodes.node`]
 
     '''
     if not valid_classes:
@@ -87,6 +57,44 @@ def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
         result.append(re.sub(r"[(]\s*:(,\s*:)*\s*[)]$", "", out))
 
     assert result == create_arg_list._arglist
+
+
+def test_get_user_type():
+    '''
+    Tests for the get_user_type() method.
+    '''
+    # Get a Kernel object.
+    _, invoke = get_invoke("1_single_invoke.f90", api=TEST_API, idx=0)
+    kernel = invoke.schedule.kernels()[0]
+
+    assert not kernel.scope.symbol_table.lookup("operator_mod", otherwise=None)
+
+    create_arg_list = KernCallArgList(kernel)
+    sym = create_arg_list.get_user_type("operator_mod",
+                                        "operator_type",
+                                        "my_op")
+    assert isinstance(sym.datatype, DataTypeSymbol)
+    assert sym.datatype.name == "operator_type"
+    op_mod = kernel.scope.symbol_table.lookup("operator_mod")
+    assert isinstance(op_mod, ContainerSymbol)
+
+    # Repeat - to check that the ContainerSymbol added last time is
+    # re-used.
+    sym = create_arg_list.get_user_type("operator_mod",
+                                        "operator_proxy_type",
+                                        "my_op_proxy",
+                                        tag="my_tag")
+    assert kernel.scope.symbol_table.lookup_with_tag("my_tag") is sym
+    assert isinstance(sym.datatype, DataTypeSymbol)
+    assert sym.datatype.name == "operator_proxy_type"
+    proxy_type = kernel.scope.symbol_table.lookup("operator_proxy_type")
+    assert proxy_type.interface.container_symbol is op_mod
+    # Repeat with the same tag -> should get the same symbol.
+    sym2 = create_arg_list.get_user_type("operator_mod",
+                                         "operator_proxy_type",
+                                         "my_op_proxy",
+                                         tag="my_tag")
+    assert sym2 is sym
 
 
 def test_cellmap_intergrid(dist_mem, fortran_writer):
@@ -138,10 +146,10 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
         'f2_3_data', 'f3_data', 'istp', 'ndf_w2', 'undf_w2',
         'map_w2(:,cell)', 'basis_w2_qr_xyoz', 'basis_w2_qr_face', 'ndf_wchi',
         'undf_wchi', 'map_wchi(:,cell)', 'diff_basis_wchi_qr_xyoz',
-        'diff_basis_wchi_qr_face', 'ndf_adspc1_f3', 'undf_adspc1_f3',
-        'map_adspc1_f3(:,cell)', 'basis_adspc1_f3_qr_xyoz',
-        'basis_adspc1_f3_qr_face', 'diff_basis_adspc1_f3_qr_xyoz',
-        'diff_basis_adspc1_f3_qr_face', 'np_xy_qr_xyoz', 'np_z_qr_xyoz',
+        'diff_basis_wchi_qr_face', 'ndf_ads1_f3', 'undf_ads1_f3',
+        'map_ads1_f3(:,cell)', 'basis_ads1_f3_qr_xyoz',
+        'basis_ads1_f3_qr_face', 'diff_basis_ads1_f3_qr_xyoz',
+        'diff_basis_ads1_f3_qr_face', 'np_xy_qr_xyoz', 'np_z_qr_xyoz',
         'weights_xy_qr_xyoz', 'weights_z_qr_xyoz', 'nfaces_qr_face',
         'np_xyz_qr_face', 'weights_xyz_qr_face']
 
@@ -157,8 +165,8 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
             array_1d)
     array_4d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
                          [ArrayType.Extent.DEFERRED]*4)
-    assert create_arg_list.psyir_arglist[15].datatype == array_4d
-    assert create_arg_list.psyir_arglist[16].datatype == array_4d
+    assert create_arg_list.psyir_arglist[15].symbol.datatype == array_4d
+    assert create_arg_list.psyir_arglist[16].symbol.datatype == array_4d
 
 
 def test_kerncallarglist_face_edge(dist_mem, fortran_writer):
@@ -230,15 +238,15 @@ def test_kerncallarglist_mesh_properties(fortran_writer):
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     var_info = VariablesAccessMap()
     create_arg_list.generate(var_accesses=var_info)
-    assert str(var_info) == ("a: READ, adjacent_face: READ, cell: READ, "
-                             "cmap: READ, colour: READ, f1_data: READ+WRITE, "
-                             "map_w1: READ, ndf_w1: READ, nfaces_re_h: "
-                             "READ, nlayers_f1: READ, undf_w1: READ")
+    assert str(var_info) == (
+        "a: READ, adjacent_face: READ, cell: READ, cmap: READ, colour: READ, "
+        "f1_data: INC, map_w1: READ, ndf_w1: READ, nfaces_re_h: READ, "
+        "nlayers_f1: READ, undf_w1: READ")
     # Tests that multiple reads are reported as expected:
-    assert str(var_info[Signature("cell")]) == "cell:READ(0),READ(0)"
-    assert str(var_info[Signature("colour")]) == "colour:READ(0),READ(0)"
-    assert str(var_info[Signature("cmap")]) == "cmap:READ(0),READ(0)"
-    assert str(var_info[Signature("adjacent_face")]) == "adjacent_face:READ(0)"
+    assert str(var_info[Signature("cell")]) == "cell:[READ,READ]"
+    assert str(var_info[Signature("colour")]) == "colour:[READ,READ]"
+    assert str(var_info[Signature("cmap")]) == "cmap:[READ,READ]"
+    assert str(var_info[Signature("adjacent_face")]) == "adjacent_face:[READ]"
 
     assert create_arg_list._arglist == [
         'nlayers_f1', 'a', 'f1_data', 'ndf_w1', 'undf_w1',
@@ -329,7 +337,6 @@ def test_kerncallarglist_cross2d_stencil(fortran_writer):
 
     psy, _ = get_invoke("19.26_single_stencil_cross2d.f90", TEST_API,
                         dist_mem=False, idx=0)
-
     schedule = psy.invokes.invoke_list[0].schedule
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
@@ -344,6 +351,37 @@ def test_kerncallarglist_cross2d_stencil(fortran_writer):
     check_psyir_results(create_arg_list, fortran_writer)
 
 
+def test_kerncallarglist_stencil_domain(fortran_writer):
+    """Check handling of stencils for a kernel that operates on the
+    entire domain. This should pass full stencil arrays rather than
+    column-indexed slices.
+    """
+    # Create a full Invoke so that LFRicProxies and LFRicStencils
+    # create the symbols/tags that the argument-list builder expects.
+    src = "1948_stencil_domain_invoke.f90"
+    psy, invoke = get_invoke(src, TEST_API, idx=0)
+    schedule = invoke.schedule
+    kernel = schedule.kernels()[0]
+
+    create_arg_list = KernCallArgList(kernel)
+    create_arg_list.generate()
+
+    # Expect full arrays passed without using colons.
+    arglist = create_arg_list._arglist
+    assert 'b_stencil_size' in arglist
+    assert 'b_max_branch_length' in arglist
+    assert 'b_stencil_dofmap' in arglist
+
+    assert 'c_stencil_size' in arglist
+    assert 'c_extent' in arglist
+    assert 'c_stencil_dofmap' in arglist
+
+    assert 'd_stencil_size' in arglist
+    assert 'd_stencil_dofmap' in arglist
+
+    check_psyir_results(create_arg_list, fortran_writer)
+
+
 def test_kerncallarglist_bcs(fortran_writer, monkeypatch):
     ''' Check the handling of bc_kernel
     '''
@@ -355,8 +393,8 @@ def test_kerncallarglist_bcs(fortran_writer, monkeypatch):
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
     assert create_arg_list._arglist == [
-        'nlayers_a', 'a_data', 'ndf_aspc1_a', 'undf_aspc1_a',
-        'map_aspc1_a(:,cell)', 'boundary_dofs_a']
+        'nlayers_a', 'a_data', 'ndf_as1_a', 'undf_as1_a',
+        'map_as1_a(:,cell)', 'boundary_dofs_a']
 
     check_psyir_results(create_arg_list, fortran_writer)
 
@@ -390,7 +428,7 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
     create_arg_list.generate(access_info)
     assert create_arg_list._arglist == [
         'cell', 'nlayers_op_a', 'op_a_proxy%ncell_3d', 'op_a_local_stencil',
-        'ndf_aspc1_op_a', 'ndf_aspc2_op_a', 'boundary_dofs_op_a']
+        'ndf_as1_op_a', 'ndf_as2_op_a', 'boundary_dofs_op_a']
 
     check_psyir_results(create_arg_list, fortran_writer)
     assert (create_arg_list.psyir_arglist[2].datatype ==
@@ -403,15 +441,15 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
     # Also check that the structure access is correctly converted
     # into a 2-component signature:
     sig = Signature(("op_a_proxy", "ncell_3d"))
-    assert str(access_info[sig]) == "op_a_proxy%ncell_3d:READ(0)"
+    assert str(access_info[sig]) == "op_a_proxy%ncell_3d:[READ]"
     assert (str(access_info[Signature("op_a_local_stencil")]) ==
-            "op_a_local_stencil:READWRITE(0)")
+            "op_a_local_stencil:[READWRITE]")
 
 
 def test_kerncallarglist_mixed_precision():
-    ''' Check the handling of mixed precision. This kernel has five invokes:
-    The first using 'r_def', the second 'r_solver', the third 'r_tran', the
-    fourth 'r_bl' and the fifth 'r_phys'.
+    ''' Check the handling of mixed precision. This kernel has four invokes:
+    The first using 'r_def', the second 'r_solver', the third 'r_tran', and
+    the fourth 'r_bl'.
     '''
 
     psy, _ = get_invoke("26.8_mixed_precision_args.f90", TEST_API,
@@ -468,18 +506,6 @@ def test_kerncallarglist_mixed_precision():
     create_arg_list = KernCallArgList(schedule.kernels()[3])
     create_arg_list.generate()
     assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_bl"
-    assert isinstance(
-        create_arg_list.psyir_arglist[3].datatype.partial_datatype,
-        ArrayType)
-    arg5 = create_arg_list.psyir_arglist[5]
-    assert isinstance(arg5.datatype, UnsupportedFortranType)
-    assert isinstance(arg5.datatype.partial_datatype, ArrayType)
-
-    create_arg_list = KernCallArgList(schedule.kernels()[4])
-    create_arg_list.generate()
-    assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_phys"
-    assert isinstance(create_arg_list.psyir_arglist[3].datatype,
-                      UnsupportedFortranType)
     assert isinstance(
         create_arg_list.psyir_arglist[3].datatype.partial_datatype,
         ArrayType)
@@ -569,10 +595,10 @@ def test_indirect_dofmap(fortran_writer):
         'cma_op1_cma_matrix', 'cma_op1_nrow', 'cma_op1_ncol',
         'cma_op1_bandwidth', 'cma_op1_alpha', 'cma_op1_beta',
         'cma_op1_gamma_m', 'cma_op1_gamma_p',
-        'ndf_adspc1_field_a', 'undf_adspc1_field_a',
-        'map_adspc1_field_a(:,cell)', 'cma_indirection_map_adspc1_field_a',
-        'ndf_aspc1_field_b', 'undf_aspc1_field_b', 'map_aspc1_field_b(:,cell)',
-        'cma_indirection_map_aspc1_field_b'])
+        'ndf_ads1_field_a', 'undf_ads1_field_a',
+        'map_ads1_field_a(:,cell)', 'cma_indirection_map_ads1_field_a',
+        'ndf_as1_field_b', 'undf_as1_field_b', 'map_as1_field_b(:,cell)',
+        'cma_indirection_map_as1_field_b'])
 
     check_psyir_results(create_arg_list, fortran_writer)
 
@@ -591,21 +617,23 @@ def test_indirect_dofmap(fortran_writer):
         # because the PSyIR doesn't support pointers. However, its
         # 'partial_datatype' is the type of the member accessed, i.e. it's
         # the 1D real array.
-        assert isinstance(psyir_args[i].datatype, UnsupportedFortranType)
-        assert isinstance(psyir_args[i].datatype.partial_datatype,
+        assert isinstance(psyir_args[i].symbol.datatype,
+                          UnsupportedFortranType)
+        assert isinstance(psyir_args[i].symbol.datatype.partial_datatype,
                           ArrayType)
-        assert (psyir_args[i].datatype.partial_datatype.intrinsic ==
+        assert (psyir_args[i].symbol.datatype.partial_datatype.intrinsic ==
                 ScalarType.Intrinsic.REAL)
 
     # Test all 3D real arrays:
-    assert isinstance(psyir_args[4].datatype, UnsupportedFortranType)
-    assert (psyir_args[4].datatype.partial_datatype.intrinsic ==
+    print(psyir_args[4].datatype)
+    assert isinstance(psyir_args[4].symbol.datatype, UnsupportedFortranType)
+    assert (psyir_args[4].symbol.datatype.partial_datatype.intrinsic ==
             ScalarType.Intrinsic.REAL)
-    assert len(psyir_args[4].datatype.partial_datatype.shape) == 3
+    assert len(psyir_args[4].symbol.datatype.partial_datatype.shape) == 3
 
     # Test all 1D integer arrays:
     for i in [15, 19]:
-        assert "(:)" in psyir_args[i].datatype.declaration
+        assert "(:)" in psyir_args[i].symbol.datatype.declaration
 
     # Test all 2D integer arrays:
     for i in [14, 18]:
@@ -628,7 +656,7 @@ def test_ref_element_handling(fortran_writer):
         'nfaces_re_h', 'nfaces_re_v', 'normals_to_horiz_faces',
         'normals_to_vert_faces'])
 
-    assert ("cell: READ, f1_data: READ+WRITE, map_w1: READ, ndf_w1: READ, "
+    assert ("cell: READ, f1_data: INC, map_w1: READ, ndf_w1: READ, "
             "nfaces_re_h: READ, nfaces_re_v: READ, nlayers_f1: READ, "
             "normals_to_horiz_faces: READ, normals_to_vert_faces: READ, "
             "undf_w1: READ" == str(vam))
@@ -654,21 +682,20 @@ def test_ref_element_handling(fortran_writer):
     assert len(arg.datatype.partial_datatype.shape) == 1
     assert arg.datatype.partial_datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert arg.datatype.partial_datatype.precision.name == "r_solver"
-    # TODO #2022: it would be convenient if find_or_create_array could
-    # create an r_solver based array, then the above tests would just (
-    # once #744 is sorted out) be:
-    # assert psyir_args[i].datatype == r_solver_1d.datatype
 
-    # Create a dummy LFRic symbol table to simplify creating
-    # standard LFRic types:
-    dummy_sym_tab = LFRicSymbolTable()
+    dummy_sym_tab = SymbolTable()
     # Test all 2D integer arrays:
-    i2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dint", 2,
-                                             ScalarType.Intrinsic.INTEGER)
+    i2d = dummy_sym_tab.find_or_create(
+        "doesnt_matter2dint", symbol_type=DataSymbol,
+        datatype=ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
+                           2*[ArrayType.Extent.DEFERRED]))
     for i in [4]:
         assert psyir_args[i].symbol.datatype.partial_datatype == i2d.datatype
 
-    int_arr_2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dreal", 2,
-                                                    ScalarType.Intrinsic.REAL)
+    int_arr_2d = dummy_sym_tab.find_or_create(
+        "doesnt_matter2dreal", symbol_type=DataSymbol,
+        datatype=ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
+                           2*[ArrayType.Extent.DEFERRED]))
+
     for i in [7, 8]:
         assert psyir_args[i].symbol.datatype == int_arr_2d.datatype

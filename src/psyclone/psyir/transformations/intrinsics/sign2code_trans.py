@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2025, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Laboratory
-# Modified: A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR SIGN intrinsic to
 PSyIR code. This could be useful if the SIGN intrinsic is not supported
@@ -40,15 +11,19 @@ by the back-end or if the performance of the inline code is better
 than the intrinsic.
 
 '''
-from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
-    Intrinsic2CodeTrans)
+import warnings
+
+from psyclone.psyir.transformations.intrinsics.intrinsic2code_basetrans \
+    import Intrinsic2CodeBaseTrans
 from psyclone.psyir.transformations import Abs2CodeTrans
 from psyclone.psyir.nodes import (
     BinaryOperation, Assignment, Reference, Literal, IfBlock, IntrinsicCall)
 from psyclone.psyir.symbols import DataSymbol
+from psyclone.utils import transformation_documentation_wrapper
 
 
-class Sign2CodeTrans(Intrinsic2CodeTrans):
+@transformation_documentation_wrapper
+class Sign2CodeTrans(Intrinsic2CodeBaseTrans):
     '''Provides a transformation from a PSyIR SIGN intrinsic node to
     equivalent code in a PSyIR tree. Validity checks are also
     performed.
@@ -74,7 +49,7 @@ class Sign2CodeTrans(Intrinsic2CodeTrans):
         super().__init__()
         self._intrinsic = IntrinsicCall.Intrinsic.SIGN
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''
         Check that it is safe to apply the transformation to the supplied node.
 
@@ -84,10 +59,10 @@ class Sign2CodeTrans(Intrinsic2CodeTrans):
         :type options: dict[str, Any]
 
         '''
-        super().validate(node, options=options)
+        super().validate(node, options=options, **kwargs)
         super()._validate_scalar_arg(node)
 
-    def apply(self, node, options=None):
+    def apply(self, node, options=None, **kwargs):
         '''Apply the SIGN intrinsic conversion transformation to the specified
         node. This node must be a SIGN IntrinsicCall. The SIGN
         IntrinsicCall is converted to equivalent inline code. This
@@ -129,7 +104,12 @@ class Sign2CodeTrans(Intrinsic2CodeTrans):
 
         '''
         # pylint: disable=too-many-locals
-        self.validate(node, options)
+
+        # TODO 2668: options are now deprecated:
+        if options:
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
+
+        self.validate(node, options, **kwargs)
 
         symbol_table = node.scope.symbol_table
         assignment = node.ancestor(Assignment)
@@ -157,7 +137,7 @@ class Sign2CodeTrans(Intrinsic2CodeTrans):
 
         # Replace the ABS intrinsic with inline code.
         abs_trans = Abs2CodeTrans()
-        abs_trans.apply(rhs, symbol_table)
+        abs_trans.apply(rhs)
 
         # tmp_var=B
         lhs = Reference(tmp_var_symbol)
@@ -181,3 +161,7 @@ class Sign2CodeTrans(Intrinsic2CodeTrans):
         # if [if_condition] then [then_body]
         if_stmt = IfBlock.create(if_condition, then_body)
         assignment.parent.children.insert(assignment.position, if_stmt)
+
+
+# For AutoAPI auto-documentation generation.
+__all__ = ["Sign2CodeTrans"]

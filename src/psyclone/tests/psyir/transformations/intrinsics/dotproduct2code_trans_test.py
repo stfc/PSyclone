@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2025, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
-# Modified: S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the DotProduct2CodeTrans
 transformation.
@@ -48,8 +19,8 @@ import pytest
 
 from psyclone.psyir.nodes import IntrinsicCall
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.transformations.intrinsics.dotproduct2code_trans import \
-    DotProduct2CodeTrans, _get_array_bound
+from psyclone.psyir.transformations.intrinsics.dotproduct2code_trans import (
+    DotProduct2CodeTrans)
 from psyclone.tests.utilities import Compile
 
 
@@ -100,52 +71,6 @@ def check_trans(code, expected, fortran_reader, fortran_writer, tmpdir):
     result = fortran_writer(psyir)
     assert expected in result
     assert Compile(tmpdir).string_compiles(result)
-
-
-# _get_array_bound function
-
-@pytest.mark.parametrize("dim1,dim2", [("2:10", "2:10"), (":", "2:10"),
-                                       ("2:10", ":")])
-def test_bound_explicit(fortran_reader, dim1, dim2):
-    '''Test that explicit bounds are returned if at least one argument is
-    declared with explicit bounds.
-
-    '''
-    code = (
-        f"subroutine dot_product_test(v1,v2)\n"
-        f"real,intent(in) :: v1({dim1}), v2({dim2})\n"
-        f"real :: result\n"
-        f"result = dot_product(v1,v2)\n"
-        f"end subroutine\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    dot_product = psyir.walk(IntrinsicCall)[0]
-    assert dot_product.intrinsic == IntrinsicCall.Intrinsic.DOT_PRODUCT
-    lower, upper, step = _get_array_bound(
-        dot_product.arguments[0], dot_product.arguments[1])
-    assert lower.value == '2'
-    assert upper.value == '10'
-    assert step.value == '1'
-
-
-def test_bound_unknown(fortran_reader, fortran_writer):
-    '''Test that range bounds are returned if neither argument is declared
-    with explicit bounds.
-
-    '''
-    code = (
-        "subroutine dot_product_test(v1,v2)\n"
-        "real,intent(in) :: v1(:), v2(:)\n"
-        "real :: result\n"
-        "result = dot_product(v1,v2)\n"
-        "end subroutine\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    dot_product = psyir.walk(IntrinsicCall)[0]
-    assert dot_product.intrinsic == IntrinsicCall.Intrinsic.DOT_PRODUCT
-    lower, upper, step = _get_array_bound(
-        dot_product.arguments[0], dot_product.arguments[1])
-    assert 'LBOUND(v1, dim=1)' in fortran_writer(lower)
-    assert 'UBOUND(v1, dim=1)' in fortran_writer(upper)
-    assert step.value == '1'
 
 
 # DotProduct2CodeTrans class init method
@@ -217,8 +142,8 @@ def test_validate_references_structure(fortran_reader):
     expected = (
         "The DotProduct2CodeTrans transformation only supports the "
         "transformation of a dotproduct intrinsic if its arguments are plain "
-        "arrays, but found grid%var1(:) in DOT_PRODUCT(grid%var1(:), "
-        "grid%var2(:)).")
+        "arrays, but found grid%var1(:) in DOT_PRODUCT(grid%var1(:)"
+        ", grid%var2(:)).")
     check_validate(code, expected, fortran_reader)
 
 
@@ -238,7 +163,8 @@ def test_validate_1d_array(fortran_reader):
         "The DotProduct2CodeTrans transformation only supports the "
         "transformation of a dotproduct intrinsic with an argument not "
         "containing an array slice if the argument is a 1D array, but "
-        "found a1 with 2 dimensions in DOT_PRODUCT(a1, a2).")
+        "found a1 with 2 dimensions in DOT_PRODUCT(a1, "
+        "a2).")
     check_validate(code, expected, fortran_reader)
 
 
@@ -300,7 +226,8 @@ def test_validate_real(fortran_reader):
         "end subroutine\n")
     expected = (
         "The DotProduct2CodeTrans transformation only supports arrays of "
-        "real data, but found v1 of type INTEGER in DOT_PRODUCT(v1, v2).")
+        "real data, but found v1 of type INTEGER in DOT_PRODUCT(v1, "
+        "v2).")
     check_validate(code, expected, fortran_reader)
 
 

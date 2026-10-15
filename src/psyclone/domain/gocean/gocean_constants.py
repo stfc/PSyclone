@@ -1,45 +1,15 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
-# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''
 This module provides a class with all GOcean related constants.
 '''
 
-# Imports
-from psyclone.configuration import Config
+from psyclone.core.access_type import AccessType
 
 
 # pylint: disable=too-few-public-methods
@@ -50,21 +20,6 @@ class GOceanConstants():
     '''
     HAS_BEEN_INITIALISED = False
 
-    @staticmethod
-    def get_valid_access_types():
-        '''Return the valid access types for the GOcean API. Reads the values
-        from the config file the first time the method is called.
-
-        :returns: valid access types for the GOcean API.
-        :rtype: list[str]
-
-        '''
-        if not GOceanConstants._VALID_ACCESS_TYPES:
-            conf = Config.get().api_conf("gocean")
-            GOceanConstants._VALID_ACCESS_TYPES = \
-                list(conf.get_access_mapping().keys())
-        return GOceanConstants._VALID_ACCESS_TYPES
-
     def __init__(self):
         if GOceanConstants.HAS_BEEN_INITIALISED:
             return
@@ -74,10 +29,19 @@ class GOceanConstants():
         # Valid intrinsic types of kernel argument metadata.
         GOceanConstants.VALID_INTRINSIC_TYPES = []
 
-        # Valid access types (GO_READ etc). These are accessed via the
-        # get_valid_access_types() method as they are read from the
-        # config file rather than being fixed constant values.
-        GOceanConstants._VALID_ACCESS_TYPES = []
+        # Valid access types.
+        GOceanConstants.VALID_ACCESS_TYPES = ["go_read",
+                                              "go_write",
+                                              "go_readwrite"]
+
+        # Mapping from API-specific access types to internal access types.
+        GOceanConstants.ACCESS_MAPPING = {"go_read": AccessType.READ,
+                                          "go_write": AccessType.WRITE,
+                                          "go_readwrite": AccessType.READWRITE
+                                          }
+        GOceanConstants.REVERSE_ACCESS_MAPPING = {}
+        for key, value in GOceanConstants.ACCESS_MAPPING.items():
+            GOceanConstants.REVERSE_ACCESS_MAPPING[value] = key
 
         # psyGen argument types.
         GOceanConstants.VALID_ARG_TYPE_NAMES = []

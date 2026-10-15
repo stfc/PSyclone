@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
-# Modified: J. Henrichs, Bureau of Meteorology
 
 '''This module contains the HoistTrans transformation. HoistTrans
 moves an assignment out of a parent loop if it is safe to do so. Hoist
@@ -46,8 +17,11 @@ from psyclone.psyir.nodes import (
     Loop, Assignment, Schedule, Call, CodeBlock)
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.psyir.tools.definition_use_chains import DefinitionUseChain
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class HoistTrans(Transformation):
     '''This transformation takes an assignment and moves it outside of
     its parent loop if it is valid to do so. If as a result the loop body
@@ -90,19 +64,18 @@ class HoistTrans(Transformation):
     <BLANKLINE>
 
     '''
-    def apply(self, node, options=None):
+    def apply(self, node: Assignment, options=None, **kwargs):
         '''Applies the hoist transformation to the supplied assignment node
         within a loop, moving the assignment outside of the loop if it
         is valid to do so. Issue #1445 will also look to extend this
         transformation to other types of node.
 
         :param node: target PSyIR node.
-        :type node: subclass of :py:class:`psyclone.psyir.nodes.Assignment`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node, options)
+        self.validate(node, options, **kwargs)
 
         # Find the enclosing loop (the validate() method has already
         # verified that there is one).
@@ -118,14 +91,13 @@ class HoistTrans(Transformation):
         if not loop.loop_body.children:
             loop.detach()
 
-    def validate(self, node, options=None):
+    def validate(self, node: Assignment, options=None, **kwargs):
         '''Checks that the supplied node is a valid target for a hoist
         transformation. At this stage only an assignment statement is
         allowed to be hoisted, see #1445. It should also be tested if
         there is a directive outside of the loop, see #1446
 
         :param node: target PSyIR node.
-        :type node: subclass of :py:class:`psyclone.psyir.nodes.Assignment`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
@@ -137,6 +109,9 @@ class HoistTrans(Transformation):
             child of the the loop.
 
         '''
+        # TODO #2668: Deprecate options dict.
+        if not options:
+            self.validate_options(**kwargs)
         # The node should be an assignment
         if not isinstance(node, Assignment):
             raise TransformationError(
@@ -216,6 +191,9 @@ class HoistTrans(Transformation):
             else:
                 read_only_sigs.append(sig)
 
+        # Make sure abs_positions are cached, otherwise this will be extremely
+        # slow
+        parent_loop.compute_cached_abs_positions()
         for written_sig in write_sigs:
             accesses_in_statement = all_statement_vars[written_sig]
             # If this written variable is also read in the statement to be
@@ -226,13 +204,15 @@ class HoistTrans(Transformation):
                                           f"('{written_sig}') that is both "
                                           f"read and written.")
 
-            # Check if the variable is written or read before the first
-            # access in the statement to be hoisted:
+            # Check if any of the written variables could be used inside the
+            # loop before the statement that we are hoisting, this could be
+            # after the statement if there are conditional control flows.
             written_node = accesses_in_statement[0].node
-            # Get all access to that variable in the whole loop before the
-            # first write access that is to be hoisted:
             accesses_in_loop = all_loop_vars[written_sig]
-            if accesses_in_loop.is_accessed_before(written_node):
+            chains = DefinitionUseChain(
+                [written_node], parent_loop.children[:]
+            )
+            if chains.find_backward_accesses()[written_sig]:
                 code = statement.debug_string().strip()
                 raise TransformationError(f"The statement '{code}' can't be "
                                           f"hoisted as variable "

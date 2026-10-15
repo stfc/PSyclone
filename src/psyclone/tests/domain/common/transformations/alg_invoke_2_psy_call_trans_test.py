@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory.
 
 ''' Module containing pytest unit tests for the AlgInvoke2PSyCallTrans
 transformation.
@@ -44,11 +16,12 @@ from psyclone.domain.common.algorithm import AlgorithmInvokeCall, KernelFunctor
 from psyclone.domain.common.transformations import AlgTrans
 from psyclone.domain.common.transformations import AlgInvoke2PSyCallTrans
 from psyclone.domain.gocean.transformations import GOceanAlgInvoke2PSyCallTrans
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Call, Loop, Literal, Container, Reference, ArrayReference, BinaryOperation,
     CodeBlock, UnaryOperation)
 from psyclone.psyir.symbols import (
-    RoutineSymbol, DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType,
+    RoutineSymbol, DataSymbol, ScalarType, ArrayType,
     DataTypeSymbol)
 from psyclone.psyir.transformations import TransformationError
 
@@ -99,7 +72,7 @@ def test_abstract():
     # Python >= 3.9 spots that 'method' should be singular. Prior to this it
     # was plural. Python >= 3.12 tweaks the error message yet again to mention
     # the lack of an implementation and to quote the method name.
-    # We split the check to accomodate for this.
+    # We split the check to accommodate for this.
     assert ("Can't instantiate abstract class AlgInvoke2PSyCallTrans with"
             in str(info.value))
     assert ("abstract method" in str(info.value))
@@ -464,10 +437,12 @@ def test_ai2psycall_apply_invoke_symbols_scope(fortran_reader):
     invoke = psyir.children[0][0]
     assert isinstance(invoke, AlgorithmInvokeCall)
     symbol = invoke.scope.symbol_table.new_symbol(
-        root_name="i", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+        root_name="i", symbol_type=DataSymbol,
+        datatype=ScalarType.integer_type())
     loop = Loop.create(
-        symbol, Literal("0", INTEGER_TYPE), Literal("1", INTEGER_TYPE),
-        Literal("1", INTEGER_TYPE), [invoke.detach()])
+        symbol, Literal("0", ScalarType.integer_type()),
+        Literal("1", ScalarType.integer_type()),
+        Literal("1", ScalarType.integer_type()), [invoke.detach()])
     psyir.children[0].children.append(loop)
 
     assert "invoke" not in invoke.scope.symbol_table._symbols
@@ -496,7 +471,7 @@ def test_ai2psycall_add_arg():
 
     # Invalid argument exception (Node parent is not a KernelFunctor)
     arg = UnaryOperation.create(
-        UnaryOperation.Operator.PLUS, Literal("1.0", REAL_TYPE))
+        UnaryOperation.Operator.PLUS, Literal("1.0", ScalarType.real_type()))
     with pytest.raises(TypeError) as info:
         AlgInvoke2PSyCallTrans._add_arg(arg, [])
     assert ("Expected Algorithm-layer kernel arguments to be a Literal, "
@@ -505,7 +480,7 @@ def test_ai2psycall_add_arg():
 
     # Invalid argument exception (Node parent is a KernelFunctor)
     _ = KernelFunctor.create(
-        DataTypeSymbol("my_kernel", REAL_TYPE), [arg])
+        DataTypeSymbol("my_kernel", ScalarType.real_type()), [arg])
     with pytest.raises(TypeError) as info:
         AlgInvoke2PSyCallTrans._add_arg(arg, [])
     assert ("Expected Algorithm-layer kernel arguments to be a Literal, "
@@ -514,13 +489,14 @@ def test_ai2psycall_add_arg():
 
     # literal (nothing added)
     args = []
-    AlgInvoke2PSyCallTrans._add_arg(Literal("1.0", REAL_TYPE), args)
+    AlgInvoke2PSyCallTrans._add_arg(
+        Literal("1.0", ScalarType.real_type()), args)
     assert args == []
 
     # reference (arg added)
     name = "hello1"
     AlgInvoke2PSyCallTrans._add_arg(
-        Reference(DataSymbol(name, REAL_TYPE)), args)
+        Reference(DataSymbol(name, ScalarType.real_type())), args)
     assert len(args) == 1
     assert isinstance(args[0], Reference)
     assert args[0].name == name
@@ -528,7 +504,8 @@ def test_ai2psycall_add_arg():
     # array reference (arg added)
     name = "hello2"
     AlgInvoke2PSyCallTrans._add_arg(ArrayReference.create(DataSymbol(
-        name, ArrayType(REAL_TYPE, [10])), [Literal("1", INTEGER_TYPE)]), args)
+        name, ArrayType(ScalarType.real_type(), [10])),
+                        [Literal("1", ScalarType.integer_type())]), args)
     assert len(args) == 2
     assert isinstance(args[1], ArrayReference)
     assert args[1].name == name
@@ -536,7 +513,7 @@ def test_ai2psycall_add_arg():
     # arg, same name, not added
     name = "hello1"
     AlgInvoke2PSyCallTrans._add_arg(
-        Reference(DataSymbol(name, REAL_TYPE)), args)
+        Reference(DataSymbol(name, ScalarType.real_type())), args)
     assert len(args) == 2
 
     # codeblock arg
@@ -588,3 +565,29 @@ def test_ai2psycall_remove_imported_symbols(fortran_reader):
     trans.apply(invokes[1])
     assert "kern" not in module.symbol_table._symbols
     assert "kern_mod" not in module.symbol_table._symbols
+
+
+def test_ai2psycall_keep_comments():
+    '''Check that the apply method doesn't strip out the comments when
+    FortranReader had ignore_comments=False, and that the comments appear in
+    the expected place.
+    '''
+    code = (
+        "subroutine alg1()\n"
+        "  use kern_mod\n"
+        "  use field_mod, only : field_type\n"
+        "  integer :: i,j\n"
+        "  type(field_type) :: field1, field2(10)\n"
+        " !preceding comment\n"
+        "  call invoke(kern1(field1, field1, field2(i), field2( j )))"
+        " !inline comment\n"
+        "end subroutine alg1\n")
+    fortran_reader = FortranReader(ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
+    AlgTrans().apply(psyir)
+    invoke = psyir.children[0][0]
+    trans = GOceanAlgInvoke2PSyCallTrans()
+    trans.apply(invoke)
+    invoke = psyir.children[0][0]
+    assert invoke.preceding_comment == "preceding comment"
+    assert invoke.inline_comment == "inline comment"

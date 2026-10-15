@@ -3,7 +3,7 @@
 This directory contains files related to testing all input and output
 parameters of a kernel to make sure they are within a user-specified range,
 and not [``NaN`` or infinite](
-https://psyclone.readthedocs.io/en/latest/psy_data.html#psydata-value-range-check).
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html#psydata-value-range-check).
 
 There is a [PSyData base class](
 https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#psydata-base-class)
@@ -15,7 +15,7 @@ wrapper libraries.
 The file ``value_range_check_base.jinja`` contains a Jinja template that is used
 by the [GOcean ``dl_esm_inf``-](./dl_esm_inf/README.md) and [LFRic-specific](
 ./lfric/README.md) wrapper libraries. It implements the required [PSyData API](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) calls for
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) calls for
 Fortran base types (scalar and arrays).
 Full documentation to the Jinja implementation of a PSyData base class is
 in the PSyclone [Developer Guide](
@@ -28,55 +28,22 @@ their own directory (to allow for the required data types to be supported).
 The API-specific implementations do not link with the compiled version from
 this directory.
 
+There is also a generic implementation, which can be used with any existing
+Fortran code.
+
 ## [``dl_esm_inf``](./dl_esm_inf) directory
 
 Contains the ``ValueRangeCheck``, PSyData-API-based, wrapper library for the
 ``dl_esm_inf`` [GOcean API](
-https://psyclone.readthedocs.io/en/latest/gocean1p0.html).
+https://psyclone.readthedocs.io/en/latest/user_guide/gocean1p0.html).
 
 ## [``lfric``](./lfric) directory
 
 Contains the ``ValueRangeCheck``, PSyData-API-based, wrapper library for the
 [LFRic API](
-https://psyclone.readthedocs.io/en/latest/lfric.html).
+https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html).
 
-<!--
-## Licence
 
--------------------------------------------------------------------------------
-
-BSD 3-Clause License
-
-Copyright (c) 2024-2025, Science and Technology Facilities Council.
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-* Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-
-* Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-
-* Neither the name of the copyright holder nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
--------------------------------------------------------------------------------
-Authors: J. Henrichs, Bureau of Meteorology,
--->
+## [``generic``](./generic) directory
+Contains the generic implementation, supporting 1- to 5-dimensional arrays,
+and 4 and 8 byte integer and real values.

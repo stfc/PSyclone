@@ -1,39 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab.
-# Modified: J. Henrichs, Bureau of Meteorology
-#           A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
 
 '''Generic PSyIR visitor code that can be specialised by different
@@ -42,7 +12,9 @@ back ends.
 '''
 
 import inspect
+from typing import Optional
 
+from psyclone.configuration import Config
 from psyclone.errors import PSycloneError
 from psyclone.psyir.nodes import Node, Schedule, Container
 from psyclone.psyir.commentable_mixin import CommentableMixin
@@ -71,6 +43,11 @@ class PSyIRVisitor():
         optional argument which defaults to False.
     :param str indent_string: Specifies what to use for indentation. This
         is an optional argument that defaults to two spaces.
+
+        .. note::
+            if all indentation has been disabled in the Config object then this
+            argument is ignored.
+
     :param int initial_indent_depth: Specifies how much indentation to
         start with. This is an optional argument that defaults to 0.
     :param bool check_global_constraints: whether or not to validate all
@@ -92,9 +69,23 @@ class PSyIRVisitor():
     # is set to True as the modifications will persist after the Writer!
     _DISABLE_LOWERING = False
 
-    def __init__(self, skip_nodes=False, indent_string="  ",
-                 initial_indent_depth=0, check_global_constraints=True,
-                 disable_copy=False):
+    # The default string with which to indent nested code. Can be overridden
+    # in the constructor. All use of indentation can be disabled by setting
+    # backend_disable_indentation in the Configuration object.
+    _DEFAULT_INDENT = "  "
+
+    def __init__(self, skip_nodes: bool = False,
+                 indent_string: Optional[str] = None,
+                 initial_indent_depth: int = 0,
+                 check_global_constraints: bool = True,
+                 disable_copy: bool = False):
+
+        if indent_string is None:
+            indent_string = self._DEFAULT_INDENT
+        # If all indentation has been switched off then that takes priority.
+        config = Config.get()
+        if config.backend_indentation_disabled:
+            indent_string = ""
 
         if not isinstance(skip_nodes, bool):
             raise TypeError(
@@ -253,8 +244,7 @@ class PSyIRVisitor():
         # the class hierarchy (starting from the current class name).
         for method_name in possible_method_names:
             try:
-                # pylint: disable=eval-used
-                node_result = eval(f"self.{method_name}(node)")
+                node_result = getattr(self, method_name)(node)
 
                 # We can only proceed to add comments if the Visitor
                 # returned a string, otherwise we just return

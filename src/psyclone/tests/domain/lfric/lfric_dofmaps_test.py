@@ -1,39 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2025, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified: I. Kavcic, L. Turner and O. Brunt, Met Office
-# Modified: J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the LFRicDofmaps class found within the LFRic
 domain. Tests here have been pulled from the LFRic_cma_test.py
@@ -213,12 +183,12 @@ def test_lfricdofmaps_stub_gen():
 
     expected = (
         "  subroutine columnwise_op_app_kernel_code(cell, ncell_2d, "
-        "field_1_aspc1_field_1, field_2_aspc2_field_2, cma_op_3, "
+        "field_1_as1_field_1, field_2_as2_field_2, cma_op_3, "
         "cma_op_3_nrow, cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, "
         "cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p, "
-        "ndf_aspc1_field_1, undf_aspc1_field_1, map_aspc1_field_1, "
-        "cma_indirection_map_aspc1_field_1, ndf_aspc2_field_2, "
-        "undf_aspc2_field_2, map_aspc2_field_2, "
-        "cma_indirection_map_aspc2_field_2)\n"
+        "ndf_as1_field_1, undf_as1_field_1, map_as1_field_1, "
+        "cma_indirection_map_as1_field_1, ndf_as2_field_2, "
+        "undf_as2_field_2, map_as2_field_2, "
+        "cma_indirection_map_as2_field_2)\n"
         )
     assert expected in stub_text

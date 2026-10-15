@@ -1,44 +1,19 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
-# Modified J. Henrichs, Bureau of Meteorology
 
 '''This module implements a class that creates the argument list
 for a kernel subroutine.
 '''
 
+from typing import Optional, TYPE_CHECKING
+
+from psyclone.core import VariablesAccessMap
+if TYPE_CHECKING:
+    from psyclone.lfric import LFRicKernelArgument
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import InternalError
@@ -129,6 +104,34 @@ class KernStubArgList(ArgOrdering):
         gamma_p = arg.name + "_gamma_p"
         _local_args += [bandwidth, alpha, beta, gamma_m, gamma_p]
         self.extend(_local_args, var_accesses)
+
+    def scalar(self,
+               scalar_arg: 'LFRicKernelArgument',
+               var_accesses: Optional[VariablesAccessMap] = None):
+        '''Add the name associated with the scalar argument to the argument
+        list and optionally add this scalar to the variable access
+        information.
+
+        :param scalar_arg: the kernel argument.
+        :param var_accesses: optional VariablesAccessMap instance that
+            stores information about variable accesses.
+
+        :raises InternalError: if the argument is not a recognised scalar type.
+
+        '''
+        const = LFRicConstants()
+        if not (scalar_arg.is_scalar or scalar_arg.is_scalar_array):
+            raise InternalError(
+                f"Expected argument type to be one of "
+                f"{const.VALID_SCALAR_NAMES + const.VALID_ARRAY_NAMES}"
+                f" but got '{scalar_arg.argument_type}'")
+
+        if scalar_arg.is_scalar:
+            self.append(scalar_arg.name, var_accesses)
+        else:
+            # ScalarArray
+            self.append("dims_" + scalar_arg.name, var_accesses)
+            self.append(scalar_arg.name, var_accesses)
 
     def field_vector(self, argvect, var_accesses=None):
         '''Add the field vector associated with the argument 'argvect' to the
@@ -232,10 +235,10 @@ class KernStubArgList(ArgOrdering):
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional `SingleVariableAccessInfo` \
+        :param var_accesses: optional `AccessSequence` \
             instance to store the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.SingleVariableAccessInfo`
+            :py:class:`psyclone.core.AccessSequence`
 
         '''
         # The maximum branch extent is not specified in the metadata so pass
@@ -471,23 +474,23 @@ class KernStubArgList(ArgOrdering):
         for rule in self._kern.qr_rules.values():
             self.extend(rule.kernel_args, var_accesses)
 
-    def indirection_dofmap(self, function_space, operator=None,
-                           var_accesses=None):
+    def indirection_dofmap(
+            self, function_space, operator=None,
+            var_accesses: Optional[VariablesAccessMap] = None
+    ):
         '''Add indirection dofmap required when applying a CMA operator. If
         supplied it also stores this access in var_accesses.
 
-        :param function_space: the function space for which the indirect \
+        :param function_space: the function space for which the indirect
             dofmap is required.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         :param operator: the CMA operator.
         :type operator: :py:class:`psyclone.lfric.LFRicKernelArgument`
-        :param var_accesses: optional VariablesAccessMap instance to store \
+        :param var_accesses: optional VariablesAccessMap instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
         :raises InternalError: if no kernel argument is supplied.
-        :raises InternalError: if the supplied kernel argument is not a \
+        :raises InternalError: if the supplied kernel argument is not a
             CMA operator.
 
         '''

@@ -1,38 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
-# Modified by: R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for ValueRangeCheckTrans and ValueRangeCheckNode
@@ -42,11 +12,12 @@ import pytest
 
 
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import colored, Node, ValueRangeCheckNode, Schedule
+from psyclone.psyir.nodes import Node, ValueRangeCheckNode, Schedule
 from psyclone.psyir.transformations import (ValueRangeCheckTrans,
                                             TransformationError)
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import OMPParallelLoopTrans
+from psyclone.utils import colored
 
 
 # ---------------------------------------------------------------------------
@@ -101,10 +72,10 @@ def test_value_range_check_options(fortran_writer):
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean", idx=0, dist_mem=False)
     value_range_check = ValueRangeCheckTrans()
-    value_range_check.apply(invoke.schedule[0].loop_body[0],
+    value_range_check.apply(invoke.schedule[0],
                             options={"region_name": ("a", "b")})
     code = fortran_writer(invoke.schedule)
-    assert 'CALL value_range_check_psy_data % PreStart("a", "b", 4, 2)' in code
+    assert 'CALL value_range_check_psy_data % PreStart("a", "b", 6, 3)' in code
 
 
 # -----------------------------------------------------------------------------
@@ -160,17 +131,17 @@ def test_value_range_check_psyir_visitor(fortran_writer):
                 'ncycle)',
                 'CALL value_range_check_psy_data % PreEnd',
                 'CALL value_range_check_psy_data % PostStart',
-                'CALL value_range_check_psy_data % ProvideVariable("cv_fld", '
-                'cv_fld)',
+                'CALL value_range_check_psy_data % ProvideVariable('
+                '"cv_fld%data", cv_fld % data)',
                 'CALL value_range_check_psy_data % ProvideVariable("i", i)',
                 'CALL value_range_check_psy_data % ProvideVariable("j", j)',
-                'CALL value_range_check_psy_data % ProvideVariable("p_fld", '
-                'p_fld)',
+                'CALL value_range_check_psy_data % ProvideVariable('
+                '"p_fld%data", p_fld % data)',
                 'CALL value_range_check_psy_data % PostEnd',
                 ]
 
     for line in expected:
-        assert line in code
+        assert line in code, str(line) + "\n --- \n" + str(code)
 
 
 # -----------------------------------------------------------------------------

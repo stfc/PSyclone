@@ -1,37 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2025, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors: S. Siso and A. R. Porter, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for the PSyclone
@@ -39,14 +10,17 @@ GOMoveIterationBoundariesInsideKernelTrans transformation.
 '''
 
 import pytest
-from psyclone.tests.utilities import get_invoke
+
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.gocean.transformations import (
     GOMoveIterationBoundariesInsideKernelTrans)
+from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.nodes import (
     Assignment, Container, IfBlock, Return)
-from psyclone.psyir.symbols import ArgumentInterface
-from psyclone.gocean1p0 import GOLoop
+from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, ScalarType
 from psyclone.psyir.transformations import TransformationError
+from psyclone.tests.gocean_build import GOceanBuild
+from psyclone.tests.utilities import get_invoke
 
 API = "gocean"
 
@@ -59,7 +33,7 @@ def test_description():
         "Move kernel iteration boundaries inside the kernel code."
 
 
-def test_validation(monkeypatch):
+def test_validation():
     '''Check that the transformation can only be applied to routine nodes.'''
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     with pytest.raises(TransformationError) as info:
@@ -69,7 +43,7 @@ def test_validation(monkeypatch):
             "'GOKern' nodes, but found 'NoneType'." in str(info.value))
 
 
-def test_go_move_iteration_boundaries_inside_kernel_trans():
+def test_go_move_iteration_boundaries_inside_kernel_trans(tmp_path):
     ''' Tests that the GOMoveIterationBoundariesInsideKernelTrans
     transformation for the GOcean API adds the 4 boundary values as kernel
     arguments and adds a masking statement at the beginning of the code.
@@ -80,12 +54,15 @@ def test_go_move_iteration_boundaries_inside_kernel_trans():
     num_args = len(kernel.arguments.args)
 
     # Add some name conflicting symbols in the Invoke and the Kernel
-    kernel.ancestor(Container).symbol_table.new_symbol("xstop")
+    kernel.ancestor(Container).symbol_table.new_symbol(
+        "xstop", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
     routines = kernel.get_callees()
     ksched = routines[0]
-    ksched.symbol_table.new_symbol("ystart")
+    ksched.symbol_table.new_symbol(
+        "ystart", symbol_type=DataSymbol, datatype=ScalarType.integer_type())
 
     # Apply the transformation
+    KernelModuleInlineTrans().apply(kernel)
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     trans.apply(kernel)
 
@@ -132,7 +109,7 @@ def test_go_move_iteration_boundaries_inside_kernel_trans():
         "Reference[name:'xstart']\n"
         "BinaryOperation[operator:'GT']\n"
         "Reference[name:'i']\n"
-        "Reference[name:'xstop']\n"
+        "Reference[name:'xstop_1']\n"
         "BinaryOperation[operator:'OR']\n"
         "BinaryOperation[operator:'LT']\n"
         "Reference[name:'j']\n"
@@ -145,16 +122,17 @@ def test_go_move_iteration_boundaries_inside_kernel_trans():
     # - It has the boundary symbol as kernel arguments
     assert isinstance(kschedule.symbol_table.lookup("xstart").interface,
                       ArgumentInterface)
-    assert isinstance(kschedule.symbol_table.lookup("xstop").interface,
+    assert isinstance(kschedule.symbol_table.lookup("xstop_1").interface,
                       ArgumentInterface)
     assert isinstance(kschedule.symbol_table.lookup("ystart_1").interface,
                       ArgumentInterface)
     assert isinstance(kschedule.symbol_table.lookup("ystop").interface,
                       ArgumentInterface)
+    assert GOceanBuild(tmp_path).code_compiles(psy)
 
 
 def test_go_move_iteration_boundaries_inside_kernel_two_kernels_apply_twice(
-        fortran_writer):
+        fortran_writer, tmp_path):
     ''' Tests that the GOMoveIterationBoundariesInsideKernelTrans
     transformation for the GOcean API produces the expected code when the
     invoke has two kernels and the transformation is applied twice.
@@ -162,19 +140,24 @@ def test_go_move_iteration_boundaries_inside_kernel_two_kernels_apply_twice(
     postfixed with a number) and that kernels don't duplicate boundary
     arguments themself when applying the transformation twice.
     '''
-    psy, _ = get_invoke("single_invoke_two_kernels.f90", API, idx=0,
-                        dist_mem=False)
-    sched = psy.invokes.invoke_list[0].schedule
+    psy, invoke = get_invoke("single_invoke_two_kernels.f90", API, idx=0,
+                             dist_mem=False)
+    sched = invoke.schedule
 
     # Apply the transformation twice
+    mod_inline_trans = KernelModuleInlineTrans()
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kernel in sched.coded_kernels():
+        mod_inline_trans.apply(kernel)
         trans.apply(kernel)
         trans.apply(kernel)
 
+    output = fortran_writer(sched)
+
+    assert "use compute_cu_mod" not in output
+    assert "use time_smooth_mod" not in output
+
     expected = '''subroutine invoke_0(cu_fld, p_fld, u_fld, unew_fld, uold_fld)
-  use compute_cu_mod, only : compute_cu_code
-  use time_smooth_mod, only : time_smooth_code
   type(r2d_field), intent(inout) :: cu_fld
   type(r2d_field), intent(inout) :: p_fld
   type(r2d_field), intent(inout) :: u_fld
@@ -195,24 +178,25 @@ def test_go_move_iteration_boundaries_inside_kernel_two_kernels_apply_twice(
   xstop = cu_fld%internal%xstop
   ystart = cu_fld%internal%ystart
   ystop = cu_fld%internal%ystop
-  do j = 1, SIZE(cu_fld%data, 2), 1
-    do i = 1, SIZE(cu_fld%data, 1), 1
-      call compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data, xstart, \
-xstop, ystart, ystop)
+  do j = 1, SIZE(cu_fld%data, dim=2), 1
+    do i = 1, SIZE(cu_fld%data, dim=1), 1
+      call compute_cu_code_inlined_(i, j, cu_fld%data, p_fld%data, u_fld%data,\
+ xstart, xstop, ystart, ystop)
     enddo
   enddo
   xstart_1 = 1
-  xstop_1 = SIZE(uold_fld%data, 1)
+  xstop_1 = SIZE(uold_fld%data, dim=1)
   ystart_1 = 1
-  ystop_1 = SIZE(uold_fld%data, 2)
-  do j = 1, SIZE(uold_fld%data, 2), 1
-    do i = 1, SIZE(uold_fld%data, 1), 1
-      call time_smooth_code(i, j, u_fld%data, unew_fld%data, uold_fld%data, \
-xstart_1, xstop_1, ystart_1, ystop_1)
+  ystop_1 = SIZE(uold_fld%data, dim=2)
+  do j = 1, SIZE(uold_fld%data, dim=2), 1
+    do i = 1, SIZE(uold_fld%data, dim=1), 1
+      call time_smooth_code_inlined_(i, j, cu_fld%data, unew_fld%data, \
+uold_fld%data, xstart_1, xstop_1, ystart_1, ystop_1)
     enddo
   enddo
 
 end subroutine invoke_0
 '''
 
-    assert fortran_writer(sched) == expected
+    assert expected in output
+    assert GOceanBuild(tmp_path).code_compiles(psy)

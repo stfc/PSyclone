@@ -1,17 +1,16 @@
 # Simple Stand-alone Timer Library
 
-This library is a simple stand-alone timer library (see the ["Profiling"](
-https://psyclone.readthedocs.io/en/stable/profiling.html#profiling) section
-in the PSyclone [User Guide](https://psyclone.readthedocs.io/en/stable/) for
-more details). It counts the number of calls for each region, and reports
-minumum, maximum and average times. This library is **not thread-safe**, and
+This library is a simple stand-alone timer library (see the [User Guide Profiling](
+https://psyclone.readthedocs.io/en/latest/user_guide/profiling.html#profiling) section
+for more details). It counts the number of calls for each region, and reports
+minimum, maximum and average times. This library is **not thread-safe**, and
 **not MPI-aware** (e.g. maximum reported is per process, not across all
 processes).
 
 ## Dependencies
 
 This stand-alone profiling library uses the [PSyData API](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface with
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) to interface with
 the application. The library is based on the [PSyData base class](
 https://psyclone.readthedocs.io/en/latest/developer_guide/psy_data.html#psydata-base-class),
 which is included in PSyclone as a Jinja template, ``psy_data_base.jinja``.
@@ -76,45 +75,3 @@ psy_time_step_mod::swlat_code                             11      4.87890625    
 psy_time_step_mod::swlat_update_code                      11      1.87500000             0.167968750             0.170454547             0.179687500    
 ===========================================
 ```
-
-<!--
-## Licence
-
--------------------------------------------------------------------------------
-
-BSD 3-Clause License
-
-Copyright (c) 2019-2025, Science and Technology Facilities Council.
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-* Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-
-* Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-
-* Neither the name of the copyright holder nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
--------------------------------------------------------------------------------
-Authors: J. Henrichs, Bureau of Meteorology,
-         I. Kavcic, Met Office
--->

@@ -1,0 +1,18 @@
+#!/usr/bin/env python
+# -----------------------------------------------------------------------------
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
+# -----------------------------------------------------------------------------
+
+'''
+Entry point for the psyclonefc command (PSyclone's compiler wrapper script).
+'''
+
+import sys
+from psyclone.psyclonefc_cli import compiler_wrapper
+
+
+if __name__ == "__main__":
+    compiler_wrapper(sys.argv[1:])

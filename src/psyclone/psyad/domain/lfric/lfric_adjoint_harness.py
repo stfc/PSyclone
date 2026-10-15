@@ -1,43 +1,13 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
-# Modified by L. Turner, Met Office
-# Modified by T. Vockerodt, Met Office
 
 ''' Provides LFRic-specific PSyclone adjoint test-harness functionality. '''
 
+from typing import Optional
 from fparser import api as fpapi
 
 from psyclone.core import AccessType
@@ -46,6 +16,7 @@ from psyclone.domain.lfric import (
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
+from psyclone.domain.lfric.kernel import LFRicKernelMetadata
 from psyclone.domain.lfric.transformations import RaisePSyIR2LFRicKernTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad.domain.common.adjoint_utils import (
@@ -53,7 +24,7 @@ from psyclone.psyad.domain.common.adjoint_utils import (
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     IntrinsicCall, Reference, ArrayReference, Assignment,
-    Literal, BinaryOperation, Routine, IfBlock)
+    Literal, BinaryOperation, Routine, IfBlock, Container)
 from psyclone.psyir.symbols import (
     ImportInterface, ContainerSymbol, ScalarType, ArrayType, RoutineSymbol,
     DataTypeSymbol, DataSymbol, UnresolvedType)
@@ -82,8 +53,8 @@ def _compute_lfric_inner_products(prog, scalars, field_sums, sum_sym):
 
     '''
     table = prog.symbol_table
-    idef_sym = table.add_lfric_precision_symbol("i_def")
-    idef_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef_sym)
+    idef_sym = LFRicTypes.add_precision_symbol(table, "i_def")
+    idef_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(idef_sym))
 
     # Initialise the sum to zero: sum = 0.0
     prog.addchild(Assignment.create(Reference(sum_sym),
@@ -154,10 +125,10 @@ def _compute_field_inner_products(routine, field_pairs):
     '''
     # pylint: disable=too-many-branches, too-many-locals
     table = routine.symbol_table
-    rdef_sym = table.add_lfric_precision_symbol("r_def")
-    rdef_type = ScalarType(ScalarType.Intrinsic.REAL, rdef_sym)
-    idef_sym = table.add_lfric_precision_symbol("i_def")
-    idef_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef_sym)
+    rdef_sym = LFRicTypes.add_precision_symbol(table, "r_def")
+    rdef_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(rdef_sym))
+    idef_sym = LFRicTypes.add_precision_symbol(table, "i_def")
+    idef_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(idef_sym))
 
     builtin_factory = LFRicBuiltinFunctorFactory.get()
 
@@ -265,8 +236,8 @@ def _init_fields_random(fields, input_symbols, table):
     :rtype: List[:py:class:`psyclone.domain.common.algorithm.Functor`]
 
     '''
-    idef_sym = table.add_lfric_precision_symbol("i_def")
-    idef_type = ScalarType(ScalarType.Intrinsic.INTEGER, idef_sym)
+    idef_sym = LFRicTypes.add_precision_symbol(table, "i_def")
+    idef_type = ScalarType(ScalarType.Intrinsic.INTEGER, Reference(idef_sym))
     # We use the setval_random builtin to initialise all fields.
     kernel_list = []
     builtin_factory = LFRicBuiltinFunctorFactory.get()
@@ -522,32 +493,33 @@ def _lfric_log_write(sym_table, kernel, var1, var2):
     return statements
 
 
-def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
-                                   panel_id_arg_idx=None,
-                                   test_name="adjoint_test"):
+def generate_lfric_adjoint_harness(
+    tl_psyir: Container,
+    coord_arg_idx: Optional[int] = None,
+    panel_id_arg_idx: Optional[int] = None,
+    test_name: str = "adjoint_test"
+) -> Container:
     '''
     Constructs and returns the PSyIR for a Container and Routine that
     implements a test harness for the adjoint of the supplied tangent-linear
     kernel. The base name to use for the Container and Routine is given by
     the test_name argument.
 
-    :param tl_psyir: the PSyIR of an LFRic module defining a \
+    :param tl_psyir: the PSyIR of an LFRic module defining a
                      tangent-linear kernel.
-    :type tl_psyir: :py:class:`psyclone.psyir.nodes.Container`
-    :param Optional[int] coord_arg_idx: 1-indexed position of the coordinate \
+    :param coord_arg_idx: 1-indexed position of the coordinate
         field in the list of arguments in the kernel metadata (if present).
-    :param Optional[int] panel_id_arg_idx: 1-indexed position of the panel-id \
+    :param panel_id_arg_idx: 1-indexed position of the panel-id
         field in the list of arguments in the kernel metadata (if present).
-    :param Optional[str] test_name: Name of the adjoint test algorithm \
+    :param test_name: Name of the adjoint test algorithm
         (if present).
 
-    :returns: PSyIR of an Algorithm that tests the adjoint of the supplied \
+    :returns: PSyIR of an Algorithm that tests the adjoint of the supplied
               LFRic TL kernel.
-    :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
-    :raises ValueError: if the supplied PSyIR does not have a Container (that \
+    :raises ValueError: if the supplied PSyIR does not have a Container (that
         is *not* a FileContainer).
-    :raises ValueError: if the name of the Container (module) in the supplied \
+    :raises ValueError: if the name of the Container (module) in the supplied
         PSyIR does not follow the LFRic naming convention of ending in '_mod'.
 
     '''
@@ -569,18 +541,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     tl_subroutine_table = tl_subroutine.symbol_table
     tl_argument_list = tl_subroutine_table.argument_list
 
-    # Parse the kernel metadata. This still uses fparser1 as that's what
-    # the meta-data handling is currently based upon. We therefore have to
-    # convert back from PSyIR to Fortran for the moment.
-    # TODO #1806 - replace this with the new PSyIR-based metadata handling.
-    # pylint: disable=import-outside-toplevel
-    from psyclone.psyir.backend.fortran import FortranWriter
-    writer = FortranWriter()
-    tl_source = writer(tl_container)
-    parse_tree = fpapi.parse(tl_source)
-
-    # Get the name of the module that contains the kernel and create a
-    # ContainerSymbol for it.
+    # Validate the module name before attempting to serialise its metadata.
     kernel_mod_name = tl_container.name.lower()
     if not kernel_mod_name.endswith("_mod"):
         raise ValueError(
@@ -588,12 +549,29 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
             f"'{kernel_mod_name}'. This does not end in '_mod' and as such "
             f"does not comply with the LFRic naming convention.")
 
-    kernel_mod = table.new_symbol(kernel_mod_name, symbol_type=ContainerSymbol)
-    # Assume the LFRic naming convention is followed in order to infer the name
-    # of the TL kernel. (If this convention isn't followed in the supplied code
-    # then the call to `kernel_from_metadata` below will raise an appropriate
-    # exception.)
+    # Assume the LFRic naming convention is followed in order to infer the
+    # name of the TL kernel.
     kernel_name = kernel_mod_name.replace("_mod", "_type")
+
+    # Parse the kernel metadata. This still uses fparser1 as that's what
+    # the metadata handling is currently based upon. Serialise only the
+    # metadata and a placeholder implementation because unresolved metadata
+    # names are now visible in the language-level PSyIR.
+    # TODO #2151 - replace this with the new PSyIR-based metadata handling.
+    metadata_symbol = tl_container.symbol_table.lookup(kernel_name)
+    metadata = LFRicKernelMetadata.create_from_psyir(metadata_symbol)
+    procedure_name = metadata.procedure_name
+    tl_source = (
+        f"module {kernel_mod_name}\n"
+        f"{metadata.fortran_string()}\n"
+        "contains\n"
+        f"subroutine {procedure_name}()\n"
+        f"end subroutine {procedure_name}\n"
+        f"end module {kernel_mod_name}\n")
+    parse_tree = fpapi.parse(tl_source)
+
+    # Create a ContainerSymbol for the module containing the kernel.
+    kernel_mod = table.new_symbol(kernel_mod_name, symbol_type=ContainerSymbol)
 
     adj_mod = table.new_symbol(create_adjoint_name(kernel_mod_name),
                                symbol_type=ContainerSymbol)
@@ -608,7 +586,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
 
     # Construct an LFRicKern using the metadata and then use it to construct
     # the kernel argument list.
-    # TODO #1806 - once we have the new PSyIR-based metadata handling then
+    # TODO #2151 - once we have the new PSyIR-based metadata handling then
     # we can pass PSyIR to this routine rather than an fparser1 parse tree.
     kern = lfalg.kernel_from_metadata(parse_tree, kernel_name)
 
@@ -774,8 +752,8 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
         "Initialise arguments and call the tangent-linear kernel.")
     routine.addchild(inv_call)
 
-    rdef_sym = table.add_lfric_precision_symbol("r_def")
-    rdef_type = ScalarType(ScalarType.Intrinsic.REAL, rdef_sym)
+    rdef_sym = LFRicTypes.add_precision_symbol(table, "r_def")
+    rdef_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(rdef_sym))
 
     # Compute the first inner products.
     inner1_sym = table.new_symbol("inner1", symbol_type=DataSymbol,

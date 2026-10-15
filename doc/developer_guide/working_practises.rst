@@ -1,37 +1,9 @@
 .. -----------------------------------------------------------------------------
-.. BSD 3-Clause License
-..
-.. Copyright (c) 2019-2025, Science and Technology Facilities Council.
-.. All rights reserved.
-..
-.. Redistribution and use in source and binary forms, with or without
-.. modification, are permitted provided that the following conditions are met:
-..
-.. * Redistributions of source code must retain the above copyright notice, this
-..   list of conditions and the following disclaimer.
-..
-.. * Redistributions in binary form must reproduce the above copyright notice,
-..   this list of conditions and the following disclaimer in the documentation
-..   and/or other materials provided with the distribution.
-..
-.. * Neither the name of the copyright holder nor the names of its
-..   contributors may be used to endorse or promote products derived from
-..   this software without specific prior written permission.
-..
-.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-.. POSSIBILITY OF SUCH DAMAGE.
+.. SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+..                         Facilities Council
+.. SPDX-License-Identifier: BSD-3-Clause
+.. See the full LICENSE file in the project root for details.
 .. -----------------------------------------------------------------------------
-.. Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 Working With PSyclone from GitHub
 #################################
@@ -153,12 +125,12 @@ fortran_writer     Provides a Fortran PSyIR back-end object to convert PSyIR
 have_graphviz      True if the Python bindings to the graphviz package (used when
                    generating DAG visualisations) are available. Does *not* check
                    that the underlying graphviz library is installed.
-kernel_outputdir   Sets the output directory used by PSyclone for transformed
+kernel_outputdir   Sets the output directory used by PSyclone for generated
                    kernels to be `tmpdir` (a built-in pytest fixture) and then
                    returns `tmpdir`. Any test that directly or indirectly causes
-                   kernels to be transformed needs to use this fixture in order
-                   to avoid having unwanted files created within the git working
-                   tree.
+                   OpenCL versions of kernels to be created must use this fixture
+                   in order to avoid having unwanted files created within the git
+                   working tree.
 parser             Creates an fparser2 parser for the Fortran2008 standard. This
                    is an expensive operation so this fixture is only run once
                    per test session.
@@ -174,6 +146,29 @@ any compilation-testing flags (see :ref:`compilation_testing`)
 provided to the pytest command line. It also ensures that (if
 compilation testing is enabled) the LFRic-stub and GOcean infrastructure
 libraries are compiled prior to any tests running.
+
+.. _logging_testing:
+
+Testing PSyclone's Logging Calls
+--------------------------------
+Logging should also be explicitly tested through the use of the ``caplog``
+pytest fixture. It is important that the expected logger is specified
+in the test: if `main` (in `generate.py`) is executed, a handler is attached
+to the PSyclone top-level logger. This means that no log events are
+propagated to the Python root level logger, and ``caplog`` without
+a logger specified will only test the root logger. This can result in
+tests passing when executed on their own, but failing randomly when
+executed with other tests: these test might call ``main`` (and
+therefore prevent the root logger to receive the message), and
+``caplog`` will then fail (if no logger is specified). Here is the
+proper way of testing log messages in a test:
+
+.. code-block:: python
+
+    with caplog.at_level(logging.WARNING,
+                         logger="psyclone.psyir.tools.read_write_info"):
+        ...
+    assert "your message here" in caplog.text
 
 
 .. _test_coverage:
@@ -361,7 +356,7 @@ of ``transformations.rst``::
     .. testsetup::
 
         # Define GOCEAN_SOURCE_FILE to point to an existing gocean 1.0 file.
-        GOCEAN_SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
+        GOCEAN_SOURCE_FILE = ("../src/psyclone/tests/test_files/"
             "gocean1p0/test11_different_iterates_over_one_invoke.f90")
 
     ...
@@ -395,22 +390,64 @@ and --f90 and --f90flags), e.g.::
   > pytest --compileopencl --f90=<opencl-compiler> --f90flags="<opencl-specific flags>"
 
 If you want to test OpenMP code created by PSyclone, you must add the relevant
-openmp flag to --f90flags (`-qopenmp` for intel, `-fopenmp` for gfortran). In addition
-the OpenMP tasking tests currently only support compilation testing with intel
-compilers, e.g.::
+openmp flag to --f90flags (`-qopenmp` for intel, `-fopenmp` for gfortran or ifx)::
 
   > pytest --compile --f90=ifort --f90flags="-qopenmp"
+
+.. warning:: The OpenMP tasking tests currently only support compilation
+   testing with intel compilers. gfortran will fail due to not supporting
+   structure elements in depend clauses.
+
 
 
 Infrastructure libraries
 ++++++++++++++++++++++++
 Since the code generated by PSyclone for the GOcean and LFRic domains makes
 calls to an infrastructure library, compilation tests must have access to
-compiler specific .mod files. For LFRic, a stub implementation of the required
-functions from the LFRic infrastructure is included in
-``tests/test_files/lfric/infrastructure``. When compilation tests
-are requested, the stub files are automatically compiled to create the required
-.mod files. 
+compiler specific .mod files. For LFRic, a trimmed down version of the
+LFRic core repository is included in ``external/lfric_infrastructure``.
+At the moment, LFRic is only available as a subversion repository, so we cannot
+include this as a submodule. Additionally, the full LFRic core repository
+includes over 140MB of data not required for PSyclone, a significant
+increase of the file sizes (given that e.g. ``src/psyclone`` only needs
+around 30MB of disk space).
+
+Instead, the script ``update.sh`` in ``external/lfric_infrastructure``
+is provided, which takes the location of a checked out version of
+LFRic core as parameter and updates all files required by PSyclone.
+This script will:
+
+1. Create a backup of the current ``src`` subdirectory in ``src.backup``
+   (a previously existing ``src.backup`` directory will be deleted).
+2. Since PSyclone only supports pre-processed files, the script will
+   then preprocess all files from the LFRic infrastructure into the
+   directory ``external/lfric_infrastructure/src``. It uses the flags::
+
+       -DNO_MPI -DRDEF_PRECISION=64 -DR_SOLVER_PRECISION=64 \
+       -DR_TRAN_PRECISION=64 -DR_BL_PRECISION=64
+3. Besides the infrastructure source from LFRic core,
+   it will also copy a few additional files from the ``components``
+   subdirectory which are required for the infrastructure or which
+   make the stand-alone LFRic binaries more robust for future LFRic
+   changes.
+4. The script will run LFRic's ``Templerator`` to create additional
+   source files.
+5. It will create an include makefile that contains all required
+   include paths for any compilation tests in PSyclone.
+6. Then it runs a dependency analysis and creates a ``Makefile``
+   that compiles the library.
+7. It will then compile the library.
+
+In order to update the LFRic infrastructure files, checkout the current
+version of LFRic core, and run the ``update.sh`` script with
+the location of the checked out LFRic core repository. If the compilation
+step finished successful, add and remove the files in ``src`` and
+``backup``, and commit.
+
+When compilation tests are requested, the infrastructure files are automatically
+compiled into a temporary directory to create the required .mod files.
+Re-compiling the infrastructure files when the tests are run allows the use
+of different compilers in the compilation tests.
 
 For the gocean domain a complete copy of the dl_esm_inf library is included 
 as a submodule in ``<PSYCLONEHOME>/external/dl_esm_inf``. Before running tests
@@ -454,13 +491,13 @@ computational cost (so that we 'fail fast'):
  3. All links within the Sphinx documentation (rst files) are checked (see
     note below);
 
- 4. All of the examples are tested (for Python versions 3.10 and 3.13)
+ 4. All of the examples are tested (for Python versions 3.9 and 3.14)
     using the ``Makefile`` in the ``examples`` directory. No compilation is
     performed; only the ``transform`` (performs the PSyclone transformations)
     and ``notebook`` (runs the various Jupyter notebooks) targets are used.
     The ``transform`` target is run 2-way parallel (``-j 2``).
 
- 5. The full test suite is run for Python versions 3.10 and 3.13 but
+ 5. The full test suite is run for Python versions 3.9 and 3.14 but
     without the compilation checks. ``pytest`` is passed the ``-n auto`` flag
     so that it will run the tests in parallel on as many cores as are
     available (currently 2 on GHA instances).

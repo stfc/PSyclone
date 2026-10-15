@@ -1,3 +1,10 @@
+!!=====================================================================================
+!! ***  traadv kernel extracted from the NEMO software (http://www.nemo-ocean.eu ) ***
+!! ***          governed by the CeCILL licence (http://www.cecill.info)            ***
+!!                                                   
+!! ***                             IS-ENES2 - CMCC/STFC                            ***
+!!=====================================================================================
+
 MODULE traldf_iso
    !!======================================================================
    !!                   ***  MODULE  traldf_iso  ***
@@ -223,7 +230,7 @@ CONTAINS
                END DO
             END DO
          END DO
-         IF( ln_zps ) THEN      ! botton and surface ocean correction of the horizontal gradient
+         IF( ln_zps ) THEN      ! bottom and surface ocean correction of the horizontal gradient
             DO jj = 1, jpjm1              ! bottom correction (partial bottom cell)
                DO ji = 1, fs_jpim1   ! vector opt.
                   zdit(ji,jj,mbku(ji,jj)) = pgu(ji,jj,jn)          

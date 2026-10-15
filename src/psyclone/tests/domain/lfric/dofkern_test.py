@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2024-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author O. Brunt, Met Office
-# Modified A. Pirrie, Met Office
 
 '''
 This module tests metadata validation and code generation of
@@ -45,12 +16,13 @@ from fparser import api as fpapi
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicKernMetadata, LFRicLoop
+from psyclone.domain.lfric.transformations import (
+    LFRicRedundantComputationTrans)
 from psyclone.lfric import LFRicHaloExchange
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.transformations import LFRicRedundantComputationTrans
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -257,39 +229,59 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
     # generated
 
     # Use statements
-    assert "    use testkern_mod, only : testkern_code\n" in code
-    assert "    use testkern_dofs_mod, only : testkern_dofs_code\n" in code
+    assert "  use testkern_mod, only : testkern_code\n" in code
+    assert "  use testkern_dofs_mod, only : testkern_dofs_code\n" in code
     if dist_mem:
         # Check mesh_mod is added to use statements
         assert "    use mesh_mod, only : mesh_type\n" in code
 
     # Consistent declarations
     assert """
+    type(field_type), dimension(3), intent(in) :: field_vec
     type(field_type), intent(in) :: f1
     type(field_type), intent(in) :: f2
     type(field_type), intent(in) :: f3
     type(field_type), intent(in) :: f4
-    type(field_type), dimension(3), intent(in) :: field_vec
     real(kind=r_def), intent(in) :: scalar_arg
     real(kind=r_def), intent(in) :: a
     type(field_type), intent(in) :: m1
     type(field_type), intent(in) :: m2
     """ in code
     assert """
+    real(kind=r_def), pointer, dimension(:) :: field_vec_1_data => null()
+    real(kind=r_def), pointer, dimension(:) :: field_vec_2_data => null()
+    real(kind=r_def), pointer, dimension(:) :: field_vec_3_data => null()
     real(kind=r_def), pointer, dimension(:) :: f1_data => null()
     real(kind=r_def), pointer, dimension(:) :: f2_data => null()
     real(kind=r_def), pointer, dimension(:) :: f3_data => null()
     real(kind=r_def), pointer, dimension(:) :: f4_data => null()
-    real(kind=r_def), pointer, dimension(:) :: field_vec_1_data => null()
-    real(kind=r_def), pointer, dimension(:) :: field_vec_2_data => null()
-    real(kind=r_def), pointer, dimension(:) :: field_vec_3_data => null()
     real(kind=r_def), pointer, dimension(:) :: m1_data => null()
     real(kind=r_def), pointer, dimension(:) :: m2_data => null()
     """ in code
 
-    # Check that dof kernel is called correctly
+    # Check loop bounds are set correctly for the dof kernel that updates
+    # a field vector.
+    if dist_mem:
+        if annexed:
+            assert ("loop0_stop = field_vec_proxy(1)%vspace%"
+                    "get_last_dof_annexed" in code)
+        else:
+            assert ("loop0_stop = field_vec_proxy(1)%vspace%"
+                    "get_last_dof_owned" in code)
+    else:
+        assert "loop0_stop = undf_w1" in code
+
+    # Check that dof kernels are called correctly
     output = (
         "    do df = loop0_start, loop0_stop, 1\n"
+        "      call testkern_dofs_vector_write_code(field_vec_1_data(df), "
+        "field_vec_2_data(df), field_vec_3_data(df))\n"
+        "    enddo\n"
+    )
+    assert output in code
+
+    output = (
+        "    do df = loop1_start, loop1_stop, 1\n"
         "      call testkern_dofs_code(f1_data(df), f2_data(df), "
         "f3_data(df), f4_data(df), field_vec_1_data(df), "
         "field_vec_2_data(df), field_vec_3_data(df), scalar_arg)\n"
@@ -303,7 +295,7 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
         if not annexed:
             # Check f1 field has halo exchange performed when annexed == False
             output = (
-                "    do df = loop0_start, loop0_stop, 1\n"
+                "    do df = loop1_start, loop1_stop, 1\n"
                 "      call testkern_dofs_code(f1_data(df), f2_data(df), "
                 "f3_data(df), f4_data(df), field_vec_1_data(df), "
                 "field_vec_2_data(df), field_vec_3_data(df), scalar_arg)\n"
@@ -317,7 +309,7 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
         else:
             # Check f1 field is set dirty but no halo exchange is performed
             output = (
-                "    do df = loop0_start, loop0_stop, 1\n"
+                "    do df = loop1_start, loop1_stop, 1\n"
                 "      call testkern_dofs_code(f1_data(df), f2_data(df), "
                 "f3_data(df), f4_data(df), field_vec_1_data(df), "
                 "field_vec_2_data(df), field_vec_3_data(df), scalar_arg)\n"
@@ -340,7 +332,7 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
                 "    if (m2_proxy%is_dirty(depth=1)) then\n"
                 "      call m2_proxy%halo_exchange(depth=1)\n"
                 "    end if\n"
-                "    do cell = loop1_start, loop1_stop, 1\n"
+                "    do cell = loop2_start, loop2_stop, 1\n"
                 "      call testkern_code"
                 )
         output += common_halo_exchange_code     # Append common
@@ -348,7 +340,7 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
 
     # Check cell-column kern is called correctly
     output = (
-        "    do cell = loop1_start, loop1_stop, 1\n"
+        "    do cell = loop2_start, loop2_stop, 1\n"
         "      call testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data, "
         "m2_data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
@@ -358,7 +350,7 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
 
     # Check built-in is called correctly
     output = (
-        "    do df = loop2_start, loop2_stop, 1\n"
+        "    do df = loop3_start, loop3_stop, 1\n"
         "      ! Built-in: inc_aX_plus_Y (real-valued fields)\n"
         "      f1_data(df) = 0.5_r_def * f1_data(df) + f2_data(df)\n"
         "    enddo\n"

@@ -1,54 +1,27 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: A. R. Porter and R. W. Ford, STFC Daresbury Lab
-#          J. Henrichs, Bureau of Meteorology,
-#          I. Kavcic, Met Office
 
 ''' Module containing configuration required to build code generated
 for the LFRic domain. '''
 
 import os
+from pathlib import Path
 import subprocess
 import sys
+from typing import Optional, Union
 
-
-from psyclone.tests.utilities import change_dir, CompileError, Compile
+from psyclone.tests.utilities import (change_dir, CompileError, Compile,
+                                      get_base_path, get_infrastructure_path)
 
 
 class LFRicBuild(Compile):
     '''Build class for compilation of test files for the LFRic api.
-    It uses the wrapper library from test_files/lfric/infrastructure.
+    It uses the infrastructure library from
+    ``<PSYCLONEHOME>/external/lfric_infrastructure/src``.
     The very first time the constructor is called it will automatically
     compile the infrastructure library in a temporary, process-specific
     location. These files will be used by all test compilations of this
@@ -64,54 +37,67 @@ class LFRicBuild(Compile):
 
     # The temporary path in which the compiled infrastructure files
     # (.o and .mod) are stored for this process.
-    _compilation_path = ""
+    _compilation_path: Path = Path("")
 
     # Define the 'make' command to use. Having this as an attribute
     # allows testing to modify this to trigger exceptions.
     _make_command = "make"
 
-    def __init__(self, tmpdir):
+    # The path to the infrastructure source files.
+    _infrastructure_path: Path
+
+    def __init__(self, tmpdir: Optional[Union[str, Path]]) -> None:
         super().__init__(tmpdir)
 
-        base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "lfric")
-        self.base_path = base_path
-        self._infrastructure_path = os.path.join(base_path, "infrastructure")
+        self.base_path = get_base_path("lfric")
+        LFRicBuild._infrastructure_path = \
+            Path(get_infrastructure_path("lfric"))
         # On first instantiation (triggered by conftest.infra_compile)
         # compile the infrastructure library files.
-        if not LFRicBuild._infrastructure_built:
+        if Compile.TEST_COMPILE and not LFRicBuild._infrastructure_built:
             self._build_infrastructure()
 
-    def get_infrastructure_flags(self):
+    def get_infrastructure_flags(self) -> list[str]:
         '''Returns the required flag to use the infrastructure wrapper
         files for LFRic. Each parameter must be a separate entry
         in the list, e.g.: ["-I", "/some/path"] and not ["-I /some/path"].
 
         :returns: the required compiler flags.
-        :rtype: List[str]
 
         '''
+        if Compile.TEST_COMPILE:
+            # If we are compiling, point to the compilation path, which
+            # contain the compiled mod files.
+            include_root = LFRicBuild._compilation_path
+        else:
+            # If we are not compiling, point to the external infrastructure
+            # directory, which allows tests (that uses the flags) to pass
+            # even when compilation is disabled (and it will pick up if
+            # the infrastructure should change as well).
+            include_root = self._infrastructure_path
         all_flags = []
-        for entry in os.scandir(self._infrastructure_path):
-            if not entry.name.startswith('.') and entry.is_dir():
-                path = os.path.join(LFRicBuild._compilation_path, entry.name)
-                all_flags.extend(["-I", path])
+        for root, dirs, _ in os.walk(include_root):
+            for curr_dir in dirs:
+                all_flags.extend(["-I", str(os.path.join(root, curr_dir))])
         return all_flags
 
-    def _build_infrastructure(self):
+    def _build_infrastructure(self) -> None:
         '''Compiles the LFRic wrapper infrastructure files so that
         compilation tests can be done.
+
+        :raises CompileError: if a compilation error happened.
         '''
-        if not Compile.TEST_COMPILE:
-            return
 
         with change_dir(self._tmpdir):
             # Store the temporary path so that the compiled infrastructure
             # files can be used by all test compilations later.
-            LFRicBuild._compilation_path = str(self._tmpdir)
-            makefile = os.path.join(self._infrastructure_path, "Makefile")
+            LFRicBuild._compilation_path = self._tmpdir
+
+            makefile = self._infrastructure_path.parent / "Makefile"
             arg_list = [LFRicBuild._make_command, f"F90={self._f90}",
-                        f"F90FLAGS={self._f90flags}", "-f", makefile]
+                        f"F90FLAGS={self._f90flags}",
+                        f"BUILD_PATH={self._tmpdir}", "-f", str(makefile),
+                        "liblfric"]
             try:
                 with subprocess.Popen(arg_list, stdout=subprocess.PIPE,
                                       stderr=subprocess.STDOUT) as build:

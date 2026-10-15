@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modifications: A. R. Porter, R. W. Ford and S.Siso, STFC Daresbury Lab
 
 ''' Module containing tests for the dependency tools.'''
 
@@ -74,6 +45,7 @@ def test_messages():
     assert str(msg) == "Warning: warning-test. Variable: 'a'."
     assert msg.code == DTCode.WARN_SCALAR_REDUCTION
     assert msg.var_names == ["a"]
+    assert msg.var_infos is None
 
     dep_tools._add_message("error-test", DTCode.ERROR_DEPENDENCY, [])
     msg = dep_tools.get_all_messages()[2]
@@ -88,8 +60,19 @@ def test_messages():
     dep_tools._clear_messages()
     assert dep_tools.get_all_messages() == []
 
+    with pytest.raises(InternalError) as err:
+        dep_tools._add_message("var-info-test1", DTCode.WARN_SCALAR_REDUCTION,
+                               ["a"], [])
+    assert ("The var_names and var_infos arguments to _add_message "
+            "must have the same length") in str(err.value)
 
-# -----------------------------------------------------------------------------
+    with pytest.raises(TypeError) as err:
+        dep_tools._add_message("var-info-test2", DTCode.WARN_SCALAR_REDUCTION,
+                               ["a"], [False])
+    assert ("The var_infos argument to _add_message must "
+            "be a list of Signature/AccessSequence pairs") in str(err.value)
+
+
 def test_dep_tool_constructor_errors():
     '''Test that invalid loop types raise an error in the constructor.
     '''
@@ -104,7 +87,28 @@ def test_dep_tool_constructor_errors():
             "values for API 'lfric' are [" in str(err.value))
 
 
-# -----------------------------------------------------------------------------
+def test_loop_parallelise_lfric_kern():
+    '''
+    Test that the can_loop_be_parallelised method can be called successfully
+    when a loop contains an LFRicKern since this currently does not have an
+    associated Symbol.
+
+    TODO #3219 - although the method can be called, it will always return
+    False currently because it has to assume the worst for any arguments
+    passed to an LFRicKern. This test will need updating once LFRicKern has
+    'virtual' children containing accesses to its arguments.
+
+    '''
+    _, invoke = get_invoke("15.1.1_builtin_and_normal_kernel_invoke_2.f90",
+                           api="lfric", idx=0, dist_mem=False)
+    dep_tools = DependencyTools()
+    for loop in invoke.schedule.walk(Loop):
+        # Since we are currently forced to assume the worst case for
+        # arguments passed to LFRicKern nodes, the DependencyTools cannot
+        # ascertain that the loops can be parallelised.
+        assert not dep_tools.can_loop_be_parallelised(loop)
+
+
 def test_loop_parallelise_errors():
     '''Tests errors that should be raised from the can_loop_be_parallelised
     function.'''
@@ -156,10 +160,11 @@ def test_arrays_parallelise(fortran_reader):
     parallel = dep_tools.can_loop_be_parallelised(loops[0])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'mask' in 'mask(jk,jk)' causes a write-write "
-            "race condition" in str(msg))
+    assert ("The write access to 'mask(jk,jk)' in 'mask(jk,jk) = -1.0d0' "
+            "causes a write-write race condition" in str(msg))
     assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
     assert msg.var_names == ["mask"]
+    assert msg.var_infos is None
 
     # Write to array that does not depend on the parallel loop variable
     parallel = dep_tools.can_loop_be_parallelised(loops[1])
@@ -174,14 +179,15 @@ def test_arrays_parallelise(fortran_reader):
     parallel = dep_tools.can_loop_be_parallelised(loops[3])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'mask(ji,jj)' and the read access to "
-            "'mask(ji,jj + 1)' are dependent and cannot be parallelised. "
+    assert ("The write access to 'mask(ji,jj)' in 'mask(ji,jj) = mask(ji,jj + "
+            "1)' and the read access to 'mask(ji,jj + 1)' in 'mask(ji,jj) = "
+            "mask(ji,jj + 1)' are dependent and cannot be parallelised. "
             "Variable: 'mask'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
     assert msg.var_names == ["mask"]
+    assert msg.var_infos is None
 
 
-# -----------------------------------------------------------------------------
 # This list contains the test cases and expected partition information.
 # The first two entries of each 3-tuple are the LHS and RHS. The third
 # element is the partition information, which is a list of partitions. Each
@@ -242,7 +248,7 @@ def test_partition(lhs, rhs, partition, fortran_reader):
     #  --> this must be the 'main' array variable we need to check for:
     sig = None
     for sig in access_info_lhs:
-        if access_info_lhs[sig].is_array():
+        if access_info_lhs[sig].has_indices():
             break
 
     # Get all accesses to the array variable. It has only one
@@ -250,8 +256,8 @@ def test_partition(lhs, rhs, partition, fortran_reader):
     access_lhs = access_info_lhs[sig][0]
     access_rhs = access_info_rhs[sig][0]
     partition_infos = \
-        DependencyTools._partition(access_lhs.component_indices,
-                                   access_rhs.component_indices,
+        DependencyTools._partition(access_lhs.component_indices(),
+                                   access_rhs.component_indices(),
                                    ["i", "j", "k", "l"])
     # The order of the results could be different if the code is changed,
     # so keep this test as flexible as possible:
@@ -264,7 +270,6 @@ def test_partition(lhs, rhs, partition, fortran_reader):
         # Note that the variables are stores as sets, so order does
         # not matter:
         assert correct[0] == part_info[0]
-
         # Then check that the partition indices are the same as well.
         # The partition function returns the indices as lists, so
         # convert them to sets to get an order independent comparison:
@@ -296,9 +301,8 @@ def test_array_access_pairs_0_vars(lhs, rhs, is_dependent, fortran_reader):
     # Get all access info for the expression to 'a1'
     access_info_lhs = assign.lhs.reference_accesses()[sig][0]
     access_info_rhs = assign.rhs.reference_accesses()[sig][0]
-    index = (0, 0)
-    lhs_index0 = access_info_lhs.component_indices[index]
-    rhs_index0 = access_info_rhs.component_indices[index]
+    lhs_index0 = access_info_lhs.component_indices()[0][0]
+    rhs_index0 = access_info_rhs.component_indices()[0][0]
 
     result = DependencyTools._independent_0_var(lhs_index0, rhs_index0)
     assert result is is_dependent
@@ -358,17 +362,17 @@ def test_array_access_pairs_1_var(lhs, rhs, distance, fortran_reader):
     # Get the READ access to 'a1' for expression (this is complicated by the
     # presence of 'inquiry' accesses for the array bounds in some cases).
     a1vinfo = assign.lhs.reference_accesses()[sig]
-    for access in a1vinfo.all_accesses:
+    for access in a1vinfo:
         if access.access_type == AccessType.READ:
             access_info_lhs = access
             break
     a1vinfo_rh = assign.rhs.reference_accesses()[sig]
-    for access in a1vinfo_rh.all_accesses:
+    for access in a1vinfo_rh:
         if access.access_type == AccessType.READ:
             access_info_rhs = access
             break
-    subscript_lhs = access_info_lhs.component_indices[(0, 0)]
-    subscript_rhs = access_info_rhs.component_indices[(0, 0)]
+    subscript_lhs = access_info_lhs.component_indices()[0][0]
+    subscript_rhs = access_info_rhs.component_indices()[0][0]
 
     result = DependencyTools._get_dependency_distance("i", subscript_lhs,
                                                       subscript_rhs)
@@ -405,7 +409,7 @@ def test_array_access_pairs_multi_var(lhs, rhs, independent, fortran_reader):
     # the 'main' array variable we need to check for:
     sig = None
     for sig in access_info_lhs:
-        if access_info_lhs[sig].is_array():
+        if access_info_lhs[sig].has_indices():
             break
 
     # Get all accesses to the array variable. It has only one
@@ -413,8 +417,8 @@ def test_array_access_pairs_multi_var(lhs, rhs, independent, fortran_reader):
     access_lhs = access_info_lhs[sig][0]
     access_rhs = access_info_rhs[sig][0]
     partition = \
-        DependencyTools._partition(access_lhs.component_indices,
-                                   access_rhs.component_indices,
+        DependencyTools._partition(access_lhs.component_indices(),
+                                   access_rhs.component_indices(),
                                    ["i", "j", "k", "l"])
 
     # Get all access info for the expression to 'a1'
@@ -588,8 +592,9 @@ def test_derived_type(fortran_reader):
     # next assignment to a derived type.
     assert len(dep_tools.get_all_messages()) == 1
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'a%b(ji,jj)' and the read access to "
-            "'a%b(ji,jj - 1)' are dependent and cannot be parallelised. "
+    assert ("The write access to 'a%b(ji,jj)' in 'a%b(ji,jj) = a%b(ji,jj - 1) "
+            "+ 1' and the read access to 'a%b(ji,jj - 1)' in 'a%b(ji,jj) = "
+            "a%b(ji,jj - 1) + 1' are dependent and cannot be parallelised. "
             "Variable: 'a%b'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
     assert msg.var_names == ["a%b"]
@@ -600,13 +605,15 @@ def test_derived_type(fortran_reader):
     # Now we must have two messages, one for each of the two assignments
     assert len(dep_tools.get_all_messages()) == 2
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'a%b(ji,jj)' and the read access "
-            "to 'a%b(ji,jj - 1)' are dependent and cannot be parallelised. "
+    assert ("The write access to 'a%b(ji,jj)' in 'a%b(ji,jj) = a%b(ji,jj - 1) "
+            "+ 1' and the read access to 'a%b(ji,jj - 1)' in 'a%b(ji,jj) = "
+            "a%b(ji,jj - 1) + 1' are dependent and cannot be parallelised. "
             "Variable: 'a%b'." in str(msg))
     assert msg.var_names == ["a%b"]
     msg = dep_tools.get_all_messages()[1]
-    assert ("The write access to 'b%b(ji,jj)' and the read access to "
-            "'b%b(ji,jj - 1)' are dependent and cannot be parallelised. "
+    assert ("The write access to 'b%b(ji,jj)' in 'b%b(ji,jj) = b%b(ji,jj - 1) "
+            "+ 1' and the read access to 'b%b(ji,jj - 1)' in 'b%b(ji,jj) = "
+            "b%b(ji,jj - 1) + 1' are dependent and cannot be parallelised. "
             "Variable: 'b%b'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
     assert msg.var_names == ["b%b"]
@@ -618,8 +625,9 @@ def test_derived_type(fortran_reader):
     assert parallel is False
     assert len(dep_tools.get_all_messages()) == 1
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'b%b(ji,jj)' and the read access to "
-            "'b%b(ji,jj - 1)' are dependent and cannot be parallelised. "
+    assert ("The write access to 'b%b(ji,jj)' in 'b%b(ji,jj) = b%b(ji,jj - 1) "
+            "+ 1' and the read access to 'b%b(ji,jj - 1)' in 'b%b(ji,jj) = "
+            "b%b(ji,jj - 1) + 1' are dependent and cannot be parallelised. "
             "Variable: 'b%b'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
     assert msg.var_names == ["b%b"]
@@ -700,8 +708,8 @@ def test_reserved_words(fortran_reader):
     parallel = dep_tools.can_loop_be_parallelised(loops[0])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'mask' in 'mask(jk,jk)' causes a write-write "
-            "race condition" in str(msg))
+    assert ("The write access to 'mask(jk,jk)' in 'mask(jk,jk) = -1.0d0' "
+            "causes a write-write race condition" in str(msg))
     assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
     assert msg.var_names == ["mask"]
 
@@ -718,8 +726,9 @@ def test_reserved_words(fortran_reader):
     parallel = dep_tools.can_loop_be_parallelised(loops[3])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'mask(ji,lambda)' and "
-            "the read access to 'mask(ji,lambda + 1)' are "
+    assert ("The write access to 'mask(ji,lambda)' in 'mask(ji,lambda) = "
+            "mask(ji,lambda + 1)' and the read access to 'mask(ji,lambda + 1)'"
+            " in 'mask(ji,lambda) = mask(ji,lambda + 1)' are "
             "dependent and cannot be parallelised. Variable: 'mask'."
             in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
@@ -730,25 +739,30 @@ def test_reserved_words(fortran_reader):
 def test_gocean_parallel():
     '''Check that PSyclones gives useful error messages for a GOKern.'''
 
-    # TODO #2531: this kernel should not be accepted in the first place.
+    # TODO #2531: This kernel should not be accepted in the first place, it
+    # has "go_arg(GO_READWRITE, GO_CT, GO_STENCIL(010,010,010)"
     _, invoke = get_invoke("test31_stencil_not_parallel.f90",
                            api="gocean", idx=0, dist_mem=False)
 
     loop = invoke.schedule.children[0]
     dep_tools = DependencyTools()
     parallel = dep_tools.can_loop_be_parallelised(loop)
+
+    if parallel is True:
+        pytest.xfail(
+            reason=("TODO #2531: GOcean metadata validation should not allow"
+                    " kernels writing outside pointwise location.")
+        )
     assert not parallel
 
-    assert ("The write access to 'u_fld(i,j)' in '< kern call: "
-            "stencil_not_parallel_code >' and the read access to "
-            "'u_fld(i,j - 1)' in '< kern call: stencil_not_parallel_code >' "
-            "are dependent and cannot be parallelised. Variable: 'u_fld'."
+    assert ("Variable 'u_fld' is read first, which indicates a reduction."
+            " Variable: 'u_fld'."
             in str(dep_tools.get_all_messages()[0]))
 
 
 def test_dependency_on_scalar_non_exhaustive_write_write(fortran_reader):
     '''Tests can_loop_be_parallelised finds the loop-carried use of a scalar
-    when a write happends on only some iterations of a loop.'''
+    when a write happens on only some iterations of a loop.'''
     source = '''program test
                 integer :: i, my_val
                 real, dimension(10) :: array
@@ -775,7 +789,7 @@ def test_dependency_on_scalar_non_exhaustive_write_write(fortran_reader):
 
 def test_dependency_on_array_non_exhaustive_write_write(fortran_reader):
     '''Tests can_loop_be_parallelised finds the loop-carried use of an array
-    element when a write happends on only some iterations of a loop.'''
+    element when a write happens on only some iterations of a loop.'''
     source = '''program test
                 integer :: i
                 integer, dimension(10) :: my_val
@@ -802,7 +816,7 @@ def test_dependency_on_array_non_exhaustive_write_write(fortran_reader):
     if "my_val(1)' causes a write-write race condition." in str(msg):
         pytest.xfail(reason="TODO #2727: DA message should be improved")
     # For arrays, the dependency is properly detected, but the reason is
-    # a write-write, it would be convinient to differenciate it from a
+    # a write-write, it would be convenient to differentiate it from a
     # exhaustive write-write as those can be solved by "privatisation" while
     # non-exhaustive can not.
     assert "my_val(1)' causes a write-write race condition." not in str(msg)

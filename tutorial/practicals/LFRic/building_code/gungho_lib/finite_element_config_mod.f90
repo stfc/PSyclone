@@ -1,49 +1,21 @@
-!-----------------------------------------------------------------------------
-! Copyright (c) 2017-2025,  Met Office, on behalf of HMSO and Queen's Printer
-! For further details please refer to the file LICENCE.original which you
-! should have received as part of this distribution.
-!-----------------------------------------------------------------------------
-! BSD 3-Clause License
-!
-! Modifications copyright (c) 2020-2025, Science and Technology Facilities Council.
-! All rights reserved.
-!
-! Redistribution and use in source and binary forms, with or without
-! modification, are permitted provided that the following conditions are met:
-!
-! * Redistributions of source code must retain the above copyright notice, this
-!   list of conditions and the following disclaimer.
-!
-! * Redistributions in binary form must reproduce the above copyright notice,
-!   this list of conditions and the following disclaimer in the documentation
-!   and/or other materials provided with the distribution.
-!
-! * Neither the name of the copyright holder nor the names of its
-!   contributors may be used to endorse or promote products derived from
-!   this software without specific prior written permission.
-!
-! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-! FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-! COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-! INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-! BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-! LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified by: J. Dendy, Met Office
+! Original under:
+! Copyright (c) 2017-2026, Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
 ! -----------------------------------------------------------------------------
-!
+! Modifications under:
+! SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+!                         Facilities Council
+! SPDX-License-Identifier: BSD-3-Clause
+! See the full LICENSE file in the project root for details.
+! -----------------------------------------------------------------------------
+
 !> Manages the finite_element namelist.
 !>
 module finite_element_config_mod
 
   use constants_mod, only: i_def, &
-                           i_native, &
                            l_def, &
                            str_def
   use log_mod,       only: log_event, log_scratch_space &
@@ -56,10 +28,10 @@ module finite_element_config_mod
             read_finite_element_namelist, postprocess_finite_element_namelist, &
             finite_element_is_loadable, finite_element_is_loaded, finite_element_final
 
-  integer(i_native), public, parameter :: cellshape_quadrilateral = 976
-  integer(i_native), public, parameter :: cellshape_triangle = 983
+  integer(i_def), public, parameter :: cellshape_quadrilateral = 976
+  integer(i_def), public, parameter :: cellshape_triangle = 983
 
-  integer(i_native), public, protected :: cellshape
+  integer(i_def), public, protected :: cellshape
   integer(i_def), public, protected :: coordinate_order
   integer(i_def), public, protected :: element_order_h
   integer(i_def), public, protected :: element_order_v
@@ -74,9 +46,9 @@ module finite_element_config_mod
           = [character(len=str_def) :: 'quadrilateral', &
                                        'triangle']
 
-  integer(i_native), parameter :: cellshape_value(2) &
-          = [976_i_native, &
-             983_i_native]
+  integer(i_def), parameter :: cellshape_value(2) &
+          = [976_i_def, &
+             983_i_def]
 
 contains
 
@@ -86,7 +58,7 @@ contains
   !>
   !> @param[in] key Enumeration key.
   !>
-  integer(i_native) function cellshape_from_key( key )
+  integer(i_def) function cellshape_from_key( key )
 
     use constants_mod, only: unset_key, imdi
 
@@ -94,12 +66,12 @@ contains
 
     character(*), intent(in) :: key
 
-    integer(i_native) :: key_index
+    integer(i_def) :: key_index
 
     if (key == unset_key) then
       write( log_scratch_space, '(A)') &
           'Missing key for cellshape enumeration in finite_element namelist.'
-      cellshape_from_key = int(imdi,i_native)
+      cellshape_from_key = int(imdi,i_def)
       call log_event( log_scratch_space, LOG_LEVEL_WARNING )
       return
     end if
@@ -133,13 +105,13 @@ contains
 
     implicit none
 
-    integer(i_native), intent(in) :: value
+    integer(i_def), intent(in) :: value
 
-    integer(i_native) :: value_index
+    integer(i_def) :: value_index
 
     value_index = 1
     do
-      if (cellshape_value(value_index) == int(imdi,i_native)) then
+      if (cellshape_value(value_index) == int(imdi,i_def)) then
         key_from_cellshape = unset_key
         return
       else if (cellshape_value(value_index) == value) then
@@ -168,8 +140,8 @@ contains
 
     implicit none
 
-    integer(i_native), intent(in) :: file_unit
-    integer(i_native), intent(in) :: local_rank
+    integer(i_def), intent(in) :: file_unit
+    integer(i_def), intent(in) :: local_rank
 
     call read_namelist( file_unit, local_rank, &
                         cellshape )
@@ -185,13 +157,9 @@ contains
 
     implicit none
 
-    integer(i_native), intent(in) :: file_unit
-    integer(i_native), intent(in) :: local_rank
-    integer(i_native), intent(out) :: dummy_cellshape
-
-    integer(i_def) :: buffer_integer_i_def(3)
-    integer(i_native) :: buffer_integer_i_native(1)
-    integer(i_native) :: buffer_logical_l_def(2)
+    integer(i_def), intent(in) :: file_unit
+    integer(i_def), intent(in) :: local_rank
+    integer(i_def), intent(out) :: dummy_cellshape
 
     character(str_def) :: cellshape
 
@@ -202,7 +170,7 @@ contains
                               rehabilitate, &
                               vorticity_in_w1
 
-    integer(i_native) :: condition
+    integer(i_def) :: condition
 
     cellshape = unset_key
     coordinate_order = imdi
@@ -223,20 +191,6 @@ contains
       dummy_cellshape = cellshape_from_key( cellshape )
 
     end if
-
-    buffer_integer_i_native(1) = dummy_cellshape
-    buffer_integer_i_def(1) = coordinate_order
-    buffer_integer_i_def(2) = element_order_h
-    buffer_integer_i_def(3) = element_order_v
-    buffer_logical_l_def(1) = merge( 1, 0, rehabilitate )
-    buffer_logical_l_def(2) = merge( 1, 0, vorticity_in_w1 )
-
-    dummy_cellshape = buffer_integer_i_native(1)
-    coordinate_order = buffer_integer_i_def(1)
-    element_order_h = buffer_integer_i_def(2)
-    element_order_v = buffer_integer_i_def(3)
-    rehabilitate = buffer_logical_l_def(1) /= 0
-    vorticity_in_w1 = buffer_logical_l_def(2) /= 0
 
     if ( any([element_order_h] == imdi) .or. &
          any([element_order_h] == rmdi) .or. &
@@ -300,7 +254,7 @@ contains
 
     implicit none
 
-    cellshape = int(imdi,i_native)
+    cellshape = int(imdi,i_def)
     coordinate_order = imdi
     element_order_h = imdi
     element_order_v = imdi

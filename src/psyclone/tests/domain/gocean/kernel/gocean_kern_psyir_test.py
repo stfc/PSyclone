@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2025, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
-# Modified: A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the KernelMetadataSymbol
 kernel-layer-specific symbol. The tests include translation of
@@ -52,8 +23,9 @@ from psyclone.domain.gocean.kernel import GOceanKernelMetadata, \
 from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Container
-from psyclone.psyir.symbols import SymbolTable, REAL_TYPE
+from psyclone.psyir.symbols import SymbolTable, ScalarType
 
 METADATA = ("TYPE, EXTENDS(kernel_type) :: compute_cu\n"
             "  TYPE(go_arg), DIMENSION(4) :: meta_args = (/ &\n"
@@ -206,11 +178,11 @@ def test_goceankernelmetadata_create1(fortran_reader):
     assert "Expected a DataTypeSymbol but found a str." in str(info.value)
     metadata = GOceanKernelMetadata.create_from_psyir(symbol)
     assert METADATA in metadata.fortran_string()
-    symbol._datatype = REAL_TYPE
+    symbol._datatype = ScalarType.real_type()
     with pytest.raises(InternalError) as info:
         _ = GOceanKernelMetadata.create_from_psyir(symbol)
     assert ("Expected kernel metadata to be stored in the PSyIR as an "
-            "UnsupportedFortranType, but found ScalarType." in str(info.value))
+            "StructureType, but found ScalarType." in str(info.value))
 
 
 # create_from_fortran_string
@@ -398,10 +370,10 @@ def test_getproperty(fortran_reader):
 
     '''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
-    datatype = kernel_psyir.children[0].symbol_table.lookup(
-        "compute_cu").datatype
+    symbol = kernel_psyir.children[0].symbol_table.lookup("compute_cu")
     metadata = GOceanKernelMetadata()
-    reader = FortranStringReader(datatype.declaration)
+    reader = FortranStringReader(
+        FortranWriter().gen_typedecl(symbol, include_visibility=False))
     spec_part = Fortran2003.Derived_Type_Def(reader)
     assert metadata._get_property(spec_part, "code").string == \
         "compute_cu_code"
@@ -484,7 +456,7 @@ def test_metadata_name():
 
 def test_gridarg_init():
     '''Test that an instance of the GridArg class can be created
-    succesfully.
+    successfully.
 
     '''
     reader = FortranStringReader(METADATA)
@@ -530,7 +502,7 @@ def test_gridarg_access():
         grid_arg.access = "hello"
     config = Config.get()
     constants = config.api_conf("gocean").get_constants()
-    access_types = constants.get_valid_access_types()
+    access_types = constants.VALID_ACCESS_TYPES
     assert (f"The first metadata entry for a grid property argument should "
             f"be a valid access descriptor (one of {access_types}), but "
             f"found 'hello'." in str(info.value))
@@ -559,7 +531,7 @@ def test_gridarg_name():
 
 def test_fieldarg_init():
     '''Test that a instance of the FieldArg class can be created
-    succesfully.
+    successfully.
 
     '''
     reader = FortranStringReader(METADATA)
@@ -610,7 +582,7 @@ def test_fieldarg_access():
         field_arg.access = "hello"
     config = Config.get()
     constants = config.api_conf("gocean").get_constants()
-    access_types = constants.get_valid_access_types()
+    access_types = constants.VALID_ACCESS_TYPES
     assert (f"The first metadata entry for a field argument should be a "
             f"recognised access descriptor (one of {access_types}), but "
             f"found 'hello'." in str(info.value))
@@ -692,7 +664,7 @@ def test_fieldarg_stencil():
 
 def test_scalararg_init():
     '''Test that a instance of the ScalarArg class can be created
-    succesfully.
+    successfully.
 
     '''
     reader = FortranStringReader(METADATA)
@@ -738,7 +710,7 @@ def test_scalararg_access():
         scalar_arg.access = "hello"
     config = Config.get()
     constants = config.api_conf("gocean").get_constants()
-    access_types = constants.get_valid_access_types()
+    access_types = constants.VALID_ACCESS_TYPES
     assert (f"The first metadata entry for a scalar argument should be a "
             f"recognised access descriptor (one of {access_types}), but "
             f"found 'hello'." in str(info.value))

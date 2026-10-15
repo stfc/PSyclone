@@ -2,7 +2,7 @@
 
 In this part of the [first tutorial](../README.md), we will use the
 [stub-generation](
-https://psyclone.readthedocs.io/en/stable/psyclone_kern.html) functionality
+https://psyclone.readthedocs.io/en/latest/user_guide/psyclone_kern.html) functionality
 of the PSyclone kernel tool to create the argument list and declarations
 for two kernels, one that assigns a value to a field on a continuous
 `W0` function space and another on a discontinuous `W3` function space.
@@ -95,7 +95,7 @@ becomes `setval_field_w3_`).
 The new kernel updates a field on a discontinuous function space
 `W3` so you will need to correct the access metadata for the updated
 field from `GH_INC` to `GH_READWRITE` (see [here](
-https://psyclone.readthedocs.io/en/latest/lfric.html#valid-access-modes)
+https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html#valid-access-modes)
 for more information of valid access modes depending on the function
 space that a field argument is defined on).
 
@@ -169,7 +169,7 @@ The name of the generated `invoke` subroutine in this case is just the
 `invoke` keyword with the appended numerical index. If there was a separate
 `invoke` call for each kernel, the subroutine name would also contain the
 name of the called kernel (see [PSyclone Algorithm-layer](
-https://psyclone.readthedocs.io/en/stable/introduction_to_psykal.html#algorithm-layer)
+https://psyclone.readthedocs.io/en/latest/user_guide/introduction_to_psykal.html#algorithm-layer)
 documentation for more information).
 
 The generated `invoke_0` subroutine code is located in the generated PSy-layer
@@ -263,7 +263,7 @@ the LFRic repository).
 We will now run `make` to create the executable `simple_kernels_part1`
 using the provided [`simple_kernels_driver.f90`](simple_kernels_driver.f90)
 and the LFRic infrastructure [code support](
-../README.md#lfric-code-support). If the build is successful we can
+../../README.md#lfric-code-support). If the build is successful we can
 run the executable
 
 ```shell

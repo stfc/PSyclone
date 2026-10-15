@@ -1,44 +1,61 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2023-2025, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
 
 
 '''PSyIR frontend to convert a SymPy expression to PSyIR
 '''
 
+from sympy.printing.printer import Printer
 
 from psyclone.psyir.frontend.fortran import FortranReader
+
+
+# pylint: disable=invalid-name
+class FortranPrinter(Printer):
+    '''Specialise the SymPy Printer to convert logical operators and literals
+    back to Fortran format. While SymPy has a Fortran printer (fcode), it does
+    not handle e.g. Fortran Array expressions (a(2:5)), so we specialise the
+    generic SymPy Printer and handle the necessary conversions.'''
+
+    def _print_Not(self, expr) -> str:
+        '''Called when converting a NOT expression.'''
+        return f"(.NOT.{self._print(expr.args[0])})"
+
+    def _print_And(self, expr) -> str:
+        '''Called when converting an AND expression.'''
+        return f"({'.AND.' .join(self._print(i) for i in expr.args)})"
+
+    def _print_Or(self, expr) -> str:
+        '''Called when converting an OR expression.'''
+        return f"({'.OR.' .join(self._print(i) for i in expr.args)})"
+
+    def _print_Equivalent(self, expr) -> str:
+        '''Called when converting an EQUIVALENT expression.'''
+        return f"({'.EQV.' .join(self._print(i) for i in expr.args)})"
+
+    def _print_Xor(self, expr) -> str:
+        '''Called when converting an XOR expression, which in Fortran
+        is .NEQV.'''
+        return f"({'.NEQV.' .join(self._print(i) for i in expr.args)})"
+
+    def _print_Equality(self, expr) -> str:
+        '''Called when converting an Eq expression, which in Fortran
+        is =='''
+        return f"({'==' .join(self._print(i) for i in expr.args)})"
+
+    def _print_BooleanTrue(self, expr) -> str:
+        '''Called when converting a SymPy value of True.'''
+        # pylint: disable=unused-argument
+        return ".TRUE."
+
+    def _print_BooleanFalse(self, expr) -> str:
+        '''Called when converting a SymPy value of False.'''
+        # pylint: disable=unused-argument
+        return ".FALSE."
 
 
 class SymPyReader():
@@ -123,7 +140,9 @@ class SymPyReader():
         '''
         # Convert the new sympy expression to PSyIR
         reader = FortranReader()
-        return reader.psyir_from_expression(str(sympy_expr), symbol_table)
+        fp = FortranPrinter()
+        return reader.psyir_from_expression(fp.doprint(sympy_expr),
+                                            symbol_table)
 
     # -------------------------------------------------------------------------
     # pylint: disable=no-self-argument, too-many-branches

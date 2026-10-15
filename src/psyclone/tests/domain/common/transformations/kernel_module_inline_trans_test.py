@@ -1,62 +1,38 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
-#          C.M. Maynard, Met Office / University of Reading
-# Modified J. Henrichs, Bureau of Meteorology
-# Modified A. B. G. Chalk, STFC Daresbury Lab
 
 ''' Tests of the KernelModuleInlineTrans PSyIR transformation. '''
 
+import logging
+import warnings
+import re
 import pytest
+
 from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.parse import ModuleManager
 from psyclone.psyGen import CodedKern, Kern
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    Container, Routine, CodeBlock, Call, IntrinsicCall)
+    Container, Routine, CodeBlock, Call, IntrinsicCall, Fparser2CodeBlock)
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, GenericInterfaceSymbol, ImportInterface,
-    RoutineSymbol, REAL_TYPE, Symbol, SymbolError, SymbolTable,
-    UnresolvedInterface)
-from psyclone.psyir.transformations import TransformationError, \
-    OMPDeclareTargetTrans
+    RoutineSymbol, ScalarType, Symbol, SymbolError, UnresolvedInterface)
+from psyclone.psyir.transformations import (
+    TransformationError, OMPDeclareTargetTrans)
 from psyclone.transformations import ACCRoutineTrans
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import (Compile, count_lines, get_invoke,
                                       make_external_module)
+
+TEST_LOGGER = ("psyclone.domain.common.transformations."
+               "kernel_module_inline_trans")
 
 
 def test_module_inline_constructor_and_str():
@@ -162,7 +138,7 @@ def test_validate_no_inline_global_var(parser):
         alpha = alpha + 1
     end subroutine mytest''')
     stmt = parser(reader).children[0].children[1]
-    block = CodeBlock([stmt], CodeBlock.Structure.STATEMENT)
+    block = Fparser2CodeBlock(stmt, CodeBlock.Structure.STATEMENT)
     kschedules = kernels[0].get_callees()
     ksched = kschedules[0]
     ksched.pop_all_children()
@@ -179,7 +155,7 @@ def test_validate_no_inline_global_var(parser):
         unknown = unknown + 1
     end subroutine mytest''')
     stmt = parser(reader).children[0].children[1]
-    block = CodeBlock([stmt], CodeBlock.Structure.STATEMENT)
+    block = Fparser2CodeBlock(stmt, CodeBlock.Structure.STATEMENT)
     kschedules = kernels[0].get_callees()
     ksched = kschedules[0]
     ksched.pop_all_children()
@@ -205,39 +181,49 @@ def test_validate_no_inline_global_var(parser):
     inline_trans.validate(kernels[0])
 
 
-def test_validate_name_clashes():
+def test_apply_name_clashes():
     ''' Test that if the module-inline transformation finds the kernel name
-    already used in the Container scope, it raises the appropriate error'''
+    already used in the Container scope it renames the copy appropriately.
+    '''
     # Use LFRic example with a repeated CodedKern
-    psy, _ = get_invoke("4.6_multikernel_invokes.f90", "lfric", idx=0,
-                        dist_mem=False)
-    schedule = psy.invokes.invoke_list[0].schedule
+    _, invoke = get_invoke("4.6_multikernel_invokes.f90", "lfric", idx=0,
+                           dist_mem=False)
+    schedule = invoke.schedule
     coded_kern = schedule.children[0].loop_body[0]
     inline_trans = KernelModuleInlineTrans()
 
-    # Check that name clashes which are not subroutines are detected
-    schedule.symbol_table.add(DataSymbol("ru_code", REAL_TYPE))
-    with pytest.raises(TransformationError) as err:
-        inline_trans.apply(coded_kern)
-    assert ("Cannot module-inline Kernel 'ru_code' because symbol "
-            "'ru_code: DataSymbol<Scalar<REAL, UNDEFINED>, Automatic>' with "
-            "the same name already exists and changing the name of "
-            "module-inlined subroutines is not supported yet."
-            in str(err.value))
+    # Check that name clashes which are not subroutines are handled - add a
+    # Symbol to the Container symbol table that will clash with the proposed
+    # new name of the copy of the routine.
+    schedule.parent.symbol_table.add(DataSymbol("ru_code_inlined_",
+                                                ScalarType.real_type()))
+    inline_trans.apply(coded_kern)
+    assert coded_kern.name == "ru_code_inlined__1"
+    # Calling apply() a second time should leave things unchanged as the
+    # transformation should spot that the target is already local.
+    assert inline_trans._target_is_local(coded_kern)
+    inline_trans.apply(coded_kern)
+    assert coded_kern.name == "ru_code_inlined__1"
 
-    # TODO # 898. Manually force removal of previous imported symbol
-    # symbol_table.remove() is not implemented yet.
-    schedule.symbol_table._symbols.pop("ru_code")
 
-    # Check that if a subroutine with the same name already exists and it is
-    # not identical, it fails.
-    schedule.parent.addchild(Routine.create("ru_code"))
-    with pytest.raises(TransformationError) as err:
-        inline_trans.apply(coded_kern)
-    assert ("Kernel 'ru_code' cannot be module inlined into Container "
-            "'multikernel_invokes_7_psy' because a *different* routine with "
-            "that name already exists and versioning of module-inlined "
-            "subroutines is not implemented yet.") in str(err.value)
+def test_apply_routine_name_clashes():
+    ''' Test that the module-inline transformation copes when the kernel name
+    is already used by another Routine in the Container scope.'''
+    inline_trans = KernelModuleInlineTrans()
+    # Use LFRic example with a repeated CodedKern
+    psy, invoke = get_invoke("4.6_multikernel_invokes.f90", "lfric", idx=0,
+                             dist_mem=False)
+    schedule = invoke.schedule
+    coded_kern = schedule.children[0].loop_body[0]
+
+    # Check that if a subroutine with the same name already exists
+    # everything still works.
+    schedule.parent.addchild(Routine.create("ru_code_inlined_"))
+    inline_trans.apply(coded_kern)
+    assert coded_kern.name == "ru_code_inlined__1"
+
+    output = str(psy.gen)
+    assert output.count("end subroutine ru_code_inlined__1") == 1
 
 
 def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
@@ -270,8 +256,8 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(kern_call)
     assert ("Kernel 'compute_cv_code' cannot be module-inlined because the "
-            "subroutine shadows the symbol name of the module container "
-            "'external_mod'." in str(err.value))
+            "subroutine contains a symbol 'external_mod' which shadows the "
+            "name of a module in the outer scope." in str(err.value))
 
     # Repeat the same with a wildcard import
     psyir = fortran_reader.psyir_from_source('''
@@ -292,8 +278,8 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(kern_call)
     assert ("Kernel 'compute_cv_code' cannot be module-inlined because the "
-            "subroutine shadows the symbol name of the module container "
-            "'external_mod'." in str(err.value))
+            "subroutine contains a symbol 'external_mod' which shadows the "
+            "name of a module in the outer scope." in str(err.value))
 
     # But it is fine if it shadows itself
     psyir = fortran_reader.psyir_from_source('''
@@ -311,19 +297,21 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     monkeypatch.setattr(kern_call, "_schedules", [routine])
 
     container = kern_call.ancestor(Container)
-    assert "compute_cv_code" not in container.symbol_table
+    rsym = container.symbol_table.lookup("compute_cv_code")
+    assert rsym.is_import
 
     inline_trans.apply(kern_call)
 
     # A RoutineSymbol should have been added to the Container symbol table.
-    rsym = container.symbol_table.lookup("compute_cv_code")
+    rsym = container.symbol_table.lookup("compute_cv_code_inlined_")
     assert isinstance(rsym, RoutineSymbol)
+    assert not rsym.is_import
     assert rsym.visibility == Symbol.Visibility.PRIVATE
 
 
-def test_validate_local_routine(fortran_reader):
-    '''Test that validate rejects a call to a routine that is already present
-    in the current Container.'''
+def test_validate_already_existing_local_routine(fortran_reader, caplog):
+    '''Test that validate accepts a call to a routine that is already present
+    in the current Container but logs a warning.'''
     psyir = fortran_reader.psyir_from_source('''
     module my_mod
         integer, parameter :: r_def = kind(1.0d0)
@@ -340,11 +328,10 @@ def test_validate_local_routine(fortran_reader):
     ''')
     call = psyir.walk(Call)[0]
     inline_trans = KernelModuleInlineTrans()
-    with pytest.raises(TransformationError) as err:
-        inline_trans.validate(call)
-    assert ("routine 'do_something' cannot be module inlined into Container "
-            "'my_mod' because a *different* routine with that name already "
-            "exists and versioning" in str(err.value))
+    with caplog.at_level(logging.INFO, logger=TEST_LOGGER):
+        inline_trans.apply(call)
+    assert ("The target of 'call do_something(a)' is already present in the "
+            "local scope." in caplog.text)
 
 
 def test_validate_fail_to_get_psyir(fortran_reader, config_instance):
@@ -411,7 +398,8 @@ def test_validate_nested_scopes(fortran_reader, monkeypatch):
     del routine.symbol_table._symbols["a"]
     # Put a new, different symbol (with the same name) into the table of the
     # parent Container.
-    routine.parent.scope.symbol_table.add(DataSymbol("a", REAL_TYPE))
+    routine.parent.scope.symbol_table.add(
+        DataSymbol("a", ScalarType.real_type()))
     monkeypatch.setattr(kern_call, "_schedules", [routine])
 
     # The transformation should succeed (because the symbol named 'a' is
@@ -425,8 +413,9 @@ def test_validate_nested_scopes(fortran_reader, monkeypatch):
                      " nested scopes")
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_module_inline_apply_transformation(tmpdir, fortran_writer):
-    ''' Test that we can succesfully inline a basic kernel subroutine
+    ''' Test that we can successfully inline a basic kernel subroutine
     routine into the PSy layer module using a transformation '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
                              idx=0, dist_mem=False)
@@ -439,33 +428,34 @@ def test_module_inline_apply_transformation(tmpdir, fortran_writer):
 
     # The new inlined routine must now exist and be private.
     routine_sym = kern_call.ancestor(Container).symbol_table.lookup(
-        "compute_cv_code")
+        "compute_cv_code_inlined_")
     assert routine_sym
     assert routine_sym.visibility == Symbol.Visibility.PRIVATE
-    assert kern_call.ancestor(Container).children[1].name == "compute_cv_code"
+    assert (kern_call.ancestor(Container).children[1].name ==
+            "compute_cv_code_inlined_")
     assert (kern_call.ancestor(Container).symbol_table.
-            lookup("compute_cv_code").is_modulevar)
+            lookup("compute_cv_code_inlined_").is_modulevar)
 
     # Generate the code
-    code = str(psy.gen)
-    assert 'subroutine compute_cv_code(i, j, cv, p, v)' in code
+    code = str(psy.gen).lower()
+    assert 'subroutine compute_cv_code_inlined_(i, j, cv, p, v)' in code
 
-    # And the import has been remove from both, so check that the associated
-    # use no longer exists
-    assert 'use compute_cv_mod' not in code.lower()
+    # The import for the original Kern is unchanged
+    assert 'use compute_cv_mod, only : compute_cv_code\n' in code
 
     # Do the check again because repeating the call resets some aspects and we
     # need to see if the second call still works as expected
     gen = str(psy.gen)
-    assert 'subroutine compute_cv_code(i, j, cv, p, v)' in gen
-    assert 'use compute_cv_mod' not in gen
-    assert gen.count("subroutine compute_cv_code(") == 1
+    assert 'subroutine compute_cv_code_inlined_(i, j, cv, p, v)' in gen
+    assert 'use compute_cv_mod, only : compute_cv_code\n' in gen
+    assert gen.count("subroutine compute_cv_code_inlined_(") == 1
 
     # And it is valid code
     assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
-def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
+@pytest.mark.parametrize("do_all", [True, False])
+def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir, do_all):
     ''' Check that module-inline works as expected when the same kernel
     is provided in different invokes'''
     # Use LFRic example with the kernel 'testkern_qr_mod' repeated once in
@@ -473,32 +463,43 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
     psy, _ = get_invoke("3.1_multi_functions_multi_invokes.f90", "lfric",
                         idx=0, dist_mem=False)
 
-    # By default the kernel is imported once per invoke
+    # By default the kernel is imported just once (in the outer container)
     gen = str(psy.gen)
-    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 2
+    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 1
     assert gen.count("end subroutine testkern_qr_code") == 0
 
-    # Module inline kernel in invoke 1
-    inline_trans = KernelModuleInlineTrans()
+    # Module inline kernel in the first invoke
+    mod_inline_trans = KernelModuleInlineTrans()
     artrans = ACCRoutineTrans()
     schedule1 = psy.invokes.invoke_list[0].schedule
     for coded_kern in schedule1.walk(CodedKern):
         if coded_kern.name == "testkern_qr_code":
-            inline_trans.apply(coded_kern)
+            mod_inline_trans.apply(coded_kern, update_all=do_all)
             artrans.apply(coded_kern)
+            break
     gen = str(psy.gen)
+    assert gen.count("end subroutine testkern_qr_code_inlined_") == 1
 
-    # After this, both invokes use the inlined top-level subroutine.
-    # Module-inlining kernel in invoke 2 should have no effect.
-    schedule1 = psy.invokes.invoke_list[1].schedule
-    for coded_kern in schedule1.walk(CodedKern):
-        if coded_kern.name == "testkern_qr_code":
-            inline_trans.apply(coded_kern)
-    gen = str(psy.gen)
-    # After this, no imports are remaining and both use the same
-    # top-level implementation
-    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 0
-    assert gen.count("end subroutine testkern_qr_code") == 1
+    # After this, the other calls should still be to the original kernel.
+    # Transform these next (and check that there are three of them).
+    if not do_all:
+        schedule1 = psy.invokes.invoke_list[1].schedule
+        count = 0
+        for coded_kern in schedule1.walk(CodedKern):
+            if coded_kern.name == "testkern_qr_code":
+                count += 1
+                mod_inline_trans.apply(coded_kern, update_all=do_all)
+        assert count == 3
+        gen = str(psy.gen)
+    # After this, the imports remain unchanged and all four calls are now
+    # to either separate, inlined versions of the routine or just a single
+    # inlined version (if do_all is True).
+    assert gen.count("use testkern_qr_mod, only : testkern_qr_code\n") == 1
+    assert gen.count("call testkern_qr_code_inlined_") == 4
+    if do_all:
+        assert gen.count("end subroutine testkern_qr_code_inlined") == 1
+    else:
+        assert gen.count("end subroutine testkern_qr_code_inlined") == 4
 
     # And it is valid code
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -512,29 +513,24 @@ def test_module_inline_apply_polymorphic_kernel_in_multiple_invokes(tmpdir):
                         "lfric", idx=0, dist_mem=False)
 
     # Module inline kernel in invoke 1
-    inline_trans = KernelModuleInlineTrans()
+    mod_inline_trans = KernelModuleInlineTrans()
     artrans = ACCRoutineTrans()
     schedule1 = psy.invokes.invoke_list[0].schedule
     for coded_kern in schedule1.walk(CodedKern):
         if coded_kern.name == "mixed_code":
-            inline_trans.apply(coded_kern)
+            mod_inline_trans.apply(coded_kern, update_all=False)
             # Transform that kernel. We have to use 'force' as it contains
             # a CodeBlock.
             artrans.apply(coded_kern, options={"force": True})
     output = str(psy.gen).lower()
-    assert "subroutine mixed_code_32" in output
+    assert "subroutine mixed_code_32_inlined_" in output
     assert output.count("!$acc routine seq") == 2
-    assert "subroutine mixed_code_64" in output
-    # Since we don't currently rename module-inlined kernels (TODO #2846),
-    # module-inlining just one instance means that calls to that same Kernel
-    # throughout the whole module use the newly-inlined version.
-    assert ("""subroutine invoke_1(scalar_r_phys, field_r_phys, \
-operator_r_def, f1, f2, m1, a, m2, istp, qr)
-    use function_space_mod, only : basis, diff_basis
-    use quadrature_xyoz_mod, only : quadrature_xyoz_proxy_type, \
-quadrature_xyoz_type
-    use testkern_qr_mod, only : testkern_qr_code""" in output)
-    assert "mixed_kernel_mod" not in output
+    assert "subroutine mixed_code_64_inlined_" in output
+    assert "call mixed_code_inlined_" in output
+    # We've only module-inlined one instance so the other calls to that same
+    # Kernel should use the original version.
+    assert "mixed_kernel_mod" in output
+    assert output.count("call mixed_code(") == 1
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -549,7 +545,7 @@ def test_module_inline_apply_with_sub_use(tmpdir):
     inline_trans.apply(kern_call)
     gen = str(psy.gen)
     # check that the subroutine has been inlined
-    assert 'subroutine bc_ssh_code(ji, jj, istep, ssha, tmask)' in gen
+    assert 'subroutine bc_ssh_code_inlined_(ji, jj, istep, ssha, tmask)' in gen
     # check that the use within the subroutine exists
     assert 'use grid_mod' in gen
     # check that the associated psy use does not exist
@@ -566,21 +562,22 @@ def test_module_inline_apply_same_kernel(tmpdir):
     schedule = invoke.schedule
     kern_calls = schedule.coded_kernels()
     inline_trans = KernelModuleInlineTrans()
-    inline_trans.apply(kern_calls[0])
+    inline_trans.apply(kern_calls[0], update_all=False)
     gen = str(psy.gen)
     # check that the subroutine has been inlined
-    assert 'subroutine compute_cu_code(' in gen
-    # check that the associated psy "use" does not exist
-    assert 'use compute_cu_mod' not in gen
+    assert 'subroutine compute_cu_code_inlined_(' in gen
+    # check that the associated "use" is unchanged
+    assert 'use compute_cu_mod' in gen
     # check that the subroutine has only been inlined once
-    count = count_lines(gen, "subroutine compute_cu_code(")
+    count = count_lines(gen, "subroutine compute_cu_code_inlined_(")
     assert count == 1, "Expecting subroutine to be inlined once"
     assert GOceanBuild(tmpdir).code_compiles(psy)
     # Calling the transformation on a second call to the same kernel
-    # should have no effect.
+    # should create a new, private copy of the routine.
     inline_trans.apply(kern_calls[1])
     gen2 = str(psy.gen)
-    assert gen2 == gen
+    assert 'subroutine compute_cu_code_inlined__1(' in gen2
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_module_inline_apply_bring_in_non_local_symbols(
@@ -662,12 +659,14 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     psyir = fortran_reader.psyir_from_source('''
     module my_mod
         use external_mod1, only: r_def
-        use external_mod2, only: my_user_type
+        use external_mod2, only: kind_multiplier
+        use external_mod3, only: init_val
+        use external_mod4, only: my_user_type
         use not_needed
         implicit none
         contains
         subroutine code()
-            real(kind=r_def) :: a,b
+            real(kind=r_def*kind_multiplier) :: a,b = init_val
             type(my_user_type) :: x
             a = b + x%data
         end subroutine code
@@ -677,8 +676,12 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     routine = psyir.walk(Routine)[0]
     new_routines = inline_trans._prepare_code_to_inline([routine])
     result = fortran_writer(new_routines[0])
+    # The code_to_inline will contain the needed module imports, but
+    # will ignore the non-used imports
     assert "use external_mod1, only : r_def" in result
-    assert "use external_mod2, only : my_user_type" in result
+    assert "use external_mod2, only : kind_multiplier" in result
+    assert "use external_mod3, only : init_val" in result
+    assert "use external_mod4, only : my_user_type" in result
     assert "use not_needed" not in result
 
     # Also, if they are literal precision expressions
@@ -700,6 +703,7 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     result = fortran_writer(new_routines[0])
     assert "use external_mod1, only : r_def" in result
     assert "use not_needed" not in result
+    assert "1.0_r_def" in result
 
     # Also, if they are routine names
     psyir = fortran_reader.psyir_from_source('''
@@ -807,9 +811,9 @@ def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
     inline_trans.apply(kern_call)
     gen = str(psy.gen)
     # check that the subroutine has been inlined
-    assert 'subroutine ru_code(' in gen
-    # check that the associated psy "use" does not exist
-    assert 'use ru_kernel_mod' not in gen
+    assert 'subroutine ru_code_inlined_(' in gen
+    # check that the associated psy "use" is still present
+    assert 'use ru_kernel_mod' in gen
     # Check that we can subsequently transform the inlined kernel.
     omptrans = OMPDeclareTargetTrans()
     omptrans.apply(kern_call)
@@ -819,7 +823,8 @@ def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_module_inline_with_interfaces(tmpdir):
+@pytest.mark.parametrize("do_all", [True, False])
+def test_module_inline_with_interfaces(tmpdir, do_all):
     ''' Test the module-inlining when the kernel points to an interface, we
     use an LFRic mixed-precision kernel as an example of this.
 
@@ -828,21 +833,23 @@ def test_module_inline_with_interfaces(tmpdir):
                              name="invoke_0", dist_mem=False)
     kern_calls = invoke.schedule.walk(CodedKern)
     inline_trans = KernelModuleInlineTrans()
-    inline_trans.apply(kern_calls[0])
-    sym = kern_calls[0].scope.symbol_table.lookup("mixed_code")
-    # Check that the inteface symbol is declared and is private.
+    inline_trans.apply(kern_calls[0], update_all=do_all)
+    sym = kern_calls[0].scope.symbol_table.lookup("mixed_code_inlined_")
+    # Check that the interface symbol is declared and is private.
     assert isinstance(sym, GenericInterfaceSymbol)
     assert sym.visibility == Symbol.Visibility.PRIVATE
     # Check that module-inlining the second kernel call (which is to the
     # same interface) doesn't break anything.
-    inline_trans.apply(kern_calls[1])
+    inline_trans.apply(kern_calls[1], update_all=do_all)
     gen = str(psy.gen).lower()
     # Both the caller and the callee are in the file and use the interface
     # name.
-    assert "call mixed_code(" in gen
-    assert "interface mixed_code" in gen
-    assert "subroutine mixed_code_64(" in gen
-    assert "subroutine mixed_code_32(" in gen
+    assert "call mixed_code_inlined_(" in gen
+    assert "call mixed_code_32" not in gen
+    assert "call mixed_code_64" not in gen
+    assert "interface mixed_code_inlined_" in gen
+    assert "subroutine mixed_code_64_inlined_(" in gen
+    assert "subroutine mixed_code_32_inlined_(" in gen
 
     # And it is valid code
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -878,8 +885,8 @@ def test_module_inline_with_renamed_import(monkeypatch,
     psyir = fortran_reader.psyir_from_source(code)
     intrans.apply(psyir.walk(Call)[0])
     result = fortran_writer(psyir)
-    assert "call local_name(var)" in result
-    assert "subroutine local_name(arg)" in result
+    assert "call my_sub_inlined_(var)" in result
+    assert "subroutine my_sub_inlined_(arg)" in result
 
 
 def test_module_inline_interface_with_renamed_import(monkeypatch,
@@ -909,6 +916,7 @@ def test_module_inline_interface_with_renamed_import(monkeypatch,
     end module my_mod
     ''')
     intrans = KernelModuleInlineTrans()
+    # No parent module in which to insert interface definition.
     code = '''\
     program my_prog
       implicit none
@@ -919,7 +927,7 @@ def test_module_inline_interface_with_renamed_import(monkeypatch,
     psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(TransformationError) as err:
         intrans.validate(psyir.walk(Call)[0])
-    assert ("Cannot module-inline the call to 'local_name' since it is a "
+    assert ("Cannot copy the target of the call to 'local_name' since it is a "
             "polymorphic routine" in str(err.value))
     code = '''\
     module second_mod
@@ -934,51 +942,9 @@ def test_module_inline_interface_with_renamed_import(monkeypatch,
     psyir = fortran_reader.psyir_from_source(code)
     intrans.apply(psyir.walk(Call)[0])
     result = fortran_writer(psyir)
-    assert "interface local_name" in result
-    assert "call local_name(var)" in result
-    assert "subroutine my_sub(arg)" in result
-
-
-def test_rm_imported_routine_symbol(fortran_reader):
-    '''
-    Tests for the _rm_imported_routine_symbol() utility method.
-    '''
-    intrans = KernelModuleInlineTrans()
-    table = SymbolTable()
-    # Does nothing if the symbol is not an import.
-    here = table.new_symbol("here")
-    intrans._rm_imported_routine_symbol(here, None, table)
-    assert "here" in table
-    csym = table.new_symbol("from_here", symbol_type=ContainerSymbol)
-    # Update the symbol so that it is imported from a Container.
-    here.interface = ImportInterface(csym)
-    intrans._rm_imported_routine_symbol(here, None, table)
-    # Both it and the Container should have been removed.
-    assert "here" not in table
-    assert "from_here" not in table
-    # Repeat for the case where the Container has a wildcard import.
-    csym = table.new_symbol("from_here", symbol_type=ContainerSymbol)
-    psyir = fortran_reader.psyir_from_source('''
-    module from_here
-    contains
-      subroutine here
-      end subroutine here
-    end module from_here
-    ''')
-    sched = psyir.walk(Routine)[0]
-    csym.wildcard_import = True
-    here = table.new_symbol("here", interface=ImportInterface(csym))
-    intrans._rm_imported_routine_symbol(here, sched, table)
-    # Only the Symbol should have been removed (not the ContainerSymbol).
-    assert "here" not in table
-    assert "from_here" in table
-    # There should be an import of a new symbol that prevents a clash between
-    # an inlined routine and the imported symbol of the same name.
-    assert table.lookup("old_here").interface.orig_name == "here"
-    # Repeat - we should not get another imported symbol.
-    here = table.new_symbol("here", interface=ImportInterface(csym))
-    intrans._rm_imported_routine_symbol(here, sched, table)
-    assert len(table.symbols_imported_from(csym)) == 1
+    assert "interface my_interface_inlined_" in result
+    assert "call my_interface_inlined_(var)" in result
+    assert "subroutine my_sub_inlined_(arg)" in result
 
 
 @pytest.mark.parametrize(
@@ -1035,37 +1001,42 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     intrans.apply(calls[0])
     routines = container.walk(Routine)
     assert len(routines) == 2
-    assert routines[0].name in ["a_sub", "my_sub"]
-    assert routines[1].name in ["a_sub", "my_sub"]
+    assert routines[0].name in ["a_sub", "my_sub_inlined_"]
+    assert routines[1].name in ["a_sub", "my_sub_inlined_"]
     # Local copy of routine must be private and in Container symbol table.
-    rsym = container.symbol_table.lookup("my_sub")
+    rsym = container.symbol_table.lookup("my_sub_inlined_")
     assert rsym.visibility == Symbol.Visibility.PRIVATE
     output = fortran_writer(psyir)
     assert "subroutine a_sub" in output
-    assert "subroutine my_sub" in output
-    assert "use my_mod, only : my_interface, my_other_sub\n" in output
+    assert "subroutine my_sub_inlined_" in output
+    # USE statement left unchanged (for safety).
+    assert "use my_mod, only : my_interface, my_other_sub, my_sub\n" in output
 
     # Module inline the target of the second call.
     intrans.apply(calls[1])
     # Local copy of routine must be private and in Container symbol table.
-    rsym = container.symbol_table.lookup("my_other_sub")
+    rsym = container.symbol_table.lookup("my_other_sub_inlined_")
     assert rsym.visibility == Symbol.Visibility.PRIVATE
     output = fortran_writer(psyir)
-    assert "use my_mod, only : my_interface\n" in output
+    # USE statement should still be unmodified.
+    assert "use my_mod, only : my_interface, my_other_sub, my_sub\n" in output
 
-    # Finally, inline the call to the interface. This should then remove all
-    # imports from 'my_mod'.
+    # Finally, inline the call to the interface.
     intrans.apply(calls[2])
     routines = container.walk(Routine)
     output = fortran_writer(psyir)
-    assert "use my_mod" not in output
-    assert "subroutine my_other_sub" in output
-    assert "interface my_interface" in output
+    assert "use my_mod, only : my_interface, my_other_sub, my_sub\n" in output
+    assert "subroutine my_other_sub_inlined_" in output
+    assert "interface my_interface_inlined_" in output
     # Check that the calls themselves are unaffected.
-    assert "call my_sub(a)" in output
-    assert "call my_other_sub(b)" in output
-    assert "call my_interface(b)" in output
-    assert Compile(tmpdir).string_compiles(output)
+    assert "call my_sub_inlined_(a)" in output
+    assert "call my_other_sub_inlined_(b)" in output
+    assert "call my_interface_inlined_(b)" in output
+    # The USE statement is left for safety but is actually not required so
+    # remove it to permit compilation check.
+    to_build = output.replace(
+        "use my_mod, only : my_interface, my_other_sub, my_sub\n", "")
+    assert Compile(tmpdir).string_compiles(to_build)
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
@@ -1104,23 +1075,24 @@ def test_mod_inline_no_container(fortran_reader, fortran_writer, tmpdir,
     intrans.apply(call)
 
     assert len(prog_psyir.children) == 2
-    assert set(child.name for child in prog_psyir.children) == {"my_sub",
-                                                                "my_prog"}
-    # Now that we've 'privatised' the target of the call, the code can be
-    # compiled standalone.
+    assert set(child.name for child
+               in prog_psyir.children) == {"my_sub_inlined_", "my_prog"}
     output = fortran_writer(prog_psyir)
-    assert "use my_mod" not in output
-    assert Compile(tmpdir).string_compiles(output)
+
+    # The original import is unchanged
+    assert "use my_mod, only : my_sub" in output
+    # but we remove it so that we can check compilation
+    fixed = output.replace("use my_mod, only : my_sub\n", "")
+
+    assert Compile(tmpdir).string_compiles(fixed)
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_mod_inline_from_wildcard_import(fortran_reader, fortran_writer,
-                                         monkeypatch):
+                                         monkeypatch, tmp_path):
     '''
     Test that we can perform module inlining for the case where the routine
-    is accessed via a wildcard import. This is complicated by the need to
-    preserve the original wildcard import while avoiding a clash with the
-    newly-inlined copy of the routine.
+    is accessed via a wildcard import.
 
     '''
     # Create the module containing the subroutine definition, write it to
@@ -1153,29 +1125,26 @@ def test_mod_inline_from_wildcard_import(fortran_reader, fortran_writer,
     csym = prog.symbol_table.lookup("my_mod")
     prog.symbol_table.lookup("my_sub").interface = ImportInterface(csym)
     calls = prog_psyir.walk(Call)
-    intrans.apply(calls[0])
+    intrans.apply(calls[0], update_all=False)
     output = fortran_writer(prog_psyir)
-    # Wildcard import is preserved but the original routine is renamed
-    # to avoid a clash. This renaming avoids clashing with any pre-existing
-    # symbols.
-    assert "use my_mod, old_my_sub_1=>my_sub" in output
-    assert "call my_sub" in output
+    # Wildcard import is preserved
+    assert "use my_mod\n" in output
+    assert "call my_sub_inlined_" in output
     assert ('''end program my_prog
-subroutine my_sub(arg)''' in output)
-    # Two calls in the same scope to a routine of the same name must be to
-    # the same RoutineSymbol
+subroutine my_sub_inlined_(arg)''' in output)
     new_calls = prog_psyir.walk(Call)
-    assert new_calls[0].routine.symbol is new_calls[1].routine.symbol
-    # Apply the transformation to the second call. This should fail to validate
-    # as there's nothing to do.
-    with pytest.raises(TransformationError) as err:
-        intrans.validate(calls[1])
-    assert ("The target of 'call my_sub(b)' is already module inlined."
-            in str(err.value))
-    # We can't compile this because of the use statement.
+    assert new_calls[0].routine.symbol is not new_calls[1].routine.symbol
+    # Apply the transformation to the second call.
+    intrans.apply(calls[1], update_all=False)
+    output = fortran_writer(prog_psyir)
+    assert "subroutine my_sub_inlined__1" in output
+    assert "call my_sub_inlined__1(" in output
+    # Remove the use statement so we can test compilation.
+    fixed = output.replace("use my_mod\n", "")
+    assert Compile(tmp_path).string_compiles(fixed)
 
 
-def test_inline_of_shadowed_import(tmpdir, monkeypatch, fortran_reader,
+def test_inline_of_shadowed_import(tmp_path, monkeypatch, fortran_reader,
                                    fortran_writer):
     '''
     Test that Symbols are managed correctly when doing a module import for a
@@ -1221,22 +1190,30 @@ def test_inline_of_shadowed_import(tmpdir, monkeypatch, fortran_reader,
     csym = do_it.symbol_table.lookup("my_mod")
     do_it.symbol_table.lookup("my_sub").interface = ImportInterface(csym)
     calls = prog_psyir.walk(Call)
-    intrans.apply(calls[0])
+    intrans.apply(calls[0], update_all=False)
     assert (do_it.walk(Call)[0].routine.symbol is
-            container.symbol_table.lookup("my_sub"))
+            container.symbol_table.lookup("my_sub_inlined_"))
     # Call in second subroutine still refers to imported Symbol in local table.
     again = container.find_routine_psyir("and_again")
     assert (again.walk(Call)[0].routine.symbol is
             again.symbol_table.lookup("my_sub", scope_limit=again))
     # Apply the transformation to the call in the second routine.
-    intrans.apply(calls[1])
-    # Now it should refer to the top-level, inlined RoutineSymbol.
-    assert calls[1].routine.symbol is container.symbol_table.lookup("my_sub")
-    assert "my_mod" not in again.symbol_table
-    assert len(container.walk(Routine)) == 3
-    # Cannot compile this because we still have a wildcard import from my_mod.
+    intrans.apply(calls[1], update_all=False)
+    # Now it should refer to another top-level, inlined RoutineSymbol.
+    assert calls[1].routine.symbol is container.symbol_table.lookup(
+        "my_sub_inlined__1")
+    # ContainerSymbol should still be present.
+    assert "my_mod" in again.symbol_table
+    assert len(container.walk(Routine)) == 4
+    # Cannot compile this because we still have a wildcard import from my_mod
+    # in 'do_it'.
     output = fortran_writer(prog_psyir)
-    assert "use my_mod, old_my_sub_1=>my_sub" in output
+    # Use statement left unchanged.
+    assert "use my_mod\n" in output
+    # The use statements are no longer required so remove them so that we
+    # can test compilation.
+    output2 = re.sub(r"^\s*use my_mod.*$", "", output, flags=re.M)
+    assert Compile(tmp_path).string_compiles(output2)
 
 
 def test_mod_inline_all_calls_updated(monkeypatch, fortran_reader):
@@ -1280,18 +1257,19 @@ def test_mod_inline_all_calls_updated(monkeypatch, fortran_reader):
     rt_sym0 = container.symbol_table.lookup("my_sub")
     for call in calls:
         assert call.routine.symbol is rt_sym0
-    intrans.apply(calls[0])
-    # Since all calls previously referenced the same symbol, they should now
-    # all reference the new one.
-    rt_sym1 = container.symbol_table.lookup("my_sub")
+    intrans.apply(calls[0], update_all=False)
+    # All calls previously referenced the same symbol but now the first one
+    # references the new one.
+    rt_sym1 = container.symbol_table.lookup("my_sub_inlined_")
     assert rt_sym0 is not rt_sym1
-    for call in calls:
-        assert call.routine.symbol is rt_sym1
+    assert calls[0].routine.symbol is rt_sym1
+    for call in calls[1:]:
+        assert call.routine.symbol is rt_sym0
 
 
 def test_mod_inline_unresolved_sym_in_container(monkeypatch, fortran_reader):
     '''
-    Test that module inlining proceeeds successfully when the parent
+    Test that module inlining proceeds successfully when the parent
     Container happens to contain an unresolved RoutineSymbol representing
     the target Routine. In the usual scheme of things this should never
     happen as the frontend will put an unresolved Symbol in the table that
@@ -1337,8 +1315,88 @@ def test_mod_inline_unresolved_sym_in_container(monkeypatch, fortran_reader):
     csym = calls[0].scope.symbol_table.lookup("my_mod")
     rsym.interface = ImportInterface(csym)
     intrans.apply(calls[0])
-    new_rt = container.symbol_table.lookup("my_sub")
+    new_rt = container.symbol_table.lookup("my_sub_inlined_")
     assert not (new_rt.is_import or new_rt.is_unresolved)
-    ctr_sym = container.symbol_table.lookup("my_mod")
-    (isym,) = container.symbol_table.symbols_imported_from(ctr_sym)
-    assert isym.interface.orig_name == "my_sub"
+
+
+def test_mod_inline_shared_wildcard_import(monkeypatch, tmp_path,
+                                           clear_module_manager_instance):
+    '''
+    Check that symbols are resolved correctly when module inlining, provided
+    the frontend is told to chase the imports.
+
+    '''
+    with open(tmp_path / "ice_params.f90", "w") as ffile:
+        ffile.write('''\
+    module ice_params
+      real, parameter :: eps20 = 1.023
+    end module ice_params''')
+    # Create the module containing the subroutine definition that accesses
+    # eps20.
+    with open(tmp_path / "my_mod.f90", "w") as ffile:
+        ffile.write('''\
+    module my_mod
+      use ice_params
+      use not_found
+    contains
+      subroutine my_sub(arg)
+        real, dimension(10), intent(inout) :: arg
+        arg(1:10) = eps20
+      end subroutine my_sub
+    end module my_mod
+    ''')
+    code = '''\
+    module this_mod
+      use ice_params
+      use my_mod
+    contains
+      subroutine do_it()
+        real, dimension(10) :: a
+        ! When finding the routine to inline, the frontend will chase the
+        ! imports from "ice_params" and "my_mod" and therefore eps20
+        ! should be resolved.
+        a(:) = eps20
+        call my_sub(a)
+      end subroutine do_it
+    end module this_mod'''
+    # Tell the ModuleManager to chase imports from specific modules.
+    ModuleManager.get().resolve_indirect_imports = ["ice_params", "my_mod"]
+    ModuleManager.get().add_search_path(tmp_path)
+    reader = FortranReader(resolve_modules=["ice_params", "my_mod"])
+    psyir = reader.psyir_from_source(code)
+    container = psyir.children[0]
+    calls = container.walk(Call)
+    intrans = KernelModuleInlineTrans()
+    intrans.apply(calls[-1])
+    # Check that eps20 has the correct interface in the inlined Routine.
+    # The imports in the inlined routine should have been followed and
+    # hence 'eps20' resolved.
+    inlined = container.find_routine_psyir("my_sub_inlined_",
+                                           allow_private=True)
+    eps_sym = inlined.symbol_table.lookup("eps20")
+    assert not eps_sym.is_unresolved
+    assert eps_sym.is_import
+    assert eps_sym.interface.container_symbol.name == "ice_params"
+
+
+# TODO 2668 Remove test.
+def test_module_inline_deprecation_warning():
+    '''Tests that the transformation gives the expected deprecation warning
+    when an options dict is provided.
+    '''
+    psy, invoke = get_invoke("4.6_multikernel_invokes.f90", "lfric",
+                             name="invoke_0", dist_mem=False)
+    kern_call = invoke.schedule.walk(CodedKern)[0]
+    inline_trans = KernelModuleInlineTrans()
+    with warnings.catch_warnings(record=True) as w:
+        # Cause all warnings to be triggered.
+        warnings.simplefilter("always")
+        inline_trans.apply(kern_call, options={"a": "test"})
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert ("PSyclone Deprecation Warning: The 'options' parameter to "
+                "Transformation.apply and Transformation.validate are now "
+                "deprecated. Please use "
+                "the individual arguments, or unpack the options with "
+                "**options. See the Transformations section of the "
+                "User guide for more details" in str(w[0].message))

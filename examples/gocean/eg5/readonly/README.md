@@ -1,7 +1,5 @@
 # PSyclone GOcean PSyData - ReadOnly-Verification Example
 
-**Author:** J. Henrichs, Bureau of Meteorology
-
 ## Introduction
 
 This is a simple test that shows how to use the read-only verification
@@ -37,7 +35,7 @@ Allocating C-T field with bounds: (1: 12,1:  6)
 Internal region is:(2:  4,2:  4)
 Grid has bounds:  (1: 12,1:  6)
  ------------------- PSyData -------------------
- Double precision field b_fld has been modified in main : update
+ 2d Double array b_fld%data has been modified in main : update
  Original checksum:   4611686018427387904
  New checksum:        4638355772470722560
  ------------------- PSyData -------------------
@@ -52,42 +50,3 @@ one indicating that the field ``b_fld`` has been modified (including
 the checksum computed before and after), and a second one indicating
 that the value of the scalar variable ``z`` has changed from 1.0 to
 123.0.
-
-
-## Licence
-
------------------------------------------------------------------------------
-
-BSD 3-Clause License
-
-Copyright (c) 2020-2025, Science and Technology Facilities Council.
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-* Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-
-* Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-
-* Neither the name of the copyright holder nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-------------------------------------------------------------------------------

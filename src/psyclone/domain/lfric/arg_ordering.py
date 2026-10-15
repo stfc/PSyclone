@@ -1,57 +1,28 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
-# Modified J. Henrichs, Bureau of Meteorology
 
 '''This module implements the base class for managing arguments to
 kernel calls.
 '''
 
 import abc
+from typing import Optional, Union
 
 from psyclone import psyGen
-from psyclone.core import AccessType, Signature
+from psyclone.core import AccessType, Signature, VariablesAccessMap
 # The next two imports cannot be merged, since this would create
 # a circular dependency.
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.metadata_to_arguments_rules import (
     MetadataToArgumentsRules)
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import ArrayReference, Reference
-from psyclone.psyir.symbols import DataSymbol, ArrayType
+from psyclone.psyir.nodes import ArrayReference, Node, Reference
+from psyclone.psyir.symbols import (
+    ArrayType, DataSymbol, ScalarType, Symbol, SymbolTable)
 
 
 class ArgOrdering:
@@ -87,18 +58,18 @@ class ArgOrdering:
         self._arg_index_to_metadata_index = {}
 
     @property
-    def _symtab(self):
+    def _symtab(self) -> SymbolTable:
         ''' Provide a reference to the associate Invoke SymbolTable, usually
         following the `self._kernel.ancestor(InvokeSchedule)._symbol_table`
         path unless a _forced_symtab has been provided.
 
         If no symbol table is available it creates a temporary symbol table
-        for the operation to suceed but it will not be preserved.
+        for the operation to succeed but it will not be preserved.
 
         Note: This could be improved by TODO #2503
 
         :returns: the associate invoke symbol table.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
         '''
         if self._forced_symtab:
             return self._forced_symtab
@@ -106,7 +77,7 @@ class ArgOrdering:
             # _kern may be outdated, so go back up to the invoke first
             current_invoke = self._kern.ancestor(psyGen.InvokeSchedule).invoke
             return current_invoke.schedule.symbol_table
-        return LFRicSymbolTable()
+        return SymbolTable()
 
     def psyir_append(self, node):
         '''Appends a PSyIR node to the PSyIR argument list.
@@ -249,8 +220,8 @@ class ArgOrdering:
             intrinsic_type = LFRicTypes("LFRicIntegerScalarDataType")()
 
         if not symbol:
-            symbol = self._symtab.find_or_create(
-                array_name, tag=tag, symbol_type=DataSymbol,
+            symbol = self._symtab.find_or_create_tag(
+                tag=tag, root_name=array_name, symbol_type=DataSymbol,
                 datatype=ArrayType(
                     intrinsic_type,
                     [ArrayType.Extent.DEFERRED for _ in indices]))
@@ -268,8 +239,12 @@ class ArgOrdering:
             ref = ArrayReference.create(symbol, indices)
         return ref
 
-    def append_array_reference(self, array_name, indices, intrinsic_type=None,
-                               tag=None, symbol=None):
+    def append_array_reference(self,
+                               array_name: str,
+                               indices: list[Union[str, Node]],
+                               intrinsic_type: Optional[ScalarType] = None,
+                               tag: Optional[str] = None,
+                               symbol: Optional[Symbol] = None) -> Symbol:
         # pylint: disable=too-many-arguments
         '''This function adds an array reference. If there is no symbol with
         the given tag, a new array symbol will be defined using the given
@@ -277,23 +252,16 @@ class ArgOrdering:
         be replaced. The created reference is added to the list of PSyIR
         expressions, and the symbol is returned to the user.
 
-        :param str array_name: the name and tag of the array.
-        :param indices: the indices to be used in the PSyIR reference. It \
+        :param array_name: the name and tag of the array.
+        :param indices: the indices to be used in the PSyIR reference. It
             must either be ":", or a PSyIR node.
-        :type indices: List[Union[str, py:class:`psyclone.psyir.nodes.Node`]]
         :param intrinsic_type: the intrinsic type of the array.
-        :type intrinsic_type: \
-            Optional[:py:class:`psyclone.psyir.symbols.datatypes.ScalarType`]
         :param tag: optional tag for the symbol.
-        :type tag: Optional[str]
         :param symbol: optional the symbol to use.
-        :type symbol: Optional[:py:class:`psyclone.psyir.symbols.Symbol`]
 
         :returns: the symbol used in the added reference.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-
         ref = self.get_array_reference(array_name, indices, intrinsic_type,
                                        tag=tag, symbol=symbol)
         self.psyir_append(ref)
@@ -355,7 +323,7 @@ class ArgOrdering:
         '''
         return self._arg_index_to_metadata_index[idx]
 
-    def generate(self, var_accesses=None):
+    def generate(self, var_accesses: VariablesAccessMap = None):
         # pylint: disable=too-many-statements, too-many-branches
         '''
         Specifies which arguments appear in an argument list, their type
@@ -366,12 +334,10 @@ class ArgOrdering:
         (i.e. that is not explicitly listed in kernel metadata) that is
         added. These accesses will be marked as read.
 
-        :param var_accesses: optional VariablesAccessMap instance that \
+        :param var_accesses: optional VariablesAccessMap instance that
             stores the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessMap`
 
-        :raises GenerationError: if the kernel arguments break the \
+        :raises GenerationError: if the kernel arguments break the
                                  rules for the LFRic API.
 
         '''
@@ -459,7 +425,7 @@ class ArgOrdering:
                 self.operator(arg, var_accesses=var_accesses)
             elif arg.argument_type == "gh_columnwise_operator":
                 self.cma_operator(arg, var_accesses=var_accesses)
-            elif arg.is_scalar:
+            elif arg.is_scalar or arg.is_scalar_array:
                 self.scalar(arg, var_accesses=var_accesses)
             else:
                 raise GenerationError(
@@ -770,11 +736,11 @@ class ArgOrdering:
 
         '''
         const = LFRicConstants()
-        if not scalar_arg.is_scalar:
+        if not (scalar_arg.is_scalar or scalar_arg.is_scalar_array):
             raise InternalError(
                 f"Expected argument type to be one of "
-                f"{const.VALID_SCALAR_NAMES} but got "
-                f"'{scalar_arg.argument_type}'")
+                f"{const.VALID_SCALAR_NAMES + const.VALID_ARRAY_NAMES}"
+                f" but got '{scalar_arg.argument_type}'")
 
         if scalar_arg.is_literal:
             # If we have a literal, do not add it to the variable access
@@ -783,9 +749,10 @@ class ArgOrdering:
                         metadata_posn=scalar_arg.metadata_index)
             if scalar_arg.precision and var_accesses is not None:
                 var_accesses.add_access(Signature(scalar_arg.precision),
-                                        AccessType.TYPE_INFO, self._kern)
+                                        AccessType.CONSTANT, self._kern)
         else:
-            self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access,
+            self.append(scalar_arg.name, var_accesses,
+                        mode=scalar_arg.access,
                         metadata_posn=scalar_arg.metadata_index)
 
     def fs_common(self, function_space, var_accesses=None):

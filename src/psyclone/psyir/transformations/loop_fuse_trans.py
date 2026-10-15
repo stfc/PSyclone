@@ -1,54 +1,26 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-#          J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic, Met Office
-# Modified A. B. G. Chalk, STFC Daresbury Lab
 
 '''This module provides the generic loop fusion class, which is the base
 class for all API-specific loop fusion transformations.
 '''
+import warnings
 
 from psyclone.core import SymbolicMaths
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.psyir.nodes import Reference, Routine
+from psyclone.psyir.nodes import Reference, Routine, Node
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError, LazyString
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class LoopFuseTrans(LoopTrans):
     ''' Provides a generic loop-fuse transformation to two Nodes in the
     PSyIR of a Schedule after performing validity checks for the supplied
@@ -67,21 +39,15 @@ class LoopFuseTrans(LoopTrans):
         return "Fuse two adjacent loops together"
 
     # pylint: disable=arguments-renamed
-    def validate(self, node1, node2, options=None):
+    def validate(self, node1: Node, node2: Node, options=None,
+                 **kwargs):
         ''' Performs various checks to ensure that it is valid to apply
         the LoopFuseTrans transformation to the supplied Nodes.
 
         :param node1: the first Node that is being checked.
-        :type node1: :py:class:`psyclone.psyir.nodes.Node`
         :param node2: the second Node that is being checked.
-        :type node2: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param bool options["force"]: whether to force fusion of the
-                                      target loop (i.e. ignore any dependence
-                                      analysis). This only skips a limited
-                                      number of the checks, and does not
-                                      fully force merging.
 
         :raises TransformationError: if one or both of the Nodes is/are not
                                      a :py:class:`psyclone.psyir.nodes.Loop`.
@@ -98,13 +64,16 @@ class LoopFuseTrans(LoopTrans):
                                      loops that prevent the loop fusion.
         '''
         # pylint: disable=too-many-locals, too-many-branches
-        if not options:
-            options = {}
+        if options:
+            # TODO #2668: Deprecate options dict.
+            warnings.warn(self._deprecation_warning, DeprecationWarning, 2)
+            ignore_dep_analysis = options.get("force", False)
+        else:
+            self.validate_options(**kwargs)
+            ignore_dep_analysis = self.get_option("force", **kwargs)
         # Check that the supplied Nodes are Loops
-        super().validate(node1, options=options)
-        super().validate(node2, options=options)
-
-        ignore_dep_analysis = options.get("force", False)
+        super().validate(node1, options=options, **kwargs)
+        super().validate(node2, options=options, **kwargs)
 
         # Check loop1 and loop2 have the same parent
         if not node1.sameParent(node2):
@@ -136,7 +105,7 @@ class LoopFuseTrans(LoopTrans):
             if not (SymbolicMaths.equal(node1.start_expr, node2.start_expr) and
                     SymbolicMaths.equal(node1.stop_expr, node2.stop_expr) and
                     SymbolicMaths.equal(node1.step_expr, node2.step_expr)):
-                # TODO #257: This transformation assumes that all domain loop
+                # TODO #2498: This transformation assumes that all domain loop
                 # bodies have only POINTWISE accesses to fields and does not
                 # perform any dependency analysis.
                 # This is wrong and it will generate incorrect code for any
@@ -157,7 +126,8 @@ class LoopFuseTrans(LoopTrans):
                 raise TransformationError(f"{self.name}. {messages[0]}")
 
     # -------------------------------------------------------------------------
-    def apply(self, node1, node2, options=None):
+    def apply(self, node1: Node, node2: Node, options=None,
+              force: bool = False, **kwargs):
         # pylint: disable=arguments-differ
         ''' Fuses two loops represented by `psyclone.psyir.nodes.Node` objects
         after performing validity checks.
@@ -174,10 +144,13 @@ class LoopFuseTrans(LoopTrans):
         :type node2: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
+        :param force: whether to force fusion of the target loop
+            (i.e. ignore any dependence analysis). This only skips a limited
+            number of the checks, and does not fully force merging.
 
         '''
         # Validity checks for the supplied nodes
-        self.validate(node1, node2, options=options)
+        self.validate(node1, node2, options=options, force=force, **kwargs)
 
         # Remove node2 from the parent
         node2.detach()

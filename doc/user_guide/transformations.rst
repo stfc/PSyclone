@@ -1,40 +1,9 @@
 .. -----------------------------------------------------------------------------
-.. BSD 3-Clause License
-..
-.. Copyright (c) 2017-2025, Science and Technology Facilities Council
-.. All rights reserved.
-..
-.. Redistribution and use in source and binary forms, with or without
-.. modification, are permitted provided that the following conditions are met:
-..
-.. * Redistributions of source code must retain the above copyright notice, this
-..   list of conditions and the following disclaimer.
-..
-.. * Redistributions in binary form must reproduce the above copyright notice,
-..   this list of conditions and the following disclaimer in the documentation
-..   and/or other materials provided with the distribution.
-..
-.. * Neither the name of the copyright holder nor the names of its
-..   contributors may be used to endorse or promote products derived from
-..   this software without specific prior written permission.
-..
-.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-.. POSSIBILITY OF SUCH DAMAGE.
+.. SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+..                         Facilities Council
+.. SPDX-License-Identifier: BSD-3-Clause
+.. See the full LICENSE file in the project root for details.
 .. -----------------------------------------------------------------------------
-.. Written by: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-..             A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
-..             I. Kavcic, Met Office
-..             J. Dendy, Met Office
 
 .. _transformations:
 
@@ -175,9 +144,9 @@ alphabetical order below (a number of these have specialisations which
 can be found in the API-specific sections).
 
 .. note:: PSyclone currently only supports OpenCL and
-          KernelImportsToArguments transformations for the GOcean 1.0
+          KernelImportsToArguments transformations for the GOcean
           API, the OpenACC Data transformation is limited to
-          the generic code transformation and the GOcean 1.0 API and the
+          the generic code transformation and the GOcean API and the
           OpenACC Kernels transformation is limited to the generic code
           transformation and the LFRic API.
 
@@ -211,7 +180,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.ACCLoopTrans
+.. autoclass:: psyclone.psyir.transformations.ACCLoopTrans
     :members: apply
     :no-index:
 
@@ -241,6 +210,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.ArrayIntrinsic2LoopTrans
+      :members: apply
+      :no-index:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.ChunkLoopTrans
     :members: apply
     :no-index:
@@ -250,6 +225,12 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.transformations.ColourTrans
     :members: apply
     :no-index:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.DataNodeToTempTrans
+      :members: apply
+      :no-index:
 
 ####
 
@@ -295,6 +276,24 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.Intrinsic2CodeTrans
+      :members: apply
+      :no-index:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.IncreaseRankLoopArraysTrans
+      :members: apply
+      :no-index:
+
+####
+
+.. autoclass:: psyclone.domain.common.transformations.KernelInlineTrans
+    :members: apply
+    :no-index:
+    
+####
+
 .. autoclass:: psyclone.domain.common.transformations.KernelModuleInlineTrans
     :members: apply
     :no-index:
@@ -313,7 +312,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.psyir.transformations.LoopTiling2DTrans
+.. autoclass:: psyclone.psyir.transformations.LoopTilingTrans
     :members: apply
     :no-index:
 
@@ -332,11 +331,6 @@ can be found in the API-specific sections).
       :members: apply
       :no-index:
 
-.. warning:: This transformation assumes that the MAX Intrinsic acts on
-             PSyIR Real scalar data and does not check that this is
-             not the case. Once issue #658 is on master then this
-             limitation can be fixed.
-
 ####
 
 .. autoclass:: psyclone.psyir.transformations.Maxval2LoopTrans
@@ -349,11 +343,6 @@ can be found in the API-specific sections).
       :members: apply
       :no-index:
 
-.. warning:: This transformation assumes that the MIN Intrinsic acts on
-             PSyIR Real scalar data and does not check that this is
-             not the case. Once issue #658 is on master then this
-             limitation can be fixed.
-
 ####
 
 .. autoclass:: psyclone.psyir.transformations.Minval2LoopTrans
@@ -364,7 +353,7 @@ can be found in the API-specific sections).
 
 .. _sec_move_trans:
 
-.. autoclass:: psyclone.transformations.MoveTrans
+.. autoclass:: psyclone.psyir.transformations.MoveTrans
     :members: apply
     :no-index:
 
@@ -373,6 +362,18 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.domain.gocean.transformations.GOOpenCLTrans
       :members: apply
       :no-index:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.OMPCPURoutineTrans
+    :members: apply
+    :no-index:
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.OMPCriticalTrans
+    :members: apply
+    :no-index:
 
 ####
 
@@ -405,13 +406,13 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.OMPParallelLoopTrans
+.. autoclass:: psyclone.psyir.transformations.OMPParallelLoopTrans
     :members: apply
     :no-index:
 
 ####
 
-.. autoclass:: psyclone.transformations.OMPParallelTrans
+.. autoclass:: psyclone.psyir.transformations.OMPParallelTrans
     :inherited-members:
     :exclude-members: name
     :no-index:
@@ -529,50 +530,45 @@ at this time no relevant transformations have been developed.
 Kernels
 -------
 
-PSyclone supports the transformation of Kernels as well as PSy-layer
-code. However, the transformation of kernels to produce new kernels
-brings with it additional considerations, especially regarding the
-naming of the resulting kernels. PSyclone supports two use cases:
+In order to transform a PSyKAl Kernel while applying transformations to a
+generated PSy layer, the kernel routine must first be brought into the
+same source module as the PSy-layer subroutine from which it is called.
+This is achieved using ``KernelModuleInlineTrans``:
 
-  1. the HPC expert wishes to optimise the same kernel in different ways,
-     depending on where/how it is called;
-  2. the HPC expert wishes to transform the kernel just once and have the
-     new version used throughout the Algorithm file.
+.. autoclass:: psyclone.domain.common.transformations.KernelModuleInlineTrans
+   :noindex:
 
-The second case is really an optimisation of the first for the case
-where the same set of transformations is applied to every instance of
-a given kernel.
+Once the PSy-layer has its own, private copy of the Kernel, it may
+subsequently be transformed.
 
-Since PSyclone is run separately for each Algorithm in a given
-application, ensuring that there are no name clashes for kernels in
-the application as a whole requires that some state is maintained
-between PSyclone invocations. This is achieved by requiring that the
-same kernel output directory is used for every invocation of PSyclone
-when building a given application. However, this is under the control
-of the user and therefore it is possible to use the same output
-directory for a subset of algorithms that require the same kernel
-transformation and then a different directory for another subset
-requiring a different transformation. Of course, such use would
-require care when building and linking the application since the
-differently-optimised kernels would have the same names.
+To fully inline a PSyKAl kernel body at its call site, use
+``KernelInlineTrans`` after ``KernelModuleInlineTrans``. This records the
+request on the kernel and performs the actual inlining during lowering, once
+the API-specific loop bounds and complete kernel-call argument list have been
+constructed:
 
-By default, transformed kernels are written to the current working
-directory. Alternatively, the user may specify the location to which
-to write the modified code via the ``-okern`` command-line flag.
+.. autoclass:: psyclone.domain.common.transformations.KernelInlineTrans
+   :noindex:
 
-In order to support the two use cases given above, PSyclone supports
-two different kernel-renaming schemes: "multiple" and "single"
-(specified via the ``--kernel-renaming`` command-line flag). In the
-default, "multiple" scheme, PSyclone ensures that each transformed
-kernel is given a unique name (with reference to the contents of the
-kernel output directory). In the "single" scheme, it is assumed that
-any given kernel that is transformed is always transformed in the same
-way (or left unchanged) and thus just one transformed version of it is
-created. This assumption is checked by examining the Fortran code for
-any pre-existing transformed version of that kernel. If another
-transformed version of that kernel exists and does not match that
-created by the current transformation then PSyclone will raise an
-exception.
+Any validation that depends on the completed argument list or on the final
+kernel body is performed by ``InlineTrans`` during lowering. Consequently,
+such errors are reported during code generation rather than when
+``KernelInlineTrans`` is applied.
+
+To transform a kernel, one must first obtain its PSyIR with:
+
+.. automethod:: psyclone.psyGen.CodedKern.get_callees
+    :no-index:
+
+The result of ``psyclone.psyGen.Kern.get_callees`` is a list of
+``psyclone.psyir.nodes.KernelSchedule`` objects. ``KernelSchedule`` is a
+specialisation of the ``Routine`` class with the ``is_program`` and
+``return_type`` properties set to ``False`` and ``None``, respectively.
+
+.. note:: A Kernel can of course be transformed independently of constructing
+	  a PSy layer by running PSyclone on the source file and treating it
+	  as generic Fortran rather than a DSL Kernel. This is a matter for an
+	  application's build system.
 
 Rules
 +++++
@@ -682,8 +678,9 @@ transformations currently supported allow the addition of:
 * an **OpenMP Single** directive
 * an **OpenMP Master** directive
 * an **OpenMP Taskloop** directive
-* multiple **OpenMP Taskwait** directives; and
-* an **OpenMP Parallel Do** directive.
+* multiple **OpenMP Taskwait** directives
+* an **OpenMP Parallel Do** directive; and
+* an **OpenMP Critical** directive.
 
 The generic versions of these transformations (i.e. ones that
 theoretically work for all APIs) were given in the
@@ -704,11 +701,11 @@ PSyclone supports parallel scalar reductions.  If a scalar reduction is
 specified in the Kernel metadata (see the API-specific sections for
 details) then PSyclone ensures the appropriate reduction is performed.
 
-In the case of distributed memory, PSyclone will add **GlobalSum's**
-at the appropriate locations. As can be inferred by the name, only
-"summation" reductions are currently supported for distributed memory.
+In the case of distributed memory, PSyclone will add **GlobalReduction**
+nodes at the appropriate locations. These can be one of summation, minimum
+value or maximum value.
 
-In the case of an OpenMP parallel loop the standard reduction support
+In the case of an OpenMP parallel loop, the standard reduction support
 will be used by default. For example
 ::
 
@@ -747,13 +744,28 @@ transformation.
 
 OpenMP Tasking
 ++++++++++++++
-PSyclone supports OpenMP Tasking, through the `OMPTaskloopTrans` and
-`OMPTaskwaitTrans` transformations. `OMPTaskloopTrans`
-transformations can be applied to loops, whilst the `OMPTaskwaitTrans`
+PSyclone supports OpenMP Tasking, through the ``OMPTaskloopTrans`` and
+``OMPTaskwaitTrans`` transformations. ``OMPTaskloopTrans``
+transformations can be applied to loops, whilst the ``OMPTaskwaitTrans``
 operator is applied to an OpenMP Parallel Region, and computes the dependencies
 caused by Taskloops, and adds OpenMP Taskwait statements to satisfy those
 dependencies. An example of using OpenMP tasking is available in
 `PSyclone/examples/nemo/eg1/openmp_taskloop_trans.py`.
+
+OpenMP CPU Routine Transformation
++++++++++++++++++++++++++++++++++
+The OpenMP CPU Routine transformation applies OpenMP parallelism to
+an entire routine. The transformation attempts to apply OpenMP loop directives
+to every loop in the routine, and then builds the largest OpenMP parallel
+region(s) possible to apply parallelism. If the ``nowait`` option is specified,
+then the transformation will attempt to maximise the number of nowait clauses
+on the loop directives, and minimise the number of barriers required to
+keep the output code correct.
+
+See the transformation's (``OMPCPURoutineTrans``) documentation for more details.
+
+
+.. _opencl:
 
 OpenCL
 ------
@@ -772,9 +784,9 @@ OpenCL functionality. It also relies upon the device acceleration support
 provided by the dl_esm_inf library (https://github.com/stfc/dl_esm_inf).
 
 
-.. note:: The generated OpenCL kernels are written in a file called
-    opencl_kernels_<index>.cl where the index keeps increasing if the
-    file name already exist.
+.. note:: The generated OpenCL kernels are written to the kernel output directory
+	  (see :ref:`psykal-file-output`) in a file called ``opencl_kernels_<index>.cl``
+	  where the index keeps increasing if the file name already exists.
 
 
 The ``GOOpenCLTrans`` transformation accepts an `options` argument with a
@@ -886,12 +898,13 @@ porting and/or debugging of an OpenACC application as it provides
 explicit control over what data is present on a device for a given
 (part of an) Invoke routine.
 
-The NVIDIA compiler compiler provides an alternative approach to controlling
-data movement through its 'managed memory' option
-(``-gpu=mem:managed``). When this is enabled the compiler itself takes
-on the task of ensuring that data is copied to/from the GPU when
-required. (Note that this approach can struggle with Fortran code
-containing derived types however.)
+GPU vendors often provide an alternative approach to controlling
+data movement through a 'managed memory' option (``-gpu=mem:managed`` for
+NVIDIA). When this is enabled, data is copied to/from the
+GPU using the operating system's page-fault mechanism.
+(Note that this approach can suffer from 'thrashing' if both CPU and GPU
+frequently access data held in the same page. This can be a particular
+issue for Fortran code containing derived types.)
 
 As well as ensuring the correct data is copied to and from the remote
 device, OpenACC directives must also be added to a code in order to

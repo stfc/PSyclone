@@ -1,42 +1,11 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
-# Modified J. Henrichs, Bureau of Meteorology
-# Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module contians the LFRicRunTimeChecks class which handles
+''' This module contains the LFRicRunTimeChecks class which handles
 declarations and code generation for run-time checks. The methods
 check fields' function spaces and read-only fields against kernel
 function-space metadata on initialisation. The class inherits from
@@ -47,8 +16,8 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric import LFRicCollection, LFRicConstants
 from psyclone.psyir.symbols import (
-    CHARACTER_TYPE, ContainerSymbol, RoutineSymbol, ImportInterface,
-    DataSymbol, UnresolvedType, INTEGER_TYPE)
+    ScalarType, ContainerSymbol, RoutineSymbol, ImportInterface,
+    DataSymbol, UnresolvedType)
 from psyclone.psyir.nodes import (
     Call, StructureReference, BinaryOperation, Reference, Literal, IfBlock,
     ArrayOfStructuresReference)
@@ -66,22 +35,30 @@ class LFRicRunTimeChecks(LFRicCollection):
 
         '''
         super().invoke_declarations()
-        if Config.get().api_conf("lfric").run_time_checks:
-            # Only add if run-time checks are requested
-            const = LFRicConstants()
-            csym = self.symtab.find_or_create(
-                const.UTILITIES_MOD_MAP["logging"]["module"],
-                symbol_type=ContainerSymbol
-            )
-            self.symtab.find_or_create(
-                "log_event", symbol_type=RoutineSymbol,
-                interface=ImportInterface(csym)
-            )
-            self.symtab.find_or_create(
-                "LOG_LEVEL_ERROR", symbol_type=DataSymbol,
-                datatype=UnresolvedType(),
-                interface=ImportInterface(csym)
-            )
+        api_conf = Config.get().api_conf("lfric")
+
+        # Only add if run-time checks are requested
+        if api_conf.run_time_checks == "none":
+            return
+
+        const = LFRicConstants()
+        csym = self.symtab.find_or_create(
+            const.UTILITIES_MOD_MAP["logging"]["module"],
+            symbol_type=ContainerSymbol
+        )
+        self.symtab.find_or_create(
+            "log_event", symbol_type=RoutineSymbol,
+            interface=ImportInterface(csym)
+        )
+        if api_conf.run_time_checks == "error":
+            log_level = "LOG_LEVEL_ERROR"
+        else:
+            log_level = "LOG_LEVEL_WARNING"
+        self.symtab.find_or_create(
+            log_level, symbol_type=DataSymbol,
+            datatype=UnresolvedType(),
+            interface=ImportInterface(csym)
+        )
 
     def _check_field_fs(self, cursor: int) -> int:
         '''
@@ -140,9 +117,10 @@ class LFRicRunTimeChecks(LFRicCollection):
 
                 if_condition = None
                 for name in function_space_names:
-                    if arg._vector_size > 1:
+                    if arg.vector_size > 1:
                         call = Call.create(ArrayOfStructuresReference.create(
-                            field_symbol, [Literal('1', INTEGER_TYPE)],
+                            field_symbol,
+                            [Literal('1', ScalarType.integer_type())],
                             ["which_function_space"]))
                     else:
                         call = Call.create(StructureReference.create(
@@ -163,6 +141,11 @@ class LFRicRunTimeChecks(LFRicCollection):
                             BinaryOperation.Operator.AND, if_condition, cmp
                         )
 
+                if Config.get().api_conf("lfric").run_time_checks == "error":
+                    log_level = "LOG_LEVEL_ERROR"
+                else:
+                    log_level = "LOG_LEVEL_WARNING"
+
                 if_body = Call.create(
                     symtab.lookup("log_event"),
                     [Literal(f"In alg '{self._invoke.invokes.psy.orig_name}' "
@@ -171,8 +154,8 @@ class LFRicRunTimeChecks(LFRicCollection):
                              f"'{kern_call.name}' but its function space is "
                              f"not compatible with the function space "
                              f"specified in the kernel metadata '{fs_name}'.",
-                             CHARACTER_TYPE),
-                     Reference(symtab.lookup("LOG_LEVEL_ERROR"))])
+                             ScalarType.character_type()),
+                     Reference(symtab.lookup(log_level))])
 
                 ifblock = IfBlock.create(if_condition, [if_body])
                 self._invoke.schedule.addchild(ifblock, cursor)
@@ -198,7 +181,7 @@ class LFRicRunTimeChecks(LFRicCollection):
 
         Whilst the LFRic infrastructure halo exchange would also
         indirectly pick up a readonly field being modified, it would
-        not be picked up where the error occured. Therefore adding
+        not be picked up where the error occurred. Therefore adding
         checks here is still useful.
 
         :param cursor: position where to add the next initialisation
@@ -225,13 +208,18 @@ class LFRicRunTimeChecks(LFRicCollection):
         first = True
         for field, call in modified_fields:
             if_condition = field.generate_method_call("is_readonly")
+            if Config.get().api_conf("lfric").run_time_checks == "error":
+                log_level = "LOG_LEVEL_ERROR"
+            else:
+                log_level = "LOG_LEVEL_WARNING"
             if_body = Call.create(
                 symtab.lookup("log_event"),
                 [Literal(f"In alg '{self._invoke.invokes.psy.orig_name}' "
                          f"invoke '{self._invoke.name}', field '{field.name}' "
                          f"is on a read-only function space but is modified "
-                         f"by kernel '{call.name}'.", CHARACTER_TYPE),
-                 Reference(symtab.lookup("LOG_LEVEL_ERROR"))])
+                         f"by kernel '{call.name}'.",
+                         ScalarType.character_type()),
+                 Reference(symtab.lookup(log_level))])
 
             ifblock = IfBlock.create(if_condition, [if_body])
             self._invoke.schedule.addchild(ifblock, cursor)
@@ -254,7 +242,7 @@ class LFRicRunTimeChecks(LFRicCollection):
         :returns: Updated cursor value.
 
         '''
-        if not Config.get().api_conf("lfric").run_time_checks:
+        if Config.get().api_conf("lfric").run_time_checks == "none":
             # Run-time checks are not requested.
             return cursor
 

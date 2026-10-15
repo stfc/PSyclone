@@ -1,82 +1,39 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors I. Kavcic, Met Office
-# Modified by J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''This module contains the GOcean-specific extract transformation.
 '''
 
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.nodes import ExtractNode
-from psyclone.psyir.symbols import REAL8_TYPE, INTEGER_TYPE
-from psyclone.psyir.tools import CallTreeUtils
-from psyclone.domain.common import ExtractDriverCreator
+from psyclone.psyir.symbols import ScalarType
+from psyclone.domain.gocean import GOceanDriverCreator
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
 
 class GOceanExtractTrans(ExtractTrans):
-    ''' GOcean1.0 API application of ExtractTrans transformation \
+    ''' GOcean API application of ExtractTrans transformation
     to extract code into a stand-alone program. For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>>
-    >>> API = "gocean"
-    >>> FILENAME = "shallow_alg.f90"
-    >>> ast, invokeInfo = parse(FILENAME, api=API)
-    >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "eg1/shallow_alg.f90"
+    >>> schedule = get_psylayer_schedule(filename, "gocean-examples")
     >>>
     >>> from psyclone.domain.gocean.transformations import GOceanExtractTrans
     >>> etrans = GOceanExtractTrans()
     >>>
     >>> # Apply GOceanExtractTrans transformation to selected Nodes
     >>> etrans.apply(schedule.children[0])
-    >>> print(schedule.view())
+
     '''
-
-    def __init__(self):
-        super().__init__(ExtractNode)
-        # Set the integer and real types to use. If required, the constructor
-        # could take a parameter to change these.
-
-        self._driver_creator = ExtractDriverCreator(INTEGER_TYPE, REAL8_TYPE)
 
     # ------------------------------------------------------------------------
     def validate(self, node_list, options=None):
-        ''' Perform GOcean1.0 API specific validation checks before applying
+        ''' Perform GOcean API specific validation checks before applying
         the transformation.
 
         :param node_list: the list of Node(s) we are checking.
@@ -159,42 +116,12 @@ class GOceanExtractTrans(ExtractTrans):
             # changing the user's options:
             my_options = options.copy()
 
-        ctu = CallTreeUtils()
         nodes = self.get_node_list(nodes)
-        region_name = self.get_unique_region_name(nodes, my_options)
-        my_options["region_name"] = region_name
-        my_options["prefix"] = my_options.get("prefix", "extract")
-
-        read_write_info = ctu.get_in_out_parameters(
-            nodes, include_non_data_accesses=True)
-
-        # Even variables that are output-only need to be written with their
-        # values at the time the kernel is called: many kernels will only
-        # write to part of a field (e.g. in case of MPI the halo region
-        # will not be written). Since the comparison in the driver uses
-        # the whole field (including values not updated), we need to write
-        # the current value of an output-only field as well. This is
-        # achieved by adding any written-only field to the list of fields
-        # read. This will trigger to write the values in the extraction,
-        # and the driver code created will read in their values.
-        for sig in read_write_info.write_list:
-            if sig not in read_write_info.read_list:
-                read_write_info.read_list.append(sig)
-
-        # Determine a unique postfix to be used for output variables
-        # that avoid any name clashes
-        postfix = ExtractTrans.determine_postfix(read_write_info,
-                                                 postfix="_post")
-        my_options["post_var_postfix"] = postfix
-
+        super().apply(nodes, my_options)
+        new_node = nodes[0].ancestor(ExtractNode)
         if my_options.get("create_driver", False):
-            # We need to create the driver before inserting the ExtractNode
-            # (since some of the visitors used in driver creation do not
-            # handle an ExtractNode in the tree)
-            self._driver_creator.write_driver(nodes, read_write_info,
-                                              postfix=postfix,
-                                              prefix=my_options["prefix"],
-                                              region_name=region_name)
-
-        my_options["read_write_info"] = read_write_info
-        super().apply(nodes, options=my_options)
+            region_name = my_options.get("region_name", None)
+            new_node._driver_creator = GOceanDriverCreator(
+                ScalarType.integer_type(),
+                ScalarType.real8_type(),
+                region_name)

@@ -1,38 +1,9 @@
 .. -----------------------------------------------------------------------------
-.. BSD 3-Clause License
-..
-.. Copyright (c) 2017-2025, Science and Technology Facilities Council
-.. All rights reserved.
-..
-.. Redistribution and use in source and binary forms, with or without
-.. modification, are permitted provided that the following conditions are met:
-..
-.. * Redistributions of source code must retain the above copyright notice, this
-..   list of conditions and the following disclaimer.
-..
-.. * Redistributions in binary form must reproduce the above copyright notice,
-..   this list of conditions and the following disclaimer in the documentation
-..   and/or other materials provided with the distribution.
-..
-.. * Neither the name of the copyright holder nor the names of its
-..   contributors may be used to endorse or promote products derived from
-..   this software without specific prior written permission.
-..
-.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-.. POSSIBILITY OF SUCH DAMAGE.
+.. SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+..                         Facilities Council
+.. SPDX-License-Identifier: BSD-3-Clause
+.. See the full LICENSE file in the project root for details.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
-.. Modified by I. Kavcic, A. Coughtrie and O. Brunt Met Office
 
 .. highlight:: fortran
 
@@ -51,7 +22,7 @@ allow PSyclone to generate the PSy layer. These algorithm and kernel
 APIs are discussed separately in the following sections.
 
 The LFRic API supports the Met Office's finite element (hereafter FEM)
-based GungHo dynamical core.
+based 'GungHo' dynamical core.
 This dynamical core with atmospheric physics parameterisation
 schemes is a part of the Met Office LFRic modelling system :footcite:t:`lfric-2019`,
 currently being developed in preparation for exascale computing in the 2020s.
@@ -63,6 +34,13 @@ The code is BSD-licensed, however browsing the `LFRic wiki
 requires login access to MOSRS. For more technical details on the
 implementation of LFRic, please see the `LFRic documentation
 <https://code.metoffice.gov.uk/trac/lfric/attachment/wiki/LFRicDocumentationPapers/lfric_documentation.pdf>`_.
+
+.. note::
+   The following sections assume that the reader is familiar
+   with various concepts relating to the LFRic mesh and how it is decomposed
+   for distributed-memory parallel computing. For a detailed description of
+   these things, please see the :ref:`LFRic <lfric-developers>` section of the
+   Developer Guide.
 
 .. _lfric-api-algorithm:
 
@@ -86,24 +64,31 @@ use of each of these arguments:
 
 ::
 
-  real(kind=r_def)           :: rscalar
-  integer(kind=i_def)        :: iscalar, halo_depth
-  logical(kind=l_def)        :: lscalar
-  integer(kind=i_def)        :: stencil_extent
-  type(field_type)           :: field1, field2, field3
-  type(field_type)           :: field5(3), field6(3)
-  type(integer_field_type)   :: field7
-  type(quadrature_type)      :: qr
-  type(operator_type)        :: operator1
-  type(columnwise_operator_type) :: cma_op1
+
+  real(kind=r_def)                         :: rscalar
+  integer(kind=i_def)                      :: iscalar, halo_depth
+  logical(kind=l_def)                      :: lscalar
+  real(kind=r_def),    dimension(50, 100)  :: real_array
+  integer(kind=i_def), dimension(10)       :: integer_array
+  logical(kind=l_def), dimension(2,5,10,8) :: logical_array
+  integer(kind=i_def)                      :: stencil_extent
+  type(field_type)                         :: field1, field2, field3
+  type(field_type)                         :: field5(3), field6(3)
+  type(integer_field_type)                 :: field7
+  type(quadrature_type)                    :: qr
+  type(operator_type)                      :: operator1
+  type(columnwise_operator_type)           :: cma_op1
   ...
-  call invoke( kernel1(field1, field2, operator1, qr),           &
-               builtin1(rscalar, field2, field3),                &
-               int_builtin2(iscalar, field7),                    &
-               kernel2(field1, stencil_extent, field3, lscalar), &
-	       kernel3(field1, halo_depth),                      &
-               assembly_kernel(cma_op1, operator1),              &
-               name="some_calculation")
+  call invoke( kernel1(field1, field2, operator1, real_array, qr),  &
+               builtin1(rscalar, field2, field3),                   &
+               int_builtin2(iscalar, field7),                       &
+               kernel2(field1, stencil_extent, field3, lscalar),    &
+               assembly_kernel(cma_op1, operator1),                 &
+	             kernel3(field1, halo_depth),                         &
+               kernel4(field3, integer_array, logical_array),       &
+               name="some_calculation"                              &
+             )
+
 
 Each of these argument types is described in more detail in
 the next :ref:`section <lfric-alg-arg-types>`.
@@ -131,29 +116,49 @@ with ``GH_SCALAR`` metadata. Scalar arguments can have ``real``,
 ``integer`` or ``logical`` data type in :ref:`user-defined Kernels
 <lfric-kernel-valid-data-type>` (``logical`` data type is not supported
 in the :ref:`LFRic Built-ins <lfric-built-ins-dtype-access>`).
+See example ``examples/lfric/eg1``.
+
+.. _lfric-array:
+
+Scalar Array
+++++++++++++
+
+In the LFRic API a scalar array represents a Fortran array of scalars, of at
+least rank (number of dimensions) one. Scalar arrays are identified with
+``GH_SCALAR_ARRAY`` metadata. As with scalars, array arguments can have
+``real``, ``integer`` or ``logical`` data type in
+:ref:`user-defined Kernels <lfric-kernel-valid-data-type>`.
+See example ``examples/lfric/eg1``.
 
 .. _lfric-field:
 
 Field
 +++++
 
-LFRic API fields, identified with ``GH_FIELD`` metadata, represent
-FEM discretisations of various dynamical core prognostic and diagnostic
+LFRic API `fields <https://metoffice.github.io/lfric_core/how_to_use_it/lfric_datamodel/field.html>`_, identified with ``GH_FIELD`` metadata, represent FEM
+discretisations of various dynamical core prognostic and diagnostic
 variables. In FEM, variables are discretised by placing them into a
 function space (see :ref:`lfric-function-space`) from which they
-inherit a polynomial expansion via the basis functions of that space.
-Field values at points within a cell are evaluated as the sum of a set
-of basis functions multiplied by coefficients which are the data points.
-Points of evaluation are determined by a quadrature object
-(:ref:`lfric-quadrature`) and are independent of the function space
-the field is on. Placement of field data points, also called degrees of
-freedom (hereafter "DoFs"), is determined by the function space the field
-is on.
+inherit a polynomial expansion via the basis functions of that space. Placement
+of field data points, also called
+`degrees of freedom <https://metoffice.github.io/lfric_core/how_it_works/core_data_model/science_model_architecture.html#dofs-dof-maps-and-function-spaces>`_
+(hereafter "DoFs"), is determined by the function space the
+field is on. An LFRic multi-data field can have more than one value
+associated with each data point.
+
 LFRic fields passed as arguments to any :ref:`LFRic kernel
 <lfric-kernel-valid-data-type>` can be of ``real`` or ``integer``
 primitive type. In the LFRic infrastructure, these fields are
 represented by instances of the ``field_type`` and ``integer_field_type``
 classes, respectively.
+
+Different fields may be defined on different numbers of vertical layers.
+The number of layers can be as few as one (a 2D field). Additionally,
+LFRic has the concept of multi-data fields where multiple data values can be
+associated with each DoF. Since both the number of layers and the
+number of data values affects the numbering of the DoFs of a field,
+a distinct DoF map is required for each unique combination of function
+space, number of vertical levels and number of data values.
 
 .. _lfric-field-vector:
 
@@ -289,9 +294,10 @@ question.
 Halo Depth
 ++++++++++
 
-If a Kernel is written to iterate into the halo (has an ``OPERATES_ON`` of
-``HALO_CELL_COLUMN`` or ``OWNED_AND_HALO_CELL_COLUMN``) then the halo depth
-must be passed as a final, ``integer`` argument to the Kernel.
+If a Kernel is written such that it *must* iterate into the halo (has an
+:ref:`OPERATES_ON <lfric-operates-on>` of ``HALO_CELL_COLUMN`` or
+``OWNED_AND_HALO_CELL_COLUMN``) then the halo depth must be passed as a
+final, ``integer`` argument to the Kernel.
 
 .. _lfric-alg-stencil:
 
@@ -303,7 +309,8 @@ that a Kernel performs a stencil operation on a field. Any such
 metadata must provide a stencil type. See the
 :ref:`lfric-api-meta-args` section for more details. The supported
 stencil types are ``X1D``, ``Y1D``, ``XORY1D``, ``CROSS``, ``CROSS2D`` or
-``REGION``.
+``REGION``. ``CROSS2D`` differs from ``CROSS`` in that its arms can be
+of varying lengths.
 
 If a stencil operation is specified by the Kernel metadata, the
 Algorithm layer must provide the ``extent`` of the stencil (the
@@ -406,7 +413,7 @@ Mixed Precision
 
 The LFRic API supports the ability to specify the precision required
 by the model via precision variables. To make use of this, the code
-developer must declare scalars, fields and operators in the algorithm
+developer must declare scalars, arrays, fields and operators in the Algorithm
 layer with the required LFRic-supported precision. In the current
 implementation there are two supported precisions for ``REAL`` data and
 one each for ``INTEGER`` and ``LOGICAL`` data. The actual precision used in
@@ -420,50 +427,57 @@ associated kernel metadata description and their precision:
 
 .. tabularcolumns:: |l|l|l|
 
-+--------------------------+---------------------------------+-----------+
-| Data Type                | Kernel Metadata                 | Precision |
-+==========================+=================================+===========+
-| REAL(R_DEF)              | GH_SCALAR, GH_REAL              | R_DEF     |
-+--------------------------+---------------------------------+-----------+
-| REAL(R_BL)               | GH_SCALAR, GH_REAL              | R_BL      |
-+--------------------------+---------------------------------+-----------+
-| REAL(R_PHYS)             | GH_SCALAR, GH_REAL              | R_PHYS    |
-+--------------------------+---------------------------------+-----------+
-| REAL(R_SOLVER)           | GH_SCALAR, GH_REAL              | R_SOLVER  |
-+--------------------------+---------------------------------+-----------+
-| REAL(R_TRAN)             | GH_SCALAR, GH_REAL              | R_TRAN    |
-+--------------------------+---------------------------------+-----------+
-| INTEGER(I_DEF)           | GH_SCALAR, GH_INTEGER           | I_DEF     |
-+--------------------------+---------------------------------+-----------+
-| LOGICAL(L_DEF)           | GH_SCALAR, GH_LOGICAL           | L_DEF     |
-+--------------------------+---------------------------------+-----------+
-| FIELD_TYPE               | GH_FIELD, GH_REAL               | R_DEF     |
-+--------------------------+---------------------------------+-----------+
-| R_BL_FIELD_TYPE          | GH_FIELD, GH_REAL               | R_BL      |
-+--------------------------+---------------------------------+-----------+
-| R_PHYS_FIELD_TYPE        | GH_FIELD, GH_REAL               | R_PHYS    |
-+--------------------------+---------------------------------+-----------+
-| R_SOLVER_FIELD_TYPE      | GH_FIELD, GH_REAL               | R_SOLVER  |
-+--------------------------+---------------------------------+-----------+
-| R_TRAN_FIELD_TYPE        | GH_FIELD, GH_REAL               | R_TRAN    |
-+--------------------------+---------------------------------+-----------+
-| INTEGER_FIELD_TYPE       | GH_FIELD, GH_INTEGER            | I_DEF     |
-+--------------------------+---------------------------------+-----------+
-| OPERATOR_TYPE            | GH_OPERATOR, GH_REAL            | R_DEF     |
-+--------------------------+---------------------------------+-----------+
-| R_SOLVER_OPERATOR_TYPE   | GH_OPERATOR, GH_REAL            | R_SOLVER  |
-+--------------------------+---------------------------------+-----------+
-| R_TRAN_OPERATOR_TYPE     | GH_OPERATOR, GH_REAL            | R_TRAN    |
-+--------------------------+---------------------------------+-----------+
-| COLUMNWISE_OPERATOR_TYPE | GH_COLUMNWISE_OPERATOR, GH_REAL | R_SOLVER  |
-+--------------------------+---------------------------------+-----------+
++--------------------------+---------------------------------------+-----------+
+| Data Type                | Kernel Metadata                       | Precision |
++==========================+=======================================+===========+
+| REAL(R_DEF)              | GH_SCALAR/GH_SCALAR_ARRAY, GH_REAL    | R_DEF     |
++--------------------------+---------------------------------------+-----------+
+| REAL(R_BL)               | GH_SCALAR/GH_SCALAR_ARRAY, GH_REAL    | R_BL      |
++--------------------------+---------------------------------------+-----------+
+| REAL(R_PHYS)             | GH_SCALAR/GH_SCALAR_ARRAY, GH_REAL    | R_PHYS    |
++--------------------------+---------------------------------------+-----------+
+| REAL(R_SOLVER)           | GH_SCALAR/GH_SCALAR_ARRAY, GH_REAL    | R_SOLVER  |
++--------------------------+---------------------------------------+-----------+
+| REAL(R_TRAN)             | GH_SCALAR/GH_SCALAR_ARRAY, GH_REAL    | R_TRAN    |
++--------------------------+---------------------------------------+-----------+
+| INTEGER(I_DEF)           | GH_SCALAR/GH_SCALAR_ARRAY, GH_INTEGER | I_DEF     |
++--------------------------+---------------------------------------+-----------+
+| LOGICAL(L_DEF)           | GH_SCALAR/GH_SCALAR_ARRAY, GH_LOGICAL | L_DEF     |
++--------------------------+---------------------------------------+-----------+
+| FIELD_TYPE               | GH_FIELD, GH_REAL                     | R_DEF     |
++--------------------------+---------------------------------------+-----------+
+| R_BL_FIELD_TYPE          | GH_FIELD, GH_REAL                     | R_BL      |
++--------------------------+---------------------------------------+-----------+
+| R_SOLVER_FIELD_TYPE      | GH_FIELD, GH_REAL                     | R_SOLVER  |
++--------------------------+---------------------------------------+-----------+
+| R_TRAN_FIELD_TYPE        | GH_FIELD, GH_REAL                     | R_TRAN    |
++--------------------------+---------------------------------------+-----------+
+| FIELD_REAL32_TYPE        | GH_FIELD, GH_REAL                     | REAL32    |
++--------------------------+---------------------------------------+-----------+
+| FIELD_REAL64_TYPE        | GH_FIELD, GH_REAL                     | REAL64    |
++--------------------------+---------------------------------------+-----------+
+| INTEGER_FIELD_TYPE       | GH_FIELD, GH_INTEGER                  | I_DEF     |
++--------------------------+---------------------------------------+-----------+
+| OPERATOR_TYPE            | GH_OPERATOR, GH_REAL                  | R_DEF     |
++--------------------------+---------------------------------------+-----------+
+| R_SOLVER_OPERATOR_TYPE   | GH_OPERATOR, GH_REAL                  | R_SOLVER  |
++--------------------------+---------------------------------------+-----------+
+| R_TRAN_OPERATOR_TYPE     | GH_OPERATOR, GH_REAL                  | R_TRAN    |
++--------------------------+---------------------------------------+-----------+
+| OPERATOR_REAL32_TYPE     | GH_OPERATOR, GH_REAL                  | REAL32    |
++--------------------------+---------------------------------------+-----------+
+| OPERATOR_REAL64_TYPE     | GH_OPERATOR, GH_REAL                  | REAL64    |
++--------------------------+---------------------------------------+-----------+
+| COLUMNWISE_OPERATOR_TYPE | GH_COLUMNWISE_OPERATOR, GH_REAL       | R_SOLVER  |
++--------------------------+---------------------------------------+-----------+
 
 As can be seen from the above table, the kernel metadata does not
 capture all of the precision options. For example, from the metadata
 it is not possible to determine whether a ``REAL`` scalar, ``REAL`` field
-or ``REAL`` operator has precision ``R_DEF``, ``R_SOLVER`` or ``R_TRAN``.
+or ``REAL`` operator has precision ``R_DEF``, ``R_SOLVER``, ``R_TRAN``
+or one of the Fortran intrinsic precisions (``REAL32``, ``REAL64``).
 
-If a scalar, field, or operator is specified with a particular
+If a scalar, array, field, or operator is specified with a particular
 precision in the algorithm layer then any associated kernels that it
 is passed to must have been written so that they support this
 precision. If a kernel needs to support data that can be stored with
@@ -573,11 +587,13 @@ outlined in the table below:
 +-------------------------+------------------+--------------+
 | ``r_bl_field_type``     | ``real``         | ``r_bl``     |
 +-------------------------+------------------+--------------+
-| ``r_phys_field_type``   | ``real``         | ``r_phys``   |
-+-------------------------+------------------+--------------+
 | ``r_solver_field_type`` | ``real``         | ``r_solver`` |
 +-------------------------+------------------+--------------+
 | ``r_tran_field_type``   | ``real``         | ``r_tran``   |
++-------------------------+------------------+--------------+
+| ``field_real32_type``   | ``real``         | ``real32``   |
++-------------------------+------------------+--------------+
+| ``field_real64_type``   | ``real``         | ``real64``   |
 +-------------------------+------------------+--------------+
 | ``integer_field_type``  | ``integer``      | ``i_def``    |
 +-------------------------+------------------+--------------+
@@ -609,8 +625,6 @@ implementations is given in the table below (note that only
 | ``field_type``          | ``field_vector_type``          |
 +-------------------------+--------------------------------+
 | ``r_bl_field_type``     | ``r_bl_field_vector_type``     |
-+-------------------------+--------------------------------+
-| ``r_phys_field_type``   | ``r_phys_field_vector_type``   |
 +-------------------------+--------------------------------+
 | ``r_solver_field_type`` | ``r_solver_field_vector_type`` |
 +-------------------------+--------------------------------+
@@ -677,16 +691,17 @@ a message that indicates the problem.
 
 .. tabularcolumns:: |l|l|
 
-+------------------+----------------------------------+
-| Fortran Datatype | Supported Precision              |
-+==================+==================================+
-| ``real``         | ``r_def``, ``r_bl``, ``r_phys``, |
-|                  | ``r_solver``, ``r_tran``         |
-+------------------+----------------------------------+
-| ``integer``      | ``i_def``                        |
-+------------------+----------------------------------+
-| ``logical``      | ``l_def``                        |
-+------------------+----------------------------------+
++------------------+--------------------------+
+| Fortran Datatype | Supported Precision      |
++==================+==========================+
+| ``real``         | ``r_def``, ``r_bl``,     |
+|                  | ``r_solver``, ``r_tran``,|
+|                  | ``real32``, ``real64``   |
++------------------+--------------------------+
+| ``integer``      | ``i_def``                |
++------------------+--------------------------+
+| ``logical``      | ``l_def``                |
++------------------+--------------------------+
 
 .. _lfric-mixed-precision-lma-operators:
 
@@ -710,6 +725,10 @@ outlined in the table below:
 | ``r_solver_operator_type`` | ``real``         | ``r_solver`` |
 +----------------------------+------------------+--------------+
 | ``r_tran_operator_type``   | ``real``         | ``r_tran``   |
++----------------------------+------------------+--------------+
+| ``operator_real32_type``   | ``real``         | ``real32``   |
++----------------------------+------------------+--------------+
+| ``operator_real64_type``   | ``real``         | ``real64``   |
 +----------------------------+------------------+--------------+
 
 .. _lfric-mixed-precision-cma-operators:
@@ -773,7 +792,7 @@ intents there are always ``intent(in)``.
 The Fortran intent of :ref:`scalars <lfric-scalar>` is still defined
 by their :ref:`access metadata <lfric-kernel-valid-access>` as they are
 actual data. This means ``intent(in)`` for ``GH_READ`` and ``intent(out)``
-for ``GH_SUM`` (more details in :ref:`meta_args <lfric-api-meta-args>`
+for ``GH_REDUCTION`` (more details in :ref:`meta_args <lfric-api-meta-args>`
 section below).
 
 The intent of other data structures is mandated by the relevant
@@ -866,9 +885,11 @@ types.
 Rules specific to General-Purpose Kernels without CMA Operators
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-1) General-purpose kernels with ``operates_on = CELL_COLUMN`` accept
-   arguments of any of the following types: field, field vector, LMA
-   operator, scalar (``real``, ``integer`` or ``logical``).
+1) General-purpose kernels that :ref:`operate on <lfric-operates-on>`
+   any kind of ``CELL_COLUMN``
+   accept arguments of any of the following types: field,
+   field vector, LMA operator, scalar (``real``, ``integer`` or
+   ``logical``).
 
 2) A Kernel is permitted to write to more than one
    quantity (field or operator) and these quantities may be on the
@@ -897,8 +918,9 @@ All three CMA-related kernel types must obey the following rules:
 1) Since a CMA operator only acts within a single column of data,
    stencil operations are not permitted.
 
-2) No vector quantities (e.g. ``GH_FIELD*3`` - see below) are
-   permitted as arguments.
+2) No vector quantities (e.g. ``GH_FIELD*3`` - see
+   :ref:`lfric-field-vector`) or
+   multi-data fields are permitted as arguments.
 
 3) The kernel must operate on cell-columns.
 
@@ -985,19 +1007,18 @@ on a ``CELL_COLUMN`` without CMA Operators. Specifically:
 
 2) All fields must be on discontinuous function spaces.
 
-3) Stencil accesses are not permitted.
-
 .. _lfric-dof-kernel-rules:
 
 Rules for all User-Supplied Kernels that Operate on DoFs (DoF Kernels)
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Kernels that have ``operates_on = DOF`` and
-:ref:`LFRic Built-ins<lfric-built-ins>` overlap significantly in their
-scope, and the conventions that DoF Kernels must follow are influenced
-by those for built-ins as a result. This includes :ref:`metadata arguments
-<lfric-api-built-ins-metadata>` and :ref:`valid data types
-and access modes<lfric-built-ins-dtype-access>`. Naming conventions for DoF
+Kernels that have an :ref:`operates_on <lfric-operates-on>` of ``DOF``
+(or ``OWNED_DOF``) and :ref:`LFRic Built-ins<lfric-built-ins>` overlap
+significantly in their scope, and the conventions that DoF Kernels
+must follow are influenced by those for built-ins as a result. This
+includes :ref:`metadata arguments <lfric-api-built-ins-metadata>` and
+:ref:`valid data types and access
+modes<lfric-built-ins-dtype-access>`. Naming conventions for DoF
 Kernels should follow those for General-Purpose Kernels.
 
 The list of rules for DoF Kernels is as follows:
@@ -1059,20 +1080,20 @@ meta_args
 #########
 
 The ``meta_args`` array specifies information about data that the
-kernel code expects to be passed to it via its argument list. There is
-one entry in the ``meta_args`` array for each **scalar**, **field**,
+kernel code expects to be passed to it via its argument list. There is one
+entry in the ``meta_args`` array for each **scalar**, **array**, **field**,
 or **operator** passed into the Kernel and the order that these occur
 in the ``meta_args`` array must be the same as they are expected in
 the kernel code argument list. The entry must be of ``arg_type`` which
-itself contains metadata about the associated argument. The size of
-the ``meta_args`` array must correspond to the number of **scalars**,
+itself contains metadata about the associated argument. The size of the
+``meta_args`` array must correspond to the number of **scalars**, **arrays**
 **fields** and **operators** passed into the Kernel.
 
-.. note:: It makes no sense for a Kernel to have only **scalar** arguments
-          (because the PSy layer will call a Kernel for each point in the
-          spatial domain) and PSyclone will reject such Kernels.
+.. note:: It makes no sense for a Kernel to have only **scalar** or **array**
+          arguments (because the PSy layer will call a Kernel for each point
+          in the spatial domain) and PSyclone will reject such Kernels.
 
-For example, if there are a total of 2 **scalar** / **field** /
+For example, if there are a total of 2 **scalar** / **array** / **field** /
 **operator** entities being passed to the Kernel then the ``meta_args``
 array will be of size 2 and there will be two ``arg_type`` entries::
 
@@ -1082,28 +1103,30 @@ array will be of size 2 and there will be two ``arg_type`` entries::
        /)
 
 Argument metadata (information contained within the brackets of an
-``arg_type`` entry), describes either a **scalar**, a **field** or an
-**operator** (either LMA or CMA).
+``arg_type`` entry), describes either a **scalar**, an **array**, a **field**
+or an **operator** (either LMA or CMA).
 
 The first argument-metadata entry describes whether the data that is
-being passed is for a scalar (``GH_SCALAR``), a field (``GH_FIELD``) or
-an operator (either ``GH_OPERATOR`` for LMA or ``GH_COLUMNWISE_OPERATOR``
-for CMA). This information is mandatory.
+being passed is for a scalar (``GH_SCALAR``), an array (``GH_SCALAR_ARRAY``), a
+field (``GH_FIELD``) or an operator (either ``GH_OPERATOR`` for LMA or
+``GH_COLUMNWISE_OPERATOR`` for CMA). This information is mandatory.
 
 Additionally, argument metadata can be used to describe a vector of
 fields (see the :ref:`lfric-field-vector` section for more
 details).
 
-As an example, the following ``meta_args`` metadata describes 4
-entries, the first is a scalar, the next two are fields and the
-fourth is an operator. The third entry is a field vector of size 3.
+As an example, the following ``meta_args`` metadata describes 5
+entries, the first is a scalar, the second is an array, the next two
+are fields and the fifth is an operator. The fourth entry is a field vector
+of size 3.
 
 ::
 
-  type(arg_type) :: meta_args(4) = (/                                  &
+  type(arg_type) :: meta_args(5) = (/                                  &
        arg_type(GH_SCALAR, GH_REAL, ...),                              &
-       arg_type(GH_FIELD, GH_INTEGER, ... ),                           &
-       arg_type(GH_FIELD*3, GH_REAL, ... ),                            &
+       arg_type(GH_SCALAR_ARRAY, GH_LOGICAL, ...),                     &
+       arg_type(GH_FIELD, GH_INTEGER, ...),                            &
+       arg_type(GH_FIELD*3, GH_REAL, ...),                             &
        arg_type(GH_OPERATOR, GH_REAL, ...)                             &
        /)
 
@@ -1118,7 +1141,7 @@ The third component of argument metadata describes how the Kernel
 makes use of the data being passed into it (the way it is accessed
 within a Kernel). This information is mandatory. There are currently 6
 possible values of this metadata ``GH_READ``, ``GH_WRITE``,
-``GH_READWRITE``, ``GH_INC``, ``GH_READINC`` and ``GH_SUM``. However,
+``GH_READWRITE``, ``GH_INC``, ``GH_READINC`` and ``GH_REDUCTION``. However,
 not all combinations of metadata entries are valid and PSyclone will
 raise an exception if an invalid combination is specified. Valid
 combinations are specified later in this section (see
@@ -1149,19 +1172,20 @@ combinations are specified later in this section (see
   subsequently incremented. Therefore this is equivalent to a
   ``GH_READ`` followed by a ``GH_INC``.
 
-* ``GH_SUM`` is an example of a reduction and is the only reduction
-  currently supported in PSyclone. This metadata indicates that values
-  are summed over calls to Kernel code.
+* ``GH_REDUCTION`` indicates a reduction. Only Built-ins may perform
+  reductions. The type of reduction (sum, maximum value, minimum value)
+  is a property of the particular Built-in.
 
 For example::
 
-  type(arg_type) :: meta_args(6) = (/                            &
-       arg_type(GH_OPERATOR, GH_REAL,    GH_READ,      ... ),    &
-       arg_type(GH_FIELD*3,  GH_REAL,    GH_WRITE,     ... ),    &
-       arg_type(GH_FIELD,    GH_REAL,    GH_READWRITE, ... ),    &
-       arg_type(GH_FIELD,    GH_INTEGER, GH_INC,       ... ),    &
-       arg_type(GH_FIELD,    GH_REAL,    GH_READINC,   ... ),    &
-       arg_type(GH_SCALAR,   GH_REAL,    GH_SUM)                 &
+  type(arg_type) :: meta_args(7) = (/                                &
+       arg_type(GH_OPERATOR,     GH_REAL,    GH_READ,      ... ),    &
+       arg_type(GH_FIELD*3,      GH_REAL,    GH_WRITE,     ... ),    &
+       arg_type(GH_FIELD,        GH_REAL,    GH_READWRITE, ... ),    &
+       arg_type(GH_FIELD,        GH_INTEGER, GH_INC,       ... ),    &
+       arg_type(GH_FIELD,        GH_REAL,    GH_READINC,   ... ),    &
+       arg_type(GH_SCALAR_ARRAY, GH_LOGICAL, GH_READ,      ... ),    &
+       arg_type(GH_SCALAR,       GH_REAL,    GH_REDUCTION)           &
        /)
 
 .. warning:: It is important that ``GH_INC`` is not incorrectly used
@@ -1204,22 +1228,24 @@ For example::
           does not yet support ``integer`` and ``logical`` reductions.
 
 For a scalar, the argument metadata contains only these three entries.
-However, fields and operators require further entries specifying
-function-space information.
-The meaning of these further entries differs depending on whether a
-field or an operator is being described.
+However, fields, operators and scalar arrays require further entries specifying
+function-space information or dimensionality. The meaning of these further
+entries differs depending on whether a field, an operator or a scalar array is
+being described.
 
-In the case of an operator, the fourth and fifth arguments describe
-the ``to`` and ``from`` function spaces respectively. In the case of a
-field the fourth argument specifies the function space that the field
-lives on. More details about the supported function spaces are in
-subsection :ref:`lfric-function-space`.
+In the case of a field the fourth argument specifies the function space that the
+field lives on. In the case of an operator, the fourth and fifth arguments
+describe the ``to`` and ``from`` function spaces respectively. In the case of a
+scalar array, the fourth argument specifies the number of dimensions the array
+has. More details about the supported function spaces are in subsection
+:ref:`lfric-function-space`.
 
 For example, the metadata for a kernel that applies a column-wise
 operator to a field might look like::
 
-  type(arg_type) :: meta_args(3) = (/                              &
+  type(arg_type) :: meta_args(4) = (/                              &
        arg_type(GH_FIELD, GH_REAL, GH_INC, W1),                    &
+       arg_type(GH_SCALAR_ARRAY, GH_INTEGER, GH_READ, 5),          &
        arg_type(GH_FIELD, GH_REAL, GH_READ, W2H),                  &
        arg_type(GH_COLUMNWISE_OPERATOR, GH_REAL, GH_READ, W1, W2H) &
        /)
@@ -1298,6 +1324,8 @@ the :ref:`LFRic fields <lfric-field>`):
 +========================+=================================+
 | GH_SCALAR              | GH_REAL, GH_INTEGER, GH_LOGICAL |
 +------------------------+---------------------------------+
+| GH_SCALAR_ARRAY        | GH_REAL, GH_INTEGER, GH_LOGICAL |
++------------------------+---------------------------------+
 | GH_FIELD               | GH_REAL, GH_INTEGER             |
 +------------------------+---------------------------------+
 | GH_OPERATOR            | GH_REAL                         |
@@ -1313,13 +1341,12 @@ Valid Access Modes
 As mentioned earlier, not all combinations of metadata are
 valid. Valid combinations for each argument type in
 user-defined Kernels are summarised here. All argument types
-(``GH_SCALAR``, ``GH_FIELD``, ``GH_OPERATOR`` and
+(``GH_SCALAR``, ``GH_SCALAR_ARRAY``, ``GH_FIELD``, ``GH_OPERATOR`` and
 ``GH_COLUMNWISE_OPERATOR``) may be read within a Kernel and this
 is specified in metadata using ``GH_READ``. At least one kernel
 argument must be listed as being modified. When data is *modified*
-in a user-supplied Kernel (i.e. a Kernel that operates on a
-``CELL_COLUMN``, see :ref:`iteration space metadata
-<lfric-operates-on>`) then the permitted access
+in a user-supplied Kernel that operates on cell columns (see
+:ref:`iteration space metadata <lfric-operates-on>`) then the permitted access
 modes depend upon the argument type and the function space it is on:
 
 .. tabularcolumns:: |l|l|l|
@@ -1328,6 +1355,8 @@ modes depend upon the argument type and the function space it is on:
 | Argument Type          | Function Space               | Access Type        |
 +========================+==============================+====================+
 | GH_SCALAR              | n/a                          | GH_READ            |
++------------------------+------------------------------+--------------------+
+| GH_SCALAR_ARRAY        | n/a                          | GH_READ            |
 +------------------------+------------------------------+--------------------+
 | GH_FIELD               | Discontinuous                | GH_READ, GH_WRITE, |
 |                        |                              | GH_READWRITE       |
@@ -1344,9 +1373,9 @@ modes depend upon the argument type and the function space it is on:
 
 Note that scalar arguments to user-defined Kernels must be read-only.
 Only :ref:`Built-ins <lfric-built-ins>` are permitted to modify scalar
-arguments. In practice this means that the only allowed access for the scalars
-in user-defined Kernels is ``GH_READ`` (see the allowed accesses for arguments
-in Built-ins in the :ref:`section below <lfric-built-ins-dtype-access>`).
+arguments. In practice this means that the only allowed access for scalar
+arguments in user-defined Kernels is ``GH_READ`` (see the allowed accesses for
+arguments in Built-ins in the :ref:`section below <lfric-built-ins-dtype-access>`).
 
 Note also that a ``GH_FIELD`` argument that has ``GH_WRITE`` or
 ``GH_READWRITE`` as its access pattern must typically (see below) be
@@ -1399,6 +1428,19 @@ checks (when generating the PSy layer) that any kernels which read
 operator values do not do so beyond the level-1 halo. If any such
 accesses are found then PSyclone aborts.
 
+.. _lfric-array-sizes:
+
+Array sizes
+^^^^^^^^^^^
+
+The size of a :ref:`scalar array <lfric-array>` is described by ``<n>``,
+where *n > 0* is the number of Fortran ranks representing the dimension of the
+array, e.g. a logical, scalar array of rank three would be specified as:
+
+::
+
+  arg_type(GH_SCALAR_ARRAY, GH_LOGICAL, GH_READ, 3)
+
 .. _lfric-function-space:
 
 Supported Function Spaces
@@ -1407,7 +1449,7 @@ Supported Function Spaces
 As mentioned in the :ref:`lfric-field` and :ref:`lfric-field-vector`
 sections, the function space of an argument specifies how it maps
 onto the underlying topology and, additionally, whether the data at a
-point is a vector. In LFRic API the dimension of the basis function
+point is a vector. In the LFRic API the dimension of the basis function
 set for the scalar function spaces is 1 and for the vector function spaces
 is 3 (see the table in :ref:`lfric-stub-generation-rules` for the
 dimensions of the basis and differential basis functions).
@@ -1530,7 +1572,7 @@ Since the LFRic API operates on columns of data, function spaces
 are categorised as continuous or discontinuous with regard to their
 **continuity in the horizontal**. For example, a ``GH_FIELD`` that
 specifies ``GH_INC`` as its access pattern (see
-:ref:lfric-kernel-valid-access: above) may be continuous in the vertical
+:ref:`lfric-kernel-valid-access` above) may be continuous in the vertical
 (and discontinuous in the horizontal), continuous in the horizontal
 (and discontinuous in the vertical), or continuous in both. In each
 case the code is the same. This principle of horizontal continuity also
@@ -1593,7 +1635,7 @@ to have stencil accesses, these two options are mutually exclusive.
 The metadata for each case is described in the following sections.
 
 Stencil Metadata
-________________
+""""""""""""""""
 
 
 Stencil metadata specifies that the corresponding field argument is accessed
@@ -1673,8 +1715,7 @@ be found in ``examples/lfric/eg5``.
 .. _lfric-intergrid-mdata:
 
 Inter-Grid Metadata
-___________________
-
+"""""""""""""""""""
 
 The alternative form of the optional fifth metadata argument for a
 field specifies which mesh the associated field is on.  This is
@@ -1703,6 +1744,61 @@ Note that an inter-grid kernel must have at least one field (or field-
 vector) argument on each mesh type. Fields that are on different
 meshes cannot be on the same function space while those on the same
 mesh must also be on the same function space.
+
+
+Number of Layers Metadata
+"""""""""""""""""""""""""
+
+By default, all field/operator kernel arguments on a given function
+space are assumed to have the same number of vertical levels. The
+actual value is obtained at application runtime (by interrogating the
+first such kernel argument) and then passed to the kernel subroutine.
+
+If a particular field/operator kernel argument has a number of vertical
+levels that is *not* the same as the first field/operator argument then
+this must be specified using the ``NLAYERS`` option to ``GH_FIELD``/
+``GH_OPERATOR``. If the value of ``NLAYERS`` is known at compile time
+then it may be an integer literal encoded as a string, e.g. a 2D field
+would be specified as::
+
+  arg_type(GH_FIELD, GH_REAL, GH_READ, W3, NLAYERS="1")
+
+Alternatively, it may be given a name, e.g.::
+
+  arg_type(GH_FIELD, GH_REAL, GH_READ, W3, NLAYERS="some name")
+
+in which case the actual value is obtained at application runtime by
+interrogating the associated LFRic field or operator object. (As a
+consequence, the name used in the metadata does not have to correspond
+to anything in the LFRic infrastructure.)
+
+If two or more field/operator arguments are on the same function space
+and have the same number of layers (whether a literal or a name) then
+only one dofmap is passed to the kernel for those arguments.
+
+
+Multi-Data Metadata
+"""""""""""""""""""
+
+A multi-data field is the same as a standard field apart from having multiple
+values associated with each DoF. (Note that this is not the same as a
+:ref:`field vector <lfric-field-vector>` which corresponds to a set of fields,
+each with a single value at each DoF.) This is indicated in the field metadata
+by the optional ``NDATA`` argument to GH_FIELD, e.g.::
+
+  arg_type(GH_FIELD, GH_REAL, GH_READ, W2, NDATA="4")
+
+The value contained in the string specified for ``NDATA`` may be a literal if
+it is known at compile time. Alternatively, it may be a name in which
+case the number of data values at each DoF is determined at runtime by
+querying the field object (in the generated PSy layer). As with ``NLAYERS``,
+this name is just a label and does not have to correspond to anything in the
+LFRic infrastructure.
+
+Since the data in an LFRic field object is stored as a 1D array, having more
+than one data value associated with each DoF affects the dofmap. This is
+handled by passing the appropriate dofmap to the kernel - see
+:ref:`lfric-stub-generation-rules`.
 
 
 Column-wise Operators (CMA)
@@ -1921,21 +2017,49 @@ is supplied with the specified data for each field/operator argument.
 The possible values for ``OPERATES_ON`` and their interpretation are
 summarised in the following table:
 
-============================== =======================================================
-operates_on                    Data passed for each field/operator argument
-============================== =======================================================
-``cell_column``                Single column of cells from the owned region (except
-                               when performing an INC operation on continuous fields
-			       when it will include one level of halo cells).
-``halo_cell_column``           Single column of cells exclusively from halo region.
-``owned_and_halo_cell_column`` Single column of cells but iteration space will include
-                               both owned and halo regions.
-``dof``                        Single DoF .
-``domain``                     All columns of cells in the (sub-)domain.
-============================== =======================================================
+.. tabularcolumns:: |p{4.5cm}|p{3.0cm}|p{6.5cm}|
 
-(For a description of the concepts of 'owned' and 'halo' cells please see the
-:ref:`lfric-developers`.)
++--------------------------------+--------------------------------------+--------------------------------------------+
+| operates_on                    | Data passed for each field/operator  | Iteration space                            |
+|                                | argument                             |                                            |
++================================+======================================+============================================+
+| ``cell_column``                | Single column of cells.              | Conceptually, all columns in the global    |
+|                                |                                      | mesh. For each MPI                         |
+|                                |                                      | process this will operate on all owned     |
+|                                |                                      | columns and may be extended into the halo  |
+|                                |                                      | to perform redundant computation.          |
++--------------------------------+--------------------------------------+--------------------------------------------+
+| ``owned_cell_column``          | Single column of cells.              | Restricted to owned columns. Prevents      |
+|                                |                                      | extending into the halos to perform        |
+|                                |                                      | redundant computation.                     |
++--------------------------------+--------------------------------------+--------------------------------------------+
+| ``halo_cell_column``           | Single column of cells.              | Restricted to columns from the halo region |
+|                                |                                      | (to a specified depth).                    |
++--------------------------------+--------------------------------------+--------------------------------------------+
+| ``owned_and_halo_cell_column`` | Single column of cells.              | Iteration space must include both owned    |
+|                                |                                      | and halo columns (to a specified depth).   |
++--------------------------------+--------------------------------------+--------------------------------------------+
+| ``dof``                        | Single DoF.                          | Defaults to owned DoFs but may be extended |
+|                                |                                      | to annexed and halo DoFs.                  |
++--------------------------------+--------------------------------------+--------------------------------------------+
+| ``owned_dof``                  | Single DoF.                          | Restricted to owned DoFs only. Prevents    |
+|                                |                                      | extending into the halos to perform        |
+|                                |                                      | redundant computation.                     |
++--------------------------------+--------------------------------------+--------------------------------------------+
+| ``domain``                     | All columns of cells in the (sub-)   | None.                                      |
+|                                | domain.                              |                                            |
++--------------------------------+--------------------------------------+--------------------------------------------+
+
+(For a description of the concepts of 'owned' and 'halo' cells and 'annexed' DoFs
+please see the :ref:`LFRic section <lfric-developers>` of the Developer Guide.)
+
+The ``owned_cell_column`` and ``owned_dof`` values of ``OPERATES_ON`` are intended for
+use only with special cases where the kernel concerned cannot be used to perform
+redundant computation (e.g. when filling a field with pseudo-random numbers without
+regard to cell location). Processing an application that makes use of such a kernel
+requires that the ``COMPUTE_ANNEXED_DOFS`` configuration option (see
+:ref:`lfric-annexed_dofs`) be set to ``False`` as PSyclone can no longer guarantee that
+annexed DoFs are always clean between different ``invoke`` calls.
 
 procedure
 #########
@@ -1972,7 +2096,7 @@ conventions, are:
    is an ``integer`` of kind ``i_def`` and has intent ``in``. PSyclone
    will obtain the value of ``nlayers`` to use for a particular kernel
    from the first field or operator in the argument list.
-3) For each scalar/field/vector_field/operator in the order specified by
+3) For each scalar/field/vector_field/operator/ScalarArray in the order specified by
    the meta_args metadata:
 
    1) If the current entry is a scalar quantity then include the Fortran
@@ -2009,10 +2133,19 @@ conventions, are:
       4) If the field entry stencil access is of type ``XORY1D`` then
          add an additional ``integer`` direction argument of kind
          ``i_def`` and with intent ``in``.
-
+      5) If the field is multi-data and the value of ``NDATA`` is unknown
+         (i.e. it is specified in the metadata using a label)
+         then add an additional ``integer``, scalar argument of kind ``i_def``
+         and intent ``in``. If the ``NDATA`` value is common to more than one
+         kernel argument, it is only added for the first such argument.
+      6) If the field has an unknown (i.e. specified in the metadata using a
+         label), custom number of vertical levels then pass this as an
+         additional ``integer``, scalar argument of kind ``i_def`` and
+         intent ``in``. If the number of vertical levels is common to more than
+         one kernel argument, it is only added for the first such argument.
    3) If the current entry is a field vector then for each dimension
       of the vector, include a field array. The field array name is
-      specified as being using
+      specified as
       ``"field_"<argument_position>"_"<field_function_space>"_v"<vector_position>``.
       A field array in a field vector is declared in the same way as a
       field array (described in the previous step).
@@ -2027,22 +2160,34 @@ conventions, are:
       freedom for the ``to`` and ``from`` function spaces,
       respectively. Again the intent is determined
       from the metadata (see :ref:`lfric-api-meta-args`).
+   5) If the current entry is a ScalarArray then first include a rank-1
+      ``integer`` array of kind ``i_def`` and size ``nranks_<array_name>``
+      containing the upper bounds for each rank, ``dims_<array_name>``
+      (the lower bound is assumed to be 1 as this is how Fortran passes
+      array slices to subroutines by default). Then pass the array of
+      the data type and kind specified in the metadata. The ScalarArray
+      must be denoted with intent ``in`` to match its read-only nature.
 
-4) For each function space in the order they appear in the metadata arguments
-   (the ``to`` function space of an operator is considered to be before the
-   ``from`` function space of the same operator as it appears first in
-   lexicographic order)
+4) DoF maps for function spaces are handled in the order they appear in the
+   metadata arguments (the ``to`` function space of an operator is considered
+   to be before the ``from`` function space of the same operator as it appears
+   first in lexicographic order). Note that if two fields on a given function
+   space have differing ``NLAYERS`` and/or ``NDATA`` values,
+   then each requires that a dofmap be supplied (because both the number of
+   vertical layers *and* the number of data values per DoF alter the
+   *values* within the map). For each required DoF map:
 
    1) Include the number of local degrees of freedom (i.e. number per-cell)
       for the function space. This is an ``integer`` of kind ``i_def`` and
       has intent ``in``. The name of this argument is
       ``"ndf_"<field_function_space>``.
+
    2) If there is a field on this space
 
       1) Include the unique number of degrees of freedom for the function
          space. This is an ``integer`` of kind ``i_def`` and has intent ``in``.
          The name of this argument is ``"undf_"<field_function_space>``.
-      2) Include the **dofmap** for this function space. This is an ``integer``
+      2) Include the **dofmap** itself. This is an ``integer``
          array of kind ``i_def`` with intent ``in``. It has one dimension
          sized by the local degrees of freedom for the function space.
 
@@ -2365,8 +2510,9 @@ dofmap for both the to- and from-function spaces of the CMA
 operator. Since it does not have any LMA operator arguments it does
 not require the ``ncell_3d`` and ``nlayers`` scalar arguments. (Since a
 column-wise operator is, by definition, assembled for a whole column,
-there is no loop over levels when applying it.)
-The full set of rules is then:
+there is no loop over levels when applying it.) Note that fields with
+non-standard ``nlayers`` or ``ndata > 1`` cannot be supplied as
+arguments to CMA kernels. The full set of rules is:
 
 1) Include the ``cell`` argument. ``cell`` is an ``integer`` of kind
    ``i_def`` and has intent ``in``.
@@ -2498,15 +2644,49 @@ arguments to inter-grid kernels are as follows:
 Rules for Domain Kernels
 ########################
 
-The rules for kernels that have ``operates_on = DOMAIN`` are almost
-identical to those for general-purpose kernels (described :ref:`above
-<lfric-stub-generation-rules>`), allowing for the fact that they
-are not permitted any type of operator argument or any argument with a
-stencil access. The only difference is that, since the kernel operates
+The rules for kernels that have ``operates_on = DOMAIN`` are very
+similar to those for general-purpose kernels (described :ref:`above
+<lfric-stub-generation-rules>`), allowing for the fact that they are
+not permitted any type of operator argument. Since the kernel operates
 on the whole domain, the number of columns in the mesh excluding those
-in the halo (``ncell_2d_no_halos``), must be passed in. This is provided
-as the second argument to the kernel (after ``nlayers``).
-``ncell_2d_no_halos`` is an ``integer`` of kind ``i_def`` with intent ``in``.
+in the halo (``ncell_2d_no_halos``), must be passed in. This is
+provided as the second argument to the kernel (after
+``nlayers``). ``ncell_2d_no_halos`` is an ``integer`` of kind
+``i_def`` with intent ``in``.
+
+Domain kernels require stencil information for every cell in the local
+domain. Therefore, for each field with stencil metadata, the
+kernel interface includes the following arguments:
+
+1) A stencil-size array of ``integer(kind=i_def)`` with intent ``in``:
+
+   * for stencils other than ``CROSS2D``, its shape is
+     ``(ncell_2d_no_halos)``;
+   * for a ``CROSS2D`` stencil, its shape is
+     ``(4, ncell_2d_no_halos)``, with the first dimension ordered West,
+     South, East, North.
+
+   Each entry gives the number of stencil cells for the corresponding
+   cell in the domain. For ``CROSS2D``, it gives the number of cells in
+   each branch.
+
+2) For ``CROSS2D``, an ``integer(kind=i_def)`` maximum-branch-length
+   argument with intent ``in``. This is required because branch lengths
+   may vary on planar meshes.
+
+3) A stencil-dofmap array of ``integer(kind=i_def)`` with intent ``in``:
+
+   * for stencils other than ``CROSS2D``, its shape is
+     ``(number-of-dofs-in-cell, stencil-size, ncell_2d_no_halos)``;
+   * for ``CROSS2D``, its shape is
+     ``(number-of-dofs-in-cell, max-branch-length, 4,
+     ncell_2d_no_halos)``.
+
+4) For an ``XORY1D`` stencil, an additional
+   ``integer(kind=i_def)`` direction argument with intent ``in``.
+
+LFRic example ``eg5`` in the ``examples/lfric`` directory includes an invocation
+of a Domain kernel which has arguments with stencil accesses.
 
 Rules for DoF Kernels
 #####################
@@ -2581,11 +2761,9 @@ Kernel type name:
 Subroutine name:
     ``<base_name>_code``
 
-The latest version of the LFRic coding style guidelines are available in this
-`LFRic wiki page
-<https://code.metoffice.gov.uk/trac/lfric/wiki/LFRicTechnical/FortranCodingStandards>`_
-(requires login access to MOSRS, see the above :ref:`introduction <lfric-api>`
-to the LFRic API).
+The latest version of the LFRic coding style guidelines are available in the
+`LFRic github pages
+<https://metoffice.github.io/lfric_core/how_to_contribute/coding_standards/fortran_coding_standards.html>`_.
 
 .. _lfric-built-ins:
 
@@ -2719,7 +2897,8 @@ are listed in the table below.
 +===============+=====================+================+====================+
 | GH_SCALAR     | GH_INTEGER          | n/a            | GH_READ            |
 +---------------+---------------------+----------------+--------------------+
-| GH_SCALAR     | GH_REAL             | n/a            | GH_READ, GH_SUM    |
+| GH_SCALAR     | GH_REAL             | n/a            | GH_READ,           |
+|               |                     |                | GH_REDUCTION       |
 +---------------+---------------------+----------------+--------------------+
 | GH_FIELD      | GH_REAL, GH_INTEGER | ANY_SPACE_<n>  | GH_READ, GH_WRITE, |
 |               |                     |                | GH_READWRITE       |
@@ -2791,6 +2970,31 @@ scheme presented below. Any new Built-in needs to comply with these rules.
    3) Common prefix is ``"LFRic"`` for the Built-in operations on the
       ``real``-valued arguments and ``"LFRicInt"`` for the Built-in
       operations on the ``integer``-valued fields.
+
+Querying Built-in Operations
+++++++++++++++++++++++++++++
+
+Within a Python script, the (lowercase) names of all available
+Built-ins in the LFRIc API can be queried using the ``BUILTIN_MAP``
+dictionary object from the ``psyclone.domain.lfric.lfric_builtins``
+module.
+
+Example code:
+
+.. highlight:: python
+.. testcode::
+
+    from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
+    
+    kernel_name = "setval_x"    # example only
+    if kernel_name.lower() in BUILTIN_MAP:
+        print(f"Name '{kernel_name}' is a Built-in kernel.")
+    else:
+        print(f"Name '{kernel_name}' is not a Built-in.")
+
+.. testoutput::
+
+  Name 'setval_x' is a Built-in kernel.
 
 .. _lfric-built-ins-real:
 
@@ -3201,6 +3405,12 @@ pseudo-random numbers in the interval ``0 <= x < 1``::
 where ``RAND()`` is some function that returns a new pseudo-random number
 each time it is called.
 
+Due to different parallel elements using independent random-number generator
+streams, this built-in has ``OPERATES_ON=owned_dof``. This will prevent
+optimisations such as redundant computation (including the global
+``COMPUTE_ANNEXED_DOFS`` option).
+
+
 .. warning:: This Built-in is implemented using the Fortran ``random_number``
 	     intrinsic. Therefore no guarantee is made as to the quality of
 	     the sequence of pseudo-random numbers, especially when running
@@ -3370,6 +3580,30 @@ Returns minimum of *rscalar* and each element of the field *field* in
 the same field (``X = min(a, X)``)::
 
   field(:) = MIN(rscalar, field(:))
+
+Global minimum and maximum field-element values
+###############################################
+
+Built-ins which scan through all elements of a field and return its
+maximum or minimum value.
+
+minval_X
+^^^^^^^^
+
+**minval_X** (*rscalar*, **field**)
+
+Returns the minimum value held in the field *field*::
+
+  rscalar = MINVAL(field(:))
+
+maxval_X
+^^^^^^^^
+
+**maxval_X** (*rscalar*, **field**)
+
+Returns the maximum value held in the field *field*::
+
+  rscalar = MAXVAL(field(:))
 
 Conversion of ``real`` field elements
 #####################################
@@ -3835,7 +4069,16 @@ Run-time Checks
 PSyclone performs static consistency checks where possible. When this
 is not possible PSyclone can generate run-time checks. As there may be
 performance costs associated with run-time checks they may be switched
-on or off by the `RUN_TIME_CHECKS` option in the configuration file.
+on or off by the `RUN_TIME_CHECKS` option in the configuration file
+(or by using the ``--config-opts`` command line option to overwrite
+the setting in the configuration file). The value of `RUN_TIME_CHECKS`
+must be one of:
+
+- `none` No runtime checks will be added (default)
+- `warn` Runtime checks will be added, and violations will cause a warning
+  message to be logged.
+- `error` Runtime checks will be added, and violations will cause an error
+  message to be logged. The application will then abort.
 
 Currently run-time checks can be generated to:
 
@@ -3896,7 +4139,7 @@ Precision Map
 
 This gives the amount of storage (in bytes) associated with a
 particular LFRic precision. The values for 'r_tran', 'r_solver',
-'r_def', 'r_bl' and 'r_phys' are set within LFRic infrastructure
+'r_def', and 'r_bl' are set within LFRic infrastructure
 according to CPP ifdefs. The values given in the configuration file
 are the defaults. 'l_def' is included in the dictionary so that it
 contains a complete record of the various precision symbols used in
@@ -3971,10 +4214,9 @@ LFRic API. This is because the properties that it makes constant
 are API specific.
 
 The LFRic API-specific transformations currently available
-are given below. Early transformations include "Dynamo0p3" or "Dynamo"
-in their name to indicate that these transformations are only valid
-for this particular API. More recent transformations typically include
-"LFRic" in their name to indicate the same restriction. However, more
+are given below. These transformations typically include "LFRic" in 
+their name to indicate that these transformations are only valid
+for this particular API. However, more
 importantly, transformations that are specific to LFRic reside in the
 LFRic-specific "psyclone.domain/lfric/transformations"
 directory. Note, the early LFRic API-specific
@@ -4009,6 +4251,10 @@ transformations have not yet been migrated to this directory.
     :members:
     :noindex:
 
+.. autoclass:: psyclone.domain.lfric.transformations.LFRicColourAndOMPTrans
+    :members:
+    :noindex:
+
 .. autoclass:: psyclone.transformations.LFRicKernelConstTrans
     :members:
     :noindex:
@@ -4017,7 +4263,7 @@ transformations have not yet been migrated to this directory.
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.LFRicRedundantComputationTrans
+.. autoclass:: psyclone.domain.lfric.transformations.LFRicRedundantComputationTrans
     :members:
     :noindex:
 

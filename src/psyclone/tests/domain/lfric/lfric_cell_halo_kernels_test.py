@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2024-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
 
 
 ''' This module contains pytest tests for LFRic kernels which operate on
@@ -256,6 +228,50 @@ ndf_w2, undf_w2, map_w2(:,cell))
         # be called.
         assert "call testkern_halo_and_owned_code(nlayers_f1, a" in code
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_psy_gen_halo_kernel_with_stencil(dist_mem, tmpdir):
+    '''
+    Test that the correct kernel and set-clean/dirty calls are generated for
+    kernels that operate on owned and halo cells for a field on a discontinuous
+    function space with a stencil access.
+
+    '''
+    psy, _ = get_invoke("1.4.5_into_halos_with_stencil_invoke.f90",
+                        TEST_API, dist_mem=dist_mem, idx=0)
+    code = str(psy.gen).lower()
+    if dist_mem:
+        assert "loop2_start = 1" in code
+        assert "loop2_stop = mesh%get_last_halo_cell(hdepth)" in code
+        # Field with stencil access must be clean out to
+        # MAX(halo-depth, stencil-depth). (Note that this is not
+        # halo-depth + stencil-depth as might be expected because this is a
+        # 'halo' kernel - TODO #2781). In this case, there is a subsequent
+        # kernel which loops out to a halo depth of other_depth and therefore
+        # the condition is MAX(2, other_depth, hdepth, stdepth).
+        assert '''\
+    if (m1_proxy%is_dirty(depth=max(1, hdepth, other_depth, stdepth))) then
+      call m1_proxy%halo_exchange(depth=max(1, hdepth, other_depth, stdepth))
+    end if''' in code
+        assert '''\
+    do cell = loop2_start, loop2_stop, 1
+      call testkern_halo_and_owned_stencil_code(nlayers_f1, a, f1_data, \
+f2_data, m1_data, m1_stencil_size(cell), m1_stencil_dofmap(:,:,cell), \
+m2_data, ndf_w3, undf_w3, map_w3(:,cell), ndf_w2, undf_w2, map_w2(:,cell))
+    enddo
+
+    ! set halos dirty/clean for fields modified in the above loop(s)
+    call f1_proxy%set_dirty()
+    call f1_proxy%set_clean(hdepth)''' in code
+    else:
+        assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
+        # => no halos so no need to call a kernel which only operates on
+        #    halo cells.
+        assert "call testkern_halo_only_code(" not in code
+        # However, a kernel that operates on owned *and* halo cells must still
+        # be called.
+        assert "call testkern_halo_and_owned_code(nlayers_f1, a" in code
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 

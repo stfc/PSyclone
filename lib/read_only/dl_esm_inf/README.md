@@ -1,7 +1,7 @@
 # Read-only Verification Library for GOcean
 
 This library implements the [PSyData API](
-https://psyclone.readthedocs.io/en/latest/psy_data.html#read-only-verification-library-for-gocean)
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html#read-only-verification-library-for-gocean)
 to verify that variables declared read-only are not modified (overwritten) in
 a kernel call for an application using the [``dl_esm_inf`` library](
 https://github.com/stfc/dl_esm_inf).
@@ -12,10 +12,10 @@ https://github.com/stfc/PSyclone/tree/master/examples/gocean/eg5/readonly).
 ## Dependencies
 
 This library uses the [PSyData API](
-https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface
+https://psyclone.readthedocs.io/en/latest/user_guide/psy_data.html) to interface
 with the application. The following dependencies must be available:
 
-- The [GOcean](https://psyclone.readthedocs.io/en/latest/gocean1p0.html)
+- The [GOcean](https://psyclone.readthedocs.io/en/latest/user_guide/gocean1p0.html)
   infrastructure library ``dl_esm_inf``. A stable version of this is included
   in the PSyclone repository as a Git submodule (see ["Installation"](
   https://psyclone.readthedocs.io/en/latest/developer_guide/working_practises.html#dev-installation)
@@ -60,7 +60,7 @@ The ``Makefile`` will compile the ``dl_esm_inf`` infrastructure library,
 ``lib_fd.a``, if required, with the previously selected compiler flags.
 
 Similar to compilation of the [examples](
-https://psyclone.readthedocs.io/en/latest/tutorials_and_examples.html#compilation), the
+https://psyclone.readthedocs.io/en/latest/tutorials_and_examples/examples_intro.html#compilation), the
 compiled wrapper library can be removed by running ``make clean``. To also
 remove the compiled infrastructure library it is necessary to run
 ``make allclean`` (this is especially important if changing compilers
@@ -76,45 +76,3 @@ For instance:
 $(F90)  ... -L$(PSYDATA_LIB_DIR)/read_only/dl_esm_inf -l_read_only \
         -L$(GOCEAN_INF_DIR) -l_fd
 ```
-
-<!--
-## Licence
-
--------------------------------------------------------------------------------
-
-BSD 3-Clause License
-
-Copyright (c) 2020-2025, Science and Technology Facilities Council.
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-* Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-
-* Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-
-* Neither the name of the copyright holder nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
--------------------------------------------------------------------------------
-Authors: J. Henrichs, Bureau of Meteorology,
-         I. Kavcic, Met Office
--->

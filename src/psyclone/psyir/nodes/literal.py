@@ -1,49 +1,20 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-#         I. Kavcic, Met Office
-#         J. Henrichs, Bureau of Meteorology
-# Modified A. B. G. Chalk, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module contains the Literal node implementation.'''
 
 import re
 
-from psyclone.core import AccessType, Signature, VariablesAccessMap
+from typing import Union
+
+from psyclone.core import VariablesAccessMap, Signature, AccessType
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.symbols import ScalarType, Symbol, ArrayType
+from psyclone.psyir.symbols.symbol import Symbol
+from psyclone.psyir.symbols.datatypes import ScalarType, ArrayType
 
 
 class Literal(DataNode):
@@ -171,18 +142,29 @@ class Literal(DataNode):
         return (f"{self.coloured_name(colour)}"
                 f"[value:'{self._value}', {self.datatype}]")
 
+    def get_all_accessed_symbols(self) -> set[Symbol]:
+        '''
+        :returns: a set of all the symbols accessed inside this Literal.
+        '''
+        symbols = super().get_all_accessed_symbols()
+        if isinstance(self.datatype.precision, DataNode):
+            symbols.update(self.datatype.get_all_accessed_symbols())
+        return symbols
+
     def reference_accesses(self) -> VariablesAccessMap:
         '''
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
-            structure acccessors) and the values are SingleVariableAccessInfo
+            structure accessors) and the values are AccessSequence
             (a sequence of AccessTypes).
 
         '''
         access_info = VariablesAccessMap()
-        if isinstance(self.datatype.precision, Symbol):
-            access_info.add_access(Signature(self.datatype.precision.name),
-                                   AccessType.TYPE_INFO, self)
+        if isinstance(self.datatype.precision, DataNode):
+            precision_symbols = self.datatype.get_all_accessed_symbols()
+            for symbol in precision_symbols:
+                access_info.add_access(
+                    Signature(symbol.name), AccessType.CONSTANT, self)
         return access_info
 
     def replace_symbols_using(self, table_or_symbol):
@@ -200,6 +182,25 @@ class Literal(DataNode):
         '''
         self.datatype.replace_symbols_using(table_or_symbol)
         super().replace_symbols_using(table_or_symbol)
+
+    @property
+    def value_as_python(self) -> Union[str, bool, int, float]:
+        '''
+        .. warning::
+            value_as_python doesn't attempt to preserve the precision
+            of the Literal, merely gives a python representation of
+            the value of the Literal object.
+
+        :returns: the python representation of this Literal.
+        '''
+        if self.datatype.intrinsic == ScalarType.Intrinsic.INTEGER:
+            return int(self.value)
+        if self.datatype.intrinsic == ScalarType.Intrinsic.REAL:
+            return float(self.value)
+        if self.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
+            return self.value == "true"
+        if self.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+            return self.value
 
 
 # For AutoAPI documentation generation

@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' This module contains tests for the the various utility functions in
 tests/utilities.py.'''
@@ -41,12 +12,17 @@ import os
 
 import pytest
 
+from fparser.one.block_statements import Program
+
 from psyclone.parse.algorithm import parse
+from psyclone.parse.module_manager import ModuleManager
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.utilities import (
-    change_dir, count_lines, Compile, CompileError, get_invoke,
-    get_infrastructure_path, line_number, print_diffs)
+    change_dir, check_links, count_lines, Compile, CompileError, get_ast,
+    get_base_path, get_infrastructure_path, get_invoke, line_number,
+    make_external_module, print_diffs)
 
 
 HELLO_CODE = '''
@@ -104,7 +80,7 @@ def test_compiler_works(monkeypatch):
     example.'''
 
     _compile = Compile("/some-random-dir")
-    assert _compile.base_path is None
+    assert _compile.base_path == ""
     assert _compile._tmpdir == "/some-random-dir"
     _compile.base_path = "/tmp"
     assert _compile.base_path == "/tmp"
@@ -143,9 +119,9 @@ def test_compiler_with_flags(monkeypatch):
     we pass something that is definitely not a flag and check that
     the compiler complains. This test is skipped if no compilation
     tests have been requested (--compile flag to py.test). '''
-    if not Compile.TEST_COMPILE:
-        # If compilation is disable, use '/usr/bin/true' as 'compile'
-        # to cover more lines:
+    if not Compile.TEST_COMPILE or Compile.F90 == "ifx":
+        # If compilation is disabled, or the compiler is ifx
+        # use '/usr/bin/true' as 'compile' to cover more lines:
         monkeypatch.setattr(Compile, "TEST_COMPILE", True)
         monkeypatch.setattr(Compile, "F90", "false")
 
@@ -329,8 +305,7 @@ def test_get_invoke():
     with pytest.raises(ValueError) as excinfo:
         get_invoke("test11_different_iterates_over_one_invoke.f90",
                    "invalid-api", name="invalid_name")
-    assert "'invalid-api' is not a valid API," in str(excinfo.value)
-    # assert "The API 'invalid-api' is not supported" in str(excinfo.value)
+    assert "'invalid-api' is not supported" in str(excinfo.value)
 
     # Test that invalid parameter combinations raise an exception:
     with pytest.raises(RuntimeError) as excinfo:
@@ -357,13 +332,33 @@ def test_change_directory():
 
     with change_dir("/tmp"):
         tmp_dir = os.getcwd()
-        assert tmp_dir == "/tmp"
+        # on MacOS the temporary directory is /private/tmp
+        assert tmp_dir.endswith("/tmp")
 
     assert os.getcwd() == old_dir
 
 
+# -----------------------------------------------------------------------------
+def test_get_base_path() -> None:
+    """
+    Tests get_base_path.
+    """
+    gocean = get_base_path("gocean")
+    assert "tests/test_files/gocean1p0" in gocean
+    lfric = get_base_path("lfric")
+    assert "tests/test_files/lfric" in lfric
+    nemo = get_base_path()
+    assert "nemo/test_files" in nemo
+
+    with pytest.raises(ValueError) as err:
+        _ = get_base_path("INVALID")
+    assert "The API 'INVALID' is not supported" in str(err.value)
+
+
+# -----------------------------------------------------------------------------
 def test_get_infrastructure_path():
-    '''Tests the get_infrastructure_path() method.'''
+    '''Tests the get_infrastructure_path() function.
+    '''
     result = get_infrastructure_path("gocean")
     assert "dl_esm_inf" in result
     result = get_infrastructure_path("lfric")
@@ -371,3 +366,78 @@ def test_get_infrastructure_path():
     with pytest.raises(RuntimeError) as err:
         _ = get_infrastructure_path("wrong")
     assert "API 'wrong' is not supported" in str(err.value)
+
+
+# -----------------------------------------------------------------------------
+def test_get_ast():
+    """Tests the get_ast function.
+    """
+    ast = get_ast("lfric", "19.12_single_stencil_region.f90")
+    program = ast.content[7]  # 0:6 are comments
+    assert isinstance(program, Program)
+    assert program.name == "single_stencil_region"
+
+
+# -----------------------------------------------------------------------------
+def test_check_links():
+    """Test the check_links function.
+    """
+
+    class MyNode(Node):
+        '''Dummy class which implements a validate_child method
+        that allows it to be nested with anything (esp. itself).'''
+        def __init__(self):
+            super().__init__(MyNode._validate_child)
+
+        @staticmethod
+        def _validate_child(position, child):
+            return True
+
+    parent = MyNode()
+    child1 = MyNode()
+    child2 = MyNode()
+    check_links(parent, [])
+    parent.addchild(child1)
+    check_links(parent, [child1])
+
+    # Note that an assert does not add any message that could be tested
+    # (not even when `assert condition, message` syntax is used).
+    # Error one: different number of elements:
+    with pytest.raises(AssertionError):
+        check_links(parent, [child1, child2])
+
+    # Error two: a child has not the parent as parent:
+    with pytest.raises(AssertionError):
+        check_links(parent, [child2])
+
+    # Error three: incorrect ordering
+    parent.addchild(child2)
+    with pytest.raises(AssertionError):
+        check_links(parent, [child2, child1])
+
+
+# -----------------------------------------------------------------------------
+def test_make_external_module(monkeypatch, fortran_reader):
+    """Test the make_external_module function.
+    """
+    code = """subroutine sub()
+    end subroutine sub
+    """
+    # Trying to avoid a file not found error, likely caused by temporary
+    # created files that make it into the module manager. Making sure
+    # we get a clean copy here:
+    ModuleManager._instance = None
+
+    mod_man = ModuleManager.get()
+
+    # Make sure that the module is initially missing.
+    with pytest.raises(FileNotFoundError) as err:
+        mod_info = mod_man.get_module_info("test_module")
+    assert ("Could not find source file for module 'test_module'"
+            in str(err.value))
+
+    # Create the temporary module
+    make_external_module(monkeypatch, fortran_reader,
+                         "test_module", code)
+    mod_info = mod_man.get_module_info("test_module")
+    assert mod_info.name == "test_module"

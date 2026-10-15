@@ -1,40 +1,9 @@
 .. -----------------------------------------------------------------------------
-.. BSD 3-Clause License
-..
-.. Copyright (c) 2019-2025, Science and Technology Facilities Council.
-.. All rights reserved.
-..
-.. Redistribution and use in source and binary forms, with or without
-.. modification, are permitted provided that the following conditions are met:
-..
-.. * Redistributions of source code must retain the above copyright notice, this
-..   list of conditions and the following disclaimer.
-..
-.. * Redistributions in binary form must reproduce the above copyright notice,
-..   this list of conditions and the following disclaimer in the documentation
-..   and/or other materials provided with the distribution.
-..
-.. * Neither the name of the copyright holder nor the names of its
-..   contributors may be used to endorse or promote products derived from
-..   this software without specific prior written permission.
-..
-.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-.. POSSIBILITY OF SUCH DAMAGE.
+.. SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+..                         Facilities Council
+.. SPDX-License-Identifier: BSD-3-Clause
+.. See the full LICENSE file in the project root for details.
 .. -----------------------------------------------------------------------------
-.. Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-..          A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
-..          J. Henrichs, Bureau of Meteorology
-..          L. Turner, Met Office
 
 
 The PSyclone Intermediate Representation (PSyIR)
@@ -159,7 +128,7 @@ child, we would write something like:
 
     .. literalinclude:: code_snippets/newnode.py
         :language: python
-        :lines: 47-60
+        :lines: 19-32
 
 This implementation already provides the basic PSyIR functionality and the
 node can be integrated and used in the PSyIR tree:
@@ -167,10 +136,10 @@ node can be integrated and used in the PSyIR tree:
 ::
 
     >>> from psyclone.psyir.nodes import Literal, Schedule
-    >>> from psyclone.psyir.symbols import INTEGER_TYPE
+    >>> from psyclone.psyir.symbols import ScalarType
     >>> from code_snippets.newnode import MyNode
-    >>> mynode = MyNode(children=[Literal("1", INTEGER_TYPE)])
-    >>> mynode.children.append(Literal("2", INTEGER_TYPE))
+    >>> mynode = MyNode(children=[Literal("1", ScalarType.integer_type())])
+    >>> mynode.children.append(Literal("2", ScalarType.integer_type()))
     Traceback (most recent call last):
        ...
     psyclone.errors.GenerationError: Generation Error: Item 'Literal' can't be child 1 of 'MyNodeName'. The valid format is: 'DataNode'.
@@ -552,14 +521,12 @@ Data Type of an Operation Node
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Table 7.2 of the Fortran2008 standard specifies the rules governing
-the types of operands and their results. The PSyIR follows these rules
-with the exception that there is no support for symbols of complex
-(imaginary) type (see
-`#1590 <https://github.com/stfc/PSyclone/issues/1590>`_). For unary operations,
+the types of operands and their results. The PSyIR follows these rules.
+For unary operations,
 the type of the result is just that of the operand.  For a numeric,
-binary operation, these rules boil down to saying that if either argument
-is real then the result is real but if both arguments are integer then the
-result is integer. 
+binary operation, these rules boil down to saying that the result type
+is equal to the "maximum" type of the arguments under the ordering
+complex > real > integer.
 
 If the precisions of the operands are the same, then the result must
 also be of that precision. Otherwise, Section 7.1.9.3 of the Fortran2008
@@ -594,6 +561,18 @@ available PSyIR `IntrinsicCall` match those of the `Fortran 2018 standard
 In addition to Fortran Intrinsics, special Fortran statements such as:
 `ALLOCATE`, `DEALLOCATE` and `NULLIFY` are also PSyIR IntrinsicCalls.
 
+``IntrinsicCall`` nodes have a ``compute_argument_names`` function, that is used
+within PSyclone during their creation (via the ``IntrinsicCall.create``
+function). This attempts to match the Intrinsic and input arguments to
+one of the interfaces for the intrinsic (as some intrinsics have multiple
+possible argument interfaces). If successful, PSyclone
+will convert all of the arguments to be named arguments. If argument name computation
+fails, then PSyclone will create a ``CodeBlock``. This computation is
+required to guarantee correct behaviour when computing reference_accesses
+or the return type of an Intrinsic. The computation of argument names may change
+the output of the intrinsic - optional arguments will always have their argument
+names displayed in the Fortran output, whilst required argument names are
+not generated by default.
 
 IntrinsicCalls, like Calls, have properties to inform if the call is to a
 pure, elemental, inquiry (does not touch the first argument data) function
@@ -953,7 +932,7 @@ PSy-layer concepts
   are the singular units of computation that can be found inside a
   `PSyLoop`.
 * The `HaloExchange` is a distributed-memory concept in the PSy-layer.
-* The `GlobalSum` is a distributed-memory concept in the PSy-layer.
+* The `GlobalReduction` is a distributed-memory concept in the PSy-layer.
 
 
 Other specializations
@@ -961,7 +940,7 @@ Other specializations
 
 In LFRic there are specialisations for
 kernel-layer datatypes and symbols. For the algorithm layer in both
-GOcean1.0 and LFRic there are specialisations for invokes and kernel
+GOcean and LFRic there are specialisations for invokes and kernel
 calls. This is discussed further in the following sections.
 
 The LFRic PSyIR

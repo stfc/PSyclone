@@ -1,53 +1,15 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified: I. Kavcic, L. Turner, O. Brunt and J. G. Wallwork, Met Office
-# Modified: A. B. G. Chalk, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the psyGen module '''
 
 
-# internal classes requiring tests
-# PSy, Invokes, Invoke, Kern, Argumen1ts, Argument, KernelArgument
-
-# user classes requiring tests
-# PSyFactory, TransInfo, Transformation
 import os
-import sys
 import logging
-from unittest.mock import patch
 import warnings
 
 import pytest
@@ -55,37 +17,36 @@ import pytest
 from fparser import api as fpapi
 from fparser.two import Fortran2003
 
+from psyclone import transformations
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.domain.lfric import (lfric_builtins, LFRicInvokeSchedule,
+from psyclone.domain.lfric import (lfric_builtins,
+                                   LFRicInvokeSchedule,
                                    LFRicKern, LFRicKernMetadata)
-from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.lfric import LFRicGlobalSum, LFRicKernelArguments
+from psyclone.domain.lfric.transformations import (
+    LFRicLoopFuseTrans, LFRicRedundantComputationTrans)
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.generator import generate
 from psyclone.gocean1p0 import GOKern
 from psyclone.parse.algorithm import parse, InvokeCall
-from psyclone.psyGen import (TransInfo, Transformation, PSyFactory,
+from psyclone.psyGen import (TransInfo, PSyFactory,
                              InlinedKern, object_index, HaloExchange, Invoke,
                              DataAccess, Kern, Arguments, CodedKern, Argument,
-                             GlobalSum, InvokeSchedule)
+                             InvokeSchedule)
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
                                   Literal, Loop, Node, KernelSchedule, Call,
-                                  colored, Schedule)
-from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, REAL_TYPE,
-                                    ImportInterface, ContainerSymbol, Symbol,
-                                    INTEGER_TYPE, UnresolvedType, SymbolTable)
+                                  Reference, Schedule)
+from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, ScalarType,
+                                    ImportInterface, ContainerSymbol,
+                                    UnresolvedType, SymbolTable)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.test_files import dummy_transformations
 from psyclone.tests.test_files.dummy_transformations import LocalTransformation
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import (LFRicRedundantComputationTrans,
-                                      LFRicKernelConstTrans,
-                                      LFRicColourTrans,
-                                      LFRicOMPLoopTrans,
-                                      OMPParallelTrans)
-from psyclone.psyir.backend.visitor import VisitorError
+from psyclone.transformations import (LFRicColourTrans,
+                                      Transformation)
+from psyclone.utils import colored
 
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -182,6 +143,7 @@ def test_transformation_init_name():
         transformation methods.
 
         '''
+
         def apply(self, _1):
             '''Dummy apply method to ensure this transformation is not
             abstract.'''
@@ -194,10 +156,11 @@ def test_transformation_get_options():
     ''' Test that the get_option method behaves in the
     expected way.'''
     class TestTrans(Transformation):
-        '''Utilty transformation to test methods of the abstract
+        '''Utility transformation to test methods of the abstract
         Transformation class.'''
+
         def apply(self, node, valid: bool = True):
-            pass  # pragma: no cover
+            ...
     trans = TestTrans()
     assert trans.get_option("valid", valid=True)
 
@@ -206,12 +169,146 @@ def test_transformation_get_options():
     assert ("option 'invalid' is not a valid option for 'TestTrans'. "
             "Valid options are '['valid']." in str(excinfo.value))
 
+    # Test that we allow _SUB_TRANSFORMATIONS_OPTIONS
+
+    class TestTrans2(Transformation):
+        '''Utility transformation to test methods of the abstract
+        Transformation class with _SUB_TRANSFORMATIONS.'''
+        _SUB_TRANSFORMATIONS = [TestTrans]
+
+        def apply(self, node, **kwargs):
+            ...
+
+    trans = TestTrans2()
+    # Check that we allow the fetching of the TestTrans option.
+    assert trans.get_option("valid", valid=True)
+
+    # Test that we use current transformations default value
+    # over an inherited value.
+    class TestTrans3(Transformation):
+        '''Utility transformation to test methods of the abstract
+        Transformation class with _SUB_TRANSFORMATIONS.'''
+        _SUB_TRANSFORMATIONS = [TestTrans]
+
+        def apply(self, node, valid=False, **kwargs):
+            ...
+    opts = {}
+    trans = TestTrans3()
+    # Check that we get the default False for the valid option.
+    assert not trans.get_option("valid", **opts)
+
+
+def test_transformation_split_kwargs():
+    ''' Test that the kwargs can be split when they can be propagated to
+    multiple sub-transformations. '''
+
+    class Called1Trans(Transformation):
+        ''' Transformation Example'''
+        def apply(
+            self,
+            node,
+            test_option: bool = True,
+            common_option: bool = True,
+            **kwargs
+        ):
+            self.validate(
+                node,
+                test_option=test_option,
+                common_option=common_option,
+                **kwargs
+            )
+            # Asserts to prove that the True value was propagated until here
+            assert test_option
+            assert common_option
+
+        def validate(self, node, **kwargs):
+            self.validate_options(**kwargs)
+
+    class Called2Trans(Transformation):
+        ''' Transformation Example'''
+        def apply(
+            self,
+            node,
+            test2_option: bool = False,
+            common_option: bool = False,
+            **kwargs
+        ):
+            self.validate(
+                node,
+                test2_option=test2_option,
+                common_option=common_option,
+                **kwargs
+            )
+            # Asserts to prove that the True value was propagated until here
+            assert test2_option
+            assert common_option
+
+        def validate(self, node, **kwargs):
+            self.validate_options(**kwargs)
+
+    class TestMetaTrans(Transformation):
+        ''' MetaTrans Example'''
+        _trans1 = Called1Trans
+        _trans2 = Called2Trans
+        _SUB_TRANSFORMATIONS = [Called1Trans, Called2Trans]
+
+        def validate(self, node, **kwargs):
+            self_kwargs, tr1_kwargs, tr2_kwargs = self.split_kwargs(**kwargs)
+            self._trans1().validate(node, **tr1_kwargs)
+            self._trans2().validate(node, **tr2_kwargs)
+            self.validate_options(**self_kwargs)
+
+            super().validate(node, **self_kwargs)
+
+        def apply(
+            self,
+            node,
+            meta_option: bool = True,
+            common_option: bool = True,
+            **kwargs
+        ):
+            # If we want to consume it use it by name
+            self.validate(
+                node,
+                meta_option=meta_option,
+                common_option=common_option,
+                **kwargs)
+            _, tr1_kwargs, tr2_kwargs = self.split_kwargs(
+                meta_option=meta_option, common_option=common_option, **kwargs)
+
+            self._trans1().apply(node, **tr1_kwargs)
+            self._trans2().apply(node, **tr2_kwargs)
+
+            # Asserts to prove that the True value was propagated until here
+            assert meta_option
+            assert common_option
+
+    test = TestMetaTrans()
+    test.apply(Node(), meta_option=True, common_option=True,
+               test_option=True, test2_option=True)
+    test.validate(Node(), meta_option=True, common_option=True,
+                  test_option=True, test2_option=True)
+
+    with pytest.raises(ValueError) as err:
+        test.apply(Node(), invalid=True)
+    assert ("'TestMetaTrans' received invalid options ['invalid']. Valid "
+            "options are ['meta_option', 'common_option'] or any other "
+            "options supported in ['Called1Trans', 'Called2Trans']."
+            == str(err.value))
+    with pytest.raises(ValueError) as err:
+        test.validate(Node(), invalid=True)
+    assert ("'TestMetaTrans' received invalid options ['invalid']. Valid "
+            "options are ['meta_option', 'common_option'] or any other "
+            "options supported in ['Called1Trans', 'Called2Trans']."
+            == str(err.value))
+
 
 def test_transformation_apply_deprecation_message(capsys):
     '''Test that passing the options dict to the Transformation.apply
     function gets the expected deprecation message.'''
     class TestTrans(Transformation):
         '''Utility transformation to test methods.'''
+
         def apply(self, node=None, options=None):
             super().apply(node, options=options)
 
@@ -233,9 +330,10 @@ def test_transformation_get_valid_options():
     '''Test that the get_valid_options method behaves in the expected
     way.'''
     class TestTrans(Transformation):
-        '''Utilty transformation to test methods of the abstract
+        '''Utility transformation to test methods of the abstract
         Transformation class.'''
-        def apply(self, node, valid: bool = True, untyped=False):
+
+        def apply(self, node, valid: bool = True, untyped=False, options={}):
             '''Apply method of TestTrans.'''
 
     options = TestTrans.get_valid_options()
@@ -245,9 +343,12 @@ def test_transformation_get_valid_options():
     assert options['untyped'].default is False
     assert options['untyped'].type is None
     assert options['untyped'].typename is None
+    # Check that option is allowed if its specified on the transformation.
+    assert options['options'].default == {}
 
     class InheritTrans(TestTrans):
         '''Utility transformation to test inheriting arguments'''
+
         def apply(self, node, valid2: int = 1):
             '''Apply method of InheritTrans.'''
 
@@ -261,32 +362,8 @@ def test_transformation_get_valid_options():
     assert options['valid2'].default == 1
     assert options['valid2'].type is int
     assert options['valid2'].typename == "int"
-
-
-def test_transformation_get_valid_options_no_sphinx():
-    '''Test that the get_valid_options method behaves in the expected
-    way when sphinx isn't available.'''
-    # Test that importing stringify_annotations works without sphinx.
-    # Trick the import into thinking sphinx.util.typing is unavailable
-    with patch.dict(sys.modules, {'sphinx.util.typing': None}):
-        # Unload the previously imported Transformation class
-        # pylint: disable=import-outside-toplevel
-        del sys.modules['psyclone.psyGen']
-        from psyclone.psyGen import Transformation
-
-        class TestTrans(Transformation):
-            '''Utilty transformation to test methods of the abstract
-            Transformation class.'''
-            def apply(self, node, valid: bool = True, untyped=False):
-                '''Apply method of TestTrans.'''
-
-        options = TestTrans.get_valid_options()
-        assert options['valid'].default
-        assert options['valid'].type is bool
-        assert options['valid'].typename == "<class 'bool'>"
-        assert options['untyped'].default is False
-        assert options['untyped'].type is None
-        assert options['untyped'].typename is None
+    # Check options isn't inherited from the superclass.
+    assert options.get('options', None) is None
 
 
 def test_transformation_validate_options():
@@ -294,8 +371,9 @@ def test_transformation_validate_options():
     class TestTrans(Transformation):
         '''Utility transformation to test methods of the abstract
         Transformation class.'''
+
         def apply(self, node, valid: bool = True, options=None):
-            pass  # pragma: no cover
+            ...
 
     instance = TestTrans()
     instance.validate_options(options={})
@@ -311,17 +389,26 @@ def test_transformation_validate_options():
     with pytest.raises(ValueError) as excinfo:
         instance.validate_options(not_valid=True)
     assert ("'TestTrans' received invalid options ['not_valid']. "
-            "Valid options are '['valid']." in str(excinfo.value))
+            "Valid options are ['valid', 'options']." in str(excinfo.value))
 
 
 # TransInfo class unit tests
 
-def test_new_module():
+def test_transinfo_new_module():
     '''check that we can change the module where we look for
-    transformations.  There should be no transformations
-    available as the new module uses a different
-    transformation base class'''
-    trans = TransInfo(module=dummy_transformations)
+    transformations.  There should be no transformations available as the
+    new module uses a different transformation base class.
+
+    Also test that creating an instance of TransInfo raises a
+    DeprecationWarning.
+
+    '''
+    with warnings.catch_warnings(record=True) as warn:
+        # Cause all warnings to always be triggered.
+        warnings.simplefilter("always")
+        trans = TransInfo(module=dummy_transformations)
+    assert len(warn) == 1
+    assert "should import the required Transformation" in str(warn[-1].message)
     assert trans.num_trans == 0
 
 
@@ -353,7 +440,20 @@ def test_list_valid_return_object():
 def test_list_return_data():
     ''' check the list method returns sensible information '''
     trans = TransInfo()
+    assert trans.list.find("are") != -1
     assert trans.list.find("available") != -1
+
+    # If there is only one, say 'is' instead of 'are'
+    class DummyObj:
+        ''' Dummy object '''
+        name = "name"
+
+        def __str__(self):
+            return "str"
+
+    trans._objects = [DummyObj()]
+    assert trans.list.find("are") == -1
+    assert trans.list.find("is") != -1
 
 
 def test_invalid_low_number():
@@ -392,6 +492,16 @@ def test_valid_return_object_from_name():
     trans = TransInfo()
     transform = trans.get_trans_name("ColourTrans")
     assert isinstance(transform, Transformation)
+
+
+def test_find_subclasses():
+    '''Test for the _find_subclasses() method.'''
+    trans = TransInfo()
+    classes = trans._find_subclasses(transformations, Transformation)
+    # Check that the method finds at least one transformation we know about.
+    # We don't check for every transformation as this would break every time
+    # we added a new one.
+    assert "OMPLoopTrans" in [cls.__name__ for cls in classes]
 
 
 # Tests for class Invokes
@@ -507,12 +617,12 @@ def test_derived_type_deref_naming(tmpdir):
         "  subroutine invoke_0_testkern_type"
         "(a, f1_my_field, f1_my_field_1, m1, m2)\n"
         "    use mesh_mod, only : mesh_type\n"
-        "    use testkern_mod, only : testkern_code\n"
+        "    use constants_mod, only : i_def\n"
         "    real(kind=r_def), intent(in) :: a\n"
         "    type(field_type), intent(in) :: f1_my_field\n"
         "    type(field_type), intent(in) :: f1_my_field_1\n"
         "    type(field_type), intent(in) :: m1\n"
-        "    type(field_type), intent(in) :: m2\n ")
+        "    type(field_type), intent(in) :: m2\n")
     assert output in generated_code
 
 
@@ -581,8 +691,10 @@ def test_invokeschedule_lowering_with_preexisting_globals():
     schedule = psy.invokes.invoke_list[0].schedule
     my_mod = ContainerSymbol("my_mod")
     schedule.symbol_table.add(my_mod)
-    global1 = DataSymbol('gvar1', REAL_TYPE, interface=ImportInterface(my_mod))
-    global2 = DataSymbol('gvar2', REAL_TYPE, interface=ImportInterface(my_mod))
+    global1 = DataSymbol('gvar1', ScalarType.real_type(),
+                         interface=ImportInterface(my_mod))
+    global2 = DataSymbol('gvar2', ScalarType.real_type(),
+                         interface=ImportInterface(my_mod))
     schedule.symbol_table.add(global1)
     schedule.symbol_table.add(global2)
 
@@ -616,128 +728,8 @@ def test_codedkern_node_str():
     out = my_kern.node_str()
     expected_output = (
         colored("CodedKern", LFRicKern._colour) +
-        " dummy_code(field_1,field_2,field_3) [module_inline=False]")
+        " dummy_code(field_1,field_2,field_3)")
     assert expected_output in out
-
-
-def test_codedkern_module_inline_getter_and_setter():
-    ''' Check that the module_inline setter changes the module inline
-    attribute to all the same kernels in the invoke'''
-    # Use LFRic example with a repeated CodedKern
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    coded_kern_1 = schedule.children[0].loop_body[0]
-    coded_kern_2 = schedule.children[1].loop_body[0]
-
-    # By default they are not module-inlined
-    assert not coded_kern_1.module_inline
-    assert not coded_kern_2.module_inline
-    assert "module_inline=False" in coded_kern_1.node_str()
-    assert "module_inline=False" in coded_kern_2.node_str()
-
-    # It can be turned on (and both kernels change)
-    coded_kern_1.module_inline = True
-    assert coded_kern_1.module_inline
-    assert coded_kern_2.module_inline
-    assert "module_inline=True" in coded_kern_1.node_str()
-    assert "module_inline=True" in coded_kern_2.node_str()
-
-    # It can not be turned off
-    with pytest.raises(TypeError) as err:
-        coded_kern_2.module_inline = False
-    assert ("The module inline parameter only accepts the type boolean "
-            "'True' since module-inlining is irreversible. But found: 'False'"
-            in str(err.value))
-    assert coded_kern_1.module_inline
-    assert coded_kern_2.module_inline
-
-    # And it doesn't accept other types
-    with pytest.raises(TypeError) as err:
-        coded_kern_2.module_inline = 3
-    assert ("The module inline parameter only accepts the type boolean "
-            "'True' since module-inlining is irreversible. But found: '3'"
-            in str(err.value))
-
-
-def test_codedkern_module_inline_lowering(tmpdir):
-    ''' Check that a CodedKern with module-inline gets copied into the
-    local module appropriately when the PSy-layer is generated'''
-    # Use LFRic example with a repeated CodedKern
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    coded_kern = schedule.children[0].loop_body[0]
-    gen = str(psy.gen)
-
-    # Without module-inline the subroutine is used by a module import
-    assert "use ru_kernel_mod, only : ru_code" in gen
-    assert "subroutine ru_code(" not in gen
-
-    # With module-inline the subroutine does not need to be imported
-    coded_kern.module_inline = True
-
-    # Fail if local routine symbol does not already exist
-    with pytest.raises(VisitorError) as err:
-        gen = str(psy.gen)
-    assert ("Cannot generate this kernel call to 'ru_code' because it "
-            "is marked as module-inlined but no such subroutine exists in "
-            "this module." in str(err.value))
-
-    # Create the symbol and try again, it now must succeed
-    psy.container.symbol_table.new_symbol(
-            "ru_code", symbol_type=RoutineSymbol)
-
-    gen = str(psy.gen)
-    assert "use ru_kernel_mod, only : ru_code" not in gen
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
-    ''' Check that module-inline works as expected when the same kernel
-    is provided in different invokes'''
-    # Use LFRic example with the kernel 'testkern_qr_mod' repeated once in
-    # the first invoke and 3 times in the second invoke.
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "3.1_multi_functions_multi_invokes.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
-
-    # By default the kernel is imported once per invoke
-    gen = str(psy.gen)
-    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 2
-
-    # Module inline kernel in invoke 1
-    schedule = psy.invokes.invoke_list[0].schedule
-    for coded_kern in schedule.walk(CodedKern):
-        if coded_kern.name == "testkern_qr_code":
-            coded_kern.module_inline = True
-    # A top-level RoutineSymbol must now exist
-    schedule.ancestor(Container).symbol_table.new_symbol(
-            "testkern_qr_code", symbol_type=RoutineSymbol)
-    gen = str(psy.gen)
-
-    # After this, one invoke uses the inlined top-level subroutine
-    # and the other imports it (shadowing the top-level symbol)
-    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 1
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    # Module inline kernel in invoke 2
-    schedule = psy.invokes.invoke_list[1].schedule
-    for coded_kern in schedule.walk(CodedKern):
-        if coded_kern.name == "testkern_qr_code":
-            coded_kern.module_inline = True
-    gen = str(psy.gen)
-    # After this, no imports are remaining and both use the same
-    # top-level implementation
-    assert gen.count("use testkern_qr_mod, only : testkern_qr_code") == 0
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_codedkern_lower_to_language_level(monkeypatch):
@@ -748,28 +740,6 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.children[0].loop_body[0]
-
-    # TODO 1010: LFRic still needs psy.gen to create symbols. But these must
-    # eventually be created automatically before the gen() call, for now we
-    # manually create the symbols that appear in the PSyIR tree.
-    schedule.symbol_table.add(Symbol("f1_proxy"))
-    schedule.symbol_table.add(Symbol("f2_proxy"))
-    schedule.symbol_table.add(Symbol("m1_proxy"))
-    schedule.symbol_table.add(Symbol("m2_proxy"))
-    schedule.symbol_table.add(Symbol("ndf_w1"))
-    schedule.symbol_table.add(Symbol("undf_w1"))
-    schedule.symbol_table.add(Symbol("map_w1"))
-    schedule.symbol_table.add(Symbol("ndf_w2"))
-    schedule.symbol_table.add(Symbol("undf_w2"))
-    schedule.symbol_table.add(Symbol("map_w2"))
-    schedule.symbol_table.add(Symbol("ndf_w3"))
-    schedule.symbol_table.add(Symbol("undf_w3"))
-    schedule.symbol_table.add(Symbol("map_w3"))
-
-    # TODO #1085 LFRic Arguments do not have a translation to PSyIR
-    # yet, we monkeypatch a dummy expression for now:
-    monkeypatch.setattr(LFRicKernelArguments, "psyir_expressions",
-                        lambda x: [Literal("1", INTEGER_TYPE)])
 
     # In DSL-level it is a CodedKern with no children
     assert isinstance(kern, CodedKern)
@@ -785,7 +755,7 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     assert isinstance(call, Call)
     assert call.routine.name == 'testkern_code'
     assert len(call.arguments) == number_of_arguments
-    assert isinstance(call.arguments[0], Literal)
+    assert isinstance(call.arguments[0], Reference)
 
     # A RoutineSymbol and the ContainerSymbol from where it is imported are
     # in the symbol table
@@ -830,7 +800,7 @@ def test_kern_children_validation():
     kern.load_meta(metadata)
 
     with pytest.raises(GenerationError) as excinfo:
-        kern.addchild(Literal("2", INTEGER_TYPE))
+        kern.addchild(Literal("2", ScalarType.integer_type()))
     assert ("Item 'Literal' can't be child 0 of 'CodedKern'. CodedKern "
             "is a LeafNode and doesn't accept children.") in str(excinfo.value)
 
@@ -863,7 +833,7 @@ def test_inlinedkern_children_validation():
     ikern = InlinedKern(None)
 
     with pytest.raises(GenerationError) as excinfo:
-        ikern.addchild(Literal("2", INTEGER_TYPE))
+        ikern.addchild(Literal("2", ScalarType.integer_type()))
     assert ("Item 'Literal' can't be child 1 of 'InlinedKern'. The valid "
             "format is: 'Schedule'.") in str(excinfo.value)
 
@@ -940,21 +910,24 @@ def test_kern_is_coloured2():
     # Create the loop variables
     for idx in range(3):
         table.new_symbol(f"cell{idx}", symbol_type=DataSymbol,
-                         datatype=INTEGER_TYPE)
+                         datatype=ScalarType.integer_type())
     # Create a loop nest of depth 3 containing the kernel, innermost first
     my_kern = LFRicKern()
     loops = [PSyLoop.create(table.lookup("cell0"),
-                            Literal("1", INTEGER_TYPE),
-                            Literal("10", INTEGER_TYPE),
-                            Literal("1", INTEGER_TYPE), [my_kern])]
+                            Literal("1", ScalarType.integer_type()),
+                            Literal("10", ScalarType.integer_type()),
+                            Literal("1", ScalarType.integer_type()),
+                            [my_kern])]
     loops.append(PSyLoop.create(table.lookup("cell1"),
-                                Literal("1", INTEGER_TYPE),
-                                Literal("10", INTEGER_TYPE),
-                                Literal("1", INTEGER_TYPE), [loops[-1]]))
+                                Literal("1", ScalarType.integer_type()),
+                                Literal("10", ScalarType.integer_type()),
+                                Literal("1", ScalarType.integer_type()),
+                                [loops[-1]]))
     loops.append(PSyLoop.create(table.lookup("cell2"),
-                                Literal("1", INTEGER_TYPE),
-                                Literal("10", INTEGER_TYPE),
-                                Literal("1", INTEGER_TYPE), [loops[-1]]))
+                                Literal("1", ScalarType.integer_type()),
+                                Literal("10", ScalarType.integer_type()),
+                                Literal("1", ScalarType.integer_type()),
+                                [loops[-1]]))
     # As we're using the generic Loop class, we have to manually set the list
     # of valid Loop types
     for loop in loops:
@@ -974,48 +947,6 @@ def test_haloexchange_unknown_halo_depth():
     a halo depth'''
     halo_exchange = HaloExchange(None)
     assert halo_exchange._halo_depth is None
-
-
-def test_globalsum_node_str():
-    '''test the node_str method in the GlobalSum class. The simplest way
-    to do this is to use an LFRic builtin example which contains a
-    scalar and then call node_str() on that.
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    gsum = None
-    for child in psy.invokes.invoke_list[0].schedule.children:
-        if isinstance(child, LFRicGlobalSum):
-            gsum = child
-            break
-    assert gsum
-    output = gsum.node_str()
-    expected_output = (colored("GlobalSum", GlobalSum._colour) +
-                       "[scalar='asum']")
-    assert expected_output in output
-
-
-def test_globalsum_children_validation():
-    '''Test that children added to GlobalSum are validated. A GlobalSum node
-    does not accept any children.
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    gsum = None
-    for child in psy.invokes.invoke_list[0].schedule.children:
-        if isinstance(child, LFRicGlobalSum):
-            gsum = child
-            break
-    with pytest.raises(GenerationError) as excinfo:
-        gsum.addchild(Literal("2", INTEGER_TYPE))
-    assert ("Item 'Literal' can't be child 0 of 'GlobalSum'. GlobalSum is a"
-            " LeafNode and doesn't accept children.") in str(excinfo.value)
 
 
 def test_args_filter():
@@ -1075,7 +1006,7 @@ def test_args_filter2():
 
 
 def test_reduction_var_error(dist_mem):
-    ''' Check that we raise an exception if the zero_reduction_variable()
+    ''' Check that we raise an exception if the initialise_reduction_variable()
     method is provided with an incorrect type of argument. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="lfric")
@@ -1086,13 +1017,13 @@ def test_reduction_var_error(dist_mem):
     # args[1] is of type gh_field
     call._reduction_arg = call.arguments.args[1]
     with pytest.raises(GenerationError) as err:
-        call.zero_reduction_variable()
-    assert ("Kern.zero_reduction_variable() should be a scalar but "
+        call.initialise_reduction_variable()
+    assert ("Kern.initialise_reduction_variable() should be a scalar but "
             "found 'gh_field'." in str(err.value))
 
 
 def test_reduction_var_invalid_scalar_error(dist_mem):
-    ''' Check that we raise an exception if the zero_reduction_variable()
+    ''' Check that we raise an exception if the initialise_reduction_variable()
     method is provided with an incorrect intrinsic type of scalar
     argument (other than 'real' or 'integer').
 
@@ -1108,36 +1039,18 @@ def test_reduction_var_invalid_scalar_error(dist_mem):
     assert call.arguments.args[5].intrinsic_type == 'logical'
     call._reduction_arg = call.arguments.args[5]
     with pytest.raises(GenerationError) as err:
-        call.zero_reduction_variable()
-    assert ("Kern.zero_reduction_variable() should be either a 'real' "
+        call.initialise_reduction_variable()
+    assert ("Kern.initialise_reduction_variable() should be either a 'real' "
             "or an 'integer' scalar but found scalar of type 'logical'."
             in str(err.value))
 
     # REALs and INTEGERs are fine
     assert call.arguments.args[0].intrinsic_type == 'real'
     call._reduction_arg = call.arguments.args[0]
-    call.zero_reduction_variable()
+    call.initialise_reduction_variable()
     assert call.arguments.args[6].intrinsic_type == 'integer'
     call._reduction_arg = call.arguments.args[6]
-    call.zero_reduction_variable()
-
-
-def test_reduction_sum_error(dist_mem):
-    ''' Check that we raise an exception if the reduction_sum_loop()
-    method is provided with an incorrect type of argument. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric",
-                     distributed_memory=dist_mem).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    call = schedule.kernels()[0]
-    # args[1] is of type gh_field
-    call._reduction_arg = call.arguments.args[1]
-    with pytest.raises(GenerationError) as err:
-        call.reduction_sum_loop()
-    assert ("Unsupported reduction access 'gh_inc' found in LFRicBuiltIn:"
-            "reduction_sum_loop(). Expected one of ['gh_sum']."
-            in str(err.value))
+    call.initialise_reduction_variable()
 
 
 def test_call_multi_reduction_error(monkeypatch, dist_mem):
@@ -1215,32 +1128,6 @@ def test_named_invoke_name_clash(tmpdir):
     assert "type(field_type), intent(in) :: invoke_a_1" in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
-    '''Check that we raise an exception if the pad size in psyclone.cfg is
-    set to an invalid value '''
-    # Make sure we monkey patch the correct Config object
-    config = Config.get()
-    monkeypatch.setattr(config._instance, "_reprod_pad_size", 0)
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric",
-                     distributed_memory=dist_mem).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    otrans = LFRicOMPLoopTrans()
-    rtrans = OMPParallelTrans()
-    # Apply an OpenMP do directive to the loop
-    otrans.apply(schedule.children[0], {"reprod": True})
-    # Apply an OpenMP Parallel directive around the OpenMP do directive
-    rtrans.apply(schedule.children[0])
-    with pytest.raises(VisitorError) as excinfo:
-        _ = str(psy.gen)
-    assert (
-        f"REPROD_PAD_SIZE in {Config.get().filename} should be a positive "
-        f"integer" in str(excinfo.value))
 
 
 def test_argument_properties():
@@ -1404,21 +1291,6 @@ def test_argument_find_read_arguments():
     for idx in range(3):
         loop = schedule.children[idx]
         assert result[idx] == loop.loop_body[0].arguments.args[3]
-
-
-def test_globalsum_arg():
-    ''' Check that the globalsum argument is defined as gh_readwrite and
-    points to the GlobalSum node '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    glob_sum = schedule.children[2]
-    glob_sum_arg = glob_sum.scalar
-    assert glob_sum_arg.access == AccessType.READWRITE
-    assert glob_sum_arg.call == glob_sum
 
 
 def test_haloexchange_arg():
@@ -1657,7 +1529,7 @@ def test_haloexchange_children_validation():
     '''
     haloex = HaloExchange(None)
     with pytest.raises(GenerationError) as excinfo:
-        haloex.addchild(Literal("2", INTEGER_TYPE))
+        haloex.addchild(Literal("2", ScalarType.integer_type()))
     assert ("Item 'Literal' can't be child 0 of 'HaloExchange'. HaloExchange "
             "is a LeafNode and doesn't accept children.") in str(excinfo.value)
 
@@ -1674,20 +1546,6 @@ def test_haloexchange_args():
     for haloexchange in schedule.children[:2]:
         assert len(haloexchange.args) == 1
         assert haloexchange.args[0] == haloexchange.field
-
-
-def test_globalsum_args():
-    '''Test that the globalsum class args method returns the appropriate
-    argument '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="lfric")
-    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    global_sum = schedule.children[2]
-    assert len(global_sum.args) == 1
-    assert global_sum.args[0] == global_sum.scalar
 
 
 def test_call_forward_dependence():
@@ -1978,57 +1836,6 @@ def test_find_w_args_hes_vec_no_dep(monkeypatch, annexed):
     assert node_list == []
 
 
-def test_check_vect_hes_differ_wrong_argtype():
-    '''when the check_vector_halos_differ method is called from a halo
-    exchange object the argument being passed should be a halo
-    exchange. If this is not the case an exception should be
-    raised. This test checks that this exception is working correctly.
-    '''
-
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric",
-                     distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    halo_exchange = schedule.children[0]
-    with pytest.raises(GenerationError) as excinfo:
-        # pass an incorrect object to the method
-        halo_exchange.check_vector_halos_differ(psy)
-    assert (
-        "the argument passed to HaloExchange.check_vector_halos_differ() "
-        "is not a halo exchange object" in str(excinfo.value))
-
-
-def test_check_vec_hes_differ_diff_names():
-    ''' When the check_vector_halos_differ method is called from a halo
-    exchange object the argument being passed should be a halo
-    exchange with an argument having the same name as the local halo
-    exchange argument name. If this is not the case an exception
-    should be raised. This test checks that this exception is working
-    correctly.
-
-    '''
-
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="lfric")
-    psy = PSyFactory("lfric",
-                     distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    halo_exchange = schedule.children[0]
-    # Obtain another halo exchange object which has an argument with a
-    # different name
-    different_halo_exchange = schedule.children[1]
-    with pytest.raises(GenerationError) as excinfo:
-        # Pass halo exchange with different name to the method
-        halo_exchange.check_vector_halos_differ(different_halo_exchange)
-    assert (
-        "the halo exchange object passed to "
-        "HaloExchange.check_vector_halos_differ() has a "
-        "different field name 'f2' to self 'f1'" in str(excinfo.value))
-
-
 def test_find_w_args_multiple_deps_error(monkeypatch, annexed, tmpdir):
     ''' When _find_write_arguments finds a write that causes it to return
     there should not be any previous dependencies. This test checks
@@ -2252,31 +2059,6 @@ def test_dataaccess_same_vector_indices(monkeypatch):
     assert (
         "The halo exchange vector indices for 'e' are the same. This should "
         "never happen" in str(excinfo.value))
-
-
-def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
-    '''Modified Fortran kernels are written to file linewrapped at 132
-    characters. This test checks that this linewrapping works.
-
-    '''
-    psy, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
-    sched = invoke.schedule
-    kernels = sched.walk(Kern)
-    # This example does not conform to the <name>_code, <name>_mod
-    # convention so monkeypatch it to avoid the PSyIR code generation
-    # raising an exception. This limitation is the subject of issue
-    # #520.
-    monkeypatch.setattr(kernels[0], "_module_name", "testkern_mod")
-    ktrans = LFRicKernelConstTrans()
-    ktrans.apply(kernels[0], {"number_of_layers": 100})
-    # Generate the code (this triggers the generation of new kernels)
-    _ = str(psy.gen)
-    filepath = os.path.join(str(kernel_outputdir), "testkern_0_mod.f90")
-    assert os.path.isfile(filepath)
-    # Check that the argument list is line wrapped as it is longer
-    # than 132 characters.
-    with open(filepath, encoding="utf-8") as testfile:
-        assert "map_w2, &\n&ndf_w3" in testfile.read()
 
 
 def test_walk(fortran_reader):

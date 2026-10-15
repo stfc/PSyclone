@@ -1,50 +1,26 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''This module contains the GOMoveIterationBoundariesInsideKernelTrans.'''
 
+from psyclone.psyir.transformations.callee_transformation_mixin import (
+    CalleeTransformationMixin)
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyGen import Transformation, InvokeSchedule
 from psyclone.gocean1p0 import GOKern
-from psyclone.psyir.nodes import (BinaryOperation, Reference, Loop,
+from psyclone.psyir.nodes import (BinaryOperation, Container, Reference, Loop,
                                   Assignment, IfBlock, Return)
-from psyclone.psyir.symbols import (INTEGER_TYPE, ArgumentInterface,
-                                    DataSymbol)
+from psyclone.psyir.symbols import ScalarType, ArgumentInterface, DataSymbol
+from psyclone.utils import transformation_documentation_wrapper
 
 
-class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
+@transformation_documentation_wrapper
+class GOMoveIterationBoundariesInsideKernelTrans(Transformation,
+                                                 CalleeTransformationMixin):
     ''' Provides a transformation that moves iteration boundaries that are
     encoded in the Loops lower_bound() and upper_bound() methods to a mask
     inside the kernel with the boundaries passed as kernel arguments.
@@ -91,93 +67,55 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         '''Returns the name of this transformation as a string.'''
         return "GOMoveIterationBoundariesInsideKernelTrans"
 
-    def validate(self, node, options=None):
+    def validate(self, node: GOKern, options=None, **kwargs):
         '''Ensure that it is valid to apply this transformation to the
         supplied node.
 
         :param node: the node to validate.
-        :type node: :py:class:`psyclone.gocean1p0.GOKern`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the node is not a GOKern.
 
         '''
+        if not options:
+            self.validate_options(**kwargs)
         if not isinstance(node, GOKern):
             raise TransformationError(
                 f"Error in {self.name} transformation. This transformation "
                 f"can only be applied to 'GOKern' nodes, but found "
                 f"'{type(node).__name__}'.")
 
-    def apply(self, node, options=None):
+        self._check_callee_implementation_is_local(node)
+
+    def apply(self, node: GOKern, options=None, **kwargs) -> None:
         '''Apply this transformation to the supplied node.
 
         :param node: the node to transform.
-        :type node: :py:class:`psyclone.gocean1p0.GOKern`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node, options)
+        # TODO #2668: Deprecate options dict.
+        self.validate(node, options, **kwargs)
 
-        # Get useful references
-        invoke_st = node.ancestor(InvokeSchedule).symbol_table
-        inner_loop = node.ancestor(Loop)
-        outer_loop = inner_loop.ancestor(Loop)
-        cursor = outer_loop.position
+        self._boundary_values_declare_and_init(node)
 
-        # Make sure the boundary symbols in the PSylayer exist
-        inv_xstart = invoke_st.find_or_create_tag(
-            "xstart_" + node.name, root_name="xstart", symbol_type=DataSymbol,
-            datatype=INTEGER_TYPE)
-        inv_xstop = invoke_st.find_or_create_tag(
-            "xstop_" + node.name, root_name="xstop", symbol_type=DataSymbol,
-            datatype=INTEGER_TYPE)
-        inv_ystart = invoke_st.find_or_create_tag(
-            "ystart_" + node.name, root_name="ystart", symbol_type=DataSymbol,
-            datatype=INTEGER_TYPE)
-        inv_ystop = invoke_st.find_or_create_tag(
-            "ystop_" + node.name, root_name="ystop", symbol_type=DataSymbol,
-            datatype=INTEGER_TYPE)
+        # Check that this transformation hasn't already been applied to
+        # the associated kernel implementation (which has been module inlined).
+        ksched = node.get_callees()[0]
+        all_tags = ksched.symbol_table.get_tags(scope_limit=ksched)
+        if "xstart_arg" in all_tags:
+            return
 
-        # If the kernel acts on the whole iteration space, the boundary values
-        # are not needed. This also avoids adding duplicated arguments if this
-        # transformation is applied more than once to the same kernel. But the
-        # declaration and initialisation above still needs to exist because the
-        # boundary variables are expected to exist by the generation code.
-        if (inner_loop.field_space == "go_every" and
-                outer_loop.field_space == "go_every" and
-                inner_loop.iteration_space == "go_all_pts" and
-                outer_loop.iteration_space == "go_all_pts"):
-            return node.root, None
-
-        # Initialise the boundary values provided by the Loop construct
-        assign1 = Assignment.create(Reference(inv_xstart),
-                                    inner_loop.start_expr.copy())
-        outer_loop.parent.children.insert(cursor, assign1)
-        cursor = cursor + 1
-        assign2 = Assignment.create(Reference(inv_xstop),
-                                    inner_loop.stop_expr.copy())
-        outer_loop.parent.children.insert(cursor, assign2)
-        cursor = cursor + 1
-        assign3 = Assignment.create(Reference(inv_ystart),
-                                    outer_loop.start_expr.copy())
-        outer_loop.parent.children.insert(cursor, assign3)
-        cursor = cursor + 1
-        assign4 = Assignment.create(Reference(inv_ystop),
-                                    outer_loop.stop_expr.copy())
-        outer_loop.parent.children.insert(cursor, assign4)
-
-        # Update Kernel Call argument list
-        for symbol in [inv_xstart, inv_xstop, inv_ystart, inv_ystop]:
-            node.arguments.append(symbol.name, "go_i_scalar")
-
-        # Now that the boundaries are inside the kernel, the looping should go
-        # through all the field points
-        inner_loop.field_space = "go_every"
-        outer_loop.field_space = "go_every"
-        inner_loop.iteration_space = "go_all_pts"
-        outer_loop.iteration_space = "go_all_pts"
+        # Update Kernel Call argument list. We have to do this for *every*
+        # matching Kernel since they all call the same, module-inlined,
+        # implementation.
+        for kern in node.ancestor(Container).walk(GOKern):
+            if kern.name == node.name:
+                bvalues = self._boundary_values_declare_and_init(kern)
+                for symbol in bvalues:
+                    kern.arguments.append(symbol.name, "go_i_scalar")
 
         # Update Kernel implementation(s).
         for kschedule in node.get_callees():
@@ -189,16 +127,20 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
             # Create new symbols and insert them as kernel arguments at the
             # end of the kernel argument list
             xstart_symbol = kernel_st.new_symbol(
-                "xstart", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                "xstart", tag="xstart_arg",
+                symbol_type=DataSymbol, datatype=ScalarType.integer_type(),
                 interface=ArgumentInterface(ArgumentInterface.Access.READ))
             xstop_symbol = kernel_st.new_symbol(
-                "xstop", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                "xstop", tag="xstop_arg",
+                symbol_type=DataSymbol, datatype=ScalarType.integer_type(),
                 interface=ArgumentInterface(ArgumentInterface.Access.READ))
             ystart_symbol = kernel_st.new_symbol(
-                "ystart", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                "ystart", tag="ystart_arg",
+                symbol_type=DataSymbol, datatype=ScalarType.integer_type(),
                 interface=ArgumentInterface(ArgumentInterface.Access.READ))
             ystop_symbol = kernel_st.new_symbol(
-                "ystop", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
+                "ystop", tag="ystop_arg",
+                symbol_type=DataSymbol, datatype=ScalarType.integer_type(),
                 interface=ArgumentInterface(ArgumentInterface.Access.READ))
             kernel_st.specify_argument_list(
                 iteration_indices + data_arguments +
@@ -237,6 +179,76 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
             # Insert the conditional mask as the first statement of the kernel
             if_statement = IfBlock.create(condition, [Return()])
             kschedule.children.insert(0, if_statement)
+
+    def _boundary_values_declare_and_init(
+            self, node: GOKern) -> tuple[DataSymbol, DataSymbol,
+                                         DataSymbol, DataSymbol]:
+        '''
+        Declare and initialise the loop boundary values required for
+        the supplied kernel.
+
+        :param node: the GOcean kernel for which the loop boundaries are
+                     required.
+
+        :returns: a tuple of the DataSymbols representing the x-start, x-stop,
+                  y-start and y-stop loop limits, in that order.
+        '''
+        # Get useful references
+        invoke_st = node.ancestor(InvokeSchedule).symbol_table
+        inner_loop = node.ancestor(Loop)
+        outer_loop = inner_loop.ancestor(Loop)
+        cursor = outer_loop.position
+
+        # Make sure the boundary symbols in the PSylayer exist
+        inv_xstart = invoke_st.find_or_create_tag(
+            "xstart_" + node.name, root_name="xstart", symbol_type=DataSymbol,
+            datatype=ScalarType.integer_type())
+        inv_xstop = invoke_st.find_or_create_tag(
+            "xstop_" + node.name, root_name="xstop", symbol_type=DataSymbol,
+            datatype=ScalarType.integer_type())
+        inv_ystart = invoke_st.find_or_create_tag(
+            "ystart_" + node.name, root_name="ystart", symbol_type=DataSymbol,
+            datatype=ScalarType.integer_type())
+        inv_ystop = invoke_st.find_or_create_tag(
+            "ystop_" + node.name, root_name="ystop", symbol_type=DataSymbol,
+            datatype=ScalarType.integer_type())
+
+        # If the kernel acts on the whole iteration space, the boundary values
+        # are not needed. This also avoids adding duplicated arguments if this
+        # transformation is applied more than once to the same kernel. But the
+        # declaration and initialisation above still needs to exist because the
+        # boundary variables are expected to exist by the generation code.
+        if (inner_loop.field_space == "go_every" and
+                outer_loop.field_space == "go_every" and
+                inner_loop.iteration_space == "go_all_pts" and
+                outer_loop.iteration_space == "go_all_pts"):
+            return (inv_xstart, inv_xstop, inv_ystart, inv_ystop)
+
+        # Initialise the boundary values provided by the Loop construct
+        assign1 = Assignment.create(Reference(inv_xstart),
+                                    inner_loop.start_expr.copy())
+        outer_loop.parent.children.insert(cursor, assign1)
+        cursor = cursor + 1
+        assign2 = Assignment.create(Reference(inv_xstop),
+                                    inner_loop.stop_expr.copy())
+        outer_loop.parent.children.insert(cursor, assign2)
+        cursor = cursor + 1
+        assign3 = Assignment.create(Reference(inv_ystart),
+                                    outer_loop.start_expr.copy())
+        outer_loop.parent.children.insert(cursor, assign3)
+        cursor = cursor + 1
+        assign4 = Assignment.create(Reference(inv_ystop),
+                                    outer_loop.stop_expr.copy())
+        outer_loop.parent.children.insert(cursor, assign4)
+
+        # Now that the boundaries are inside the kernel, the looping should go
+        # through all the field points
+        inner_loop.field_space = "go_every"
+        outer_loop.field_space = "go_every"
+        inner_loop.iteration_space = "go_all_pts"
+        outer_loop.iteration_space = "go_all_pts"
+
+        return (inv_xstart, inv_xstop, inv_ystart, inv_ystop)
 
 
 # For Sphinx AutoAPI documentation generation

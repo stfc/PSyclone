@@ -1,45 +1,15 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors: S. Siso and N. Nobre, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 '''This module provides the LoopTiling2DTrans, which transforms a 2D Loop
 construct into a tiled implementation of the construct.'''
 
-from psyclone.psyir.nodes import Loop
-from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
-from psyclone.psyir.transformations.loop_swap_trans import LoopSwapTrans
+import warnings
+from psyclone.psyir.transformations.loop_tiling_trans import LoopTilingTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
@@ -47,14 +17,15 @@ from psyclone.psyir.transformations.transformation_error import \
 
 class LoopTiling2DTrans(LoopTrans):
     '''
-    Apply a 2D loop tiling transformation to a loop. For example:
+    Apply a 2D loop tiling transformation to a loop.  This is a special
+    case of LoopTilingTrans for 2D square tiles. For example:
 
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.nodes import Loop
     >>> from psyclone.psyir.transformations import LoopTiling2DTrans
     >>> psyir = FortranReader().psyir_from_source("""
     ... subroutine sub()
-    ...     integer :: ji, tmp(100)
+    ...     integer :: i, j, tmp(100)
     ...     do i=1, 100
     ...       do j=1, 100
     ...         tmp(i, j) = 2 * tmp(i, j)
@@ -69,16 +40,16 @@ class LoopTiling2DTrans(LoopTrans):
     .. code-block:: fortran
 
         subroutine sub()
-            integer :: ji
+            integer :: i
+            integer :: j
             integer, dimension(100) :: tmp
-            integer :: ji_el_inner
-            integer :: ji_out_var
+            integer :: j_out_var
+            integer :: i_out_var
+
             do i_out_var = 1, 100, 32
-              i_el_inner = MIN(i_out_var + (32 - 1), 100)
               do j_out_var = 1, 100, 32
-                do i = i_out_var, i_el_inner, 1
-                  j_el_inner = MIN(j_out_var + (32 - 1), 100)
-                  do j = j_out_var, j_el_inner, 1
+                do i = i_out_var, MIN(i_out_var + (32 - 1), 100), 1
+                  do j = j_out_var, MIN(j_out_var + (32 - 1), 100), 1
                     tmp(i, j) = 2 * tmp(i, j)
                   enddo
                 enddo
@@ -113,7 +84,7 @@ class LoopTiling2DTrans(LoopTrans):
         super(LoopTiling2DTrans, self).validate(node, options=options)
 
         # Validate options map
-        # TODO #613: Hardcoding the valid_options does not allow for
+        # TODO #2668: Hardcoding the valid_options does not allow for
         # subclassing this transformation and adding new options, this
         # should be fixed.
         valid_options = ['tilesize']
@@ -135,19 +106,7 @@ class LoopTiling2DTrans(LoopTrans):
                     f"are: {valid_options}.")
 
         tilesize = options.get("tilesize", 32)
-
-        # Even though the loops that ultimately will be swapped are the ones
-        # resulting from the ChunkLoopTrans, these have the same validation
-        # constrains as swapping the two original loops. This already
-        # guarantees that we have a 2 loop construct with only one loop
-        # statement inside the outer loop.
-        LoopSwapTrans().validate(node)
-
-        # Check that we can chunk both loops
-        outer_loop = node
-        inner_loop = node.loop_body.children[0]
-        ChunkLoopTrans().validate(outer_loop, options={'chunksize': tilesize})
-        ChunkLoopTrans().validate(inner_loop, options={'chunksize': tilesize})
+        LoopTilingTrans().validate(node, tiledims=[tilesize, tilesize])
 
     def apply(self, node, options=None):
         '''
@@ -163,17 +122,11 @@ class LoopTiling2DTrans(LoopTrans):
                 specified, the value 32 is used.
 
         '''
+        warnings.warn("LoopTiling2DTrans is deprecated. "
+                      "Use LoopTilingTrans instead.",
+                      DeprecationWarning, 2)
         self.validate(node, options)
         if options is None:
             options = {}
         tilesize = options.get("tilesize", 32)
-        parent = node.parent
-        position = node.position
-        outer_loop = node
-        inner_loop = node.loop_body.children[0]
-
-        ChunkLoopTrans().apply(outer_loop, options={'chunksize': tilesize})
-        ChunkLoopTrans().apply(inner_loop, options={'chunksize': tilesize})
-
-        loops = parent[position].walk(Loop)[1]
-        LoopSwapTrans().apply(loops)
+        LoopTilingTrans().apply(node, tiledims=[tilesize, tilesize])

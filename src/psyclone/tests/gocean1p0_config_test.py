@@ -1,41 +1,13 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2018-2025, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2018-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
-# Modified: S. Siso and A. R. Porter, STFC Daresbury Lab
 
 ''' Module containing tests for gocean specific config files.'''
 
+import logging
 import os
 import pytest
 
@@ -67,7 +39,7 @@ def clear_config_instance():
 
 
 # =============================================================================
-def test_command_line(capsys):
+def test_command_line(capsys, caplog):
     '''Tests that the config command line flag works as expected.
     '''
     f90_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -85,8 +57,12 @@ def test_command_line(capsys):
     # Make sure we always trigger the GOLoop.setup_bounds()
     # in the constructor so that part is always tested!
     GOLoop._bounds_lookup = {}
-    # Check that --config with a parameter is accepted
-    main(options+["--config", config_file, f90_file])
+    # Check that --config with a parameter is accepted but logs a warning
+    # about the deprecated access_mapping entry.
+    with caplog.at_level(logging.WARN, logger="psyclone.configuration"):
+        main(options+["--config", config_file, f90_file])
+    assert ("Configuration file contains an ACCESS_MAPPING entry. This is "
+            "deprecated" in caplog.text)
 
     # Check that a missing parameter raises an error:
     with pytest.raises(SystemExit):
@@ -111,7 +87,6 @@ def test_invalid_config_files(tmpdir):
     [DEFAULT]
     DISTRIBUTED_MEMORY = true
     REPRODUCIBLE_REDUCTIONS = false
-    REPROD_PAD_SIZE = 8
     [gocean]
     '''
     # Create a config files with gocean section, but an
@@ -243,13 +218,12 @@ def test_invalid_config_files(tmpdir):
 
 
 def test_debug_mode(tmpdir):
-    '''Test creation of GOcean debug_mode congifuration.
+    '''Test creation of GOcean debug_mode configuration.
     '''
     _CONFIG_CONTENT = '''\
     [DEFAULT]
     DISTRIBUTED_MEMORY = true
     REPRODUCIBLE_REDUCTIONS = false
-    REPROD_PAD_SIZE = 8
     [gocean]
     '''
 

@@ -1,42 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
-#          A. B. G. Chalk, STFC Daresbury Lab
-#          J. G. Wallwork, Met Office / University of Cambridge
-#          S. Valat, Inria / Laboratoire Jean Kuntzmann
-#          M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean Kuntzmann
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the OpenACC PSyIR Directive nodes. '''
@@ -57,7 +23,7 @@ from psyclone.psyir.nodes import (
     ACCDirective)
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.symbols import (
-    Symbol, SymbolTable, DataSymbol, INTEGER_TYPE)
+    Symbol, SymbolTable, DataSymbol, ScalarType)
 from psyclone.psyir.transformations import ACCKernelsTrans, ACCLoopTrans
 from psyclone.transformations import (
     ACCDataTrans, ACCEnterDataTrans,
@@ -83,8 +49,8 @@ def test_accregiondir_validate_global(fortran_reader):
     with pytest.raises(GenerationError) as err:
         accnode.validate_global_constraints()
     assert ("Cannot include CodeBlocks or calls to PSyData routines within "
-            "OpenACC regions but found ['CodeBlock'] within a region enclosed "
-            "by an 'MyACCRegion'" in str(err.value))
+            "OpenACC regions but found ['Fparser2CodeBlock'] within a region "
+            "enclosed by an 'MyACCRegion'" in str(err.value))
 
 
 def test_accregiondir_signatures():
@@ -92,23 +58,35 @@ def test_accregiondir_signatures():
     routine = Routine.create("test_prog")
     accnode = MyACCRegion()
     routine.addchild(accnode)
-    bob = DataSymbol("bob", INTEGER_TYPE)
-    richard = DataSymbol("richard", INTEGER_TYPE)
+    bob = DataSymbol("bob", ScalarType.integer_type())
+    richard = DataSymbol("richard", ScalarType.integer_type())
     routine.symbol_table.add(bob)
     accnode.dir_body.addchild(
-        Assignment.create(lhs=Reference(bob), rhs=Literal("1", INTEGER_TYPE)))
+        Assignment.create(lhs=Reference(bob),
+                          rhs=Literal("1", ScalarType.integer_type())))
     accnode.dir_body.addchild(
-        Assignment.create(lhs=Reference(bob), rhs=Literal("1", INTEGER_TYPE)))
+        Assignment.create(lhs=Reference(bob),
+                          rhs=Literal("1", ScalarType.integer_type())))
     accnode.dir_body.addchild(
-        Assignment.create(lhs=Reference(bob), rhs=Literal("1", INTEGER_TYPE)))
+        Assignment.create(lhs=Reference(bob),
+                          rhs=Literal("1", ScalarType.integer_type())))
     accnode.dir_body.addchild(
-        Assignment.create(lhs=Reference(bob), rhs=Reference(richard)))
+        Assignment.create(lhs=Reference(bob),
+                          rhs=Reference(richard)))
     # pylint: disable=unbalanced-tuple-unpacking
     reads, writes = accnode.signatures
     assert Signature("richard") in reads
     assert Signature("bob") in writes
 
 # Class ACCEnterDataDirective start
+
+
+def test_accenterdatadirective_init():
+    ''' Test the constructor of ACCEnterDataDirective, and that it implements
+    the ACCAsyncMixin'''
+    _ = ACCEnterDataDirective()
+    directive = ACCEnterDataDirective(async_queue=1)
+    assert directive.async_queue == Literal("1", ScalarType.integer_type())
 
 
 # (1/4) Method lower_to_language_level
@@ -519,21 +497,9 @@ def test_accupdatedirective_begin_string():
     directive_host = ACCUpdateDirective(sig, "host", if_present=False)
     directive_device = ACCUpdateDirective(sig, "device")
     directive_empty = ACCUpdateDirective(set(), "host", if_present=False)
-    directive_async_default = ACCUpdateDirective(sig, "device",
-                                                 async_queue=True)
-    directive_async_queue_int = ACCUpdateDirective(sig, "device",
-                                                   async_queue=1)
-    directive_async_queue_str = ACCUpdateDirective(
-        sig, "device", async_queue=Reference(Symbol("var")))
 
     assert directive_host.begin_string() == "acc update host(x)"
     assert directive_device.begin_string() == "acc update if_present device(x)"
-    assert (directive_async_default.begin_string() ==
-            "acc update if_present device(x) async")
-    assert (directive_async_queue_int.begin_string() ==
-            "acc update if_present device(x) async(1)")
-    assert (directive_async_queue_str.begin_string() ==
-            "acc update if_present device(x) async(var)")
 
     with pytest.raises(GenerationError) as err:
         directive_empty.begin_string()
@@ -613,8 +579,8 @@ def test_accwaitdirective_eq():
 
 @pytest.mark.parametrize("directive_type",
                          [ACCKernelsDirective, ACCParallelDirective,
-                          ACCUpdateDirective, ACCEnterDataDirective])
-def test_directives_async_queue(directive_type):
+                          ACCUpdateDirective])
+def test_directives_async_queue(directive_type, fortran_writer):
     '''Validate the various usage of async_queue parameter'''
 
     # args
@@ -625,35 +591,31 @@ def test_directives_async_queue(directive_type):
     # set value at init
     directive = directive_type(*args, async_queue=1)
 
-    # need to have some data in
-    if directive_type == ACCEnterDataDirective:
-        directive._sig_set.add(Signature("x"))
-
     # check initial status
     assert directive.async_queue.value == "1"
-    assert 'async(1)' in directive._build_async_string()
+    assert 'async(1)' in fortran_writer(directive).split('\n')[0]
 
     # change value to true
     directive.async_queue = True
     assert directive.async_queue is True
-    assert 'async' in directive._build_async_string()
+    assert 'async' in fortran_writer(directive).split('\n')[0]
 
     # change value to False
     directive.async_queue = False
     assert directive.async_queue is False
-    assert 'async' not in directive._build_async_string()
+    assert 'async' not in fortran_writer(directive).split('\n')[0]
 
     # change value afterward
     directive.async_queue = Reference(Symbol("stream"))
     assert directive.async_queue == Reference(Symbol("stream"))
-    assert 'async(stream)' in directive._build_async_string()
+    assert 'async(stream)' in fortran_writer(directive).split('\n')[0]
 
     # Value is a PSyIR expression
     directive.async_queue = BinaryOperation.create(
         BinaryOperation.Operator.ADD,
-        Literal("1", INTEGER_TYPE),
+        Literal("1", ScalarType.integer_type()),
         Reference(Symbol("stream")))
-    assert 'async(1 + stream)' in directive._build_async_string()
+    assert 'async(1 + stream)' in fortran_writer(directive).split('\n')[0]
 
     # put wrong type
     with pytest.raises(TypeError) as error:
@@ -787,8 +749,6 @@ def test_acc_atomics_is_valid_atomic_statement(fortran_reader):
         integer :: i, j, val
 
         A(1,1) = A(1,1) ** 2  ! Operator is not supported
-        A(1,1) = A(2,1) * 2   ! The operands are different that the lhs
-        A(1,1) = A(1,1) / 2 + 3 - 5  ! A(1,1) is not a top-level operand
         A(:,1) = A(:,1) / 2      ! It is not a scalar expression
         A(1,1) = MOD(A(1,1), 3)  ! Intrinsic is not supported
     end subroutine
@@ -839,7 +799,7 @@ def test_acc_atomics_validate_global_constraints(fortran_reader, monkeypatch):
             "statement, but found " in str(err.value))
 
 
-def test_acc_atomics_srtings():
+def test_acc_atomics_strings():
     ''' Test the ACCAtomicDirective begin and end strings '''
     atomic = ACCAtomicDirective()
     assert atomic.begin_string() == "acc atomic"

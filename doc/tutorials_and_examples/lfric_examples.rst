@@ -1,3 +1,10 @@
+.. -----------------------------------------------------------------------------
+.. SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+..                         Facilities Council
+.. SPDX-License-Identifier: BSD-3-Clause
+.. See the full LICENSE file in the project root for details.
+.. -----------------------------------------------------------------------------
+
 .. _examples_lfric:
 
 LFRic Examples
@@ -11,10 +18,12 @@ Example 1: Basic Operation
 
 Basic operation of PSyclone with an ``invoke()`` containing two
 kernels, one :ref:`user-supplied <lfric-kernel>`, the other a
-:ref:`Built-in <lfric-built-ins>`. Code is generated both with and
+:ref:`Built-in <lfric-built-ins>`. The user-supplied kernel accepts
+field, scalar and scalar-array arguments. Code is generated both with and
 without distributed-memory support. Also demonstrates the use of the
 ``-d`` flag to specify where to search for user-supplied kernel code
-(see :ref:`psyclone_command` section for more details).
+(see :ref:`psyclone_command` section for more details). Generated
+code can be compiled (``make compile``) but not executed.
 
 Example 2: Applying Transformations
 -----------------------------------
@@ -162,7 +171,7 @@ of the kernel launches and data transfers:
     upload CUDA data  file=PSyclone/examples/lfric/eg14/main_psy.f90 function=invoke_2 line=183 device=0 threadid=1 variable=.attach. bytes=144
     launch CUDA kernel  file=PSyclone/examples/lfric/eg14/main_psy.f90 function=invoke_2 line=186 device=0 threadid=1 num_gangs=5 num_workers=1 vector_length=128 grid=5 block=128
      PostEnd called for module 'main_psy' region 'invoke_2-setval_c-r2'
-    download CUDA data  file=PSyclone/src/psyclone/tests/test_files/lfric/infrastructure//field/field_r64_mod.f90 function=log_minmax line=756 device=0 threadid=1 variable=self%data(:) bytes=4312
+    download CUDA data  file=PSyclone/external/lfric_infrastructure/src/field/field_real64_mod.f90 function=log_minmax line=756 device=0 threadid=1 variable=self%data(:) bytes=4312
     20230807214504.374+0100:INFO : Min/max minmax of field1 =   0.30084014E+00  0.17067212E+01
    ...
 
@@ -238,8 +247,9 @@ Example 17.3: Kernel Data Extraction
 The example in the subdirectory ``full_example_extract`` shows the
 use of :ref:`kernel extraction <psyke>`. The code can be compiled with
 ``make compile``, and the binary executed with either ``make run`` or
-``./extract.standalone``. By default, it will be using
-a stand-alone extraction library (see :ref:`extraction_libraries`).
+``./extract.binary``. By default, it will be using
+a stand-alone extraction library using a Fortran binary format
+(see :ref:`extraction_libraries`).
 If you want to use the NetCDF version, set the environment variable
 ``TYPE`` to be ``netcdf``:
 
@@ -253,16 +263,38 @@ This requires the installation of a NetCDF development environment
 for installing NetCDF). The binary will be called ``extract.netcdf``,
 and the output files will have the ``.nc`` extension.
 
-Running the compiled binary will create two Fortran binary files or
-two NetCDF files if the NetCDF library was used. They contain
+Similarly, you can use ``TYPE==ascii`` to use an ASCII output format.
+
+Running the compiled binary will create two Fortran binary files (or
+two NetCDF files if the NetCDF library was used, or ASCII files if
+ASCII output was used). They contain
 the input and output parameters for the two invokes in this example:
 
 .. code-block:: bash
 
     cd full_example_extraction
-    TYPE=netcdf make compile
-    ./extract.netcdf
-    ncdump ./main-update.nc | less
+    TYPE=ascii make compile
+    ...
+    ./extract.ascii
+    ...
+    make driver-main-init
+    ./driver-main-init
+    ...
+    make driver-main-update
+    ./driver-main-update
+
+Example 17.4: Value Range Check
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The example in the subdirectory ``value_range_check`` shows the
+use of PSyclone's :ref:`Value Range Check<psydata_value_range_check>`
+transformation. You can compile and execute the code like this:
+
+.. code-block:: bash
+
+  cd value_range_change
+  make compile
+  PSY_VALUE_RANGE="field1_data=0:7" ./value_range_check
+
 
 
 Example 18: Special Accesses of Continuous Fields - Incrementing After Reading and Writing Before (Potentially) Reading
@@ -309,4 +341,4 @@ algorithm layer run:
 .. code-block:: bash
 
     cd eg20/
-    psyclone-kern -gen alg ../code/testkern_mod.F90
+    psyclone-kern -api lfric -gen alg ../code/testkern_mod.F90

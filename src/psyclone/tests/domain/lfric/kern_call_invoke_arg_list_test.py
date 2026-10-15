@@ -1,46 +1,17 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2025, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified: J. Henrichs, Bureau of Meteorology
-#           L. Turner, Met Office
 
 ''' Module containing pytest tests for the KernCallInvokeArgList class. '''
 
 import pytest
 
-from psyclone.domain.lfric import (KernCallInvokeArgList, LFRicSymbolTable)
-from psyclone.psyir.symbols import DataTypeSymbol, UnresolvedType, DataSymbol
+from psyclone.domain.lfric import KernCallInvokeArgList
+from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataTypeSymbol,
+                                    SymbolTable, UnresolvedType)
 
 
 def test_kcial_construct(lfrickern):
@@ -49,7 +20,8 @@ def test_kcial_construct(lfrickern):
         KernCallInvokeArgList(lfrickern, None)
     assert ("Argument 'symbol_table' must be a SymbolTable instance but got "
             "'NoneType'" in str(err.value))
-    obj = KernCallInvokeArgList(lfrickern, LFRicSymbolTable())
+    obj = KernCallInvokeArgList(lfrickern, SymbolTable())
+    # Until the `generate` method is called, these lists should be empty.
     assert obj.fields == []
     assert obj.scalars == []
     assert obj.quadrature_objects == []
@@ -59,16 +31,34 @@ def test_kcial_generate(lfrickern):
     ''' Tests for the KernCallInvokeArgList.generate() method. '''
     # generate() assumes a suitably initialised symbol table so create
     # that here.
-    table = LFRicSymbolTable()
+    table = SymbolTable()
     table.new_symbol("field_type", symbol_type=DataTypeSymbol,
                      datatype=UnresolvedType())
     kcial = KernCallInvokeArgList(lfrickern, table)
     kcial.generate()
     assert len(kcial.fields) == 5
     assert len(kcial.scalars) == 3
+    all_symbols = table.get_symbols()
+    all_flds = [sym.name for sym in all_symbols.values()
+                if sym.name.startswith("field_")]
+    # 6 rather than 5 because of 'field_type'
+    assert len(all_flds) == 6
+
+    # Check the type of the scalar array argument.
+    for sym in all_symbols.values():
+        if sym.name.startswith("iscalar_array"):
+            break
+    assert isinstance(sym.datatype, ArrayType)
+    assert len(sym.datatype.shape) == 3
+
     # Check that we can call it repeatedly.
     kcial.generate()
     assert len(kcial.fields) == 5
+    all_symbols2 = table.get_symbols()
+    all_flds2 = [sym.name for sym in all_symbols2.values()
+                 if sym.name.startswith("field_")]
+    assert len(all_flds2) == 6
+
     # Check that an unsupported scalar type gives the expected error.
     lfrickern.arguments.args[0]._intrinsic_type = 'wrong'
     kcial = KernCallInvokeArgList(lfrickern, table)
@@ -82,7 +72,7 @@ def test_kcial_generate_operator(lfrickern_op):
     arguments required by the kernel.'''
     # generate() assumes a suitably initialised symbol table so create
     # that here.
-    table = LFRicSymbolTable()
+    table = SymbolTable()
     table.new_symbol("operator_type", symbol_type=DataTypeSymbol,
                      datatype=UnresolvedType())
     table.new_symbol("field_type", symbol_type=DataTypeSymbol,
@@ -104,7 +94,7 @@ def test_kcial_generate_halos(lfrickern_halo):
     '''
     # generate() assumes a suitably initialised symbol table so create
     # that here.
-    table = LFRicSymbolTable()
+    table = SymbolTable()
     table.new_symbol("field_type", symbol_type=DataTypeSymbol,
                      datatype=UnresolvedType())
     kcial = KernCallInvokeArgList(lfrickern_halo, table)
@@ -116,7 +106,7 @@ def test_kcial_generate_halos(lfrickern_halo):
 def test_kcial_not_implemented(lfrickern):
     ''' Check all the methods that handle unsupported types of kernel
     argument. '''
-    kcial = KernCallInvokeArgList(lfrickern, LFRicSymbolTable())
+    kcial = KernCallInvokeArgList(lfrickern, SymbolTable())
     with pytest.raises(NotImplementedError) as err:
         kcial.stencil(None)
     assert "Stencils are not yet supported" in str(err.value)

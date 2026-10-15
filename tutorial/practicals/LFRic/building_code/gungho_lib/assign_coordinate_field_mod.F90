@@ -1,48 +1,22 @@
-!-----------------------------------------------------------------------------
-! Copyright (c) 2017-2025,  Met Office, on behalf of HMSO and Queen's Printer
-! For further details please refer to the file LICENCE.original which you
-! should have received as part of this distribution.
-!-----------------------------------------------------------------------------
-! BSD 3-Clause License
-!
-! Modifications copyright (c) 2020-2025, Science and Technology Facilities Council.
-! All rights reserved.
-!
-! Redistribution and use in source and binary forms, with or without
-! modification, are permitted provided that the following conditions are met:
-!
-! * Redistributions of source code must retain the above copyright notice, this
-!   list of conditions and the following disclaimer.
-!
-! * Redistributions in binary form must reproduce the above copyright notice,
-!   this list of conditions and the following disclaimer in the documentation
-!   and/or other materials provided with the distribution.
-!
-! * Neither the name of the copyright holder nor the names of its
-!   contributors may be used to endorse or promote products derived from
-!   this software without specific prior written permission.
-!
-! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-! FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-! COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-! INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-! BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-! LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-!
-!-------------------------------------------------------------------------------
+! Original under:
+! Copyright (c) 2017-2026, Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+! -----------------------------------------------------------------------------
+! Modifications under:
+! SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+!                         Facilities Council
+! SPDX-License-Identifier: BSD-3-Clause
+! See the full LICENSE file in the project root for details.
+! -----------------------------------------------------------------------------
+
 !> @brief Module to assign the values of the coordinates of the mesh to a field
 module assign_coordinate_field_mod
 
   use base_mesh_config_mod, only : geometry, &
                                    geometry_spherical
-  use constants_mod,        only : r_def, i_def, i_native
+  use constants_mod,        only : r_def, i_def, i_medium
   use log_mod,              only : log_event, LOG_LEVEL_ERROR
   use planet_config_mod,    only : scaled_radius
   use mesh_mod,             only : mesh_type
@@ -54,7 +28,7 @@ contains
 !! to a field
 !> @details An array of size 3 for the type field is passed in to be populated.
 !! The field proxy is used to break encapsulation and access the function space
-!! and the data atributes of the field so that its values can be assigned.
+!! and the data attributes of the field so that its values can be assigned.
 !! calls two subroutines, get_cell_coords from the mesh generator and then
 !! assign_coordinate on a column by column basis
 !! @param[in]  mesh Mesh on which this field is attached
@@ -64,8 +38,7 @@ contains
 
     use field_mod,             only: field_type, field_proxy_type
     use reference_element_mod, only: reference_element_type
-    use mesh_constructor_helper_functions_mod, &
-                               only: domain_size_type
+    use domain_mod, only:            domain_type
     implicit none
 
     type( field_type ), intent( inout ) :: chi(3)
@@ -76,7 +49,7 @@ contains
     class(reference_element_type), pointer :: reference_element => null()
 
     type(field_proxy_type) :: chi_proxy(3)
-    type(domain_size_type) :: domain_size
+    type(domain_type) :: domain
 
     real(r_def), allocatable :: column_coords(:,:,:)
     real(r_def), allocatable :: dz(:)  ! dz(nlayers) array
@@ -86,7 +59,7 @@ contains
     integer(i_def) :: undf, ndf, nlayers
     integer(i_def) :: nverts
 
-    integer(i_native) :: alloc_error
+    integer(i_medium) :: alloc_error
     integer(i_def)    :: depth
 
     ! Break encapsulation and get the proxy.
@@ -112,7 +85,7 @@ contains
     allocate( column_coords(3,nverts,nlayers ) )
     dof_coords => chi_proxy(1)%vspace%get_nodes( )
 
-    domain_size =  mesh%get_domain_size()
+    domain =  mesh%get_domain()
 
     do cell = 1,chi_proxy(1)%vspace%get_ncell()
        map => chi_proxy(1)%vspace%get_cell_dofmap( cell )
@@ -131,8 +104,8 @@ contains
                                column_coords,           &
                                dof_coords,              &
                                vertex_coords,           &
-                               domain_size%maximum%x,   &
-                               domain_size%minimum%y )
+                               domain%maximum_xy(1),    &
+                               domain%maximum_xy(2) )
     end do
     ! Loop over all the cells
 

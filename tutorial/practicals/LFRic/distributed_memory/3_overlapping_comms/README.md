@@ -41,7 +41,7 @@ in this file assume that you are in the same directory as this
 ```
 
 The schedule containing the halo exchanges is stored as a tree in the
-PSyIR. The indendation in the visualisation of the PSyiR indicates the
+PSyIR. The indentation in the visualisation of the PSyiR indicates the
 depth of the tree. Also notice the numbers in the output. These help
 you determine the position of the particular nodes in the tree.
 
@@ -67,11 +67,11 @@ As transformations are objects we also need to create an instance of
 
 If you would like to find out more about this transformation, it is
 documented in the
-[User Guide](https://psyclone.readthedocs.io/en/latest/lfric.html)
+[User Guide](https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html)
 (search for `LFRicAsyncHaloExchangeTrans`).
 
 Traversing the PSyIR tree is discussed in the [user
-guide](https://psyclone.readthedocs.io/en/latest/psyir.html) (search
+guide](https://psyclone.readthedocs.io/en/latest/user_guide/psyir.html) (search
 for Tree Navigation) and in one of the [notebook
 tutorials](../../../../notebooks/introduction.ipynb).
 
@@ -246,7 +246,7 @@ Therefore let's try the next haloexchangestart (at position 3 in our case).
 First import the `MoveTrans` transformation:
 
 ```python
-from psyclone.transformations import MoveTrans
+from psyclone.psyir.transformations import MoveTrans
 ```
 
 Next create an instance of the transformation:

@@ -1,41 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified by: R. W. Ford, STFC Daresbury Lab
-#              A. R. Porter, STFC Daresbury Lab
-#              S. Siso, STFC Daresbury Lab
-#              N. Nobre, STFC Daresbury Lab
 
 '''Transformation module, containing all generic (API independent)
 transformations and base classes.
@@ -64,6 +32,8 @@ from psyclone.psyir.transformations.hoist_local_arrays_trans import \
 from psyclone.psyir.transformations.hoist_loop_bound_expr_trans import \
     HoistLoopBoundExprTrans
 from psyclone.psyir.transformations.hoist_trans import HoistTrans
+from psyclone.psyir.transformations.increase_rank_loop_arrays_trans import \
+    IncreaseRankLoopArraysTrans
 from psyclone.psyir.transformations.inline_trans import InlineTrans
 from psyclone.psyir.transformations.intrinsics.abs2code_trans import \
     Abs2CodeTrans
@@ -85,12 +55,20 @@ from psyclone.psyir.transformations.intrinsics.sum2loop_trans import \
     Sum2LoopTrans
 from psyclone.psyir.transformations.loop_fuse_trans import LoopFuseTrans
 from psyclone.psyir.transformations.loop_swap_trans import LoopSwapTrans
+from psyclone.psyir.transformations.loop_tiling_trans \
+    import LoopTilingTrans
 from psyclone.psyir.transformations.loop_tiling_2d_trans \
     import LoopTiling2DTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.value_range_check_trans import (
     ValueRangeCheckTrans)
+from psyclone.psyir.transformations.maximal_region_trans import (
+    MaximalRegionTrans)
+from psyclone.psyir.transformations.omp_critical_trans import (
+    OMPCriticalTrans)
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
+from psyclone.psyir.transformations.omp_minimise_sync_trans import \
+    OMPMinimiseSyncTrans
 from psyclone.psyir.transformations.omp_target_trans import OMPTargetTrans
 from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
 from psyclone.psyir.transformations.omp_task_trans import OMPTaskTrans
@@ -122,6 +100,26 @@ from psyclone.psyir.transformations.acc_loop_trans import \
     ACCLoopTrans
 from psyclone.psyir.transformations.omp_parallel_loop_trans import \
     OMPParallelLoopTrans
+from psyclone.psyir.transformations.maximal_omp_parallel_region_trans import (
+    MaximalOMPParallelRegionTrans
+)
+from psyclone.psyir.transformations.omp_parallel_trans import (
+    OMPParallelTrans,
+)
+from psyclone.psyir.transformations.datanode_to_temp_trans import (
+    DataNodeToTempTrans
+)
+from psyclone.psyir.transformations.move_trans import (
+    MoveTrans
+)
+
+# Metatransformations
+from psyclone.psyir.transformations.metatransformations.\
+    arrayintrinsic2loop_trans import ArrayIntrinsic2LoopTrans
+from psyclone.psyir.transformations.metatransformations.\
+    intrinsic2code_trans import Intrinsic2CodeTrans
+from psyclone.psyir.transformations.metatransformations.omp_cpu_routine_trans\
+    import OMPCPURoutineTrans
 
 # For AutoAPI documentation generation
 __all__ = [
@@ -137,6 +135,7 @@ __all__ = [
     "HoistLocalArraysTrans",
     "HoistLoopBoundExprTrans",
     "HoistTrans",
+    "IncreaseRankLoopArraysTrans",
     "InlineTrans",
     "Abs2CodeTrans",
     "DotProduct2CodeTrans",
@@ -147,11 +146,14 @@ __all__ = [
     "Sum2LoopTrans",
     "LoopFuseTrans",
     "LoopSwapTrans",
+    "LoopTilingTrans",
     "LoopTiling2DTrans",
     "LoopTrans",
     "Maxval2LoopTrans",
     "Minval2LoopTrans",
+    "OMPCPURoutineTrans"
     "OMPLoopTrans",
+    "OMPMinimiseSyncTrans",
     "OMPTargetTrans",
     "OMPTaskTrans",
     "OMPTaskwaitTrans",
@@ -171,4 +173,8 @@ __all__ = [
     "OMPDeclareTargetTrans",
     "ACCLoopTrans",
     "OMPParallelLoopTrans",
+    "MaximalRegionTrans",
+    "OMPCriticalTrans",
+    "MaximalOMPParallelRegionTrans",
+    "OMPParallelTrans",
 ]

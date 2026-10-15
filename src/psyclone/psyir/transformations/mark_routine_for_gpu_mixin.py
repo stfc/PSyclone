@@ -1,37 +1,17 @@
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-#         A. B. G. Chalk, V. K. Atkinson, STFC Daresbury Lab
-#         J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic, J. G. Wallwork, O. Brunt and L. Turner, Met Office
-#          S. Valat, Inria / Laboratoire Jean Kuntzmann
-#          M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean Kuntzmann
-#          J. Dendy, Met Office
-
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
+# -----------------------------------------------------------------------------
 
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import (Call, CodeBlock, Routine,
                                   IntrinsicCall)
+from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
-from psyclone.psyir.symbols import (DataSymbol, Symbol, SymbolError,
-                                    DataType)
+from psyclone.psyir.symbols import DataSymbol, SymbolError
 from psyclone.psyGen import BuiltIn
 
 
@@ -43,7 +23,7 @@ class MarkRoutineForGPUMixin:
     the same logic.
 
     '''
-    def validate_it_can_run_on_gpu(self, node, options):
+    def validate_it_can_run_on_gpu(self, node, options, **kwargs):
         '''
         Check that the supplied node can be marked as available to be
         called on GPU.
@@ -58,7 +38,7 @@ class MarkRoutineForGPUMixin:
         :param str options["device_string"]: provide a compiler-platform
             identifier.
 
- :raises TransformationError: if the node is not a kernel or a routine.
+        :raises TransformationError: if the node is not a kernel or a routine.
         :raises TransformationError: if the target is a built-in kernel.
         :raises TransformationError: if it is a kernel but without an
                                      associated PSyIR.
@@ -69,8 +49,13 @@ class MarkRoutineForGPUMixin:
         :raises TransformationError: if the kernel contains any calls to other
                                      routines.
         '''
-        force = options.get("force", False) if options else False
-        device_string = options.get("device_string", "") if options else ""
+        # TODO #2668: Deprecate options dict.
+        if options:
+            force = options.get("force", False)
+            device_string = options.get("device_string", "")
+        else:
+            force = self.get_option("force", **kwargs)
+            device_string = self.get_option("device_string", **kwargs)
 
         if not isinstance(node, (Kern, Routine)):
             raise TransformationError(
@@ -102,15 +87,15 @@ class MarkRoutineForGPUMixin:
             kernel_schedules = [node]
             k_or_r = "routine"
 
-        # Check that the routine(s) do(oes) not access any data that is
+        # Check that the routine(s) do(es) not access any data that is
         # imported via a 'use' statement.
         for sched in kernel_schedules:
             vam = sched.reference_accesses()
             ktable = sched.symbol_table
             for sig in vam.all_signatures:
                 name = sig.var_name
-                first = vam[sig].all_accesses[0].node
-                if isinstance(first, (Symbol, DataType)):
+                first = vam[sig][0].node
+                if isinstance(first, Reference):
                     table = ktable
                 else:
                     try:
@@ -131,8 +116,8 @@ class MarkRoutineForGPUMixin:
                         # An import of a compile-time constant is fine.
                         continue
                     raise TransformationError(
-                        f"{k_or_r} '{node.name}' accesses the symbol "
-                        f"'{symbol}' which is imported. If this symbol "
+                        f"{k_or_r} '{node.name}' accesses the imported symbol "
+                        f"'{symbol}'. If this symbol "
                         f"represents data then it must first be converted to a"
                         f" {k_or_r} argument using the "
                         f"KernelImportsToArguments transformation.")
@@ -143,9 +128,9 @@ class MarkRoutineForGPUMixin:
             cblocks = sched.walk(CodeBlock)
             if not force:
                 if cblocks:
-                    cblock_txt = ("\n  " + "\n  ".join(
-                        str(node) for node in cblocks[0].get_ast_nodes)
-                                  + "\n")
+                    cblock_txt = (
+                        "\n  " + "\n  ".join(cblocks[0].get_fortran_lines())
+                        + "\n")
                     option_txt = "options={'force': True}"
                     raise TransformationError(
                         f"Cannot safely apply {type(self).__name__} to "

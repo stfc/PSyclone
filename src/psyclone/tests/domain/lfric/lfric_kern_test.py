@@ -1,40 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford STFC Daresbury Lab
-# Modified: I. Kavcic, L. Turner and O. Brunt, Met Office
-#           J. Henrichs, Bureau of Meteorology
-#           A. R. Porter, STFC Daresbury Laboratory
 
 '''This module tests the LFRicKern class within LFRic using
 pytest. At the moment the tests here do not fully cover LFRicKern as
@@ -55,10 +24,11 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Container, KernelSchedule, Reference, Routine
+from psyclone.psyir.nodes import (
+    Container, KernelSchedule, Literal, Reference, Routine)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, DataSymbol, GenericInterfaceSymbol,
-    INTEGER_TYPE, REAL_TYPE)
+    ScalarType)
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import LFRicColourTrans
 from psyclone.psyir.backend.visitor import VisitorError
@@ -227,7 +197,7 @@ def test_get_callees_mixed_precision_match():
     kernels = sched.walk(LFRicKern, stop_type=LFRicKern)
     # 26.8 contains an invoke of five kernels, one each at the following
     # precisions.
-    kernel_precisions = ["r_def", "r_solver", "r_tran", "r_bl", "r_phys"]
+    kernel_precisions = ["r_def", "r_solver", "r_tran", "r_bl"]
     # Get the precision (in bytes) for each of these.
     precisions = [api_config.precision_map[name] for
                   name in kernel_precisions]
@@ -307,14 +277,15 @@ def test_validate_kernel_code_arg(monkeypatch):
     kernel = LFRicKern()
     # Kernel name needs to be set when testing exceptions.
     kernel._name = "dummy"
+
     read_access = ArgumentInterface(ArgumentInterface.Access.READ)
 
     real_scalar_symbol = DataSymbol(
-        "generic_real_scalar", REAL_TYPE, interface=read_access)
+        "generic_real_scalar", ScalarType.real_type(), interface=read_access)
     int_scalar_symbol = DataSymbol(
-        "generic_int_scalar", INTEGER_TYPE, interface=read_access)
+        "generic_int_scalar", ScalarType.integer_type(), interface=read_access)
     real_scalar_rw_symbol = DataSymbol(
-        "generic_scalar_rw", REAL_TYPE,
+        "generic_scalar_rw", ScalarType.real_type(),
         interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
     lfric_real_scalar_symbol = LFRicTypes("LFRicRealScalarDataSymbol")(
         "scalar", interface=read_access)
@@ -389,7 +360,9 @@ def test_validate_kernel_code_arg(monkeypatch):
                                      lfric_real_field_symbol2)
     # Lower array bound of 2 rather than 1
     monkeypatch.setattr(lfric_real_field_symbol3.datatype, "_shape",
-                        [ArrayType.ArrayBounds(2, Reference(undf))])
+                        [ArrayType.ArrayBounds(
+                            Literal("2", ScalarType.integer_type()),
+                            Reference(undf))])
     with pytest.raises(GenerationError) as info:
         kernel._validate_kernel_code_arg(lfric_real_field_symbol3,
                                          lfric_real_field_symbol3)
@@ -408,8 +381,8 @@ def test_validate_kernel_code_arg(monkeypatch):
         "following error was found: An argument to an LFRic kernel must have a"
         " precision defined by either a recognised LFRic type parameter (one "
         "of ['i_def', 'l_def', 'r_bl', 'r_def', 'r_double', 'r_ncdf', "
-        "'r_phys', 'r_quad', 'r_second', 'r_single', 'r_solver', 'r_tran', "
-        "'r_um']) or an integer number of bytes but argument "
+        "'r_quad', 'r_second', 'r_single', 'r_solver', 'r_tran', 'r_um', "
+        "'real32', 'real64']) or an integer number of bytes but argument "
         "'generic_int_scalar' to kernel 'dummy' has precision "
         "Precision.UNDEFINED" in str(info.value))
 
@@ -457,7 +430,7 @@ def test_kern_last_cell_all_colours():
     assert symbol.name == "last_halo_cell_all_colours"
     assert len(symbol.datatype.shape) == 2  # It's a 2-dimensional array
 
-    # Delete the symbols and try again inside a loop wihtout a halo
+    # Delete the symbols and try again inside a loop without a halo
     sched.symbol_table._symbols.pop("last_halo_cell_all_colours")
     loop.kernel.parent.parent._upper_bound_name = "not-a-halo"
     symbol = loop.kernel.last_cell_all_colours_symbol
@@ -547,6 +520,19 @@ def test_undf_name():
     assert kern.undf_name == "undf_w1"
 
 
+def test_kern_owned_cell_no_annexed(monkeypatch):
+    '''
+    Test that creating a kernel with OPERATES_ON=owned_cell_column raises
+    an error if COMPUTE_ANNEXED_DOFS is True.
+    '''
+    config = Config.get().api_conf("lfric")
+    monkeypatch.setattr(config, "_compute_annexed_dofs", True)
+    with pytest.raises(GenerationError) as err:
+        _ = get_invoke("1.4.5_owned_only_invoke.f90", api=TEST_API, idx=0)
+    assert ("Kernel 'testkern_owned_cell_code' cannot perform redundant "
+            "computation (has" in str(err.value))
+
+
 def test_argument_kinds():
     ''' Test the LFRicKern.argument_kinds property. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -558,3 +544,26 @@ def test_argument_kinds():
     assert len(kern.argument_kinds) == 2
     assert "i_def" in kern.argument_kinds
     assert "r_def" in kern.argument_kinds
+
+
+def test_validate_kernel_code_arg_against_alg_arg(monkeypatch):
+    '''
+    Test that the kernel validation checks that the kernel argument
+    precision matches the specified in the Algorithm layer.
+    '''
+    psy, invoke = get_invoke("26.8_mixed_precision_args.f90", TEST_API,
+                             name="invoke_0", dist_mem=False)
+    sched = invoke.schedule
+    # Second kernel has args of precision r_solver.
+    kernel = sched.walk(LFRicKern, stop_type=LFRicKern)[1]
+    read_access = ArgumentInterface(ArgumentInterface.Access.READ)
+    lfric_real_scalar_symbol = LFRicTypes("LFRicRealScalarDataSymbol")(
+        "scalar", interface=read_access)
+    with pytest.raises(GenerationError) as err:
+        kernel._validate_kernel_code_arg(lfric_real_scalar_symbol,
+                                         lfric_real_scalar_symbol,
+                                         kernel.args[0])
+    assert ("Precision (4 bytes) of algorithm-layer argument "
+            "'scalar_r_solver' does not match that (8 bytes) of the "
+            "corresponding kernel subroutine argument 'scalar' for kernel "
+            "'mixed_code'" in str(err.value))

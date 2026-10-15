@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''Specialise generic PSyIR representing an algorithm layer to a
 PSyclone algorithm-layer-specific PSyIR which uses specialised classes.
@@ -41,8 +13,10 @@ from psyclone.domain.common.transformations import RaisePSyIR2AlgTrans
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Call, Routine, Container
 from psyclone.psyir.transformations import TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class AlgTrans(Transformation):
     '''Transform a generic PSyIR representation of the Algorithm layer to
     a PSyclone version with specialised domain-specific nodes.
@@ -51,7 +25,7 @@ class AlgTrans(Transformation):
     def __init__(self):
         self._invoke_trans = RaisePSyIR2AlgTrans()
 
-    def validate(self, node, options=None):
+    def validate(self, node, options=None, **kwargs):
         '''Validate the supplied PSyIR tree.
 
         :param node: a PSyIR node that is the root of a PSyIR tree.
@@ -66,6 +40,9 @@ class AlgTrans(Transformation):
             a parent.
 
         '''
+        if not options:
+            self.validate_options(**kwargs)
+
         if not isinstance(node, (Routine, Container)):
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied call "
@@ -77,7 +54,7 @@ class AlgTrans(Transformation):
                 f"should be the root of a PSyIR tree but this node has a "
                 f"parent.")
 
-    def apply(self, psyir, options=None):
+    def apply(self, node, options=None, **kwargs):
         ''' Apply transformation to the supplied PSyIR node.
 
         :param node: a PSyIR node that is the root of a PSyIR tree.
@@ -87,11 +64,11 @@ class AlgTrans(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(psyir, options=options)
+        self.validate(node, options=options, **kwargs)
         idx = 0
-        for call in psyir.walk(Call):
+        for call in node.walk(Call, stop_type=Call):
             if call.routine.name.lower() == "invoke":
-                self._invoke_trans.apply(call, idx, options=options)
+                self._invoke_trans.apply(call, idx, options=options, **kwargs)
                 idx += 1
 
 

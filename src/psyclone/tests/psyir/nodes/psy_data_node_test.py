@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2025, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 ''' Module containing tests for generating PSyData hooks'''
 
@@ -395,10 +366,10 @@ def test_psy_data_node_lower_to_language_level():
     assert not routine.walk(PSyDataNode)
     codeblocks = routine.walk(CodeBlock)
     assert len(codeblocks) == 2
-    assert str(codeblocks[0].ast) == \
+    assert codeblocks[0].get_fortran_lines()[0] == \
         'CALL psy_data % PreStart("my_routine", "r0", 0, 0)'
     assert "psy-data-start" in codeblocks[0].annotations
-    assert str(codeblocks[1].ast) == \
+    assert codeblocks[1].get_fortran_lines()[0] == \
         'CALL psy_data % PostEnd'
 
     # Now try with a PSyDataNode with specified module and region names
@@ -411,9 +382,9 @@ def test_psy_data_node_lower_to_language_level():
     assert not routine.walk(PSyDataNode)
     codeblocks = routine.walk(CodeBlock)
     assert len(codeblocks) == 2
-    assert str(codeblocks[0].ast) == \
+    assert codeblocks[0].get_fortran_lines()[0] == \
         'CALL psy_data % PreStart("my_module", "my_region", 0, 0)'
-    assert str(codeblocks[1].ast) == \
+    assert codeblocks[1].get_fortran_lines()[0] == \
         'CALL psy_data % PostEnd'
 
 
@@ -446,7 +417,7 @@ def test_psy_data_node_lower_to_language_level_with_options():
                 'CALL psy_data % ProvideVariable("b", b)']
 
     for codeblock, string in zip(codeblocks, expected):
-        assert string == str(codeblock.ast)
+        assert string == codeblock.get_fortran_lines()[0]
 
     # 2) Test that variables suffixes are added as expected
     # -----------------------------------------------------
@@ -475,12 +446,12 @@ def test_psy_data_node_lower_to_language_level_with_options():
                 'CALL psy_data % ProvideVariable("b_post", b)']
 
     for codeblock, string in zip(codeblocks, expected):
-        assert string == str(codeblock.ast)
+        assert string == codeblock.get_fortran_lines()[0]
 
 
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
-def test_psy_data_node_name_clash(fortran_writer):
+def test_psy_data_node_name_clash():
     '''Test the handling of symbols imported from other modules, or calls to
     external functions that use module variables. In this example the external
     module uses a variable with the same name as the user code, which causes
@@ -493,21 +464,21 @@ def test_psy_data_node_name_clash(fortran_writer):
     # to read extracted data from a file) relative to the infrastructure path:
     psyclone_root = os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.dirname(os.path.dirname(infrastructure_path)))))
-    read_mod_path = os.path.join(psyclone_root, "lib", "extract", "standalone")
+    read_mod_path = os.path.join(psyclone_root, "lib", "extract", "binary")
 
     module_manager = ModuleManager.get()
     module_manager.add_search_path(infrastructure_path)
     module_manager.add_search_path(read_mod_path)
 
-    _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
-                           "symbols.f90", api, dist_mem=False, idx=1)
+    psy, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
+                             "symbols.f90", api, dist_mem=False, idx=1)
 
     extract = LFRicExtractTrans()
     extract.apply(invoke.schedule.children[0],
                   options={"create_driver": True,
                            "region_name": ("import", "test")})
 
-    code = fortran_writer(invoke.schedule)
+    code = psy.gen
 
     assert ('CALL extract_psy_data % PreDeclareVariable("f1_data_post", '
             'f1_data)' in code)

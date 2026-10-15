@@ -1,3 +1,10 @@
+! -----------------------------------------------------------------------------
+! SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+!                         Facilities Council
+! SPDX-License-Identifier: BSD-3-Clause
+! See the full LICENSE file in the project root for details.
+! -----------------------------------------------------------------------------
+
    !!=====================================================================================
    !! ***  traadv kernel extracted from the NEMO software (http://www.nemo-ocean.eu ) ***
    !! ***          governed by the CeCILL licence (http://www.cecill.info)            ***
@@ -9,7 +16,6 @@ module tra_adv_mod
 contains
 
 subroutine tra_adv()
-   USE iso_c_binding, only: C_INT64_T
    INTEGER, PARAMETER :: wp = KIND(1.0d0)
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:,:) :: t3sn, t3ns, t3ew, t3we
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:)   :: tsn 
@@ -21,9 +27,7 @@ subroutine tra_adv()
    REAL(wp) :: r
    REAL(wp) :: zw, z0w
    INTEGER  :: jpi, jpj, jpk, ji, jj, jk, jt
-   ! TODO #588 it would be more natural to do INTEGER*8 here but PSyclone does
-   ! not yet support such syntax.
-   INTEGER(KIND=C_INT64_T) :: it
+   INTEGER*8 :: it
    CHARACTER(len=10) :: env
    !> Timer indexes, one for initialisation, one for the 'time-stepping'
    INTEGER :: init_timer, step_timer

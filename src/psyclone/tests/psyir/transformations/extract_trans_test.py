@@ -1,39 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2025, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author I. Kavcic, Met Office
-# Modified by A. R. Porter, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for PSyclone ExtractTrans.
@@ -41,15 +10,13 @@
 
 import pytest
 
-from psyclone.core import Signature
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.psyir.nodes import Loop
-from psyclone.psyir.tools import ReadWriteInfo
-from psyclone.psyir.transformations import ExtractTrans, TransformationError
+from psyclone.psyir.transformations import (
+    ACCLoopTrans, ExtractTrans, TransformationError)
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (ACCParallelTrans,
                                       LFRicOMPParallelLoopTrans)
-from psyclone.psyir.transformations import ACCLoopTrans
 
 
 # --------------------------------------------------------------------------- #
@@ -67,56 +34,6 @@ def test_extract_trans():
     ltrans = LFRicExtractTrans()
     assert str(ltrans) == "Create a sub-tree of the PSyIR that has " \
                           "a node of type ExtractNode at its root."
-
-
-# --------------------------------------------------------------------------- #
-def test_determine_postfix():
-    '''Test that a unique postfix is determined.
-    '''
-
-    # Test if there is no clash that the specified postfix is returned as is:
-    read_write_info = ReadWriteInfo()
-    postfix = ExtractTrans.determine_postfix(read_write_info)
-    assert postfix == "_post"
-    postfix = ExtractTrans.determine_postfix(read_write_info,
-                                             postfix="_new_postfix")
-    assert postfix == "_new_postfix"
-
-    # Clash between input variable and a created output variable:
-    read_write_info = ReadWriteInfo()
-    read_write_info.add_read(Signature("var_post"))
-    read_write_info.add_write(Signature("var"))
-    postfix = ExtractTrans.determine_postfix(read_write_info)
-    assert postfix == "_post0"
-
-    # Two clashes between input variable and a created output variable:
-    read_write_info.add_read(Signature("var_post0"))
-    postfix = ExtractTrans.determine_postfix(read_write_info)
-    assert postfix == "_post1"
-
-    # Two clashes between different input variables and created output
-    # variables: 'var1' prevents the '_post' to be used, 'var2'
-    # prevents "_post0" to be used, 'var3' prevents "_post1":
-    read_write_info = ReadWriteInfo()
-    read_write_info.add_read(Signature("var1_post"))
-    read_write_info.add_read(Signature("var2_post0"))
-    read_write_info.add_read(Signature("var3_post1"))
-    read_write_info.add_write(Signature("var1"))
-    read_write_info.add_write(Signature("var2"))
-    read_write_info.add_write(Signature("var3"))
-    postfix = ExtractTrans.determine_postfix(read_write_info)
-    assert postfix == "_post2"
-
-    # Handle clash between output variables: the first variable will
-    # create "var" and var_post", the second "var_post" and "var_post_post".
-    read_write_info = ReadWriteInfo()
-    read_write_info. add_write(Signature("var"))
-    read_write_info. add_write(Signature("var_post"))
-    postfix = ExtractTrans.determine_postfix(read_write_info)
-    assert postfix == "_post0"
-    read_write_info.add_write(Signature("var_post0"))
-    postfix = ExtractTrans.determine_postfix(read_write_info)
-    assert postfix == "_post1"
 
 
 # -----------------------------------------------------------------------------

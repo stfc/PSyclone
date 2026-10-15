@@ -1,40 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2025, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office,
-#          C. M. Maynard, Met Office/University of Reading,
-#          J. Henrichs, Bureau of Meteorology.
 
 ''' This module uses pytest to test the LFRicLoop class. This is the LFRic-
     specific subclass of the Loop class. '''
@@ -46,13 +15,13 @@ from fparser import api as fpapi
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
-from psyclone.domain.lfric import (LFRicConstants, LFRicSymbolTable,
-                                   LFRicKern, LFRicKernMetadata, LFRicLoop,
-                                   LFRicInvokeSchedule)
+from psyclone.domain.lfric import (
+    LFRicConstants, LFRicKern, LFRicKernMetadata, LFRicLoop,
+    LFRicInvokeSchedule)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, InvokeSchedule, Kern
-from psyclone.psyir.nodes import Call, ScopingNode, Loop
+from psyclone.psyir.nodes import Call, Loop
 from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.tools.dependency_tools import Message, DTCode
@@ -115,10 +84,6 @@ def test_set_lower_bound_functions(monkeypatch):
     an LFRicLoop is set to invalid values.
 
     '''
-    # Make sure we get an LFRicSymbolTable
-    # TODO #1954: Remove the protected access using a factory
-    monkeypatch.setattr(ScopingNode, "_symbol_table_class",
-                        LFRicSymbolTable)
     schedule = LFRicInvokeSchedule.create("test")
     my_loop = LFRicLoop(parent=schedule)
     schedule.children = [my_loop]
@@ -136,10 +101,6 @@ def test_set_upper_bound_functions(monkeypatch):
     an LFRicLoop is set to invalid values.
 
     '''
-    # Make sure we get an LFRicSymbolTable
-    # TODO #1954: Remove the protected access using a factory
-    monkeypatch.setattr(ScopingNode, "_symbol_table_class",
-                        LFRicSymbolTable)
     schedule = LFRicInvokeSchedule.create("test")
     my_loop = LFRicLoop(parent=schedule)
     schedule.children = [my_loop]
@@ -222,7 +183,7 @@ def test_mesh_name():
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
+    # TODO #2905. Replace this psy.gen with a call to lower_to_language_level()
     # pylint: disable=pointless-statement
     psy.gen
     loops = psy.invokes.invoke_list[0].schedule.walk(LFRicLoop)
@@ -238,7 +199,7 @@ def test_mesh_name_intergrid():
                                         "22.1_intergrid_restrict.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
+    # TODO #2905. Replace this psy.gen with a call to lower_to_language_level()
     # pylint: disable=pointless-statement
     psy.gen
     loops = psy.invokes.invoke_list[0].schedule.walk(LFRicLoop)
@@ -297,20 +258,18 @@ def test_lower_to_language_domain_loops():
 
 
 def test_lower_to_language_domain_loops_multiple_statements():
-    ''' Tests lower_to_language_level on a DOMAIN LFRicLoop with multiple
-    statements in its loop_body.
-    '''
+    '''Test that lowering splices all statements from a DOMAIN LFRicLoop.'''
 
-    _, invoke = get_invoke("25.1_kern_two_domain.f90", TEST_API, idx=0)
+    _, invoke = get_invoke("25.1_kern_two_domain.f90", TEST_API, idx=0,
+                           dist_mem=False)
     sched = invoke.schedule
     # Force the two statements to be inside the same loop
     loop1 = sched.children[1].detach()
     kern = loop1.loop_body.children[0].detach()
     sched.children[0].loop_body.children.insert(1, kern)
-    with pytest.raises(NotImplementedError) as err:
-        sched.lower_to_language_level()
-    assert ("Lowering LFRic domain loops that produce more than one "
-            "children is not yet supported, but found:" in str(err.value))
+    sched.lower_to_language_level()
+    assert len(sched.children) == 2
+    assert all(isinstance(child, Call) for child in sched.children)
 
 
 def test_lfricloop_load_unexpected_func_space():
@@ -821,7 +780,17 @@ def test_loop_independent_iterations(monkeypatch, dist_mem):
     loop.independent_iterations(dep_tools=dtools)
     msgs = dtools.get_all_messages()
     assert msgs[0].code == DTCode.ERROR_WRITE_WRITE_RACE
-    # Colour the loop.
+    # Check if the loop does not have INC arguments, we consider it the
+    # iterations independent
+    for arg in loop.coded_kernels()[0].arguments.args:
+        arg.access = AccessType.READ
+    assert loop.independent_iterations()
+
+    # Restart but now colour the loop (the loop over colours is not
+    # independent, but the inner is)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.walk(LFRicLoop)[0]
     trans = LFRicColourTrans()
     trans.apply(loop)
     loops = schedule.walk(LFRicLoop)
