@@ -59,17 +59,18 @@ def trans(psyir):
                 try:
                     fusetrans.apply((loops[current_index],
                                      loops[current_index+1]))
+                    kernel_names = [k.name.lower() for k in
+                                    loops[current_index].kernels()]
                     # If fusion is successful then we have 1 less remaining
                     # loop and continue at the same index to keep trying to
                     # fuse.
+                    print(f"Fusion successful: {kernel_names}, "
+                          f"{psyir.name}:{subroutine.name}")
                     num_loops = num_loops - 1
                     num_fused = num_fused + 1
                 except TransformationError:
                     # If fusion fails we move to the next loop.
                     current_index = current_index + 1
-            if num_fused > 0:
-                print(f"Fused {num_fused} loops for invoke {subroutine.name} "
-                      f"in {psyir.name}")
         if ENABLE_REDUNDANT_COMPUTATION:
             # Make setval_* compute redundantly to the level 1 halo if it
             # is in its own loop and is not restricted to owned dofs only.
