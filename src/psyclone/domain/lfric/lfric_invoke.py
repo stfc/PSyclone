@@ -15,7 +15,7 @@ from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric.lfric_loop import LFRicLoop
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.parse.algorithm import InvokeCall
-from psyclone.psyGen import Invoke
+from psyclone.psyGen import Invoke, HaloExchange
 from psyclone.psyir.nodes import Assignment, Reference, Call, Literal
 from psyclone.psyir.symbols import (
     ContainerSymbol, RoutineSymbol, ImportInterface, DataSymbol, ScalarType)
@@ -204,6 +204,18 @@ class LFRicInvoke(Invoke):
                          self.run_time_checks]:
             entities.invoke_declarations()
 
+        # Initialise all quantities used in this in Invoke
+        cursor = 0
+        for entities in [self.proxies, self.run_time_checks,
+                         self.cell_iterators, self.meshes,
+                         self.stencil, self.dofmaps,
+                         self.cma_ops, self.boundary_conditions,
+                         self.function_spaces, self.evaluators,
+                         self.reference_element_properties,
+                         self.mesh_properties, self.loop_bounds,
+                         self.scalar_array_args]:
+            cursor = entities.initialise(cursor)
+
     def arg_for_funcspace(self, fspace):
         '''
         Returns an argument object which is on the requested
@@ -278,16 +290,15 @@ class LFRicInvoke(Invoke):
         constructor).
 
         '''
-        cursor = 0
-        for entities in [self.proxies, self.run_time_checks,
-                         self.cell_iterators, self.meshes,
-                         self.stencil, self.dofmaps,
-                         self.cma_ops, self.boundary_conditions,
-                         self.function_spaces, self.evaluators,
-                         self.reference_element_properties,
-                         self.mesh_properties, self.loop_bounds,
-                         self.scalar_array_args]:
-            cursor = entities.initialise(cursor)
+        # for entities in [self.proxies, self.run_time_checks,
+        #                 self.cell_iterators, self.meshes,
+        #                 self.stencil, self.dofmaps,
+        #                 self.cma_ops, self.boundary_conditions,
+        #                 self.function_spaces, self.evaluators,
+        #                 self.reference_element_properties,
+        #                 self.mesh_properties, self.loop_bounds,
+        #                 self.scalar_array_args]:
+        #    cursor = entities.initialise(cursor)
 
         if self.schedule.reductions(reprod=True):
             # We have at least one reproducible reduction so we need
@@ -310,15 +321,23 @@ class LFRicInvoke(Invoke):
             assignment.append_preceding_comment(
                 "Determine the number of OpenMP threads")
             self.schedule.addchild(assignment, 0)
-            cursor += 1
 
-        # Now that all initialisation is done, add the comment before
-        # the start of the kernels
+        # Now that all initialisation is done, add a comment before
+        # the start of the kernels/halo exchanges.
+        haloexchs = self.schedule.walk(HaloExchange)
+        if haloexchs:
+            first_haloexch = haloexchs[0]
+            indices = first_haloexch.path_from(self.schedule)
+            first_node = self.schedule.children[indices[0]]
+        else:
+            first_node = self.schedule.walk(LFRicLoop,
+                                            stop_type=LFRicLoop)[0]
+        # Add the comment.
         if Config.get().distributed_memory:
-            self.schedule[cursor].preceding_comment = (
+            first_node.preceding_comment = (
                 "Call kernels and communication routines")
         else:
-            self.schedule[cursor].preceding_comment = (
+            first_node.preceding_comment = (
                 "Call kernels")
 
         # Deallocate any basis arrays
