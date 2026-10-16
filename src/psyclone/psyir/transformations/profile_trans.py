@@ -8,11 +8,15 @@
 '''This module provides the Profile transformation.
 '''
 
+from typing import Any, Optional, Union
+
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.nodes import CodeBlock, ProfileNode, Return, Routine
+from psyclone.psyir.nodes import CodeBlock, Node, ProfileNode, Return, Routine
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
+from psyclone.utils import transformation_documentation_wrapper
 
 
+@transformation_documentation_wrapper
 class ProfileTrans(PSyDataTrans):
     ''' Create a profile region around a list of statements. For
     example:
@@ -39,28 +43,28 @@ class ProfileTrans(PSyDataTrans):
     def __init__(self):
         super().__init__(ProfileNode)
 
-    def validate(self, nodes, options=None):
+    def validate(self, nodes: Union[Node, list[Node]],
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         '''
         Checks that the supplied list of nodes is valid for profiling
         callipers.
 
         :param nodes: a node or list of nodes to be instrumented with
                       profiling.
-        :type nodes: :py:class:`psyclone.psyir.nodes.Node` or
-                     list[:py:class:`psyclone.psyir.nodes.Node`]
-        :param bool options["force"]: whether to ignore potential control
-                                      flow jumps when applying this
-                                      transformation. Default is False.
 
         :raises TransformationError: if the supplied region contains a
                                      potential control flow jump that could
                                      result in skipping the end of profiling
                                      caliper, e.g. EXIT or GOTO.
         '''
-        if not options:
-            options = {}
-        forced = options.get("force", False)
-        super().validate(nodes, options)
+        # TODO #2668: Deprecate options dictionary
+        if options:
+            forced = options.get("force", False)
+        else:
+            self.validate_options(**kwargs)
+            forced = self.get_option("force", **kwargs)
+        super().validate(nodes, options, **kwargs)
         if forced:
             return
         node_list = self.get_node_list(nodes)
@@ -85,3 +89,15 @@ class ProfileTrans(PSyDataTrans):
                         f"containing a potential control flow jump, as these "
                         f"could skip the end of profiling caliper. "
                         f"Found:\n'{block.debug_string()}'")
+
+    def apply(self, nodes: Union[Node, list[Node]],
+              options: Optional[dict[str, Any]] = None, force: bool = False,
+              **kwargs: Any) -> None:
+        '''Apply this profiling transformation.
+
+        :param nodes: nodes to enclose in the profiling region.
+        :param options: a dictionary with options for transformations.
+        :param force: ignore potential control-flow jumps in the region.
+
+        '''
+        super().apply(nodes, options=options, force=force, **kwargs)

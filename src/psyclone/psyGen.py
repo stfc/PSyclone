@@ -32,7 +32,7 @@ from psyclone.psyir.nodes import (
     IntrinsicCall, BinaryOperation, FileContainer, OMPParallelDirective)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, ScalarType,
-    UnresolvedType, ImportInterface, RoutineSymbol)
+    Symbol, UnresolvedType, ImportInterface, RoutineSymbol)
 from psyclone.psyir.symbols.symbol_table import SymbolTable
 from psyclone.utils import stringify_annotation
 
@@ -856,6 +856,20 @@ class Kern(Statement):
             return ancestor.reprod
         return False
 
+    def _create_reduction_initial_value(self, variable: Symbol) -> Node:
+        '''
+        Creates the initial value for the reduction variable used for this
+        Kern or builtin. The base classes defaults to a Literal with value
+        0 with the datatype of the provided variable.
+
+        :param variable: the variable which is having the initial value
+                         assigned to.
+
+        :returns: the initial value required for this Kern to correctly
+                  perform the reduction.
+        '''
+        return Literal("0", variable.datatype.copy())
+
     def initialise_reduction_variable(self) -> None:
         '''
         Generate PSyIR to zero the reduction variable and to zero the local
@@ -894,8 +908,9 @@ class Kern(Statement):
         cursor = insert_loc.position
         insert_loc = insert_loc.parent
         new_node = Assignment.create(
-                        lhs=Reference(variable),
-                        rhs=Literal("0", variable.datatype.copy()))
+            lhs=Reference(variable),
+            rhs=self._create_reduction_initial_value(variable)
+        )
         new_node.append_preceding_comment("Initialise reduction variable")
         insert_loc.addchild(new_node, cursor)
         cursor += 1
@@ -905,7 +920,7 @@ class Kern(Statement):
                 f"{self.name}:{self._reduction_arg.name}:local")
             assign = Assignment.create(
                 lhs=Reference(local_var),
-                rhs=Literal("0", variable.datatype.copy())
+                rhs=self._create_reduction_initial_value(local_var)
             )
             insert_loc.addchild(assign, cursor)
         return new_node

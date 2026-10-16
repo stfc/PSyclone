@@ -859,6 +859,14 @@ class ArrayType(DataType):
                     self.lower.copy(), self.upper.copy()
             )
 
+        def get_all_accessed_symbols(self) -> set["Symbol"]:
+            '''
+            :returns: a set of all the symbols accessed inside this Symbol.
+            '''
+            symbols = self.lower.get_all_accessed_symbols()
+            symbols.update(self.upper.get_all_accessed_symbols())
+            return symbols
+
     def __init__(
         self,
         elemental_type: Union[DataType, DataTypeSymbol],
