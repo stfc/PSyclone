@@ -145,7 +145,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                                      does not apply because neither field
                                      is on `ANY_SPACE` or the spaces are not
                                      the same.
-        :raises TypeError: if the `same_space` flag was set, but is not a 
+        :raises TypeError: if the `same_space` flag was set, but is not a
                            bool.
         :raises TransformationError: if the loops are over different spaces
                                      that are not both discontinuous and
