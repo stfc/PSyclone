@@ -1097,9 +1097,9 @@ class FortranWriter(LanguageWriter):
                     f"{[sym.name for sym in all_symbols]}")
 
             # Output the declarations of those Symbols that have their
-            # dependencies satisfied, in alphabetical order.
+            # dependencies satisfied.
             new_declns = []
-            for symbol in do_next:  # sorted(do_next, key=lambda x: x.name.lower()):
+            for symbol in do_next:
                 declared.add(symbol)
                 all_symbols.remove(symbol)
                 if isinstance(symbol, RoutineSymbol):
@@ -1121,6 +1121,7 @@ class FortranWriter(LanguageWriter):
                 else:
                     new_declns.append(self.gen_vardecl(
                         symbol, include_visibility=is_module_scope))
+            # Sort each section of declarations for readability.
             declarations += "".join(sorted(new_declns))
             # Now that we've created new declaration(s) (and thus
             # potentially resolved some dependencies) we go back to
