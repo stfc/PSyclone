@@ -14,7 +14,7 @@ from psyclone.psyir.nodes import (
     Reference, IfBlock)
 from psyclone.core import AccessType, Signature
 from psyclone.psyir.symbols import ScalarType, DataSymbol
-from psyclone.psyir.nodes.node import colored
+from psyclone.utils import colored
 
 
 def test_array_construction_valid():

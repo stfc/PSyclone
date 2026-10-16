@@ -258,20 +258,18 @@ def test_lower_to_language_domain_loops():
 
 
 def test_lower_to_language_domain_loops_multiple_statements():
-    ''' Tests lower_to_language_level on a DOMAIN LFRicLoop with multiple
-    statements in its loop_body.
-    '''
+    '''Test that lowering splices all statements from a DOMAIN LFRicLoop.'''
 
-    _, invoke = get_invoke("25.1_kern_two_domain.f90", TEST_API, idx=0)
+    _, invoke = get_invoke("25.1_kern_two_domain.f90", TEST_API, idx=0,
+                           dist_mem=False)
     sched = invoke.schedule
     # Force the two statements to be inside the same loop
     loop1 = sched.children[1].detach()
     kern = loop1.loop_body.children[0].detach()
     sched.children[0].loop_body.children.insert(1, kern)
-    with pytest.raises(NotImplementedError) as err:
-        sched.lower_to_language_level()
-    assert ("Lowering LFRic domain loops that produce more than one "
-            "children is not yet supported, but found:" in str(err.value))
+    sched.lower_to_language_level()
+    assert len(sched.children) == 2
+    assert all(isinstance(child, Call) for child in sched.children)
 
 
 def test_lfricloop_load_unexpected_func_space():

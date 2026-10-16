@@ -66,6 +66,12 @@ ${NOTEBOOK_FILES}:
 
 notebook: ${NOTEBOOK_FILES}
 
+%.o: %.F90
+	$(F90) $(F90FLAGS) -c $<
+
+%.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
+
 # By default we clean-up emacs backup files and generated Jupyter notebooks
 clean:
 	${RM} ./*~ ./*.nbconvert.ipynb ${GENERATED_FILES}

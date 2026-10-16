@@ -20,7 +20,7 @@ from psyclone.utils import transformation_documentation_wrapper
 
 
 @transformation_documentation_wrapper
-class Intrinsic2CodeTrans(Transformation, metaclass=abc.ABCMeta):
+class Intrinsic2CodeBaseTrans(Transformation, metaclass=abc.ABCMeta):
     '''Provides support for transformations from PSyIR IntrinsicCall
     nodes to equivalent PSyIR code in a PSyIR tree. Such
     transformations can be useful when the intrinsic is not supported
@@ -72,6 +72,7 @@ class Intrinsic2CodeTrans(Transformation, metaclass=abc.ABCMeta):
                 f"Error in {self.name} transformation. This transformation "
                 f"requires the operator to be part of an assignment "
                 f"statement, but no such assignment was found.")
+        super().validate(node, options=options, **kwargs)
 
     def _validate_scalar_arg(self, node, options=None):
         '''
@@ -114,4 +115,4 @@ class Intrinsic2CodeTrans(Transformation, metaclass=abc.ABCMeta):
 
 
 # For AutoAPI auto-documentation generation.
-__all__ = ["Intrinsic2CodeTrans"]
+__all__ = ["Intrinsic2CodeBaseTrans"]

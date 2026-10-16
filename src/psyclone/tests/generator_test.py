@@ -345,6 +345,23 @@ def test_kernel_parsing_internalerror(capsys, caplog):
             in caplog.text)
 
 
+def test_kernel_parsing_with_fortran_error(capsys):
+    '''Checks that the expected output is provided if a kernel contains
+    invalid Fortran, especially the filename and the line number.
+
+    '''
+    alg = GOCEAN_BASE_PATH / "test13_invoke_kernel_invalid_fortran.f90"
+    kern_filename = GOCEAN_BASE_PATH / "kernel_invalid_fortran.f90"
+    with pytest.raises(SystemExit):
+        main([str(alg), "-api", "gocean"])
+    out, err = capsys.readouterr()
+    assert out == ""
+    assert "Failed to parse kernel code" in str(err)
+    assert str(kern_filename) in str(err)
+    assert ("35:  end tpe compute_cu <== no parse pattern found for "
+            "\"end tpe compute_cu\" in 'Type' block.'" in str(err))
+
+
 def test_script_file_too_short():
     '''Checks that generator.py raises an appropriate error when a script
     file name is too short to contain the '.py' extension.

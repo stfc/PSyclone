@@ -43,9 +43,17 @@ echo -n "   -> "
 count_uniq "because it accesses data from its outer scope"
 echo
 echo " --- Then we need to inline them, or fallback to GPU routine annotations ---"
-count_uniq "Inline successful"
-count_uniq "Inline failed"
 count_uniq "Annotation successful"
+echo -n "   "
+count_uniq "Deferred-Inline successful"
+echo -n "   "
+count_uniq "Deferred-Inline failed"
+echo -n "   -> "
+count_uniq "Inlining polymorphic kernels is not supported"
+echo -n "   -> "
+count_uniq "contains one or more Return statements"
+echo -n "   -> "
+count_uniq "is passed by argument and is assigned to before the call"
 count_uniq "Annotation failed"
 echo -n "   -> "
 count_uniq "accesses the imported symbol"
@@ -68,5 +76,6 @@ count_uniq "Added inner loop nested parallelism"
 count_uniq "Added OMP threading"
 
 check_above "Module-inline successful" 283
+check_above "Deferred-Inline successful" 73
 check_above "Offload independent loop" 83
 check_above "Offload with cell colouring" 40

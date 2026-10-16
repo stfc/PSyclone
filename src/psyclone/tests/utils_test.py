@@ -6,12 +6,21 @@
 # -----------------------------------------------------------------------------
 
 '''This module implements tests for the generic utility functions.'''
+import psyclone
+import inspect
+import importlib
+import pkgutil
+import ast
+import textwrap
 
+import builtins
 import pytest
+import runpy
 import sys
 from typing import Union
 
 
+from psyclone import utils
 from psyclone.errors import InternalError
 from psyclone.transformations import Transformation
 from psyclone.utils import (
@@ -19,6 +28,65 @@ from psyclone.utils import (
     transformation_documentation_wrapper,
     stringify_annotation, within_virtual_env,
 )
+
+
+def test_all_transformation_validate_calls_super():
+    '''Every Transformation validate override must call super().validate().
+    This is important to check that the 'options' deprecated warning will
+    be triggered if any option dictionary is provided
+
+    This checks syntax, not whether every execution path reaches the call.
+    No transformation is instantiated and no validate method is executed.
+    '''
+    # TODO #2668: This test is unnecessary once options dicts are removed.
+    packages = [psyclone]
+
+    # Collect all transformation classes
+    classes = set()
+    while packages:
+        package = packages.pop()
+        for info in pkgutil.iter_modules(package.__path__,
+                                         package.__name__ + "."):
+            if info.name == "psyclone.tests":
+                # Skip Dummy Transformations inside the tests
+                continue
+            module = importlib.import_module(info.name)
+            if info.ispkg:
+                packages.append(module)
+            for _, cls in inspect.getmembers(module, inspect.isclass):
+                if (cls is not Transformation and
+                        issubclass(cls, Transformation) and
+                        cls.__module__ == module.__name__ and
+                        "validate" in cls.__dict__):
+                    classes.add(cls)
+
+    missing = []
+    for cls in classes:
+        # Explore the source of each class validate method to ensure that a
+        # super().validate call is found.
+        source = textwrap.dedent(inspect.getsource(cls.__dict__["validate"]))
+        method = ast.parse(source).body[0]
+        pending = list(method.body)
+        found = False
+        while pending:
+            node = pending.pop()
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                 ast.ClassDef, ast.Lambda)):
+                continue
+            if (isinstance(node, ast.Call) and
+                    isinstance(node.func, ast.Attribute) and
+                    node.func.attr == "validate" and
+                    isinstance(node.func.value, ast.Call) and
+                    isinstance(node.func.value.func, ast.Name) and
+                    node.func.value.func.id == "super"):
+                found = True
+                break
+            pending.extend(ast.iter_child_nodes(node))
+        if not found:  # pragma: no cover
+            missing.append(f"{cls.__module__}.{cls.__qualname__}")
+
+    assert not missing, ("validate() overrides missing super().validate():\n" +
+                         "\n".join(sorted(missing)))
 
 
 def test_within_virtual_env(monkeypatch):
@@ -499,3 +567,21 @@ def test_parse_kwargs_errors_wrong_type(kwargs):
 
     assert (f"Invalid syntax for keyword arguments '{kwargs}'. It was parsed "
             f"as 'set', not as a dictionary." == str(err.value))
+
+
+def test_colored_fallback_without_termcolor(monkeypatch):
+    '''Exercise the fallback implementation of ``colored`` when termcolor
+    cannot be imported.
+
+    '''
+    original_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        '''Raise ImportError only for termcolor.'''
+        if name == "termcolor":
+            raise ImportError("termcolor unavailable")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    module_globals = runpy.run_path(utils.__file__)
+    assert module_globals["colored"]("text", "green") == "text"

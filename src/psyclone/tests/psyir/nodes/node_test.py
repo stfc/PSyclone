@@ -7,8 +7,6 @@
 
 ''' Performs py.test tests on the Node PSyIR node. '''
 
-import builtins
-import runpy
 import sys
 import os
 import re
@@ -27,7 +25,7 @@ from psyclone.psyir.nodes.node import ChildrenList, Node
 from psyclone.psyir.symbols import DataSymbol, SymbolError, \
     ScalarType, SymbolTable, ArrayType, RoutineSymbol, NoType
 from psyclone.tests.utilities import get_invoke
-from psyclone.psyir.nodes.node import colored
+from psyclone.utils import colored
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "lfric")
@@ -95,24 +93,6 @@ def test_node_coloured_name_exception(monkeypatch):
     assert ("The _colour attribute in class 'Node' has been set to a "
             "colour ('invalid') that is not supported by the termcolor "
             "package." in str(err.value))
-
-
-def test_node_colored_fallback_without_termcolor(monkeypatch):
-    '''Exercise the fallback implementation of ``colored`` when termcolor
-    cannot be imported.
-
-    '''
-    original_import = builtins.__import__
-
-    def fake_import(name, *args, **kwargs):
-        '''Raise ImportError only for termcolor.'''
-        if name == "termcolor":
-            raise ImportError("termcolor unavailable")
-        return original_import(name, *args, **kwargs)
-
-    monkeypatch.setattr(builtins, "__import__", fake_import)
-    module_globals = runpy.run_path(node.__file__)
-    assert module_globals["colored"]("text", "green") == "text"
 
 
 def test_node_str(monkeypatch):

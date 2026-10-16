@@ -15,12 +15,13 @@ import pytest
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (
-    ArrayReference, BinaryOperation, colored, IntrinsicCall,
+    ArrayReference, BinaryOperation, IntrinsicCall,
     Literal, Range, Reference, Return, StructureReference, UnaryOperation)
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, UnresolvedType, ScalarType, Symbol, StructureType,
     UnsupportedFortranType)
 from psyclone.tests.utilities import check_links
+from psyclone.utils import colored
 
 
 # Test BinaryOperation class
@@ -358,10 +359,19 @@ def test_binaryop_structure_datatype():
 
     '''
     arrtype = ArrayType(ScalarType.real_single_type(), [10, 5])
-    stype = StructureType.create([
-        ("nx", ScalarType.integer_single_type(),
-         Symbol.Visibility.PUBLIC, None),
-        ("data", arrtype, Symbol.Visibility.PUBLIC, None)])
+    stype = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "nx",
+                ScalarType.integer_single_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            StructureType.ComponentType(
+                "data", arrtype, Symbol.Visibility.PUBLIC, None
+            ),
+        ]
+    )
     sym1 = DataSymbol("field", stype)
     ref1 = StructureReference.create(sym1, ["nx"])
     oper = BinaryOperation.Operator.SUB

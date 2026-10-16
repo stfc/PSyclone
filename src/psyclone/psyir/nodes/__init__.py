@@ -22,7 +22,7 @@ from psyclone.psyir.nodes.atomic_mixin import (
 from psyclone.psyir.nodes.codeblock import (
     CodeBlock, Fparser2CodeBlock, TreeSitterCodeBlock)
 from psyclone.psyir.nodes.container import Container
-from psyclone.psyir.nodes.node import colored, Node
+from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.scoping_node import ScopingNode
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.return_stmt import Return
@@ -82,7 +82,6 @@ from psyclone.psyir.nodes.while_loop import WhileLoop
 # The entities in the __all__ list are made available to import directly from
 # this package e.g. 'from psyclone.psyir.nodes import Literal'
 __all__ = [
-        'colored',
         'ArrayConstructor',
         'ArrayMember',
         'ArrayReference',
@@ -95,7 +94,6 @@ __all__ = [
         'Call',
         'CallMatchingArgumentsNotFound',
         'Clause',
-        'CodeBlock',
         'ComplexLiteral',
         'Container',
         'DataNode',
@@ -119,9 +117,6 @@ __all__ = [
         'UnaryOperation',
         'ScopingNode',
         'WhileLoop',
-        # CodeBlock nodes
-        'Fparser2CodeBlock',
-        'TreeSitterCodeBlock',
         # PSyclone-specific nodes
         'KernelSchedule',
         # PSyData Nodes

@@ -1995,6 +1995,8 @@ def test_minmaxval_x(fortran_writer, tmp_path):
                              dist_mem=True)
     invoke.setup_psy_layer_symbols()
     output = fortran_writer(invoke.schedule)
+    assert "amin = HUGE(0.0_r_def)" in output
+    assert "amax = -HUGE(0.0_r_def)" in output
     assert "global_min%value = amin" in output
     assert "amin = global_min%get_min()" in output
     assert "global_max%value = amax" in output
