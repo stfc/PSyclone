@@ -121,10 +121,10 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                     if fs_name not in const.VALID_ANY_SPACE_NAMES:
                         found_space2 = fs
                 # If both are found then we can stop.
-                if found_space1 is not None and found_space2 is not None:
+                if found_space1 and found_space2:
                     break
             # If both are found then we can stop.
-            if found_space1 is not None and found_space2 is not None:
+            if found_space1 and found_space2:
                 break
         return found_space1, found_space2
 
@@ -141,10 +141,12 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                                      an inter-grid kernel.
         :raises TransformationError: if one or both function spaces have
                                      invalid names.
-        :raises TypeError: if the `same_space` flag was set, but
-                           does not apply because neither field
-                           is on `ANY_SPACE` or the spaces are not
-                           the same.
+        :raises TransformationError: if the `same_space` flag was set, but
+                                     does not apply because neither field
+                                     is on `ANY_SPACE` or the spaces are not
+                                     the same.
+        :raises TypeError: if the `same_space` flag was set, but is not a 
+                           bool.
         :raises TransformationError: if the loops are over different spaces
                                      that are not both discontinuous and
                                      the loops both iterate over cells.
@@ -352,11 +354,12 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         )
         if arg1_field is None or arg2_field is None:
             return
-        if (same_space or arg1_field is None or arg2_field is None or
-                arg1_field.name == arg2_field.name or both_discontinuous):
+        if (same_space or arg1_field.name == arg2_field.name or
+                both_discontinuous):
             return
         # 8) If one or more is on any space then we need to search for the
-        # space and if we can't compute it we can't fuse the loops without.
+        # space and if we can't compute it we can't fuse the loops without
+        # a conditional runtime check.
         found_space1, found_space2 = self._resolve_function_spaces(
             nodes, const
         )
@@ -367,7 +370,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
             raise TransformationError(
                 f"Error in {self.name}: Couldn't lookup the field space "
                 f"for one or more of the ANY_SPACE fields being operated on "
-                f"and conditional fusion wasn't specified."
+                f"and conditional fusion wasn't requested."
             )
 
         if found_space1 is not None and found_space2 is not None:
@@ -479,7 +482,8 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                           **kwargs)
             return
 
-        # If one or more is on any space then we need to search for the space.
+        # We know the function space of both loops and we know from validate
+        # that it must be the same unless conditional fusion was requested.
         found_space1, found_space2 = self._resolve_function_spaces(
             nodes, const
         )

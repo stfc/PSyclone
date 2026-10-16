@@ -280,7 +280,7 @@ def test_loop_fuse_fail_to_resolve_space(tmpdir):
         TransformationError,
         match="Error in LFRicLoopFuseTrans: Couldn't lookup the field space "
               "for one or more of the ANY_SPACE fields being operated on and "
-              "conditional fusion wasn't specified."):
+              "conditional fusion wasn't requested."):
         ftrans.apply(loops[1:3])
 
     # Fusion should work if we allow conditional fusion
