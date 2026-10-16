@@ -1098,28 +1098,30 @@ class FortranWriter(LanguageWriter):
 
             # Output the declarations of those Symbols that have their
             # dependencies satisfied, in alphabetical order.
-            for symbol in sorted(do_next, key=lambda x: x.name.lower()):
+            new_declns = []
+            for symbol in do_next:  # sorted(do_next, key=lambda x: x.name.lower()):
                 declared.add(symbol)
                 all_symbols.remove(symbol)
                 if isinstance(symbol, RoutineSymbol):
                     # Interfaces can be GenericInterfaceSymbols or
                     # RoutineSymbols of UnsupportedFortranType.
                     if isinstance(symbol, GenericInterfaceSymbol):
-                        declarations += self.gen_interfacedecl(symbol)
+                        new_declns.append(self.gen_interfacedecl(symbol))
                     elif isinstance(symbol.datatype, UnsupportedType):
-                        declarations += self.gen_vardecl(
-                                symbol, include_visibility=is_module_scope)
+                        new_declns.append(self.gen_vardecl(
+                                symbol, include_visibility=is_module_scope))
                     elif not (symbol.is_modulevar or symbol.is_automatic):
                         raise VisitorError(
                             f"Routine symbol '{symbol.name}' has "
                             f"'{symbol.interface}'. This is not supported "
                             f"by the Fortran back-end.")
                 elif isinstance(symbol, DataTypeSymbol):
-                    declarations += self.gen_typedecl(
-                        symbol, include_visibility=is_module_scope)
+                    new_declns.append(self.gen_typedecl(
+                        symbol, include_visibility=is_module_scope))
                 else:
-                    declarations += self.gen_vardecl(
-                        symbol, include_visibility=is_module_scope)
+                    new_declns.append(self.gen_vardecl(
+                        symbol, include_visibility=is_module_scope))
+            declarations += "".join(sorted(new_declns))
             # Now that we've created new declaration(s) (and thus
             # potentially resolved some dependencies) we go back to
             # the start of the list of remaining symbols.

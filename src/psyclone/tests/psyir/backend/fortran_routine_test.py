@@ -44,9 +44,9 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
     expected = (
         "subroutine tmp(a, b, c)\n"
         "  use iso_c_binding, only : c_int\n"
-        "  real, dimension(:), intent(out) :: a\n"
-        "  real, dimension(:), intent(in) :: b\n"
         "  integer, intent(in) :: c\n"
+        "  real, dimension(:), intent(in) :: b\n"
+        "  real, dimension(:), intent(out) :: a\n"
         "\n"
         "  if (c > 3) then\n"
         "    a = b / c\n"
@@ -69,9 +69,9 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
     # They should be promoted to the routine-scope level
     result = fortran_writer(schedule)
     assert (
-        "  integer, intent(in) :: c\n"
         "  integer :: symbol1\n"
-        "  integer :: symbol2\n") in result
+        "  integer :: symbol2\n"
+        "  integer, intent(in) :: c\n") in result
     assert Compile(tmpdir).string_compiles(result)
 
     # Add symbols that will result in name clashes to sibling scopes
@@ -91,12 +91,11 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
     # names
     result = fortran_writer(schedule)
     assert (
-        "  integer, intent(in) :: c\n"
         "  integer :: symbol1\n"
         "  integer :: symbol1_1\n"
         "  integer :: symbol2\n"
         "  integer :: symbol2_1\n"
-        "\n") in result
+        "  integer, intent(in) :: c\n") in result
     assert Compile(tmpdir).string_compiles(result)
 
 

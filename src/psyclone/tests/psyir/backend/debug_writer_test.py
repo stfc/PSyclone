@@ -93,11 +93,11 @@ module example_mod
 
   contains
   subroutine example_code(i, j, cu, p, u)
-    real, dimension(:,:), intent(out) :: cu
     integer, intent(in) :: i
     integer, intent(in) :: j
     real, dimension(:,:), intent(in) :: p
     real, dimension(:,:), intent(in) :: u
+    real, dimension(:,:), intent(out) :: cu
 
     !$omp parallel default(shared)
     cu(i,j) = < MyDSLDataNode[] > * u(i,j)

@@ -178,32 +178,32 @@ def test_gen_decls(fortran_writer):
     result = fortran_writer.gen_decls(symbol_table)
     # If derived type declaration is not inside a module then its components
     # cannot have accessibility attributes.
-    assert (result == "type :: field\n"
+    assert (result == "integer :: local\n"
+                      "integer, parameter :: rlg = 8\n"
+                      "type :: field\n"
                       "  integer :: flag\n"
                       "end type field\n"
-                      "type(grid_type) :: grid\n"
-                      "integer :: local\n"
-                      "integer, parameter :: rlg = 8\n")
+                      "type(grid_type) :: grid\n")
     # Repeat but specify that these declarations are within a module.
     result = fortran_writer.gen_decls(symbol_table, is_module_scope=True)
-    assert (result == "type, public :: field\n"
-                      "  integer, public :: flag\n"
-                      "end type field\n"
-                      "type(grid_type), public :: grid\n"
+    assert (result == "integer, parameter, public :: rlg = 8\n"
                       "integer, public :: local\n"
-                      "integer, parameter, public :: rlg = 8\n")
+                      "type(grid_type), public :: grid\n"
+                      "type, public :: field\n"
+                      "  integer, public :: flag\n"
+                      "end type field\n")
     # Add a Symbol with an argument interface.
     argument_variable = DataSymbol("arg", ScalarType.integer_type(),
                                    interface=ArgumentInterface())
     symbol_table.add(argument_variable)
     result = fortran_writer.gen_decls(symbol_table)
     assert (result == "integer :: arg\n"
+                      "integer :: local\n"
+                      "integer, parameter :: rlg = 8\n"
                       "type :: field\n"
                       "  integer :: flag\n"
                       "end type field\n"
-                      "type(grid_type) :: grid\n"
-                      "integer :: local\n"
-                      "integer, parameter :: rlg = 8\n")
+                      "type(grid_type) :: grid\n")
     result = fortran_writer.gen_decls(symbol_table)
 
     # Add a Symbol with PreprocessorInterface which has to be ignored by
@@ -213,12 +213,12 @@ def test_gen_decls(fortran_writer):
     symbol_table.add(preprocessor_variable)
     result = fortran_writer.gen_decls(symbol_table)
     assert (result == "integer :: arg\n"
+                      "integer :: local\n"
+                      "integer, parameter :: rlg = 8\n"
                       "type :: field\n"
                       "  integer :: flag\n"
                       "end type field\n"
-                      "type(grid_type) :: grid\n"
-                      "integer :: local\n"
-                      "integer, parameter :: rlg = 8\n")
+                      "type(grid_type) :: grid\n")
 
     # We can't have an argument if these declarations are in a module.
     with pytest.raises(VisitorError) as excinfo:
@@ -547,10 +547,10 @@ def test_non_param_in_param_decln(fortran_reader, fortran_writer, tmp_path):
     psyir = fortran_reader.psyir_from_source(code)
     output = fortran_writer(psyir)
     assert """\
-  integer, public :: i
   integer, parameter, public :: j = 9
   integer, parameter, public :: k = 12
   integer, parameter, public :: x = 1
+  integer, public :: i
   real, dimension(j,k), parameter, public :: threshold_wavelength = \
 RESHAPE([REAL :: 1.3, 1.5, 1.6, 1.7, (0.0, i = 1, k - 4), 1.2, 1.4, 1.2, \
 (0.0, i = 1, k - 3), (0.0, i = 1, k), (0.0, i = 1, k), (0.0, i = 1, k), \
@@ -672,10 +672,10 @@ def test_complex_decl_with_deps(fortran_reader, fortran_writer, tmp_path):
     psyir = fortran_reader.psyir_from_source(code)
     output = fortran_writer(psyir)
     assert """\
-  integer, public :: a_var
-  integer, parameter, public :: dp = KIND(1.0d0)
   complex, parameter, public :: i = (0, 1)
+  integer, parameter, public :: dp = KIND(1.0d0)
   integer, parameter, public :: np = 5
+  integer, public :: a_var
   complex(kind=dp), dimension(np), save, public :: myvar = i""" in output
     assert Compile(tmp_path).string_compiles(output)
 
