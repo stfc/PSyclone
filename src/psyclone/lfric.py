@@ -670,7 +670,9 @@ class LFRicMeshProperties(LFRicCollection):
             cursor += 1
         if need_colour_limits:
             lhs = self.symtab.find_or_create_tag(
-                "last_edge_cell_all_colours")
+                "last_edge_cell_all_colours",
+                symbol_type=DataSymbol,
+                datatype=ScalarType.integer_type())
             assignment = Assignment.create(
                     lhs=Reference(lhs),
                     rhs=Call.create(StructureReference.create(
@@ -2567,11 +2569,11 @@ class LFRicInterGrid():
         self.fine = fine_arg
 
         # Get a reference to the InvokeSchedule SymbolTable
-        symtab = self.coarse.call.ancestor(InvokeSchedule).symbol_table
+        self._symtab = self.coarse.call.ancestor(InvokeSchedule).symbol_table
 
         # Generate name for inter-mesh map
         base_mmap_name = f"mmap_{fine_arg.name}_{coarse_arg.name}"
-        self.mmap = symtab.find_or_create(
+        self.mmap = self._symtab.find_or_create(
                 base_mmap_name, tag=base_mmap_name,
                 symbol_type=DataSymbol,
                 datatype=UnsupportedFortranType(
@@ -2581,21 +2583,21 @@ class LFRicInterGrid():
 
         # Generate name for ncell variables
         name = f"ncell_{fine_arg.name}"
-        self.ncell_fine = symtab.find_or_create(
+        self.ncell_fine = self._symtab.find_or_create(
             name, tag=name,
             symbol_type=DataSymbol,
             datatype=LFRicTypes("LFRicIntegerScalarDataType")()
         ).name
         # No. of fine cells per coarse cell in x
         name = f"ncpc_{fine_arg.name}_{coarse_arg.name}_x"
-        self.ncellpercellx = symtab.find_or_create(
+        self.ncellpercellx = self._symtab.find_or_create(
             name, tag=name,
             symbol_type=DataSymbol,
             datatype=LFRicTypes("LFRicIntegerScalarDataType")()
         ).name
         # No. of fine cells per coarse cell in y
         name = f"ncpc_{fine_arg.name}_{coarse_arg.name}_y"
-        self.ncellpercelly = symtab.find_or_create(
+        self.ncellpercelly = self._symtab.find_or_create(
             name, tag=name,
             symbol_type=DataSymbol,
             datatype=LFRicTypes("LFRicIntegerScalarDataType")()
@@ -2605,7 +2607,7 @@ class LFRicInterGrid():
         ArrayType(
             LFRicTypes("LFRicRealScalarDataType")(),
             [ArrayType.Extent.DEFERRED]*2)
-        sym = symtab.find_or_create(
+        sym = self._symtab.find_or_create(
                 base_name,
                 tag=base_name,
                 symbol_type=DataSymbol,
@@ -2680,6 +2682,7 @@ class LFRicInterGrid():
         '''
         :returns: the symbol storing the number of colours.
         '''
+        #return self._symtab.lookup_with_tag("ncolours")
         return self._ncolours_var_symbol
 
     @property

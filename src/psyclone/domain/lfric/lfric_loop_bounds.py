@@ -31,7 +31,6 @@ class LFRicLoopBounds(LFRicCollection):
         '''
         loops = filter(lambda x: isinstance(x, LFRicLoop),
                        self._invoke.schedule.loops())
-
         first = True
         for idx, loop in enumerate(loops):
 

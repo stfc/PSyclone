@@ -146,14 +146,10 @@ def test_colour_trans(tmpdir, dist_mem):
                              dist_mem=dist_mem)
     schedule = invoke.schedule
     ctrans = LFRicColourTrans()
-
-    if dist_mem:
-        index = 4
-    else:
-        index = 0
+    loop = schedule.walk(LFRicLoop)[0]
 
     # Colour the loop
-    ctrans.apply(schedule.children[index])
+    ctrans.apply(loop)
 
     # Store the results of applying this code transformation as
     # a string (Fortran is not case sensitive)
