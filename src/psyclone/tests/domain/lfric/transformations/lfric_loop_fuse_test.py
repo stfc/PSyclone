@@ -361,11 +361,11 @@ def test_loop_fuse_min_max_same_var(fortran_writer, tmpdir):
     loops = schedule.walk(LFRicLoop)
     ftrans.apply(loops[0:2])
     ftrans.apply((loops[0], loops[2]))
-    correct = """! Initialise reduction variable
-  amin = 0.0_r_def
+    correct = """  ! Initialise reduction variable
+  amin = HUGE(0.0_r_def)
 
   ! Initialise reduction variable
-  amax = 0.0_r_def
+  amax = -HUGE(0.0_r_def)
   do df = uninitialised_loop0_start, uninitialised_loop0_stop, 1
     ! Built-in: setval_c (set a real-valued field to a real scalar value)
     f1_data(df) = 1.0_r_def
