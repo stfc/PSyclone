@@ -4,6 +4,10 @@
 ! SPDX-License-Identifier: BSD-3-Clause
 ! See the full LICENSE file in the project root for details.
 ! -----------------------------------------------------------------------------
+
+! Drives the execution of the algorithms and kernels in Example 3.
+! Based on the pared-down version of LFRic infrastructure stored in
+! $PSYCLONE_DIR/external/lfric_infrastructure/
 program time_evolution_driver
 
   ! Infrastructure

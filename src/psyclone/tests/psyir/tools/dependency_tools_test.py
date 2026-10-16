@@ -45,6 +45,7 @@ def test_messages():
     assert str(msg) == "Warning: warning-test. Variable: 'a'."
     assert msg.code == DTCode.WARN_SCALAR_REDUCTION
     assert msg.var_names == ["a"]
+    assert msg.var_infos is None
 
     dep_tools._add_message("error-test", DTCode.ERROR_DEPENDENCY, [])
     msg = dep_tools.get_all_messages()[2]
@@ -72,7 +73,6 @@ def test_messages():
             "be a list of Signature/AccessSequence pairs") in str(err.value)
 
 
-# -----------------------------------------------------------------------------
 def test_dep_tool_constructor_errors():
     '''Test that invalid loop types raise an error in the constructor.
     '''
@@ -87,7 +87,28 @@ def test_dep_tool_constructor_errors():
             "values for API 'lfric' are [" in str(err.value))
 
 
-# -----------------------------------------------------------------------------
+def test_loop_parallelise_lfric_kern():
+    '''
+    Test that the can_loop_be_parallelised method can be called successfully
+    when a loop contains an LFRicKern since this currently does not have an
+    associated Symbol.
+
+    TODO #3219 - although the method can be called, it will always return
+    False currently because it has to assume the worst for any arguments
+    passed to an LFRicKern. This test will need updating once LFRicKern has
+    'virtual' children containing accesses to its arguments.
+
+    '''
+    _, invoke = get_invoke("15.1.1_builtin_and_normal_kernel_invoke_2.f90",
+                           api="lfric", idx=0, dist_mem=False)
+    dep_tools = DependencyTools()
+    for loop in invoke.schedule.walk(Loop):
+        # Since we are currently forced to assume the worst case for
+        # arguments passed to LFRicKern nodes, the DependencyTools cannot
+        # ascertain that the loops can be parallelised.
+        assert not dep_tools.can_loop_be_parallelised(loop)
+
+
 def test_loop_parallelise_errors():
     '''Tests errors that should be raised from the can_loop_be_parallelised
     function.'''
@@ -143,6 +164,7 @@ def test_arrays_parallelise(fortran_reader):
             "causes a write-write race condition" in str(msg))
     assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
     assert msg.var_names == ["mask"]
+    assert msg.var_infos is None
 
     # Write to array that does not depend on the parallel loop variable
     parallel = dep_tools.can_loop_be_parallelised(loops[1])
@@ -163,9 +185,9 @@ def test_arrays_parallelise(fortran_reader):
             "Variable: 'mask'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
     assert msg.var_names == ["mask"]
+    assert msg.var_infos is None
 
 
-# -----------------------------------------------------------------------------
 # This list contains the test cases and expected partition information.
 # The first two entries of each 3-tuple are the LHS and RHS. The third
 # element is the partition information, which is a list of partitions. Each

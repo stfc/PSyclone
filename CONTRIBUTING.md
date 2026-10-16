@@ -23,7 +23,7 @@ section of the Developer Guide.
 During development work please use the Issue to make notes of any design decisions or
 problems encountered. Please also tag all commit messages with the Issue number e.g.:
 
-    git commit -m "#111 make an amazing change" some/modified/file.py
+    git commit -m "#<issue_number> make an amazing change" some/modified/file.py
     
 so that all related commits will show up in the Issue.
 

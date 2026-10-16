@@ -8,7 +8,7 @@
 ''' Python script to visualise the differences between the DLS PSyIR tree, the
 language-level PSyIR tree and the final output.
 This script calls a successful exit from inside because it is a work in
-progress of the development tracked by issue #1010.
+progress of the development tracked by issue #2905.
 '''
 
 import sys

@@ -213,9 +213,12 @@ class GenericInterfaceSymbol(RoutineSymbol):
         # The constructors for all Symbol-based classes have 'name' as the
         # first positional argument.
         rt_info = [(rt.symbol, rt.from_container) for rt in self.routines]
-        return type(self)(self.name, rt_info,
+        copy = type(self)(self.name, rt_info,
                           visibility=self.visibility,
                           interface=self.interface.copy())
+        copy.preceding_comment = self.preceding_comment
+        copy.inline_comment = self.inline_comment
+        return copy
 
     @property
     def datatype(self) -> Union[DataType, DataTypeSymbol]:

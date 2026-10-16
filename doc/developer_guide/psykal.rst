@@ -242,7 +242,7 @@ is because `fparser2` does not currently support a symbol table,
 therefore there is no link between variables names and their types. In
 the future, the algorithm layer will be translated into PSyIR, which
 does have a symbol table, so this dictionary will no longer be
-required (see issue #753).
+required (see issue #1618).
 
 All declarations that specify variables or types are stored in the
 dictionary, including those specified within locally defined
@@ -265,7 +265,7 @@ As the current implementation only stores variable names and does not
 know about variable scope there is a restriction that any variables
 within an algorithm code with the same name must have the same
 precision/type. This restriction will be removed when the algorithm
-layer is translated to PSyIR (see issue #753). The current
+layer is translated to PSyIR (see issue #1618). The current
 implementation could be improved but in practice the lfric code does
 not fall foul of this restriction.
 
@@ -300,7 +300,7 @@ via use association. Potential solutions to this problem are 1)
 disallow this in the algorithm layer, 2) use a naming convention for
 the module and/or variable to determine its precision, or 3) search the
 modules for datatype information. At the moment only 1) or 2) will be
-feasible solutions. When we move to using the PSyIR (see issue #753),
+feasible solutions. When we move to using the PSyIR (see issue #1618),
 it may be possible to support 3).
 
 	  

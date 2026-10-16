@@ -10,7 +10,7 @@ program single_stencil
   ! and different values of stencil extents for integer fields.
   ! Note: it is currently not possible to specify kind for an integer
   ! literal stencil depth in a kernel call. This will be enabled when
-  ! addressing issue #753.
+  ! addressing issue #1618.
   use constants_mod,       only: i_def
   use integer_field_mod,   only: integer_field_type
   use flux_direction_mod,  only: x_direction

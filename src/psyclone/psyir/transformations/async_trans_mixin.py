@@ -57,7 +57,7 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
                   dependency.
 
         '''
-        if isinstance(nodes, (Loop, WhileLoop)):
+        if isinstance(nodes, Loop):
             var_accesses = nodes.reference_accesses()
         else:
             var_accesses = VariablesAccessMap()
@@ -159,6 +159,12 @@ class AsyncTransMixin(metaclass=abc.ABCMeta):
         # dependency might be itself. So if closest is not within the ancestor
         # loop of node then we can't do nowait, so return False.
         node_ancestor = directive.ancestor((Loop, WhileLoop))
+        while (isinstance(node_ancestor, Loop) and
+               node_ancestor.independent_iterations()):
+            # We skip over ancestor loops that have independent iterations
+            # as we already know they have no dependencies between their
+            # iterations.
+            node_ancestor = node_ancestor.ancestor((Loop, WhileLoop))
         if node_ancestor:
             # If we didn't find a closest and we have an ancestor Loop, then
             # the loop's next dependency may be itself.

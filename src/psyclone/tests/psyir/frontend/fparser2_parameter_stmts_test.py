@@ -124,13 +124,13 @@ def test_parameter_statements_with_unsupported_symbols():
 
     # Test with a UnsupportedType declaration
     reader = FortranStringReader('''
-        complex :: var1
-        parameter (var1=(1.0,1.0))''')
+        byte :: var1
+        parameter (var1=1)''')
     fparser2spec = Specification_Part(reader)
 
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(routine, fparser2spec.content, [])
-    assert ("Could not process 'PARAMETER(var1 = (1.0, 1.0))' because 'var1' "
+    assert ("Could not process 'PARAMETER(var1 = 1)' because 'var1' "
             "has an UnsupportedType." in str(error.value))
 
     # Test with a symbol which is not a DataSymbol
@@ -166,8 +166,8 @@ def test_unsupported_parameter_statements_produce_codeblocks(fortran_reader,
             contains
             subroutine my_sub()
                 integer :: var
-                complex :: var1
-                parameter (var=3, var1=(1.0, 1.0))
+                byte :: var1
+                parameter (var=3, var1=1)
             end subroutine my_sub
         end module my_mod
         ''')
@@ -176,8 +176,8 @@ def test_unsupported_parameter_statements_produce_codeblocks(fortran_reader,
 
     psyir = fortran_reader.psyir_from_source('''
         module my_mod
-            complex :: var1
-            parameter (var1=(1.0, 1.0))
+            byte :: var1
+            parameter (var1=1)
             contains
             subroutine my_sub()
                 integer :: var
@@ -192,11 +192,11 @@ def test_unsupported_parameter_statements_produce_codeblocks(fortran_reader,
     code = fortran_writer(psyir)
     assert code == '''\
 ! PSyclone CodeBlock (unsupported code) reason:
-!  - Could not process 'PARAMETER(var1 = (1.0, 1.0))' because 'var1' has an \
+!  - Could not process 'PARAMETER(var1 = 1)' because 'var1' has an \
 UnsupportedType.
 MODULE my_mod
-  COMPLEX :: var1
-  PARAMETER(var1 = (1.0, 1.0))
+  BYTE :: var1
+  PARAMETER(var1 = 1)
   CONTAINS
   SUBROUTINE my_sub
     INTEGER :: var

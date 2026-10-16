@@ -10,7 +10,7 @@ program single_stencil
   ! as direction can not be a literal scalar
   ! Note: it is currently not possible to specify kind for an integer
   ! literal stencil depth in a kernel call. This will be enabled when
-  ! addressing issue #753.
+  ! addressing issue #1618.
   use constants_mod,               only: i_def
   use field_mod,                   only: field_type
   use flux_direction_mod,          only: x_direction

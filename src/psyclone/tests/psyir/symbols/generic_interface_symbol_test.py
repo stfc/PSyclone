@@ -154,6 +154,11 @@ def test_gis_copy():
     assert ash in rsyms
     assert holly in rsyms
 
+    # Test that the preceding comment is copied correctly.
+    coppice.preceding_comment = "Here is my preceding comment"
+    spinney = coppice.copy()
+    assert spinney.preceding_comment == "Here is my preceding comment"
+
 
 def test_gis_copy_properties():
     '''

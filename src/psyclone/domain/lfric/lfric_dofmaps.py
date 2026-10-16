@@ -14,14 +14,15 @@ pointers to integer arrays; and adding dofmap-related declarations to a
 Kernel stub.
 
 LFRicDofmaps is used in the LFRicInvoke module.
-'''
 
+'''
 from collections import OrderedDict
 
 from psyclone import psyGen
 from psyclone.domain.lfric import LFRicCollection, LFRicTypes, LFRicConstants
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import Assignment, Reference, StructureReference
+from psyclone.psyir.nodes import (Assignment, IntrinsicCall, Reference,
+                                  StructureReference)
 from psyclone.psyir.symbols import (
     UnsupportedFortranType, DataSymbol, ArgumentInterface, ArrayType)
 
@@ -182,38 +183,59 @@ class LFRicDofmaps(LFRicCollection):
             cursor += 1
         return cursor
 
-    def invoke_declarations(self):
+    def invoke_declarations(self) -> None:
         '''
         Declare all unique function space dofmaps in the PSy layer as pointers
         to integer arrays of rank 2.
 
         '''
         super().invoke_declarations()
+
+        intrinsic_type = LFRicTypes("LFRicIntegerScalarDataType")()
+        atype = ArrayType(
+            intrinsic_type,
+            [ArrayType.Extent.DEFERRED, ArrayType.Extent.DEFERRED])
+
         # Function space dofmaps
         for dmap in sorted(self._unique_fs_maps):
-            if dmap not in self.symtab:
-                dmap_sym = DataSymbol(
-                    dmap, UnsupportedFortranType(
-                        f"integer(kind=i_def), pointer :: {dmap}(:,:) "
-                        f"=> null()"))
-                self.symtab.add(dmap_sym, tag=dmap)
+            # TODO #2577 - once pointer assignments are supported then
+            # we can remove the use of UnsupportedFortranType here.
+            dtype = UnsupportedFortranType(
+                f"{intrinsic_type.intrinsic.name.lower()}("
+                f"kind={intrinsic_type.precision.name}), pointer "
+                f":: {dmap}(:,:) => null()",
+                partial_datatype=atype.copy())
+            dmap_sym = self.symtab.find_or_create_tag(
+                dmap, symbol_type=DataSymbol, datatype=dtype,
+                initial_value=IntrinsicCall.create(
+                    IntrinsicCall.Intrinsic.NULL))
 
         # Column-banded dofmaps
         for dmap in sorted(self._unique_cbanded_maps):
             if dmap not in self.symtab:
+                # TODO #2577 - once pointer assignments are supported then
+                # we can remove the use of UnsupportedFortranType here.
                 dmap_sym = DataSymbol(
                     dmap, UnsupportedFortranType(
                         f"integer(kind=i_def), pointer :: {dmap}(:,:) "
-                        f"=> null()"))
+                        f"=> null()",
+                        partial_datatype=atype.copy()),
+                    initial_value=IntrinsicCall.create(
+                        IntrinsicCall.Intrinsic.NULL))
                 self.symtab.add(dmap_sym, tag=dmap)
 
         # CMA operator indirection dofmaps
         for dmap in sorted(self._unique_indirection_maps):
             if dmap not in self.symtab:
+                # TODO #2577 - once pointer assignments are supported then
+                # we can remove the use of UnsupportedFortranType here.
                 dmap_sym = DataSymbol(
                     dmap, UnsupportedFortranType(
                         f"integer(kind=i_def), pointer :: {dmap}(:) "
-                        "=> null()"))
+                        "=> null()",
+                        partial_datatype=atype.copy()),
+                    initial_value=IntrinsicCall.create(
+                        IntrinsicCall.Intrinsic.NULL))
                 self.symtab.add(dmap_sym, tag=dmap)
 
     def stub_declarations(self):

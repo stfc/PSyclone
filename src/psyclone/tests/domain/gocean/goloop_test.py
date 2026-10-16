@@ -237,6 +237,7 @@ def test_goloop_validate_loop():
             PSyIR node'''
             # pylint: disable=super-init-not-called, non-parent-init-called
             Node.__init__(self)  # Ignore hierarchy constructors
+            self.routine = None
 
     # Test Loop containing kernels with different offsets
     gokern1 = GOKernMock()
@@ -277,10 +278,10 @@ def clear_fparser():
 
 @pytest.mark.usefixtures("clear_fparser")
 def test_loop_bound_when_fparser_not_initialised():
-    '''This reproduces #1272: a gocean custom loop boundary could
-    not be parsed if the parser has not been initialised previously.
-    Reproduce this bug by re-initialising fparser with an empty
-    class list.
+    '''This reproduces a previous bug where a gocean custom loop
+    boundary could not be parsed if the parser has not been
+    initialised previously. Reproduce this bug by re-initialising
+    fparser with an empty class list.
     '''
     GOLoop.add_bounds("go_offset_sw:go_ct:internal_we_halo:1:2:3:4")
 

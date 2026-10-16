@@ -133,8 +133,10 @@ def test_generate_lfric_adjoint_multi_routine(fortran_reader, fortran_writer):
     assert "subroutine adj_test_code_r8()" in result
     # Check that the names of the routines in the two interfaces have
     # been updated.
-    assert "module procedure :: adj_test_code_r4, adj_test_code_r8" in result
-    assert "module procedure :: adj_test_code_r8, adj_test_code_r4" in result
+    assert "module procedure :: adj_test_code_r4" in result
+    assert "module procedure :: adj_test_code_r8" in result
+    assert "module procedure :: adj_test_code_r8" in result
+    assert "module procedure :: adj_test_code_r4" in result
     # Check that the name of the interface associated with the kernel
     # implementation has been updated.
     assert "end type adj_test_type" in result
@@ -210,8 +212,8 @@ def test_generate_lfric_adjoint_multi_precision(
         fortran_reader, fortran_writer):
     '''Check that generate_lfric_adjoint makes no changes to the metadata
     apart from the name of the type if this is a multi-precision
-    kernel (due to issue #2236). We can't yet parse multi-precision
-    metadata (again due to issue #2236) so modify the PSyIR directly
+    kernel (due to issue #3546). We can't yet parse multi-precision
+    metadata (again due to issue #3546) so modify the PSyIR directly
     (removing the procedure part of the metadata).
 
     '''
@@ -246,12 +248,8 @@ def test_generate_lfric_adjoint_multi_precision(
     psyir = fortran_reader.psyir_from_source(tl_fortran_str)
     sym_table = psyir.children[0].symbol_table
     test_type_symbol = sym_table.lookup("test_type")
-    datatype = test_type_symbol.datatype
     # Remove procedure metadata
-    new_declaration = (datatype.declaration.
-                       replace("PROCEDURE, NOPASS :: kern_code", "").
-                       replace("CONTAINS", ""))
-    datatype._declaration = new_declaration
+    test_type_symbol.datatype.procedure_components.clear()
     ad_psyir = generate_lfric_adjoint(psyir, ["field_1_w0", "field_2_w0"])
     result = fortran_writer(ad_psyir)
     # Check that the metadata type name is updated.

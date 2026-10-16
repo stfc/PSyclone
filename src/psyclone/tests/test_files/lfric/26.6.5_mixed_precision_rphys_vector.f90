@@ -5,6 +5,12 @@
 ! See the full LICENSE file in the project root for details.
 ! -----------------------------------------------------------------------------
 
+! Example where the field is dereferenced from an 'r_um_field_vector_type'
+! and therefore has no type information. The LFRic rules state that an
+! 'r_um_field_vector_type' can only contain fields of type
+! 'r_um_field_type' in LFRic code. This is checked at runtime in the
+! LFRic model by using a 'select' statement in the algorithm code.
+
 module vector_type
 
   use constants_mod,           only : r_um

@@ -14,14 +14,14 @@ from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
     Assignment, Loop, Directive, Node, Reference, CodeBlock, Call,
     Routine, Schedule, IntrinsicCall, StructureReference, IfBlock,
-    Operation)
-from psyclone.psyir.symbols import DataSymbol, ArrayType
+    Operation, BinaryOperation)
+from psyclone.psyir.symbols import ArrayType
 from psyclone.psyir.transformations import (
     ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
-    HoistTrans, InlineTrans, Maxval2LoopTrans, Sum2LoopTrans, Minval2LoopTrans,
-    Product2LoopTrans, ProfileTrans, OMPMinimiseSyncTrans,
+    HoistTrans, InlineTrans, ProfileTrans, OMPMinimiseSyncTrans,
     Reference2ArrayRangeTrans, ScalarisationTrans, IncreaseRankLoopArraysTrans,
-    MaximalRegionTrans, TransformationError, DataNodeToTempTrans)
+    MaximalRegionTrans, TransformationError, DataNodeToTempTrans,
+    ArrayIntrinsic2LoopTrans)
 
 # USE statements to chase to gather additional symbol information.
 NEMO_MODULES_TO_IMPORT = [
@@ -31,7 +31,7 @@ NEMO_MODULES_TO_IMPORT = [
     "ldfdyn", "sbcapr", "sbctide", "zdfgls", "sbcrnf", "sbcisf", "dynldf_iso",
     "stopts", "icb_oce", "domvvl", "sms_pisces", "zdfmfc", "abl", "ice1d",
     "sed", "p2zlim", "oce_trc", "p4zpoc", "tide_mod", "sbcwave", "isf_oce",
-    "step_oce", "bdyice", "lbcnfd"
+    "step_oce", "bdyice", "lbcnfd", "dynvor"
 ]
 
 # Files that PSyclone could process but would reduce the performance.
@@ -54,23 +54,11 @@ PROFILING_IGNORE = ["flo_dom", "macho", "mpp_", "nemo_gcm", "dyn_ldf"
 
 # Currently fparser has no way of distinguishing array accesses from statement
 # functions, the following subroutines contains known statement functions
-CONTAINS_STMT_FUNCTIONS = ["sbc_dcy"]
+CONTAINS_STMT_FUNCTIONS = ["sbc_dcy", "eos_rprof"]
 
-
-def _it_should_be(symbol, of_type, instance):
-    ''' Make sure that symbol has the datatype as provided.
-
-    :param symbol: the symbol to check.
-    :type symbol: :py:class:`psyclone.psyir.symbol.Symbol`
-    :param type of_type: the datatype type that it must be.
-    :param instance: the instance of Datatype to assign as the symbol datatype.
-    :type instance: :py:class:`psyclone.psyir.symbol.DataType`
-
-    '''
-    if not isinstance(symbol, DataSymbol):
-        symbol.specialise(DataSymbol, datatype=instance)
-    elif not isinstance(symbol.datatype, of_type):
-        symbol.datatype = instance
+# Follow the same envvar knobs as insert_loop_parallelism.py
+REPRODUCIBLE = os.environ.get('REPRODUCIBLE', False)
+NEMOV4 = os.environ.get('NEMOV4', False)
 
 
 def inline_calls(schedule):
@@ -96,10 +84,7 @@ def inline_calls(schedule):
 
     '''
     excluding = ["ctl_nam", "ctl_stop", "ctl_warn", "prt_ctl", "eos",
-                 "iom_", "hist", "mpi_", "timing_", "oasis_",
-                 "fatal_error"  # TODO #2846 - is brought into scope via
-                                # multiple wildcard imports
-                 ]
+                 "iom_", "hist", "mpi_", "timing_", "oasis_"]
     ignore_codeblocks = ["bdy_dyn3d_frs", "bdy_dyn3d_spe", "bdy_dyn3d_zro",
                          "bdy_dyn3d_zgrad"]
     mod_inline_trans = KernelModuleInlineTrans()
@@ -146,6 +131,7 @@ def normalise_loops(
         increase_array_ranks: bool = False,
         hoist_expressions: bool = True,
         hoist_argument_expressions: bool = True,
+        hoist_cdtype_expressions: bool = True,
         ):
     ''' Normalise all loops in the given schedule so that they are in an
     appropriate form for the Parallelisation transformations to analyse
@@ -168,6 +154,8 @@ def normalise_loops(
         statements out of the loop nest.
     :param hoist_argument_expressions: whether to hoist array expressions
         out of the containing Call.
+    :param hoist_cdtype_expressions: whether to hoist character cdtype
+        comparison expressions.
     '''
 
     if hoist_local_arrays and schedule.name not in CONTAINS_STMT_FUNCTIONS:
@@ -189,14 +177,7 @@ def normalise_loops(
     if loopify_array_intrinsics:
         for intr in schedule.walk(IntrinsicCall):
             try:
-                if intr.intrinsic.name == "MAXVAL":
-                    Maxval2LoopTrans().apply(intr, verbose=True)
-                elif intr.intrinsic.name == "SUM":
-                    Sum2LoopTrans().apply(intr, verbose=True)
-                elif intr.intrinsic.name == "MINVAL":
-                    Minval2LoopTrans().apply(intr, verbose=True)
-                elif intr.intrinsic.name == "PRODUCT":
-                    Product2LoopTrans().apply(intr, verbose=True)
+                ArrayIntrinsic2LoopTrans().apply(intr, verbose=True)
             except TransformationError as err:
                 print(err.value)
 
@@ -204,6 +185,14 @@ def normalise_loops(
         # Convert all array implicit loops to explicit loops
         explicit_loops = ArrayAssignment2LoopsTrans()
         for assignment in schedule.walk(Assignment):
+            if REPRODUCIBLE and NEMOV4:
+                if isinstance(assignment.lhs, Reference):
+                    if assignment.lhs.name.lower() == "zsshp2_e":
+                        # TODO #3642: Both the Fortran and the psyclone
+                        # transformation seem semantically correct, the
+                        # different value could be NVFortran evaluating the
+                        # multi-term floating-point expression differently
+                        continue
             try:
                 explicit_loops.apply(
                     assignment, options={'verbose': True})
@@ -253,10 +242,26 @@ def normalise_loops(
             hoist_expressions=hoist_expressions,
             # Make sure we never repeat this step.
             hoist_argument_expressions=False,
+            hoist_cdtype_expressions=False
         )
-    # TODO #1928: In order to perform better on the GPU, nested loops with two
-    # sibling inner loops need to be fused or apply loop fission to the
-    # top level. This would allow the collapse clause to be applied.
+
+    if hoist_cdtype_expressions:
+        # Any cdtype character comparison can be hoisted to the top of the
+        # routine as we know their values do not change in any routine but
+        # comparing values inside loops prevents offloading them.
+        name = "hoisted_cdtype"
+        cdtypes = [ref.parent for ref in schedule.walk(Reference)
+                   if ref.name == "cdtype"]
+        for expr in cdtypes:
+            if isinstance(expr, BinaryOperation):
+                DataNodeToTempTrans().apply(expr, storage_name=name)
+                # After DataNodeToTempTrans expr is the rhs of a new assignment
+                # inserted immediately before the statement that originally
+                # contained it. Knowing that it is runtime constant, we also
+                # bring it at the top of the schedule.
+                assignment = expr.parent
+                assignment.detach()
+                schedule.addchild(assignment, 0)
 
 
 def increase_rank_and_reorder_nemov5_loops(routine: Routine):
@@ -353,7 +358,6 @@ def insert_explicit_loop_parallelism(
         clauses automatically.
 
     '''
-    nemo_v4 = os.environ.get('NEMOV4', False)
     # TODO #2937: These are both in "dynspg_ts.f90", they have a WaW dependency
     # but we currently ignore these.
     if schedule.name in ("ts_wgt", "ts_rst"):
@@ -384,7 +388,7 @@ def insert_explicit_loop_parallelism(
                 "and is not the inner loop")
             continue
 
-        if nemo_v4:
+        if NEMOV4:
             # Skip if it is an array operation loop on an ice routine if along
             # the third dim or higher or if the loop nests a loop over ice
             # points (npti) or if the loop and array dims do not match.

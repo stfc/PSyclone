@@ -16,7 +16,7 @@ from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.profiler import Profiler
 from psyclone.psyir.nodes import (
-    colored, ProfileNode, Loop, Literal, Assignment, Return, Reference,
+    ProfileNode, Loop, Literal, Assignment, Return, Reference,
     OMPDoDirective, KernelSchedule, Routine, Schedule)
 from psyclone.psyir.symbols import (
     SymbolTable, DataSymbol, ScalarType)
@@ -26,6 +26,7 @@ from psyclone.psyir.transformations import (
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (
     GOceanOMPLoopTrans, LFRicOMPLoopTrans)
+from psyclone.utils import colored
 
 
 # -----------------------------------------------------------------------------
@@ -915,7 +916,7 @@ def test_profiling_cycle_statement(fortran_reader):
 
 def test_profiling_labelled_statement(fortran_reader):
     ''' Check the profiling transformation validation fails if there is an
-    labelled statement in the region.'''
+    labelled block in the region.'''
 
     code = """subroutine a()
         integer :: i
@@ -955,7 +956,7 @@ def test_profiling_labelled_statement(fortran_reader):
             "region containing a potential control flow jump, as these could "
             "skip the end of profiling caliper. Found:\n"
             "'! PSyclone CodeBlock (unsupported code) reason:\n!  - "
-            "Unsupported labelled statement\n123 DO a = 1, 100\nEND DO\n"
+            "Unsupported labelled block\n123 DO a = 1, 100\nEND DO\n"
             in str(excinfo.value))
 
 

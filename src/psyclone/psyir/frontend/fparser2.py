@@ -29,13 +29,14 @@ from psyclone.configuration import Config
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.commentable_mixin import CommentableMixin
 from psyclone.psyir.nodes import (
-    ArrayConstructor,
-    ArrayMember, ACCRoutineDirective, ArrayOfStructuresReference,
-    ArrayReference, Assignment, BinaryOperation, Call, CodeBlock, Container,
+    ArrayConstructor, ArrayMember, ACCRoutineDirective,
+    ArrayOfStructuresReference, ArrayReference, Assignment,
+    BinaryOperation, Call, CodeBlock, Container, ComplexLiteral,
     DataNode, Directive, FileContainer, IfBlock, IntrinsicCall, Literal, Loop,
     Member, Node, OMPDeclareTargetDirective, Range, Reference, Return,
     Routine, Schedule, StructureReference, UnaryOperation, WhileLoop,
     Fparser2CodeBlock, ScopingNode, UnknownDirective)
+
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, AutomaticInterface, ScalarType,
@@ -63,7 +64,9 @@ TYPE_MAP_FROM_FORTRAN = {"integer": ScalarType.Intrinsic.INTEGER,
                          "character": ScalarType.Intrinsic.CHARACTER,
                          "logical": ScalarType.Intrinsic.BOOLEAN,
                          "real": ScalarType.Intrinsic.REAL,
-                         "double precision": ScalarType.Intrinsic.REAL}
+                         "double precision": ScalarType.Intrinsic.REAL,
+                         "complex": ScalarType.Intrinsic.COMPLEX,
+                         "double complex": ScalarType.Intrinsic.COMPLEX}
 
 #: Mapping from Fortran access specifiers to PSyIR visibilities
 VISIBILITY_MAP_FROM_FORTRAN = {"public": Symbol.Visibility.PUBLIC,
@@ -72,9 +75,11 @@ VISIBILITY_MAP_FROM_FORTRAN = {"public": Symbol.Visibility.PUBLIC,
 #: Mapping from fparser2 Fortran Literal types to PSyIR types
 CONSTANT_TYPE_MAP = {
     Fortran2003.Real_Literal_Constant: ScalarType.Intrinsic.REAL,
+    Fortran2003.Signed_Real_Literal_Constant: ScalarType.Intrinsic.REAL,
     Fortran2003.Logical_Literal_Constant: ScalarType.Intrinsic.BOOLEAN,
     Fortran2003.Char_Literal_Constant: ScalarType.Intrinsic.CHARACTER,
-    Fortran2003.Int_Literal_Constant: ScalarType.Intrinsic.INTEGER}
+    Fortran2003.Int_Literal_Constant: ScalarType.Intrinsic.INTEGER,
+    Fortran2003.Signed_Int_Literal_Constant: ScalarType.Intrinsic.INTEGER}
 
 #: Mapping from Fortran intent to PSyIR access type
 INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
@@ -82,7 +87,7 @@ INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
                   "inout": ArgumentInterface.Access.READWRITE}
 
 #: Those routine prefix specifications that we support.
-SUPPORTED_ROUTINE_PREFIXES = ["ELEMENTAL", "PURE", "IMPURE"]
+SUPPORTED_ROUTINE_PREFIXES = ["ELEMENTAL", "PURE", "IMPURE", "RECURSIVE"]
 
 
 def _first_type_match(nodelist, typekind):
@@ -569,35 +574,37 @@ def default_real_type():
                       default_precision(ScalarType.Intrinsic.REAL))
 
 
-def get_literal_precision(fparser2_node, psyir_literal_parent):
+def get_literal_precision(
+        fparser2_node: Union[Fortran2003.Real_Literal_Constant,
+                             Fortran2003.Signed_Real_Literal_Constant,
+                             Fortran2003.Logical_Literal_Constant,
+                             Fortran2003.Char_Literal_Constant,
+                             Fortran2003.Int_Literal_Constant,
+                             Fortran2003.Signed_Int_Literal_Constant],
+        psyir_literal_parent: Node) -> ScalarType.Precision:
     '''Takes a Fortran2003 literal node as input and returns the appropriate
      PSyIR precision type for that node. Adds a UnresolvedType DataSymbol in
     the SymbolTable if the precision is given by an undefined symbol.
 
     :param fparser2_node: the fparser2 literal node.
-    :type fparser2_node: :py:class:`Fortran2003.Real_Literal_Constant` or \
-        :py:class:`Fortran2003.Logical_Literal_Constant` or \
-        :py:class:`Fortran2003.Char_Literal_Constant` or \
-        :py:class:`Fortran2003.Int_Literal_Constant`
-    :param psyir_literal_parent: the PSyIR node that will be the \
-        parent of the PSyIR literal node that will be created from the \
+    :param psyir_literal_parent: the PSyIR node that will be the
+        parent of the PSyIR literal node that will be created from the
         fparser2 node information.
-    :type psyir_literal_parent: :py:class:`psyclone.psyir.nodes.Node`
 
     :returns: the PSyIR Precision of this literal value.
-    :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`, int or \
-        :py:class:`psyclone.psyir.symbols.ScalarType.Precision`
 
     :raises InternalError: if the arguments are of the wrong type.
-    :raises InternalError: if there's no symbol table associated with \
+    :raises InternalError: if there's no symbol table associated with
                            `psyir_literal_parent` or one of its ancestors.
 
     '''
     if not isinstance(fparser2_node,
                       (Fortran2003.Real_Literal_Constant,
+                       Fortran2003.Signed_Real_Literal_Constant,
                        Fortran2003.Logical_Literal_Constant,
                        Fortran2003.Char_Literal_Constant,
-                       Fortran2003.Int_Literal_Constant)):
+                       Fortran2003.Int_Literal_Constant,
+                       Fortran2003.Signed_Int_Literal_Constant)):
         raise InternalError(
             f"Unsupported literal type '{type(fparser2_node).__name__}' found "
             f"in get_literal_precision.")
@@ -609,7 +616,9 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
     precision_name = fparser2_node.items[1]
     if not precision_name:
         # Precision may still be specified by the exponent in a real literal
-        if isinstance(fparser2_node, Fortran2003.Real_Literal_Constant):
+        if isinstance(fparser2_node,
+                      (Fortran2003.Real_Literal_Constant,
+                       Fortran2003.Signed_Real_Literal_Constant)):
             precision_value = fparser2_node.items[0]
             if "d" in precision_value.lower():
                 return ScalarType.Precision.DOUBLE
@@ -840,9 +849,9 @@ class Fparser2Reader():
         given block (e.g. subroutine, do, if-then body, etc.) should be kept as
         CodeBlocks or lost (default False). Only has an effect if comments
         were not ignored when creating the fparser2 AST.
-    :param resolve_modules: Whether to resolve modules while parsing a file,
-        for more precise control it also accepts a list of module names.
-        Defaults to False.
+    :param resolve_modules: Whether to resolve modules defined outside the
+        current file while parsing it. For more precise control this argument
+        also accepts a list of external module names. Defaults to False.
     :param ignore_comments: whether to let the parser ignore comments.
     :param free_form: whether to parse using Fortran free_form syntax.
     :param ignore_directives: whether to ignore directives while parsing.
@@ -980,6 +989,8 @@ class Fparser2Reader():
             Fortran2003.Int_Literal_Constant: self._number_handler,
             Fortran2003.Char_Literal_Constant: self._char_literal_handler,
             Fortran2003.Logical_Literal_Constant: self._bool_literal_handler,
+            Fortran2003.Complex_Literal_Constant:
+                self._complex_literal_handler,
             utils.BinaryOpBase: self._binary_op_handler,
             Fortran2003.End_Do_Stmt: self._ignore_handler,
             Fortran2003.End_Subroutine_Stmt: self._ignore_handler,
@@ -1100,6 +1111,8 @@ class Fparser2Reader():
                 parse_tree = Fortran2003.Pointer_Assignment_Stmt(source_code)
             elif partial_code == "statement":
                 parse_tree = Fortran2003.Execution_Part(reader)
+            elif partial_code == "specs":
+                parse_tree = Fortran2003.Specification_Part(reader)
             # When parsing intermediate expressione a None value
             # is the same as a NoMatch, unrecognised 'partial_code'
             # values will also be considered a NoMatch
@@ -1664,9 +1677,18 @@ class Fparser2Reader():
                 raise NotImplementedError(f"Found unsupported USE statement: "
                                           f"'{decl}'")
 
-            # Import symbol information from module/container (if enabled)
+            # Modules already parsed in this file can always be resolved.
+            file_container = parent.ancestor(FileContainer)
+            lowered_name = container.name.lower()
+            if file_container:
+                for sibling in file_container.children:
+                    if (isinstance(sibling, Container) and
+                            sibling.name.lower() == lowered_name):
+                        parent.symbol_table.resolve_imports([container])
+
+            # External modules are resolved only when requested
             if (self._resolve_all_modules or
-                    container.name.lower() in self._modules_to_resolve):
+                    lowered_name in self._modules_to_resolve):
                 parent.symbol_table.resolve_imports([container])
 
             if visibility_map:
@@ -1710,10 +1732,10 @@ class Fparser2Reader():
             except KeyError as err:
                 raise NotImplementedError(
                     f"Could not process {type_spec}. Only 'real', 'double "
-                    f"precision', 'integer', 'logical' and 'character' "
-                    f"intrinsic types are supported.") from err
-            if fort_type == "double precision":
-                # Fortran double precision is equivalent to a REAL
+                    f"precision', 'integer', 'logical', 'character' and "
+                    f"'complex' intrinsic types are supported.") from err
+            if fort_type in ["double precision", "double complex"]:
+                # Fortran double precision is equivalent to a REAL/COMLPEX
                 # intrinsic with precision DOUBLE in the PSyIR.
                 precision = ScalarType.Precision.DOUBLE
             else:
@@ -1733,7 +1755,6 @@ class Fparser2Reader():
             # This is a variable of derived type
             if type_spec.children[0].lower() != "type":
                 # We don't yet support declarations that use 'class'
-                # TODO #1504 extend the PSyIR for this variable type.
                 raise NotImplementedError(
                     f"Could not process {type_spec} - declarations "
                     f"other than 'type' are not yet supported.")
@@ -2168,15 +2189,7 @@ class Fparser2Reader():
                                      is_constant=has_constant_value,
                                      initial_value=init_expr)
                 except ValueError as error:
-                    # DataSymbol can raise a ValueError in a number of ways.
-                    # We check for the ones that come from valid Fortran
-                    # that we aren't supporting and raise NotImplementedError
-                    # for those.
-                    if not isinstance(
-                            datatype,
-                            (ScalarType, ArrayType, UnsupportedType)):
-                        raise NotImplementedError
-                    # Otherwise we have an invalid Fortran declaration.
+                    # We have an invalid Fortran declaration.
                     raise InternalError(
                         f"Invalid variable declaration "
                         f"found in _process_decln for "
@@ -2196,27 +2209,27 @@ class Fparser2Reader():
 
         return sym
 
-    def _process_derived_type_decln(self, parent, decl, visibility_map):
+    def _process_derived_type_decln(
+        self,
+        parent: Node,
+        decl: Fortran2003.Type_Declaration_Stmt,
+        visibility_map: dict[str, Symbol.Visibility]
+    ) -> DataTypeSymbol:
         '''
         Process the supplied fparser2 parse tree for a derived-type
         declaration. A DataTypeSymbol representing the derived-type is added
         to the symbol table associated with the parent node.
 
         :param parent: PSyIR node in which to insert the symbols found.
-        :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
         :param decl: fparser2 parse tree of declaration to process.
-        :type decl: :py:class:`fparser.two.Fortran2003.Type_Declaration_Stmt`
         :param visibility_map: mapping of symbol name to visibility (for
             those symbols listed in an accessibility statement).
-        :type visibility_map: dict[str,
-            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
 
         :raises SymbolError: if a Symbol already exists with the same name
             as the derived type being defined and it is not a DataTypeSymbol
             or is not of UnresolvedType.
 
         :return: the DataTypeSymbol representing the derived type.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
 
         '''
         name = str(walk(decl.children[0], Fortran2003.Type_Name)[0]).lower()
@@ -2278,14 +2291,32 @@ class Fparser2Reader():
         # Populate this StructureType by processing the components of
         # the derived type
         try:
-            # We don't support derived-types with additional
-            # attributes e.g. "extends" or "abstract". Note, we do
-            # support public/private attributes but these are stored
-            # as Access_Spec, not Type_Attr_Spec.
+            # EXTENDS is the only additional derived-type attribute that we
+            # currently support. Note that public/private attributes are
+            # represented by Access_Spec rather than Type_Attr_Spec.
             derived_type_stmt = decl.children[0]
-            if walk(derived_type_stmt, Fortran2003.Type_Attr_Spec):
-                raise NotImplementedError(
-                    "Derived-type definition contains unsupported attributes.")
+            for attr in walk(derived_type_stmt,
+                             Fortran2003.Type_Attr_Spec):
+                if attr.items[0].upper() != "EXTENDS":
+                    raise NotImplementedError(
+                        "Derived-type definition contains unsupported "
+                        "attributes.")
+
+                extends_name = attr.items[1].string
+                extends_symbol = parent.symbol_table.lookup(
+                    extends_name, otherwise=None)
+                if extends_symbol is None:
+                    extends_symbol = DataTypeSymbol(
+                        extends_name, StructureType(),
+                        interface=UnresolvedInterface())
+                    parent.symbol_table.add(extends_symbol)
+                elif type(extends_symbol) is Symbol:
+                    # The name may already have been introduced by a USE
+                    # statement for which no declaration information was
+                    # available.
+                    extends_symbol.specialise(DataTypeSymbol)
+                    extends_symbol.datatype = StructureType()
+                dtype.extends = extends_symbol
 
             # Re-use the existing code for processing symbols. This needs to
             # be able to find any symbols declared in an outer scope but
@@ -2306,6 +2337,10 @@ class Fparser2Reader():
                             parent, local_table, component,
                             preceding_comments=preceding_comments)
                         preceding_comments = []
+                elif isinstance(
+                        child, Fortran2003.Type_Bound_Procedure_Part):
+                    self._process_derived_type_contains_block(
+                        parent, child, dtype)
                 elif isinstance(child, (Fortran2003.Private_Components_Stmt,
                                         Fortran2003.End_Type_Stmt)):
                     continue
@@ -2326,9 +2361,10 @@ class Fparser2Reader():
                 else:
                     datatype = symbol.datatype
                     initial_value = symbol.initial_value
-                    dtype.add(symbol.name, datatype, symbol.visibility,
-                              initial_value, symbol.preceding_comment,
-                              symbol.inline_comment)
+                    dtype.add(StructureType.ComponentType(
+                        symbol.name, datatype, symbol.visibility,
+                        initial_value, symbol.preceding_comment,
+                        symbol.inline_comment))
 
             # Update its type with the definition we've found
             tsymbol.datatype = dtype
@@ -2340,6 +2376,69 @@ class Fparser2Reader():
             tsymbol.interface = UnknownInterface()
 
         return tsymbol
+
+    @staticmethod
+    def _process_derived_type_contains_block(
+        parent: ScopingNode,
+        contains: Fortran2003.Type_Bound_Procedure_Part,
+        dtype: StructureType
+    ) -> None:
+        '''Process type-bound procedures in a derived type's CONTAINS part.
+
+        Currently all bindings are UnsupportedFortranType, but its name and
+        visibility is parsed in order to add the correct component in the
+        parent's StructureType.
+
+        :param parent: PSyIR scope containing the derived-type declaration.
+        :param contains: fparser2 type-bound-procedure part.
+        :param dtype: StructureType being populated.
+        '''
+        # Each Type_Bound_Procedure_Part has an optional Private Statement
+        # and one of multiple Specific Binding statements
+        private_stmts = walk(contains,
+                             Fortran2003.Binding_Private_Stmt)
+        default_visibility = (Symbol.Visibility.PRIVATE if private_stmts
+                              else Symbol.Visibility.PUBLIC)
+
+        for procedure in walk(contains, Fortran2003.Specific_Binding):
+            # Each Specific Binding has the items:
+            # 0: Interface_Name
+            # 1: Binding_Attr_List
+            # 2: '::' string
+            # 3: Binding_Name
+            # 4: Procedure_Name
+            # If an item doesn't exist then it has None in that position
+            # instead.
+            binding_name = procedure.items[3].string
+            visibility = default_visibility
+            if procedure.items[1] is not None:
+                access_specs = walk(procedure.items[1],
+                                    Fortran2003.Access_Spec)
+                # If a binding statement has a visibility attribute, this
+                # has precedence over the default_visiblity statement
+                if access_specs:
+                    visibility = _process_access_spec(access_specs[0])
+
+            target = None
+            if procedure.items[4] is not None:
+                target_name = procedure.items[4].string
+                # This is not the declaration of the Procedure_Name, but
+                # we can already tell this symbol will be a RoutineSymbol (the
+                # interface and datatype can not be inferred here yet)
+                target_symbol = parent.symbol_table.lookup(
+                    target_name, otherwise=None)
+                if target_symbol is None:
+                    target_symbol = RoutineSymbol(
+                        target_name, interface=UnresolvedInterface())
+                    parent.symbol_table.add(target_symbol)
+                elif type(target_symbol) is Symbol:
+                    target_symbol.specialise(RoutineSymbol)
+                    target_symbol.datatype = UnresolvedType()
+                target = Reference(target_symbol)
+
+            dtype.add_procedure_component(StructureType.ComponentType(
+                binding_name, UnsupportedFortranType(str(procedure)),
+                visibility, target))
 
     def _get_partial_datatype(
         self,
@@ -2480,7 +2579,10 @@ class Fparser2Reader():
                     # Ensure the interface to this Symbol is static
                     symbol.interface = StaticInterface()
 
-    def _process_interface_block(self, node, symbol_table, visibility_map):
+    def _process_interface_block(self, node: Fortran2003.Interface_Block,
+                                 symbol_table: SymbolTable,
+                                 visibility_map: dict[str, Symbol.Visibility],
+                                 preceding_comments: Iterable[str] = ()):
         '''
         Processes a Fortran2003.Interface_Block. If the interface is named
         and consists only of [module] procedure :: <procedure-list> then a
@@ -2488,13 +2590,11 @@ class Fparser2Reader():
         UnsupportedFortranType is created.
 
         :param node: the parse tree for the interface block.
-        :type node: :py:class:`fparser.two.Fortran2003.Interface_Block`
         :param symbol_table: the table to which to add new symbols.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param visibility_map: information on any explicit symbol visibilities
             in the current scope.
-        :type visibility_map: dict[
-            str, :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
+        :param preceding_comments: the list of preceding_comments for this
+            block.
 
         '''
         # Fortran 2003 standard R1203 says that:
@@ -2532,6 +2632,20 @@ class Fparser2Reader():
             if isinstance(child, (Fortran2003.Interface_Stmt,
                                   Fortran2003.End_Interface_Stmt)):
                 continue
+            # Inline comments inside an Interface statement are
+            # not distinguishable from comments in the interface block.
+            # Inline comments on declarations may also be lost as they
+            # are not added to the Procedure_Stmt in fparser2, otherwise
+            # they will appear before the following statement. See
+            # fparser issue 521: https://github.com/stfc/fparser/issues/521.
+            if isinstance(child, Fortran2003.Comment):
+                # Comments inside the Interface are lost, as we have
+                # nowhere to safely store them in PSyclone. If we were
+                # to add them to the symbol they could be modified by
+                # other interfaces or a declaration of the routine itself
+                # later, and override the comment in this Interface block
+                # which is not the desired behaviour.
+                continue
             if isinstance(child, Fortran2003.Procedure_Stmt):
                 # Keep track of whether these are module procedures.
                 is_module = child.children[1] == 'MODULE'
@@ -2560,15 +2674,27 @@ class Fparser2Reader():
                 # GenericInterfaceSymbol. (There will be calls to it
                 # although there will be no corresponding implementation
                 # with that name.)
-                symbol_table.add(GenericInterfaceSymbol(
-                    name, rsymbols, visibility=vis))
+                interface_sym = GenericInterfaceSymbol(
+                    name, rsymbols, visibility=vis)
+                symbol_table.add(interface_sym)
+                interface_sym.preceding_comment = (
+                    self._comments_list_to_string(
+                        preceding_comments
+                    )
+                )
             else:
                 # We've not been able to determine the list of
                 # RoutineSymbols that this interface maps to so we just
                 # create a RoutineSymbol of UnsupportedFortranType.
-                symbol_table.add(RoutineSymbol(
+                interface_sym = RoutineSymbol(
                     name, datatype=UnsupportedFortranType(str(node).lower()),
-                    visibility=vis))
+                    visibility=vis)
+                symbol_table.add(interface_sym)
+                interface_sym.preceding_comment = (
+                    self._comments_list_to_string(
+                        preceding_comments
+                    )
+                )
         except KeyError:
             # This symbol has already been declared. This can happen when
             # an interface overloads a constructor for a type (as the interface
@@ -2660,8 +2786,8 @@ class Fparser2Reader():
             if isinstance(node, Fortran2003.Implicit_Part):
                 for comment in walk(node, (Fortran2003.Comment,
                                            Fortran2003.Directive)):
+                    # Add the comments to the preceding_comments list.
                     self.process_comment(comment, preceding_comments)
-                    continue
                 # Anything other than a PARAMETER statement or an
                 # IMPLICIT NONE means we can't handle this code.
                 # Any PARAMETER statements are handled separately by the
@@ -2677,16 +2803,19 @@ class Fparser2Reader():
                     raise NotImplementedError(
                         f"Error processing implicit-part: implicit variable "
                         f"declarations not supported but found '{node}'")
-            elif isinstance(node, Fortran2003.Interface_Block):
+                # This block needs to skip the preceding_comment reset block
+                # so we can continue.
+                continue
+            if isinstance(node, Fortran2003.Interface_Block):
                 self._process_interface_block(node, parent.symbol_table,
-                                              visibility_map)
+                                              visibility_map,
+                                              preceding_comments)
 
             elif isinstance(node, (Fortran2003.Type_Declaration_Stmt,
                                    Fortran2003.Procedure_Declaration_Stmt)):
                 self._process_decl_or_create_unsupported(
                     parent, parent.symbol_table, node, visibility_map,
                     statics_list, preceding_comments)
-                preceding_comments = []
 
             elif isinstance(node, (Fortran2003.Access_Stmt,
                                    Fortran2003.Save_Stmt,
@@ -2697,7 +2826,6 @@ class Fparser2Reader():
                                    Fortran2003.Use_Stmt)):
                 # These node types are handled separately
                 pass
-
             elif isinstance(node, Fortran2003.Namelist_Stmt):
                 # Place the declaration statement into the symbol table using
                 # an internal symbol name. In case that we need more details
@@ -2709,11 +2837,13 @@ class Fparser2Reader():
                     root_name="_PSYCLONE_INTERNAL_NAMELIST",
                     symbol_type=DataSymbol,
                     datatype=UnsupportedFortranType(str(node)))
-
             else:
                 raise NotImplementedError(
                     f"Error processing declarations: fparser2 node of type "
                     f"'{type(node).__name__}' not supported")
+            # Reset preceding_comments to avoid placing comments
+            # on following nodes.
+            preceding_comments = []
 
         # Process the nodes again, looking for PARAMETER statements. This is
         # done after the main declarations loop because they modify existing
@@ -2868,17 +2998,14 @@ class Fparser2Reader():
                 sym.interface = StaticInterface()
 
     @staticmethod
-    def _process_common_blocks(nodes, psyir_parent):
-        ''' Process the fparser2 common block declaration statements. This is
-        done after the other declarations and it will keep the statement
-        as a UnsupportedFortranType and update the referenced symbols to a
-        CommonBlockInterface.
+    def _process_common_blocks(nodes: list[Base], psyir_parent: ScopingNode):
+        ''' Process the fparser2 common block declaration statements. This
+        is done after the symbols have already been created, it just assigns
+        the CommonBlockInterface to them.
 
         :param nodes: fparser2 AST nodes containing declaration statements.
-        :type nodes: List[:py:class:`fparser.two.utils.Base`]
         :param psyir_parent: the PSyIR Node with a symbol table in which to
             add the Common Blocks and update the symbols interfaces.
-        :type psyir_parent: :py:class:`psyclone.psyir.nodes.ScopingNode`
 
         :raises NotImplementedError: if one of the Symbols in a common block
             has initialisation (including when it is a parameter). This is not
@@ -2888,24 +3015,31 @@ class Fparser2Reader():
             been declared yet or when it is not just the symbol name).
 
         '''
+        # This method may be called more than once for the same common block:
+        # common /name/ var1, var2
+        # common /name/ var3, var4
+        # So we initialise the next position for each block from any interfaces
+        # that have already been created in this symbol table.
+        next_positions = {}
+        for symbol in psyir_parent.symbol_table.symbols:
+            if symbol.is_commonblock:
+                block_name = symbol.interface.name.lower()
+                next_positions[block_name] = max(
+                    next_positions.get(block_name, 0),
+                    symbol.interface.position + 1)
+
         for node in nodes:
             if isinstance(node, Fortran2003.Common_Stmt):
-                # Place the declaration statement into a UnsupportedFortranType
-                # (for now we just want to reproduce it). The name of the
-                # commonblock is not in the same namespace as the variable
-                # symbols names (and there may be multiple of them in a
-                # single statement). So we use an internal symbol name.
-                psyir_parent.symbol_table.new_symbol(
-                    root_name="_PSYCLONE_INTERNAL_COMMONBLOCK",
-                    symbol_type=DataSymbol,
-                    datatype=UnsupportedFortranType(str(node)))
-
                 # Get the names of the symbols accessed with the commonblock,
                 # they are already defined in the symbol table but they must
                 # now have a common-block interface.
                 try:
                     # Loop over every COMMON block defined in this Common_Stmt
                     for cb_object in node.children[0]:
+                        # Get the name of the common block
+                        name = cb_object[0]
+                        nstr = name.string.lower() if name is not None else ""
+
                         for symbol_name in cb_object[1].items:
                             sym = psyir_parent.symbol_table.lookup(
                                         str(symbol_name))
@@ -2916,7 +3050,9 @@ class Fparser2Reader():
                                     f" ({sym.initial_value.debug_string()}) "
                                     f"but appears in a common block. This is "
                                     f"not valid Fortran.")
-                            sym.interface = CommonBlockInterface()
+                            sym.interface = CommonBlockInterface(
+                                nstr, next_positions.get(nstr, 0))
+                            next_positions[nstr] = (sym.interface.position + 1)
                 except KeyError as error:
                     raise NotImplementedError(
                         f"The symbol interface of a common block variable "
@@ -3165,8 +3301,8 @@ class Fparser2Reader():
         # them.
         if not self._ignore_directives and len(preceding_comments) != 0:
             for comment in preceding_comments[:]:
-                # TODO: fparser #469. This only captures some free-form
-                # directives.
+                # TODO: https://github.com/stfc/fparser/issues/469
+                # This only captures some free-form directives.
                 if comment.tostr().startswith("!$"):
                     self.nodes_to_code_block(parent, [comment])
                     preceding_comments.remove(comment)
@@ -3195,14 +3331,20 @@ class Fparser2Reader():
         # We don't support statements with labels.
         if isinstance(child, BlockBase):
             # An instance of BlockBase describes a block of code (no surprise
-            # there), so we have to examine the first statement within it. We
-            # must allow for the case where the block is empty though.
-            if (child.content and child.content[0] and
-                    (not isinstance(child.content[0],
-                                    (Fortran2003.Comment,
-                                     Fortran2003.Directive))) and
-                    child.content[0].item and child.content[0].item.label):
-                raise NotImplementedError("Unsupported labelled statement")
+            # there), so we have to examine the first non-comment,
+            # non-directive statement within it. We must allow for the cases
+            # where the block is empty or only consists of comments or
+            # directives though.
+            if child.content:
+                first_non_comment = next(
+                    (node for node in child.content if not
+                     isinstance(node, (Fortran2003.Comment,
+                                       Fortran2003.Directive))),
+                    None)
+            if (child.content and first_non_comment and
+                    first_non_comment.item and
+                    first_non_comment.item.label):
+                raise NotImplementedError("Unsupported labelled block")
         elif isinstance(child, StmtBase):
             if child.item and child.item.label:
                 raise NotImplementedError("Unsupported labelled statement")
@@ -3429,10 +3571,8 @@ class Fparser2Reader():
         if len(limits_list) == 3 and limits_list[2] is not None:
             self.process_nodes(parent=loop, nodes=[limits_list[2]])
         else:
-            # Default loop increment is 1. Use the type of the start
-            # or step nodes once #685 is complete. For the moment use
-            # the default precision.
-            default_step = Literal("1", default_integer_type())
+            # Default loop increment is 1. Use the type of the start node
+            default_step = Literal("1", loop.children[0].datatype)
             loop.addchild(default_step)
 
         # Create Loop body Schedule
@@ -4917,7 +5057,7 @@ class Fparser2Reader():
             else:
                 # No elsewhere clauses were found so put the whole body into
                 # the single if block.
-                self.process_nodes(sched, node.content[1:-1])
+                self.process_nodes(sched, node.content[first_non_comment+1:-1])
         # Convert all uses of array syntax to indexed accesses
         self._array_syntax_to_indexed(ifblock, loop_vars)
 
@@ -5279,23 +5419,37 @@ class Fparser2Reader():
         # original node to ensure that it has the correct precision.
         return zero_oprnd.detach()
 
-    def _intrinsic_handler(self, node, parent):
+    def _intrinsic_handler(self,
+                           node: Fortran2003.Intrinsic_Function_Reference,
+                           parent: Node) -> IntrinsicCall:
         '''Transforms an fparser2 Intrinsic_Function_Reference to the PSyIR
         representation.
 
         :param node: node in fparser2 Parse Tree.
-        :type node:
-            :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
         :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         :raises NotImplementedError: if an unsupported intrinsic is found.
 
         '''
         try:
+            # If we already have a RoutineSymbol with the name of the supposed
+            # intrinsic, then it is shadowed by the declared RoutineSymbol and
+            # we should instead create a Call.
+            existing_symbol = parent.scope.symbol_table.lookup(
+                node.items[0].string, otherwise=None
+            )
+            if (existing_symbol is not None and
+                    isinstance(existing_symbol, RoutineSymbol)):
+                # _call_handler can't handle the intrinsic node as
+                # an input, so we have to create it here instead.
+                call = Call(parent=parent)
+                call.addchild(Reference(existing_symbol))
+                call = self._process_args(node, call, False)
+                return call
+
+            # Otherwise we have an IntrinsicCall.
             intrinsic = IntrinsicCall.Intrinsic[node.items[0].string.upper()]
 
             call = IntrinsicCall(intrinsic, parent=parent)
@@ -5491,11 +5645,13 @@ class Fparser2Reader():
         :raises NotImplementedError: if the fparser2 node is not recognised.
 
         '''
-        if isinstance(node, Fortran2003.Int_Literal_Constant):
+        if isinstance(node, (Fortran2003.Int_Literal_Constant,
+                             Fortran2003.Signed_Int_Literal_Constant)):
             integer_type = ScalarType(ScalarType.Intrinsic.INTEGER,
                                       get_literal_precision(node, parent))
             return Literal(str(node.items[0]), integer_type)
-        if isinstance(node, Fortran2003.Real_Literal_Constant):
+        if isinstance(node, (Fortran2003.Real_Literal_Constant,
+                             Fortran2003.Signed_Real_Literal_Constant)):
             real_type = ScalarType(ScalarType.Intrinsic.REAL,
                                    get_literal_precision(node, parent))
             # Make sure any exponent is lower case
@@ -5506,9 +5662,10 @@ class Fparser2Reader():
             # If the value has a "." without a digit before it then
             # add a "0" as the PSyIR does not allow this
             # format. e.g. +.3 => +0.3
-            if value[0] == "." or value[0:1] in ["+.", "-."]:
+            if value[0] == "." or value[0:2] in ["+.", "-."]:
                 value = value.replace(".", "0.")
             return Literal(value, real_type)
+
         # Unrecognised datatype - will result in a CodeBlock
         raise NotImplementedError("Unsupported datatype of literal number")
 
@@ -5530,9 +5687,10 @@ class Fparser2Reader():
         '''
         character_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
                                     get_literal_precision(node, parent))
-        # fparser issue #295 - the value of the character string currently
-        # contains the quotation symbols themselves. Once that's fixed this
-        # check will need to be changed.
+        # fparser issue https://github.com/stfc/fparser/issues/295 - the
+        # value of the character string currently contains the quotation
+        # symbols themselves. Once that's fixed this check will need to
+        # be changed.
         char_value = str(node.items[0])
         if not ((char_value.startswith("'") and char_value.endswith("'")) or
                 (char_value.startswith('"') and char_value.endswith('"'))):
@@ -5572,6 +5730,30 @@ class Fparser2Reader():
         raise GenerationError(
             f"Expected to find '.true.' or '.false.' as fparser2 logical "
             f"literal, but found '{value}' instead.")
+
+    def _complex_literal_handler(self,
+                                 node: Fortran2003.Complex_Literal_Constant,
+                                 parent: Node) -> ComplexLiteral:
+        '''
+        Transforms an fparser2 complex literal into a PSyIR ComplexLiteral
+        node.
+
+        :param node: node in fparser2 parse tree.
+        :param parent: parent node of the PSyIR node we are constructing.
+        :returns: PSyIR representation of node.
+        '''
+        # Convert real and imaginary parts to PSyIR nodes
+        lit = ComplexLiteral(parent=parent)
+        parts = []
+        for part in node.items:
+            if isinstance(part, Fortran2003.Name):
+                # Handle a named parameter
+                parts.append(self._name_handler(part, lit))
+            else:
+                # Handle a integer or real literal
+                parts.append(self._number_handler(part, lit))
+        lit.children.extend(parts)
+        return lit
 
     def _call_handler(self, node, parent):
         '''Transforms an fparser2 CALL statement into a PSyIR Call node.
@@ -5617,6 +5799,10 @@ class Fparser2Reader():
             if (
                 isinstance(routine_symbol, RoutineSymbol) and
                 isinstance(node, Fortran2003.Call_Stmt)
+                # Also don't overwrite UnsupportedFortranType as their text is
+                # needed to reproduce the declaration of this symbol
+                and not isinstance(routine_symbol.datatype,
+                                   UnsupportedFortranType)
             ):
                 routine_symbol.datatype = NoType()
 
@@ -5878,6 +6064,8 @@ class Fparser2Reader():
                             raise NotImplementedError(
                                 f"Routine has unsupported prefix: "
                                 f"{child.string}")
+                        if child.string == "RECURSIVE":
+                            routine.is_recursive = True
                     else:
                         base_type, _ = self._process_type_spec(routine, child)
 
@@ -6097,20 +6285,21 @@ class Fparser2Reader():
 
     def _program_handler(self,
                          node: Fortran2003.Program,
-                         parent: Node) -> Node:
+                         _parent: Node) -> Node:
         '''Processes an fparser2 Program statement. Program is the top level
         node of a complete fparser2 tree and may contain one or more
         program-units. This is captured with a FileContainer node.
 
         :param node: top level node in fparser2 parse tree.
-        :param parent: parent node of the PSyIR node we are constructing.
+        :param _parent: parent node of the PSyIR node we are constructing.
 
         :returns: PSyIR representation of the program.
 
         '''
         # fparser2 does not keep the original filename (if there was one) so
-        # this can't be provided as the name of the FileContainer.
-        file_container = FileContainer("", parent=parent)
+        # just provide an empty string for now. Also, this will be the root by
+        # definition, so ignore the parent.
+        file_container = FileContainer("")
 
         # Create symbols for all routines defined within this file (i.e.
         # that are not within a module)

@@ -153,8 +153,16 @@ def test_gen_decls(fortran_writer):
     symbol_table.add(use_statement)
     local_variable = DataSymbol("local", ScalarType.integer_type())
     symbol_table.add(local_variable)
-    dtype = StructureType.create([
-        ("flag", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None)])
+    dtype = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "flag",
+                ScalarType.integer_type(),
+                Symbol.Visibility.PUBLIC,
+                None,
+            )
+        ]
+    )
     dtype_variable = DataTypeSymbol("field", dtype)
     symbol_table.add(dtype_variable)
     grid_type = DataTypeSymbol("grid_type", UnresolvedType(),
@@ -500,6 +508,17 @@ def test_gen_interfacedecl(fortran_writer):
 end interface subx
 ''')
 
+    # Check we get the preceding comment as expected
+    isub.preceding_comment = "Here is my preceding comment"
+    out = fortran_writer.gen_interfacedecl(isub)
+    assert (out == """\
+! Here is my preceding comment
+interface subx
+  module procedure :: sub2
+  procedure :: sub1
+end interface subx
+""")
+
 
 def test_procedure_declaration_pointers(fortran_reader, fortran_writer):
     ''' Check that the procedure declarations are generated, and they have the
@@ -539,3 +558,16 @@ def test_procedure_declaration_pointers(fortran_reader, fortran_writer):
     assert "procedure(my_public_inter), public :: proc_ptr_public\n" in output
     assert ("procedure(my_save_inter), pointer, save :: proc_ptr => null()\n"
             in output)
+
+
+def test_structure_initialiser(fortran_reader, fortran_writer):
+    ''' Check a variable declaration with a structure intialiser.'''
+    code = """
+    subroutine my_sub
+        type(some_type), parameter :: x = some_type()
+    end subroutine my_sub
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+    table = psyir.walk(Routine)[0].symbol_table
+    result = fortran_writer._gen_parameter_decls(table)
+    assert result == "type(some_type), parameter :: x = some_type()\n"

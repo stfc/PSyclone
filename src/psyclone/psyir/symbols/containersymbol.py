@@ -66,9 +66,6 @@ class ContainerSymbol(Symbol):
         if "is_intrinsic" in kwargs:
             self.is_intrinsic = kwargs.pop("is_intrinsic")
 
-        # TODO #1298: ContainerSymbol currently defaults to
-        # FortranModuleInterface expecting externally defined containers
-        # which can be imported, but this is not always true.
         if "interface" not in kwargs or kwargs["interface"] is None:
             kwargs["interface"] = FortranModuleInterface()
         elif not isinstance(kwargs["interface"], FortranModuleInterface):

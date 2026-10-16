@@ -5,6 +5,13 @@
 ! See the full LICENSE file in the project root for details.
 ! -----------------------------------------------------------------------------
 
+! Example where the original field is dereferenced from an
+! abstract_vector_type and therefore has no type information. However,
+! a pointer is used that points to the field within the appropriate
+! select clause and it is of type field_vector_type. As the pointer is
+! passed in to the invoke call, PSyclone knows the argument is a
+! field_vector_type which can only contain fields of type field_type.
+
 module vector_type
 
   use constants_mod,    only : r_def

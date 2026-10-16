@@ -25,7 +25,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, BuiltIn
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
-    colored, Loop, Schedule, Literal, Directive, OMPDoDirective,
+    Loop, Schedule, Literal, Directive, OMPDoDirective,
     ACCEnterDataDirective, Assignment, Reference)
 from psyclone.psyir.symbols import AutomaticInterface, ScalarType, ArrayType
 from psyclone.psyir.transformations import (
@@ -38,6 +38,7 @@ from psyclone.transformations import (
     LFRicColourTrans, LFRicOMPLoopTrans, LFRicOMPParallelLoopTrans,
     LFRicAsyncHaloExchangeTrans, LFRicKernelConstTrans,
     ACCParallelTrans, ACCEnterDataTrans)
+from psyclone.utils import colored
 
 # The version of the API that the tests in this file
 # exercise.
@@ -6541,7 +6542,7 @@ mesh%get_last_halo_cell_all_colours_all_tiles()""" in code
             "ndf_w2, undf_w2, map_w2(:,tmap(colour,tile,cell)), ndf_w3, "
             "undf_w3, map_w3(:,tmap(colour,tile,cell)))" in code)
 
-    # TODO #2623: To compile it needs an up-to-date lfric infrastructure with
+    # TODO #3540: To compile it needs an up-to-date lfric infrastructure with
     # the new tile-colouring methods
     # assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6634,7 +6635,7 @@ def test_colour_trans_tiled_intergrid(dist_mem):
         "ndf_w1, undf_w1, map_w1, undf_w2, "
         "map_w2(:,tmap_fld_m(colour,tile,cell)))\n" in gen)
 
-    # TODO #2623: To compile it needs an up-to-date lfric infrastructure with
+    # TODO #3540: To compile it needs an up-to-date lfric infrastructure with
     # the new tile-colouring methods
     # assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6677,33 +6678,9 @@ def test_colour_trans_tiled_continuous_writer_intergrid(dist_mem):
             "(colour,tile), 1" in result)
     assert ("call restrict_w2_code(nlayers_field1, cell_map_field1(:,:,"
             "tmap_field1(colour,tile,cell))" in result)
-    # TODO #2623: To compile it needs an up-to-date lfric infrastructure with
+    # TODO #3540: To compile it needs an up-to-date lfric infrastructure with
     # the new tile-colouring methods
     # assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_deprecated_names(capsys):
-    '''
-    Check that the old Dynamo0p3-based transformation names are still
-    accepted, but will print a deprecation message when they are
-    instantiated.
-    '''
-
-    # Since these names are deprecated, they are imported in this one test
-    # only, to make it easier to remove them later all at once
-    # pylint: disable=no-name-in-module, import-outside-toplevel
-    from psyclone.transformations import (
-        Dynamo0p3OMPParallelLoopTrans, Dynamo0p3OMPLoopTrans,
-        Dynamo0p3ColourTrans, Dynamo0p3AsyncHaloExchangeTrans)
-    for trans_cls in [Dynamo0p3OMPParallelLoopTrans, Dynamo0p3OMPLoopTrans,
-                      Dynamo0p3ColourTrans, Dynamo0p3AsyncHaloExchangeTrans]:
-        old_name = trans_cls.__name__
-        new_name = old_name.replace("Dynamo0p3", "LFRic")
-        _ = trans_cls()
-        out, _ = capsys.readouterr()
-        assert (f"Deprecation warning: the script uses the legacy name "
-                f"'{old_name}', please use new name "
-                f"'{new_name}' instead.") in out
 
 
 def test_reprod_red_with_parallel_do(tmpdir, monkeypatch, annexed,

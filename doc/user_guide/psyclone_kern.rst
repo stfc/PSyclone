@@ -580,4 +580,8 @@ Limitations
    face IDs).
  * Kernels with operator arguments are not yet supported.
  * Kernels with stencil accesses are not yet supported.
+ * Since Kernel metadata only specifies the *rank* of :ref:`lfric-array`
+   arguments and not their extent, the generated code arbitrarily gives
+   each extent the value `3`. Obviously, the generated algorithm code may be
+   edited to change this.
 

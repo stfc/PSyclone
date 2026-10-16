@@ -65,18 +65,8 @@ class AssignmentTrans(AdjointTransformation):
                 active_var = ref
                 # Identify whether this reference on the RHS matches the
                 # one on the LHS - if so we have an increment.
-                if node.is_array_assignment and isinstance(ref, ArrayMixin):
-                    # TODO #1537 - we can't just do `sym_maths.equal` if we
-                    # have an array range because the SymbolicMaths class does
-                    # not currently support them.
-                    # Since we have already checked (in validate) that any
-                    # references to the same symbol on the RHS have the same
-                    # range, this is an increment if the symbols match.
-                    if node.lhs.symbol is ref.symbol:
-                        increment = True
-                else:
-                    if sym_maths.equal(ref, node.lhs):
-                        increment = True
+                if sym_maths.equal(ref, node.lhs):
+                    increment = True
                 if ref.parent:
                     ref.replace_with(node.lhs.copy())
                 else:

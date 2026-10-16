@@ -808,8 +808,7 @@ def test_cmd_line_flag_override(tmp_path, monkeypatch):
     # Check that the load() is triggered with the correct file name.
     with pytest.raises(InternalError) as err:
         main(["--config", str(cfg_file), str(f90_file)])
-    assert re.search(r"loaded: '[a-z\/\\\-_q0-9]*psyclone_test.cfg'",
-                     str(err.value), re.I)
+    assert f"loaded: '{cfg_file}'" in str(err.value)
 
 
 def test_config_overwrite(tmp_path: Path, monkeypatch) -> None:

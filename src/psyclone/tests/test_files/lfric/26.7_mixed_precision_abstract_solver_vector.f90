@@ -5,6 +5,11 @@
 ! See the full LICENSE file in the project root for details.
 ! -----------------------------------------------------------------------------
 
+! Example where the field is dereferenced from an abstract_vector_type
+! and therefore its precision can't be determined by looking at the
+! declaration. As a result PSyclone is currently not able to determine
+! the type and will raise an exception.
+
 module vector_type
 
   use constants_mod,    only : r_def

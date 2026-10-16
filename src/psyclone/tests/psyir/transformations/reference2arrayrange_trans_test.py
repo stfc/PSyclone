@@ -356,7 +356,7 @@ def test_unsupported_structure_references(fortran_reader):
 
     # Remove scalar2 code and add ptr to mytype. It cannot be done in the code
     # above because pointers and type inheritance are unsupported, and the
-    # reader converts the whole type into a Codeblock (TODO #3265)
+    # reader converts the whole type into a Codeblock
     comp = psyir.children[0].symbol_table.lookup("mytype").datatype.components
     del comp["scalar2"]
     comp["ptr"] = StructureType.ComponentType(

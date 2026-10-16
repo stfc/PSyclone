@@ -324,14 +324,15 @@ class BinaryOperation(Operation):
         except TypeError as err:
             actual_types = set(atype.intrinsic for atype in optypes)
             actual_types -= set([ScalarType.Intrinsic.INTEGER,
-                                ScalarType.Intrinsic.REAL])
+                                 ScalarType.Intrinsic.REAL,
+                                 ScalarType.Intrinsic.COMPLEX])
             actual_types = [str(x) for x in actual_types]
             raise TypeError(
                 f"Invalid argument(s) of type(s) '{actual_types}' to "
                 f"numerical operation '{self.operator}' in "
                 f"'{self.debug_string()}'. Currently only "
-                f"ScalarType.Intrinsic.REAL/INTEGER are supported "
-                f"(TODO #1590)") from err
+                f"ScalarType.Intrinsic.REAL/INTEGER/COMPLEX are "
+                f"supported") from err
 
     @property
     def datatype(self):

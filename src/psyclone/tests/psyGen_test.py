@@ -21,13 +21,11 @@ from psyclone import transformations
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import (lfric_builtins,
                                    LFRicInvokeSchedule,
                                    LFRicKern, LFRicKernMetadata)
 from psyclone.domain.lfric.transformations import (
     LFRicLoopFuseTrans, LFRicRedundantComputationTrans)
-from psyclone.lfric import LFRicKernelArguments
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.generator import generate
 from psyclone.gocean1p0 import GOKern
@@ -38,9 +36,9 @@ from psyclone.psyGen import (TransInfo, PSyFactory,
                              InvokeSchedule)
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
                                   Literal, Loop, Node, KernelSchedule, Call,
-                                  colored, Schedule)
+                                  Reference, Schedule)
 from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, ScalarType,
-                                    ImportInterface, ContainerSymbol, Symbol,
+                                    ImportInterface, ContainerSymbol,
                                     UnresolvedType, SymbolTable)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.test_files import dummy_transformations
@@ -48,6 +46,7 @@ from psyclone.tests.test_files.dummy_transformations import LocalTransformation
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (LFRicColourTrans,
                                       Transformation)
+from psyclone.utils import colored
 
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -498,11 +497,7 @@ def test_valid_return_object_from_name():
 def test_find_subclasses():
     '''Test for the _find_subclasses() method.'''
     trans = TransInfo()
-    # Check that the method does not include the legacy names for the
-    # LFRic transformations.
     classes = trans._find_subclasses(transformations, Transformation)
-    for cls in classes:
-        assert "dynamo0p3" not in cls.__name__.lower()
     # Check that the method finds at least one transformation we know about.
     # We don't check for every transformation as this would break every time
     # we added a new one.
@@ -733,24 +728,8 @@ def test_codedkern_node_str():
     out = my_kern.node_str()
     expected_output = (
         colored("CodedKern", LFRicKern._colour) +
-        " dummy_code(field_1,field_2,field_3) [module_inline=False]")
+        " dummy_code(field_1,field_2,field_3)")
     assert expected_output in out
-
-
-def test_codedkern_module_inline_getter():
-    ''' Check that the module_inline property of CodedKern. '''
-    # Use LFRic example with a repeated CodedKern
-    _, invoke = get_invoke("4.6_multikernel_invokes.f90", api="lfric", idx=0)
-    schedule = invoke.schedule
-    ckerns = schedule.walk(CodedKern)
-    # Double check that both kernels are the same.
-    assert ckerns[0].name == ckerns[1].name
-    assert ckerns[0].module_inline is False
-    mod_inline_trans = KernelModuleInlineTrans()
-    mod_inline_trans.apply(ckerns[0])
-    # Module inlining one should have updated both.
-    assert ckerns[0].module_inline is True
-    assert ckerns[1].module_inline is True
 
 
 def test_codedkern_lower_to_language_level(monkeypatch):
@@ -761,28 +740,6 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.children[0].loop_body[0]
-
-    # TODO 1010: LFRic still needs psy.gen to create symbols. But these must
-    # eventually be created automatically before the gen() call, for now we
-    # manually create the symbols that appear in the PSyIR tree.
-    schedule.symbol_table.add(Symbol("f1_proxy"))
-    schedule.symbol_table.add(Symbol("f2_proxy"))
-    schedule.symbol_table.add(Symbol("m1_proxy"))
-    schedule.symbol_table.add(Symbol("m2_proxy"))
-    schedule.symbol_table.add(Symbol("ndf_w1"))
-    schedule.symbol_table.add(Symbol("undf_w1"))
-    schedule.symbol_table.add(Symbol("map_w1"))
-    schedule.symbol_table.add(Symbol("ndf_w2"))
-    schedule.symbol_table.add(Symbol("undf_w2"))
-    schedule.symbol_table.add(Symbol("map_w2"))
-    schedule.symbol_table.add(Symbol("ndf_w3"))
-    schedule.symbol_table.add(Symbol("undf_w3"))
-    schedule.symbol_table.add(Symbol("map_w3"))
-
-    # TODO #1085 LFRic Arguments do not have a translation to PSyIR
-    # yet, we monkeypatch a dummy expression for now:
-    monkeypatch.setattr(LFRicKernelArguments, "psyir_expressions",
-                        lambda x: [Literal("1", ScalarType.integer_type())])
 
     # In DSL-level it is a CodedKern with no children
     assert isinstance(kern, CodedKern)
@@ -798,7 +755,7 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     assert isinstance(call, Call)
     assert call.routine.name == 'testkern_code'
     assert len(call.arguments) == number_of_arguments
-    assert isinstance(call.arguments[0], Literal)
+    assert isinstance(call.arguments[0], Reference)
 
     # A RoutineSymbol and the ContainerSymbol from where it is imported are
     # in the symbol table

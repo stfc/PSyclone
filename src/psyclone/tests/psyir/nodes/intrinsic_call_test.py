@@ -49,7 +49,6 @@ from psyclone.psyir.symbols import (
     ScalarType,
     IntrinsicSymbol,
     UnresolvedType,
-    UnsupportedFortranType,
     NoType
 )
 
@@ -133,9 +132,10 @@ def test_intrinsiccall_datatype(fortran_reader):
     # Test that when we get a AttributeError due to unresolved/unsupported
     # types that PSyclone can turn that into an UnresolvedType
     code = """subroutine test
-    integer :: i
+    real :: r(1)
+    integer :: s(1)
 
-    i = REAL(CMPLX(1.0,1.0))
+    r = REAL(RESHAPE(r, s))
     end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(IntrinsicCall)[0]
@@ -1506,12 +1506,16 @@ def test_matmul_return_type(fortran_reader):
     [
         (
             """subroutine x
-     complex(4) :: z4
+     complex(8) :: z
      real :: result
-     result = aimag(z4)
-     end subroutine x""",
-            # AIMAG return type is UnsupportedFortranType
-            lambda res: isinstance(res, UnsupportedFortranType),
+     result = aimag(z)
+     end subroutine""",
+            # AIMAG return type is that of z here
+            lambda res: (
+                res.intrinsic == ScalarType.Intrinsic.REAL
+                and isinstance(res.precision, Literal)
+                and res.precision.value == "8"
+            ),
         ),
         (
             """subroutine z
@@ -1540,12 +1544,16 @@ def test_matmul_return_type(fortran_reader):
         ),
         (
             """subroutine x
-     complex(4) :: z4
+     complex :: z
      real :: r
-     z4 = CMPLX(r)
+     z = CMPLX(r)
      end subroutine x""",
-            # CMPLX return type is UnsupportedFortranType
-            lambda res: isinstance(res, UnsupportedFortranType),
+            # CMPLX return type is COMPLEX with UNDEFINED precision as
+            # the kind argument has not been supplied
+            lambda res: (
+                res.intrinsic == ScalarType.Intrinsic.COMPLEX
+                and res.precision == ScalarType.Precision.UNDEFINED
+            ),
         ),
         (
             """subroutine x
@@ -1553,8 +1561,12 @@ def test_matmul_return_type(fortran_reader):
      complex(4) :: r
      z4 = CONJG(r)
      end subroutine x""",
-            # CONJG return type is UnsupportedFortranType
-            lambda res: isinstance(res, UnsupportedFortranType),
+            # CONJG return type is the same as the argument type
+            lambda res: (
+                res.intrinsic == ScalarType.Intrinsic.COMPLEX
+                and isinstance(res.precision, Literal)
+                and res.precision.value == "4"
+            ),
         ),
         (
             """subroutine x

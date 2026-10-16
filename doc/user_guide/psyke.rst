@@ -82,15 +82,15 @@ PSyclone modifies the Schedule of the selected ``invoke_0``:
       2: Loop[type='',field_space='w2',it_space='cells', upper_bound='ncells']
           ...
           Schedule[]
-              0: CodedKern testkern_code_w2_only(f3,f2) [module_inline=False]
+              0: CodedKern testkern_code_w2_only(f3,f2)
       3: Loop[type='',field_space='wtheta',it_space='cells', upper_bound='ncells']
           ...
           Schedule[]
-              0: CodedKern testkern_wtheta_code(f4,f5) [module_inline=False]
+              0: CodedKern testkern_wtheta_code(f4,f5)
       4: Loop[type='',field_space='w1',it_space='cells', upper_bound='ncells']
           ...
           Schedule[]
-              0: CodedKern testkern_code(scalar,f1,f2,f3,f4) [module_inline=False]
+              0: CodedKern testkern_code(scalar,f1,f2,f3,f4)
 
 to insert the extract region. As shown below, all children of an
 ``ExtractNode`` will be part of the region:
@@ -113,15 +113,15 @@ to insert the extract region. As shown below, all children of an
               0: Loop[type='',field_space='w2',it_space='cells', upper_bound='ncells']
                   ...
                   Schedule[]
-                      0: CodedKern testkern_code_w2_only(f3,f2) [module_inline=False]
+                      0: CodedKern testkern_code_w2_only(f3,f2)
       3: Loop[type='',field_space='wtheta',it_space='cells', upper_bound='ncells']
           ...
           Schedule[]
-              0: CodedKern testkern_wtheta_code(f4,f5) [module_inline=False]
+              0: CodedKern testkern_wtheta_code(f4,f5)
       4: Loop[type='',field_space='w1',it_space='cells', upper_bound='ncells']
           ...
           Schedule[]
-              0: CodedKern testkern_code(scalar,f1,f2,f3,f4) [module_inline=False]
+              0: CodedKern testkern_code(scalar,f1,f2,f3,f4)
 
 To extract multiple Nodes, ``ExtractTrans`` can be applied to the list
 of Nodes (subject to :ref:`psyke-intro-restrictions-gen` restrictions above).
@@ -147,7 +147,7 @@ This modifies the above Schedule as:
               1: Loop[type='',field_space='w2',it_space='cells', upper_bound='ncells']
                   ...
                   Schedule[]
-                      0: CodedKern testkern_code_w2_only(f3,f2) [module_inline=False]
+                      0: CodedKern testkern_code_w2_only(f3,f2)
   ...
 
 

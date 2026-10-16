@@ -4,6 +4,9 @@
 ! SPDX-License-Identifier: BSD-3-Clause
 ! See the full LICENSE file in the project root for details.
 ! -----------------------------------------------------------------------------
+
+! A kernel that adds two fields on any function space (must be the same space)
+! and stores the result in the field on a same space
 module add_fields_any_kernel_mod
 
   use argument_mod,      only: arg_type,          &

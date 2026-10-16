@@ -325,7 +325,7 @@ def test_parser_invokeinfo_datatypes_clash():
     is simply a limitation of the current implementation as we do not
     capture the context of a symbol so do not deal with variable
     scope. This limitation will disappear when the PSyIR is used to
-    determine datatypes, see issue #753.
+    determine datatypes, see issue #1618.
 
     '''
     alg_filename = os.path.join(
@@ -768,12 +768,18 @@ def test_getkernel_noexpr(content):
 
 
 def test_getkernel_argerror(monkeypatch):
-    '''Test that the get_kernel function raises an exception if it does
-    not recognise the fparser2 parse tree for an argument.
+    '''Test that the get_kernel function raises an exception if there are no
+    arguments or if it does not recognise the fparser2 parse tree for an
+    argument.
 
     '''
     tree = Part_Ref("sub(dummy)")
     monkeypatch.setattr(tree, "items", ["sub", None])
+    with pytest.raises(ParseError) as excinfo:
+        _, _ = get_kernel(tree, "dummy.f90", None)
+    assert ("Kernel 'sub' is invoked without arguments in Algorithm file "
+            "'dummy.f90'" in str(excinfo.value))
+    monkeypatch.setattr(tree, "items", ["sub", "hello"])
     with pytest.raises(InternalError) as excinfo:
         _, _ = get_kernel(tree, "dummy.f90", None)
     assert "Unsupported argument structure " in str(excinfo.value)

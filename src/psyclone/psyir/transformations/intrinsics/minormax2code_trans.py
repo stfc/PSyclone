@@ -21,14 +21,13 @@ from psyclone.psyir.nodes import (
     BinaryOperation, Assignment, Reference, IfBlock, IntrinsicCall
 )
 from psyclone.psyir.symbols import DataSymbol
-from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
-    Intrinsic2CodeTrans
-)
+from psyclone.psyir.transformations.intrinsics.intrinsic2code_basetrans \
+    import Intrinsic2CodeBaseTrans
 from psyclone.utils import transformation_documentation_wrapper
 
 
 @transformation_documentation_wrapper
-class MinOrMax2CodeTrans(Intrinsic2CodeTrans, ABC):
+class MinOrMax2CodeTrans(Intrinsic2CodeBaseTrans, ABC):
     '''Provides a utility transformation from a PSyIR MIN or MAX Intrinsic
     node to equivalent code in a PSyIR tree. Validity checks are also
     performed (by the parent class). This utility transformation is

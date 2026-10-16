@@ -23,6 +23,7 @@ from psyclone.domain.gocean.kernel import GOceanKernelMetadata, \
 from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import SymbolTable, ScalarType
 
@@ -181,7 +182,7 @@ def test_goceankernelmetadata_create1(fortran_reader):
     with pytest.raises(InternalError) as info:
         _ = GOceanKernelMetadata.create_from_psyir(symbol)
     assert ("Expected kernel metadata to be stored in the PSyIR as an "
-            "UnsupportedFortranType, but found ScalarType." in str(info.value))
+            "StructureType, but found ScalarType." in str(info.value))
 
 
 # create_from_fortran_string
@@ -369,10 +370,10 @@ def test_getproperty(fortran_reader):
 
     '''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
-    datatype = kernel_psyir.children[0].symbol_table.lookup(
-        "compute_cu").datatype
+    symbol = kernel_psyir.children[0].symbol_table.lookup("compute_cu")
     metadata = GOceanKernelMetadata()
-    reader = FortranStringReader(datatype.declaration)
+    reader = FortranStringReader(
+        FortranWriter().gen_typedecl(symbol, include_visibility=False))
     spec_part = Fortran2003.Derived_Type_Def(reader)
     assert metadata._get_property(spec_part, "code").string == \
         "compute_cu_code"

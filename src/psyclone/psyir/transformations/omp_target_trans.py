@@ -193,7 +193,9 @@ class OMPTargetTrans(RegionTrans, AsyncTransMixin):
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str,Any]]
         :param nowait: whether to add a nowait clause and a
-            corresponding barrier to enable asynchronous execution.
+            corresponding barrier to enable asynchronous execution. This
+            will generate code that is only guaranteed to be correct when
+            using managed memory (or equivalent).
         :param device_string: provide a compiler-platform
             identifier.
         :param allow_strings: permit OMP target regions

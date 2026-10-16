@@ -1,16 +1,9 @@
-! -----------------------------------------------------------------------------
-! SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
-!                         Facilities Council
-! SPDX-License-Identifier: BSD-3-Clause
-! See the full LICENSE file in the project root for details.
-! -----------------------------------------------------------------------------
-
-   !!=====================================================================================
-   !! ***  traadv kernel extracted from the NEMO software (http://www.nemo-ocean.eu ) ***
-   !! ***          governed by the CeCILL licence (http://www.cecill.info)            ***
-   !!                                                   
-   !! ***                             IS-ENES2 - CMCC/STFC                            ***
-   !!=====================================================================================
+!!=====================================================================================
+!! ***  traadv kernel extracted from the NEMO software (http://www.nemo-ocean.eu ) ***
+!! ***          governed by the CeCILL licence (http://www.cecill.info)            ***
+!!                                                   
+!! ***                             IS-ENES2 - CMCC/STFC                            ***
+!!=====================================================================================
 PROGRAM tra_adv
    USE iso_c_binding, only: C_INT64_T
    ! The below should be e.g. wp = KIND(1.0d0) but PSyclone does not support

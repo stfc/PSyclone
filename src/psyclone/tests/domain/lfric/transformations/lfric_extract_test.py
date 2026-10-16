@@ -14,12 +14,13 @@ import pytest
 
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.psyir.nodes import colored, ExtractNode, Loop
+from psyclone.psyir.nodes import ExtractNode, Loop
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (LFRicColourTrans,
                                       LFRicOMPParallelLoopTrans)
+from psyclone.utils import colored
 
 # API names
 LFRIC_API = "lfric"

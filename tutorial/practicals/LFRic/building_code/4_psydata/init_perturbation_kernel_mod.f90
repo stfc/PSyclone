@@ -4,6 +4,11 @@
 ! SPDX-License-Identifier: BSD-3-Clause
 ! See the full LICENSE file in the project root for details.
 ! -----------------------------------------------------------------------------
+
+! A kernel that initialises a perturbation field on W3 function space to:
+!   perturbation = ampl(z)*exp( -((x - x_centre)/half_width_x)**2 &
+!                               -((y - y_centre)/half_width_y)**2 )
+!   where ampl(z) = max(perturbation_height - z, 0)/perturbation_scale
 module init_perturbation_kernel_mod
 
   use argument_mod,      only: arg_type, func_type,   &

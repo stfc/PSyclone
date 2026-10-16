@@ -9,6 +9,7 @@
 to allow the code to conform to the maximum line length limits (132
 for f90 free format is the default)'''
 
+from typing import Union
 import re
 
 from fparser.common.readfortran import Comment, FortranStringReader
@@ -17,7 +18,8 @@ from fparser.common.sourceinfo import FortranFormat
 from psyclone.errors import InternalError
 
 
-def find_break_point(line: str, max_index: int, key_list: list[str]) -> int:
+def find_break_point(line: str, max_index: int,
+                     key_list: list[Union[str, re.Pattern]]) -> int:
     ''' Finds the most appropriate line break point for the Fortran code in
     line.
 
@@ -38,10 +40,20 @@ def find_break_point(line: str, max_index: int, key_list: list[str]) -> int:
     # We should never break the line before the first element on the
     # line.
     first_non_whitespace = len(line) - len(line.lstrip())
+
+    search_string = line[first_non_whitespace+1:max_index]
     for key in key_list:
-        idx = line.rfind(key, first_non_whitespace+1, max_index)
-        if idx > 0:
-            return idx+len(key)
+        # Find all of the matches to the key.
+        if isinstance(key, re.Pattern):
+            matches = re.findall(key, search_string)
+        else:
+            # If the key is a string, we use re.escape to ensure no issues
+            # with unmatched special characters.
+            matches = re.findall(re.escape(key), search_string)
+        if matches:
+            # Find the position of the last match using rfind.
+            idx = line.rfind(matches[-1], first_non_whitespace+1, max_index)
+            return idx+len(matches[-1])
     raise InternalError(
         f"Error in find_break_point. No suitable break point found"
         f" for line '{line[:max_index]}' and keys '{str(key_list)}'")
@@ -74,7 +86,8 @@ class FortLineLength():
         One known situation that could cause an instance of the
         :class:`line_length.FortLineLength` class to fail is when an *inline*
         comment at the end of a line containing a *directive* takes it over
-        the 132-character limit. (TODO fparser/#468)
+        the 132-character limit.
+        (TODO https://github.com/stfc/fparser/issues/468)
 
     '''
     # pylint: disable=too-many-instance-attributes
@@ -93,7 +106,15 @@ class FortLineLength():
         self._key_lists = {"statement": [", ", ",", " "],
                            "openmp_directive": [" ", ",", ")", "="],
                            "openacc_directive": [" ", ",", ")", "="],
-                           "comment": [" ", ".", ","],
+                           "comment": [" ", ".", ",",
+                                       # Comments should never fail, so
+                                       # we have backups of increasing
+                                       # desperation.
+                                       re.compile(r"[+-\\/\"'`]"),
+                                       re.compile(r"[a-zA-Z0-9]"),
+                                       # Finally anything is ok.
+                                       re.compile(r"(.)")
+                                       ],
                            "unknown": [" ", ",", "=", "+", ")"]}
         self._stat = re.compile(r'^\s*(INTEGER|REAL|TYPE|CALL|SUBROUTINE|USE)',
                                 flags=re.I)
@@ -149,7 +170,14 @@ class FortLineLength():
                         continue
                     break_point = find_break_point(
                         line, self._line_length-len(c_end), key_list)
-
+                # Create variables to handle breaks occuring before we
+                # reach an inline comment that also needs line breaks.
+                next_l = None  # Holds the next line after fline or None.
+                fline = None  # Holds the first line from the fparser output.
+                # The amount of the original fortran source that has had
+                # line breaking applied.
+                current_removed_length = break_point
+                indent_size = 0
                 if line_type != "comment":
                     # Check whether the proposed break point falls within an
                     # in-line comment.
@@ -160,13 +188,21 @@ class FortLineLength():
                     freader = FortranStringReader(line, ignore_comments=False,
                                                   process_directives=True)
                     # Use free format.
-                    freader.set_format(FortranFormat(True, True))
+                    freader.set_format(FortranFormat(True, False))
                     fline = freader.next()
-                    # This won't work for a directive with an in-line comment
-                    # as FortranStringReader returns a single Comment object
-                    # for the whole thing (TODO fparser/#468).
+                    try:
+                        next_l = freader.next()
+                    except StopIteration:
+                        # If there is no following line from fparser (i.e. one
+                        # object is created for the full input) then we skip it
+                        # and next_l remains as None. This is necessary since
+                        # FortranStringReader will strip an inline Comment from
+                        # a line and return it as a separate Line but only if
+                        # that line is not a directive.
+                        # (TODO https://github.com/stfc/fparser/issues/468).
+                        pass
                     if ((break_point - indent_size) > len(fline.line) and
-                            isinstance(freader.next(), Comment)):
+                            isinstance(next_l, Comment)):
                         # Breakpoint is inside a comment so change the chars
                         # used for the line-continuation end and start.
                         line_type = "comment"
@@ -180,8 +216,29 @@ class FortLineLength():
                     break_point = find_break_point(
                         line, self._line_length-len(c_end)-len(c_start),
                         key_list)
-                    fortran_out += c_start + line[:break_point] + c_end + "\n"
+                    # If we move into the part of an inline comment to break
+                    # then we need to update the line_type for the remainder
+                    # of the line breaks.
+                    if (line_type != "comment" and next_l and
+                        (current_removed_length + break_point - indent_size) >
+                            len(fline.line) and isinstance(next_l, Comment)):
+                        old_c_start = c_start
+                        line_type = "comment"
+                        c_start = self._cont_start[line_type]
+                        c_end = self._cont_end[line_type]
+                        key_list = self._key_lists[line_type]
+                        # This line didn't start as a comment, so we need to
+                        # use the previous line type's c_start.
+                        fortran_out += (old_c_start + line[:break_point]
+                                        + c_end + "\n")
+                    else:
+                        # Line type doesn't change so break the line.
+                        fortran_out += (c_start + line[:break_point] +
+                                        c_end + "\n")
+
                     line = line[break_point:]
+                    current_removed_length = (current_removed_length +
+                                              break_point)
                 if line:
                     fortran_out += c_start + line + "\n"
             else:

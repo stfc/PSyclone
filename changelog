@@ -1,3 +1,146 @@
+   68) PR #3643 for #3637 and #3644. Fixes line-length limiter issues when
+   line breaks occur in an in-line comment.
+ 
+   67) PR #3641. Improve NEMOv4 GPU performance by tweaking the transformation
+   script (updating omitted files, using OMP for reduction in stpctl).
+ 
+   66) PR #3631 for #3628. Removes unnecessary check on use of '[]' in
+   kernel metadata. Allows kernels previously transformed by PSyclone
+   to still be parsed as DSL kernels.   
+
+   65) PR #3611 towards #3601. Enable routines with automatic arrays to be
+   inlined by making the arrays allocatable.
+ 
+   64) PR #3622 for #2895. Switches all NEMOv4 ITs to use spack and improve
+   transformation scripts/source for GPU performance.
+
+   63) PR #3617 for #3609. Improve AsyncTransMixin to allow adding nowaits
+   when the ancestor loops of a directive are iteration-independent.
+
+   62) PR #3580 for #3576. Update LFRic extraction integration tests.
+
+   61) PR #3618 for #3614. Ensures any kernel-parsing errors are
+   propagated back to the user.
+ 
+   60) PR #3616 for #3509. Fixes failing test on master (colour codes
+   in PSyIR node output).
+ 
+   59) PR #3604 towards #2668. Moves more Transformations over to using
+   keyword arguments instead of 'options'.
+ 
+   58) PR #3572 for #1948. Add stencil support for LFRic domain kernels.
+
+   57) PR #3593 for #3503. Adds a LFRicColourAndOMPTrans metatransformation
+   to perform both colouring and OpenMP to loops in the LFRic domain.
+
+   56) PR #3607. Removes the support for the "Dynamo0p3" prefix on
+   LFRic-specific transformations. 
+
+   55) PR #3603 for #1770. Make lfric/eg20 compile.
+
+   54) PR #3587 towards #2216. Adds a new KernelInlineTrans to do
+   a deferred InlineTrans on Kernels after lower the PSy layer.
+ 
+   53) PR #3599 for #3596 and #3195. Updates the fparser2 frontend to
+   create a Call rather than an IntrinsicCall when an imported Symbol
+   shadows an Intrinsic.
+ 
+   52) PR #3574 for #3568. Removes references to fparser from the DUC
+   implementation (by extending the query functionality on CodeBlock).
+ 
+   51) PR #3520 for #1312. Fix psy-layer generation for LFRic scalar arrays.
+
+   50) Adds ArrayIntrinsic2LoopTrans and Intrinsic2CodeTrans
+   metatransformations. 
+
+   49) Move 'colored' utility from psyclone.psyir.nodes.node to
+   psyclone.utils.
+
+   48) PR #34584 for #3583. Fixes PSyclone losing the tag from a symbol when
+   using SymbolTable.swap.
+
+   47) PR #3582 for #3392. Fixes PSyclone reordering the declarations in
+   common blocks.
+
+   46) PR #3581 for #3579. Bypass docstring wrapper when debug info is
+   missing. This allows to use python -O or PYTHONOPTIMIZE.
+
+   45) PR #3563 for #2642. Adds support for PSyclone handling structures
+   with extends and contains.
+
+   44) PR #3571 for #3570. Update fparser version.
+
+   43) PR #3566 towards #1995. More tidying of copyright/license
+   headers to use SPDX form.
+ 
+   42) PR #3468 for #3461. Cleans up the use of sys.path so that
+   different transformation scripts with the same name can be imported.
+ 
+   41) PR #3573. Improves Developer Guide description of coding style
+   and fixes a few incorrect type-hints.
+ 
+   40) PR #3499 towards #2905. Moves lfric symbol creation into the
+   LFRicInvoke constructor.
+
+   39) PR #3492. Improves the Dependence-Use-Chain handling of references
+   to unsupported types (since we can't guarantee the absence of aliasing).
+ 
+   38) PR #3554 for #1590. Adds PSyIR support for complex types and complex
+   literals.
+
+   37) PR #3567. Fixes some typos in the NEMO examples README and the nemo
+   v5 workflow.
+
+   36) PR #3562 for #3559. Ensure all imports are resolved when there are
+   multiple USE statements targeting the same module.
+ 
+   35) PR #3565 for #3564. Bumps the requires setuptools version to 75.0.
+
+   34) PR #3561 for #3506. Remove or replace remaining TODOs of closed issues.
+
+   33) PR #3555 for #3553. Fix issues with line_length breaking comments.
+
+   32) PR #3535 towards #3506. Remove or replace TODOs of closed issues.
+
+   31) PR #3556 for #3547. Add a utility to report TODOs to closed issues
+   still in the code.
+
+   30) PR #3550 for #3544. Fixes issues with UnresolvedInterface propogation,
+   and adds support for the recursive keyword.
+   
+   29) PR #3551 for #3549. Fix issues with comments before labelled statements.
+
+   28) PR #3543 for #3392. Stores commonblock names inside their interfaces
+   and adds them into the output.
+
+   27) PR #3542 towards #3516. Improve handling of declaration comments.
+   
+   26) PR #3545 for #3537. Fix issues with WHERE constructs with comments.
+
+   25) PR #3481 towards #3463. Adds support for adding standalone Assignment
+   statements into an OMP parallel region. Also adds a new
+   `get_last_descendant_node()` method to the Node class.
+
+   24) PR #3508 towards #1995. Shortens license/copyright on all .py and
+   .f90 files.
+
+   23) PR #3507 for #3502. Adds support for initialisers for variables of a
+   derived type.
+
+   22) PR #3541 for #3539. Update NEMO documentation and references.
+
+   21) PR #3521 for #3460. Fixes issues with recursive datatype copies.
+
+   20) PR #3518 for #3516. Fix issue with disappearing Interface declarations.
+
+   19) PR #3515 for #3513. Add a compilation test job with ifx and OpenMP flags.
+
+   18) PR #3504 for #3500. Adds StandaloneDirective as valid child of
+   Container.
+
+   17) PR #3290 for #2846. KernelModuleInlineTrans renames inlined routines
+   to avoid clashes.
+
    16) PR #3209 towards #868. Add support for nlayer and ndata components in
    the field metadata (this PR does not introduce the psy-layer generation to
    match those field specifications yet).

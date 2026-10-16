@@ -39,9 +39,9 @@ def test_handling_literal(code, dtype):
     supported datatypes. Note that signed literals are represented in the
     PSyIR as a Unary operation on an unsigned literal.
 
-    Note that because of fparser issue #295 we must include the quotation marks
-    with supplied character literals. Once that issue is done, these can
-    be removed.
+    Note that because of issue https://github.com/stfc/fparser/issues/295
+    we must include the quotation marks with supplied character literals.
+    Once that issue is done, these can be removed.
 
     '''
     reader = FortranStringReader("x=" + code)
@@ -96,8 +96,8 @@ end program my_prog
 @pytest.mark.usefixtures("f2008_parser")
 def test_literal_char_without_quotes_error():
     ''' Test that the check in the handler that the provided string is quoted
-    works as expected. This will need to be changed once fparser #295 is
-    done. '''
+    works as expected. This will need to be changed once fparser issue
+    https://github.com/stfc/fparser/issues/295 is done. '''
     reader = FortranStringReader("x = 'hello'")
     astmt = Fortran2003.Assignment_Stmt(reader)
     # Edit the resulting parse tree to remove the quotes

@@ -119,9 +119,9 @@ def test_compiler_with_flags(monkeypatch):
     we pass something that is definitely not a flag and check that
     the compiler complains. This test is skipped if no compilation
     tests have been requested (--compile flag to py.test). '''
-    if not Compile.TEST_COMPILE:
-        # If compilation is disable, use '/usr/bin/true' as 'compile'
-        # to cover more lines:
+    if not Compile.TEST_COMPILE or Compile.F90 == "ifx":
+        # If compilation is disabled, or the compiler is ifx
+        # use '/usr/bin/true' as 'compile' to cover more lines:
         monkeypatch.setattr(Compile, "TEST_COMPILE", True)
         monkeypatch.setattr(Compile, "F90", "false")
 
@@ -332,7 +332,8 @@ def test_change_directory():
 
     with change_dir("/tmp"):
         tmp_dir = os.getcwd()
-        assert tmp_dir == "/tmp"
+        # on MacOS the temporary directory is /private/tmp
+        assert tmp_dir.endswith("/tmp")
 
     assert os.getcwd() == old_dir
 
