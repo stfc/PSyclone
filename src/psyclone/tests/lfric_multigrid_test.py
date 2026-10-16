@@ -14,7 +14,7 @@ import fparser
 
 from fparser import api as fpapi
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants, LFRicKernMetadata
+from psyclone.domain.lfric import LFRicConstants, LFRicKernMetadata, LFRicLoop
 from psyclone.lfric import LFRicHaloExchange, HaloReadAccess
 from psyclone.errors import GenerationError, InternalError
 from psyclone.gen_kernel_stub import generate
@@ -664,10 +664,9 @@ def test_fine_halo_read():
                            api=API)
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    hexch = schedule.children[5]
-    assert isinstance(hexch, LFRicHaloExchange)
+    hexch = schedule.walk(LFRicHaloExchange)[3]
     assert hexch._compute_halo_depth().value == '2'
-    call = schedule.children[6]
+    call = hexch.following_node()
     field = call.args[1]
     hra = HaloReadAccess(field, schedule)
     assert hra._var_depth.debug_string() == "2 * 1"
@@ -756,7 +755,6 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     assert expected in output
     # Check an example of restrict loop and all upper loop bounds
     expected = (
-        "    ! Call kernels and communication routines\n"
         "    do cell = loop0_start, loop0_stop, 1\n"
         "      call restrict_kernel_code(nlayers_fld_m, "
         "cell_map_fld_m(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, "
@@ -778,10 +776,12 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     otrans = LFRicOMPParallelLoopTrans()
     ctrans = LFRicColourTrans()
     # Apply OMP to the first restrict kernel.
-    otrans.apply(schedule[0])
+    loops = schedule.walk(LFRicLoop)
+    otrans.apply(loops[0])
     # Apply colouring and OMP to the first prolong kernel
-    ctrans.apply(schedule[4])
-    otrans.apply(schedule[4].loop_body[0])
+    posn = loops[2].position
+    ctrans.apply(loops[2])
+    otrans.apply(schedule.children[posn].loop_body[0])
     output = str(psy.gen)
     expected = (
         "    !$omp parallel do default(shared) private(cell) "
