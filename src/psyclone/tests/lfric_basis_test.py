@@ -1231,10 +1231,10 @@ def test_eval_2fs(tmpdir):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
 
-    assert ("real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:)"
-            in code)
-    assert ("real(kind=r_def), allocatable :: diff_basis_w1_on_w1(:,:,:)"
-            in code)
+    assert ("real(kind=r_def), allocatable, dimension(:,:,:) :: "
+            "diff_basis_w1_on_w0" in code)
+    assert ("real(kind=r_def), allocatable, dimension(:,:,:) :: "
+            "diff_basis_w1_on_w1" in code)
     assert "integer(kind=i_def) :: diff_dim_w1" in code
     assert ("    diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n"
             "    ALLOCATE(diff_basis_w1_on_w0(diff_dim_w1,ndf_w1,"
@@ -1258,10 +1258,10 @@ def test_2eval_2fs(tmpdir):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
 
-    assert ("real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:)"
-            in code)
-    assert ("real(kind=r_def), allocatable :: diff_basis_w1_on_w1(:,:,:)"
-            in code)
+    assert ("real(kind=r_def), allocatable, dimension(:,:,:) :: "
+            "diff_basis_w1_on_w0" in code)
+    assert ("real(kind=r_def), allocatable, dimension(:,:,:) :: "
+            "diff_basis_w1_on_w1" in code)
     # Check for duplication
     for idx in range(2):
         assert code.count(f"real(kind=r_def), pointer :: nodes_w{idx}(:,:)"
@@ -1287,19 +1287,22 @@ def test_2eval_1qr_2fs(tmpdir):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
 
-    assert ("real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:)"
-            in code)
-    assert ("real(kind=r_def), allocatable :: diff_basis_w1_on_w1(:,:,:)"
-            in code)
-    assert "real(kind=r_def), allocatable :: basis_w2_on_w0(:,:,:)" in code
-    assert ("real(kind=r_def), allocatable :: diff_basis_w3_on_w0(:,:,:)"
-            in code)
-    assert "real(kind=r_def), allocatable :: basis_w1_qr(:,:,:,:)" in code
-    assert ("real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)"
-            in code)
-    assert "real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)" in code
-    assert ("real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)"
-            in code)
+    assert ("real(kind=r_def), allocatable, dimension(:,:,:) :: "
+            "diff_basis_w1_on_w0" in code)
+    assert ("real(kind=r_def), allocatable, dimension(:,:,:) :: "
+            "diff_basis_w1_on_w1" in code)
+    assert ("real(kind=r_def), allocatable, dimension(:,:,:) :: "
+            "basis_w2_on_w0" in code)
+    assert ("real(kind=r_def), allocatable, dimension(:,:,:) :: "
+            "diff_basis_w3_on_w0" in code)
+    assert ("real(kind=r_def), allocatable, dimension(:,:,:,:) :: "
+            "basis_w1_qr" in code)
+    assert ("real(kind=r_def), allocatable, dimension(:,:,:,:) :: "
+            "diff_basis_w2_qr" in code)
+    assert ("real(kind=r_def), allocatable, dimension(:,:,:,:) :: "
+            "basis_w3_qr" in code)
+    assert ("real(kind=r_def), allocatable, dimension(:,:,:,:) :: "
+            "diff_basis_w3_qr" in code)
 
     # 1st kernel requires diff basis on W1, evaluated at W0 and W1
     # 2nd kernel requires diff basis on W3, evaluated at W0

@@ -325,15 +325,23 @@ class LFRicInvoke(Invoke):
             cursor += 1
 
         # Now that all initialisation is done, add the comment before
-        # the start of the kernels
-        # TODO commented-out for now because getting 'cursor' right needs
-        # some work...
-        # if Config.get().distributed_memory:
-        #    self.schedule[cursor].preceding_comment = (
-        #        "Call kernels and communication routines")
-        # else:
-        #    self.schedule[cursor].preceding_comment = (
-        #        "Call kernels")
+        # the start of the kernels.
+
+        # Find the first LFRicLoop in the Schedule.
+        kcursor = -1
+        last_kern = self.schedule[kcursor]
+        while isinstance(last_kern, LFRicLoop):
+            kcursor -= 1
+            last_kern = self.schedule[kcursor]
+        kcursor += 1
+
+        # Add the comment.
+        if Config.get().distributed_memory:
+            self.schedule[kcursor].preceding_comment = (
+                "Call kernels and communication routines")
+        else:
+            self.schedule[kcursor].preceding_comment = (
+                "Call kernels")
 
         # Deallocate any basis arrays
         self.evaluators.deallocate()
