@@ -44,9 +44,9 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
     expected = (
         "subroutine tmp(a, b, c)\n"
         "  use iso_c_binding, only : c_int\n"
-        "  real, dimension(:), intent(out) :: a\n"
-        "  real, dimension(:), intent(in) :: b\n"
         "  integer, intent(in) :: c\n"
+        "  real, dimension(:), intent(in) :: b\n"
+        "  real, dimension(:), intent(out) :: a\n"
         "\n"
         "  if (c > 3) then\n"
         "    a = b / c\n"
@@ -69,9 +69,9 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
     # They should be promoted to the routine-scope level
     result = fortran_writer(schedule)
     assert (
-        "  integer, intent(in) :: c\n"
         "  integer :: symbol1\n"
-        "  integer :: symbol2\n") in result
+        "  integer :: symbol2\n"
+        "  integer, intent(in) :: c\n") in result
     assert Compile(tmpdir).string_compiles(result)
 
     # Add symbols that will result in name clashes to sibling scopes
@@ -91,12 +91,11 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
     # names
     result = fortran_writer(schedule)
     assert (
-        "  integer, intent(in) :: c\n"
         "  integer :: symbol1\n"
+        "  integer :: symbol1_1\n"
         "  integer :: symbol2\n"
         "  integer :: symbol2_1\n"
-        "  integer :: symbol1_1\n"
-        "\n") in result
+        "  integer, intent(in) :: c\n") in result
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -134,8 +133,8 @@ def test_fw_routine_nameclash(fortran_writer):
         symbols.DataSymbol("var1_1", symbols.ScalarType.integer_type()))
     result = fortran_writer(routine)
     assert ("  integer :: var1\n"
-            "  integer :: var1_2\n"
             "  integer :: var1_1\n"
+            "  integer :: var1_2\n"
             "\n"
             "  if (.true.) then\n"
             "    var1 = 1\n"
@@ -148,10 +147,10 @@ def test_fw_routine_nameclash(fortran_writer):
         symbols.DataSymbol("var1_2",
                            symbols.ScalarType.integer_type()))
     result = fortran_writer(routine)
-    assert ("  integer :: var1_2\n"
-            "  integer :: var1\n"
-            "  integer :: var1_3\n"
+    assert ("  integer :: var1\n"
             "  integer :: var1_1\n"
+            "  integer :: var1_2\n"
+            "  integer :: var1_3\n"
             "\n"
             "  if (.true.) then\n"
             "    var1 = 1\n"
@@ -198,8 +197,8 @@ def test_fw_routine_function(fortran_reader, fortran_writer, tmpdir,
             f"real :: a\n"
             f"contains\n"
             f"function tmp(b) result(val)\n"
-            f"  {result_decl}\n"
             f"  real :: b\n"
+            f"  {result_decl}\n"
             f"  val = a + b\n"
             f"end function tmp\n"
             f"end module test")

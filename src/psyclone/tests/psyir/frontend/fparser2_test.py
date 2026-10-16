@@ -2991,8 +2991,8 @@ def test_structures_constants(fortran_reader, fortran_writer):
     m_reference = i_symbol.initial_value.children[1]
     assert m_reference.symbol is m_symbol
     result = fortran_writer(psyir)
-    assert ("  integer, parameter, public :: N = 1\n"
-            "  integer, parameter, public :: M = 2\n"
+    assert ("  integer, parameter, public :: M = 2\n"
+            "  integer, parameter, public :: N = 1\n"
             "  type, private :: my_type\n"
             "    integer, public :: i = N + M\n"
             "    integer, public :: j\n"
@@ -3036,8 +3036,8 @@ def test_structures_constant_scope(fortran_reader, fortran_writer):
     assert (
         "module test_mod\n"
         "  implicit none\n"
-        "  integer, parameter, public :: n = 1\n"
         "  integer, parameter, public :: m = 2\n"
+        "  integer, parameter, public :: n = 1\n"
         "  public\n\n"
         "  contains\n"
         "  subroutine test_code()\n"
@@ -3084,8 +3084,8 @@ def test_structures_constant_use(fortran_reader, fortran_writer):
     assert m_reference.symbol is m_symbol
     result = fortran_writer(psyir)
     assert (
-        "    integer, parameter :: N = 1\n"
         "    integer, parameter :: M = 2\n"
+        "    integer, parameter :: N = 1\n"
         "    type :: my_type\n"
         "      integer :: i = N + M\n"
         "      integer :: j\n"

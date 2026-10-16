@@ -347,10 +347,18 @@ def test_schedule_zero(tmpdir, fortran_writer, datatype, precision, value):
         f"  {datatype}(kind={precision}) :: c\n"
         f"  {datatype}(kind={precision}) :: d(n)\n")
     active_variables = ["a", "b", "c", "d"]
+    if datatype == "real":
+        declarations = (
+            f"  {datatype} :: a\n"
+            f"  integer, parameter :: n = 10\n"
+            f"  integer, parameter :: {precision} = 8\n")
+    else:
+        declarations = (
+            f"  {datatype} :: a\n"
+            f"  integer, parameter :: {precision} = 8\n"
+            f"  integer, parameter :: n = 10\n")
     ad_fortran = (
-        f"  integer, parameter :: n = 10\n"
-        f"  integer, parameter :: {precision} = 8\n"
-        f"  {datatype} :: a\n"
+        declarations +
         f"  {datatype}, dimension(n) :: b\n"
         f"  {datatype}(kind={precision}) :: c\n"
         f"  {datatype}(kind={precision}), dimension(n) :: d\n\n"

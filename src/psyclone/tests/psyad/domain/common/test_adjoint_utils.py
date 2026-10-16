@@ -52,11 +52,11 @@ def test_create_real_comparison(fortran_writer):
     routine.children = stmt_list
     result = fortran_writer(routine)
     expected = (
-        "  real, parameter :: overall_tolerance = 1500.0\n"
-        "  real :: var1\n"
-        "  real :: var2\n"
         "  real :: MachineTol\n"
-        "  real :: relative_diff\n\n"
+        "  real, parameter :: overall_tolerance = 1500.0\n"
+        "  real :: relative_diff\n"
+        "  real :: var1\n"
+        "  real :: var2\n\n"
         "  ! Test the inner-product values for equality, allowing for the "
         "precision of the active variables\n"
         "  MachineTol = SPACING(MAX(ABS(var1), ABS(var2)))\n"
@@ -90,11 +90,11 @@ def test_common_real_comparison(fortran_writer):
     routine.children = stmt_list
     result = fortran_writer(routine)
     expected = (
-        "  real, parameter :: overall_tolerance = 1500.0\n"
-        "  real :: var1\n"
-        "  real :: var2\n"
         "  real :: MachineTol\n"
-        "  real :: relative_diff\n\n"
+        "  real, parameter :: overall_tolerance = 1500.0\n"
+        "  real :: relative_diff\n"
+        "  real :: var1\n"
+        "  real :: var2\n\n"
         "  ! Test the inner-product values for equality, allowing for the "
         "precision of the active variables\n"
         "  MachineTol = SPACING(MAX(ABS(var1), ABS(var2)))\n"
@@ -127,9 +127,9 @@ def test_common_write(fortran_writer):
     result = fortran_writer(routine)
     expected = (
         "  real, parameter :: overall_tolerance = 1500.0\n"
+        "  real :: relative_diff\n"
         "  real :: var1\n"
-        "  real :: var2\n"
-        "  real :: relative_diff\n\n"
+        "  real :: var2\n\n"
         "  if (relative_diff < overall_tolerance) then\n"
         "    ! PSyclone CodeBlock (unsupported code) reason:\n"
         "    !  - Unsupported statement: Write_Stmt\n"

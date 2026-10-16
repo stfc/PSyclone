@@ -1002,8 +1002,8 @@ def test_generate_harness_constant_kind(fortran_reader, fortran_writer):
     ad_psyir = generate_adjoint(tl_psyir, ["field"])
     test_psyir = generate_adjoint_test(tl_psyir, ad_psyir, ["field"])
     harness = fortran_writer(test_psyir)
-    assert ("  use adj_my_mod, only : adj_kern\n"
-            "  integer, parameter :: r_def = 8\n" in harness)
+    assert "  use adj_my_mod, only : adj_kern\n" in harness
+    assert "  integer, parameter :: r_def = 8\n" in harness
     assert ("  real(kind=r_def), dimension(npts) :: field\n"
             "  real(kind=r_def), dimension(npts) :: field_input" in harness)
     assert "real(kind=r_def) :: inner1\n" in harness

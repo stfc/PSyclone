@@ -487,38 +487,38 @@ quadrature_xyoz_type
     use mesh_mod, only : mesh_type
     use function_space_mod, only : BASIS, DIFF_BASIS
     use constants_mod, only : i_def
-    type(operator_type), intent(in) :: mapping
-    type(field_type), dimension(3), intent(in) :: coord
-    type(quadrature_xyoz_type), intent(in) :: qr
+    real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)
     integer(kind=i_def) :: cell
-    type(mesh_type), pointer :: mesh => null()
-    integer(kind=i_def) :: max_halo_depth_mesh
+    type(field_type), dimension(3), intent(in) :: coord
     real(kind=r_def), pointer, dimension(:) :: coord_1_data => null()
     real(kind=r_def), pointer, dimension(:) :: coord_2_data => null()
     real(kind=r_def), pointer, dimension(:) :: coord_3_data => null()
-    real(kind=r_def), pointer, dimension(:,:,:) :: mapping_local_stencil => \
-null()
-    integer(kind=i_def) :: nlayers_mapping
-    integer(kind=i_def) :: ndf_w3
-    integer(kind=i_def) :: ndf_w2
-    integer(kind=i_def) :: ndf_w0
-    integer(kind=i_def) :: undf_w0
-    integer(kind=i_def), pointer :: map_w0(:,:) => null()
     type(field_proxy_type), dimension(3) :: coord_proxy
-    type(operator_proxy_type) :: mapping_proxy
-    integer(kind=i_def) :: np_xy_qr
-    integer(kind=i_def) :: np_z_qr
-    real(kind=r_def), pointer :: weights_xy_qr(:) => null()
-    real(kind=r_def), pointer :: weights_z_qr(:) => null()
-    type(quadrature_xyoz_proxy_type) :: qr_proxy
-    integer(kind=i_def) :: diff_dim_w0
-    integer(kind=i_def) :: dim_w3
-    integer(kind=i_def) :: diff_dim_w2
     real(kind=r_def), allocatable :: diff_basis_w0_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)
     real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)
+    integer(kind=i_def) :: diff_dim_w0
+    integer(kind=i_def) :: diff_dim_w2
+    integer(kind=i_def) :: dim_w3
     integer(kind=i_def) :: loop0_start
     integer(kind=i_def) :: loop0_stop
+    integer(kind=i_def), pointer :: map_w0(:,:) => null()
+    type(operator_type), intent(in) :: mapping
+    real(kind=r_def), pointer, dimension(:,:,:) :: mapping_local_stencil => \
+null()
+    type(operator_proxy_type) :: mapping_proxy
+    integer(kind=i_def) :: max_halo_depth_mesh
+    type(mesh_type), pointer :: mesh => null()
+    integer(kind=i_def) :: ndf_w0
+    integer(kind=i_def) :: ndf_w2
+    integer(kind=i_def) :: ndf_w3
+    integer(kind=i_def) :: nlayers_mapping
+    integer(kind=i_def) :: np_xy_qr
+    integer(kind=i_def) :: np_z_qr
+    type(quadrature_xyoz_type), intent(in) :: qr
+    type(quadrature_xyoz_proxy_type) :: qr_proxy
+    integer(kind=i_def) :: undf_w0
+    real(kind=r_def), pointer :: weights_xy_qr(:) => null()
+    real(kind=r_def), pointer :: weights_z_qr(:) => null()
 
     ! Initialise field and/or operator proxies
     mapping_proxy = mapping%get_proxy()
@@ -900,60 +900,60 @@ op_13_ncell_3d, op_13, ndf_w0, ndf_w1, ndf_w2, ndf_w2h, ndf_w2v, \
 ndf_w2broken, ndf_w2trace, ndf_w2htrace, ndf_w2vtrace, ndf_w3, ndf_wtheta, \
 ndf_as1_op_12, ndf_ads1_op_13)
     use constants_mod
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: cell
+    integer(kind=i_def), intent(in) :: ndf_ads1_op_13
+    integer(kind=i_def), intent(in) :: ndf_as1_op_12
     integer(kind=i_def), intent(in) :: ndf_w0
     integer(kind=i_def), intent(in) :: ndf_w1
     integer(kind=i_def), intent(in) :: ndf_w2
-    integer(kind=i_def), intent(in) :: ndf_w2h
-    integer(kind=i_def), intent(in) :: ndf_w2v
     integer(kind=i_def), intent(in) :: ndf_w2broken
-    integer(kind=i_def), intent(in) :: ndf_w2trace
+    integer(kind=i_def), intent(in) :: ndf_w2h
     integer(kind=i_def), intent(in) :: ndf_w2htrace
+    integer(kind=i_def), intent(in) :: ndf_w2trace
+    integer(kind=i_def), intent(in) :: ndf_w2v
     integer(kind=i_def), intent(in) :: ndf_w2vtrace
     integer(kind=i_def), intent(in) :: ndf_w3
     integer(kind=i_def), intent(in) :: ndf_wtheta
-    integer(kind=i_def), intent(in) :: ndf_as1_op_12
-    integer(kind=i_def), intent(in) :: ndf_ads1_op_13
-    integer(kind=i_def), intent(in) :: cell
-    integer(kind=i_def), intent(in) :: op_1_ncell_3d
-    real(kind=r_def), dimension(op_1_ncell_3d,ndf_w0,ndf_w0), intent(inout) \
-:: op_1
-    integer(kind=i_def), intent(in) :: op_2_ncell_3d
-    real(kind=r_def), dimension(op_2_ncell_3d,ndf_w1,ndf_w1), intent(inout) \
-:: op_2
-    integer(kind=i_def), intent(in) :: op_3_ncell_3d
-    real(kind=r_def), dimension(op_3_ncell_3d,ndf_w2,ndf_w2), intent(in) \
-:: op_3
-    integer(kind=i_def), intent(in) :: op_4_ncell_3d
-    real(kind=r_def), dimension(op_4_ncell_3d,ndf_w2h,ndf_w2h), intent(in) \
-:: op_4
-    integer(kind=i_def), intent(in) :: op_5_ncell_3d
-    real(kind=r_def), dimension(op_5_ncell_3d,ndf_w2v,ndf_w2v), \
-intent(inout) :: op_5
-    integer(kind=i_def), intent(in) :: op_6_ncell_3d
-    real(kind=r_def), dimension(op_6_ncell_3d,ndf_w2broken,ndf_w2broken), \
-intent(inout) :: op_6
-    integer(kind=i_def), intent(in) :: op_7_ncell_3d
-    real(kind=r_def), dimension(op_7_ncell_3d,ndf_w2trace,ndf_w2trace), \
-intent(in) :: op_7
-    integer(kind=i_def), intent(in) :: op_8_ncell_3d
-    real(kind=r_def), dimension(op_8_ncell_3d,ndf_w2htrace,ndf_w2htrace), \
-intent(in) :: op_8
-    integer(kind=i_def), intent(in) :: op_9_ncell_3d
-    real(kind=r_def), dimension(op_9_ncell_3d,ndf_w2vtrace,ndf_w2vtrace), \
-intent(inout) :: op_9
+    integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: op_10_ncell_3d
+    integer(kind=i_def), intent(in) :: op_11_ncell_3d
+    integer(kind=i_def), intent(in) :: op_12_ncell_3d
+    integer(kind=i_def), intent(in) :: op_13_ncell_3d
+    integer(kind=i_def), intent(in) :: op_1_ncell_3d
+    integer(kind=i_def), intent(in) :: op_2_ncell_3d
+    integer(kind=i_def), intent(in) :: op_3_ncell_3d
+    integer(kind=i_def), intent(in) :: op_4_ncell_3d
+    integer(kind=i_def), intent(in) :: op_5_ncell_3d
+    integer(kind=i_def), intent(in) :: op_6_ncell_3d
+    integer(kind=i_def), intent(in) :: op_7_ncell_3d
+    integer(kind=i_def), intent(in) :: op_8_ncell_3d
+    integer(kind=i_def), intent(in) :: op_9_ncell_3d
+    real(kind=r_def), dimension(op_1_ncell_3d,ndf_w0,ndf_w0), intent(inout) ::\
+ op_1
     real(kind=r_def), dimension(op_10_ncell_3d,ndf_w3,ndf_w3), intent(inout) \
 :: op_10
-    integer(kind=i_def), intent(in) :: op_11_ncell_3d
-    real(kind=r_def), dimension(op_11_ncell_3d,ndf_wtheta,ndf_wtheta\
-), intent(inout) :: op_11
-    integer(kind=i_def), intent(in) :: op_12_ncell_3d
-    real(kind=r_def), dimension(op_12_ncell_3d,ndf_as1_op_12,\
-ndf_as1_op_12), intent(in) :: op_12
-    integer(kind=i_def), intent(in) :: op_13_ncell_3d
-    real(kind=r_def), dimension(op_13_ncell_3d,ndf_ads1_op_13,\
-ndf_ads1_op_13), intent(in) :: op_13
+    real(kind=r_def), dimension(op_11_ncell_3d,ndf_wtheta,ndf_wtheta), \
+intent(inout) :: op_11
+    real(kind=r_def), dimension(op_12_ncell_3d,ndf_as1_op_12,ndf_as1_op_12), \
+intent(in) :: op_12
+    real(kind=r_def), dimension(op_13_ncell_3d,ndf_ads1_op_13,ndf_ads1_op_13),\
+ intent(in) :: op_13
+    real(kind=r_def), dimension(op_2_ncell_3d,ndf_w1,ndf_w1), intent(inout) \
+:: op_2
+    real(kind=r_def), dimension(op_3_ncell_3d,ndf_w2,ndf_w2), intent(in) :: \
+op_3
+    real(kind=r_def), dimension(op_4_ncell_3d,ndf_w2h,ndf_w2h), intent(in) :: \
+op_4
+    real(kind=r_def), dimension(op_5_ncell_3d,ndf_w2v,ndf_w2v), intent(inout)\
+ :: op_5
+    real(kind=r_def), dimension(op_6_ncell_3d,ndf_w2broken,ndf_w2broken), \
+intent(inout) :: op_6
+    real(kind=r_def), dimension(op_7_ncell_3d,ndf_w2trace,ndf_w2trace), \
+intent(in) :: op_7
+    real(kind=r_def), dimension(op_8_ncell_3d,ndf_w2htrace,ndf_w2htrace), \
+intent(in) :: op_8
+    real(kind=r_def), dimension(op_9_ncell_3d,ndf_w2vtrace,ndf_w2vtrace), \
+intent(inout) :: op_9
 
 
   end subroutine dummy_code

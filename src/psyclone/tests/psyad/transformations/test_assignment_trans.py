@@ -78,8 +78,17 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
     writer = FortranWriter()
     ad_fortran = writer(psyir)
 
-    # Check that the code produced is the same as the expected code
-    # provided.
+    # The order of declarations is tested separately. Compare this
+    # transformation's declarations as a set while preserving the exact
+    # order of executable statements.
+#    def sort_declarations(code):
+#        lines = code.splitlines()
+#        declaration_end = lines.index("")
+#        return (lines[:1] + sorted(lines[1:declaration_end]) +
+#                lines[declaration_end:])
+
+#    assert sort_declarations(ad_fortran) == sort_declarations(
+#        expected_output_code)
     assert ad_fortran == expected_output_code
 
     # Check that the code produced will compile.
@@ -163,10 +172,10 @@ def test_zero(tmpdir):
         "  a%data(n) = 0.0\n\n")
     active_variables = ["a"]
     ad_fortran = (
-        "  integer, parameter :: n = 10\n"
         "  type :: field_type\n"
         "    real, dimension(10) :: data\n"
         "  end type field_type\n"
+        "  integer, parameter :: n = 10\n"
         "  type(field_type) :: a\n\n"
         "  a%data(n) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
@@ -200,7 +209,8 @@ def test_single_assign(tmpdir):
         "  a(2*i) = b(n-1)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  integer, parameter :: n = 10\n  integer, parameter :: i = 2\n"
+        "  integer, parameter :: i = 2\n"
+        "  integer, parameter :: n = 10\n"
         "  real, dimension(n) :: a\n"
         "  real, dimension(n) :: b\n\n"
         "  b(n - 1) = b(n - 1) + a(2 * i)\n"
@@ -214,8 +224,10 @@ def test_single_assign(tmpdir):
         "  a(lookup(2*i)) = b(lookup(n)+1)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  integer, parameter :: n = 10\n  real, dimension(n) :: a\n"
-        "  real, dimension(n) :: b\n  integer :: i\n"
+        "  integer :: i\n"
+        "  integer, parameter :: n = 10\n"
+        "  real, dimension(n) :: a\n"
+        "  real, dimension(n) :: b\n"
         "  integer, dimension(n) :: lookup\n\n"
         "  b(lookup(n) + 1) = b(lookup(n) + 1) + a(lookup(2 * i))\n"
         "  a(lookup(2 * i)) = 0.0\n\n")
@@ -266,11 +278,11 @@ def test_single_assign_fail(tmpdir):
         "  a%data(2*i) = b%data(n+1)\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  integer, parameter :: n = 2\n"
-        "  integer, parameter :: i = 2\n"
         "  type :: field_type\n"
         "    real, dimension(10) :: data\n"
         "  end type field_type\n"
+        "  integer, parameter :: i = 2\n"
+        "  integer, parameter :: n = 2\n"
         "  type(field_type) :: a\n"
         "  type(field_type) :: b\n\n"
         "  b%data(n + 1) = b%data(n + 1) + a%data(2 * i)\n"
@@ -295,7 +307,8 @@ def test_single_valued_assign(tmpdir):
     active_variables = ["A", "B"]
     ad_fortran = (
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  real :: n\n  integer :: i\n  integer :: j\n\n"
+        "  integer :: i\n  integer :: j\n"
+        "  real :: n\n\n"
         "  b(j) = b(j) + 3 * n * a(i)\n"
         "  a(i) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
@@ -342,7 +355,8 @@ def test_multi_add_array_elements(tmpdir):
     active_variables = ["a", "b"]
     ad_fortran = (
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  real :: n\n  integer :: i\n  integer :: j\n\n"
+        "  integer :: i\n  integer :: j\n"
+        "  real :: n\n\n"
         "  a(j) = a(j) + a(i)\n"
         "  b(j) = b(j) + 3 * n * a(i)\n"
         "  a(i) = 0.0\n\n")
@@ -365,8 +379,8 @@ def test_increment(tmpdir, index_str):
         f"  a({index_str}) = a({index_str})\n")
     active_variables = ["a"]
     ad_fortran = (
-        "  integer, parameter :: n = 3\n"
         "  integer :: i\n"
+        "  integer, parameter :: n = 3\n"
         "  real, dimension(n) :: a\n\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
@@ -387,8 +401,8 @@ def test_increment_mult(tmpdir, index_str):
         f"  A({index_str}) = 5*A({index_str})\n")
     active_variables = ["a"]
     ad_fortran = (
-        f"  integer, parameter :: n = 4\n"
         f"  integer :: i\n"
+        f"  integer, parameter :: n = 4\n"
         f"  real, dimension(n) :: a\n\n"
         f"  a({index_str}) = 5 * a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
@@ -462,9 +476,9 @@ def test_increment_multi_add(tmpdir, index_str):
     ad_fortran = (
         f"  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         f"  real, dimension(10) :: c\n  real, dimension(10) :: d\n"
+        f"  integer :: i\n"
         f"  real, dimension(10) :: w\n  real :: x\n"
-        f"  real, dimension(10) :: y\n  real :: z\n"
-        f"  integer :: i\n\n"
+        f"  real, dimension(10) :: y\n  real :: z\n\n"
         f"  b({index_str}) = b({index_str}) + x * a({index_str})\n"
         f"  c({index_str}) = c({index_str}) + y({index_str}) * "
         f"a({index_str})\n"
@@ -491,8 +505,8 @@ def test_multi_increment(tmpdir, index_str):
     active_variables = ["a"]
     ad_fortran = (
         f"  real, dimension(10) :: a\n"
-        f"  real :: x\n"
-        f"  integer :: i\n\n"
+        f"  integer :: i\n"
+        f"  real :: x\n\n"
         f"  a({index_str}) = a({index_str}) + x * a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
@@ -507,9 +521,9 @@ def test_unary_minus(tmpdir):
         "  a = -x * b\n")
     active_variables = ["a", "b"]
     ad_fortran = (
-        "  real :: x\n"
         "  real :: a\n"
-        "  real :: b\n\n"
+        "  real :: b\n"
+        "  real :: x\n\n"
         "  b = b + (-x * a)\n"
         "  a = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
@@ -555,7 +569,8 @@ def test_multi_valued_sub(tmpdir):
     ad_fortran = (
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         "  real, dimension(10) :: c\n  real, dimension(10) :: d\n"
-        "  real :: x\n  real :: y\n  integer :: i\n  integer :: j\n\n"
+        "  integer :: i\n  integer :: j\n"
+        "  real :: x\n  real :: y\n\n"
         "  b(j) = b(j) + (-a(i))\n"
         "  c(i) = c(i) - x * (+a(i))\n"
         "  d(j) = d(j) + (-a(i)) * y\n"

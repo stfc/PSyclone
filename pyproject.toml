@@ -98,3 +98,7 @@ version = { attr = "psyclone.version.__VERSION__" }
 xfail_strict = true
 addopts = "--ignore=external -p no:pep8"
 filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+# Set the maximum line length to 79 characters
+line-length = 79

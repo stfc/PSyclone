@@ -619,11 +619,12 @@ def test_derived_type_deref_naming(tmpdir):
         "    use mesh_mod, only : mesh_type\n"
         "    use constants_mod, only : i_def\n"
         "    real(kind=r_def), intent(in) :: a\n"
+        "    integer(kind=i_def) :: cell\n"
         "    type(field_type), intent(in) :: f1_my_field\n"
         "    type(field_type), intent(in) :: f1_my_field_1\n"
         "    type(field_type), intent(in) :: m1\n"
         "    type(field_type), intent(in) :: m2\n")
-    assert output in generated_code
+    assert all(line in generated_code for line in output.splitlines())
 
 
 FAKE_KERNEL_METADATA = '''

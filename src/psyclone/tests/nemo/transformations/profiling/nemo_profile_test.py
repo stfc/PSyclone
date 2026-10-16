@@ -37,9 +37,9 @@ def test_profile_single_loop(fortran_reader, fortran_writer):
         "  use kind_mod, only : wp\n"
         "  use profile_psy_data_mod, only : profile_psydatatype\n" in code)
     assert (
+        "  type(profile_psydatatype), save, target :: profile_psy_data\n"
         "  real, dimension(jpj) :: sto_tmp\n"
         "  real, dimension(jpj) :: sto_tmp2\n"
-        "  type(profile_psydatatype), save, target :: profile_psy_data\n"
         in code)
     assert (
         "  call profile_psy_data % prestart(\"do_loop\", \"r0\", 0, 0)\n"
@@ -98,10 +98,10 @@ def test_profile_two_loops(fortran_reader, fortran_writer):
         in code)
     assert code.count("use profile_psy_data_mod") == 1
     assert (
-        "  real, dimension(jpj) :: sto_tmp\n"
-        "  real, dimension(jpj) :: sto_tmp2\n"
         "  type(profile_psydatatype), save, target :: profile_psy_data\n"
         "  type(profile_psydatatype), save, target :: profile_psy_data_1\n"
+        "  real, dimension(jpj) :: sto_tmp\n"
+        "  real, dimension(jpj) :: sto_tmp2\n"
         in code)
     assert (
         "  call profile_psy_data_1 % prestart(\"do_loop\", \"r0\", 0, 0)\n"
@@ -281,7 +281,8 @@ def test_profiling_case(fortran_reader, fortran_writer):
         "  type(profile_psydatatype), save, target :: profile_psy_data_1\n"
         "  type(profile_psydatatype), save, target :: profile_psy_data_2\n"
         "  type(profile_psydatatype), save, target :: profile_psy_data_3\n"
-        "\n"
+        in code)
+    assert (
         "  call profile_psy_data_3 % prestart(\"my_test\", \"r0\", 0, 0)\n"
         "  p_fld_crs(:,:) = 0.0\n" in code)
     assert ("      if (mje_crs(2) - mjs_crs(2) == 1) then\n"
