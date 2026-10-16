@@ -26,9 +26,10 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (ArrayReference, Assignment, BinaryOperation,
-                                  Reference, IntrinsicCall)
+                                  IntrinsicCall, Literal, Reference,
+                                  UnaryOperation)
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols import DataSymbol, UnsupportedFortranType
+from psyclone.psyir.symbols import DataSymbol, Symbol, UnsupportedFortranType
 from psyclone.utils import a_or_an
 
 #: The name of the file containing the meta-data describing the
@@ -2755,6 +2756,24 @@ class LFRicMinvalXKern(LFRicBuiltIn):
     _datatype = "real"
     _reduction_type = LFRicBuiltIn.ReductionType.MIN
 
+    def _create_reduction_initial_value(
+        self, variable: Symbol
+    ) -> IntrinsicCall:
+        '''
+        Creates the initial value for the reduction variable used for this
+        MIN reduction.
+
+        :param variable: the variable which is having the initial value
+                         assigned to.
+
+        :returns: the initial value required for this Kern to correctly
+                  perform the reduction.
+        '''
+        return IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.HUGE,
+            arguments=(Literal("0", variable.datatype.copy()),)
+        )
+
     @classmethod
     def metadata(cls) -> LFRicKernelMetadata:
         """
@@ -2794,6 +2813,27 @@ class LFRicMaxvalXKern(LFRicBuiltIn):
     _case_name = "maxval_X"
     _datatype = "real"
     _reduction_type = LFRicBuiltIn.ReductionType.MAX
+
+    def _create_reduction_initial_value(
+        self, variable: Symbol
+    ) -> UnaryOperation:
+        '''
+        Creates the initial value for the reduction variable used for this
+        MAX reduction.
+
+        :param variable: the variable which is having the initial value
+                         assigned to.
+
+        :returns: the initial value required for this Kern to correctly
+                  perform the reduction.
+        '''
+        return UnaryOperation.create(
+            UnaryOperation.Operator.MINUS,
+            IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.HUGE,
+                arguments=(Literal("0", variable.datatype.copy()),)
+            )
+        )
 
     @classmethod
     def metadata(cls) -> LFRicKernelMetadata:
