@@ -104,6 +104,11 @@ class IncreaseRankLoopArraysTrans(Transformation):
         :raises TransformationError: if any of the arrays are referenced
             outside the loop in anything other than (array) assignments to
             their variable.
+        :raises TransformationError: if an array is allocatable, a character
+            array, or a function return value.
+        :raises TransformationError: if an array is used without indices,
+            already indexed by the loop variable, or assigned a whole-array
+            value from a call.
 
         '''
         super().validate(node, **kwargs)
