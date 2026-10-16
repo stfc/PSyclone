@@ -32,6 +32,14 @@ also very flexible and with great flexibility comes great responsibility. The PS
 project therefore has fairly strict [coding and documentation standards](https://psyclone.readthedocs.io/en/latest/developer_guide/coding-style.html)
 in order to ensure the robustness and maintainability of the code base.
 
+## Policy for AI generated code in PSyclone
+
+AI coding assistants are welcome in PSyclone development the same way any other tool is welcome,
+with the expectation that a human contributor is responsible for everything they submit, including
+the authorship, adherance to the licensing and comprehension of the submitted code. AI is not
+permitted as a substitute of that comprehension. Contributors are responsible for ensuring
+that the AI tool complies with their employer's policies.
+
 ## Creating a Pull Request
 
 Once your code is ready, submit a [GitHub PR](https://github.com/stfc/PSyclone/pulls)
