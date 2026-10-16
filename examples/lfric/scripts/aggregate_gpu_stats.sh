@@ -65,6 +65,10 @@ echo -n "   -> "
 count_uniq "only supports the transformation of a MATMUL operation when"
 
 echo
+echo " --- Attempt to fuse all loops ---"
+count_uniq "Fusion successful"
+
+echo
 echo " --- Then offload each loop with kernels inside ---"
 count_uniq "Offload independent loop"
 count_uniq "Offload with dof loop"
