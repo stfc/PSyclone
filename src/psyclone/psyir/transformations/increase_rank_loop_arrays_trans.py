@@ -110,12 +110,10 @@ class IncreaseRankLoopArraysTrans(Transformation):
         self.validate_options(**kwargs)
         arrays = self.get_option('arrays', **kwargs)
 
-        # Each item listed in the array list must be a local Array Symbol or a
-        # string that resolves to it
         if not isinstance(arrays, list) or len(arrays) == 0:
-            raise TransformationError(
-                f"{self.name} has a mandatory 'arrays' option that is required"
-                f" to specify which arrays are to have their rank increased.")
+            raise TypeError(
+                f"{self.name} has a mandatory 'arrays' option which specifies"
+                f" which arrays are to have their rank increased.")
 
         if not isinstance(node, Loop):
             raise TransformationError(
@@ -128,19 +126,29 @@ class IncreaseRankLoopArraysTrans(Transformation):
                 f"The target Loop of the {self.name} transformation must be "
                 f"inside a Routine.")
 
-        # Make copy & convert to symbols
-        arrays = arrays[:]
+        # Convert to list of symbols, if provided as strings
+        arrays_symbols: list[Symbol] = []
         for idx, array in enumerate(arrays):
-            if not isinstance(array, str):
+            if isinstance(array, Symbol):
+                arrays_symbols.append(array)
                 continue
 
-            try:
-                arrays[idx] = node.scope.symbol_table.lookup(array)
-            except KeyError as err:
-                raise TransformationError(
-                    f"{self.name} provided array '{array}' does not exist"
-                    f" in this scope."
-                ) from err
+            if isinstance(array, str):
+                try:
+                    arrays_symbols.append(
+                        node.scope.symbol_table.lookup(array)
+                    )
+                except KeyError as err:
+                    raise TransformationError(
+                        f"{self.name} provided array '{array}' does not exist"
+                        f" in this scope."
+                    ) from err
+                continue
+
+            raise TypeError(
+                f"Provided array option of type {type(array)} "
+                "which is not supported"
+            )
 
         # Check if the loop bound expressions are static:
         # First, find all Symbols accessed in the loop bounds.
@@ -168,7 +176,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
                         f" '{assignment.debug_string().strip()}'."
                     )
 
-                if assignment.lhs.symbol not in arrays:
+                if assignment.lhs.symbol not in arrays_symbols:
                     continue
 
                 if isinstance(assignment.lhs, ArrayReference):
@@ -180,8 +188,9 @@ class IncreaseRankLoopArraysTrans(Transformation):
                         continue
                 if assignment.rhs.walk(Call):
                     raise TransformationError(
-                        f"{self.name} No call on r.h.s. of a range array"
-                        " is allowed."
+                        f"{self.name} No call on r.h.s. of an assignment"
+                        " to an array range is allowed as this would"
+                        " imply a change to the return type of the call."
                     )
 
         # Capture all symbols used inside codeblocks, these are not permitted
@@ -217,12 +226,13 @@ class IncreaseRankLoopArraysTrans(Transformation):
                 # Everything else is currently forbidden
                 non_supported_outside_loop_symbols.add(check.symbol)
 
-        for array in arrays:
+        for array in arrays_symbols:
             array: Symbol
 
             if routine.return_symbol is array:
                 raise TransformationError(
-                    f"{self.name} can't be applied to return variables.")
+                    f"{self.name} can't be applied to array '{array.name}' "
+                    f"as it is a return value in function '{routine.name}'.")
 
             if array.datatype.intrinsic is ScalarType.Intrinsic.CHARACTER:
                 raise TransformationError(
@@ -255,7 +265,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
         for ref in node.walk(Reference):
             # We iterate here over the arrays since it's more efficient
             # than in the outer.
-            for array in arrays:
+            for array in arrays_symbols:
                 array: Symbol
 
                 if ref.symbol is not array:
@@ -279,7 +289,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
                         if n.symbol is node.variable_reference.symbol:
                             raise TransformationError(
                                 f"{self.name} does not support arrays"
-                                f" that are indexed with the loop"
+                                f" that are already indexed with the loop"
                                 f" variable of the target loop,"
                                 f" but '{array.name}' is indexed"
                                 f" with '{node.variable.name}'.")
@@ -304,14 +314,13 @@ class IncreaseRankLoopArraysTrans(Transformation):
         for array in arrays:
             array_symbol: Symbol
             if isinstance(array, str):
-                array_symbol = node.scope.symbol_table.lookup(
-                                array, otherwise=None)
+                array_symbol = node.scope.symbol_table.lookup(array)
             else:
                 array_symbol = array
 
-            if array_symbol.name in array_processed:
+            if array_symbol.name.lower() in array_processed:
                 continue
-            array_processed.add(array_symbol.name)
+            array_processed.add(array_symbol.name.lower())
 
             # Add an additional dimension to this array with the same bounds as
             # the target Loop
