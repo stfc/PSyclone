@@ -187,7 +187,7 @@ class Container(ScopingNode, CommentableMixin):
         # whether to examine any imports.
         return None
 
-    def resolve_routine(self, name):
+    def resolve_routine(self, name: str) -> list[str]:
         '''This function returns a list of function names that might be
         actually called when the routine `name` is called. In most cases
         this is exactly `name`, but in case of a generic subroutine the
@@ -198,12 +198,11 @@ class Container(ScopingNode, CommentableMixin):
         If the symbol with the specified name is a generic Symbol and is
         imported then it is specialised (in place) to become a RoutineSymbol.
 
-        :param str name: the name of the routine to resolve
+        :param name: the name of the routine to resolve
 
         :returns: the names of those routines that may actually be invoked
             when the routine `name` is called or an empty list if there is no
             routine with that name in this container.
-        :rtype: list[str | None]
 
         :raises TypeError: if the Symbol with the supplied name is not a
             RoutineSymbol, GenericInterfaceSymbol or imported Symbol.

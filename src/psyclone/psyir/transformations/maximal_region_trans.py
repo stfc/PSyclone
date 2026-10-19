@@ -235,6 +235,8 @@ class MaximalRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
                     f"{prev_position}.")
             prev_position = child.position
 
+        super().validate(nodes, **self_kwargs)
+
     def _apply_transformation(self, block: list[Node],
                               **kwargs):
         '''
