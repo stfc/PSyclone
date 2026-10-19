@@ -40,6 +40,8 @@ class AlgTrans(Transformation):
             a parent.
 
         '''
+
+        super().validate(node, options=options, **kwargs)
         if not options:
             self.validate_options(**kwargs)
 
