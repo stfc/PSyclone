@@ -121,6 +121,8 @@ class KernelModuleInlineTrans(Transformation):
         :raises TransformationError: if the kernel cannot be safely inlined.
 
         '''
+
+        super().validate(node, options=options, **kwargs)
         if not options:
             self.validate_options(**kwargs)
 
