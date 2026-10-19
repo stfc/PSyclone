@@ -603,3 +603,7 @@ class Symbol(CommentableMixin):
         :returns: a set of all the symbols accessed inside this Symbol.
         '''
         return set()
+
+
+# For Sphinx AutoAPI documentation generation
+__all__ = ["Symbol"]

@@ -421,3 +421,7 @@ class DataSymbol(TypedSymbol):
             [Reference(self), ("dim", Literal(str(idx+1),
                                               ScalarType.integer_type()))])
         return lower, upper
+
+
+# For Sphinx AutoAPI documentation generation
+__all__ = ["DataSymbol"]

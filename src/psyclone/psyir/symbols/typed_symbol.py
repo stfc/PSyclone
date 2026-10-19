@@ -250,3 +250,7 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         else:
             symbols.update(self.datatype.get_all_accessed_symbols())
         return symbols
+
+
+# For Sphinx AutoAPI documentation generation
+__all__ = ["TypedSymbol"]
