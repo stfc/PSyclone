@@ -487,38 +487,38 @@ quadrature_xyoz_type
     use mesh_mod, only : mesh_type
     use function_space_mod, only : BASIS, DIFF_BASIS
     use constants_mod, only : i_def
-    real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)
     integer(kind=i_def) :: cell
-    type(field_type), dimension(3), intent(in) :: coord
-    real(kind=r_def), pointer, dimension(:) :: coord_1_data => null()
-    real(kind=r_def), pointer, dimension(:) :: coord_2_data => null()
-    real(kind=r_def), pointer, dimension(:) :: coord_3_data => null()
-    type(field_proxy_type), dimension(3) :: coord_proxy
-    real(kind=r_def), allocatable :: diff_basis_w0_qr(:,:,:,:)
-    real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)
     integer(kind=i_def) :: diff_dim_w0
     integer(kind=i_def) :: diff_dim_w2
     integer(kind=i_def) :: dim_w3
     integer(kind=i_def) :: loop0_start
     integer(kind=i_def) :: loop0_stop
-    integer(kind=i_def), pointer :: map_w0(:,:) => null()
-    type(operator_type), intent(in) :: mapping
-    real(kind=r_def), pointer, dimension(:,:,:) :: mapping_local_stencil => \
-null()
-    type(operator_proxy_type) :: mapping_proxy
     integer(kind=i_def) :: max_halo_depth_mesh
-    type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: ndf_w0
     integer(kind=i_def) :: ndf_w2
     integer(kind=i_def) :: ndf_w3
     integer(kind=i_def) :: nlayers_mapping
     integer(kind=i_def) :: np_xy_qr
     integer(kind=i_def) :: np_z_qr
-    type(quadrature_xyoz_type), intent(in) :: qr
-    type(quadrature_xyoz_proxy_type) :: qr_proxy
     integer(kind=i_def) :: undf_w0
+    integer(kind=i_def), pointer :: map_w0(:,:) => null()
+    real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)
+    real(kind=r_def), allocatable :: diff_basis_w0_qr(:,:,:,:)
+    real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)
     real(kind=r_def), pointer :: weights_xy_qr(:) => null()
     real(kind=r_def), pointer :: weights_z_qr(:) => null()
+    real(kind=r_def), pointer, dimension(:) :: coord_1_data => null()
+    real(kind=r_def), pointer, dimension(:) :: coord_2_data => null()
+    real(kind=r_def), pointer, dimension(:) :: coord_3_data => null()
+    real(kind=r_def), pointer, dimension(:,:,:) :: mapping_local_stencil => \
+null()
+    type(field_proxy_type), dimension(3) :: coord_proxy
+    type(field_type), dimension(3), intent(in) :: coord
+    type(mesh_type), pointer :: mesh => null()
+    type(operator_proxy_type) :: mapping_proxy
+    type(operator_type), intent(in) :: mapping
+    type(quadrature_xyoz_proxy_type) :: qr_proxy
+    type(quadrature_xyoz_type), intent(in) :: qr
 
     ! Initialise field and/or operator proxies
     mapping_proxy = mapping%get_proxy()
@@ -928,8 +928,6 @@ ndf_as1_op_12, ndf_ads1_op_13)
     integer(kind=i_def), intent(in) :: op_7_ncell_3d
     integer(kind=i_def), intent(in) :: op_8_ncell_3d
     integer(kind=i_def), intent(in) :: op_9_ncell_3d
-    real(kind=r_def), dimension(op_1_ncell_3d,ndf_w0,ndf_w0), intent(inout) ::\
- op_1
     real(kind=r_def), dimension(op_10_ncell_3d,ndf_w3,ndf_w3), intent(inout) \
 :: op_10
     real(kind=r_def), dimension(op_11_ncell_3d,ndf_wtheta,ndf_wtheta), \
@@ -938,6 +936,8 @@ intent(inout) :: op_11
 intent(in) :: op_12
     real(kind=r_def), dimension(op_13_ncell_3d,ndf_ads1_op_13,ndf_ads1_op_13),\
  intent(in) :: op_13
+    real(kind=r_def), dimension(op_1_ncell_3d,ndf_w0,ndf_w0), intent(inout) ::\
+ op_1
     real(kind=r_def), dimension(op_2_ncell_3d,ndf_w1,ndf_w1), intent(inout) \
 :: op_2
     real(kind=r_def), dimension(op_3_ncell_3d,ndf_w2,ndf_w2), intent(in) :: \

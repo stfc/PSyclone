@@ -56,9 +56,9 @@ def test_field(tmpdir, dist_mem):
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0_compute_cu(cu_fld, p_fld, u_fld)\n"
-        "    type(r2d_field), intent(inout) :: cu_fld\n"
         "    integer :: i\n"
         "    integer :: j\n"
+        "    type(r2d_field), intent(inout) :: cu_fld\n"
         "    type(r2d_field), intent(inout) :: p_fld\n"
         "    type(r2d_field), intent(inout) :: u_fld\n\n")
     remaining_code = (
@@ -130,9 +130,9 @@ def test_two_kernels(tmpdir, dist_mem):
         "  contains\n"
         "  subroutine invoke_0(cu_fld, p_fld, u_fld, unew_fld, "
         "uold_fld)\n"
-        "    type(r2d_field), intent(inout) :: cu_fld\n"
         "    integer :: i\n"
         "    integer :: j\n"
+        "    type(r2d_field), intent(inout) :: cu_fld\n"
         "    type(r2d_field), intent(inout) :: p_fld\n"
         "    type(r2d_field), intent(inout) :: u_fld\n"
         "    type(r2d_field), intent(inout) :: unew_fld\n"
@@ -184,9 +184,9 @@ def test_two_kernels_with_dependencies(tmpdir, dist_mem):
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0(cu_fld, p_fld, u_fld)\n"
-        "    type(r2d_field), intent(inout) :: cu_fld\n"
         "    integer :: i\n"
         "    integer :: j\n"
+        "    type(r2d_field), intent(inout) :: cu_fld\n"
         "    type(r2d_field), intent(inout) :: p_fld\n"
         "    type(r2d_field), intent(inout) :: u_fld\n\n")
     first_kernel = (
@@ -242,11 +242,11 @@ def test_grid_property(tmpdir, dist_mem):
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0(cu_fld, u_fld, du_fld, d_fld)\n"
+        "    integer :: i\n"
+        "    integer :: j\n"
         "    type(r2d_field), intent(inout) :: cu_fld\n"
         "    type(r2d_field), intent(inout) :: d_fld\n"
         "    type(r2d_field), intent(inout) :: du_fld\n"
-        "    integer :: i\n"
-        "    integer :: j\n"
         "    type(r2d_field), intent(inout) :: u_fld\n\n")
     first_kernel = (
         "    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
@@ -343,9 +343,9 @@ def test_scalar_float_arg(tmpdir, dist_mem):
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0_bc_ssh(a_scalar, ssh_fld)\n"
-        "    real(kind=go_wp), intent(inout) :: a_scalar\n"
         "    integer :: i\n"
         "    integer :: j\n"
+        "    real(kind=go_wp), intent(inout) :: a_scalar\n"
         "    type(r2d_field), intent(inout) :: ssh_fld\n\n")
     first_kernel = (
         "    do j = ssh_fld%whole%ystart, ssh_fld%whole%ystop, 1\n"
@@ -396,18 +396,17 @@ def test_scalar_float_arg_from_module():
         "module psy_single_invoke_scalar_float_test\n"
         "  use field_mod\n"
         "  use kind_params_mod\n"
-        "  use my_mod, only : a_scalar\n"
         "  use kernel_scalar_float, only : bc_ssh_code\n"
         "  implicit none\n"
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0_bc_ssh(ssh_fld)\n"
-        "    type(r2d_field), intent(inout) :: ssh_fld\n"
-        "    integer :: j\n"
+        "    use my_mod, only : a_scalar\n"
         "    integer :: i\n"
-        "    type(r2d_field), intent(inout) :: ssh_fld\n"
         "    integer :: istop\n"
-        "    integer :: jstop\n\n"
+        "    integer :: j\n"
+        "    integer :: jstop\n"
+        "    type(r2d_field), intent(inout) :: ssh_fld\n\n"
         "    ! Look-up loop bounds\n"
         "    istop = ssh_fld%grid%subdomain%internal%xstop\n"
         "    jstop = ssh_fld%grid%subdomain%internal%ystop\n"
@@ -420,8 +419,7 @@ def test_scalar_float_arg_from_module():
         "  end subroutine invoke_0_bc_ssh\n\n"
         "end module psy_single_invoke_scalar_float_test\n")
 
-    for line in expected_output.split("\n"):
-        assert line in generated_code, line
+    assert expected_output in generated_code
     # We don't compile this generated code as the module is made up and
     # the compiler would correctly fail.
 
@@ -648,11 +646,11 @@ def test_ne_offset_all_cf_points(tmpdir):
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0_bc_solid_f(f_fld)\n"
-        "    type(r2d_field), intent(inout) :: f_fld\n"
         "    integer :: i\n"
         "    integer :: istop\n"
         "    integer :: j\n"
-        "    integer :: jstop\n\n"
+        "    integer :: jstop\n"
+        "    type(r2d_field), intent(inout) :: f_fld\n\n"
         "    ! Look-up loop bounds\n"
         "    istop = f_fld%grid%subdomain%internal%xstop\n"
         "    jstop = f_fld%grid%subdomain%internal%ystop\n"
@@ -795,11 +793,11 @@ def test_sw_offset_ct_points(tmpdir):
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0_compute_h(h_fld, p_fld, u_fld, v_fld)\n"
-        "    type(r2d_field), intent(inout) :: h_fld\n"
         "    integer :: i\n"
         "    integer :: istop\n"
         "    integer :: j\n"
         "    integer :: jstop\n"
+        "    type(r2d_field), intent(inout) :: h_fld\n"
         "    type(r2d_field), intent(inout) :: p_fld\n"
         "    type(r2d_field), intent(inout) :: u_fld\n"
         "    type(r2d_field), intent(inout) :: v_fld\n\n"
@@ -847,11 +845,11 @@ def test_sw_offset_all_ct_points(tmpdir):
         "  public\n\n"
         "  contains\n"
         "  subroutine invoke_0_apply_bcs_h(hfld, pfld, ufld, vfld)\n"
-        "    type(r2d_field), intent(inout) :: hfld\n"
         "    integer :: i\n"
         "    integer :: istop\n"
         "    integer :: j\n"
         "    integer :: jstop\n"
+        "    type(r2d_field), intent(inout) :: hfld\n"
         "    type(r2d_field), intent(inout) :: pfld\n"
         "    type(r2d_field), intent(inout) :: ufld\n"
         "    type(r2d_field), intent(inout) :: vfld\n\n"
@@ -983,11 +981,11 @@ def test_offset_any_all_cu_points(tmpdir):
 
     expected_output = (
         "  subroutine invoke_0_compute_u(ufld, vfld, hfld)\n"
-        "    type(r2d_field), intent(inout) :: hfld\n"
         "    integer :: i\n"
         "    integer :: istop\n"
         "    integer :: j\n"
         "    integer :: jstop\n"
+        "    type(r2d_field), intent(inout) :: hfld\n"
         "    type(r2d_field), intent(inout) :: ufld\n"
         "    type(r2d_field), intent(inout) :: vfld\n\n"
         "    ! Look-up loop bounds\n"

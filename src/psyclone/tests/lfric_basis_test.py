@@ -1897,22 +1897,28 @@ def test_diff_basis_eval(fortran_writer):
     integer(kind=i_def), intent(in) :: undf_w2vtrace
     integer(kind=i_def), intent(in) :: undf_wchi
     integer(kind=i_def), intent(in) :: undf_wtheta
-    real(kind=r_def), dimension(3,ndf_w0,ndf_w2), intent(in) :: \
-diff_basis_w0_on_w2
-    real(kind=r_def), dimension(3,ndf_w1,ndf_w2), intent(in) :: \
-diff_basis_w1_on_w2
+    integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
+    integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
+    integer(kind=i_def), dimension(ndf_w2v), intent(in) :: map_w2v
+    integer(kind=i_def), dimension(ndf_w2vtrace), intent(in) :: map_w2vtrace
+    integer(kind=i_def), dimension(ndf_wchi), intent(in) :: map_wchi
+    integer(kind=i_def), dimension(ndf_wtheta), intent(in) :: map_wtheta
     real(kind=r_def), dimension(1,ndf_w2,ndf_w2), intent(in) :: \
 diff_basis_w2_on_w2
     real(kind=r_def), dimension(1,ndf_w2broken,ndf_w2), intent(in) :: \
 diff_basis_w2broken_on_w2
     real(kind=r_def), dimension(1,ndf_w2h,ndf_w2), intent(in) :: \
 diff_basis_w2h_on_w2
+    real(kind=r_def), dimension(1,ndf_w2v,ndf_w2), intent(in) :: \
+diff_basis_w2v_on_w2
+    real(kind=r_def), dimension(3,ndf_w0,ndf_w2), intent(in) :: \
+diff_basis_w0_on_w2
+    real(kind=r_def), dimension(3,ndf_w1,ndf_w2), intent(in) :: \
+diff_basis_w1_on_w2
     real(kind=r_def), dimension(3,ndf_w2htrace,ndf_w2), intent(in) :: \
 diff_basis_w2htrace_on_w2
     real(kind=r_def), dimension(3,ndf_w2trace,ndf_w2), intent(in) :: \
 diff_basis_w2trace_on_w2
-    real(kind=r_def), dimension(1,ndf_w2v,ndf_w2), intent(in) :: \
-diff_basis_w2v_on_w2
     real(kind=r_def), dimension(3,ndf_w2vtrace,ndf_w2), intent(in) :: \
 diff_basis_w2vtrace_on_w2
     real(kind=r_def), dimension(3,ndf_w3,ndf_w2), intent(in) :: \
@@ -1921,18 +1927,6 @@ diff_basis_w3_on_w2
 diff_basis_wchi_on_w2
     real(kind=r_def), dimension(3,ndf_wtheta,ndf_w2), intent(in) :: \
 diff_basis_wtheta_on_w2
-    real(kind=r_def), dimension(undf_w2vtrace), intent(in) :: field_11_w2vtrace
-    real(kind=r_def), dimension(undf_w0), intent(in) :: field_1_w0
-    real(kind=r_def), dimension(undf_w2), intent(in) :: field_3_w2
-    real(kind=r_def), dimension(undf_wtheta), intent(in) :: field_5_wtheta
-    real(kind=r_def), dimension(undf_w2v), intent(in) :: field_7_w2v
-    real(kind=r_def), dimension(undf_wchi), intent(in) :: field_9_wchi
-    integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
-    integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
-    integer(kind=i_def), dimension(ndf_w2v), intent(in) :: map_w2v
-    integer(kind=i_def), dimension(ndf_w2vtrace), intent(in) :: map_w2vtrace
-    integer(kind=i_def), dimension(ndf_wchi), intent(in) :: map_wchi
-    integer(kind=i_def), dimension(ndf_wtheta), intent(in) :: map_wtheta
     real(kind=r_def), dimension(op_10_ncell_3d,ndf_w2trace,ndf_w2trace), \
 intent(in) :: op_10
     real(kind=r_def), dimension(op_12_ncell_3d,ndf_w2htrace,ndf_w2htrace), \
@@ -1945,6 +1939,12 @@ intent(in) :: op_12
 :: op_6
     real(kind=r_def), dimension(op_8_ncell_3d,ndf_w2broken,ndf_w2broken), \
 intent(in) :: op_8
+    real(kind=r_def), dimension(undf_w0), intent(in) :: field_1_w0
+    real(kind=r_def), dimension(undf_w2), intent(in) :: field_3_w2
+    real(kind=r_def), dimension(undf_w2v), intent(in) :: field_7_w2v
+    real(kind=r_def), dimension(undf_w2vtrace), intent(in) :: field_11_w2vtrace
+    real(kind=r_def), dimension(undf_wchi), intent(in) :: field_9_wchi
+    real(kind=r_def), dimension(undf_wtheta), intent(in) :: field_5_wtheta
 """ in generated_code
 
 
@@ -2015,14 +2015,12 @@ def test_2eval_stubgen(fortran_writer):
     integer(kind=i_def), intent(in) :: undf_w2vtrace
     integer(kind=i_def), intent(in) :: undf_wchi
     integer(kind=i_def), intent(in) :: undf_wtheta
-    real(kind=r_def), dimension(3,ndf_w0,ndf_w2h), intent(in) :: \
-diff_basis_w0_on_w2h
-    real(kind=r_def), dimension(3,ndf_w0,ndf_wtheta), intent(in) :: \
-diff_basis_w0_on_wtheta
-    real(kind=r_def), dimension(3,ndf_w1,ndf_w2h), intent(in) :: \
-diff_basis_w1_on_w2h
-    real(kind=r_def), dimension(3,ndf_w1,ndf_wtheta), intent(in) :: \
-diff_basis_w1_on_wtheta
+    integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
+    integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
+    integer(kind=i_def), dimension(ndf_w2v), intent(in) :: map_w2v
+    integer(kind=i_def), dimension(ndf_w2vtrace), intent(in) :: map_w2vtrace
+    integer(kind=i_def), dimension(ndf_wchi), intent(in) :: map_wchi
+    integer(kind=i_def), dimension(ndf_wtheta), intent(in) :: map_wtheta
     real(kind=r_def), dimension(1,ndf_w2,ndf_w2h), intent(in) :: \
 diff_basis_w2_on_w2h
     real(kind=r_def), dimension(1,ndf_w2,ndf_wtheta), intent(in) :: \
@@ -2035,6 +2033,18 @@ diff_basis_w2broken_on_wtheta
 diff_basis_w2h_on_w2h
     real(kind=r_def), dimension(1,ndf_w2h,ndf_wtheta), intent(in) :: \
 diff_basis_w2h_on_wtheta
+    real(kind=r_def), dimension(1,ndf_w2v,ndf_w2h), intent(in) :: \
+diff_basis_w2v_on_w2h
+    real(kind=r_def), dimension(1,ndf_w2v,ndf_wtheta), intent(in) :: \
+diff_basis_w2v_on_wtheta
+    real(kind=r_def), dimension(3,ndf_w0,ndf_w2h), intent(in) :: \
+diff_basis_w0_on_w2h
+    real(kind=r_def), dimension(3,ndf_w0,ndf_wtheta), intent(in) :: \
+diff_basis_w0_on_wtheta
+    real(kind=r_def), dimension(3,ndf_w1,ndf_w2h), intent(in) :: \
+diff_basis_w1_on_w2h
+    real(kind=r_def), dimension(3,ndf_w1,ndf_wtheta), intent(in) :: \
+diff_basis_w1_on_wtheta
     real(kind=r_def), dimension(3,ndf_w2htrace,ndf_w2h), intent(in) :: \
 diff_basis_w2htrace_on_w2h
     real(kind=r_def), dimension(3,ndf_w2htrace,ndf_wtheta), intent(in) :: \
@@ -2043,10 +2053,6 @@ diff_basis_w2htrace_on_wtheta
 diff_basis_w2trace_on_w2h
     real(kind=r_def), dimension(3,ndf_w2trace,ndf_wtheta), intent(in) :: \
 diff_basis_w2trace_on_wtheta
-    real(kind=r_def), dimension(1,ndf_w2v,ndf_w2h), intent(in) :: \
-diff_basis_w2v_on_w2h
-    real(kind=r_def), dimension(1,ndf_w2v,ndf_wtheta), intent(in) :: \
-diff_basis_w2v_on_wtheta
     real(kind=r_def), dimension(3,ndf_w2vtrace,ndf_w2h), intent(in) :: \
 diff_basis_w2vtrace_on_w2h
     real(kind=r_def), dimension(3,ndf_w2vtrace,ndf_wtheta), intent(in) :: \
@@ -2063,18 +2069,6 @@ diff_basis_wchi_on_wtheta
 diff_basis_wtheta_on_w2h
     real(kind=r_def), dimension(3,ndf_wtheta,ndf_wtheta), intent(in) :: \
 diff_basis_wtheta_on_wtheta
-    real(kind=r_def), dimension(undf_w2vtrace), intent(in) :: field_11_w2vtrace
-    real(kind=r_def), dimension(undf_w0), intent(in) :: field_1_w0
-    real(kind=r_def), dimension(undf_w2), intent(in) :: field_3_w2
-    real(kind=r_def), dimension(undf_wtheta), intent(in) :: field_5_wtheta
-    real(kind=r_def), dimension(undf_w2v), intent(in) :: field_7_w2v
-    real(kind=r_def), dimension(undf_wchi), intent(in) :: field_9_wchi
-    integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
-    integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
-    integer(kind=i_def), dimension(ndf_w2v), intent(in) :: map_w2v
-    integer(kind=i_def), dimension(ndf_w2vtrace), intent(in) :: map_w2vtrace
-    integer(kind=i_def), dimension(ndf_wchi), intent(in) :: map_wchi
-    integer(kind=i_def), dimension(ndf_wtheta), intent(in) :: map_wtheta
     real(kind=r_def), dimension(op_10_ncell_3d,ndf_w2trace,ndf_w2trace), \
 intent(in) :: op_10
     real(kind=r_def), dimension(op_12_ncell_3d,ndf_w2htrace,ndf_w2htrace), \
@@ -2087,6 +2081,12 @@ intent(in) :: op_12
 :: op_6
     real(kind=r_def), dimension(op_8_ncell_3d,ndf_w2broken,ndf_w2broken), \
 intent(in) :: op_8
+    real(kind=r_def), dimension(undf_w0), intent(in) :: field_1_w0
+    real(kind=r_def), dimension(undf_w2), intent(in) :: field_3_w2
+    real(kind=r_def), dimension(undf_w2v), intent(in) :: field_7_w2v
+    real(kind=r_def), dimension(undf_w2vtrace), intent(in) :: field_11_w2vtrace
+    real(kind=r_def), dimension(undf_wchi), intent(in) :: field_9_wchi
+    real(kind=r_def), dimension(undf_wtheta), intent(in) :: field_5_wtheta
 """ in generated_code
 
 
