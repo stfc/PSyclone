@@ -136,7 +136,7 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch, caplog):
             "\n" in caplog.text)
 
 
-def test_omp_parallel_do_lowering(fortran_reader, monkeypatch, caplog):
+def test_omp_parallel_do_lowering(fortran_reader, monkeypatch):
     ''' Check that lowering an OMP Parallel Do leaves it with the
     appropriate begin_string and clauses for the backend to generate
     the right code'''
@@ -1487,6 +1487,11 @@ def test_omp_declare_target_variable_constructor_and_strings():
     '''Test the OMPDeclareTargetVariable constructor and output string.'''
     symbol = DataSymbol("var", ScalarType.integer_single_type())
     target = OMPDeclareTargetVariable()
+    with pytest.raises(ValueError,
+                       match="OMPDeclareTargetVariable must have a symbol"):
+        target.begin_string()
+    assert str(target) == "OMPDeclareTargetVariable[NONE]"
+
     symbol.directive = target
     assert target.parent_symbol is symbol
     assert target.begin_string() == "omp declare target(var)"
