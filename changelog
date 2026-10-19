@@ -1,3 +1,6 @@
+   71) PR #3610 for #3454. ModuleInline supports routines with calls in the
+   callee file by recursively copying those in the caller module.
+
    70) PR #3649 for #3647. Fix issues with initialisation in LFRic MIN/MAX
    global reductions.
  
