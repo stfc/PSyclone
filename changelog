@@ -1,3 +1,5 @@
+   74) PR #3511. Add --keep-comments in some NEMO integration tests.
+
    73) PR #3633 for #2927. Ensures the profiling wrapper libs are
    thread safe (to permit them to be called from *within* threaded regions).
  
