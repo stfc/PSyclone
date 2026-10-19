@@ -370,9 +370,9 @@ def test_ompdeclaretargettrans(sample_psyir, fortran_writer):
     ompdeclaretargettrans.apply(routine)
     expected = '''\
 subroutine my_subroutine()
-  integer, dimension(10,10) :: a
   integer :: i
   integer :: j
+  integer, dimension(10,10) :: a
 
   !$omp declare target
   do i = 1, 10, 1
@@ -597,8 +597,8 @@ def test_omplooptrans_apply_nowait(fortran_reader, fortran_writer):
     looptrans.apply(loops[1], options={"nowait": True})
     out = fortran_writer(psyir)
     correct = """subroutine x()
-  integer, dimension(100) :: arr
   integer :: i
+  integer, dimension(100) :: arr
 
   !$omp parallel default(shared) private(i)
   !$omp do schedule(auto)
@@ -641,10 +641,10 @@ end subroutine x"""
     looptrans.apply(loops[1], options={"nowait": True})
     out = fortran_writer(psyir)
     correct = """subroutine x()
-  integer, dimension(100) :: arr
-  integer, dimension(100) :: arr2
   integer :: i
   integer :: j
+  integer, dimension(100) :: arr
+  integer, dimension(100) :: arr2
 
   !$omp parallel default(shared) private(i,j)
   !$omp do schedule(auto)

@@ -296,8 +296,8 @@ def test_fw_unsupported_data_stmt(fortran_reader,
     output = fortran_writer(psyir)
     # Check DATA statement comes *after* declaration of symbol
     assert '''\
-  integer, public :: aa
   integer, dimension(5), save, public :: zzz
+  integer, public :: aa
   DATA zzz / 5 * 1 /
 ''' in output
     assert Compile(tmp_path).string_compiles(output)

@@ -115,9 +115,9 @@ def test_correct_binary(func, output, tmpdir, fortran_writer):
     result = fortran_writer(root)
     assert (
         f"subroutine min_example(arg, arg_1)\n"
+        f"  real :: psyir_tmp\n"
         f"  real, intent(inout) :: arg\n"
-        f"  real, intent(inout) :: arg_1\n"
-        f"  real :: psyir_tmp\n\n"
+        f"  real, intent(inout) :: arg_1\n\n"
         f"  psyir_tmp = MIN({output}, arg_1)\n\n"
         f"end subroutine min_example\n") in result
     trans = MinOrMax2CodeTrans()
@@ -128,11 +128,11 @@ def test_correct_binary(func, output, tmpdir, fortran_writer):
     result = fortran_writer(root)
     assert (
         f"subroutine min_example(arg, arg_1)\n"
-        f"  real, intent(inout) :: arg\n"
-        f"  real, intent(inout) :: arg_1\n"
         f"  real :: psyir_tmp\n"
         f"  real :: res_min\n"
-        f"  real :: tmp_min\n\n"
+        f"  real :: tmp_min\n"
+        f"  real, intent(inout) :: arg\n"
+        f"  real, intent(inout) :: arg_1\n\n"
         f"  res_min = {output}\n"
         f"  tmp_min = arg_1\n"
         f"  if (tmp_min < res_min) then\n"
@@ -162,9 +162,9 @@ def test_correct_expr(tmpdir, fortran_writer):
     result = fortran_writer(root)
     assert (
         "subroutine min_example(arg, arg_1)\n"
+        "  real :: psyir_tmp\n"
         "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_1\n"
-        "  real :: psyir_tmp\n\n"
+        "  real, intent(inout) :: arg_1\n\n"
         "  psyir_tmp = 1.0 + MIN(arg, arg_1) + 2.0\n\n"
         "end subroutine min_example\n") in result
     trans = MinOrMax2CodeTrans()
@@ -175,11 +175,11 @@ def test_correct_expr(tmpdir, fortran_writer):
     result = fortran_writer(root)
     assert (
         "subroutine min_example(arg, arg_1)\n"
-        "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n"
         "  real :: res_min\n"
-        "  real :: tmp_min\n\n"
+        "  real :: tmp_min\n"
+        "  real, intent(inout) :: arg\n"
+        "  real, intent(inout) :: arg_1\n\n"
         "  res_min = arg\n"
         "  tmp_min = arg_1\n"
         "  if (tmp_min < res_min) then\n"
@@ -209,9 +209,9 @@ def test_correct_2min(tmpdir, fortran_writer):
     result = fortran_writer(root)
     assert (
         "subroutine min_example(arg, arg_1)\n"
+        "  real :: psyir_tmp\n"
         "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_1\n"
-        "  real :: psyir_tmp\n\n"
+        "  real, intent(inout) :: arg_1\n\n"
         "  psyir_tmp = MIN(1.0, 2.0) + MIN(arg, arg_1)\n\n"
         "end subroutine min_example\n") in result
     trans = MinOrMax2CodeTrans()
@@ -223,13 +223,13 @@ def test_correct_2min(tmpdir, fortran_writer):
     result = fortran_writer(root)
     assert (
         "subroutine min_example(arg, arg_1)\n"
-        "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_1\n"
         "  real :: psyir_tmp\n"
         "  real :: res_min\n"
         "  real :: res_min_1\n"
         "  real :: tmp_min\n"
-        "  real :: tmp_min_1\n\n"
+        "  real :: tmp_min_1\n"
+        "  real, intent(inout) :: arg\n"
+        "  real, intent(inout) :: arg_1\n\n"
         "  res_min = arg\n"
         "  tmp_min = arg_1\n"
         "  if (tmp_min < res_min) then\n"
@@ -255,10 +255,10 @@ def test_correct_nary(tmpdir, fortran_writer):
     result = fortran_writer(root)
     assert (
         "subroutine max_example(arg, arg_1, arg_2)\n"
+        "  real :: psyir_tmp\n"
         "  real, intent(inout) :: arg\n"
         "  real, intent(inout) :: arg_1\n"
-        "  real, intent(inout) :: arg_2\n"
-        "  real :: psyir_tmp\n\n"
+        "  real, intent(inout) :: arg_2\n\n"
         "  psyir_tmp = MAX(arg, arg_1, arg_2)\n\n"
         "end subroutine max_example\n") in result
     trans = MinOrMax2CodeTrans()
@@ -269,12 +269,12 @@ def test_correct_nary(tmpdir, fortran_writer):
     result = fortran_writer(root)
     assert (
         "subroutine max_example(arg, arg_1, arg_2)\n"
-        "  real, intent(inout) :: arg\n"
-        "  real, intent(inout) :: arg_1\n"
-        "  real, intent(inout) :: arg_2\n"
         "  real :: psyir_tmp\n"
         "  real :: res_max\n"
-        "  real :: tmp_max\n\n"
+        "  real :: tmp_max\n"
+        "  real, intent(inout) :: arg\n"
+        "  real, intent(inout) :: arg_1\n"
+        "  real, intent(inout) :: arg_2\n\n"
         "  res_max = arg\n"
         "  tmp_max = arg_1\n"
         "  if (tmp_max > res_max) then\n"

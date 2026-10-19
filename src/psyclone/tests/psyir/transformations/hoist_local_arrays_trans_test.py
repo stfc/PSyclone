@@ -713,12 +713,12 @@ module my_mod
 
   contains
   subroutine test(arg, var)
-    real, allocatable, dimension(:), intent(in) :: arg
+    integer :: i
+    integer, intent(in) :: var
     real, allocatable, dimension(:) :: d
     real, allocatable, dimension(:) :: e
-    integer :: i
     real, allocatable, dimension(:) :: unused
-    integer, intent(in) :: var
+    real, allocatable, dimension(:), intent(in) :: arg
 
     if (var == 3) then
       if (.NOT.ALLOCATED(a)) then

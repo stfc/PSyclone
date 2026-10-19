@@ -493,9 +493,9 @@ def has_cmp_interface(code):
 
     # Check that the logical implementation is in the code
     assert '''function test_psyclone_internal_cmp_logical(op1, op2)
+    logical :: test_psyclone_internal_cmp_logical
     logical, intent(in) :: op1
     logical, intent(in) :: op2
-    logical :: test_psyclone_internal_cmp_logical
 
     test_psyclone_internal_cmp_logical = op1 .EQV. op2
 

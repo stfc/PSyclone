@@ -51,8 +51,8 @@ SUB_IN1 = (
     "end subroutine\n")
 SUB_OUT1 = (
     "subroutine sub1(i, a)\n"
-    "  real, intent(inout) :: a\n"
-    "  integer, intent(in) :: i\n\n"
+    "  integer, intent(in) :: i\n"
+    "  real, intent(inout) :: a\n\n"
     "  if (.NOT.i < 5) then\n"
     "    if (.NOT.i > 10) then\n"
     "      a = 0.0\n"
@@ -94,8 +94,8 @@ SUB_IN2_3 = SUB_IN2.format(
     "  end if")
 SUB_OUT2 = (
     "subroutine sub1(i, a)\n"
-    "  real, intent(inout) :: a\n"
-    "  integer, intent(in) :: i\n\n"
+    "  integer, intent(in) :: i\n"
+    "  real, intent(inout) :: a\n\n"
     "  {0}\n"
     "  if (.NOT.i < 5) then\n"
     "    if (.NOT.i > 10) then\n"

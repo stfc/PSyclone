@@ -645,10 +645,10 @@ def test_labels_found_with_comments(fortran_writer):
     # errors.
     correct = """subroutine foo()
   integer :: a
-  logical :: cond1
-  logical :: cond2
   integer :: i
   integer :: j
+  logical :: cond1
+  logical :: cond2
 
   if (cond1) then
     a = 1
@@ -703,10 +703,10 @@ end subroutine foo
     # formatting from fparser.
     correct = """subroutine foo()
   integer :: a
-  logical :: cond1
-  logical :: cond2
   integer :: i
   integer :: j
+  logical :: cond1
+  logical :: cond2
 
   if (cond1) then
     a = 1

@@ -276,6 +276,10 @@ def test_datanodetotemptrans_apply(fortran_reader, fortran_writer, tmp_path):
     assert "tmp" in routine.symbol_table
     out = fortran_writer(psyir)
     assert """  integer, allocatable, dimension(:,:) :: tmp
+  integer, dimension(10,10) :: c
+  integer, dimension(10,10) :: d
+  integer, dimension(10,100) :: a
+  integer, dimension(100,10) :: b
 
   if (.NOT.ALLOCATED(tmp)) then
     ALLOCATE(tmp(1:SIZE(a, dim=1),1:SIZE(b, dim=2)))
@@ -436,8 +440,8 @@ def test_datanodetotemptrans_apply_imports(
     out = fortran_writer(psyir)
     assert """  use c_mod, only : some_var
   use some_mod, only : i
-  integer, dimension(25,50) :: b
   integer, allocatable, dimension(:,:) :: tmp
+  integer, dimension(25,50) :: b
 
   if (.NOT.ALLOCATED(tmp)) then
     ALLOCATE(tmp(1:25,1:i))

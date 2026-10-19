@@ -582,12 +582,12 @@ def test_scalarisation_trans_apply(fortran_reader, fortran_writer, tmpdir):
     loop = psyir.children[0].children[0]
     strans.apply(loop)
     correct = '''subroutine test()
-  real, dimension(100) :: arr
-  real :: arr_scalar
-  real, dimension(100) :: b
-  real, dimension(100) :: c
   integer :: i
   integer :: k
+  real :: arr_scalar
+  real, dimension(100) :: arr
+  real, dimension(100) :: b
+  real, dimension(100) :: c
 
   do i = 1, 100, 1
     arr_scalar = i
@@ -634,12 +634,12 @@ def test_scalarisation_trans_apply(fortran_reader, fortran_writer, tmpdir):
     loop = psyir.children[0].children[0]
     strans.apply(loop)
     correct = '''subroutine test()
-  real, dimension(100) :: arr
-  real :: arr_scalar
-  real, dimension(100) :: b
-  real, dimension(100) :: c
   integer :: i
   integer :: k
+  real :: arr_scalar
+  real, dimension(100) :: arr
+  real, dimension(100) :: b
+  real, dimension(100) :: c
 
   do i = 1, 100, 1
     arr_scalar = i
@@ -680,8 +680,8 @@ def test_scalarisation_trans_apply_routinesymbol(fortran_reader,
     strans.apply(routine.children[0])
     correct = '''subroutine test()
   integer :: i
-  integer, dimension(3) :: j
   integer, allocatable, dimension(:,:,:) :: k
+  integer, dimension(3) :: j
 
   do i = 1, 100, 1
     ALLOCATE(k(1:MAXVAL(j(:)),1:1,1:1))

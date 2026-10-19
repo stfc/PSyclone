@@ -45,14 +45,14 @@ def test_type(fortran_reader, fortran_writer, tmpdir):
         "end module\n")
     expected1 = "CLASS(*), TARGET :: type_selector"
     expected2 = (
+        "    character(len=256) :: type_string\n"
+        "    class(*), target :: type_selector\n"
         "    integer :: branch1\n"
         "    integer :: branch2\n"
         "    integer :: iinfo\n"
         "    integer, pointer :: ptr_INTEGER => null()\n"
-        "    real, pointer :: ptr_REAL => null()\n"
         "    real :: rinfo\n"
-        "    class(*), target :: type_selector\n"
-        "    character(len=256) :: type_string\n"
+        "    real, pointer :: ptr_REAL => null()\n"
         "\n"
         "    type_string = ''\n"
         "    SELECT TYPE(type_selector)\n"
@@ -110,15 +110,15 @@ def test_default(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n"
         "end module\n")
     expected = (
+        "    character(len=256) :: type_string\n"
+        "    class(*), target :: type\n"
         "    integer :: branch1\n"
         "    integer :: branch2\n"
         "    integer :: branch3\n"
         "    integer :: iinfo\n"
         "    integer, pointer :: ptr_INTEGER => null()\n"
-        "    real, pointer :: ptr_REAL => null()\n"
         "    real :: rinfo\n"
-        "    class(*), target :: type\n"
-        "    character(len=256) :: type_string\n\n"
+        "    real, pointer :: ptr_REAL => null()\n\n"
         "    type_string = ''\n"
         "    SELECT TYPE(type)\n"
         "      TYPE IS (INTEGER)\n"
@@ -191,7 +191,9 @@ def test_class(fortran_reader, fortran_writer, tmpdir):
         "    integer, pointer :: ptr_integer => null()\n"
         "    real, pointer :: ptr_real => null()\n" in result)
     assert (
+        "    type(type2) :: my_type2\n"
         "    type(type2), pointer :: ptr_type2 => null()\n"
+        "    type(type3) :: my_type3\n"
         "    type(type3), pointer :: ptr_type3 => null()\n"
         in result)
     assert "character(len=256) :: type_string\n" in result
@@ -352,14 +354,14 @@ def test_kind(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n"
         "end module\n")
     expected1 = (
+        "    character(len=256) :: type_string\n"
+        "    CLASS(*), TARGET :: type\n"
         "    integer :: branch1\n"
         "    integer :: branch2\n"
         "    REAL(KIND = 4), pointer :: ptr_REAL_4 => null()\n"
         "    REAL(KIND = 8), pointer :: ptr_REAL_8 => null()\n"
         "    REAL(KIND=4) :: rinfo1\n"
-        "    REAL(KIND=8) :: rinfo2\n"
-        "    CLASS(*), TARGET :: type\n"
-        "    character(len=256) :: type_string\n").lower()
+        "    REAL(KIND=8) :: rinfo2\n").lower()
     expected2 = (
         "    type_string = ''\n"
         "    SELECT TYPE(type)\n"
@@ -408,12 +410,12 @@ def test_derived(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n"
         "end module\n")
     expected1 = (
+        "    character(len=256) :: type_string\n"
         "    class(*), target :: atype\n"
         "    integer :: branch1\n"
         "    type :: field_type\n"
         "      integer :: x\n"
         "    end type field_type\n"
-        "    character(len=256) :: type_string\n"
         "    type(field_type) :: field_type_info\n"
         "    type(field_type), pointer :: ptr_field_type => null()\n")
     expected2 = (
@@ -465,17 +467,17 @@ def test_datatype(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n"
         "end module\n")
     expected1 = (
+        "    character(len=256) :: character_type\n"
+        "    character(len=256) :: type_string\n"
+        "    character(len=256), pointer :: ptr_CHARACTER_star => null()\n"
+        "    CLASS(*), TARGET :: type_selector\n"
+        "    COMPLEX :: complex_type\n"
+        "    COMPLEX, pointer :: ptr_COMPLEX => null()\n"
         "    integer :: branch1\n"
         "    integer :: branch2\n"
         "    integer :: branch3\n"
-        "    character(len=256) :: character_type\n"
-        "    COMPLEX :: complex_type\n"
         "    logical :: logical_type\n"
-        "    character(len=256), pointer :: ptr_CHARACTER_star => null()\n"
-        "    COMPLEX, pointer :: ptr_COMPLEX => null()\n"
-        "    LOGICAL, pointer :: ptr_LOGICAL => null()\n"
-        "    CLASS(*), TARGET :: type_selector\n"
-        "    character(len=256) :: type_string\n").lower()
+        "    LOGICAL, pointer :: ptr_LOGICAL => null()\n").lower()
     expected2 = (
         "    type_string = ''\n"
         "    SELECT TYPE(type_selector)\n"
@@ -534,10 +536,10 @@ def test_character(fortran_reader, fortran_writer, tmpdir, char_type_in,
     expected1 = (
         f"  subroutine select_type(type_selector)\n"
         f"    CHARACTER{char_type_out} :: character_type\n"
+        f"    character(len=256) :: type_string\n"
         f"    CHARACTER(LEN=256), pointer :: ptr_CHARACTER_star => "
         f"null()\n"
-        f"    CLASS(*), TARGET :: type_selector\n"
-        f"    character(len=256) :: type_string\n").lower()
+        f"    CLASS(*), TARGET :: type_selector\n").lower()
     expected2 = (
         "    type_string = ''\n"
         "    SELECT TYPE(type_selector)\n"
@@ -578,11 +580,11 @@ def test_character_assumed_len(fortran_reader, fortran_writer, tmpdir,
         f"end module\n")
     expected1 = (
         f"  subroutine select_type(type_selector)\n"
-        f"    CHARACTER{char_type_out}, POINTER :: character_type => null()\n"
+        f"    character(len=256) :: type_string\n"
         f"    CHARACTER(LEN=256), pointer :: ptr_CHARACTER_star => "
         f"null()\n"
-        f"    CLASS(*), TARGET :: type_selector\n"
-        f"    character(len=256) :: type_string\n").lower()
+        f"    CHARACTER{char_type_out}, POINTER :: character_type => null()\n"
+        f"    CLASS(*), TARGET :: type_selector\n").lower()
     expected2 = (
         "    type_string = ''\n"
         "    SELECT TYPE(type_selector)\n"
@@ -635,29 +637,35 @@ def test_character_kind(
         f"    end select\n"
         f"  end subroutine select_type\n"
         f"end module select_mod\n")
+    declarations = (
+        "module select_mod\n"
+        "  implicit none\n"
+        "  public\n\n"
+        "  contains\n"
+        "  subroutine select_type(type_selector, character_type)\n")
+    # The precise ordering of these declarations depends on the 'char_type_out'
+    # so we sort them ourselves.
+    lines = [
+        "    character(len=256) :: type_string\n",
+        f"    character{char_type_out}{pointer} :: character_type\n",
+        "    character(len=256), pointer :: ptr_character_star => null()\n",
+        "    class(*), target :: type_selector\n"]
+    declarations += "".join(sorted(lines))
     expected = (
-        f"module select_mod\n"
-        f"  implicit none\n"
-        f"  public\n\n"
-        f"  contains\n"
-        f"  subroutine select_type(type_selector, character_type)\n"
-        f"    character{char_type_out}{pointer} :: character_type\n"
-        f"    character(len=256), pointer :: ptr_character_star => null()\n"
-        f"    class(*), target :: type_selector\n"
-        f"    character(len=256) :: type_string\n\n"
-        f"    type_string = ''\n"
-        f"    select type(type_selector)\n"
-        f"      type is (character(len = *))\n"
-        f"      type_string = \"character_star\"\n"
-        f"      ptr_character_star => type_selector\n"
-        f"    end select\n"
-        f"    if (type_string == 'character_star') then\n"
-        f"      character_type = ptr_character_star\n"
-        f"    end if\n\n"
-        f"  end subroutine select_type\n\n"
-        f"end module select_mod\n").lower()
+        "    type_string = ''\n"
+        "    select type(type_selector)\n"
+        "      type is (character(len = *))\n"
+        "      type_string = \"character_star\"\n"
+        "      ptr_character_star => type_selector\n"
+        "    end select\n"
+        "    if (type_string == 'character_star') then\n"
+        "      character_type = ptr_character_star\n"
+        "    end if\n\n"
+        "  end subroutine select_type\n\n"
+        "end module select_mod\n").lower()
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir).lower()
+    assert declarations.lower() in result
     assert expected in result
     assert Compile(tmpdir).string_compiles(result)
 
@@ -693,9 +701,9 @@ def test_class_target(
         f"  contains\n"
         f"  subroutine select_type(type_selector, character_type)\n"
         f"    CHARACTER(LEN=*) :: character_type\n"
+        f"    character(len=256) :: type_string\n"
         f"    CHARACTER(LEN=256), pointer :: ptr_CHARACTER_star => null()\n"
-        f"    CLASS(*), {post_attribute} :: type_selector\n"
-        f"    character(len=256) :: type_string\n\n"
+        f"    CLASS(*), {post_attribute} :: type_selector\n\n"
         f"    type_string = ''\n"
         f"    SELECT TYPE(type_selector)\n"
         f"      TYPE IS (CHARACTER(LEN = *))\n"
