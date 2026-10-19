@@ -43,17 +43,13 @@ class Symbol(CommentableMixin):
     to those nodes that are descendants of the Node to which its containing
     Symbol Table belongs.
 
-    :param str name: name of the symbol.
+    :param name: name of the symbol.
     :param visibility: the visibility of the symbol.
-    :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
-    :param interface: optional object describing the interface to this \
-        symbol (i.e. whether it is passed as a routine argument or \
-        accessed in some other way). Defaults to \
+    :param interface: optional object describing the interface to this
+        symbol (i.e. whether it is passed as a routine argument or
+        accessed in some other way). Defaults to
         :py:class:`psyclone.psyir.symbols.AutomaticInterface`
-    :type interface: Optional[ \
-        :py:class:`psyclone.psyir.symbols.symbol.SymbolInterface`]
     :param directive: optional symbol-associated PSyIR directive.
-    :type directive: Optional[:py:class:`psyclone.psyir.nodes.SymbolDirective`]
 
     :raises TypeError: if the name is not a str.
 
@@ -76,8 +72,10 @@ class Symbol(CommentableMixin):
     # given an explicit visibility.
     DEFAULT_VISIBILITY = Visibility.PUBLIC
 
-    def __init__(self, name, visibility=DEFAULT_VISIBILITY, interface=None,
-                 directive=None):
+    def __init__(self, name: str,
+                 visibility: Visibility = DEFAULT_VISIBILITY,
+                 interface: Optional[SymbolInterface] = None,
+                 directive: Optional[SymbolDirective] = None):
 
         if not isinstance(name, str):
             raise TypeError(
@@ -89,7 +87,7 @@ class Symbol(CommentableMixin):
         # The following attributes have a setter method (with error checking)
         self._visibility = None
         self._interface = None
-        self._directive = None
+        self._directive: Optional[SymbolDirective] = None
 
         self._process_arguments(visibility=visibility, interface=interface,
                                 directive=directive)
@@ -333,14 +331,14 @@ class Symbol(CommentableMixin):
         self._interface = value
 
     @property
-    def directive(self) -> Optional["SymbolDirective"]:
+    def directive(self) -> Optional[SymbolDirective]:
         '''
         :returns: the symbol-associated directive, if any.
         '''
         return self._directive
 
     @directive.setter
-    def directive(self, directive: Optional["SymbolDirective"] = None):
+    def directive(self, directive: Optional[SymbolDirective] = None):
         '''
         Setter for the directive associated with this Symbol.
 
@@ -476,6 +474,8 @@ class Symbol(CommentableMixin):
         except SymbolError:
             # Failed to find any enclosing symbol table
             return None
+
+        return None
 
     def __str__(self):
         return f"{self.name}: Symbol<{self.interface}>"
