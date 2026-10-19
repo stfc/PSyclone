@@ -73,7 +73,7 @@ class Symbol(CommentableMixin):
     DEFAULT_VISIBILITY = Visibility.PUBLIC
 
     def __init__(self, name: str,
-                 visibility: Visibility = DEFAULT_VISIBILITY,
+                 visibility: Symbol.Visibility = DEFAULT_VISIBILITY,
                  interface: Optional[SymbolInterface] = None,
                  directive: Optional[SymbolDirective] = None):
 
