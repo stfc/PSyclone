@@ -6,7 +6,7 @@
 ! -----------------------------------------------------------------------------
 
 module kern_use_var_mod
-  use argument_mod
+  use argument_mod, only: go_wp
   use kernel_mod
   use kind_params_mod
   use grid_mod
