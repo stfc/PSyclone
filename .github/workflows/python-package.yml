@@ -62,7 +62,7 @@ jobs:
     env:
       GITHUB_PR_NUMBER: ${{ github.event.number }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
           # This is required to get the commit history for merge commits for
@@ -74,9 +74,9 @@ jobs:
           # This setting causes the tests to 'fail' if [skip ci] is specified
           fail-fast: true
           commit-filter: '[skip ci]'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
-          python-version: '3.14'
+          python-version: '3.15'
       - run: sudo apt-get install -y graphviz doxygen
       - run: python -m pip install --upgrade pip
       - run: |
@@ -93,9 +93,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.9', '3.14']
+        python-version: ['3.9', '3.15']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
           # This is required to get the commit history for merge commits for
@@ -108,7 +108,7 @@ jobs:
           fail-fast: true
           commit-filter: '[skip ci]'
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies

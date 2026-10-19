@@ -11,7 +11,7 @@
 ! (because we have to allow for the any_space space being continuous).
 module testkern_write_any_anyd_mod
 
-  use constants_mod
+  use constants_mod, only: i_def, r_def
   use argument_mod
   use fs_continuity_mod
   use kernel_mod
