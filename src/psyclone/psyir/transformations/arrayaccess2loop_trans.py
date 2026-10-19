@@ -120,6 +120,8 @@ class ArrayAccess2LoopTrans(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         '''
+
+        super().validate(node, options=options, **kwargs)
         # TODO #2668: Deprecate options dict
         if not options:
             self.validate_options(**kwargs)
