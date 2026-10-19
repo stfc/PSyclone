@@ -22,7 +22,7 @@ from psyclone.psyir.nodes import (
     ArrayConstructor, BinaryOperation, Call, Container, CodeBlock,
     ComplexLiteral, DataNode, IntrinsicCall, Literal, Member, Node,
     OMPDependClause, OMPReductionClause, Operation, Range, Routine, Schedule,
-    UnaryOperation, UnknownDirective, IfBlock)
+    UnaryOperation, UnknownDirective, IfBlock, SelectType, TypeIs)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataType,
     DataTypeSymbol, GenericInterfaceSymbol, IntrinsicSymbol,
@@ -2021,4 +2021,34 @@ class FortranWriter(LanguageWriter):
         result = ""
         for child in node.children:
             result += self._visit(child)
+        return result
+
+    def selecttype_node(self, node: SelectType) -> str:
+        '''
+        Translate the SelectType node into Fortran.
+
+        :param node: the SelectType node to translate.
+
+        :returns: the equivalent Fortran code.
+        '''
+        result = (f"{self._nindent}select type"
+                  f"({self._visit(node.children[0])})\n")
+        self._depth += 1
+        for node in node.children[1:]:
+            result = result + self._visit(node)
+        self._depth -= 1
+        return result
+
+    def typeis_node(self, node: TypeIs) -> str:
+        '''
+        Translate the TypeIs node into Fortran.
+
+        :parm node: the TypeIs node to translate.
+
+        :returns: the equivalent Fortran code.
+        '''
+        result = f"{self._nindent}type is ({self._visit(node.children[0])})\n"
+        self._depth += 1
+        result += self._visit(node.children[1])
+        self._depth -= 1
         return result

@@ -78,6 +78,8 @@ from psyclone.psyir.nodes.omp_clauses import (
     OMPFirstprivateClause, OMPSharedClause, OMPDependClause)
 from psyclone.psyir.nodes.omp_task_directive import OMPTaskDirective
 from psyclone.psyir.nodes.while_loop import WhileLoop
+from psyclone.psyir.nodes.select_type import SelectType
+from psyclone.psyir.nodes.type_is import TypeIs
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g. 'from psyclone.psyir.nodes import Literal'
