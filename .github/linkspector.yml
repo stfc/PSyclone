@@ -8,7 +8,7 @@ ignorePatterns:
   - pattern: '^https://codecov.io/gh/stfc/PSyclone'
   - pattern: '^https://code.metoffice.gov.uk/svn'
   - pattern: '^https://code.metoffice.gov.uk/trac'
-  - pattern: '^https://https://github.com/stfc/psyclone-mirror'
+  - pattern: '^https://github.com/stfc/PSyclone-mirror'
 replacementPatterns:
   - pattern: '^https:\/\/(psyclone.*\.readthedocs\.io\/en)\/stable$'
     replacement: 'https://$1/latest'
