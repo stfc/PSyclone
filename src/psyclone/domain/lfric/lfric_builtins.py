@@ -458,7 +458,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         return self._fs_descriptors
 
     @property
-    def reduction_type(self) -> ReductionType:
+    def reduction_type(self) -> LFRicBuiltIn.ReductionType:
         '''
         :returns: the type of reduction operation performed by this Built-in.
         '''

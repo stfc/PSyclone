@@ -8,26 +8,28 @@
 The GOcean kernel metadata is stored with the following immutable nested
 dataclasses:
 
-GOceanKernelMetadata:
-    iterates_over: str
-    index_offset: str
-    meta_args: tuple[Union[
-        GOceanFieldArgMetadata:
-            access: str
-            grid_point_type: str
-            stencil: GOceanStencilMetadata
-                rows: Optional[tuple[str, str, str]]
-                pointwise_name: ClassVar[str]
-        GOceanScalarArgMetadata:
-            access: str
-            datatype: str
-            form: str = "go_pointwise"
-        GOceanGridPropertyArgMetadata:
-            access: str
-            name: str
-    ]]
-    procedure_name: str
-    name: str
+.. code-block:: text
+
+    GOceanKernelMetadata:
+        iterates_over: str
+        index_offset: str
+        meta_args: tuple[Union[
+            GOceanFieldArgMetadata:
+                access: str
+                grid_point_type: str
+                stencil: GOceanStencilMetadata
+                    rows: Optional[tuple[str, str, str]]
+                    pointwise_name: ClassVar[str]
+            GOceanScalarArgMetadata:
+                access: str
+                datatype: str
+                form: str = "go_pointwise"
+            GOceanGridPropertyArgMetadata:
+                access: str
+                name: str
+        ]]
+        procedure_name: str
+        name: str
 
 """
 

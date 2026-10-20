@@ -2324,8 +2324,8 @@ class KernelArgument(Argument):
 
     @property
     def stencil(self) -> Optional[Union[str, GOceanStencilMetadata]]:
-        """:returns: the stencil metadata, or None if the argument has no
-        stencil.
+        """
+        :returns: the stencil metadata, or None if the argument has no stencil.
         """
         return getattr(self._arg, "stencil", None)
 
