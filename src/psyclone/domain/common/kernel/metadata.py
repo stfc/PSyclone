@@ -57,7 +57,9 @@ class KernelMetadata(ABC):
         :param psyir: the complete kernel PSyIR tree.
         :param name: optional metadata type name; API naming rules apply if
             omitted.
+
         :returns: the containing module and selected metadata symbol.
+
         :raises ParseError: if the required metadata declaration cannot be
             identified.
         """
@@ -70,7 +72,9 @@ class KernelMetadata(ABC):
         """Return the resolved procedure name and tuple of implementations.
 
         :param container: the module containing the kernel implementation.
+
         :returns: the resolved procedure name and implementing routines.
+
         :raises ParseError: if the implementation cannot be resolved.
         """
 
@@ -101,10 +105,13 @@ class KernelMetadata(ABC):
 
     @staticmethod
     def _validate_and_get_value(node: Node) -> str:
-        """Return a lower-case name represented by a PSyIR metadata node.
+        """Return a lower-case symbol name or literal value represented by a
+        PSyIR metadata node.
 
         :param node: a metadata reference or literal.
+
         :returns: the lower-case metadata name or literal value.
+
         :raises ParseError: if the node is neither a reference nor a literal.
         """
         if isinstance(node, Reference):
@@ -125,10 +132,11 @@ class KernelMetadata(ABC):
 
         :param component: the metadata array component.
         :param component_name: the component name to use in diagnostics.
+
         :returns: the values from the component's initialisation expression.
+
         :raises ParseError: if the array is not rank one with literal integer
-            bounds,
-            or its extent does not match the number of initial values.
+            bounds, or its extent does not match the number of initial values.
         """
         component_type = component.datatype
         if (not isinstance(component_type, ArrayType) or
@@ -138,7 +146,8 @@ class KernelMetadata(ABC):
                 not isinstance(component_type.shape[0].lower, Literal) or
                 not isinstance(component_type.shape[0].upper, Literal)):
             raise ParseError(
-                f"Metadata component '{component_name}' must be an array."
+                f"Metadata component '{component_name}' must be a "
+                f"rank-one array with known bounds."
             )
         bounds = component_type.shape[0]
         try:
@@ -169,7 +178,9 @@ class KernelMetadata(ABC):
 
         :param psyir: the PSyIR tree to search.
         :param name: optional metadata type name to match, ignoring case.
+
         :returns: matching module and metadata-symbol pairs in traversal order.
+
         :raises TypeError: if psyir is not a PSyIR node.
         """
         if not isinstance(psyir, Node):
@@ -205,7 +216,9 @@ class KernelMetadata(ABC):
             declaration.
         :param api_name: the API name to use in diagnostics.
         :param name: optional metadata type name to select from a tree.
+
         :returns: the supplied symbol or the unique matching metadata symbol.
+
         :raises ParseError: if a tree contains zero or multiple matching
             declarations.
         """
@@ -230,7 +243,9 @@ class KernelMetadata(ABC):
 
         :param symbol: the metadata type symbol to validate.
         :param api_name: the API name to use in diagnostics.
+
         :returns: the structure datatype of the metadata declaration.
+
         :raises TypeError: if symbol is not a DataTypeSymbol with a
             StructureType.
         :raises ParseError: if the declared type does not extend kernel_type.
@@ -263,7 +278,9 @@ def normalise(
     :param value: the metadata string to normalise.
     :param description: the name of the metadata property for diagnostics.
     :param valid_values: optional collection of permitted lower-case values.
+
     :returns: the validated lower-case string.
+
     :raises TypeError: if value is not a string.
     :raises ValueError: if the normalised value is not permitted.
     """

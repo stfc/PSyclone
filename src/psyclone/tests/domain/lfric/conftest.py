@@ -30,7 +30,7 @@ def lfrickern_fixture():
     mdata_code = '''
 module testkern_field_mod
   type, extends(kernel_type) :: testkern_field_type
-     type(arg_type), meta_args(8) =                                     &
+     type(arg_type) :: meta_args(8) =                                   &
           (/ arg_type(gh_scalar,       gh_real,    gh_read),            &
              arg_type(gh_field,        gh_real,    gh_readinc, w0),     &
              arg_type(gh_field,        gh_real,    gh_inc,     w1),     &

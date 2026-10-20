@@ -330,7 +330,7 @@ def test_parse_meta_arg_variants():
       integer :: index_offset = go_offset_sw
       contains
       procedure, nopass :: code => bad_code
-      end type bad""", "must be an array"),
+      end type bad""", "must be a rank-one array with known bounds."),
     ("type, extends(kernel_type) :: bad\n"
      "type(go_arg), dimension(2) :: meta_args = "
      "(/go_arg(go_read, go_cu, go_pointwise)/)\n"
