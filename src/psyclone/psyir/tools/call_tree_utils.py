@@ -533,6 +533,8 @@ class CallTreeUtils():
     # ------------------------------------------------------------------------
     def write_call_tree_info(self, psyir: Node, filename: str | Path) -> None:
         '''Write call-tree information for all routines in a PSyIR tree.
+        If there is no call tree information, no file is written, and if
+        an existing file is present (i.e. a stale one), it will be removed.
 
         The output maps each external module to the routines called and the
         symbols read or written by the PSyIR tree.
@@ -564,6 +566,11 @@ class CallTreeUtils():
             for module_name, module_info in modules_used.items()
             if module_name
         }
+        if not any(module_info["routines"] or module_info["symbols"]
+                   for module_info in output.values()):
+            Path(filename).unlink(missing_ok=True)
+            return
+
         with Path(filename).open("w", encoding="utf-8") as yaml_file:
             yaml.safe_dump(output, yaml_file, default_flow_style=False,
                            sort_keys=True)

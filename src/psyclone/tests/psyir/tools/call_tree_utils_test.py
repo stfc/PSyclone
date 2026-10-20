@@ -735,8 +735,27 @@ def test_call_tree_utils_write_call_tree_info_from_generator(tmp_path):
             "routines": ["module_function", "module_subroutine"],
             "symbols": ["const_size_array", "module_var_a", "module_var_b"]},
         "testkern_import_symbols_mod": {
-            "routines": ["local_func", "local_subroutine", "testkern_import_symbols_code"],
+            "routines": ["local_func", "local_subroutine",
+                         "testkern_import_symbols_code"],
             "symbols": ["dummy_module_variable"]},
         "testkern_import_symbols_name_clash_mod": {
             "routines": ["testkern_import_symbols_name_clash_code"],
             "symbols": []}}
+
+
+# -----------------------------------------------------------------------------
+def test_call_tree_utils_write_call_tree_info_no_output(tmp_path):
+    '''Test that no file is written when the PSyIR contains no output info
+    and that a pre-existing file is removed in that case.
+    '''
+    yaml_file = tmp_path / "call_tree.yaml"
+    call_tree_utils = CallTreeUtils()
+    psyir = Schedule()
+
+    call_tree_utils.write_call_tree_info(psyir, yaml_file)
+    assert not yaml_file.exists()
+
+    yaml_file.write_text("stale output", encoding="utf-8")
+    assert yaml_file.exists()
+    call_tree_utils.write_call_tree_info(psyir, yaml_file)
+    assert not yaml_file.exists()
