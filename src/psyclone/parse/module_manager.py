@@ -18,6 +18,7 @@ import os
 import re
 
 from psyclone.errors import InternalError
+from psyclone.parse.utils import ParseError
 from psyclone.parse.file_info import FileInfo
 from psyclone.parse.module_info import ModuleInfo, ModuleInfoError
 from psyclone.psyir.nodes import Container, Node, Routine
@@ -53,6 +54,66 @@ class ModuleManager:
             ModuleManager._instance = ModuleManager()
 
         return ModuleManager._instance
+
+    @staticmethod
+    def find_kernel_file(module_name, kernel_paths, alg_filename=None):
+        """Locate a kernel source file by its module-based filename.
+
+        This independent lookup does not inspect module declarations or use
+        or update the manager's caches, search paths or ignore settings.
+
+        Search paths are recursive. If no paths are supplied then only the
+        directory containing the algorithm file is searched.
+
+        :param str module_name: name of the kernel module.
+        :param kernel_paths: directories in which to search.
+        :type kernel_paths: Iterable[str]
+        :param Optional[str] alg_filename: associated algorithm filename.
+
+        :returns: absolute path of the unique matching file.
+        :rtype: str
+
+        :raises ParseError: if a path is unreadable or the match is not unique.
+        """
+        search_name = f"{module_name}.f90".lower()
+        matches = set()
+        search_directory = (
+            os.path.abspath(os.path.dirname(alg_filename))
+            if alg_filename else os.getcwd()
+        )
+
+        for kernel_path in kernel_paths:
+            search_directory = os.path.abspath(kernel_path)
+            if not os.access(search_directory, os.R_OK):
+                raise ParseError(
+                    "Supplied kernel search path does not exist or cannot be "
+                    f"read: {search_directory}"
+                )
+            for root, _, filenames in os.walk(search_directory):
+                matches.update(
+                    os.path.join(root, filename)
+                    for filename in filenames
+                    if filename.lower() == search_name
+                )
+
+        if not kernel_paths:
+            matches.update(
+                os.path.join(search_directory, filename)
+                for filename in os.listdir(search_directory)
+                if filename.lower() == search_name
+            )
+
+        if not matches:
+            raise ParseError(
+                f"Kernel file '{module_name}.[fF]90' not found in "
+                f"{search_directory}"
+            )
+        if len(matches) > 1:
+            raise ParseError(
+                "More than one match for kernel file "
+                f"'{module_name}.[fF]90' found: {matches}"
+            )
+        return matches.pop()
 
     # ------------------------------------------------------------------------
     def __init__(self):

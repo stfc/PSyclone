@@ -10,11 +10,12 @@
 import os
 import pytest
 
-from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.domain.lfric import KernCallInvokeArgList, LFRicKern
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
 from psyclone.errors import InternalError
+from psyclone.parse.utils import ParseError
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, UnresolvedType, DataTypeSymbol,
@@ -52,6 +53,18 @@ def create_prog_fixture() -> Routine:
                                  datatype=UnresolvedType(),
                                  interface=ImportInterface(fsc_mod))
     return prog
+
+
+@pytest.mark.parametrize("source", [
+    "subroutine test_code()\nend subroutine",
+    "module one_mod\nend module\nmodule two_mod\nend module",
+], ids=["no-module", "multiple-modules"])
+def test_create_from_kernel_module_count(tmp_path, source):
+    """Algorithm generation requires exactly one kernel module."""
+    kernel = tmp_path / "kernel.f90"
+    kernel.write_text(source, encoding="utf-8")
+    with pytest.raises(ParseError, match="must contain exactly one module"):
+        LFRicAlg().create_from_kernel("test_alg", str(kernel))
 
 
 def test_create_alg_routine_wrong_arg_type():
@@ -236,12 +249,12 @@ def test_kernel_from_metadata():
     Tests for the kernel_from_metadata() utility.
 
     '''
-    # Invalid parse tree should raise an error.
+    # Invalid PSyIR should raise an error.
     with pytest.raises(ValueError) as err:
         LFRicAlg().kernel_from_metadata("not fortran", "john")
-    assert ("Failed to find kernel 'john' in supplied code: 'not fortran'. "
-            "Is it a valid LFRic kernel? Original error was 'Parse Error: "
-            "Kernel type john does not exist'." in str(err.value))
+    assert ("Failed to find kernel 'john' in supplied PSyIR: 'not fortran'. "
+            in str(err.value))
+    assert "Is it a valid LFRic kernel?" in str(err.value)
     code = '''\
 module testkern_mod
 
@@ -268,15 +281,15 @@ contains
   end subroutine testkern_code
 end module testkern_mod
 '''
-    # Valid parse tree but wrong name.
-    ptree = fpapi.parse(code)
+    # Valid PSyIR but wrong name.
+    psyir = FortranReader().psyir_from_source(code)
     with pytest.raises(ValueError) as err:
-        LFRicAlg().kernel_from_metadata(ptree, "john")
-    assert "Failed to find kernel 'john' in supplied code: '" in str(err.value)
-    assert ("Is it a valid LFRic kernel? Original error was 'Parse Error: "
-            "Kernel type john does not exist'." in str(err.value))
-    # Valid parse tree and correct name.
-    kern = LFRicAlg().kernel_from_metadata(ptree, "testkern_type")
+        LFRicAlg().kernel_from_metadata(psyir, "john")
+    assert ("Failed to find kernel 'john' in supplied PSyIR: '"
+            in str(err.value))
+    assert "Is it a valid LFRic kernel?" in str(err.value)
+    # Valid PSyIR and correct name.
+    kern = LFRicAlg().kernel_from_metadata(psyir, "testkern_type")
     assert isinstance(kern, LFRicKern)
 
 

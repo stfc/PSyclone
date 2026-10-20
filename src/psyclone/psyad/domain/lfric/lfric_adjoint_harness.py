@@ -7,8 +7,9 @@
 
 ''' Provides LFRic-specific PSyclone adjoint test-harness functionality. '''
 
-from typing import Optional
-from fparser import api as fpapi
+from __future__ import annotations
+
+from typing import Optional, TYPE_CHECKING
 
 from psyclone.core import AccessType
 from psyclone.domain.lfric import (
@@ -16,7 +17,6 @@ from psyclone.domain.lfric import (
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
-from psyclone.domain.lfric.kernel import LFRicKernelMetadata
 from psyclone.domain.lfric.transformations import RaisePSyIR2LFRicKernTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad.domain.common.adjoint_utils import (
@@ -32,6 +32,11 @@ from psyclone.psyir.symbols import (
 #: The tolerance applied to the comparison of the inner product values in
 #: the generated test-harness code.
 #: TODO #1346 this tolerance should be user configurable.
+
+if TYPE_CHECKING:
+    from psyclone.domain.lfric import LFRicKern
+
+
 INNER_PRODUCT_TOLERANCE = 1500.0
 
 
@@ -357,7 +362,13 @@ def _init_scalar_value(scalar_arg, routine, input_symbols):
                                            Reference(scalar_arg)))
 
 
-def _validate_geom_arg(kern, arg_idx, name, valid_spaces, vec_len):
+def _validate_geom_arg(
+        kern: LFRicKern,
+        arg_idx: int,
+        name: str,
+        valid_spaces: list[str],
+        vec_len: int,
+) -> None:
     '''
     Check that the argument at the supplied index is consistent with the
     properties of the field that it is supposed to represent.
@@ -374,7 +385,7 @@ def _validate_geom_arg(kern, arg_idx, name, valid_spaces, vec_len):
     :raises ValueError: if any of the properties of the specified kernel \
                         argument are inconsistent with the supplied values.
     '''
-    num_metadata_args = len(kern.arg_descriptors)
+    num_metadata_args = len(kern.arg_metadata)
     if arg_idx < 1 or arg_idx > num_metadata_args:
         raise ValueError(
             f"The supplied LFRic TL kernel '{kern.name}' has "
@@ -383,30 +394,31 @@ def _validate_geom_arg(kern, arg_idx, name, valid_spaces, vec_len):
             f"'{name}' field must be between 1 and {num_metadata_args} "
             f"(inclusive) but got {arg_idx}.")
     # Check that the specified argument is of the correct type.
-    descriptor = kern.arg_descriptors[arg_idx-1]
-    if descriptor.argument_type != 'gh_field':
+    descriptor = kern.arg_metadata[arg_idx-1]
+    if descriptor.form != 'gh_field':
         raise ValueError(
             f"The '{name}' argument is expected to be a field but argument "
             f"{arg_idx} to kernel '{kern.name}' is a "
-            f"'{descriptor.argument_type}'")
+            f"'{descriptor.form}'")
     if descriptor.function_space not in valid_spaces:
         raise ValueError(
             f"The '{name}' field argument to kernel '{kern.name}' is expected "
             f"to be on one of the {valid_spaces} spaces but the argument at "
             f"the specified position ({arg_idx}) is on the "
             f"'{descriptor.function_space}' space.")
-    if descriptor.vector_size != vec_len:
+    vector_length = int(getattr(descriptor, "vector_length", 1))
+    if vector_length != vec_len:
         if vec_len > 1:
             raise ValueError(
                 f"The '{name}' field argument to kernel '{kern.name}' is "
                 f"expected to be a field vector of length {vec_len} but the "
                 f"argument at the specified position ({arg_idx}) has a length "
-                f"of {descriptor.vector_size}.")
+                f"of {vector_length}.")
         raise ValueError(
             f"The '{name}' field argument to kernel '{kern.name}' is expected "
             f"to be a field but the argument at the specified position "
             f"({arg_idx}) is a field vector of length "
-            f"{descriptor.vector_size}.")
+            f"{vector_length}.")
 
 
 def _lfric_create_real_comparison(sym_table, kernel, var1, var2):
@@ -499,8 +511,7 @@ def generate_lfric_adjoint_harness(
     panel_id_arg_idx: Optional[int] = None,
     test_name: str = "adjoint_test"
 ) -> Container:
-    '''
-    Constructs and returns the PSyIR for a Container and Routine that
+    """Constructs and returns the PSyIR for a Container and Routine that
     implements a test harness for the adjoint of the supplied tangent-linear
     kernel. The base name to use for the Container and Routine is given by
     the test_name argument.
@@ -522,7 +533,8 @@ def generate_lfric_adjoint_harness(
     :raises ValueError: if the name of the Container (module) in the supplied
         PSyIR does not follow the LFRic naming convention of ending in '_mod'.
 
-    '''
+    :raises GenerationError: if the tangent-linear kernel writes an operator.
+    """
     # pylint: disable=too-many-statements, too-many-locals, too-many-branches
     tl_container = find_container(tl_psyir)
     if not tl_container:
@@ -541,7 +553,8 @@ def generate_lfric_adjoint_harness(
     tl_subroutine_table = tl_subroutine.symbol_table
     tl_argument_list = tl_subroutine_table.argument_list
 
-    # Validate the module name before attempting to serialise its metadata.
+    # Get the name of the module that contains the kernel and create a
+    # ContainerSymbol for it.
     kernel_mod_name = tl_container.name.lower()
     if not kernel_mod_name.endswith("_mod"):
         raise ValueError(
@@ -549,29 +562,12 @@ def generate_lfric_adjoint_harness(
             f"'{kernel_mod_name}'. This does not end in '_mod' and as such "
             f"does not comply with the LFRic naming convention.")
 
-    # Assume the LFRic naming convention is followed in order to infer the
-    # name of the TL kernel.
-    kernel_name = kernel_mod_name.replace("_mod", "_type")
-
-    # Parse the kernel metadata. This still uses fparser1 as that's what
-    # the metadata handling is currently based upon. Serialise only the
-    # metadata and a placeholder implementation because unresolved metadata
-    # names are now visible in the language-level PSyIR.
-    # TODO #2151 - replace this with the new PSyIR-based metadata handling.
-    metadata_symbol = tl_container.symbol_table.lookup(kernel_name)
-    metadata = LFRicKernelMetadata.create_from_psyir(metadata_symbol)
-    procedure_name = metadata.procedure_name
-    tl_source = (
-        f"module {kernel_mod_name}\n"
-        f"{metadata.fortran_string()}\n"
-        "contains\n"
-        f"subroutine {procedure_name}()\n"
-        f"end subroutine {procedure_name}\n"
-        f"end module {kernel_mod_name}\n")
-    parse_tree = fpapi.parse(tl_source)
-
-    # Create a ContainerSymbol for the module containing the kernel.
     kernel_mod = table.new_symbol(kernel_mod_name, symbol_type=ContainerSymbol)
+    # Assume the LFRic naming convention is followed in order to infer the name
+    # of the TL kernel. (If this convention isn't followed in the supplied code
+    # then the call to `kernel_from_metadata` below will raise an appropriate
+    # exception.)
+    kernel_name = kernel_mod_name.replace("_mod", "_type")
 
     adj_mod = table.new_symbol(create_adjoint_name(kernel_mod_name),
                                symbol_type=ContainerSymbol)
@@ -586,9 +582,7 @@ def generate_lfric_adjoint_harness(
 
     # Construct an LFRicKern using the metadata and then use it to construct
     # the kernel argument list.
-    # TODO #2151 - once we have the new PSyIR-based metadata handling then
-    # we can pass PSyIR to this routine rather than an fparser1 parse tree.
-    kern = lfalg.kernel_from_metadata(parse_tree, kernel_name)
+    kern = lfalg.kernel_from_metadata(tl_psyir, kernel_name)
 
     # Replace generic names for fields. operators etc generated in
     # LFRicKern with the scientific names used by the tangent-linear

@@ -11,15 +11,16 @@ evaluators in the LFRic API '''
 import os
 import pytest
 import fparser
-from fparser import api as fpapi
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants, LFRicKern, LFRicKernMetadata
+from psyclone.domain.lfric import (
+    LFRicConstants, LFRicKern, LFRicKernelMetadata)
 from psyclone.lfric import LFRicBasisFunctions
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError, InternalError
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import create_lfric_metadata
 
 
 # constants
@@ -58,50 +59,53 @@ def setup():
     Config.get().api = "lfric"
 
 
-def test_eval_mdata():
+def test_eval_mdata(fortran_reader):
     ''' Check that we recognise "evaluator" as a valid gh_shape '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    ast = fpapi.parse(CODE, ignore_comments=False)
-    dkm = LFRicKernMetadata(ast, name="testkern_eval_type")
-    assert dkm.get_integer_variable('gh_shape') == 'gh_evaluator'
+    psyir = fortran_reader.psyir_from_source(CODE)
+    dkm = create_lfric_metadata(psyir, name="testkern_eval_type")
+    assert dkm.shapes == ("gh_evaluator",)
 
 
-def test_multi_updated_arg():
+def test_multi_updated_arg(fortran_reader):
     ''' Check that we handle any kernel requiring an evaluator
     if it writes to more than one argument. (This used to be rejected.) '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Change the access of the read-only argument
     code = CODE.replace("GH_READ", "GH_INC", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    dkm = LFRicKernMetadata(ast, name="testkern_eval_type")
+    psyir = fortran_reader.psyir_from_source(code)
+    dkm = create_lfric_metadata(psyir, name="testkern_eval_type")
     # Evaluator targets list remains unchanged
-    assert dkm._eval_targets == ['w0', 'w1']
+    assert dkm.eval_targets == ("w0", "w1")
     # Change the gh_shape element to specify quadrature and then test again
-    qr_code = code.replace("gh_evaluator", "gh_quadrature_xyoz")
-    ast = fpapi.parse(qr_code, ignore_comments=False)
-    dkm = LFRicKernMetadata(ast, name="testkern_eval_type")
-    assert dkm.get_integer_variable('gh_shape') == "gh_quadrature_xyoz"
+    qr_code = code.replace(
+        "    integer :: gh_evaluator_targets(2) = [W0, W1]\n", "")
+    qr_code = qr_code.replace(
+        "integer :: gh_shape = gh_evaluator",
+        "integer :: gh_shape = gh_quadrature_xyoz")
+    psyir = fortran_reader.psyir_from_source(qr_code)
+    dkm = create_lfric_metadata(psyir, name="testkern_eval_type")
+    assert dkm.shapes == ("gh_quadrature_xyoz",)
 
 
-def test_eval_targets():
+def test_eval_targets(fortran_reader):
     ''' Check that we can specify multiple evaluator targets using
     the 'gh_evaluator_targets' metadata entry. '''
-    ast = fpapi.parse(CODE, ignore_comments=False)
-    dkm = LFRicKernMetadata(ast, name="testkern_eval_type")
-    assert dkm._eval_targets == ["w0", "w1"]
+    psyir = fortran_reader.psyir_from_source(CODE)
+    dkm = create_lfric_metadata(psyir, name="testkern_eval_type")
+    assert dkm.eval_targets == ("w0", "w1")
 
 
-def test_eval_targets_err():
+def test_eval_targets_err(fortran_reader):
     ''' Check that needlessly specifying 'gh_evaluator_targets' raises the
     expected errors. '''
     # When the shape is gh_quadrature_* instead of gh_evaluator
     code = CODE.replace("gh_evaluator\n", "gh_quadrature_xyoz\n")
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(ParseError) as err:
-        _ = LFRicKernMetadata(ast, name="testkern_eval_type")
-    assert ("specifies 'gh_evaluator_targets' (['w0', 'w1']) but does not "
-            "need an evaluator because gh_shape=['gh_quadrature_xyoz']"
-            in str(err.value))
+        _ = create_lfric_metadata(psyir, name="testkern_eval_type")
+    assert "gh_evaluator_targets requires gh_shape=gh_evaluator" in str(
+        err.value)
     # When there are no basis/diff-basis functions required
     code = CODE.replace(
         "    type(func_type) :: meta_funcs(2) = (/          &\n"
@@ -110,26 +114,25 @@ def test_eval_targets_err():
         "         /)\n", "")
     code = code.replace("    integer :: gh_shape = gh_evaluator\n",
                         "")
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(ParseError) as err:
-        _ = LFRicKernMetadata(ast, name="testkern_eval_type")
-    assert ("specifies 'gh_evaluator_targets' (['w0', 'w1']) but does not "
-            "need an evaluator because no basis or differential basis "
-            "functions are required" in str(err.value))
+        _ = create_lfric_metadata(psyir, name="testkern_eval_type")
+    assert "gh_evaluator_targets requires gh_shape=gh_evaluator" in str(
+        err.value)
 
 
-def test_eval_targets_wrong_space():
+def test_eval_targets_wrong_space(fortran_reader):
     ''' Check that we reject metadata where there is no argument for one of
     the function spaces listed in gh_evaluator_targets. '''
     code = CODE.replace("[W0, W1]", "[W0, W3]")
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(ParseError) as err:
-        _ = LFRicKernMetadata(ast, name="testkern_eval_type")
-    assert ("specifies that an evaluator is required on 'w3' but does not "
-            "have an argument on this space" in str(err.value))
+        _ = create_lfric_metadata(psyir, name="testkern_eval_type")
+    assert "Evaluator targets are not present in meta_args: ['w3']" in str(
+        err.value)
 
 
-def test_eval_targets_op_space():
+def test_eval_targets_op_space(fortran_reader):
     ''' Check that listing a space associated with an operator in
     gh_evaluator_targets works OK. '''
     opstring = "    arg_type(GH_OPERATOR, GH_REAL, GH_READ, W2, W1), &"
@@ -137,16 +140,16 @@ def test_eval_targets_op_space():
     code.insert(5, opstring)
     code = "\n".join(code).replace("meta_args(2)", "meta_args(3)")
     code = code.replace("[W0, W1]", "[W0, W3]")
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(ParseError) as err:
-        _ = LFRicKernMetadata(ast, name="testkern_eval_type")
-    assert ("specifies that an evaluator is required on 'w3' but does not "
-            "have an argument on this space" in str(err.value))
+        _ = create_lfric_metadata(psyir, name="testkern_eval_type")
+    assert "Evaluator targets are not present in meta_args: ['w3']" in str(
+        err.value)
     # Change to a space that is referenced by an operator
     code = code.replace("[W0, W3]", "[W0, W2]")
-    ast = fpapi.parse(code, ignore_comments=False)
-    dkm = LFRicKernMetadata(ast, name="testkern_eval_type")
-    assert isinstance(dkm, LFRicKernMetadata)
+    psyir = fortran_reader.psyir_from_source(code)
+    dkm = create_lfric_metadata(psyir, name="testkern_eval_type")
+    assert isinstance(dkm, LFRicKernelMetadata)
 
 
 def test_single_kern_eval(tmpdir):
@@ -1412,7 +1415,7 @@ def test_eval_agglomerate(tmpdir):
 BASIS_EVAL = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(12) =                                       &
+     type(arg_type), dimension(12) :: meta_args =                         &
           (/ arg_type(gh_field,    gh_real, gh_inc,   w0),                 &
              arg_type(gh_operator, gh_real, gh_read,  w1, w1),             &
              arg_type(gh_field,    gh_real, gh_read,  w2),                 &
@@ -1426,7 +1429,7 @@ module dummy_mod
              arg_type(gh_field,    gh_real, gh_read,  w2vtrace),           &
              arg_type(gh_operator, gh_real, gh_read,  w2htrace, w2htrace)  &
            /)
-     type(func_type), meta_funcs(12) =      &
+     type(func_type), dimension(12) :: meta_funcs =      &
           (/ func_type(w0, gh_basis),       &
              func_type(w1, gh_basis),       &
              func_type(w2, gh_basis),       &
@@ -1452,13 +1455,13 @@ end module dummy_mod
 '''
 
 
-def test_basis_evaluator(fortran_writer):
+def test_basis_evaluator(fortran_writer, fortran_reader):
     ''' Check that basis functions for an evaluator are handled correctly for
     kernel stubs.
 
     '''
-    ast = fpapi.parse(BASIS_EVAL, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(BASIS_EVAL)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     code = fortran_writer(kernel.gen_stub)
@@ -1567,10 +1570,10 @@ def test_basis_evaluator(fortran_writer):
 BASIS_UNSUPPORTED_SPACE = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =                           &
+     type(arg_type), dimension(1) :: meta_args =                           &
           (/ arg_type(gh_field, gh_real, gh_inc, any_space_1) &
            /)
-     type(func_type), meta_funcs(1) =         &
+     type(func_type), dimension(1) :: meta_funcs =         &
           (/ func_type(any_space_1, gh_basis) &
            /)
      integer :: operates_on = cell_column
@@ -1585,14 +1588,14 @@ end module dummy_mod
 '''
 
 
-def test_basis_unsupported_space():
+def test_basis_unsupported_space(fortran_reader):
     ''' Test that an error is raised when a basis function is on an
     unsupported space (currently any_space_* and any_discontinuous_space_*)
     in kernel stub generation. This information will be passed from the
     PSy layer to the kernels (see issue #461). '''
     # Test any_space_*
-    ast = fpapi.parse(BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(BASIS_UNSUPPORTED_SPACE)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
@@ -1605,8 +1608,8 @@ def test_basis_unsupported_space():
     code = BASIS_UNSUPPORTED_SPACE.replace("any_space_1",
                                            "any_discontinuous_space_5")
     code = code.replace("gh_inc", "gh_readwrite")
-    ast = fpapi.parse(code, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(code)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
@@ -1619,7 +1622,7 @@ def test_basis_unsupported_space():
 DIFF_BASIS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(12) =                                 &
+     type(arg_type), dimension(12) :: meta_args =                         &
           (/ arg_type(gh_field,    gh_real, gh_inc,       w0),       &
              arg_type(gh_operator, gh_real, gh_readwrite, w1, w1),   &
              arg_type(gh_field,    gh_real, gh_read,      w2),       &
@@ -1636,7 +1639,7 @@ module dummy_mod
              arg_type(gh_operator, gh_real, gh_read,      w2vtrace,  &
                                                           w2vtrace)  &
            /)
-     type(func_type), meta_funcs(12) =           &
+     type(func_type), dimension(12) :: meta_funcs =           &
           (/ func_type(w0, gh_diff_basis),       &
              func_type(w1, gh_diff_basis),       &
              func_type(w2, gh_diff_basis),       &
@@ -1662,13 +1665,13 @@ end module dummy_mod
 '''
 
 
-def test_diff_basis(fortran_writer):
+def test_diff_basis(fortran_writer, fortran_reader):
     ''' Test that differential basis functions are handled correctly
     for kernel stubs with quadrature.
 
     '''
-    ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(DIFF_BASIS)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     code = fortran_writer(kernel.gen_stub)
@@ -1794,7 +1797,7 @@ def test_diff_basis(fortran_writer):
 DIFF_BASIS_EVAL = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(12) =                                 &
+     type(arg_type), dimension(12) :: meta_args =                         &
           (/ arg_type(gh_field,    gh_real, gh_read,      w0),       &
              arg_type(gh_operator, gh_real, gh_readwrite, w2, w1),   &
              arg_type(gh_field,    gh_real, gh_read,      w2),       &
@@ -1811,7 +1814,7 @@ module dummy_mod
              arg_type(gh_operator, gh_real, gh_read,      w2htrace,  &
                                                           w2htrace)  &
            /)
-     type(func_type), meta_funcs(12) =           &
+     type(func_type), dimension(12) :: meta_funcs =           &
           (/ func_type(w0, gh_diff_basis),       &
              func_type(w1, gh_diff_basis),       &
              func_type(w2, gh_diff_basis),       &
@@ -1837,13 +1840,13 @@ end module dummy_mod
 '''
 
 
-def test_diff_basis_eval(fortran_writer):
+def test_diff_basis_eval(fortran_writer, fortran_reader):
     ''' Test that differential basis functions are handled correctly
     for kernel stubs with an evaluator.
 
     '''
-    ast = fpapi.parse(DIFF_BASIS_EVAL, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(DIFF_BASIS_EVAL)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -1948,7 +1951,7 @@ diff_basis_w2htrace_on_w2
 """ in generated_code
 
 
-def test_2eval_stubgen(fortran_writer):
+def test_2eval_stubgen(fortran_writer, fortran_reader):
     ''' Check that we generate the correct kernel stub when an evaluator is
     required on more than one space.
 
@@ -1959,8 +1962,8 @@ def test_2eval_stubgen(fortran_writer):
         "     integer :: gh_shape = gh_evaluator\n",
         "     integer :: gh_shape = gh_evaluator\n"
         "     integer :: gh_evaluator_targets(2) = (/w2h, wtheta/)\n")
-    ast = fpapi.parse(twoeval_meta, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(twoeval_meta)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = fortran_writer(kernel.gen_stub)
@@ -2093,10 +2096,10 @@ diff_basis_w2htrace_on_wtheta
 DIFF_BASIS_UNSUPPORTED_SPACE = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =                           &
+     type(arg_type), dimension(1) :: meta_args =                           &
           (/ arg_type(gh_field, gh_real, gh_inc, any_space_1) &
            /)
-     type(func_type), meta_funcs(1) =              &
+     type(func_type), dimension(1) :: meta_funcs =              &
           (/ func_type(any_space_1, gh_diff_basis) &
            /)
      integer :: operates_on = cell_column
@@ -2111,15 +2114,15 @@ end module dummy_mod
 '''
 
 
-def test_diff_basis_unsupp_space():
+def test_diff_basis_unsupp_space(fortran_reader):
     ''' Test that an error is raised when a differential basis
     function is on an unsupported space (currently any_space_*
     and any_discontinuous_space_*) in kernel stub generation.
     This information will be passed from the PSy layer to the
     kernels (see issue #461). '''
     # Test any_space_*
-    ast = fpapi.parse(DIFF_BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(DIFF_BASIS_UNSUPPORTED_SPACE)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
@@ -2132,8 +2135,8 @@ def test_diff_basis_unsupp_space():
     code = DIFF_BASIS_UNSUPPORTED_SPACE.replace("any_space_1",
                                                 "any_discontinuous_space_5")
     code = code.replace("gh_inc", "gh_readwrite")
-    ast = fpapi.parse(code, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(code)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
@@ -2143,12 +2146,12 @@ def test_diff_basis_unsupp_space():
     assert "but found 'any_discontinuous_space_5'" in str(excinfo.value)
 
 
-def test_lfricbasisfns_unsupp_qr(monkeypatch):
+def test_lfricbasisfns_unsupp_qr(monkeypatch, fortran_reader):
     ''' Check that the expected error is raised in
     LFRicBasisFunctions.stub_declarations() if an un-supported quadrature
     shape is encountered. '''
-    ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(DIFF_BASIS)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     dbasis = LFRicBasisFunctions(kernel)
@@ -2161,11 +2164,11 @@ def test_lfricbasisfns_unsupp_qr(monkeypatch):
             "supported - got: 'unsupported-shape'" in str(err.value))
 
 
-def test_lfricbasisfns_declns(monkeypatch):
+def test_lfricbasisfns_declns(monkeypatch, fortran_reader):
     ''' Check the various internal errors that
     LFRicBasisFunctions._basis_fn_declns can raise. '''
-    ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast)
+    psyir = fortran_reader.psyir_from_source(DIFF_BASIS)
+    metadata = create_lfric_metadata(psyir)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     dbasis = LFRicBasisFunctions(kernel)

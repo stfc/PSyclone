@@ -9,6 +9,8 @@
 for a kernel subroutine.
 '''
 
+from __future__ import annotations
+
 from typing import Optional, TYPE_CHECKING
 
 from psyclone.core import VariablesAccessMap
@@ -442,7 +444,10 @@ class KernStubArgList(ArgOrdering):
         '''
         self.field_bcs_kernel(function_space, var_accesses=var_accesses)
 
-    def mesh_properties(self, var_accesses=None):
+    def mesh_properties(
+            self,
+            var_accesses: Optional[VariablesAccessMap] = None,
+    ) -> None:
         '''Provide the kernel arguments required for the mesh properties
         specified in the kernel metadata. If supplied it also stores this
         access in var_accesses.
@@ -453,7 +458,7 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessMap`
 
         '''
-        if self._kern.mesh.properties:
+        if self._kern.mesh:
             # Avoid circular import
             # pylint: disable=import-outside-toplevel
             from psyclone.lfric import LFRicMeshProperties

@@ -11,7 +11,8 @@ PSyclone kernel-layer-specific PSyIR which uses specialised classes.
 '''
 from typing import Any, Optional
 
-from psyclone.domain.gocean.kernel import GOceanKernelMetadata, GOceanContainer
+from psyclone.domain.gocean.kernel import (
+    GOceanKernelMetadata, GOceanKernelContainer)
 from psyclone.errors import PSycloneError
 from psyclone.gocean1p0 import GOSymbolTable, GOKernelSchedule
 from psyclone.psyGen import Transformation
@@ -208,7 +209,7 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
 
         # Replace container
         children = container.pop_all_children()
-        gocean_container = GOceanContainer.create(
+        gocean_container = GOceanKernelContainer.create(
             container.name, metadata, container.symbol_table.detach(),
             children)
         container.replace_with(gocean_container)

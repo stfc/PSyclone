@@ -11,6 +11,8 @@
     The LFRicBuiltInCallFactory creates the Python object required for
     a given built-in call. '''
 
+from __future__ import annotations
+
 # pylint: disable=too-many-lines
 import abc
 from enum import Enum, auto
@@ -32,15 +34,21 @@ from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.symbols import DataSymbol, Symbol, UnsupportedFortranType
 from psyclone.utils import a_or_an
 
-#: The name of the file containing the meta-data describing the
-#: built-in operations for this API
-BUILTIN_DEFINITIONS_FILE = "lfric_builtins_mod.f90"
-
-
 # Function to return the built-in operations that we support for this API.
-# The meta-data describing these kernels is in lfric_builtins_mod.f90.
+# Each built-in class supplies its metadata using its ``metadata()`` method.
 # The built-in operations F90 capitalised names are dictionary keys and need
 # to be converted to lower case for invoke-generation purpose.
+
+
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from psyclone.domain.lfric import LFRicLoop
+    from psyclone.domain.lfric.kernel.metadata import KernelArgumentMetadata
+    from psyclone.parse.algorithm import BuiltInCall
+    from psyclone.psyir.nodes import Schedule
+
+
 def get_lowercase_builtin_map(builtin_map_capitalised_dict):
     '''
     Convert the names of the supported built-in operations to lowercase
@@ -72,23 +80,26 @@ class LFRicBuiltInCallFactory():
         return "Factory for a call to an LFRic built-in."
 
     @staticmethod
-    def create(call, parent=None):
-        '''
-        Create the objects needed for a call to the built-in described in
+    def create(
+            call: BuiltInCall,
+            parent: Optional[Schedule] = None,
+    ) -> LFRicLoop:
+        """Create the objects needed for a call to the built-in described in
         the call (BuiltInCall) object.
 
-        :param call: details of the call to this built-in in the \
-                     Algorithm layer.
+        :param call: details of the call to this built-in in the
+            Algorithm layer.
         :type call: :py:class:`psyclone.parse.algorithm.BuiltInCall`
-        :param parent: the schedule instance to which the built-in call \
-                       belongs.
+        :param parent: the schedule instance to which the built-in call
+            belongs.
         :type parent: :py:class:`psyclone.domain.lfric.LFRicInvokeSchedule`
 
-        :raises ParseError: if the name of the function being called is \
-                            not a recognised built-in.
+        :raises ParseError: if the name of the function being called is
+            not a recognised built-in.
         :raises InternalError: if the built-in does not iterate over DoFs.
 
-        '''
+        :returns: the loop containing the built-in call.
+        """
         if call.func_name not in BUILTIN_MAP:
             raise ParseError(
                 f"Unrecognised built-in call in LFRic API: found "
@@ -101,7 +112,7 @@ class LFRicBuiltInCallFactory():
 
         # Create the loop over the appropriate entity.
 
-        if (call.ktype.iterates_over in
+        if (call.kernel.metadata.iterates_over in
                 LFRicConstants().DOF_ITERATION_SPACES):
             loop_type = "dof"
         else:
@@ -109,7 +120,7 @@ class LFRicBuiltInCallFactory():
                 f"An LFRic built-in must iterate over one of "
                 f"{LFRicConstants().DOF_ITERATION_SPACES} but kernel "
                 f"'{call.func_name}' iterates over "
-                f"'{call.ktype.iterates_over}'")
+                f"'{call.kernel.metadata.iterates_over}'")
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric import LFRicLoop
@@ -174,7 +185,11 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''Must be overridden by subclass.'''
 
     @classmethod
-    def _builtin_metadata(cls, meta_args):
+    def _builtin_metadata(
+            cls,
+            meta_args: list[KernelArgumentMetadata],
+            operates_on: str = 'dof',
+    ) -> LFRicKernelMetadata:
         '''Utility to take 'meta_args' metadata and return LFRic kernel
         metadata for a built-in. Assumes the metadata describes a
         built-in kernel that operates on a DoF and that the naming
@@ -185,13 +200,15 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         :type meta_args: List[subclass of \
             :py:class:`psyclone.domain.lfric.kernel.CommonArgMetadata`]
 
+        :param str operates_on: the iteration space for this built-in.
+
         :returns: LFRic kernel metadata for this built-in.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
 
         '''
         return LFRicKernelMetadata(
             meta_args=meta_args,
-            operates_on="dof",
+            operates_on=operates_on,
             procedure_name=f"{cls._case_name}_code",
             name=cls._case_name)
 
@@ -244,7 +261,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         var_accesses.update(written)
         return var_accesses
 
-    def load(self, call, parent=None):
+    def load(self, call: BuiltInCall, parent: Optional[Node] = None) -> None:
         '''
         Populate the state of this object using the supplied call object.
 
@@ -260,14 +277,15 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         # pylint: disable=import-outside-toplevel
         from psyclone.lfric import FSDescriptors, LFRicKernelArguments
         BuiltIn.load(self, call, LFRicKernelArguments, parent)
-        self.arg_descriptors = call.ktype.arg_descriptors
-        self._func_descriptors = call.ktype.func_descriptors
-        self._fs_descriptors = FSDescriptors(call.ktype.func_descriptors)
+        metadata = call.kernel.metadata
+        self.arg_metadata = metadata.meta_args
+        self._func_descriptors = metadata.meta_funcs
+        self._fs_descriptors = FSDescriptors(metadata.meta_funcs)
         self._idx_name = self.get_dof_loop_index_symbol().name
         # Check that this built-in kernel is valid
         self._validate()
 
-    def _validate(self):
+    def _validate(self) -> None:
         '''
         Check that this built-in conforms to the LFRic API.
 
@@ -304,28 +322,28 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                               AccessType.READWRITE]
         # Field data types must be the same except for the conversion built-ins
         data_types = set()
-        for arg in self.arg_descriptors:
+        for arg in self.arg_metadata:
             # Check valid argument types
-            if arg.argument_type not in const.VALID_BUILTIN_ARG_TYPES:
+            if arg.form not in const.VALID_BUILTIN_ARG_TYPES:
                 raise ParseError(
                     f"In the LFRic API an argument to a built-in kernel "
                     f"must be one of {const.VALID_BUILTIN_ARG_TYPES} but "
                     f"kernel '{self.name}' has an argument of type "
-                    f"'{arg.argument_type}'.")
+                    f"'{arg.form}'.")
             # Check valid data types
-            if arg.data_type not in const.VALID_BUILTIN_DATA_TYPES:
+            if arg.datatype not in const.VALID_BUILTIN_DATA_TYPES:
                 raise ParseError(
                     f"In the LFRic API an argument to a built-in kernel "
                     f"must have one of {const.VALID_BUILTIN_DATA_TYPES} as "
                     f"a data type but kernel '{self.name}' has an argument "
-                    f"of data type '{arg.data_type}'.")
+                    f"of data type '{arg.datatype}'.")
             # Check for write accesses
-            if arg.access in write_access_modes:
+            if arg.access_type in write_access_modes:
                 write_count += 1
-            if arg.argument_type in const.VALID_FIELD_NAMES:
+            if arg.form in const.VALID_FIELD_NAMES:
                 field_count += 1
                 spaces.add(arg.function_space)
-                data_types.add(arg.data_type)
+                data_types.add(arg.datatype)
 
         if write_count != 1:
             raise ParseError(f"A built-in kernel in the LFRic API must "
@@ -440,7 +458,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         return self._fs_descriptors
 
     @property
-    def reduction_type(self) -> ReductionType:
+    def reduction_type(self) -> LFRicBuiltIn.ReductionType:
         '''
         :returns: the type of reduction operation performed by this Built-in.
         '''
@@ -2296,7 +2314,7 @@ class LFRicSetvalRandomKern(LFRicBuiltIn):
     _datatype = "real"
 
     @classmethod
-    def metadata(cls):
+    def metadata(cls) -> LFRicKernelMetadata:
         '''Returns the kernel metadata describing this built-in.
 
         :returns: kernel metadata describing this built-in.
@@ -2304,8 +2322,10 @@ class LFRicSetvalRandomKern(LFRicBuiltIn):
 
         '''
         gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
-        return cls._builtin_metadata([
-            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1")])
+        return cls._builtin_metadata(
+            [FieldArgMetadata(
+                gh_datatype, "gh_write", "any_space_1")],
+            operates_on="owned_dof")
 
     def __str__(self):
         return (f"Built-in: {self._case_name} (fill {a_or_an(self._datatype)} "
@@ -3327,10 +3347,8 @@ class LFRicIntToRealXKern(LFRicBuiltIn):
         return self._replace_with_assignment(lhs, rhs)
 
 
-# The built-in operations that we support for this API. The meta-data
-# describing these kernels is in lfric_builtins_mod.f90. This dictionary
-# can only be defined after all of the necessary 'class' statements have
-# been executed (happens when this module is imported into another).
+# The built-in operations that we support for this API. This dictionary can
+# only be defined after all of the necessary class statements have executed.
 #: Built-ins for real-valued fields
 REAL_BUILTIN_MAP_CAPITALISED = {
     # Adding (scaled) real fields

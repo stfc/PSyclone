@@ -11,6 +11,8 @@ declarations for field arguments required by an Invoke or
 Kernel stub.
 '''
 
+from __future__ import annotations
+
 # Imports
 from collections import OrderedDict
 
@@ -88,7 +90,7 @@ class LFRicFields(LFRicCollection):
                 arg_symbol = self.symtab.lookup(arg.name)
                 arg_symbol.interface.access = ArgumentInterface.Access.READ
 
-    def stub_declarations(self):
+    def stub_declarations(self) -> None:
         '''
         Add field-related declarations to a Kernel stub.
 
@@ -106,7 +108,7 @@ class LFRicFields(LFRicCollection):
             fld_kind = fld.precision
 
             # Check for invalid descriptor data type
-            fld_ad_dtype = fld.descriptor.data_type
+            fld_ad_dtype = fld.metadata_datatype
             if fld_ad_dtype not in const.VALID_FIELD_DATA_TYPES:
                 raise InternalError(
                     f"Found an unsupported data type '{fld_ad_dtype}' in "

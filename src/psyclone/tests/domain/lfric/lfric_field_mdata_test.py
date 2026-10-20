@@ -12,15 +12,13 @@ functionality (e.g. metadata, parsing, invoke calls).
 
 import os
 import pytest
-from fparser import api as fpapi
-from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
-                                   LFRicFields, LFRicKernMetadata)
+from psyclone.domain.lfric import LFRicConstants, LFRicFields
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.utils import ParseError
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
+from psyclone.tests.utilities import create_lfric_metadata
 
 
 # Constants
@@ -34,7 +32,7 @@ TEST_API = "lfric"
 FIELD_CODE = '''
 module testkern_field_mod
   type, extends(kernel_type) :: testkern_field_type
-     type(arg_type), meta_args(7) =                               &
+     type(arg_type), dimension(7) :: meta_args =                    &
           (/ arg_type(gh_scalar, gh_real,    gh_read),            &
              arg_type(gh_field,  gh_real,    gh_readinc, w0),     &
              arg_type(gh_field,  gh_real,    gh_inc,     w1),     &
@@ -59,24 +57,22 @@ end module testkern_field_mod
 '''
 
 
-def test_ad_fld_type_1st_arg():
+def test_ad_fld_type_1st_arg(fortran_reader):
     ''' Tests that an error is raised when the first argument descriptor
     metadata for a field is invalid. '''
     code = FIELD_CODE.replace(
         "arg_type(gh_field,  gh_real,    gh_inc,     w1)",
         "arg_type(gh_hedge,  gh_real,    gh_inc,     w1)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    const = LFRicConstants()
-    assert (f"the 1st argument of a 'meta_arg' entry should be a valid "
-            f"argument type (one of {const.VALID_ARG_TYPE_NAMES}), but found "
-            f"'gh_hedge'"
-            in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "The first argument of arg_type must be one of" in str(
+        excinfo.value)
+    assert "'gh_hedge'" in str(excinfo.value)
 
 
-def test_ad_field_invalid_data_type():
+def test_ad_field_invalid_data_type(fortran_reader):
     ''' Tests that an error is raised when the argument descriptor
     metadata for a field has an invalid data type. '''
     name = "testkern_field_type"
@@ -84,122 +80,63 @@ def test_ad_field_invalid_data_type():
     code = FIELD_CODE.replace(
         "arg_type(gh_field,  gh_real,    gh_inc,     w1)",
         "arg_type(gh_field,  gh_unreal,  gh_inc,     w1)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    const = LFRicConstants()
-    assert (f"In the LFRic API the 2nd argument of a 'meta_arg' entry should "
-            f"be a valid data type (one of {const.VALID_ARG_DATA_TYPES}), but "
-            f"found 'gh_unreal' in 'arg_type(gh_field, gh_unreal, gh_inc, w1)'"
-            f"." in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "field datatype descriptor" in str(excinfo.value)
+    assert "'gh_unreal'" in str(excinfo.value)
     # Check integer field
     code = FIELD_CODE.replace(
         "arg_type(gh_field,  gh_integer, gh_read,    w3)",
         "arg_type(gh_field,  gh_double,  gh_read,    w3)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("but found 'gh_double' in 'arg_type(gh_field, gh_double, "
-            "gh_read, w3)'." in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "field datatype descriptor" in str(excinfo.value)
+    assert "'gh_double'" in str(excinfo.value)
 
 
-def test_field_gh_reduction_invalid():
+def test_field_gh_reduction_invalid(fortran_reader):
     ''' Tests that an error is raised when a field is specified with
     access type 'gh_reduction'. '''
     code = FIELD_CODE.replace(
         "arg_type(gh_field,  gh_real,    gh_read,    w2)",
         "arg_type(gh_field,  gh_real,    gh_reduction,     w2)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("In the LFRic API, allowed accesses for fields on continuous "
-            "function spaces that are arguments to kernels that operate on "
-            "cell-columns are ['gh_read', 'gh_write', 'gh_inc', 'gh_readinc'],"
-            " but found 'gh_reduction' for 'w2'" in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "field access descriptor" in str(excinfo.value)
+    assert "'gh_reduction'" in str(excinfo.value)
 
 
-def test_ad_fld_type_too_few_args():
+def test_ad_fld_type_too_few_args(fortran_reader):
     ''' Tests that an error is raised when the field argument descriptor
     metadata for a field has fewer than 3 args. '''
     code = FIELD_CODE.replace(
         "arg_type(gh_field,  gh_real,    gh_inc,     w1)",
         "arg_type(gh_field,  gh_real,    gh_inc)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("each 'meta_arg' entry must have at least 4 arguments if its "
-            "first argument is of ['gh_field'] type" in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "Field metadata must have a function space" in str(excinfo.value)
 
 
-def test_ad_fld_type_too_many_args():
+def test_ad_fld_type_too_many_args(fortran_reader):
     ''' Tests that an error is raised when the field argument descriptor
     metadata has more than 7 args. '''
     code = FIELD_CODE.replace(
         "arg_type(gh_field,  gh_real,    gh_inc,     w1)",
         "arg_type(gh_field,  gh_real,    gh_inc,   w1, w1, w2, w3, w3)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("each 'meta_arg' entry must have at most 7 arguments if its "
-            "first argument is of ['gh_field'] type" in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "must have at most 7 arguments" in str(excinfo.value)
 
 
-def test_ad_field_init_wrong_type():
-    ''' Test that an error is raised if something other than a field
-    is passed to the LFRicArgDescriptor._init_field() method. '''
-    ast = fpapi.parse(FIELD_CODE, ignore_comments=False)
-    name = "testkern_field_type"
-    metadata = LFRicKernMetadata(ast, name=name)
-    # Get an argument which is not a field
-    wrong_arg = metadata._inits[0]
-    with pytest.raises(InternalError) as excinfo:
-        LFRicArgDescriptor(
-            wrong_arg, metadata.iterates_over, 0)._init_field(
-                wrong_arg, metadata.iterates_over)
-    assert ("Expected a field argument but got an argument of type "
-            "'gh_scalar'" in str(excinfo.value))
-
-
-def test_ad_field_init_wrong_data_type(monkeypatch):
-    ''' Test that an error is raised if an invalid data type
-    is passed to the LFRicArgDescriptor._init_field() method. '''
-    ast = fpapi.parse(FIELD_CODE, ignore_comments=False)
-    name = "testkern_field_type"
-    metadata = LFRicKernMetadata(ast, name=name)
-    # Get a real field argument descriptor and set a wrong data type
-    real_field_arg = metadata._inits[1]
-    real_field_arg.args[1].name = "gh_double"
-    # Get an integer field argument descriptor and set a wrong data type
-    int_field_arg = metadata._inits[2]
-    int_field_arg.args[1].name = "gh_double"
-    # Now try to trip the error by making the initial test think
-    # that 'gh_double' is actually a valid data type
-    const = LFRicConstants()
-    monkeypatch.setattr(
-        target=LFRicConstants, name="VALID_ARG_DATA_TYPES",
-        value=LFRicConstants.VALID_ARG_DATA_TYPES + ["gh_double"])
-    # Check real field
-    with pytest.raises(ParseError) as excinfo:
-        LFRicArgDescriptor(
-            real_field_arg, metadata.iterates_over, 0)._init_field(
-                real_field_arg, metadata.iterates_over)
-    assert (f"In the LFRic API the allowed data types for field arguments are "
-            f"one of {const.VALID_FIELD_DATA_TYPES}, but found 'gh_double'"
-            in str(excinfo.value))
-    # Check integer field
-    with pytest.raises(ParseError) as excinfo:
-        LFRicArgDescriptor(
-            int_field_arg, metadata.iterates_over, 0)._init_field(
-                int_field_arg, metadata.iterates_over)
-    assert (f"In the LFRic API the allowed data types for field arguments are "
-            f"one of {const.VALID_FIELD_DATA_TYPES}, but found 'gh_double'"
-            in str(excinfo.value))
-
-
-def test_arg_descriptor_invalid_fs():
+def test_arg_descriptor_invalid_fs(fortran_reader):
     ''' Tests that an error is raised when an invalid function space
     name is provided as the third argument for a field. '''
     name = "testkern_field_type"
@@ -207,46 +144,23 @@ def test_arg_descriptor_invalid_fs():
     code = FIELD_CODE.replace(
         "arg_type(gh_field,  gh_real,    gh_inc,     w1)",
         "arg_type(gh_field,  gh_real,    gh_inc,     w4)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    const = LFRicConstants()
-    assert (f"In the LFRic API argument 4 of a 'meta_arg' field entry must be "
-            f"a valid function-space name (one of "
-            f"{const.VALID_FUNCTION_SPACE_NAMES}) if its first argument is of "
-            f"['gh_field'] type, but found 'w4'" in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "field function space" in str(excinfo.value)
+    assert "'w4'" in str(excinfo.value)
     # Check integer field
     code = FIELD_CODE.replace(
         "arg_type(gh_field,  gh_integer, gh_read,    w3)",
         "arg_type(gh_field,  gh_integer, gh_read,    w10)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("if its first argument is of ['gh_field'] type, but found 'w10'"
-            in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "field function space" in str(excinfo.value)
+    assert "'w10'" in str(excinfo.value)
 
 
-def test_ad_field_init_wrong_iteration_space():
-    ''' Test that an error is raised if a wrong iteration space
-    (other than ['cell_column', 'dof', ...]) is passed to the
-    LFRicArgDescriptor._init_field() method.
-
-    '''
-    ast = fpapi.parse(FIELD_CODE, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast, name="testkern_field_type")
-    field_arg = metadata._inits[1]
-    # Set a wrong iteration space
-    with pytest.raises(InternalError) as excinfo:
-        LFRicArgDescriptor(
-            field_arg, metadata.iterates_over, 0)._init_field(
-                field_arg, "ncolours")
-    assert ("Invalid operates_on 'ncolours' in the kernel metadata (expected "
-            "one of ['domain', 'dof', 'owned_dof', 'cell_column', "
-            "'owned_cell_column', 'halo_cell_column', "
-            "'owned_and_halo_cell_column'])." in str(excinfo.value))
-
-
-def test_fs_discontinuous_inc_error():
+def test_fs_discontinuous_inc_error(fortran_reader):
     ''' Test that an error is raised if a discontinuous function space
     and 'gh_inc' are provided for the same field in the metadata. '''
     const = LFRicConstants()
@@ -254,17 +168,16 @@ def test_fs_discontinuous_inc_error():
         code = FIELD_CODE.replace(
             "arg_type(gh_field,  gh_integer, gh_read,    w3)",
             "arg_type(gh_field,  gh_integer, gh_inc, " + fspace + ")", 1)
-        ast = fpapi.parse(code, ignore_comments=False)
+        psyir = fortran_reader.psyir_from_source(code)
         with pytest.raises(ParseError) as excinfo:
-            _ = LFRicKernMetadata(ast, name="testkern_field_type")
-        assert (f"In the LFRic API, allowed accesses for fields on "
-                f"discontinuous function spaces that are arguments to kernels "
-                f"that operate on either cell-columns or the domain are "
-                f"['gh_read', 'gh_write', 'gh_readwrite'], but found 'gh_inc' "
-                f"for '{fspace}'" in str(excinfo.value))
+            _ = create_lfric_metadata(psyir, name="testkern_field_type")
+        assert f"Field '{fspace}'" in str(excinfo.value)
+        assert ("must have one of ['gh_read', 'gh_write', 'gh_readwrite']" in
+                str(excinfo.value))
+        assert "'gh_inc'" in str(excinfo.value)
 
 
-def test_fs_continuous_cells_readwrite_error():
+def test_fs_continuous_cells_readwrite_error(fortran_reader):
     ''' Test that an error is raised if a field on a continuous
     function space is specified as having an access of 'gh_readwrite'
     in kernel metadata.
@@ -276,17 +189,16 @@ def test_fs_continuous_cells_readwrite_error():
         code = FIELD_CODE.replace(
             "arg_type(gh_field,  gh_real,    gh_read,    w2)",
             f"arg_type(gh_field, gh_real, {acc}, {fspace})", 1)
-        ast = fpapi.parse(code, ignore_comments=False)
+        psyir = fortran_reader.psyir_from_source(code)
         with pytest.raises(ParseError) as excinfo:
-            _ = LFRicKernMetadata(ast, name="testkern_field_type")
-        assert (f"In the LFRic API, allowed accesses for fields on "
-                f"continuous function spaces that are arguments to "
-                f"kernels that operate on cell-columns are ['gh_read', "
-                f"'gh_write', 'gh_inc', 'gh_readinc'], but found '{acc}' "
-                f"for '{fspace}'" in str(excinfo.value))
+            _ = create_lfric_metadata(psyir, name="testkern_field_type")
+        assert f"Field '{fspace}'" in str(excinfo.value)
+        assert "must have one of ['gh_read', 'gh_write', 'gh_inc'" in str(
+            excinfo.value)
+        assert f"'{acc}'" in str(excinfo.value)
 
 
-def test_fs_anyspace_cells_readwrite_error():
+def test_fs_anyspace_cells_readwrite_error(fortran_reader):
     ''' Test that an error is raised if a field that is on 'any_space' "
     "(and therefore may be continuous) is specified as having "
     "'gh_readwrite' access in the metadata.
@@ -298,18 +210,17 @@ def test_fs_anyspace_cells_readwrite_error():
         code = FIELD_CODE.replace(
             "arg_type(gh_field,  gh_real,    gh_read,    w2)",
             f"arg_type(gh_field, gh_real, {acc}, {fspace})", 1)
-        ast = fpapi.parse(code, ignore_comments=False)
+        psyir = fortran_reader.psyir_from_source(code)
         with pytest.raises(ParseError) as excinfo:
-            _ = LFRicKernMetadata(ast, name="testkern_field_type")
-        assert (f"In the LFRic API, allowed accesses for fields on "
-                f"continuous function spaces that are arguments to "
-                f"kernels that operate on cell-columns are ['gh_read', "
-                f"'gh_write', 'gh_inc', 'gh_readinc'], but found '{acc}' "
-                f"for '{fspace}'" in str(excinfo.value))
+            _ = create_lfric_metadata(psyir, name="testkern_field_type")
+        assert f"Field '{fspace}'" in str(excinfo.value)
+        assert "must have one of ['gh_read', 'gh_write', 'gh_inc'" in str(
+            excinfo.value)
+        assert f"'{acc}'" in str(excinfo.value)
 
 
 @pytest.mark.parametrize("access", ["gh_inc", "gh_readinc"])
-def test_fs_anyspace_dofs_inc_error(access):
+def test_fs_anyspace_dofs_inc_error(access, fortran_reader):
     '''Test that an error is raised if a field on 'any_space' with
     'gh_inc' or 'gh_readinc' access is specified for a kernel that
     operates on DoFs.
@@ -324,155 +235,128 @@ def test_fs_anyspace_dofs_inc_error(access):
         code = dof_code.replace(
             "arg_type(gh_field,  gh_real,    gh_inc,     w1)",
             f"arg_type(gh_field, gh_real, {access}, {fspace})", 1)
-        ast = fpapi.parse(code, ignore_comments=False)
+        psyir = fortran_reader.psyir_from_source(code)
         with pytest.raises(ParseError) as excinfo:
-            _ = LFRicKernMetadata(ast, name="testkern_field_type")
-        assert (f"In the LFRic API, allowed field accesses for a kernel "
-                f"that operates on DoFs are ['gh_read', 'gh_write', "
-                f"'gh_readwrite'], but found '{access}' for '{fspace}'"
-                in str(excinfo.value))
+            _ = create_lfric_metadata(psyir, name="testkern_field_type")
+        assert f"Field '{fspace}'" in str(excinfo.value)
+        assert "operating on 'dof'" in str(excinfo.value)
+        assert f"'{access}'" in str(excinfo.value)
 
 
-def test_arg_descriptor_field():
-    ''' Test that the LFRicArgDescriptor argument representation works
+def test_arg_descriptor_field(fortran_reader):
+    ''' Test that the typed argument-metadata representation works
     as expected for a field argument. '''
-    ast = fpapi.parse(FIELD_CODE, ignore_comments=False)
-    metadata = LFRicKernMetadata(ast, name="testkern_field_type")
-    field_descriptor = metadata.arg_descriptors[2]
+    psyir = fortran_reader.psyir_from_source(FIELD_CODE)
+    metadata = create_lfric_metadata(psyir, name="testkern_field_type")
+    field_descriptor = metadata.meta_args[2]
 
-    # Assert correct string representation from LFRicArgDescriptor
-    result = str(field_descriptor)
-    expected_output = (
-        "LFRicArgDescriptor object\n"
-        "  argument_type[0]='gh_field'\n"
-        "  data_type[1]='gh_real'\n"
-        "  access_descriptor[2]='gh_inc'\n"
-        "  function_space[3]='w1'")
-    assert expected_output in result
-
-    # Check LFRicArgDescriptor argument properties
-    assert field_descriptor.argument_type == "gh_field"
-    assert field_descriptor.data_type == "gh_real"
+    assert field_descriptor.form == "gh_field"
+    assert field_descriptor.datatype == "gh_real"
     assert field_descriptor.function_space == "w1"
-    assert field_descriptor.function_spaces == ['w1']
-    assert str(field_descriptor.access) == "INC"
-    assert field_descriptor.mesh is None
+    assert field_descriptor.access == "gh_inc"
     assert field_descriptor.stencil is None
-    assert field_descriptor.vector_size == 1
     assert field_descriptor.nlevels is None
     assert field_descriptor.ndata == "1"
+    assert field_descriptor.fortran_string() == (
+        "arg_type(gh_field, gh_real, gh_inc, w1)")
 
 
-def test_fld_nlevels():
+def test_fld_nlevels(fortran_reader):
     '''
     Test a field argument with the optional 'nlevels' metatadata.
     '''
     code = FIELD_CODE.replace(
         "arg_type(gh_scalar, gh_integer, gh_read)",
         "arg_type(gh_field, gh_real, gh_read, w3, nlevels='double')", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_field_type"
-    mdata = LFRicKernMetadata(ast, name=name)
+    mdata = create_lfric_metadata(psyir, name=name)
     # By default, nlevels is left as None.
-    field_descriptor = mdata.arg_descriptors[5]
+    field_descriptor = mdata.meta_args[5]
     assert field_descriptor.nlevels is None
     # The seventh argument has nlevels specified as "double"
-    field_descriptor = mdata.arg_descriptors[6]
+    field_descriptor = mdata.meta_args[6]
     assert field_descriptor.nlevels == "double"
 
 
-def test_fld_ndata():
+def test_fld_ndata(fortran_reader):
     '''
     Test a field argument with the optional 'ndata' metatadata.
     '''
     code = FIELD_CODE.replace(
         "arg_type(gh_scalar, gh_integer, gh_read)",
         "arg_type(gh_field, gh_real, gh_read, w3, ndata='2')", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_field_type"
-    mdata = LFRicKernMetadata(ast, name=name)
+    mdata = create_lfric_metadata(psyir, name=name)
     # By default, ndata is 1.
-    field_descriptor = mdata.arg_descriptors[5]
+    field_descriptor = mdata.meta_args[5]
     assert field_descriptor.ndata == "1"
     # The seventh argument has ndata specified as "2"
-    field_descriptor = mdata.arg_descriptors[6]
+    field_descriptor = mdata.meta_args[6]
     assert field_descriptor.ndata == "2"
 
 
-def test_invalid_vector_operator():
+def test_invalid_vector_operator(fortran_reader):
     ''' Tests that an error is raised when a field vector does not
     use "*" as its operator. '''
     code = FIELD_CODE.replace(
         "(gh_field,  gh_real,    gh_inc,     w1)",
         "(gh_field+3,  gh_real,    gh_inc,    w1)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert "must use '*' as the separator" in str(excinfo.value)
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "Field vectors must use multiplication syntax" in str(
+        excinfo.value)
 
 
-def test_invalid_vector_value_type():
+def test_invalid_vector_value_type(fortran_reader):
     ''' Tests that an error is raised when a vector value is not a valid
     integer. '''
     code = FIELD_CODE.replace("(gh_field,  gh_real,    gh_inc,     w1)",
                               "(gh_field*n,  gh_real,    gh_inc,     w1)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("the field vector notation must be in the format 'field*n' "
-            "where 'n' is an integer, but the following 'n' was found "
-            in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "Vector length must be an integer string" in str(excinfo.value)
 
 
-def test_invalid_vector_value_range():
+def test_invalid_vector_value_range(fortran_reader):
     ''' Tests that an error is raised when a vector value is not a valid
     value (<2). '''
     code = FIELD_CODE.replace("(gh_field,  gh_real,    gh_inc,     w1)",
                               "(gh_field*1,  gh_real,    gh_inc,     w1)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("the 1st argument of a 'meta_arg' entry may be a field vector "
-            "with format 'field*n' where n is an integer > 1. However, "
-            "found n = 1" in str(excinfo.value))
+        _ = create_lfric_metadata(psyir, name=name)
+    assert "Vector length must be greater than one" in str(excinfo.value)
 
 # Testing that an error is raised when a vector value is not provided is
 # not required here as it causes a parse error in the generic code.
 
 
-def test_arg_descriptor_field_vector():
-    ''' Test that the LFRicArgDescriptor argument representation works
+def test_arg_descriptor_field_vector(fortran_reader):
+    ''' Test that the typed argument-metadata representation works
     as expected when we have a field vector. '''
     # Change the meta-data so that the second argument is a vector
     code = FIELD_CODE.replace("(gh_field,  gh_real,    gh_inc,     w1)",
                               "(gh_field*3,  gh_real,    gh_inc,    w1)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_field_type"
-    dkm = LFRicKernMetadata(ast, name=name)
-    field_descriptor = dkm.arg_descriptors[2]
+    dkm = create_lfric_metadata(psyir, name=name)
+    field_descriptor = dkm.meta_args[2]
 
-    # Assert correct string representation from LFRicArgDescriptor
-    field_descriptor_str = str(field_descriptor)
-    expected = (
-        "LFRicArgDescriptor object\n"
-        "  argument_type[0]='gh_field'*3\n"
-        "  data_type[1]='gh_real'\n"
-        "  access_descriptor[2]='gh_inc'\n"
-        "  function_space[3]='w1'")
-    assert expected in field_descriptor_str
-
-    # Check LFRicArgDescriptor argument properties
-    assert field_descriptor.argument_type == "gh_field"
-    assert field_descriptor.data_type == "gh_real"
+    assert field_descriptor.form == "gh_field"
+    assert field_descriptor.datatype == "gh_real"
     assert field_descriptor.function_space == "w1"
-    assert field_descriptor.function_spaces == ['w1']
-    assert str(field_descriptor.access) == "INC"
-    assert field_descriptor.mesh is None
+    assert field_descriptor.access == "gh_inc"
     assert field_descriptor.stencil is None
-    assert field_descriptor.vector_size == 3
+    assert field_descriptor.vector_length == "3"
+    assert field_descriptor.fortran_string() == (
+        "arg_type(gh_field*3, gh_real, gh_inc, w1)")
 
 
 def test_lfricfields_call_err():
@@ -582,18 +466,18 @@ def test_field_arg_lfricconst_properties(monkeypatch):
             f"types for a field argument but found 'black'." in str(err.value))
 
 
-def test_multiple_updated_field_args():
+def test_multiple_updated_field_args(fortran_reader):
     ''' Check that we successfully parse a kernel that writes to more
     than one of its field arguments '''
     code = FIELD_CODE.replace("arg_type(gh_field,  gh_real,    gh_read,  w2)",
                               "arg_type(gh_field, gh_real, gh_inc, w2)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
+    psyir = fortran_reader.psyir_from_source(code)
     name = "testkern_field_type"
-    metadata = LFRicKernMetadata(ast, name=name)
+    metadata = create_lfric_metadata(psyir, name=name)
     count = 0
-    for descriptor in metadata.arg_descriptors:
-        if descriptor.argument_type == "gh_field" and \
-                descriptor.access != AccessType.READ:
+    for descriptor in metadata.meta_args:
+        if (descriptor.form == "gh_field" and
+                descriptor.access != "gh_read"):
             count += 1
     assert count == 3
 

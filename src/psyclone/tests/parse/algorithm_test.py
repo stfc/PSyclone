@@ -20,8 +20,12 @@ from fparser.two.parser import ParserFactory
 from psyclone.parse.algorithm import Parser, get_invoke_label, \
     get_kernel, create_var_name, KernelCall, BuiltInCall, Arg, \
     parse, AlgFileInfo
+from psyclone.configuration import Config
 from psyclone.parse.utils import ParseError, parse_fp2
 from psyclone.errors import InternalError
+from psyclone.domain.common.kernel import Kernel
+from psyclone.domain.lfric.kernel import (
+    FieldArgMetadata, LFRicKernelMetadata)
 
 
 LFRIC_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -375,7 +379,7 @@ def test_parser_createinvokecall_error():
 
 def test_parser_codedkernelcall_kernel_paths():
     '''Check that the Parser class passes the kernel_paths information
-    through to the get_kernel_ast() function from the
+    through to the common kernel-source finder from the
     coded_kernel_call() method.
 
     '''
@@ -435,25 +439,18 @@ def test_parser_caseinsensitive2(monkeypatch):
 
     '''
     parser = Parser("lfric")
+    parser._kernel_paths = [LFRIC_BASE_PATH]
     use = Use_Stmt("use testkern_mod, only : TESTKERN_TYPE")
     parser.update_arg_to_module_map(use)
 
-    def dummy_func(arg1, arg2, arg3, arg4):
-        '''A dummy function used by monkeypatch to override the get_kernel_ast
-        function. We don't care about the arguments as we just want to
-        raise an exception.
-
-        '''
+    def dummy_func(*_args, **_kwargs):
+        '''A dummy kernel-file lookup that raises an exception.'''
         raise NotImplementedError("test_parser_caseinsensitive2")
-    monkeypatch.setattr("psyclone.parse.algorithm.get_kernel_ast", dummy_func)
+    monkeypatch.setattr(
+        "psyclone.parse.algorithm.ModuleManager.find_kernel_file", dummy_func)
     with pytest.raises(NotImplementedError) as excinfo:
-        # We have monkeypatched the function 'get_kernel_ast' to
-        # return 'NotImplementedError' with a string associated with
-        # this test so we know that we have got to this function if
-        # this exception is raised. The case insensitive test we
-        # really care about is before this function is called (and it
-        # raises a ParseError) so we know that if we don't get a
-        # ParseError then all is well.
+        # Reaching the module lookup proves that the case-insensitive use-map
+        # lookup succeeded.
         parser.create_coded_kernel_call("TestKern_Type", None)
     # Sanity check that the exception is the monkeypatched one.
     assert str(excinfo.value) == "test_parser_caseinsensitive2"
@@ -836,17 +833,12 @@ def test_kernelcall_repr():
 
     '''
 
-    class KtypeDummy():
-        '''A fake KernelType class which provides the required variables to
-        allow the BuiltInCall class to be instantiated and __repr__
-        called.
-
-        '''
-        def __init__(self):
-            self.nargs = 2
-            self.name = "dummy"
-
-    tmp = KernelCall("module_name", KtypeDummy(), ["a", "b"])
+    metadata = LFRicKernelMetadata(
+        operates_on="dof",
+        meta_args=(FieldArgMetadata("gh_real", "gh_write", "w0"),
+                   FieldArgMetadata("gh_real", "gh_read", "w0")),
+        name="dummy", procedure_name="dummy_code")
+    tmp = KernelCall("module_name", Kernel(metadata), ["a", "b"])
     assert repr(tmp) == "KernelCall('dummy', ['a', 'b'])"
 
 
@@ -859,17 +851,12 @@ def test_builtincall_repr():
 
     '''
 
-    class KtypeDummy():
-        '''A fake KernelType class which provides the required variables to
-        allow the BuiltInCall class to be instantiated and __repr__
-        called.
-
-        '''
-        def __init__(self):
-            self.nargs = 2
-            self.name = "dummy"
-
-    tmp = BuiltInCall(KtypeDummy(), ["a", "b"])
+    metadata = LFRicKernelMetadata(
+        operates_on="dof",
+        meta_args=(FieldArgMetadata("gh_real", "gh_write", "w0"),
+                   FieldArgMetadata("gh_real", "gh_read", "w0")),
+        name="dummy", procedure_name="dummy_code")
+    tmp = BuiltInCall(Kernel(metadata), ["a", "b"])
     assert repr(tmp) == "BuiltInCall('dummy', ['a', 'b'])"
 
 # Class Arg() tests
@@ -910,3 +897,12 @@ def test_arg_datatype():
     assert tmp._datatype is None
     tmp = Arg("variable", "var", varname="var", datatype="info")
     assert tmp._datatype == ("info")
+
+
+def test_parser_registered_api_without_metadata(monkeypatch):
+    """A registered API without kernel support has no metadata parser."""
+    monkeypatch.setattr(Config, "_supported_api_list",
+                        Config.get().supported_apis + ["custom"])
+    parser = Parser("custom")
+    assert parser._metadata_type is None
+    assert parser._builtin_name_map == {}

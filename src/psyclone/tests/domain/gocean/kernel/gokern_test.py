@@ -16,9 +16,6 @@ constructor and the get_callees() method are tested.
 import os
 import pytest
 
-from fparser.two import Fortran2003
-from fparser.two.utils import walk
-
 from psyclone.configuration import Config
 from psyclone.core import Signature
 from psyclone.errors import GenerationError, InternalError
@@ -26,7 +23,7 @@ from psyclone.gocean1p0 import (
     GOKern, GOKernelSchedule, GOKernCallFactory)
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.nodes import Routine, Schedule
 from psyclone.tests.utilities import get_invoke
 
 API = "gocean"
@@ -164,12 +161,11 @@ def test_gok_get_callees():
     # Check that the expected error is raised if the subroutine that
     # implements the kernel cannot be found.
     kern._schedules = None
-    # Remove the subroutine that implements the kernel from the Fortran
-    # parse tree.
-    subs = walk(kern.ast, Fortran2003.Subroutine_Subprogram)
-    for sub in subs:
-        if sub.children[0].children[1].string == "compute_cu_code":
-            sub.parent.content.remove(sub)
+    # Remove the subroutine that implements the kernel from the retained
+    # language-level PSyIR.
+    for routine in kern._module_code.walk(Routine):
+        if routine.name == "compute_cu_code":
+            routine.detach()
             break
     with pytest.raises(GenerationError) as err:
         kern.get_callees()
