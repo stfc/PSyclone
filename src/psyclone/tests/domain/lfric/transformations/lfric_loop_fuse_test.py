@@ -320,33 +320,38 @@ def test_loop_fuse_conditional_vector_fields(fortran_writer, tmpdir):
 
     loops = schedule.walk(LFRicLoop)
     ftrans.apply(loops[0:2], conditional_fusion=True)
-    correct = """if (f1(1)%which_function_space() == \
-f4(1)%which_function_space()) then
-    do cell = uninitialised_loop0_start, uninitialised_loop0_stop, 1
-      call testkern_anys_vector_write_code(nlayers_f1, f1_1_data, f1_2_data, \
-f2_data, f3_data, ndf_as1_f1, undf_as1_f1, map_as1_f1(:,cell), \
-basis_as1_f1_qr, ndf_any_w2, undf_any_w2, map_any_w2(:,cell), \
-basis_any_w2_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)
-      call testkern_anys_vector_write_code(nlayers_f4, f4_1_data, f4_2_data, \
-f2_data, f3_data, ndf_as1_f4, undf_as1_f4, map_as1_f4(:,cell), \
-basis_as1_f4_qr, ndf_any_w2, undf_any_w2, map_any_w2(:,cell), \
-basis_any_w2_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)
-    enddo
-  else
-    do cell = uninitialised_loop0_start, uninitialised_loop0_stop, 1
-      call testkern_anys_vector_write_code(nlayers_f1, f1_1_data, f1_2_data, \
-f2_data, f3_data, ndf_as1_f1, undf_as1_f1, map_as1_f1(:,cell), \
-basis_as1_f1_qr, ndf_any_w2, undf_any_w2, map_any_w2(:,cell), \
-basis_any_w2_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)
-    enddo
-    do cell = uninitialised_loop1_start, uninitialised_loop1_stop, 1
-      call testkern_anys_vector_write_code(nlayers_f4, f4_1_data, f4_2_data, \
-f2_data, f3_data, ndf_as1_f4, undf_as1_f4, map_as1_f4(:,cell), \
-basis_as1_f4_qr, ndf_any_w2, undf_any_w2, map_any_w2(:,cell), \
-basis_any_w2_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)
-    enddo
-  end if"""
-    assert correct in fortran_writer(schedule)
+    correct = """! Set-up all of the loop bounds
+    loop0_start = 1
+    loop0_stop = f1_proxy(1)%vspace%get_ncell()
+    loop1_start = 1
+    loop1_stop = f1_proxy(1)%vspace%get_ncell()
+    loop2_start = 1
+    loop2_stop = f4_proxy(1)%vspace%get_ncell()
+
+    ! Call kernels
+    if (f1(1)%which_function_space() == f4(1)%which_function_space()) then
+      do cell = loop0_start, loop0_stop, 1
+        call testkern_anys_vector_write_code(nlayers_f1, f1_1_data, \
+f1_2_data, f2_data, f3_data, ndf_as1_f1, undf_as1_f1, map_as1_f1(:,cell), \
+ndf_any_w2, undf_any_w2, map_any_w2(:,cell))
+        call testkern_anys_vector_write_code(nlayers_f4, f4_1_data, f4_2_data, \
+f2_data, f3_data, ndf_as1_f4, undf_as1_f4, map_as1_f4(:,cell), ndf_any_w2, \
+undf_any_w2, map_any_w2(:,cell))
+      enddo
+    else
+      do cell = loop1_start, loop1_stop, 1
+        call testkern_anys_vector_write_code(nlayers_f1, f1_1_data, \
+f1_2_data, f2_data, f3_data, ndf_as1_f1, undf_as1_f1, map_as1_f1(:,cell), \
+ndf_any_w2, undf_any_w2, map_any_w2(:,cell))
+      enddo
+      do cell = loop2_start, loop2_stop, 1
+        call testkern_anys_vector_write_code(nlayers_f4, f4_1_data, \
+f4_2_data, f2_data, f3_data, ndf_as1_f4, undf_as1_f4, map_as1_f4(:,cell), \
+ndf_any_w2, undf_any_w2, map_any_w2(:,cell))
+      enddo
+    end if"""
+    generated_code = psy.gen
+    assert correct in generated_code
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 

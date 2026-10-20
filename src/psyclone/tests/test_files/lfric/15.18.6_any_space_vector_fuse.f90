@@ -15,10 +15,9 @@ program single_invoke
   implicit none
 
   type(field_type)           :: f1(2), f2, f3, f4(2)
-  type(quadrature_xyoz_type) :: qr
 
-  call invoke( testkern_anys_vector_write_type(f1, f2, f3, qr), &
-               testkern_anys_vector_write_type(f4, f2, f3, qr) &
+  call invoke( testkern_anys_vector_write_type(f1, f2, f3), &
+               testkern_anys_vector_write_type(f4, f2, f3) &
            )
 
 end program single_invoke
