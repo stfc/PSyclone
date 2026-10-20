@@ -43,10 +43,10 @@ contains
     integer(kind=i_def), intent(in) :: undf_any_w2
     integer(kind=i_def), intent(in) :: np_xy, np_z
     integer(kind=i_def), intent(in), dimension(ndf_any_w2) :: map_any_w2
-    real(kind=r_def), intent(inout), dimension(undf_any_w2) :: fld1_v1
-    real(kind=r_def), intent(inout), dimension(undf_any_w2) :: fld1_v2
+    real(kind=r_def), intent(inout), dimension(undf_any_w2) :: fld3_v1
+    real(kind=r_def), intent(inout), dimension(undf_any_w2) :: fld3_v2
+    real(kind=r_def), intent(in), dimension(undf_any_w2)    :: fld1
     real(kind=r_def), intent(in), dimension(undf_any_w2)    :: fld2
-    real(kind=r_def), intent(in), dimension(undf_any_w2)    :: fld3
     real(kind=r_def), intent(in), dimension(3,ndf_any_w2,np_xy,np_z) :: basis_any_w2
     real(kind=r_def), intent(in), dimension(1,ndf_any_w2,np_xy,np_z) :: diff_basis_any_w2
     real(kind=r_def), intent(in), dimension(np_xy) :: weights_xy
