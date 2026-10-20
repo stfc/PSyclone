@@ -32,8 +32,8 @@ contains
 
   subroutine testkern_anys_vector_write_code(nlayers, fld1_v1, fld1_v2, fld2, &
                             fld3, ndf_as1_f1, undf_as1_f1, map_as1_f1, &
-                            ndf_any_w2, undf_any_w2, map_any_w2, &
-                            basis_any_w2, diff_basis_any_w2,     &
+                            basis_as1_f1, ndf_any_w2, undf_any_w2, map_any_w2, &
+                            basis_any_w2, &
                             np_xy, np_z, weights_xy, weights_z)
 
     implicit none
@@ -50,8 +50,8 @@ contains
     real(kind=r_def), intent(inout), dimension(undf_as1_f1) :: fld1_v2
     real(kind=r_def), intent(in), dimension(undf_any_w2)    :: fld2
     real(kind=r_def), intent(in), dimension(undf_any_w2)    :: fld3
+    real(kind=r_def), intent(in), dimension(3,ndf_as1_f1,np_xy,np_z) :: basis_as1_f1
     real(kind=r_def), intent(in), dimension(3,ndf_any_w2,np_xy,np_z) :: basis_any_w2
-    real(kind=r_def), intent(in), dimension(1,ndf_any_w2,np_xy,np_z) :: diff_basis_any_w2
     real(kind=r_def), intent(in), dimension(np_xy) :: weights_xy
     real(kind=r_def), intent(in), dimension(np_z)  :: weights_z
 
