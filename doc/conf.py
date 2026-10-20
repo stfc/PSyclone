@@ -421,6 +421,7 @@ linkcheck_ignore = [
     r'^https://github.com/stfc/PSyclone#',
     # Requires authentication.
     r'^https://code.metoffice.gov.uk/trac',
+    r'^https://github.com/stfc/PSyclone-mirror',
     # This often fails, but the link exists
     r'^https://www.khronos.org',
     r'^https://gtr.ukri.org',
