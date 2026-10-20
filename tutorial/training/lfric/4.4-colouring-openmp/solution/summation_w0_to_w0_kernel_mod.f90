@@ -11,7 +11,7 @@ module summation_w0_to_w0_kernel_mod
   use kernel_mod
   use fs_continuity_mod, only: W0
 
-  use constants_mod
+  use constants_mod, only: i_def, r_def
 
   implicit none
 

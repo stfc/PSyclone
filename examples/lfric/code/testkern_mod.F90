@@ -8,9 +8,9 @@
 module testkern_mod
 
   use argument_mod
-  use fs_continuity_mod
-  use kernel_mod
-  use constants_mod
+  use fs_continuity_mod, only: w1, w2, w3
+  use kernel_mod, only: kernel_type
+  use constants_mod, only: i_def, r_def
 
   implicit none
 

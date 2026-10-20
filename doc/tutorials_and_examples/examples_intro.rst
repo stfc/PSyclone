@@ -111,7 +111,7 @@ Compiler                   Version
 Gnu Fortran                13.3, 14.3, 15.2, 16.1
 Intel Fortran (ifort)      21
 Intel LLVM Fortran (ifx)   2025.3.1, 2026.1.0
-NVIDIA Fortran             23.5
+NVIDIA Fortran             23.5, 26.9
 ========================   =======================================================
 
 .. _examples_dependencies:
