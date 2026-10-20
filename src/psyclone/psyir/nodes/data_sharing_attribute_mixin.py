@@ -320,7 +320,7 @@ class DataSharingAttributeMixin(metaclass=abc.ABCMeta):
         red_tool = ReductionInferenceTool(
             [BinaryOperation.Operator.ADD])
 
-        for sym in need_sync:
+        for sym in sorted(need_sync, key=lambda x: x.name):
             sig = Signature(sym.name)
             acc_seq = vam[sig]
             clause = red_tool.attempt_reduction(sig, acc_seq)

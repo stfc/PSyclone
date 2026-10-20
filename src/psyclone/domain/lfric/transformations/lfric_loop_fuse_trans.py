@@ -70,19 +70,19 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
                 "validity checks")
 
     def _resolve_function_spaces(
-        self, nodes: Iterable[LFRicLoop], const: LFRicConstants
+        self, nodes: Iterable[LFRicLoop]
     ) -> tuple[Union[FunctionSpace, None], Union[FunctionSpace, None]]:
         '''
-        Attempts to determine the actual fields for any fields that are
-        on ANY_SPACE.
+        Attempts to determine the actual function spaces for any fields that
+        are on ANY_SPACE.
 
         :param nodes: The nodes provided to the transformations.
-        :param const: An instance of LFRicConstants.
 
         :returns: A 2-tuple containing the resolved function spaces for the
                   input nodes, or None if the actual function space can't be
                   resolved for an ANY_SPACE input field.
         '''
+        const = LFRicConstants()
         node1 = nodes[0]
         node2 = nodes[1]
         found_space1 = node1.field_space
@@ -295,12 +295,9 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         arg_types = const.VALID_SCALAR_NAMES
         node1_red_args = node1.args_filter(arg_types=arg_types,
                                            arg_accesses=[AccessType.REDUCTION])
-        node2_red_args = node2.args_filter(arg_types=arg_types,
-                                           arg_accesses=[AccessType.REDUCTION])
 
         # Find the iteration space arguments if they exist, as they don't for
         # inputs like colour loops.
-        same_field_name = False
         kern1 = node1.kernel
         args1 = kern1.arguments if kern1 else None
         arg1_field = args1.iteration_space_arg() if args1 else None
@@ -308,16 +305,6 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         args2 = kern2.arguments if kern2 else None
         arg2_field = args2.iteration_space_arg() if args2 else None
 
-        if arg1_field is not None and arg2_field is not None:
-            same_field_name = arg1_field.name == arg2_field.name
-
-        # If we have two reductions and they aren't on the same field then
-        # we can't fuse them.
-        if (node1_red_args and node2_red_args and not same_field_name):
-            raise TransformationError(
-                f"Error in {self.name} transformation: Cannot fuse loops "
-                f"when each loop contains a reduction and those reductions "
-                f"are to different fields.")
         if node1_red_args:
             for reduction_arg in node1_red_args:
                 other_args = node2.args_filter()
@@ -361,7 +348,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         # space and if we can't compute it we can't fuse the loops without
         # a conditional runtime check.
         found_space1, found_space2 = self._resolve_function_spaces(
-            nodes, const
+            nodes
         )
         if ((found_space1 is None or found_space2 is None) and
                 not conditional_fusion):
@@ -485,7 +472,7 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         # We know the function space of both loops and we know from validate
         # that it must be the same unless conditional fusion was requested.
         found_space1, found_space2 = self._resolve_function_spaces(
-            nodes, const
+            nodes
         )
 
         if found_space1 is not None and found_space2 is not None:

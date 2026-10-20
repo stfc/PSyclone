@@ -2108,22 +2108,54 @@ def test_two_reductions_real_do(tmpdir, dist_mem, fuse):
     rtrans = OMPParallelTrans()
     ftrans = LFRicLoopFuseTrans()
     if fuse:
-        with pytest.raises(TransformationError) as err:
-            ftrans.apply((schedule[0], schedule[1]),
-                         options={"same_space": True})
-        assert ("Cannot fuse loops when each loop contains a "
-                "reduction" in str(err.value))
+        ftrans.apply((schedule[0], schedule[1]),
+                     options={"same_space": True})
     # Apply an OpenMP do to the loop
     for child in schedule.children:
         if isinstance(child, Loop):
             otrans.apply(child, {"reprod": False})
     # Apply an OpenMP Parallel for all loops
-    rtrans.apply(schedule.children[0:2])
+    if fuse:
+        rtrans.apply(schedule.children[0])
+    else:
+        rtrans.apply(schedule.children[0:2])
     result = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    if dist_mem:
+    if dist_mem and fuse:
+        expected_output = """\
+    ! Set-up all of the loop bounds
+    loop0_start = 1
+    loop0_stop = f2_proxy%vspace%get_last_dof_owned()
+
+    ! Initialise reduction variable
+    asum = 0.0_r_def
+
+    ! Initialise reduction variable
+    bsum = 0.0_r_def
+
+    ! Call kernels and communication routines
+    !$omp parallel default(shared) private(df)
+    !$omp do schedule(static) reduction(+: asum) reduction(+: bsum)
+    do df = loop0_start, loop0_stop, 1
+      ! Built-in: X_innerproduct_Y (real-valued fields)
+      asum = asum + f2_data(df) * f1_data(df)
+
+      ! Built-in: sum_X (sum a real-valued field)
+      bsum = bsum + f1_data(df)
+    enddo
+    !$omp end do
+    !$omp end parallel
+
+    ! Perform global sum
+    global_sum%value = asum
+    asum = global_sum%get_sum()
+
+    ! Perform global sum
+    global_sum%value = bsum
+    bsum = global_sum%get_sum()"""
+    elif dist_mem:
         assert "loop0_stop = f2_proxy%vspace%get_last_dof_owned()\n" in result
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()\n" in result
         expected_output = (
@@ -2156,7 +2188,7 @@ def test_two_reductions_real_do(tmpdir, dist_mem, fuse):
             "    ! Perform global sum\n"
             "    global_sum%value = bsum\n"
             "    bsum = global_sum%get_sum()")
-    else:
+    elif not fuse:
         assert "loop0_stop = undf_as1_f2" in result
         assert "loop1_stop = undf_as1_f1" in result
         expected_output = (
@@ -2181,6 +2213,31 @@ def test_two_reductions_real_do(tmpdir, dist_mem, fuse):
             "    enddo\n"
             "    !$omp end do\n"
             "    !$omp end parallel")
+    else:
+        print(result)
+        expected_output = """\
+    ! Set-up all of the loop bounds
+    loop0_start = 1
+    loop0_stop = undf_as1_f2
+
+    ! Initialise reduction variable
+    asum = 0.0_r_def
+
+    ! Initialise reduction variable
+    bsum = 0.0_r_def
+
+    ! Call kernels
+    !$omp parallel default(shared) private(df)
+    !$omp do schedule(static) reduction(+: asum) reduction(+: bsum)
+    do df = loop0_start, loop0_stop, 1
+      ! Built-in: X_innerproduct_Y (real-valued fields)
+      asum = asum + f2_data(df) * f1_data(df)
+
+      ! Built-in: sum_X (sum a real-valued field)
+      bsum = bsum + f1_data(df)
+    enddo
+    !$omp end do
+    !$omp end parallel"""
     assert expected_output in result
 
 
@@ -2362,10 +2419,10 @@ def test_multi_reduction_same_name_real_do():
                 "invoke") in str(excinfo.value)
 
 
-def test_multi_reduction_real_fuse():
-    '''test that we raise an exception when we loop fuse two kernels with
-    reductions. We need to specify that the loop-fuse is valid in terms of
-    iteration spaces.'''
+def test_multi_reduction_real_fuse(fortran_writer):
+    '''Test that we raise an exception when we loop fuse two kernels with
+    dependent reductions and that we can fuse two kernels if they have
+    interdependent reductions.'''
     file_name = "15.15.1_two_same_builtin_reductions.f90"
 
     for distmem in [False, True]:
@@ -2399,12 +2456,22 @@ def test_multi_reduction_real_fuse():
             # code invalid in this particular case but allows us
             # to perform our check
             del schedule.children[1]
-        with pytest.raises(TransformationError) as excinfo:
-            ftrans.apply((schedule.children[0], schedule.children[1]),
-                         {"same_space": True})
-        assert ("Error in LFRicLoopFuseTrans transformation: Cannot "
-                "fuse loops when each loop contains a "
-                "reduction" in str(excinfo.value))
+        ftrans.apply((schedule.children[0], schedule.children[1]),
+                     {"same_space": True})
+        correct = """\
+  ! Initialise reduction variable
+  asum = 0.0_r_def
+
+  ! Initialise reduction variable
+  bsum = 0.0_r_def
+  do df = uninitialised_loop0_start, uninitialised_loop0_stop, 1
+    ! Built-in: X_innerproduct_Y (real-valued fields)
+    asum = asum + f2_data(df) * f1_data(df)
+
+    ! Built-in: sum_X (sum a real-valued field)
+    bsum = bsum + f1_data(df)
+  enddo"""
+        assert correct in fortran_writer(schedule)
 
 
 def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
