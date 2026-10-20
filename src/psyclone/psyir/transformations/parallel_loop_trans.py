@@ -221,8 +221,8 @@ class ParallelLoopTrans(LoopTrans, AsyncTransMixin, metaclass=abc.ABCMeta):
                         f"but found {type(op).__name__}")
 
         # This method produces a list of inferred reduction clauses
-        self.inferred_reduction_clauses: list[BinaryOperation.Operator,
-                                              Reference] = []
+        self.inferred_reduction_clauses: list[tuple[BinaryOperation.Operator,
+                                                    Reference]] = []
 
         # Check we are not a sequential loop
         if (not sequential and isinstance(node, PSyLoop) and
