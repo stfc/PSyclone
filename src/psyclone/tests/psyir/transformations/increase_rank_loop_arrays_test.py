@@ -80,6 +80,11 @@ def test_irla_validate(fortran_reader):
             "not exist in this scope." in str(err.value))
 
     with pytest.raises(TransformationError) as err:
+        trans.apply(routine.children[2], arrays=[1])
+    assert ("IncreaseRankLoopArraysTrans must be passed a list of symbol "
+            "names or Symbol objects but found int" in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
         trans.apply(routine.children[2].detach(), arrays=['a'])
     assert ("The target Loop of the IncreaseRankLoopArraysTrans transformation"
             " must be inside a Routine." in str(err.value))
