@@ -50,7 +50,7 @@ def test_irla_validate(fortran_reader):
     assert ("The target of the IncreaseRankLoopArraysTrans transformation "
             "should be a Loop, but found 'Assignment'." in str(err.value))
 
-    with pytest.raises(TypeError) as err:
+    with pytest.raises(TransformationError) as err:
         trans.apply(routine.children[2])
     assert ("IncreaseRankLoopArraysTrans has a mandatory 'arrays' option "
             "which specifies which arrays are to have their "
@@ -456,5 +456,5 @@ end module
     with pytest.raises(TransformationError) as err:
         trans.apply(psyir.walk(Loop)[0], arrays=['a'])
 
-    assert ("IncreaseRankLoopArraysTrans can't be applied to"
-            " arrays without indices." in str(err.value))
+    assert ("IncreaseRankLoopArraysTrans does not yet support all special"
+            " cases for arrays without indices." in str(err.value))

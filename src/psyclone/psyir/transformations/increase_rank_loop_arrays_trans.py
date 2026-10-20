@@ -116,7 +116,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
         arrays = self.get_option('arrays', **kwargs)
 
         if not isinstance(arrays, list) or len(arrays) == 0:
-            raise TypeError(
+            raise TransformationError(
                 f"{self.name} has a mandatory 'arrays' option which specifies"
                 f" which arrays are to have their rank increased.")
 
@@ -133,12 +133,11 @@ class IncreaseRankLoopArraysTrans(Transformation):
 
         # Convert to list of symbols, if provided as strings
         arrays_symbols: list[Symbol] = []
-        for idx, array in enumerate(arrays):
+        for array in arrays:
             if isinstance(array, Symbol):
                 arrays_symbols.append(array)
-                continue
 
-            if isinstance(array, str):
+            elif isinstance(array, str):
                 try:
                     arrays_symbols.append(
                         node.scope.symbol_table.lookup(array)
@@ -148,12 +147,12 @@ class IncreaseRankLoopArraysTrans(Transformation):
                         f"{self.name} provided array '{array}' does not exist"
                         f" in this scope."
                     ) from err
-                continue
 
-            raise TypeError(
-                f"Provided array option of type {type(array)} "
-                "which is not supported"
-            )
+            else:
+                raise TransformationError(
+                    f"{self.name} must be passed a list of symbol names or "
+                    f"Symbol objects but found {type(array).__name__}"
+                )
 
         # Check if the loop bound expressions are static:
         # First, find all Symbols accessed in the loop bounds.
@@ -261,6 +260,8 @@ class IncreaseRankLoopArraysTrans(Transformation):
                     f"but '{array.name}' is used outside the loop.")
 
             if array.datatype.is_allocatable:
+                # One would also need to change the 'allocate' / deallocate
+                # calls to add the new dimension, but it's not yet done.
                 raise TransformationError(
                     f"{self.name} does not support arrays that are"
                     f" allocatable, but '{array.name}' is.")
@@ -284,12 +285,12 @@ class IncreaseRankLoopArraysTrans(Transformation):
                         continue
 
                     raise TransformationError(
-                        f"{self.name} can't be applied to arrays"
-                        " without indices.")
+                        f"{self.name} does not yet support all special"
+                        " cases for arrays without indices.")
 
-                ref: ArrayReference
+                array_ref: ArrayReference = ref
 
-                for idx in ref.indices:
+                for idx in array_ref.indices:
                     for n in idx.walk(Reference):
                         if n.symbol is node.variable_reference.symbol:
                             raise TransformationError(
@@ -313,7 +314,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
         '''
         self.validate(node, arrays=arrays, **kwargs)
 
-        # List of processed array names
+        # Processed array names
         array_processed: set[str] = set()
 
         for array in arrays:
