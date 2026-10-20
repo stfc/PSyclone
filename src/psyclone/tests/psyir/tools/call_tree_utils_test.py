@@ -720,9 +720,9 @@ def test_call_tree_utils_write_call_tree_info_from_generator(tmp_path):
         encoding="utf-8")
 
     main([algorithm_file, "-api", "lfric", "-s", str(script_file),
-            "-d", kernel_dir, "-d", infrastructure_dir,
-            "-opsy", str(psy_file),
-            "-oalg", str(alg_file)])
+          "-d", kernel_dir, "-d", infrastructure_dir,
+          "-opsy", str(psy_file),
+          "-oalg", str(alg_file)])
 
     with yaml_file.open(encoding="utf-8") as yaml_stream:
         result = yaml.safe_load(yaml_stream)
