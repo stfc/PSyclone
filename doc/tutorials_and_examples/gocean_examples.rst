@@ -82,6 +82,8 @@ These drivers can only read the corresponding file format, i.e. a NetCDF
 driver program cannot read in extraction data that is based on Fortran IO
 and vice versa.
 
+.. _gocean_example_profile:
+
 Example 5.2: Profiling
 ~~~~~~~~~~~~~~~~~~~~~~
 This example shows how to use the profiling support in PSyclone.
@@ -98,9 +100,21 @@ invoke is executed. This example can actually be executed to
 test the behaviour of the various profiling wrappers, and is
 also useful if you want to develop your own wrapper libraries.
 
+Example 5.3: OpenMP Profiling
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This example shows how to use the profiling support in PSyclone
+inside an OpenMP parallel region. It is very similar to
+:ref:`gocean_example_profile`, but inserts the profiling
+calls into a parallel region. This requires the underlying
+profiling library to be threadsafe, otherwise crashes and/or
+inconsistent results will happen. Note that many of the
+included profiling libraries (lfric, simple_timing,
+template) are not threadsafe. This example can be executed to
+test the behaviour of the various profiling wrappers.
+
 .. _gocean_example_readonly:
 
-Example 5.3: Read-only-verification
+Example 5.4: Read-only-verification
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This example shows the use of read-only-verification with PSyclone.
 It instruments each of the two invokes in the example program
@@ -138,7 +152,7 @@ read-only variables:
 
 .. _gocean_example_value_range_check:
 
-Example 5.4: Value Range Check
+Example 5.5: Value Range Check
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This example shows the use of valid-number verification with PSyclone.
 It instruments each of the two invokes in the example program

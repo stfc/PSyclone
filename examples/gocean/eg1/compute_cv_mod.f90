@@ -9,7 +9,7 @@
 !! \detail Given the current pressure and velocity fields,
 !! computes the mass flux in the y direction.
 module compute_cv_mod
-  use kind_params_mod
+  use kind_params_mod, only: go_wp
   use kernel_mod
   use argument_mod
   use grid_mod
