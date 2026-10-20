@@ -19,15 +19,15 @@ module testkern_anys_vector_write_mod
              arg_type(gh_field,   gh_real, gh_read, any_w2), &
              arg_type(gh_field,   gh_real, gh_read, any_w2)  &
            /)
-     type(func_type), dimension(1) :: meta_funcs =           &
-          (/ func_type(any_w2, gh_basis, gh_diff_basis)      &
+     type(func_type) :: meta_funcs(2) = (/                   &
+             func_type(ANY_SPACE_1, GH_BASIS),               &
+             func_type(ANY_W2, GH_BASIS)                     &
           /)
      integer :: operates_on = cell_column
      integer :: gh_shape = gh_quadrature_XYoZ
    contains
      procedure, nopass :: code => testkern_anys_vector_write_code
   end type testkern_anys_vector_write_type
-
 contains
 
   subroutine testkern_anys_vector_write_code(nlayers, fld1_v1, fld1_v2, fld2, &
