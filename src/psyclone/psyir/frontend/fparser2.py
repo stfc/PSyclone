@@ -34,7 +34,7 @@ from psyclone.psyir.nodes import (
     BinaryOperation, Call, CodeBlock, Container, ComplexLiteral,
     DataNode, Directive, FileContainer, IfBlock, IntrinsicCall, Literal, Loop,
     Member, Node, OMPDeclareTargetDirective, Range, Reference, Return,
-    Routine, Schedule, SelectType, StructureReference, TypeIs, UnaryOperation,
+    Routine, Schedule, SelectType, StructureReference, TypeGuard, UnaryOperation,
     WhileLoop, Fparser2CodeBlock, ScopingNode, UnknownDirective)
 
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
@@ -1013,7 +1013,7 @@ class Fparser2Reader():
             Fortran2003.Program: self._program_handler,
             Fortran2003.Directive: self._directive_handler,
             Fortran2003.Select_Type_Construct: self._select_type_handler,
-            Fortran2003.Type_Guard_Stmt: self._type_is_handler,
+            Fortran2003.Type_Guard_Stmt: self._type_guard_handler,
         }
         # Used to attach inline comments to the PSyIR symbols and nodes
         self._last_psyir_parsed_and_span = None
@@ -6458,13 +6458,19 @@ class Fparser2Reader():
         # Find the Select_Type_Stmt containing the name we're interested in.
         select_type_stmt = _first_type_match(node.children,
                                              Fortran2003.Select_Type_Stmt)
+        # If we have a => b syntax then we don't currently support it.
+        if select_type_stmt.children[0] is not None:
+            raise NotImplementedError(
+                "PSyclone doesn't yet support Select Type with "
+                "an assoc-name for the selector."
+            )
         variable_name = select_type_stmt.children[1].string
         # FIXME Need to create the right type of symbol?
         symbol = _find_or_create_unresolved_symbol(parent, variable_name)
         select_type.addchild(Reference(symbol))
 
         # For all of the Fortran2003.Type_Guard_Stmt we should get the
-        # corresponding TypeIs PSyIR nodes.
+        # corresponding TypeGuard PSyIR nodes.
         # The current position in the children list. We start after the
         # Select_Type_Stmt
         current_position = 0
@@ -6474,16 +6480,16 @@ class Fparser2Reader():
                 break
 
         current_nodes = []
-        current_type_is = None
+        current_type_guard = None
         while current_position < len(node.children):
             current = node.children[current_position]
             # If we come across a TypeGuardStmt we have reached a new block.
             if isinstance(current, Fortran2003.Type_Guard_Stmt):
                 # If we already had a Type Is statement we process the
                 # previous nodes without this one and then process this.
-                if current_type_is:
+                if current_type_guard:
                     # Find all the nodes until the last non-comment and add
-                    # those to the previous TypeIs node.
+                    # those to the previous TypeGuard node.
                     non_comment_indices = [
                         i for i, e in enumerate(current_nodes) if
                         not isinstance(e, Fortran2003.Comment)
@@ -6495,9 +6501,9 @@ class Fparser2Reader():
 
                     if last_non_comment_index is not None:
                         # If the previous block only has non-comments we need
-                        # to add them to the previous TypeIs node.
+                        # to add them to the previous TypeGuard node.
                         self.process_nodes(
-                            parent=current_type_is.body,
+                            parent=current_type_guard.body,
                             nodes=current_nodes[:last_non_comment_index+1]
                         )
                         # Keep any trailing comments in the current_nodes list.
@@ -6505,16 +6511,16 @@ class Fparser2Reader():
                             last_non_comment_index+1:
                         ]
 
-                # Add the current TypeIs node to the current node list.
+                # Add the current TypeGuard node to the current node list.
                 current_nodes.append(current)
                 self.process_nodes(parent=select_type, nodes=current_nodes)
-                # Update the new current_type_is to be the newly created TypeIs
+                # Update the new current_type_guard to be the newly created TypeGuard
                 # node.
-                current_type_is = select_type.children[-1]
+                current_type_guard = select_type.children[-1]
                 current_nodes = []
             elif isinstance(current, Fortran2003.End_Select_Type_Stmt):
-                # Add the remaining nodes to the last TypeIs node.
-                self.process_nodes(parent=current_type_is.body,
+                # Add the remaining nodes to the last TypeGuard node.
+                self.process_nodes(parent=current_type_guard.body,
                                    nodes=current_nodes)
                 break
             else:
@@ -6523,23 +6529,35 @@ class Fparser2Reader():
 
         return select_type
 
-    def _type_is_handler(
+    def _type_guard_handler(
         self, node: Fortran2003.Type_Guard_Stmt, parent: Node
-    ) -> TypeIs:
+    ) -> TypeGuard:
         '''
         FIXME
         '''
+        print(node)
+        print(node.children)
+        # This is either TYPE IS, CLASS IS or CLASS DEFAULT
+        type_guard_type: str = node.children[0].upper()
+        type_spec_or_name = node.children[1]
         # Find the Select_Type_Stmt containing the name we're interested in.
-        type_name_stmt = _first_type_match(node.children,
-                                           Fortran2003.Type_Name)
-        type_name = type_name_stmt.string
-        symbol = _find_or_create_unresolved_symbol(
-                parent, type_name
-        )  # FIXME Need to create the right type of symbol?
-        type_is = TypeIs(parent=parent)
-        type_is.addchild(Reference(symbol))
-        type_is.addchild(Schedule())
-        return type_is
+        type_guard = TypeGuard(parent=parent)
+        if isinstance(type_spec_or_name, Fortran2003.Type_Name):
+            type_name = type_spec_or_name.string
+            symbol = _find_or_create_unresolved_symbol(
+                    parent, type_name
+            )  # FIXME Need to create the right type of symbol?
+            type_guard.addchild(Reference(symbol))
+        # What else can this be?
+        elif isinstance(type_spec_or_name, Fortran2003.Intrinsic_Type_Spec):
+            try:
+               x, y = self._process_type_spec(type_guard, type_spec_or_name)
+            except Exception as e:
+                print(str(e))
+            print(x, y, type(x), type(y))
+            print("---------")
+        type_guard.addchild(Schedule())
+        return type_guard
 
 
 # For Sphinx AutoAPI documentation generation

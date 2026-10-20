@@ -10,7 +10,7 @@
 from psyclone.core import VariablesAccessMap
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.nodes.type_is import TypeIs
+from psyclone.psyir.nodes.type_guard import TypeGuard
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.statement import Statement
 
@@ -18,12 +18,12 @@ from psyclone.psyir.nodes.statement import Statement
 class SelectType(Statement):
     '''
     Node representing an SelectType block within the PSyIR. It may have any
-    number of TypeIs children.
+    number of TypeGuard children.
 
     '''
 
     # Textual description of the node.
-    _children_valid_format = "Reference, TypeIs+"
+    _children_valid_format = "Reference, TypeGuard+"
     _text_name = "SelectType"
     _colour = "red"
 
@@ -37,19 +37,19 @@ class SelectType(Statement):
 
         '''
         return ((position == 0 and isinstance(child, Reference)) or
-                (position > 0 and isinstance(child, TypeIs)))
+                (position > 0 and isinstance(child, TypeGuard)))
 
     @staticmethod
-    def create(variable: Reference, istypes: list[TypeIs]) -> "SelectType":
+    def create(variable: Reference, istypes: list[TypeGuard]) -> "SelectType":
         '''
-        Creates a SelectType from its TypeIs children.
+        Creates a SelectType from its TypeGuard children.
 
-        :param istypes: a list containing the TypeIs children of the new
+        :param istypes: a list containing the TypeGuard children of the new
                         SelectType.
 
         :raises GenerationError: if istypes it not a list.
 
-        :returns: a new SelectType containing the provided TypeIs children.
+        :returns: a new SelectType containing the provided TypeGuard children.
         '''
         if not isinstance(istypes, list):
             raise GenerationError(

@@ -22,7 +22,7 @@ from psyclone.psyir.nodes import (
     ArrayConstructor, BinaryOperation, Call, Container, CodeBlock,
     ComplexLiteral, DataNode, IntrinsicCall, Literal, Member, Node,
     OMPDependClause, OMPReductionClause, Operation, Range, Routine, Schedule,
-    UnaryOperation, UnknownDirective, IfBlock, SelectType, TypeIs)
+    UnaryOperation, UnknownDirective, IfBlock, SelectType, TypeGuard)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataType,
     DataTypeSymbol, GenericInterfaceSymbol, IntrinsicSymbol,
@@ -2039,11 +2039,11 @@ class FortranWriter(LanguageWriter):
         self._depth -= 1
         return result
 
-    def typeis_node(self, node: TypeIs) -> str:
+    def typeguard_node(self, node: TypeGuard) -> str:
         '''
-        Translate the TypeIs node into Fortran.
+        Translate the TypeGuard node into Fortran.
 
-        :parm node: the TypeIs node to translate.
+        :parm node: the TypeGuard node to translate.
 
         :returns: the equivalent Fortran code.
         '''

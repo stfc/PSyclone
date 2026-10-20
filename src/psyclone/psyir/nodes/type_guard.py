@@ -5,7 +5,7 @@
 # See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
-''' This module contains the TypeIs node implementation.'''
+''' This module contains the TypeGuard node implementation.'''
 
 from psyclone.core import VariablesAccessMap
 from psyclone.errors import InternalError, GenerationError
@@ -15,16 +15,16 @@ from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.statement import Statement
 
 
-class TypeIs(Statement):
+class TypeGuard(Statement):
     '''
-    Node representing an TypeIs block within the PSyIR. It has a
+    Node representing an TypeGuard block within the PSyIR. It has a
     Reference child followed by a Schedule child.
 
     '''
 
     # Textual description of the node.
     _children_valid_format = "Reference, Schedule"
-    _text_name = "TypeIs"
+    _text_name = "TypeGuard"
     _colour = "red"
 
     @staticmethod
@@ -43,43 +43,43 @@ class TypeIs(Statement):
     @property
     def condition(self) -> Reference:
         '''
-        :returns: the Reference representing the condition of the TypeIs.
+        :returns: the Reference representing the condition of the TypeGuard.
 
-        :raises InternalError: If the TypeIs node does not have the correct
+        :raises InternalError: If the TypeGuard node does not have the correct
             number of children.
         '''
         if len(self.children) < 2:
             raise InternalError(
-                f"TypeIs malformed or incomplete. It should have 2 "
+                f"TypeGuard malformed or incomplete. It should have 2 "
                 f"children, but found {len(self.children)}.")
         return self._children[0]
 
     @property
     def body(self) -> Schedule:
         '''
-        :returns: the Schedule containing the body of this TypeIs.
+        :returns: the Schedule containing the body of this TypeGuard.
 
-        :raises InternalError: If the TypeIs node does not have the correct
+        :raises InternalError: If the TypeGuard node does not have the correct
             number of children.
         '''
         if len(self.children) < 2:
             raise InternalError(
-                f"TypeIs malformed or incomplete. It should have 2 "
+                f"TypeGuard malformed or incomplete. It should have 2 "
                 f"children, but found {len(self.children)}.")
         return self._children[1]
 
     @staticmethod
-    def create(condition: Reference, children: list[Node]) -> "TypeIs":
+    def create(condition: Reference, children: list[Node]) -> "TypeGuard":
         '''
-        Creates an TypeIs given a condition and its children.
+        Creates an TypeGuard given a condition and its children.
 
-        :param condition: the Reference condition of the new TypeIs.
+        :param condition: the Reference condition of the new TypeGuard.
         :param children: a list of Nodes contained in the body of the new
-                         TypeIs.
+                         TypeGuard.
 
         :raises GenerationError: if children is not a list.
 
-        :returns: An TypeIs representing the inputs.
+        :returns: An TypeGuard representing the inputs.
         '''
         # or for me?
         # FIXME For the reviewer - should the create method check the
@@ -87,10 +87,10 @@ class TypeIs(Statement):
 
         if not isinstance(children, list):
             raise GenerationError(
-                f"children argument in create method of TypeIs class should "
+                f"children argument in create method of TypeGuard class should "
                 f"be a list but found {type(children).__name__}."
             )
-        is_type = TypeIs()
+        is_type = TypeGuard()
         is_body = Schedule(parent=is_type, children=children)
         is_type.children = [condition, is_body]
 
@@ -122,4 +122,4 @@ class TypeIs(Statement):
         return var_accesses
 
 
-__all__ = ["TypeIs"]
+__all__ = ["TypeGuard"]
