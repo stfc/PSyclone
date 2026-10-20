@@ -31,7 +31,7 @@ module testkern_anys_vector_write_mod
 contains
 
   subroutine testkern_anys_vector_write_code(nlayers, fld1_v1, fld1_v2, fld2, &
-                            fld3, ndf_as1_f1, undf_as1_f1, map_as1_f1
+                            fld3, ndf_as1_f1, undf_as1_f1, map_as1_f1, &
                             ndf_any_w2, undf_any_w2, map_any_w2, &
                             basis_any_w2, diff_basis_any_w2,     &
                             np_xy, np_z, weights_xy, weights_z)
