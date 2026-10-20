@@ -104,6 +104,19 @@ def test_kernel_from_psyir(fortran_reader):
         Kernel(kernel.metadata, procedures=(object(),))
 
 
+def test_kernel_procedure_name(fortran_reader):
+    """Construction stores either an explicit name or the metadata name."""
+    metadata = GOceanKernelMetadata.create_from_psyir(
+        fortran_reader.psyir_from_source(GOCEAN_SOURCE))
+    kernel = Kernel(metadata)
+    assert kernel.procedure_name == "demo_code"
+    assert Kernel(metadata, procedure_name="other_code").procedure_name == (
+        "other_code")
+    assert Kernel(metadata, procedure_name=None).procedure_name == "demo_code"
+    with pytest.raises(TypeError, match="procedure name must be a string"):
+        Kernel(metadata, procedure_name=123)
+
+
 @pytest.mark.parametrize("metadata_type", [None, object])
 def test_kernel_unsupported_metadata(metadata_type, fortran_reader):
     """Full kernel assembly requires a supported API metadata class."""
@@ -135,6 +148,19 @@ def test_kernel_custom_metadata(fortran_reader):
 
         def fortran_string(self):
             return ""
+
+    metadata = CustomMetadata()
+    with pytest.raises(ValueError, match="provided explicitly or"):
+        Kernel(metadata)
+    metadata.procedure_name = None
+    with pytest.raises(ValueError, match="provided explicitly or"):
+        Kernel(metadata)
+    assert Kernel(metadata, procedure_name="explicit_code").procedure_name == (
+        "explicit_code")
+    metadata.procedure_name = "original_code"
+    kernel = Kernel(metadata)
+    metadata.procedure_name = "changed_code"
+    assert kernel.procedure_name == "original_code"
 
     psyir = fortran_reader.psyir_from_source(GOCEAN_SOURCE)
     kernel = Kernel.create_from_psyir(CustomMetadata, psyir, name="demo_type")

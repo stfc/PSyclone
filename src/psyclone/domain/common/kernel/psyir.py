@@ -19,17 +19,24 @@ from psyclone.psyir.nodes import Container, Node, Routine
 
 @dataclass(frozen=True)
 class Kernel:
-    """The psyir of its source implementation together with its metadata"""
+    """The PSyIR of a kernel implementation together with its metadata.
+
+    The procedure name is supplied explicitly or taken from the metadata
+    during construction.
+    """
 
     metadata: "KernelMetadata"
     psyir: Optional[Node] = None
     procedures: tuple[Routine, ...] = ()
-    resolved_procedure_name: Optional[str] = None
+    procedure_name: str = ""
 
     def __post_init__(self) -> None:
         """Validate the common kernel-information container.
 
         :raises TypeError: if metadata or procedures have unsupported types.
+        :raises TypeError: if the procedure name is not a string.
+        :raises ValueError: if neither an explicit nor metadata procedure name
+            is available.
         """
         if not isinstance(self.metadata, KernelMetadata):
             raise TypeError(
@@ -42,11 +49,16 @@ class Kernel:
             raise TypeError(
                 "Kernel procedures must be a tuple of Routines.")
 
-    @property
-    def procedure_name(self) -> Optional[str]:
-        """:returns: the resolved procedure or interface name."""
-        return (self.resolved_procedure_name or
-                getattr(self.metadata, "procedure_name", None))
+        procedure_name = self.procedure_name
+        if procedure_name is None or procedure_name == "":
+            procedure_name = getattr(self.metadata, "procedure_name", None)
+        if procedure_name is None or procedure_name == "":
+            raise ValueError(
+                "Kernel procedure name must be provided explicitly or "
+                "by the metadata.")
+        if not isinstance(procedure_name, str):
+            raise TypeError("Kernel procedure name must be a string.")
+        object.__setattr__(self, "procedure_name", procedure_name)
 
     @classmethod
     def create_from_psyir(
