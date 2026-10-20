@@ -53,25 +53,9 @@ def test_field(tmpdir):
         "  contains\n"
         "  subroutine invoke_0_testkern_type(a, f1, f2, m1, m2)\n"
         "    use constants_mod, only : i_def\n"
-        "    real(kind=r_def), intent(in) :: a\n"
         "    integer(kind=i_def) :: cell\n"
-        "    type(field_type), intent(in) :: f1\n"
-        "    real(kind=r_def), pointer, dimension(:) :: f1_data => null()\n"
-        "    type(field_proxy_type) :: f1_proxy\n"
-        "    type(field_type), intent(in) :: f2\n"
-        "    real(kind=r_def), pointer, dimension(:) :: f2_data => null()\n"
-        "    type(field_proxy_type) :: f2_proxy\n"
         "    integer(kind=i_def) :: loop0_start\n"
         "    integer(kind=i_def) :: loop0_stop\n"
-        "    type(field_type), intent(in) :: m1\n"
-        "    real(kind=r_def), pointer, dimension(:) :: m1_data => null()\n"
-        "    type(field_proxy_type) :: m1_proxy\n"
-        "    type(field_type), intent(in) :: m2\n"
-        "    real(kind=r_def), pointer, dimension(:) :: m2_data => null()\n"
-        "    type(field_proxy_type) :: m2_proxy\n"
-        "    integer(kind=i_def), pointer :: map_w1(:,:) => null()\n"
-        "    integer(kind=i_def), pointer :: map_w2(:,:) => null()\n"
-        "    integer(kind=i_def), pointer :: map_w3(:,:) => null()\n"
         "    integer(kind=i_def) :: ndf_w1\n"
         "    integer(kind=i_def) :: ndf_w2\n"
         "    integer(kind=i_def) :: ndf_w3\n"
@@ -79,6 +63,22 @@ def test_field(tmpdir):
         "    integer(kind=i_def) :: undf_w1\n"
         "    integer(kind=i_def) :: undf_w2\n"
         "    integer(kind=i_def) :: undf_w3\n"
+        "    integer(kind=i_def), pointer :: map_w1(:,:) => null()\n"
+        "    integer(kind=i_def), pointer :: map_w2(:,:) => null()\n"
+        "    integer(kind=i_def), pointer :: map_w3(:,:) => null()\n"
+        "    real(kind=r_def), intent(in) :: a\n"
+        "    real(kind=r_def), pointer, dimension(:) :: f1_data => null()\n"
+        "    real(kind=r_def), pointer, dimension(:) :: f2_data => null()\n"
+        "    real(kind=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "    real(kind=r_def), pointer, dimension(:) :: m2_data => null()\n"
+        "    type(field_proxy_type) :: f1_proxy\n"
+        "    type(field_proxy_type) :: f2_proxy\n"
+        "    type(field_proxy_type) :: m1_proxy\n"
+        "    type(field_proxy_type) :: m2_proxy\n"
+        "    type(field_type), intent(in) :: f1\n"
+        "    type(field_type), intent(in) :: f2\n"
+        "    type(field_type), intent(in) :: m1\n"
+        "    type(field_type), intent(in) :: m2\n"
         "\n"
         "    ! Initialise field and/or operator proxies\n"
         "    f1_proxy = f1%get_proxy()\n"
@@ -150,31 +150,13 @@ def test_field_deref(tmpdir, dist_mem):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    output = (
-        "    real(kind=r_def), intent(in) :: a\n"
+    assert (
         "    integer(kind=i_def) :: cell\n"
-        "    type(field_type), intent(in) :: est_f2\n"
-        "    real(kind=r_def), pointer, dimension(:) :: est_f2_data => "
-        "null()\n"
-        "    type(field_proxy_type) :: est_f2_proxy\n"
-        "    type(field_type), intent(in) :: est_m2\n"
-        "    real(kind=r_def), pointer, dimension(:) :: est_m2_data => "
-        "null()\n"
-        "    type(field_proxy_type) :: est_m2_proxy\n"
-        "    type(field_type), intent(in) :: f1\n"
-        "    real(kind=r_def), pointer, dimension(:) :: f1_data => null()\n"
-        "    type(field_proxy_type) :: f1_proxy\n"
         "    integer(kind=i_def) :: loop0_start\n"
         "    integer(kind=i_def) :: loop0_stop\n"
-        "    type(field_type), intent(in) :: m1\n"
-        "    real(kind=r_def), pointer, dimension(:) :: m1_data => null()\n"
-        "    type(field_proxy_type) :: m1_proxy\n"
-        "    integer(kind=i_def), pointer :: map_w1(:,:) => null()\n"
-        "    integer(kind=i_def), pointer :: map_w2(:,:) => null()\n"
-        "    integer(kind=i_def), pointer :: map_w3(:,:) => null()\n"
-    )
-    assert output in generated_code
-    output = (
+    ) in generated_code
+
+    assert (
         "    integer(kind=i_def) :: ndf_w1\n"
         "    integer(kind=i_def) :: ndf_w2\n"
         "    integer(kind=i_def) :: ndf_w3\n"
@@ -182,10 +164,29 @@ def test_field_deref(tmpdir, dist_mem):
         "    integer(kind=i_def) :: undf_w1\n"
         "    integer(kind=i_def) :: undf_w2\n"
         "    integer(kind=i_def) :: undf_w3\n"
-    )
-    assert output in generated_code
+        "    integer(kind=i_def), pointer :: map_w1(:,:) => null()\n"
+        "    integer(kind=i_def), pointer :: map_w2(:,:) => null()\n"
+        "    integer(kind=i_def), pointer :: map_w3(:,:) => null()\n"
+        "    real(kind=r_def), intent(in) :: a\n"
+        "    real(kind=r_def), pointer, dimension(:) :: est_f2_data => "
+        "null()\n"
+        "    real(kind=r_def), pointer, dimension(:) :: est_m2_data => "
+        "null()\n"
+        "    real(kind=r_def), pointer, dimension(:) :: f1_data => null()\n"
+        "    real(kind=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "    type(field_proxy_type) :: est_f2_proxy\n"
+        "    type(field_proxy_type) :: est_m2_proxy\n"
+        "    type(field_proxy_type) :: f1_proxy\n"
+        "    type(field_proxy_type) :: m1_proxy\n"
+        "    type(field_type), intent(in) :: est_f2\n"
+        "    type(field_type), intent(in) :: est_m2\n"
+        "    type(field_type), intent(in) :: f1\n"
+        "    type(field_type), intent(in) :: m1\n"
+    ) in generated_code
+
     if dist_mem:
         assert "type(mesh_type), pointer :: mesh => null()\n" in generated_code
+        assert "integer(kind=i_def) :: max_halo_depth_mesh\n" in generated_code
 
     output = (
         "\n"
@@ -300,62 +301,9 @@ f6, m5, m6, m7)
     use mesh_mod, only : mesh_type
     use constants_mod, only : i_def
     integer(kind=i_def) :: cell
-    type(field_type), intent(in) :: f1
-    real(kind=r_def), pointer, dimension(:) :: f1_data => null()
-    type(field_proxy_type) :: f1_proxy
-    type(field_type), intent(in) :: f2
-    real(kind=r_def), pointer, dimension(:) :: f2_data => null()
-    type(field_proxy_type) :: f2_proxy
-    type(field_type), intent(in) :: f3
-    real(kind=r_def), pointer, dimension(:) :: f3_data => null()
-    type(field_proxy_type) :: f3_proxy
-    type(field_type), intent(in) :: f4
-    real(kind=r_def), pointer, dimension(:) :: f4_data => null()
-    type(field_proxy_type) :: f4_proxy
-    type(field_type), intent(in) :: f5
-    real(kind=r_def), pointer, dimension(:) :: f5_data => null()
-    type(field_proxy_type) :: f5_proxy
-    type(field_type), intent(in) :: f6
-    real(kind=r_def), pointer, dimension(:) :: f6_data => null()
-    type(field_proxy_type) :: f6_proxy
     integer(kind=i_def) :: loop0_start
     integer(kind=i_def) :: loop0_stop
-    type(field_type), intent(in) :: m1
-    real(kind=r_def), pointer, dimension(:) :: m1_data => null()
-    type(field_proxy_type) :: m1_proxy
-    type(field_type), intent(in) :: m2
-    real(kind=r_def), pointer, dimension(:) :: m2_data => null()
-    type(field_proxy_type) :: m2_proxy
-    type(field_type), intent(in) :: m3
-    real(kind=r_def), pointer, dimension(:) :: m3_data => null()
-    type(field_proxy_type) :: m3_proxy
-    type(field_type), intent(in) :: m4
-    real(kind=r_def), pointer, dimension(:) :: m4_data => null()
-    type(field_proxy_type) :: m4_proxy
-    type(field_type), intent(in) :: m5
-    real(kind=r_def), pointer, dimension(:) :: m5_data => null()
-    type(field_proxy_type) :: m5_proxy
-    type(field_type), intent(in) :: m6
-    real(kind=r_def), pointer, dimension(:) :: m6_data => null()
-    type(field_proxy_type) :: m6_proxy
-    type(field_type), intent(in) :: m7
-    real(kind=r_def), pointer, dimension(:) :: m7_data => null()
-    type(field_proxy_type) :: m7_proxy
-    integer(kind=i_def), pointer :: map_any_w2(:,:) => null()
-    integer(kind=i_def), pointer :: map_w0(:,:) => null()
-    integer(kind=i_def), pointer :: map_w1(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2broken(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2h(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2htrace(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2trace(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2v(:,:) => null()
-    integer(kind=i_def), pointer :: map_w2vtrace(:,:) => null()
-    integer(kind=i_def), pointer :: map_w3(:,:) => null()
-    integer(kind=i_def), pointer :: map_wchi(:,:) => null()
-    integer(kind=i_def), pointer :: map_wtheta(:,:) => null()
     integer(kind=i_def) :: max_halo_depth_mesh
-    type(mesh_type), pointer :: mesh => null()
     integer(kind=i_def) :: ndf_any_w2
     integer(kind=i_def) :: ndf_w0
     integer(kind=i_def) :: ndf_w1
@@ -383,6 +331,59 @@ f6, m5, m6, m7)
     integer(kind=i_def) :: undf_w3
     integer(kind=i_def) :: undf_wchi
     integer(kind=i_def) :: undf_wtheta
+    integer(kind=i_def), pointer :: map_any_w2(:,:) => null()
+    integer(kind=i_def), pointer :: map_w0(:,:) => null()
+    integer(kind=i_def), pointer :: map_w1(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2broken(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2h(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2htrace(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2trace(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2v(:,:) => null()
+    integer(kind=i_def), pointer :: map_w2vtrace(:,:) => null()
+    integer(kind=i_def), pointer :: map_w3(:,:) => null()
+    integer(kind=i_def), pointer :: map_wchi(:,:) => null()
+    integer(kind=i_def), pointer :: map_wtheta(:,:) => null()
+    real(kind=r_def), pointer, dimension(:) :: f1_data => null()
+    real(kind=r_def), pointer, dimension(:) :: f2_data => null()
+    real(kind=r_def), pointer, dimension(:) :: f3_data => null()
+    real(kind=r_def), pointer, dimension(:) :: f4_data => null()
+    real(kind=r_def), pointer, dimension(:) :: f5_data => null()
+    real(kind=r_def), pointer, dimension(:) :: f6_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m1_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m2_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m3_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m4_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m5_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m6_data => null()
+    real(kind=r_def), pointer, dimension(:) :: m7_data => null()
+    type(field_proxy_type) :: f1_proxy
+    type(field_proxy_type) :: f2_proxy
+    type(field_proxy_type) :: f3_proxy
+    type(field_proxy_type) :: f4_proxy
+    type(field_proxy_type) :: f5_proxy
+    type(field_proxy_type) :: f6_proxy
+    type(field_proxy_type) :: m1_proxy
+    type(field_proxy_type) :: m2_proxy
+    type(field_proxy_type) :: m3_proxy
+    type(field_proxy_type) :: m4_proxy
+    type(field_proxy_type) :: m5_proxy
+    type(field_proxy_type) :: m6_proxy
+    type(field_proxy_type) :: m7_proxy
+    type(field_type), intent(in) :: f1
+    type(field_type), intent(in) :: f2
+    type(field_type), intent(in) :: f3
+    type(field_type), intent(in) :: f4
+    type(field_type), intent(in) :: f5
+    type(field_type), intent(in) :: f6
+    type(field_type), intent(in) :: m1
+    type(field_type), intent(in) :: m2
+    type(field_type), intent(in) :: m3
+    type(field_type), intent(in) :: m4
+    type(field_type), intent(in) :: m5
+    type(field_type), intent(in) :: m6
+    type(field_type), intent(in) :: m7
+    type(mesh_type), pointer :: mesh => null()
 """
     assert output in generated_code
     output = (

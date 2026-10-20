@@ -278,37 +278,30 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
     assert (
         """
     real(kind=r_def), intent(in) :: a
-    integer(kind=i_def) :: cell
-    integer(kind=i_def) :: df
-    type(field_type), intent(in) :: f1
+    real(kind=r_def), intent(in) :: scalar_arg
     real(kind=r_def), pointer, dimension(:) :: f1_data => null()
-    type(field_proxy_type) :: f1_proxy
-    type(field_type), intent(in) :: f2
     real(kind=r_def), pointer, dimension(:) :: f2_data => null()
-    type(field_proxy_type) :: f2_proxy
-    type(field_type), intent(in) :: f3
     real(kind=r_def), pointer, dimension(:) :: f3_data => null()
-    type(field_proxy_type) :: f3_proxy
-    type(field_type), intent(in) :: f4
     real(kind=r_def), pointer, dimension(:) :: f4_data => null()
-    type(field_proxy_type) :: f4_proxy
-    type(field_type), dimension(3), intent(in) :: field_vec
     real(kind=r_def), pointer, dimension(:) :: field_vec_1_data => null()
     real(kind=r_def), pointer, dimension(:) :: field_vec_2_data => null()
     real(kind=r_def), pointer, dimension(:) :: field_vec_3_data => null()
-    """
-        in code
-    )
-    assert (
-        """\
-    type(field_type), intent(in) :: m1
     real(kind=r_def), pointer, dimension(:) :: m1_data => null()
-    type(field_proxy_type) :: m1_proxy
-    type(field_type), intent(in) :: m2
     real(kind=r_def), pointer, dimension(:) :: m2_data => null()
+    type(field_proxy_type) :: f1_proxy
+    type(field_proxy_type) :: f2_proxy
+    type(field_proxy_type) :: f3_proxy
+    type(field_proxy_type) :: f4_proxy
+    type(field_proxy_type) :: m1_proxy
     type(field_proxy_type) :: m2_proxy
-    """
-        in code
+    type(field_proxy_type), dimension(3) :: field_vec_proxy
+    type(field_type), dimension(3), intent(in) :: field_vec
+    type(field_type), intent(in) :: f1
+    type(field_type), intent(in) :: f2
+    type(field_type), intent(in) :: f3
+    type(field_type), intent(in) :: f4
+    type(field_type), intent(in) :: m1
+    type(field_type), intent(in) :: m2""" in code
     )
 
     # Check loop bounds are set correctly for the dof kernel that updates
