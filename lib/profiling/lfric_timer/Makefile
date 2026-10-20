@@ -23,8 +23,6 @@ INF_LIB = $(LFRIC_PATH)/lib$(INF_LIB_NAME).a
 
 include $(LFRIC_PATH)/lfric_include_flags.mk
 
-F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
-
 PSYDATA_LIB_NAME = psy_lfric_timer
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 PSYDATA_STANDALONE_LIB_NAME = psy_lfric_timer_standalone
@@ -59,7 +57,7 @@ $(INF_LIB):
 	$(MAKE) -C $(LFRIC_PATH)
 
 %.o: %.F90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 clean:
 	rm -f $(PSYDATA_LIB) $(PSYDATA_STANDALONE_LIB) *.mod *.o
