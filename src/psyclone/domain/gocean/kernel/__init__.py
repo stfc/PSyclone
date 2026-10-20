@@ -17,10 +17,10 @@ from psyclone.domain.gocean.kernel.metadata import (
     GOceanScalarArgMetadata,
     GOceanStencilMetadata,
 )
-from psyclone.domain.gocean.kernel.psyir import GOceanContainer
+from psyclone.domain.gocean.kernel.psyir import GOceanKernelContainer
 
 __all__ = [
-    "GOceanContainer",
+    "GOceanKernelContainer",
     "GOceanFieldArgMetadata",
     "GOceanGridPropertyArgMetadata",
     "GOceanKernelMetadata",

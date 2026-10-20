@@ -9,10 +9,13 @@
 
 import pytest
 
-from psyclone.domain.common.kernel import Kernel, KernelMetadata
-from psyclone.domain.gocean.kernel import GOceanKernelMetadata
+from psyclone.domain.common.kernel import (
+    Kernel, KernelContainer, KernelMetadata)
+from psyclone.domain.gocean.kernel import (
+    GOceanKernelContainer, GOceanKernelMetadata)
+from psyclone.domain.lfric.kernel import LFRicKernelContainer
 from psyclone.parse.utils import ParseError
-from psyclone.psyir.nodes import Literal, Routine
+from psyclone.psyir.nodes import Container, FileContainer, Literal, Routine
 from psyclone.psyir.symbols import ArrayType, DataSymbol, ScalarType
 
 
@@ -31,6 +34,43 @@ contains
   end subroutine demo_code
 end module demo_mod
 """
+
+
+@pytest.mark.parametrize("container_type", [
+    KernelContainer, LFRicKernelContainer, GOceanKernelContainer])
+def test_kernel_container_lifecycle(container_type, fortran_reader):
+    """Shared construction and lowering preserve tree and symbol ownership."""
+    source = fortran_reader.psyir_from_source(GOCEAN_SOURCE)
+    metadata = GOceanKernelMetadata.create_from_psyir(source)
+    original = source.children[0]
+    table = original.symbol_table
+    children = original.pop_all_children()
+    # Use the source's table without its metadata declaration, as raising does.
+    table._symbols.pop("demo_type")
+    container = container_type.create(
+        original.name, metadata, table, children)
+    assert type(container) is container_type
+    assert isinstance(container, KernelContainer)
+    assert container.metadata is metadata
+    assert container.symbol_table is table
+    assert table.node is container
+    assert all(child.parent is container for child in children)
+    root = FileContainer("source")
+    root.addchild(container)
+
+    lowered = container.lower_to_language_level()
+    assert type(lowered) is Container
+    assert root.children[0] is lowered
+    assert lowered.name == "demo_mod"
+    assert lowered.symbol_table is table
+    assert table.node is lowered
+    assert all(actual is expected for actual, expected
+               in zip(lowered.children, children))
+    assert all(child.parent is lowered for child in children)
+    assert container.parent is None
+    assert not container.children
+    assert GOceanKernelMetadata.create_from_psyir(
+        table.lookup("demo_type")) == metadata
 
 
 def test_metadata_array_noninteger_extent():

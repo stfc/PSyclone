@@ -5,83 +5,21 @@
 # See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
-from psyclone.psyir.nodes import Container
+"""GOcean-specific Container class for a kernel."""
+
+from psyclone.domain.common.kernel.psyir import KernelContainer
 
 
-class GOceanContainer(Container):
-    '''A GOcean-specific Container. This specialises the generic Container node
-    and adds in any domain-specific information.
+class GOceanKernelContainer(KernelContainer):
+    """A kernel container holding GOcean-specific metadata.
 
     :param str name: the name of the container.
-    :param metadata: the metadata object.
-    :type metadata: :py:class:`psyclone.domain.gocean.kernel.psyir.\
+    :param metadata: the GOcean kernel metadata object.
+    :type metadata: :py:class:`psyclone.domain.gocean.kernel.\
         GOceanKernelMetadata`
-    :param parent: optional parent node of this Container in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param symbol_table: initialise the node with a given symbol table.
-    :type symbol_table: \
-        Optional[:py:class:`psyclone.psyir.symbols.SymbolTable`]
-
-    '''
-    def __init__(self, name, metadata, **kwargs):
-        super().__init__(name, **kwargs)
-        # The metadata object capturing GOcean kernel metadata.
-        self._metadata = metadata
-
-    @classmethod
-    def create(cls, name, metadata, symbol_table, children):
-        '''Create a GOceanContainer instance given a name, metadata, a symbol
-        table and a list of child nodes. A GOcean-specific kernel is
-        created with the metadata describing the kernel interface for
-        a single kernel routine within the container.
-
-        :param str name: the name of the Container.
-        :param symbol_table: the symbol table associated with this \
-            Container.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param metadata: the metadata object.
-        :type metadata: :py:class:`psyclone.domain.gocean.kernel.psyir.\
-            GOceanKernelMetadata`
-        :param children: a list of PSyIR nodes contained in the \
-            Container. These must be Containers or Routines.
-        :type children: List[:py:class:`psyclone.psyir.nodes.Container` \
-            | :py:class:`psyclone.psyir.nodes.Routine`]
-
-        :returns: an instance of `cls`.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container` or subclass
-            thereof
-
-        '''
-        return cls(name, metadata, children=children,
-                   symbol_table=symbol_table.detach())
-
-    @property
-    def metadata(self):
-        '''
-        :returns the GOcean metadata object.
-        :rtype: :py:class:`psyclone.domain.gocean.kernel.psyir.\
-            GOceanKernelMetadata`
-        '''
-        return self._metadata
-
-    def lower_to_language_level(self):
-        '''Lower this GOcean-specific container to language level psyir.
-
-        :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
-
-        '''
-        # Create metadata symbol and add it to the container symbol
-        # table.
-        data_symbol = self.metadata.lower_to_psyir()
-        self.symbol_table.add(data_symbol)
-
-        # Replace this gocean container with a generic container
-        children = self.pop_all_children()
-        generic_container = Container.create(
-            self.name, self.symbol_table.detach(), children)
-        self.replace_with(generic_container)
-        return generic_container
+    :param kwargs: additional keyword arguments passed to the parent class.
+    :type kwargs: unwrapped dict
+    """
 
 
-__all__ = ["GOceanContainer"]
+__all__ = ["GOceanKernelContainer"]

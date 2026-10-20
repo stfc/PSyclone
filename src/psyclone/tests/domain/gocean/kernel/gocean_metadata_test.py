@@ -14,7 +14,7 @@ import pytest
 from psyclone.domain.common.kernel import Kernel
 from psyclone.configuration import Config
 from psyclone.domain.gocean.kernel import (
-    GOceanContainer, GOceanFieldArgMetadata,
+    GOceanKernelContainer, GOceanFieldArgMetadata,
     GOceanGridPropertyArgMetadata, GOceanKernelMetadata,
     GOceanScalarArgMetadata, GOceanStencilMetadata)
 from psyclone.domain.gocean.kernel import metadata as metadata_mod
@@ -87,11 +87,11 @@ def test_gocean_container_create():
     metadata = GOceanKernelMetadata.create_from_psyir(
         FortranReader().psyir_from_source(
             f"module metadata_mod\n{METADATA}\nend module metadata_mod\n"))
-    container = GOceanContainer("name", None)
+    container = GOceanKernelContainer("name", None)
     assert container.name == "name"
     assert container.metadata is None
 
-    container = GOceanContainer.create(
+    container = GOceanKernelContainer.create(
         "name", metadata, SymbolTable(), [])
     assert container.name == "name"
     assert container.metadata == metadata
@@ -113,7 +113,7 @@ def test_metadata_fortran_round_trip(fortran_reader):
 
     root = fortran_reader.psyir_from_source(MODULE)
     RaisePSyIR2GOceanKernTrans("compute_cu").apply(root)
-    assert isinstance(root.children[0], GOceanContainer)
+    assert isinstance(root.children[0], GOceanKernelContainer)
     root.children[0].lower_to_language_level()
     assert isinstance(root.children[0], Container)
     assert root.children[0].symbol_table.lookup("compute_cu")
