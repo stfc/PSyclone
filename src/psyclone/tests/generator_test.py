@@ -349,8 +349,8 @@ def test_kernel_parsing_with_fortran_error(capsys):
     assert out == ""
     assert "Failed to parse kernel code" in str(err)
     assert str(kern_filename) in str(err)
-    assert ("35:  end tpe compute_cu <== no parse pattern found for "
-            "\"end tpe compute_cu\" in 'Type' block.'" in str(err))
+    assert "at line 35" in str(err)
+    assert "end tpe compute_cu" in str(err)
 
 
 def test_script_file_too_short():

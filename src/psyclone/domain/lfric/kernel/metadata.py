@@ -1033,11 +1033,6 @@ class LFRicKernelMetadata(KernelMetadata):
                     "Domain kernels only accept fields on discontinuous "
                     f"function spaces but found '{argument.function_space}'."
                 )
-            if argument.stencil:
-                raise ParseError(
-                    "Domain kernels may not have arguments with a stencil "
-                    f"access but found '{argument.fortran_string()}'."
-                )
 
     def _validate_intergrid(self) -> None:
         """Validate inter-grid constraints.
