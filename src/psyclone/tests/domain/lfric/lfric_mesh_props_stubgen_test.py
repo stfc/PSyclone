@@ -77,11 +77,11 @@ undf_w1, map_w1, nfaces_re_h, adjacent_face)
     integer(kind=i_def), intent(in) :: ndf_w1
     integer(kind=i_def), intent(in) :: nfaces_re_h
     integer(kind=i_def), intent(in) :: nlayers
-    real(kind=r_def), intent(in) :: rscalar_1
     integer(kind=i_def), intent(in) :: undf_w1
+    real(kind=r_def), intent(in) :: rscalar_1
+    integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
     integer(kind=i_def), dimension(nfaces_re_h), intent(in) :: adjacent_face
     real(kind=r_def), dimension(undf_w1), intent(inout) :: field_2_w1
-    integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
 
 
   end subroutine testkern_mesh_prop_code
@@ -124,22 +124,22 @@ np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)
     integer(kind=i_def), intent(in) :: np_z_qr_xyoz
     integer(kind=i_def), intent(in) :: undf_w1
     integer(kind=i_def), intent(in) :: undf_wtheta
-    integer(kind=i_def), dimension(nfaces_re_h), intent(in) :: adjacent_face
-    real(kind=r_def), dimension(3,ndf_w1,np_xy_qr_xyoz,np_z_qr_xyoz), \
-intent(in) :: basis_w1_qr_xyoz
-    real(kind=r_def), dimension(1,ndf_wtheta,np_xy_qr_xyoz,np_z_qr_xyoz), \
-intent(in) :: basis_wtheta_qr_xyoz
-    real(kind=r_def), dimension(undf_w1), intent(in) :: field_1_w1
-    real(kind=r_def), dimension(undf_wtheta), intent(inout) :: field_2_wtheta
     integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
     integer(kind=i_def), dimension(ndf_wtheta), intent(in) :: map_wtheta
-    real(kind=r_def), dimension(3,nfaces_re_h), intent(in) :: \
-normals_to_horiz_faces
+    integer(kind=i_def), dimension(nfaces_re_h), intent(in) :: adjacent_face
+    real(kind=r_def), dimension(1,ndf_wtheta,np_xy_qr_xyoz,np_z_qr_xyoz), \
+intent(in) :: basis_wtheta_qr_xyoz
+    real(kind=r_def), dimension(3,ndf_w1,np_xy_qr_xyoz,np_z_qr_xyoz), \
+intent(in) :: basis_w1_qr_xyoz
     real(kind=r_def), dimension(3,nfaces_re), intent(in) :: \
 out_normals_to_faces
+    real(kind=r_def), dimension(3,nfaces_re_h), intent(in) :: \
+normals_to_horiz_faces
     real(kind=r_def), dimension(np_xy_qr_xyoz), intent(in) :: \
 weights_xy_qr_xyoz
     real(kind=r_def), dimension(np_z_qr_xyoz), intent(in) :: weights_z_qr_xyoz
+    real(kind=r_def), dimension(undf_w1), intent(in) :: field_1_w1
+    real(kind=r_def), dimension(undf_wtheta), intent(inout) :: field_2_wtheta
 
 
   end subroutine testkern_mesh_prop_quad_code

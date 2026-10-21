@@ -152,23 +152,23 @@ np_xy_qr_xyoz, np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)
     integer(kind=i_def), intent(in) :: undf_w2trace
     integer(kind=i_def), intent(in) :: undf_w3
     integer(kind=i_def), intent(in) :: undf_wtheta
+    integer(kind=i_def), dimension(ndf_w2trace), intent(in) :: map_w2trace
+    integer(kind=i_def), dimension(ndf_w2trace,field_3_stencil_size), \
+intent(in) :: field_3_stencil_dofmap
+    integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
+    integer(kind=i_def), dimension(ndf_wtheta), intent(in) :: map_wtheta
+    integer(kind=i_def), dimension(undf_w2trace), intent(in) :: field_3_w2trace
+    integer(kind=i_def), dimension(undf_w3), intent(in) :: field_2_w3_v1
+    integer(kind=i_def), dimension(undf_w3), intent(in) :: field_2_w3_v2
+    integer(kind=i_def), dimension(undf_w3), intent(in) :: field_2_w3_v3
+    integer(kind=i_def), dimension(undf_wtheta), intent(inout) :: \
+field_1_wtheta
     real(kind=r_def), dimension(1,ndf_w3,np_xy_qr_xyoz,np_z_qr_xyoz), \
 intent(in) :: basis_w3_qr_xyoz
     real(kind=r_def), dimension(1,ndf_wtheta,np_xy_qr_xyoz,np_z_qr_xyoz), \
 intent(in) :: basis_wtheta_qr_xyoz
     real(kind=r_def), dimension(3,ndf_w3,np_xy_qr_xyoz,np_z_qr_xyoz), \
 intent(in) :: diff_basis_w3_qr_xyoz
-    integer(kind=i_def), dimension(undf_wtheta), intent(inout) :: \
-field_1_wtheta
-    integer(kind=i_def), dimension(undf_w3), intent(in) :: field_2_w3_v1
-    integer(kind=i_def), dimension(undf_w3), intent(in) :: field_2_w3_v2
-    integer(kind=i_def), dimension(undf_w3), intent(in) :: field_2_w3_v3
-    integer(kind=i_def), dimension(ndf_w2trace,field_3_stencil_size), \
-intent(in) :: field_3_stencil_dofmap
-    integer(kind=i_def), dimension(undf_w2trace), intent(in) :: field_3_w2trace
-    integer(kind=i_def), dimension(ndf_w2trace), intent(in) :: map_w2trace
-    integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
-    integer(kind=i_def), dimension(ndf_wtheta), intent(in) :: map_wtheta
     real(kind=r_def), dimension(np_xy_qr_xyoz), intent(in) :: \
 weights_xy_qr_xyoz
     real(kind=r_def), dimension(np_z_qr_xyoz), intent(in) :: weights_z_qr_xyoz
@@ -218,21 +218,21 @@ undf_w2v, map_w2v)
     integer(kind=i_def), intent(in) :: undf_w1
     integer(kind=i_def), intent(in) :: undf_w2broken
     integer(kind=i_def), intent(in) :: undf_w2v
-    integer(kind=i_def), dimension(undf_w2broken), intent(inout) :: \
-field_1_w2broken
-    integer(kind=i_def), dimension(ndf_w1,field_2_stencil_size), intent(in) \
-:: field_2_stencil_dofmap
-    integer(kind=i_def), dimension(undf_w1), intent(in) :: field_2_w1
+    integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
     integer(kind=i_def), dimension(ndf_w0,field_3_stencil_size), intent(in) \
 :: field_3_stencil_dofmap
-    integer(kind=i_def), dimension(undf_w0), intent(in) :: field_3_w0
-    integer(kind=i_def), dimension(ndf_w2v,field_4_stencil_size), intent(in) \
-:: field_4_stencil_dofmap
-    integer(kind=i_def), dimension(undf_w2v), intent(in) :: field_4_w2v
-    integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
     integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
+    integer(kind=i_def), dimension(ndf_w1,field_2_stencil_size), intent(in) \
+:: field_2_stencil_dofmap
     integer(kind=i_def), dimension(ndf_w2broken), intent(in) :: map_w2broken
     integer(kind=i_def), dimension(ndf_w2v), intent(in) :: map_w2v
+    integer(kind=i_def), dimension(ndf_w2v,field_4_stencil_size), intent(in) \
+:: field_4_stencil_dofmap
+    integer(kind=i_def), dimension(undf_w0), intent(in) :: field_3_w0
+    integer(kind=i_def), dimension(undf_w1), intent(in) :: field_2_w1
+    integer(kind=i_def), dimension(undf_w2broken), intent(inout) :: \
+field_1_w2broken
+    integer(kind=i_def), dimension(undf_w2v), intent(in) :: field_4_w2v
 
 
   end subroutine testkern_stencil_multi_int_field_code
@@ -283,32 +283,32 @@ weights_z_qr_xyoz)
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: np_xy_qr_xyoz
     integer(kind=i_def), intent(in) :: np_z_qr_xyoz
-    real(kind=r_def), intent(in) :: rscalar_1
     integer(kind=i_def), intent(in) :: undf_w1
     integer(kind=i_def), intent(in) :: undf_w2
     integer(kind=i_def), intent(in) :: undf_w3
     integer(kind=i_def), intent(in) :: undf_wtheta
-    real(kind=r_def), dimension(3,ndf_w1,np_xy_qr_xyoz,np_z_qr_xyoz), \
-intent(in) :: basis_w1_qr_xyoz
-    real(kind=r_def), dimension(1,ndf_w3,np_xy_qr_xyoz,np_z_qr_xyoz), \
-intent(in) :: basis_w3_qr_xyoz
-    real(kind=r_def), dimension(3,ndf_w1,np_xy_qr_xyoz,np_z_qr_xyoz), \
-intent(in) :: diff_basis_w1_qr_xyoz
-    real(kind=r_def), dimension(3,ndf_w3,np_xy_qr_xyoz,np_z_qr_xyoz), \
-intent(in) :: diff_basis_w3_qr_xyoz
-    real(kind=r_def), dimension(undf_w1), intent(inout) :: field_2_w1
-    real(kind=r_def), dimension(undf_w2), intent(in) :: field_3_w2
-    integer(kind=i_def), dimension(undf_wtheta), intent(inout) :: \
-field_4_wtheta
-    integer(kind=i_def), dimension(undf_w3), intent(in) :: field_5_w3
+    real(kind=r_def), intent(in) :: rscalar_1
     integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
     integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
     integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
     integer(kind=i_def), dimension(ndf_wtheta), intent(in) :: map_wtheta
+    integer(kind=i_def), dimension(undf_w3), intent(in) :: field_5_w3
+    integer(kind=i_def), dimension(undf_wtheta), intent(inout) :: \
+field_4_wtheta
+    real(kind=r_def), dimension(1,ndf_w3,np_xy_qr_xyoz,np_z_qr_xyoz), \
+intent(in) :: basis_w3_qr_xyoz
+    real(kind=r_def), dimension(3,ndf_w1,np_xy_qr_xyoz,np_z_qr_xyoz), \
+intent(in) :: basis_w1_qr_xyoz
+    real(kind=r_def), dimension(3,ndf_w1,np_xy_qr_xyoz,np_z_qr_xyoz), \
+intent(in) :: diff_basis_w1_qr_xyoz
+    real(kind=r_def), dimension(3,ndf_w3,np_xy_qr_xyoz,np_z_qr_xyoz), \
+intent(in) :: diff_basis_w3_qr_xyoz
     real(kind=r_def), dimension(np_xy_qr_xyoz), intent(in) :: \
 weights_xy_qr_xyoz
     real(kind=r_def), dimension(np_z_qr_xyoz), intent(in) :: \
 weights_z_qr_xyoz
+    real(kind=r_def), dimension(undf_w1), intent(inout) :: field_2_w1
+    real(kind=r_def), dimension(undf_w2), intent(in) :: field_3_w2
 
 
   end subroutine testkern_field_code

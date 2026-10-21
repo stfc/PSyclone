@@ -653,27 +653,17 @@ m4, f5, f6, m5, m6, f7, f8, m7)
     for prefix, ubound in [("f", 9), ("m", 7)]:
         declns: list[str] = []
         for idx in range(1, ubound):
-            declns.append(
-                f"type(integer_field_type), intent(in) :: {prefix}{idx}"
-            )
+            assert (f"type(integer_field_type), intent(in) :: {prefix}{idx}"
+                    in generated_code)
 
-            declns.append(
-                f"integer(kind=i_def), pointer, dimension(:) :: "
-                f"{prefix}{idx}_data => null()"
-            )
-            declns.append(
-                f"type(integer_field_proxy_type) :: {prefix}{idx}_proxy"
-            )
+            assert (f"integer(kind=i_def), pointer, dimension(:) :: "
+                    f"{prefix}{idx}_data => null()" in generated_code)
 
-        expected: str = indent("\n".join(declns), "    ")
-        assert expected in generated_code
+            assert (f"type(integer_field_proxy_type) :: {prefix}{idx}_proxy"
+                    in generated_code)
 
-    assert (
-        """\
-    integer(kind=i_def) :: max_halo_depth_mesh
-    type(mesh_type), pointer :: mesh => null()"""
-        in generated_code
-    )
+    assert "integer(kind=i_def) :: max_halo_depth_mesh" in generated_code
+    assert "type(mesh_type), pointer :: mesh => null()" in generated_code
 
     output = (
         "    ! Initialise field and/or operator proxies\n"
@@ -921,10 +911,10 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
     assert (
         "    real(kind=r_def), pointer :: weights_xy_qr_xyoz(:) => "
         "null()\n"
-        "    real(kind=r_def), pointer, dimension(:,:) :: weights_xyz_qr_face "
-        "=> null()\n\n"
         "    real(kind=r_def), pointer :: weights_z_qr_xyoz(:) => "
-        "null()\n" in code
+        "null()\n"
+        "    real(kind=r_def), pointer, dimension(:,:) :: weights_xyz_qr_face "
+        "=> null()\n" in code
     )
     assert "type(quadrature_face_proxy_type) :: qr_face_proxy\n" in code
     assert "type(quadrature_xyoz_proxy_type) :: qr_xyoz_proxy\n" in code

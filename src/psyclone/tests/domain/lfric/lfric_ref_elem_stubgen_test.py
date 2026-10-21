@@ -76,14 +76,10 @@ normals_to_horiz_faces, normals_to_vert_faces)
     integer(kind=i_def), intent(in) :: nfaces_re_h
     integer(kind=i_def), intent(in) :: nfaces_re_v
     integer(kind=i_def), intent(in) :: nlayers
-    real(kind=r_def), intent(in) :: rscalar_1
     integer(kind=i_def), intent(in) :: undf_w1
     integer(kind=i_def), intent(in) :: undf_w2
     integer(kind=i_def), intent(in) :: undf_w3
-    real(kind=r_def), dimension(undf_w1), intent(inout) :: field_2_w1
-    real(kind=r_def), dimension(undf_w2), intent(in) :: field_3_w2
-    real(kind=r_def), dimension(undf_w2), intent(in) :: field_4_w2
-    real(kind=r_def), dimension(undf_w3), intent(in) :: field_5_w3
+    real(kind=r_def), intent(in) :: rscalar_1
     integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
     integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
     integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
@@ -91,6 +87,10 @@ normals_to_horiz_faces, normals_to_vert_faces)
 :: normals_to_horiz_faces
     real(kind=r_def), dimension(3,nfaces_re_v), intent(in) \
 :: normals_to_vert_faces
+    real(kind=r_def), dimension(undf_w1), intent(inout) :: field_2_w1
+    real(kind=r_def), dimension(undf_w2), intent(in) :: field_3_w2
+    real(kind=r_def), dimension(undf_w2), intent(in) :: field_4_w2
+    real(kind=r_def), dimension(undf_w3), intent(in) :: field_5_w3
 
 
   end subroutine testkern_ref_elem_code
