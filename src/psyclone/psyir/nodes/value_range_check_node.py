@@ -66,7 +66,7 @@ class ValueRangeCheckNode(PSyDataNode):
 
         '''
         options = self._get_var_lists()
-        return super().lower_to_language_level(options)
+        return super().lower_to_language_level(**options)
 
 
 # For AutoAPI documentation generation

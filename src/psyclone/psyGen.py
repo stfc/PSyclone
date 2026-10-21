@@ -32,7 +32,7 @@ from psyclone.psyir.nodes import (
     IntrinsicCall, BinaryOperation, FileContainer, OMPParallelDirective)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, ScalarType,
-    UnresolvedType, ImportInterface, RoutineSymbol)
+    Symbol, UnresolvedType, ImportInterface, RoutineSymbol)
 from psyclone.psyir.symbols.symbol_table import SymbolTable
 from psyclone.utils import stringify_annotation
 
@@ -748,18 +748,18 @@ class Kern(Statement):
 
     :param parent: parent of this node in the PSyIR.
     :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
-    :param call: information on the call itself, as obtained by parsing \
+    :param call: information on the call itself, as obtained by parsing
                  the Algorithm layer code.
     :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
     :param str name: the name of the routine being called.
-    :param ArgumentsClass: class to create the object that holds all \
-        information on the kernel arguments, as extracted from kernel \
+    :param ArgumentsClass: class to create the object that holds all
+        information on the kernel arguments, as extracted from kernel
         meta-data (and accessible here via call.ktype).
     :type ArgumentsClass: type of :py:class:`psyclone.psyGen.Arguments`
-    :param bool check: whether to check for consistency between the \
+    :param bool check: whether to check for consistency between the
         kernel metadata and the algorithm layer. Defaults to True.
 
-    :raises GenerationError: if any of the arguments to the call are \
+    :raises GenerationError: if any of the arguments to the call are
                              duplicated.
 
     '''
@@ -856,6 +856,20 @@ class Kern(Statement):
             return ancestor.reprod
         return False
 
+    def _create_reduction_initial_value(self, variable: Symbol) -> Node:
+        '''
+        Creates the initial value for the reduction variable used for this
+        Kern or builtin. The base classes defaults to a Literal with value
+        0 with the datatype of the provided variable.
+
+        :param variable: the variable which is having the initial value
+                         assigned to.
+
+        :returns: the initial value required for this Kern to correctly
+                  perform the reduction.
+        '''
+        return Literal("0", variable.datatype.copy())
+
     def initialise_reduction_variable(self) -> None:
         '''
         Generate PSyIR to zero the reduction variable and to zero the local
@@ -894,8 +908,9 @@ class Kern(Statement):
         cursor = insert_loc.position
         insert_loc = insert_loc.parent
         new_node = Assignment.create(
-                        lhs=Reference(variable),
-                        rhs=Literal("0", variable.datatype.copy()))
+            lhs=Reference(variable),
+            rhs=self._create_reduction_initial_value(variable)
+        )
         new_node.append_preceding_comment("Initialise reduction variable")
         insert_loc.addchild(new_node, cursor)
         cursor += 1
@@ -905,7 +920,7 @@ class Kern(Statement):
                 f"{self.name}:{self._reduction_arg.name}:local")
             assign = Assignment.create(
                 lhs=Reference(local_var),
-                rhs=Literal("0", variable.datatype.copy())
+                rhs=self._create_reduction_initial_value(local_var)
             )
             insert_loc.addchild(assign, cursor)
         return new_node
@@ -2223,10 +2238,10 @@ class KernelArgument(Argument):
     arguments as specified by the kernel argument metadata and the
     kernel invocation in the Algorithm layer.
 
-    :param arg: information obtained from the metadata for this kernel \
+    :param arg: information obtained from the metadata for this kernel
                 argument.
     :type arg: :py:class:`psyclone.parse.kernel.Descriptor`
-    :param arg_info: information on how this argument is specified in \
+    :param arg_info: information on how this argument is specified in
                      the Algorithm layer.
     :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
     :param call: the PSyIR kernel node to which this argument pertains.
