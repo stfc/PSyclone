@@ -2214,7 +2214,6 @@ def test_two_reductions_real_do(tmpdir, dist_mem, fuse):
             "    !$omp end do\n"
             "    !$omp end parallel")
     else:
-        print(result)
         expected_output = """\
     ! Set-up all of the loop bounds
     loop0_start = 1
@@ -2422,7 +2421,7 @@ def test_multi_reduction_same_name_real_do():
 def test_multi_reduction_real_fuse(fortran_writer):
     '''Test that we raise an exception when we loop fuse two kernels with
     dependent reductions and that we can fuse two kernels if they have
-    interdependent reductions.'''
+    independent reductions.'''
     file_name = "15.15.1_two_same_builtin_reductions.f90"
 
     for distmem in [False, True]:

@@ -7,8 +7,7 @@
 
 program single_invoke
 
-  ! Description: one reduction builtin followed by an access to 
-  ! the reduction value.
+  ! Description: Two kernels that write to an any-space field-vector.
   use constants_mod, only: r_def
   use field_mod,     only: field_type
   use testkern_anys_vector_write_mod, only: testkern_anys_vector_write_type
