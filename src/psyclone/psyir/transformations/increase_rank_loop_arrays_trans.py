@@ -205,7 +205,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
                         f"{self.name} No call on r.h.s. of an assignment"
                         " to an array range is allowed as this would"
                         " imply a change to the return type of the call"
-                        f" ({assignment.debug_string().replace("\n", "")})."
+                        f" ({assignment.debug_string().replace('\n', '')})."
                     )
 
         # Capture all symbols used inside codeblocks, these are not permitted
