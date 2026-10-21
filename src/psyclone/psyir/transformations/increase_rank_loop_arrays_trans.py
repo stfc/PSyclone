@@ -201,11 +201,12 @@ class IncreaseRankLoopArraysTrans(Transformation):
                     # Reject because of such an assignment that needs to change
                     # the function as well:
                     # a(1,:) = 1 + dummy_func()
+                    info_str = assignment.debug_string().replace("\n", "")
                     raise TransformationError(
                         f"{self.name} No call on r.h.s. of an assignment"
                         " to an array range is allowed as this would"
                         " imply a change to the return type of the call"
-                        f" ({assignment.debug_string().replace('\n', '')})."
+                        f" ({info_str})."
                     )
 
         # Capture all symbols used inside codeblocks, these are not permitted
