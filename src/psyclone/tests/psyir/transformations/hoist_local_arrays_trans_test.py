@@ -766,12 +766,14 @@ def test_pure_routine(fortran_reader):
     code = (
         "module my_mod\n"
         "contains\n"
-        "elemental integer function test()\n"  # An elemental is also pure
+        "elemental integer function test(x)\n"  # An elemental is also pure
+        "  integer, intent(in) :: x\n"
         "  integer :: i\n"
         "  real :: a(10)\n"
         "  do i=1,10\n"
         "    a(i) = 1.0\n"
         "  end do\n"
+        "  test = 1\n"
         "end function test\n"
         "end module my_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
