@@ -117,7 +117,8 @@ class OMPParallelLoopTrans(OMPLoopTrans):
                                            omp_schedule=self.omp_schedule)
 
         # add any inferred reduction clauses to the newly introduced directive
-        for (op, ref) in self.inferred_reduction_clauses:
+        for (op, ref) in sorted(self.inferred_reduction_clauses,
+                                key=lambda x: x[1].name):
             clause = OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[op])
             clause.addchild(ref)
             directive.addchild(clause)
