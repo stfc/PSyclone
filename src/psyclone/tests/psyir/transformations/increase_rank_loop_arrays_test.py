@@ -364,7 +364,7 @@ end module
     assert ("IncreaseRankLoopArraysTrans No call on r.h.s. of"
             " an assignment to an array range is allowed as this"
             " would imply a change to the return type of"
-            " the call." in str(err.value))
+            " the call (a(1,:) = 1 + dummy_func())." in str(err.value))
 
 
 def test_irla_assignment_to_full_array_with_call_on_rhs(fortran_reader):
@@ -401,7 +401,7 @@ end module
     assert ("IncreaseRankLoopArraysTrans No call on r.h.s. of"
             " an assignment to an array range is allowed as this"
             " would imply a change to the return type of"
-            " the call." in str(err.value))
+            " the call (a = 1 + dummy_func())." in str(err.value))
 
 
 def test_irla_allocatable_array(fortran_reader):

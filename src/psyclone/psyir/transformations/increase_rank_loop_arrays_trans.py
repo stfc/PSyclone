@@ -167,9 +167,15 @@ class IncreaseRankLoopArraysTrans(Transformation):
                 if ref.parent.is_inquiry or ref.position == 0:
                     continue
             values_to_check.add(ref.symbol)
+
+        # Opt-out for special assignment cases
         for assignment in routine.walk(Assignment):
+            # This checks for assignments of the form `a = ...` where 'a'
+            # is requested to have its rank increased.
+            # We reject certain cases here.
             if isinstance(assignment.lhs, Reference):
-                # Second, check that none of these Symbols are assigned to
+                # Cases with an array used without any indices.
+                # Check that none of these Symbols are assigned to
                 # within the Routine
                 if assignment.lhs.symbol in values_to_check:
                     raise TransformationError(
@@ -183,7 +189,8 @@ class IncreaseRankLoopArraysTrans(Transformation):
                 if assignment.lhs.symbol not in arrays_symbols:
                     continue
 
-                if isinstance(assignment.lhs, ArrayReference):
+                if (isinstance(assignment.lhs, ArrayReference)
+                        and assignment.ancestor(Loop)):
                     # Check that the l.h.s. has no wildcard indices, e.g.,
                     # a(:) = 1 and a function on the r.h.s.
                     if not any(
@@ -191,10 +198,14 @@ class IncreaseRankLoopArraysTrans(Transformation):
                             for idx, _ in enumerate(assignment.lhs.indices)):
                         continue
                 if assignment.rhs.walk(Call):
+                    # Reject because of such an assignment that needs to change
+                    # the function as well:
+                    # a(1,:) = 1 + dummy_func()
                     raise TransformationError(
                         f"{self.name} No call on r.h.s. of an assignment"
                         " to an array range is allowed as this would"
-                        " imply a change to the return type of the call."
+                        " imply a change to the return type of the call"
+                        f" ({assignment.debug_string().replace("\n", "")})."
                     )
 
         # Capture all symbols used inside codeblocks, these are not permitted
@@ -282,7 +293,10 @@ class IncreaseRankLoopArraysTrans(Transformation):
                     # to a call, e.g., `call foo(some_array)`.
                     call: Call = ref.ancestor(Call)
                     if isinstance(call, IntrinsicCall):
-                        continue
+                        if call.intrinsic in [IntrinsicCall.Intrinsic.SIZE,
+                                              IntrinsicCall.Intrinsic.LBOUND,
+                                              IntrinsicCall.Intrinsic.UBOUND]:
+                            continue
 
                     raise TransformationError(
                         f"{self.name} does not yet support all special"
