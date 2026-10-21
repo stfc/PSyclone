@@ -106,22 +106,22 @@ field_3_w2, field_4_w2, field_5_w3, lscalar_6, iscalar_7, ndf_w1, undf_w1, \
 map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)
     use constants_mod
     integer(kind=i_def), intent(in) :: iscalar_7
-    logical(kind=l_def), intent(in) :: lscalar_6
     integer(kind=i_def), intent(in) :: ndf_w1
     integer(kind=i_def), intent(in) :: ndf_w2
     integer(kind=i_def), intent(in) :: ndf_w3
     integer(kind=i_def), intent(in) :: nlayers
-    real(kind=r_def), intent(in) :: rscalar_1
     integer(kind=i_def), intent(in) :: undf_w1
     integer(kind=i_def), intent(in) :: undf_w2
     integer(kind=i_def), intent(in) :: undf_w3
+    logical(kind=l_def), intent(in) :: lscalar_6
+    real(kind=r_def), intent(in) :: rscalar_1
+    integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
+    integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
+    integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
     real(kind=r_def), dimension(undf_w1), intent(inout) :: field_2_w1
     real(kind=r_def), dimension(undf_w2), intent(in) :: field_3_w2
     real(kind=r_def), dimension(undf_w2), intent(in) :: field_4_w2
     real(kind=r_def), dimension(undf_w3), intent(in) :: field_5_w3
-    integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
-    integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
-    integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
 
 
   end subroutine testkern_three_scalars_code
@@ -164,22 +164,22 @@ dims_rscalar_array_2, rscalar_array_2, dims_lscalar_array_3, \
 lscalar_array_3, dims_iscalar_array_4, iscalar_array_4, \
 iscalar_5, ndf_w1, undf_w1, map_w1)
     use constants_mod
-    integer(kind=i_def), dimension(4), intent(in) :: dims_iscalar_array_4
     integer(kind=i_def), dimension(1), intent(in) :: dims_lscalar_array_3
     integer(kind=i_def), dimension(2), intent(in) :: dims_rscalar_array_2
+    integer(kind=i_def), dimension(4), intent(in) :: dims_iscalar_array_4
     integer(kind=i_def), intent(in) :: iscalar_5
     integer(kind=i_def), intent(in) :: ndf_w1
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: undf_w1
-    real(kind=r_def), dimension(undf_w1), intent(inout) :: field_1_w1
     integer(kind=i_def), dimension(dims_iscalar_array_4(1),\
 dims_iscalar_array_4(2),dims_iscalar_array_4(3),\
 dims_iscalar_array_4(4)), intent(in) :: iscalar_array_4
+    integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
     logical(kind=l_def), dimension(dims_lscalar_array_3(1)), intent(in) :: \
 lscalar_array_3
-    integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
     real(kind=r_def), dimension(dims_rscalar_array_2(1),\
 dims_rscalar_array_2(2)), intent(in) :: rscalar_array_2
+    real(kind=r_def), dimension(undf_w1), intent(inout) :: field_1_w1
 
 
   end subroutine testkern_scalar_array_code

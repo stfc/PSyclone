@@ -12,7 +12,6 @@ LFRic field arguments.
 
 import os
 import pytest
-from textwrap import indent
 
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -651,7 +650,6 @@ m4, f5, f6, m5, m6, f7, f8, m7)
     )
 
     for prefix, ubound in [("f", 9), ("m", 7)]:
-        declns: list[str] = []
         for idx in range(1, ubound):
             assert (f"type(integer_field_type), intent(in) :: {prefix}{idx}"
                     in generated_code)

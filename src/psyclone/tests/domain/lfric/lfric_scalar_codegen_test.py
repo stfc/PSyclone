@@ -12,7 +12,6 @@ LFRic scalar arguments.
 
 import os
 from pathlib import Path
-from textwrap import dedent, indent
 
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
