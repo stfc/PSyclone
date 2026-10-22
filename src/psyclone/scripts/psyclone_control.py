@@ -14,6 +14,7 @@ from string import Template
 from typing import Any, Optional
 import yaml
 
+
 class PsycloneRule:
     """
     This class stores a single rule for a PSyclone phase, i.e. one script
@@ -39,12 +40,13 @@ class PsycloneRule:
         else:
             self._default_params = {}
 
-        if not "files" in info:
+        if "files" not in info:
             raise ValueError(f"Rule '{name}' must have a 'files' attribute, "
                              f"got '{info}'.")
         self._file_list: list[tuple[str, dict[str, Any]]] = []
         files = info["files"]
-        # Support shortcut to specify files as a list (not using `-` for each file).
+        # Support shortcut to specify files as a list without using `-` for
+        # each file.
         # This can't be used to specify
         if isinstance(files, str):
             files = {i: {} for i in files.split()}
@@ -316,7 +318,7 @@ class PsycloneControl:
         self._base_paths = base_paths[:]
         self._script_root = script_root
         self._all_phases: list[str] = []
-        self._psyclone_info: dict[str, PSyclonePhase] = {}
+        self._psyclone_info: dict[str, PsyclonePhase] = {}
         # A list of all PSyclone info files that were read.
         # Only used to add useful comments to the yaml output.
         self._all_files_read: list[Path] = []
@@ -388,9 +390,9 @@ class PsycloneControl:
                 continue
             if key not in self._psyclone_info:
                 self._psyclone_info[key] = PsyclonePhase(key,
-                                                        self._base_paths,
-                                                        self._script_root,
-                                                        self._template_data)
+                                                         self._base_paths,
+                                                         self._script_root,
+                                                         self._template_data)
 
             self._psyclone_info[key].update(dependencies[key])
 
@@ -409,6 +411,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     psyclone_control = PsycloneControl(Path("."), [Path(".")],
-                                      template_data={"target": "test_target"})
+                                       template_data={"target": "test_target"})
     psyclone_control.read(args.file)
     print(psyclone_control.to_yaml())

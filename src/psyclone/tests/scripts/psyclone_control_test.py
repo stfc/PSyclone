@@ -42,7 +42,6 @@ def test_psyclone_info_wildcard_handling(escaped_wildcard):
     # Indirectly hit _read_rule via update
     yaml_dict = {"some_script.py": {"files": escaped_wildcard}}
     info.update(yaml_dict)
-    d = info.get_yaml_dict()
     # There should be one rule
     assert len(info._rules) == 1
     assert info._rules[0].name == "some_script.py"
