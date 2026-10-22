@@ -195,7 +195,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
                 if not assignment.rhs.walk(Call):
                     continue
 
-                if isinstance(assignment.rhs.datatype,
+                if isinstance(assignment.lhs.datatype,
                               (ArrayType, UnresolvedType)):
                     # Reject because such an assignment needs to change
                     # the function as well (or introduce one or more
