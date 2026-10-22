@@ -1124,7 +1124,7 @@ class LFRicFunctionSpaces(LFRicCollection):
         else:
             self._function_spaces = self.kernel_calls[0].arguments.unique_fss
 
-        # TODO use dataclass? - store both tag and shorter root name in list
+        # Store both tag and shorter root name in list
         self._var_list: list[tuple[str, str]] = []
 
         # Loop over all unique function spaces used by our kernel(s)

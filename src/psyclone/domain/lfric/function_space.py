@@ -84,7 +84,13 @@ class FunctionSpace():
         (if the argument's function space is one of the valid LFRic function
         spaces then the mangled name is the original name, set in the class
         initialisation). The mangled name is the short name of the function
-        space combined with the argument's name.
+        space combined with the argument's name, number of vertical layers
+        and number of data points per dof.
+
+        TODO #868 - name collisions can occur, e.g. if two function
+        spaces have the same base name (e.g. 'w2') and one has nlayers='a_b',
+        ndata='c' while the other has nlayers='a', ndata='b_c', then both
+        mangled names become 'w2_a_b_c'.
 
         :returns: mangled name of this function space.
 
@@ -311,7 +317,7 @@ class FunctionSpace():
 
         '''
         tag = f"diff_basis:{self.mangled_name}"
-        name = f"diff_basis_{self.mangled_name}"
+        name = f"diff_basis_{self.short_mangled_name}"
         if qr_var:
             tag += "_" + qr_var
             name += "_" + qr_var
