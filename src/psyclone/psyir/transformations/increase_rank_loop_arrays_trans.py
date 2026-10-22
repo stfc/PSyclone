@@ -11,12 +11,12 @@ from typing import Optional, Union
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
-    Call, Loop, Reference, ArrayReference, Routine, CodeBlock, Range,
-    IntrinsicCall, Assignment)
-from psyclone.psyir.symbols import ArrayType, Symbol
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
-from psyclone.psyir.symbols import ScalarType
+    ArrayReference, Call, CodeBlock, Loop, Range, Reference,
+    Routine, Statement, IntrinsicCall, Assignment)
+from psyclone.psyir.symbols import (
+    ArrayType, DataSymbol, DataTypeSymbol, ScalarType, UnresolvedType)
+from psyclone.psyir.transformations.transformation_error import (
+    TransformationError)
 from psyclone.utils import transformation_documentation_wrapper
 
 
@@ -96,7 +96,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
         :raises TransformationError: if the node is not inside a Routine.
         :raises TransformationError: if the target node does not have static
             loop bounds (which the dimension declaration needs).
-        :raises TransformationError: if no array names are provided.
+        :raises TypeError: if no list of array names is provided.
         :raises TransformationError: the given array name or the
             symbol is not local or not an array.
         :raises TransformationError: if any of the arrays are referenced inside
@@ -116,7 +116,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
         arrays = self.get_option('arrays', **kwargs)
 
         if not isinstance(arrays, list) or len(arrays) == 0:
-            raise TransformationError(
+            raise TypeError(
                 f"{self.name} has a mandatory 'arrays' option which specifies"
                 f" which arrays are to have their rank increased.")
 
@@ -124,41 +124,42 @@ class IncreaseRankLoopArraysTrans(Transformation):
             raise TransformationError(
                 f"The target of the {self.name} transformation should be a "
                 f"Loop, but found '{type(node).__name__}'.")
+        target_loop: Loop = node
 
-        routine: Routine = node.ancestor(Routine)
+        routine: Routine = target_loop.ancestor(Routine)
         if routine is None:
             raise TransformationError(
                 f"The target Loop of the {self.name} transformation must be "
                 f"inside a Routine.")
 
         # Convert to list of symbols, if provided as strings
-        arrays_symbols: list[Symbol] = []
-        for array in arrays:
-            if isinstance(array, Symbol):
-                arrays_symbols.append(array)
+        arrays_symbols: list[DataSymbol] = []
+        for sym_or_name in arrays:
+            if isinstance(sym_or_name, DataSymbol):
+                sym = sym_or_name
+                arrays_symbols.append(sym)
 
-            elif isinstance(array, str):
+            elif isinstance(sym_or_name, str):
                 try:
-                    arrays_symbols.append(
-                        node.scope.symbol_table.lookup(array)
-                    )
+                    sym = target_loop.scope.symbol_table.lookup(sym_or_name)
                 except KeyError as err:
                     raise TransformationError(
-                        f"{self.name} provided array '{array}' does not exist"
-                        f" in this scope."
+                        f"{self.name} provided array '{sym_or_name}' does not "
+                        f"exist in this scope."
                     ) from err
+                arrays_symbols.append(sym)
 
             else:
                 raise TransformationError(
                     f"{self.name} must be passed a list of symbol names or "
-                    f"Symbol objects but found {type(array).__name__}"
+                    f"Symbol objects but found {type(sym_or_name).__name__}"
                 )
 
         # Check if the loop bound expressions are static:
         # First, find all Symbols accessed in the loop bounds.
         values_to_check = set()
-        for ref in (node.start_expr.walk(Reference) +
-                    node.stop_expr.walk(Reference)):
+        for ref in (target_loop.start_expr.walk(Reference) +
+                    target_loop.stop_expr.walk(Reference)):
             if ref.symbol.is_static:
                 continue
             if isinstance(ref.parent, IntrinsicCall):
@@ -170,13 +171,10 @@ class IncreaseRankLoopArraysTrans(Transformation):
 
         # Opt-out for special assignment cases
         for assignment in routine.walk(Assignment):
-            # This checks for assignments of the form `a = ...` where 'a'
-            # is requested to have its rank increased.
-            # We reject certain cases here.
+
             if isinstance(assignment.lhs, Reference):
-                # Cases with an array used without any indices.
-                # Check that none of these Symbols are assigned to
-                # within the Routine
+                # Check that none of the loop-bounds Symbols are assigned to
+                # within the Routine.
                 if assignment.lhs.symbol in values_to_check:
                     raise TransformationError(
                         f"{self.name} can only be applied to loops with static"
@@ -186,22 +184,24 @@ class IncreaseRankLoopArraysTrans(Transformation):
                         f" '{assignment.debug_string().strip()}'."
                     )
 
+                # This checks for assignments of the form `a = ...` where 'a'
+                # is requested to have its rank increased.
                 if assignment.lhs.symbol not in arrays_symbols:
                     continue
 
-                if (isinstance(assignment.lhs, ArrayReference)
-                        and assignment.ancestor(Loop)):
-                    # Check that the l.h.s. has no wildcard indices, e.g.,
-                    # a(:) = 1 and a function on the r.h.s.
-                    if not any(
-                            assignment.lhs.is_full_range(idx)
-                            for idx, _ in enumerate(assignment.lhs.indices)):
-                        continue
-                if assignment.rhs.walk(Call):
-                    # Reject because of such an assignment that needs to change
-                    # the function as well:
-                    # a(1,:) = 1 + dummy_func()
-                    info_str = assignment.debug_string().replace("\n", "")
+                if assignment.is_descendant_of(target_loop):
+                    continue
+
+                if not assignment.rhs.walk(Call):
+                    continue
+
+                if isinstance(assignment.rhs.datatype,
+                              (ArrayType, UnresolvedType)):
+                    # Reject because such an assignment needs to change
+                    # the function as well (or introduce one or more
+                    # additional loops), e.g.:
+                    #      a(1,:) = 1 + dummy_func()
+                    info_str = assignment.debug_string().strip()
                     raise TransformationError(
                         f"{self.name} No call on r.h.s. of an assignment"
                         " to an array range is allowed as this would"
@@ -210,26 +210,26 @@ class IncreaseRankLoopArraysTrans(Transformation):
                     )
 
         # Capture all symbols used inside codeblocks, these are not permitted
-        codeblock_names = set()
+        codeblock_names: set[DataSymbol] = set()
         # Capture all symbols used outside the loop anywhere other than the
         # top reference of an array assignment. This is because we cannot
         # guarantee their safety as they could change the rank of an expression
         # or read location of and index and therefore change the meaning of the
         # code.
-        non_supported_outside_loop_symbols = set()
+        non_supported_outside_loop_symbols: set[DataSymbol] = set()
         for check in routine.walk((CodeBlock, Reference)):
             if isinstance(check, CodeBlock):
                 for name in check.get_symbol_names():
                     codeblock_names.add(name.lower())
-            if isinstance(check, Reference):
-                if check.is_descendant_of(node):
-                    # These are fine because inside the loop we will add an
-                    # index and the resulting expression rank will be the same
+            else:
+                if check.is_descendant_of(target_loop):
+                    # We check References that appear within the target loop
+                    # further down in this method.
                     continue
                 if (isinstance(check.parent, Assignment) and
                         check is check.parent.lhs):
                     # Assignments to the variable are fine, because the value
-                    # we will just be repeated to each index of the new rank
+                    # will just be repeated to each index of the new rank.
                     continue
                 if (isinstance(check.parent, IntrinsicCall) and
                         check.parent.is_inquiry and
@@ -243,7 +243,6 @@ class IncreaseRankLoopArraysTrans(Transformation):
                 non_supported_outside_loop_symbols.add(check.symbol)
 
         for array in arrays_symbols:
-            array: Symbol
 
             if routine.return_symbol is array:
                 raise TransformationError(
@@ -254,11 +253,11 @@ class IncreaseRankLoopArraysTrans(Transformation):
                 raise TransformationError(
                     f"{self.name} can't be applied to character arrays.")
 
-            if (not isinstance(array, Symbol) or not array.is_automatic
-                    or not array.is_array):
+            if (not array.is_automatic or not array.is_array or
+                    isinstance(sym.datatype.intrinsic, DataTypeSymbol)):
                 raise TransformationError(
                     f"{self.name} provided 'arrays' must be local array "
-                    f"symbols, but '{array}' is not")
+                    f"symbols of intrinsic type, but '{array}' is not.")
 
             if array.name.lower() in codeblock_names:
                 raise TransformationError(
@@ -278,47 +277,48 @@ class IncreaseRankLoopArraysTrans(Transformation):
                     f"{self.name} does not support arrays that are"
                     f" allocatable, but '{array.name}' is.")
 
-        # Walk over `Reference` to also catch, e.g, `call foo(some_array)`
+        # Walk over `Reference` *within* the target Loop to also catch, e.g,
+        #     `call foo(some_array)`
         # where the argument is a `Reference` and not an `ArrayReference`.
-        for ref in node.walk(Reference):
+        for ref in target_loop.walk(Reference):
             # We iterate here over the arrays since it's more efficient
             # than in the outer.
             for array in arrays_symbols:
-                array: Symbol
 
                 if ref.symbol is not array:
                     continue
 
                 if type(ref) is Reference:
                     # Check for cases where an array is used as an argument
-                    # to a call, e.g., `call foo(some_array)`.
+                    # to a call, e.g., `call foo(some_array)`. We reject these
+                    # since changing the rank of 'some_array' would imply a
+                    # change to the interface of 'foo'.
                     call: Call = ref.ancestor(Call)
                     if isinstance(call, IntrinsicCall):
-                        if call.intrinsic in [IntrinsicCall.Intrinsic.SIZE,
-                                              IntrinsicCall.Intrinsic.LBOUND,
-                                              IntrinsicCall.Intrinsic.UBOUND]:
+                        if call.is_inquiry and "dim" in call.argument_names:
                             continue
 
                     raise TransformationError(
-                        f"{self.name} does not yet support all special"
-                        " cases for arrays without indices.")
+                        f"{self.name} does not yet support all special cases "
+                        f"for arrays accessed without indices. Found "
+                        f"'{ref.ancestor(Statement).debug_string().strip()}'.")
 
                 array_ref: ArrayReference = ref
 
                 for idx in array_ref.indices:
                     for n in idx.walk(Reference):
-                        if n.symbol is node.variable_reference.symbol:
+                        if n.symbol is target_loop.variable_reference.symbol:
                             raise TransformationError(
                                 f"{self.name} does not support arrays"
                                 f" that are already indexed with the loop"
                                 f" variable of the target loop,"
                                 f" but '{array.name}' is indexed"
-                                f" with '{node.variable.name}'.")
+                                f" with '{target_loop.variable.name}'.")
 
     def apply(
         self,
         node: Loop,
-        arrays: Optional[list[Union[Symbol, str]]] = None,
+        arrays: Optional[list[Union[DataSymbol, str]]] = None,
         **kwargs
     ):
         '''Applies the transformation.
@@ -333,7 +333,7 @@ class IncreaseRankLoopArraysTrans(Transformation):
         array_processed: set[str] = set()
 
         for array in arrays:
-            array_symbol: Symbol
+            array_symbol: DataSymbol
             if isinstance(array, str):
                 array_symbol = node.scope.symbol_table.lookup(array)
             else:
