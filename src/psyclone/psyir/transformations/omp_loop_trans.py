@@ -319,7 +319,8 @@ class OMPLoopTrans(ParallelLoopTrans):
 
         # Add reduction clauses to the newly introduced directive
         directive = parent.children[position]
-        for (op, ref) in self.inferred_reduction_clauses:
+        for (op, ref) in sorted(self.inferred_reduction_clauses,
+                                key=lambda x: x[1].name):
             clause = OMPReductionClause(MAP_REDUCTION_OP_TO_OMP[op])
             clause.addchild(ref)
             directive.addchild(clause)
