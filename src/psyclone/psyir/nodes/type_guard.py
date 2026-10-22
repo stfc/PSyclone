@@ -7,6 +7,9 @@
 
 ''' This module contains the TypeGuard node implementation.'''
 
+from enum import Enum
+from typing import Union
+
 from psyclone.core import VariablesAccessMap
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes.node import Node
@@ -20,12 +23,53 @@ class TypeGuard(Statement):
     Node representing an TypeGuard block within the PSyIR. It has a
     Reference child followed by a Schedule child.
 
+    :param type_guard_type: The type of Type Guard Statement this represents.
+
     '''
 
     # Textual description of the node.
-    _children_valid_format = "Reference, Schedule"
+    _children_valid_format = "Reference+, Schedule"
     _text_name = "TypeGuard"
     _colour = "red"
+
+    class TypeGuardType(Enum):
+        '''Enum representing the possible types of a TypeGuard Statement.'''
+        TYPE_IS = 1
+        CLASS_IS = 2
+        CLASS_DEFAULT = 3
+
+    _type_guard_mapping: dict[TypeGuardType, str] = {
+            TypeGuardType.TYPE_IS: "type is",
+            TypeGuardType.CLASS_IS: "class is",
+            TypeGuardType.CLASS_DEFAULT: "class default",
+    }
+
+    def __init__(self, type_guard_type: TypeGuardType, **kwargs):
+        super().__init__(**kwargs)
+        # Use the setter to setup the type guard type.
+        self.type_guard_type = type_guard_type
+
+    @property
+    def type_guard_type(self) -> TypeGuardType:
+        '''
+        :returns: the type of this TypeGuard node.
+        '''
+        return self._type_guard_type
+
+    @type_guard_type.setter
+    def type_guard_type(self, type_guard_type: TypeGuardType):
+        '''
+        Sets the type of this TypeGuard node.
+
+        :param type_guard_type: the type of this TypeGuard node.
+
+        :raises TypeError: if the type_guard_type input is the wrong type.
+        '''
+        if not isinstance(type_guard_type, TypeGuard.TypeGuardType):
+            raise TypeError(f"{self.name} needs a TypeGuardType as the "
+                            f"type_guard_type but {type_guard_type} was "
+                            f"provided.")
+        self._type_guard_type = type_guard_type
 
     @staticmethod
     def _validate_child(position: int, child: Node) -> bool:
@@ -38,20 +82,23 @@ class TypeGuard(Statement):
 
         '''
         return ((position == 0 and isinstance(child, Reference)) or
-                (position == 1 and isinstance(child, Schedule)))
+                (position < 2 and isinstance(child, Schedule)))
 
     @property
-    def condition(self) -> Reference:
+    def condition(self) -> Union[Reference, None]:
         '''
         :returns: the Reference representing the condition of the TypeGuard.
 
         :raises InternalError: If the TypeGuard node does not have the correct
-            number of children.
+            structure.
         '''
+        if self.type_guard_type == TypeGuard.TypeGuardType.CLASS_DEFAULT:
+            return None
         if len(self.children) < 2:
             raise InternalError(
                 f"TypeGuard malformed or incomplete. It should have 2 "
-                f"children, but found {len(self.children)}.")
+                f"children, when not a class default, but found "
+                f"{len(self.children)}.")
         return self._children[0]
 
     @property
@@ -62,14 +109,23 @@ class TypeGuard(Statement):
         :raises InternalError: If the TypeGuard node does not have the correct
             number of children.
         '''
+        if self.type_guard_type == TypeGuard.TypeGuardType.CLASS_DEFAULT:
+            if len(self.children) != 1:
+                raise InternalError(
+                    f"TypeGuard malformed or incomplete. It should have "
+                    f"1 child when a class default, but found "
+                    f"{len(self.children)}.")
+            return self.children[0]
         if len(self.children) < 2:
             raise InternalError(
                 f"TypeGuard malformed or incomplete. It should have 2 "
-                f"children, but found {len(self.children)}.")
-        return self._children[1]
+                f"children when not a class default, but found "
+                f"{len(self.children)}.")
+        return self.children[1]
 
     @staticmethod
-    def create(condition: Reference, children: list[Node]) -> "TypeGuard":
+    def create(type_guard_type: TypeGuardType,
+               condition: Reference, children: list[Node]) -> "TypeGuard":
         '''
         Creates an TypeGuard given a condition and its children.
 
@@ -81,16 +137,12 @@ class TypeGuard(Statement):
 
         :returns: An TypeGuard representing the inputs.
         '''
-        # or for me?
-        # FIXME For the reviewer - should the create method check the
-        # Reference is to a class type? Is that possible in PSyIR?
-
         if not isinstance(children, list):
             raise GenerationError(
-                f"children argument in create method of TypeGuard class should "
-                f"be a list but found {type(children).__name__}."
+                f"children argument in create method of TypeGuard class "
+                f"should be a list but found {type(children).__name__}."
             )
-        is_type = TypeGuard()
+        is_type = TypeGuard(type_guard_type)
         is_body = Schedule(parent=is_type, children=children)
         is_type.children = [condition, is_body]
 
@@ -100,12 +152,22 @@ class TypeGuard(Statement):
         '''
         :returns the string representation of this node.
         '''
-        name = self._text_name
-        result = f"{name}[{str(self.children[0])}]\n"
-        for node in self.children[1:]:
-            result += str(node) + "\n"
+        name = f"{self.name}"
+        name += "[{self._type_guard_mapping[self.type_guard_type]}]"
+        if len(self.children == 2):
+            result = f"{name}[{str(self.children[0])}]\n"
+            result += f"{str(self.children[1])}\n"
+        else:
+            result = f"{name}[]\n"
+            result += f"{str(self.children[0])}\n"
         result += f"End {name}"
         return result
+
+    def begin_str(self) -> str:
+        '''
+        :returns: the starting Fortran string of this node.
+        '''
+        return self._type_guard_mapping[self.type_guard_type]
 
     def reference_accesses(self) -> VariablesAccessMap:
         '''

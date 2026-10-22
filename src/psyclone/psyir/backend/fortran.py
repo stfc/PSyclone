@@ -2047,7 +2047,18 @@ class FortranWriter(LanguageWriter):
 
         :returns: the equivalent Fortran code.
         '''
-        result = f"{self._nindent}type is ({self._visit(node.children[0])})\n"
+        if node.type_guard_type == TypeGuard.TypeGuardType.CLASS_DEFAULT:
+            result = f"{self._nindent}class default\n"
+            self._depth += 1
+            result += self._visit(node.children[0])
+            self._depth -= 1
+            return result
+        typeguard = ("type is" if node.type_guard_type ==
+                     TypeGuard.TypeGuardType.TYPE_IS else
+                     "class is")
+
+        result = (f"{self._nindent}{typeguard}"
+                  f"({self._visit(node.children[0])})\n")
         self._depth += 1
         result += self._visit(node.children[1])
         self._depth -= 1

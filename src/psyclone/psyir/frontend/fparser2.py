@@ -34,15 +34,16 @@ from psyclone.psyir.nodes import (
     BinaryOperation, Call, CodeBlock, Container, ComplexLiteral,
     DataNode, Directive, FileContainer, IfBlock, IntrinsicCall, Literal, Loop,
     Member, Node, OMPDeclareTargetDirective, Range, Reference, Return,
-    Routine, Schedule, SelectType, StructureReference, TypeGuard, UnaryOperation,
-    WhileLoop, Fparser2CodeBlock, ScopingNode, UnknownDirective)
+    Routine, Schedule, SelectType, StructureReference, TypeGuard,
+    UnaryOperation, WhileLoop, Fparser2CodeBlock, ScopingNode,
+    UnknownDirective)
 
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, AutomaticInterface, ScalarType,
     CommonBlockInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,
     DefaultModuleInterface, GenericInterfaceSymbol, ImportInterface,
-    NoType, RoutineSymbol, StaticInterface,
+    NoType, PreprocessorInterface, RoutineSymbol, StaticInterface,
     StructureType, Symbol, SymbolError, UnknownInterface,
     UnresolvedInterface, UnresolvedType, UnsupportedFortranType,
     UnsupportedType, SymbolTable)
@@ -6514,8 +6515,8 @@ class Fparser2Reader():
                 # Add the current TypeGuard node to the current node list.
                 current_nodes.append(current)
                 self.process_nodes(parent=select_type, nodes=current_nodes)
-                # Update the new current_type_guard to be the newly created TypeGuard
-                # node.
+                # Update the new current_type_guard to be the newly created
+                # TypeGuard node.
                 current_type_guard = select_type.children[-1]
                 current_nodes = []
             elif isinstance(current, Fortran2003.End_Select_Type_Stmt):
@@ -6535,13 +6536,23 @@ class Fparser2Reader():
         '''
         FIXME
         '''
-        print(node)
-        print(node.children)
+        _type_guard_to_TypeGuardType: dict[str, TypeGuard.TypeGuardType] = {
+            "type is": TypeGuard.TypeGuardType.TYPE_IS,
+            "class is": TypeGuard.TypeGuardType.CLASS_IS,
+            "class default": TypeGuard.TypeGuardType.CLASS_DEFAULT,
+        }
         # This is either TYPE IS, CLASS IS or CLASS DEFAULT
-        type_guard_type: str = node.children[0].upper()
-        type_spec_or_name = node.children[1]
+        type_guard_type: str = node.children[0].lower()
         # Find the Select_Type_Stmt containing the name we're interested in.
-        type_guard = TypeGuard(parent=parent)
+        type_guard = TypeGuard(_type_guard_to_TypeGuardType[type_guard_type],
+                               parent=parent)
+        # If we have a class default there is no type_spec_or_name
+        if type_guard_type == "class default":
+            type_guard.addchild(Schedule())
+            return type_guard
+
+        type_spec_or_name = node.children[1]
+        symbol_table = parent.scope.symbol_table
         if isinstance(type_spec_or_name, Fortran2003.Type_Name):
             type_name = type_spec_or_name.string
             symbol = _find_or_create_unresolved_symbol(
@@ -6550,12 +6561,18 @@ class Fparser2Reader():
             type_guard.addchild(Reference(symbol))
         # What else can this be?
         elif isinstance(type_spec_or_name, Fortran2003.Intrinsic_Type_Spec):
-            try:
-               x, y = self._process_type_spec(type_guard, type_spec_or_name)
-            except Exception as e:
-                print(str(e))
-            print(x, y, type(x), type(y))
-            print("---------")
+            # If we have an Intrinsic Type Spec then we should get a
+            # DataTypeSymbol with a Preprocessor Interface to represent i
+            # so its not added to the output.
+            intrinsic_name = str(type_spec_or_name).lower()
+            symbol = symbol_table.find_or_create(
+                intrinsic_name, symbol_type=DataTypeSymbol,
+                datatype=UnresolvedType(),
+                interface=PreprocessorInterface(),
+            )
+            type_guard.addchild(Reference(symbol))
+        else:
+            assert False
         type_guard.addchild(Schedule())
         return type_guard
 
