@@ -387,7 +387,6 @@ class PsycloneControl:
 
         with open(file_path, "r", encoding="utf8") as stream:
             dependencies = yaml.safe_load(stream)
-            print("READ", dependencies)
             self._all_files_read.append(file_path.resolve())
 
         # First take phases (if available)
