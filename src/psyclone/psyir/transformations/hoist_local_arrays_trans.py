@@ -386,19 +386,19 @@ ubound(a, dim=2) /= n) then
     def validate(self, node: Routine, options=None, **kwargs):
         '''Checks that the supplied node is a valid target for a hoist-
         local-arrays transformation. It must be a Routine that is within
-        a Container (that is not a FileContainer).
+        a Container (that is not a FileContainer) and is not pure.
 
         :param node: target PSyIR node.
         :param options: any options for the transformation.
         :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not a Routine.
-        :raises TransformationError: if the Routine is not within a Container \
+        :raises TransformationError: if the Routine is not within a Container
             (that is not a FileContainer).
-        :raises TransformationError: if the routine contains an OpenACC \
+        :raises TransformationError: if the routine contains an OpenACC
             routine directive and options['allow_accroutine'] is not True.
-        :raises TransformationError: if any symbols corresponding to local \
-            arrays have a tag that already exists in the table of the parent \
+        :raises TransformationError: if any symbols corresponding to local
+            arrays have a tag that already exists in the table of the parent
             Container.
 
         '''
@@ -421,6 +421,11 @@ ubound(a, dim=2) /= n) then
             # We silently ignore routines that are programs - this
             # transformation will do nothing.
             return
+
+        if node.symbol.is_pure:
+            raise TransformationError(
+                f"{self.name} cannot be applied to '{node.name}' because it "
+                f"is a pure routine.")
 
         # The Routine must be within a Container (otherwise we have nowhere
         # to hoist any array declarations to).

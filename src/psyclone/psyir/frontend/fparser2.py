@@ -719,6 +719,9 @@ def _process_routine_symbols(module_ast, container, visibility_map):
                         is_pure = False
                     elif child.string == "ELEMENTAL":
                         is_elemental = True
+                        # Unless explicitly impure, an elemental is also pure
+                        if is_pure is None:
+                            is_pure = True
 
         rsymbol = RoutineSymbol(name, sym_type, visibility=vis,
                                 is_pure=is_pure, is_elemental=is_elemental,
