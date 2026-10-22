@@ -24,6 +24,7 @@ dsl:
         encoding="utf-8",
     )
     psyclone_args = []
+    # pylint: disable=unnecessary-lambda
     monkeypatch.setattr(
         run_psyclone, "psyclone_main",
         lambda args: psyclone_args.extend(args),
@@ -47,6 +48,7 @@ def test_execute_psyclone_uses_psykal_output_suffixes(
     output_path = tmp_path / "file.x90"
     caplog.set_level("INFO", logger="psyclone.scripts.run_psyclone")
     psyclone_args = []
+    # pylint: disable=unnecessary-lambda
     monkeypatch.setattr(
         run_psyclone, "psyclone_main",
         lambda args: psyclone_args.extend(args),
@@ -82,6 +84,7 @@ dsl:
         encoding="utf-8",
     )
     psyclone_calls = []
+    # pylint: disable=unnecessary-lambda
     monkeypatch.setattr(
         run_psyclone, "psyclone_main",
         lambda args: psyclone_calls.append(args),
@@ -148,6 +151,7 @@ dsl:
 
     caplog.set_level("INFO", logger="psyclone.scripts.run_psyclone")
     psyclone_calls = []
+    # pylint: disable=unnecessary-lambda
     monkeypatch.setattr(
         run_psyclone, "psyclone_main",
         lambda args: psyclone_calls.append(args),
