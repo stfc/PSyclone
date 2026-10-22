@@ -210,36 +210,12 @@ def test_redundant_comp_trans(tmpdir, monkeypatch):
 
     # There should be one halo exchange for each field that is not f1
     # (f2, f3, f4)
-    assert (
-        len(
-            [
-                node
-                for node in first_invoke.schedule.walk(LFRicHaloExchange)
-                if node.field.name == "f2"
-            ]
-        )
-        == 1
-    )
-    assert (
-        len(
-            [
-                node
-                for node in first_invoke.schedule.walk(LFRicHaloExchange)
-                if node.field.name == "f3"
-            ]
-        )
-        == 1
-    )
-    assert (
-        len(
-            [
-                node
-                for node in first_invoke.schedule.walk(LFRicHaloExchange)
-                if node.field.name == "f4"
-            ]
-        )
-        == 1
-    )
+    assert len([node for node in first_invoke.schedule.walk(LFRicHaloExchange)
+                if node.field.name == "f2"]) == 1
+    assert len([node for node in first_invoke.schedule.walk(LFRicHaloExchange)
+                if node.field.name == "f3"]) == 1
+    assert len([node for node in first_invoke.schedule.walk(LFRicHaloExchange)
+                if node.field.name == "f4"]) == 1
     # Check compiles
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -257,10 +233,8 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
 
     _, invoke_info = parse(
         os.path.join(
-            BASE_PATH, "4.17_multikernel_invokes_cell_dof_builtin.f90"
-        ),
-        api=TEST_API,
-    )
+            BASE_PATH, "4.17_multikernel_invokes_cell_dof_builtin.f90"),
+        api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
 
@@ -275,8 +249,7 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
         assert "    use mesh_mod, only : mesh_type\n" in code
 
     # Consistent declarations
-    assert (
-        """
+    assert ("""
     real(kind=r_def), intent(in) :: a
     real(kind=r_def), intent(in) :: scalar_arg
     real(kind=r_def), pointer, dimension(:) :: f1_data => null()
@@ -301,8 +274,7 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
     type(field_type), intent(in) :: f3
     type(field_type), intent(in) :: f4
     type(field_type), intent(in) :: m1
-    type(field_type), intent(in) :: m2""" in code
-    )
+    type(field_type), intent(in) :: m2""" in code)
 
     # Check loop bounds are set correctly for the dof kernel that updates
     # a field vector.
@@ -310,13 +282,11 @@ def test_multi_invoke_cell_dof_builtin(tmpdir, monkeypatch, annexed, dist_mem):
         if annexed:
             assert (
                 "loop0_stop = field_vec_proxy(1)%vspace%get_last_dof_annexed"
-                in code
-            )
+                in code)
         else:
             assert (
                 "loop0_stop = field_vec_proxy(1)%vspace%get_last_dof_owned"
-                in code
-            )
+                in code)
     else:
         assert "loop0_stop = undf_w1" in code
 

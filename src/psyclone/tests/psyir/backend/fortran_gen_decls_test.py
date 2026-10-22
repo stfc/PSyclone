@@ -527,7 +527,6 @@ def test_non_param_in_param_decln(fortran_reader, fortran_writer, tmp_path):
     module mymod
         integer, parameter :: x = 1
         integer, parameter :: j = 9
-        integer, parameter :: k = 12
         integer :: i
         real, parameter :: threshold_Wavelength(j, k) &
         = reshape( [REAL :: &
@@ -542,6 +541,9 @@ def test_non_param_in_param_decln(fortran_reader, fortran_writer, tmp_path):
         (0.0, i=1, k), &
         (0.0, i=1, k), &
         (0.0, i=1, k)], shape=[j, k] )
+        ! This isn't standards-compliant Fortran but the PSyclone frontend
+        ! doesn't check. This lets us test the backend.
+        integer, parameter :: k = 12
     end module
 '''
     psyir = fortran_reader.psyir_from_source(code)

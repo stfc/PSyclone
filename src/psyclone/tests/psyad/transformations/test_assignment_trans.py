@@ -27,8 +27,10 @@ def index_str_fixture(request):
     return request.param
 
 
-def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
-                  tmpdir):
+def check_adjoint(tl_fortran: str,
+                  active_variable_names: list[str],
+                  expected_ad_fortran: str,
+                  tmpdir: str) -> None:
     '''Utility routine that takes tangent linear fortran code as input in
     the argument 'tl_fortran', transforms this code into its adjoint
     using the active variables specified in the
@@ -39,11 +41,10 @@ def check_adjoint(tl_fortran, active_variable_names, expected_ad_fortran,
     To help keep the test code short this routine also adds the
     subroutine / end subroutine lines to the incoming code.
 
-    :param str tl_fortran: tangent linear code.
-    :param list of str active_variable_names: a list of active \
-        variable names.
-    :param str tl_fortran: the expected adjoint code to be produced.
-    :param str tmpdir: temporary directory created by pytest in which \
+    :param tl_fortran: tangent linear code.
+    :param active_variable_names: a list of active variable names.
+    :param tl_fortran: the expected adjoint code to be produced.
+    :param tmpdir: temporary directory created by pytest in which
         to perform compilation.
 
     '''

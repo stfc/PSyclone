@@ -955,8 +955,8 @@ def test_multiple_stencils(dist_mem, tmpdir):
             "STENCIL_CROSS, stencil_dofmap_type\n" in result)
     assert ("use flux_direction_mod, only : x_direction, y_direction\n"
             in result)
-    assert "integer(kind=i_def), intent(in) :: f2_extent\n" in result
     output3 = (
+        "    integer(kind=i_def), intent(in) :: f2_extent\n"
         "    integer(kind=i_def), intent(in) :: f3_direction\n"
         "    integer(kind=i_def), intent(in) :: f3_extent\n")
     assert output3 in result

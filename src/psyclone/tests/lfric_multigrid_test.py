@@ -265,12 +265,12 @@ def test_field_prolong(tmpdir, dist_mem):
         "    use constants_mod, only : i_def\n"
         "    integer(kind=i_def) :: cell\n")
     assert expected in code
-    assert "type(field_type), intent(in) :: field1\n" in code
-    assert "type(field_type), intent(in) :: field2\n" in code
+    assert ("    type(field_type), intent(in) :: field1\n"
+            "    type(field_type), intent(in) :: field2\n" in code)
 
-    assert "integer(kind=i_def) :: ncell_field1" in code
-    assert "integer(kind=i_def) :: ncpc_field1_field2_x" in code
-    assert "integer(kind=i_def) :: ncpc_field1_field2_y" in code
+    assert ("    integer(kind=i_def) :: ncell_field1\n"
+            "    integer(kind=i_def) :: ncpc_field1_field2_x\n"
+            "    integer(kind=i_def) :: ncpc_field1_field2_y\n" in code)
     assert ("type(mesh_map_type), pointer :: mmap_field1_field2 => null()\n"
             in code)
 
