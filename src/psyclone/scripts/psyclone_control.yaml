@@ -1,0 +1,79 @@
+# This file controls which files are being processed by PSyclone,
+# both using PSyclone's transmute ability (transformation generic
+# Fortran files), and its DSL (kernel based) capability.
+
+# First we specify the phases for PSyclone. This allows
+# any apps to run transmute and DSL steps in any order just by
+# changing (or supplying a different) PSyclone-info file.
+# In this file, we only run a single DSL phase.
+
+phases:
+  # Just a single phase: running PSyclone in DSL mode
+  - dsl
+
+dsl:
+  comment: "PSylone DSL Phase"
+  api: lfric
+  script_dir: "${target}/psykal"
+
+  # These two directives reproduce the current LFRic default PSyclone triggering:
+
+  # Run optimisation/.../global.py on all x90 files (x90 because this is
+  # the dsl section, as specified in the artefacts above)
+  global.py:
+    params:
+      offload: True
+      write_dependencies: True
+
+  # This version specifies files as explicit list, which allows to
+  # define file-specific parameters.
+    files:
+      - "*"
+      - test3.f90:
+          offload: False
+      - test2.f90:
+      - test1.f90:
+          offload: True
+  # This is a shortcut showing that the same can be achieved by specifying
+  # a single string with space-separated file names. This is the same as the
+  # above, but without the ability to specify file-specific parameters.
+  local1.py:
+    params:
+      offload: False
+      write_dependencies: False
+
+    files: "a.f90 b.f90
+           c.f90"
+
+  # This version uses an explicit list and no parameters:
+  local2.py:
+    params:
+      view_schedule: False
+
+    files:
+      - a.f90
+      - b.f90
+      - c.f90
+
+  # Use an explicit list and no parameters
+  local3.py:
+    params:
+      view_schedule: False
+
+    files: [a.f90, b.f90, c.f90]
+
+  # This represents existing functionality: if there is a file-specific .py
+  # file, use it. The specification of '*' does not trigger an error
+  # if there is no file_specific script (while explicitly putting a name
+  # in the file list will trigger an error if the corresponding PSyclone
+  # script does not exist. This way, errors are caught early).
+  file_specific:
+    params:
+      offload: True
+      view_schedule: False
+
+    files:
+      - "*":
+          offload: False
+      - somefile.f90:
+          offload: True
