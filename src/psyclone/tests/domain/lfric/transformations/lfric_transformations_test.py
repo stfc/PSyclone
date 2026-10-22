@@ -2218,7 +2218,7 @@ def test_two_reductions_real_do(tmpdir, dist_mem, fuse):
         expected_output = """\
     ! Set-up all of the loop bounds
     loop0_start = 1
-    loop0_stop = undf_as1_f2
+    loop0_stop = undf_as1_f2__1
 
     ! Initialise reduction variable
     asum = 0.0_r_def
