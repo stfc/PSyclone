@@ -72,16 +72,11 @@ class ReplaceReferenceByLiteralTrans(Transformation):
     >>> print(written_code)
     program test
       use mymod
-      real, dimension(10) :: a
       integer :: i
       integer :: ic1
       integer :: ic2
       integer :: ic3
       integer :: invariant
-      type(my_type) :: t1
-      type(my_type) :: t2
-      type(my_type) :: t3
-      type(my_type) :: t4
       integer, parameter :: u1 = 1
       integer, parameter :: u2 = 2
       integer, parameter :: u3 = 3
@@ -89,6 +84,11 @@ class ReplaceReferenceByLiteralTrans(Transformation):
       integer, parameter :: x = 3
       integer, parameter :: y = 12
       integer, parameter :: z = 13
+      real, dimension(10) :: a
+      type(my_type) :: t1
+      type(my_type) :: t2
+      type(my_type) :: t3
+      type(my_type) :: t4
     <BLANKLINE>
       invariant = 1
       do i = 1, 10, 1

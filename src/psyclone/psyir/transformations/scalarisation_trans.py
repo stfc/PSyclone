@@ -47,11 +47,11 @@ class ScalarisationTrans(LoopTrans):
     >>> scalarise.apply(psyir.walk(Loop)[0])
     >>> print(FortranWriter()(psyir))
     program test
-      real, dimension(100) :: a
-      real :: a_scalar
-      real, dimension(100) :: b
       integer :: i
       integer :: j
+      real :: a_scalar
+      real, dimension(100) :: a
+      real, dimension(100) :: b
     <BLANKLINE>
       do i = 1, 100, 1
         a_scalar = i

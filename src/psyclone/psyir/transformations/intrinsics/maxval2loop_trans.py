@@ -93,11 +93,11 @@ class Maxval2LoopTrans(ArrayReductionBaseTrans):
     >>> Maxval2LoopTrans().apply(sum_node)
     >>> print(FortranWriter()(psyir))
     subroutine maxval_test(array)
-      real, dimension(10,10) :: array
       integer :: idx
       integer :: idx_1
       real :: reduction_var
       real :: result
+      real, dimension(10,10) :: array
     <BLANKLINE>
       reduction_var = -HUGE(reduction_var)
       do idx = 1, 10, 1

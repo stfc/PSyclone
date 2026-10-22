@@ -40,11 +40,11 @@ class AllArrayAccess2LoopTrans(Transformation):
     >>> AllArrayAccess2LoopTrans().apply(assignment)
     >>> print(FortranWriter()(psyir))
     program example
-      real, dimension(10,10) :: a
-      real, dimension(10,10) :: b
       integer :: idx
       integer :: idx_1
       integer :: n
+      real, dimension(10,10) :: a
+      real, dimension(10,10) :: b
     <BLANKLINE>
       do idx = 1, 1, 1
         do idx_1 = n - 1, n - 1, 1
