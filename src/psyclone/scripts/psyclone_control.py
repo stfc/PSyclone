@@ -9,6 +9,7 @@
 '''
 This module reads in a psyclone_info.yaml file.
 '''
+from multiprocessing.util import info
 from pathlib import Path
 from string import Template
 from typing import Any, Optional
@@ -61,16 +62,14 @@ class PsycloneRule:
                 file = "*"
             self._file_list.append((file, params))
 
-    def get_yaml_dict(self) -> dict[str, dict[str, Any]]:
+    def get_yaml_dict(self) -> dict[str, Any]:
         """
         :returns: a dictionary representation to be used as yaml file.
         """
         d = {self.name: {"params": self._default_params,
                          "files": []}}
         for file, params in self._file_list:
-            print("PARAMS", file, params)
             d[self.name]["files"].append({file: params})
-            print("NOW", d)
         return d
 
     @property
@@ -139,7 +138,7 @@ class PsyclonePhase:
         self._comment: str = ""
         self._api: str = ""
         self._rules: list[PsycloneRule] = []
-        self._template_data = template_data
+        self._template_data = template_data if template_data else {}
         self._default_parameter = {}
 
     @property
@@ -172,7 +171,7 @@ class PsyclonePhase:
         """
         return self._opt_path
 
-    def update(self, info: dict[str, str]) -> None:
+    def update(self, info: dict[str, Any]) -> None:
         """
         Update this PSyclone information with data taken from a
         PSyclone info yaml file. This function is used to initially
@@ -201,13 +200,13 @@ class PsyclonePhase:
         # transmute or psykal). This path is used in a few places.
         self._opt_path = self._script_root / self._relative_script_dir
 
-    def get_yaml_dict(self) -> dict[str, list[str]]:
+    def get_yaml_dict(self) -> dict[str, Any]:
         """
         :returns: returns ths data in this object in a dictionary, suitable
             to write them back as a yaml file.
         """
 
-        yaml_dict = {"comment": self.comment,
+        yaml_dict: dict[str, Any] = {"comment": self.comment,
                      "api": self.api,
                      "script_dir": self._relative_script_dir}
 
