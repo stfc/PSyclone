@@ -97,6 +97,24 @@ class FunctionSpace():
         :raises FieldNotFoundError: if no kernel argument was found on
                                     the specified function space.
         '''
+        arg_name = ""
+        lorig_name = self._orig_name.lower()
+        for arg in self._kernel_args.args:
+            if arg.nlayers != self._nlayers or arg.ndata != self._ndata:
+                continue
+            for fspace in arg.function_spaces:
+                if (fspace and fspace.orig_name.lower() == lorig_name):
+                    arg_name = arg.name
+                    break
+            if arg_name:
+                break
+        else:
+            # Raise an error if there are no kernel arguments on this
+            # function space
+            raise FieldNotFoundError(
+                f"No kernel argument found for function "
+                f"space '{self._orig_name}'")
+
         const = LFRicConstants()
         if (self._orig_name not in const.VALID_ANY_SPACE_NAMES +
                 const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES):
@@ -104,26 +122,11 @@ class FunctionSpace():
                 # It's not any-space and doesn't have custom nlayers or ndata
                 # so we don't need to mangle it.
                 return self._orig_name
-            base_name = self._orig_name
+            base_name = f"{self._orig_name}_{arg_name}"
+
         else:
-            base_name = ""
-            # List kernel arguments
-            args = self._kernel_args.args
             # Mangle the function space name for any_*_space
-            lorig_name = self._orig_name.lower()
-            for arg in args:
-                for fspace in arg.function_spaces:
-                    if (fspace and fspace.orig_name.lower() == lorig_name):
-                        base_name = f"{self.short_name}_{arg.name}"
-                        break
-                if base_name:
-                    break
-            else:
-                # Raise an error if there are no kernel arguments on this
-                # function space
-                raise FieldNotFoundError(
-                    f"No kernel argument found for function "
-                    f"space '{self._orig_name}'")
+            base_name = f"{self.short_name}_{arg_name}"
 
         # To avoid naming collisions, we always include both nlayers and ndata
         # in the result, even if they are empty (in which case we get a double
