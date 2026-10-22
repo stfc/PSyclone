@@ -153,11 +153,11 @@ def test_generate_adjoint_str_trans(tmpdir):
         "end program test\n")
     expected = (
         "program adj_test\n"
-        "  real :: a\n"
-        "  real, dimension(10) :: b\n"
-        "  real, dimension(10) :: c\n"
         "  integer :: i\n"
-        "  real :: res_dot_product\n\n"
+        "  real :: a\n"
+        "  real :: res_dot_product\n"
+        "  real, dimension(10) :: b\n"
+        "  real, dimension(10) :: c\n\n"
         "  a = 0.0\n  b = 0.0\n  res_dot_product = 0.0\n"
         "  res_dot_product = res_dot_product + a\n"
         "  a = 0.0\n"

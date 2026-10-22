@@ -578,13 +578,21 @@ def test_character_assumed_len(fortran_reader, fortran_writer, tmpdir,
         f"  END SELECT\n"
         f"end subroutine\n"
         f"end module\n")
-    expected1 = (
-        f"  subroutine select_type(type_selector)\n"
-        f"    character(len=256) :: type_string\n"
-        f"    CHARACTER(LEN=256), pointer :: ptr_CHARACTER_star => "
-        f"null()\n"
-        f"    CHARACTER{char_type_out}, POINTER :: character_type => null()\n"
-        f"    CLASS(*), TARGET :: type_selector\n").lower()
+    psyir = fortran_reader.psyir_from_source(code)
+    result = fortran_writer(psyir).lower()
+
+    expected1 = "  subroutine select_type(type_selector)\n"
+    expected1 += "\n".join(sorted(
+        [
+            "    character(len=256) :: type_string",
+            "    character(len=256), pointer :: ptr_character_star => "
+            "null()",
+            f"    character{char_type_out}, pointer :: character_type => "
+            f"null()",
+            "    class(*), target :: type_selector"
+        ])).lower()
+    assert expected1 in result
+
     expected2 = (
         "    type_string = ''\n"
         "    SELECT TYPE(type_selector)\n"
@@ -595,9 +603,6 @@ def test_character_assumed_len(fortran_reader, fortran_writer, tmpdir,
         "    if (type_string == 'character_star') then\n"
         "      character_type = ptr_CHARACTER_star\n"
         "    end if\n").lower()
-    psyir = fortran_reader.psyir_from_source(code)
-    result = fortran_writer(psyir).lower()
-    assert expected1 in result
     assert expected2 in result
     assert Compile(tmpdir).string_compiles(result)
 

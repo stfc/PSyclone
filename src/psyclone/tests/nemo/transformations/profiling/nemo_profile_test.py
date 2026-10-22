@@ -399,8 +399,8 @@ def test_profiling_var_clash(fortran_reader, fortran_writer):
     schedule = psyir.children[0]
     PTRANS.apply(schedule.children[0])
     code = fortran_writer(psyir).lower()
-    assert ("  integer :: profile_psy_data\n"
-            "  type(profile_psydatatype), save, target :: profile_psy_data_1"
+    assert "integer :: profile_psy_data\n" in code
+    assert ("type(profile_psydatatype), save, target :: profile_psy_data_1"
             in code)
 
 

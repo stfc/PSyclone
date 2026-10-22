@@ -347,25 +347,22 @@ def test_schedule_zero(tmpdir, fortran_writer, datatype, precision, value):
         f"  {datatype}(kind={precision}) :: c\n"
         f"  {datatype}(kind={precision}) :: d(n)\n")
     active_variables = ["a", "b", "c", "d"]
-    if datatype == "real":
-        declarations = (
-            f"  {datatype} :: a\n"
-            f"  integer, parameter :: n = 10\n"
-            f"  integer, parameter :: {precision} = 8\n")
-    else:
-        declarations = (
-            f"  {datatype} :: a\n"
-            f"  integer, parameter :: {precision} = 8\n"
-            f"  integer, parameter :: n = 10\n")
-    ad_fortran = (
-        declarations +
-        f"  {datatype}, dimension(n) :: b\n"
-        f"  {datatype}(kind={precision}) :: c\n"
-        f"  {datatype}(kind={precision}), dimension(n) :: d\n\n"
-        f"  a = {value}\n"
-        f"  b = {value}\n"
-        f"  c = {value}_{precision}\n"
-        f"  d = {value}_{precision}\n\n")
+    declarations = [
+            f"  {datatype} :: a",
+            f"  integer, parameter :: {precision} = 8",
+            "  integer, parameter :: n = 10"]
+    # These declarations depend on 'n' and/or {i,r}_def
+    dependent_declns = [
+            f"  {datatype}, dimension(n) :: b",
+            f"  {datatype}(kind={precision}) :: c",
+            f"  {datatype}(kind={precision}), dimension(n) :: d"]
+
+    decln_text = ("\n".join(sorted(declarations)) + "\n" +
+                  "\n".join(sorted(dependent_declns)) + "\n\n")
+    ad_fortran = (decln_text + f"  a = {value}\n"
+                  f"  b = {value}\n"
+                  f"  c = {value}_{precision}\n"
+                  f"  d = {value}_{precision}\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir,
                   fortran_writer)
 
@@ -385,8 +382,8 @@ def test_schedule_zero_global(fortran_reader, fortran_writer, tmpdir):
     ad_fortran = fortran_writer(ad_psyir)
     assert ad_fortran == (
         "subroutine global_test(a)\n"
-        "  real, intent(out) :: a\n"
-        "  real :: b\n\n"
+        "  real :: b\n"
+        "  real, intent(out) :: a\n\n"
         "  b = 0.0\n\n"
         "end subroutine global_test\n")
     assert Compile(tmpdir).string_compiles(ad_fortran)
@@ -617,9 +614,9 @@ def test_loop_node_bounds_intrinsic(fortran_reader, fortran_writer, tmpdir):
         "end program test\n")
     expected_ad_code = (
         "program test\n"
+        "  integer :: i\n"
         "  real, dimension(10) :: a\n"
-        "  real, dimension(2) :: b\n"
-        "  integer :: i\n\n"
+        "  real, dimension(2) :: b\n\n"
         "  a = 0.0\n"
         "  b = 0.0\n"
         "  do i = UBOUND(a, dim=1) - MOD(UBOUND(a, dim = 1) "
