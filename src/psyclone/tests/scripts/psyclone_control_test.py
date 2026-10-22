@@ -59,6 +59,7 @@ phases:
 dsl:
   comment: "PSyclone DSL Phase"
   api: lfric
+  file_list: "*x90"
   script_dir: psykal
   global.py:
     files: "*"
@@ -92,12 +93,14 @@ secondary:
     info_dsl = pc.get_info("dsl")
     assert info_dsl.comment == "PSyclone DSL Phase"
     assert info_dsl.api == "lfric"
+    assert info_dsl.file_list == "*x90"
     assert info_dsl.opt_path == script_root / "psykal"
 
     # Read second file to test incremental overrides
     pc.read(yaml_file_2)
     assert pc.all_phases == ["dsl", "secondary"]
     assert pc.get_info("secondary").comment == "Secondary phase"
+    assert pc.get_info("secondary").file_list is None
 
     # Test YAML text generation output matches structures
     yaml_out = pc.to_yaml()
@@ -108,6 +111,8 @@ secondary:
     parsed_out = yaml.safe_load(yaml_out)
     assert parsed_out["phases"] == ["dsl", "secondary"]
     assert parsed_out["dsl"]["api"] == "lfric"
+    assert parsed_out["dsl"]["file_list"] == "*x90"
+    assert "file_list" not in parsed_out["secondary"]
 
 
 def test_file_specific_script_resolution(tmp_path):

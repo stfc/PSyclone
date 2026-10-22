@@ -9,7 +9,6 @@
 '''
 This module reads in a psyclone_info.yaml file.
 '''
-from multiprocessing.util import info
 from pathlib import Path
 from string import Template
 from typing import Any, Optional
@@ -137,6 +136,7 @@ class PsyclonePhase:
         self._name: str = name
         self._comment: str = ""
         self._api: str = ""
+        self._file_list: Optional[str] = None
         self._rules: list[PsycloneRule] = []
         self._template_data = template_data if template_data else {}
         self._default_parameter = {}
@@ -163,6 +163,13 @@ class PsyclonePhase:
         return self._api
 
     @property
+    def file_list(self) -> Optional[str]:
+        """
+        :returns: the file pattern to which this phase applies, if specified.
+        """
+        return self._file_list
+
+    @property
     def opt_path(self) -> Path:
         """
         :return: the optimisation root as absolute path (including site-
@@ -185,6 +192,8 @@ class PsyclonePhase:
                 self._comment = info["comment"]
             elif phase == "api":
                 self._api = info["api"]
+            elif phase == "file_list":
+                self._file_list = info["file_list"]
             elif phase == "script_dir":
                 script_template = Template(info["script_dir"])
                 self._relative_script_dir = (
@@ -207,8 +216,10 @@ class PsyclonePhase:
         """
 
         yaml_dict: dict[str, Any] = {"comment": self.comment,
-                     "api": self.api,
-                     "script_dir": self._relative_script_dir}
+                                     "api": self.api,
+                                     "script_dir": self._relative_script_dir}
+        if self.file_list is not None:
+            yaml_dict["file_list"] = self.file_list
 
         for rule in self._rules:
             yaml_dict.update(rule.get_yaml_dict())
