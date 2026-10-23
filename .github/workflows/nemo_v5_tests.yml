@@ -43,9 +43,9 @@ on:
 
 env:
   GNU_TOOLCHAIN: gnu14_openmpi
-  NVHPC_TOOLCHAIN: nvhpc26_3_openmpi
+  NVHPC_TOOLCHAIN: nvhpc26_9_openmpi
   INTEL_TOOLCHAIN: intel25_3_openmpi
-  PYTHON_VERSION: "3.14"
+  PYTHON_VERSION: "3.15"
   NUM_PARALLEL: 16
 
 jobs:
@@ -63,7 +63,7 @@ jobs:
       orca2_nvfortran_omp_offload_async: ${{ steps.orca2_nvfortran_omp_offload_async.outputs.time }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
       with:
         submodules: recursive
         # This is required to get the commit history for merge commits for
@@ -209,7 +209,7 @@ jobs:
         export PSYCLONE_COMPILER=$MPIF90
         export MPIF90=psyclonefc
         export PARALLEL_DIRECTIVES="omp_threading"
-        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py"
+        export PSYCLONE_OPTS="--keep-comments --enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py"
         export FCFLAGS="-fdefault-real-8 -O2 -mno-fma -fno-tree-vectorize -fcray-pointer -ffree-line-length-none -g -fopenmp"
 
         # Clean up and compile
@@ -253,7 +253,7 @@ jobs:
         export PSYCLONE_COMPILER=$MPIF90
         export MPIF90=psyclonefc
         export PARALLEL_DIRECTIVES="omp_offloading+omp_threading"
-        export PSYCLONE_OPTS="--enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py"
+        export PSYCLONE_OPTS="--keep-comments --enable-cache -l output -s ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py"
         # Clean up and compile
         rm -rf tests/${TEST_DIR}
         ./makenemo -r BENCH -m linux_spack_profile -n ${TEST_DIR} -j ${NUM_PARALLEL} -v 1
@@ -284,7 +284,7 @@ jobs:
         # Run non-reproducible test
         cd $NEMO_DIR/tests/${TEST_DIR}/EXP00
         cp $PSYCLONE_NEMO_DIR/KGOs/namelist_cfg_bench_small namelist_cfg
-        export NV_ACC_POOL_THRESHOLD=75
+        export NVCOMPILER_ACC_POOL_THRESHOLD=75
         export CUDA_VISIBLE_DEVICES=1
         OMP_NUM_THREADS=4 mpirun -np 1 ./nemo
         export VAR_TIME=$(grep "local proces" timing.output | head -n 1 | awk '{print $4}' | tr -d s)
@@ -420,7 +420,7 @@ jobs:
         unset ENABLE_PROFILING
         export FCFLAGS="-i4 -Mr8 -O3 -mp=gpu -gpu=mem:managed"
         rm -rf tests/${TEST_DIR}
-        export NV_ACC_POOL_THRESHOLD=75
+        export NVCOMPILER_ACC_POOL_THRESHOLD=75
         export CUDA_VISIBLE_DEVICES=1
         ./makenemo -r BENCH -m linux_spack -n ${TEST_DIR} \
           -p ${PSYCLONE_NEMO_DIR}/insert_loop_parallelism.py -j ${NUM_PARALLEL} -v 1

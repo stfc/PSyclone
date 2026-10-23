@@ -14,7 +14,7 @@ PROGRAM single_invoke_two_kernels
   ! Fake Fortran program for testing aspects of
   ! the PSyclone code generation system.
 
-  use kind_params_mod
+  use kind_params_mod, only: go_wp
   use grid_mod
   use field_mod
   use compute_cu_mod,  only: compute_cu

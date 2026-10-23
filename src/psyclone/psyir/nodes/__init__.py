@@ -94,7 +94,6 @@ __all__ = [
         'Call',
         'CallMatchingArgumentsNotFound',
         'Clause',
-        'CodeBlock',
         'ComplexLiteral',
         'Container',
         'DataNode',
@@ -118,9 +117,6 @@ __all__ = [
         'UnaryOperation',
         'ScopingNode',
         'WhileLoop',
-        # CodeBlock nodes
-        'Fparser2CodeBlock',
-        'TreeSitterCodeBlock',
         # PSyclone-specific nodes
         'KernelSchedule',
         # PSyData Nodes

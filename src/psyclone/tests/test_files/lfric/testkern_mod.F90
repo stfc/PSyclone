@@ -10,18 +10,18 @@ module testkern_mod
   use argument_mod
   use fs_continuity_mod
   use kernel_mod
-  use constants_mod
+  use constants_mod, only: i_def, r_def
 
   implicit none
 
   type, extends(kernel_type) :: testkern_type
-     type(arg_type), dimension(5) :: meta_args =                  &
-          (/ arg_type(gh_scalar, gh_real, gh_read),               &
-             arg_type(gh_field,  gh_real, gh_inc,  w1),           &
-             arg_type(gh_field,  gh_real, gh_read, w2),           &
-             arg_type(gh_field,  gh_real, gh_read, w2),           &
-             arg_type(gh_field,  gh_real, gh_read, w3, ndata="1") &
-           /)
+     type(arg_type), dimension(5) :: meta_args =                 &
+          [ arg_type(gh_scalar, gh_real, gh_read),               &
+            arg_type(gh_field,  gh_real, gh_inc,  w1),           &
+            arg_type(gh_field,  gh_real, gh_read, w2),           &
+            arg_type(gh_field,  gh_real, gh_read, w2),           &
+            arg_type(gh_field,  gh_real, gh_read, w3, ndata="1") &
+          ]
      integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_code
