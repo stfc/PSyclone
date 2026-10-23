@@ -493,35 +493,23 @@ class InlineTrans(Transformation, CalleeTransformationMixin):
     @staticmethod
     def _common_block_vars(table: SymbolTable) -> dict[str, list[str]]:
         '''Return a dict mapping lower-cased COMMON-block name to the
-        lower-cased list of variable names for every COMMON-block marker
-        symbol found in *table*.
-
-        Each marker symbol is named ``_PSYCLONE_INTERNAL_COMMONBLOCK_N`` and
-        carries a declaration such as ``COMMON /name/ var1, var2``.  A single
-        declaration may contain several block groups
-        (``COMMON /a/ x /b/ y, z``), all of which are extracted.
+        lower-cased list of variable names, ordered by their position in the
+        block, for every COMMON-block variable found in *table*.
 
         :param table: the symbol table to inspect.
         :returns: mapping of block name to ordered list of variable names.
 
         '''
-        result = {}
-        # Match pattern /[common_block_name]/ comma_separated_variables
-        import re
-        _group_re = re.compile(r"/\s*(\w*)\s*/\s*([\w\s,]+)", re.IGNORECASE)
-        for sym in table.symbols:
-            if (sym.name.lower().startswith(
-                    "_psyclone_internal_commonblock")
-                    and isinstance(sym.datatype, UnsupportedFortranType)):
-                for m in _group_re.finditer(sym.datatype.declaration):
-                    block_name = m.group(1).strip().lower()
-                    var_names = [
-                        v.strip().lower()
-                        for v in m.group(2).split(",")
-                        if v.strip()
-                    ]
-                    result[block_name] = var_names
-        return result
+        blocks: dict[str, list[DataSymbol]] = {}
+        for sym in table.datasymbols:
+            if sym.is_commonblock:
+                blocks.setdefault(
+                    sym.interface.name.lower(), []).append(sym)
+        return {
+            name: [sym.name.lower() for sym in
+                   sorted(members, key=lambda s: s.interface.position)]
+            for name, members in blocks.items()
+        }
 
     @staticmethod
     def _create_allocatable_array(node: Call, symbol: DataSymbol,

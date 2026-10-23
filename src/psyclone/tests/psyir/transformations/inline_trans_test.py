@@ -2741,13 +2741,15 @@ def test_validate_unknown_actual_array_arg(fortran_reader):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans._validate_inline_of_call_and_routine_argument_pairs(
-            call, call.arguments[0], routine, routine_arg)
+            call_arg=call.arguments[0], routine_node=routine,
+            routine_arg=routine_arg)
     assert ("the type of the actual argument 'a' corresponding to an array"
             " formal argument ('x') is unknown." in str(err.value))
 
     # With the no-argument-check override, an unknown rank is acceptable.
     inline_trans._validate_inline_of_call_and_routine_argument_pairs(
-        call, call.arguments[0], routine, routine_arg, allow_unknown=True)
+        call_arg=call.arguments[0], routine_node=routine,
+        routine_arg=routine_arg, allow_unknown=True)
 
 
 def test_apply_array_sized_by_arg(fortran_reader, fortran_writer):
@@ -3146,7 +3148,7 @@ end module test_mod
 
     result = fortran_writer(caller)
     # Exactly one COMMON declaration must appear.
-    assert result.count("COMMON /blk/") == 1
+    assert result.count("common /blk/") == 1
     # Both variables must still be present.
     assert "volume" in result
     assert "lmmpi" in result
@@ -3205,9 +3207,9 @@ end module test_mod
 
     result = fortran_writer(caller)
     # Each COMMON block must appear exactly once.
-    assert result.count("COMMON /ocean_zeta/") == 1
-    assert result.count("COMMON /ocean_ubar/") == 1
-    assert result.count("COMMON /ocean_vbar/") == 1
+    assert result.count("common /ocean_zeta/") == 1
+    assert result.count("common /ocean_ubar/") == 1
+    assert result.count("common /ocean_vbar/") == 1
     # All three variables must still be present.
     assert "zeta" in result
     assert "ubar" in result
@@ -3252,9 +3254,9 @@ end module test_mod
 
     result = fortran_writer(caller)
     # /ocean_zeta/ must appear exactly once – not duplicated.
-    assert result.count("COMMON /ocean_zeta/") == 1
+    assert result.count("common /ocean_zeta/") == 1
     # The extra block from the caller must be preserved.
-    assert result.count("COMMON /comm_setup_mpi1/") == 1
+    assert result.count("common /comm_setup_mpi1/") == 1
     assert "zeta" in result
     assert "lmmpi" in result
     assert Compile(tmp_path).string_compiles(result)
@@ -3301,7 +3303,7 @@ end module test_mod
   subroutine caller()
     real :: depth
     integer :: b
-    COMMON /ocean/ depth
+    common /ocean/ depth
 
     b = depth
 
