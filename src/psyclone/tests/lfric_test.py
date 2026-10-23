@@ -315,8 +315,10 @@ def test_any_space_1(tmpdir):
     assert "integer(kind=i_def), pointer :: map_as1_a(:,:) => null()" in code
     assert "integer(kind=i_def), pointer :: map_as2_b(:,:) => null()" in code
     assert "integer(kind=i_def), pointer :: map_w0(:,:) => null()" in code
-    assert "real(kind=r_def), allocatable :: basis_as1_a_qr(:,:,:,:)" in code
-    assert "real(kind=r_def), allocatable :: basis_as2_b_qr(:,:,:,:)" in code
+    assert ("real(kind=r_def), allocatable, dimension(:,:,:,:) :: "
+            "basis_as1_a_qr" in code)
+    assert ("real(kind=r_def), allocatable, dimension(:,:,:,:) :: "
+            "basis_as2_b_qr" in code)
     assert ("ALLOCATE(basis_as1_a_qr(dim_as1_a,ndf_as1_a,"
             "np_xy_qr,np_z_qr))" in code), code
     assert ("ALLOCATE(basis_as2_b_qr(dim_as2_b,ndf_as2_b,"
@@ -890,15 +892,20 @@ def test_multikern_invoke_any_space(tmpdir):
     assert "integer(kind=i_def), pointer :: map_as2_f1(:,:) => null()" in gen
     assert "integer(kind=i_def), pointer :: map_w0(:,:) => null()" in gen
     assert (
-        "real(kind=r_def), allocatable :: basis_as1_f1_qr(:,:,:,:)") in gen
+        "real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_as1_f1_qr"
+        in gen)
     assert (
-        "real(kind=r_def), allocatable :: basis_as1_f2_qr(:,:,:,:)") in gen
+        "real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_as1_f2_qr"
+        in gen)
     assert (
-        "real(kind=r_def), allocatable :: basis_as2_f1_qr(:,:,:,:)") in gen
+        "real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_as2_f1_qr"
+        in gen)
     assert (
-        "real(kind=r_def), allocatable :: basis_as2_f2_qr(:,:,:,:)") in gen
+        "real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_as2_f2_qr"
+        in gen)
     assert (
-        "real(kind=r_def), allocatable :: diff_basis_w0_qr(:,:,:,:)") in gen
+        "real(kind=r_def), allocatable, dimension(:,:,:,:) :: diff_basis_w0_qr"
+        in gen)
     assert "ndf_as1_f1 = f1_proxy%vspace%get_ndf()" in gen
     assert "ndf_as2_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert "ndf_w0 = f3_proxy(1)%vspace%get_ndf()" in gen
@@ -2965,9 +2972,8 @@ def test_multi_anyw2(dist_mem, tmpdir):
             "    ! Set-up all of the loop bounds\n"
             "    loop0_start = 1\n"
             "    loop0_stop = mesh%get_last_halo_cell(1)\n"
-            # TODO
-            # "\n"
-            # "    ! Call kernels and communication routines\n"
+            "\n"
+            "    ! Call kernels and communication routines\n"
             "    if (f1_proxy%is_dirty(depth=1)) then\n"
             "      call f1_proxy%halo_exchange(depth=1)\n"
             "    end if\n"
@@ -2999,9 +3005,8 @@ def test_multi_anyw2(dist_mem, tmpdir):
             "    ! Set-up all of the loop bounds\n"
             "    loop0_start = 1\n"
             "    loop0_stop = f1_proxy%vspace%get_ncell()\n"
-            # TODO
-            # "\n"
-            # "    ! Call kernels\n"
+            "\n"
+            "    ! Call kernels\n"
             "    do cell = loop0_start, loop0_stop, 1\n"
             "      call testkern_multi_anyw2_code(nlayers_f1, "
             "f1_data, f2_data, f3_data, ndf_any_w2, "
