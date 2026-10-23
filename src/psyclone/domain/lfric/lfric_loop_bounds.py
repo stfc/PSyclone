@@ -29,14 +29,26 @@ class LFRicLoopBounds(LFRicCollection):
         :returns: Updated cursor value.
 
         '''
+        assigns = self._invoke.schedule.walk(Assignment)
+        assign_map: dict[Symbol, Assignment] = {}
+        for assign in assigns:
+            assign_map[assign.lhs.symbol] = assign
+        if assigns:
+            # Loop bounds go after any existing assignments (cheap way
+            # of ensuring dependencies satisfied).
+            cursor = assigns[-1].position + 1
+
         loops = filter(lambda x: isinstance(x, LFRicLoop),
                        self._invoke.schedule.loops())
-
         first = True
         for idx, loop in enumerate(loops):
 
             if loop.loop_type == "null":
                 # Generic or 'null' loops don't need any variables to be set
+                continue
+
+            if (isinstance(loop.start_expr, Reference) and
+                    loop.start_expr.symbol in assign_map):
                 continue
 
             # Set the lower bound

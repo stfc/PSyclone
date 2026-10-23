@@ -13,7 +13,7 @@ import pytest
 
 from psyclone.core import VariablesAccessMap
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
-                                   LFRicKern)
+                                   LFRicKern, LFRicLoop)
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import parse
 from psyclone import psyGen
@@ -111,7 +111,8 @@ def test_lfric_acc():
     _, invoke = get_invoke("1_single_invoke.f90", "lfric",
                            name="invoke_0_testkern_type", dist_mem=False)
     sched = invoke.schedule
-    acc_par_trans.apply(sched.children)
+    loops = sched.walk(LFRicLoop)
+    acc_par_trans.apply(sched.children[loops[0].position:])
     acc_enter_trans.apply(sched)
 
     # Find the first kernel:
@@ -144,7 +145,8 @@ def test_lfric_acc_operator():
     _, invoke = get_invoke("20.0_cma_assembly.f90", "lfric",
                            idx=0, dist_mem=False)
     sched = invoke.schedule
-    acc_par_trans.apply(sched.children)
+    first_loop = sched.walk(LFRicLoop)[0]
+    acc_par_trans.apply(sched.children[first_loop.position:])
     acc_enter_trans.apply(sched)
 
     # Find the first kernel:
@@ -170,7 +172,8 @@ def test_lfric_stencil():
     _, invoke = get_invoke("14.4_halo_vector.f90", "lfric",
                            idx=0, dist_mem=False)
     sched = invoke.schedule
-    acc_par_trans.apply(sched.children)
+    first_loop = sched.walk(LFRicLoop, stop_type=LFRicLoop)[0]
+    acc_par_trans.apply(sched.children[first_loop.position:])
     acc_enter_trans.apply(sched)
 
     # Find the first kernel:
@@ -196,7 +199,8 @@ def test_lfric_field():
                            "lfric",
                            idx=0, dist_mem=False)
     sched = invoke.schedule
-    acc_par_trans.apply(sched.children)
+    first_loop = sched.walk(LFRicLoop, stop_type=LFRicLoop)[0]
+    acc_par_trans.apply(sched.children[first_loop.position:])
     acc_enter_trans.apply(sched)
 
     # Find the first kernel:
@@ -224,7 +228,8 @@ def test_lfric_scalar():
                            "lfric",
                            idx=0, dist_mem=False)
     sched = invoke.schedule
-    acc_par_trans.apply(sched.children)
+    first_loop = sched.walk(LFRicLoop, stop_type=LFRicLoop)[0]
+    acc_par_trans.apply(sched.children[first_loop.position:])
     acc_enter_trans.apply(sched)
 
     # Find the first kernel:

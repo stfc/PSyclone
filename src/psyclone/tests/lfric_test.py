@@ -315,8 +315,10 @@ def test_any_space_1(tmpdir):
     assert "integer(kind=i_def), pointer :: map_as1_a(:,:) => null()" in code
     assert "integer(kind=i_def), pointer :: map_as2_b(:,:) => null()" in code
     assert "integer(kind=i_def), pointer :: map_w0(:,:) => null()" in code
-    assert "real(kind=r_def), allocatable :: basis_as1_a_qr(:,:,:,:)" in code
-    assert "real(kind=r_def), allocatable :: basis_as2_b_qr(:,:,:,:)" in code
+    assert ("real(kind=r_def), allocatable, dimension(:,:,:,:) :: "
+            "basis_as1_a_qr" in code)
+    assert ("real(kind=r_def), allocatable, dimension(:,:,:,:) :: "
+            "basis_as2_b_qr" in code)
     assert ("ALLOCATE(basis_as1_a_qr(dim_as1_a,ndf_as1_a,"
             "np_xy_qr,np_z_qr))" in code), code
     assert ("ALLOCATE(basis_as2_b_qr(dim_as2_b,ndf_as2_b,"
@@ -723,14 +725,10 @@ def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.2_enforce_bc_kernel.f90"),
                            api=TEST_API)
-    if dist_mem and not annexed:
-        idx = 1
-    else:
-        idx = 0
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[idx]
+    loop = schedule.walk(LFRicLoop)[0]
     call = loop.loop_body[0]
     arg = call.arguments.args[0]
     # Monkeypatch the argument object so that it thinks it is an
@@ -894,15 +892,20 @@ def test_multikern_invoke_any_space(tmpdir):
     assert "integer(kind=i_def), pointer :: map_as2_f1(:,:) => null()" in gen
     assert "integer(kind=i_def), pointer :: map_w0(:,:) => null()" in gen
     assert (
-        "real(kind=r_def), allocatable :: basis_as1_f1_qr(:,:,:,:)") in gen
+        "real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_as1_f1_qr"
+        in gen)
     assert (
-        "real(kind=r_def), allocatable :: basis_as1_f2_qr(:,:,:,:)") in gen
+        "real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_as1_f2_qr"
+        in gen)
     assert (
-        "real(kind=r_def), allocatable :: basis_as2_f1_qr(:,:,:,:)") in gen
+        "real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_as2_f1_qr"
+        in gen)
     assert (
-        "real(kind=r_def), allocatable :: basis_as2_f2_qr(:,:,:,:)") in gen
+        "real(kind=r_def), allocatable, dimension(:,:,:,:) :: basis_as2_f2_qr"
+        in gen)
     assert (
-        "real(kind=r_def), allocatable :: diff_basis_w0_qr(:,:,:,:)") in gen
+        "real(kind=r_def), allocatable, dimension(:,:,:,:) :: diff_basis_w0_qr"
+        in gen)
     assert "ndf_as1_f1 = f1_proxy%vspace%get_ndf()" in gen
     assert "ndf_as2_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert "ndf_w0 = f3_proxy(1)%vspace%get_ndf()" in gen
@@ -1110,17 +1113,10 @@ def test_lfrickernmetadata_read_fs_error():
 def test_lfrickernelargument_intent_invalid(dist_mem):
     ''' Tests that an error is raised in LFRicKernelArgument when an invalid
     intent value is found. Tests with and without distributed memory. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api=TEST_API)
-    if dist_mem:
-        idx = 4
-    else:
-        idx = 0
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    psy, invoke = get_invoke("1_single_invoke.f90", api=TEST_API,
+                             dist_mem=dist_mem, idx=0)
     schedule = invoke.schedule
-    loop = schedule.children[idx]
+    loop = schedule.walk(LFRicLoop)[0]
     call = loop.loop_body[0]
     arg = call.arguments.args[0]
     arg._access = "invalid"
@@ -1140,14 +1136,11 @@ def test_lfrickernelargument_infer_scalar_datatype(monkeypatch, proxy):
     arguments.
 
     '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    psy, invoke = get_invoke("1_single_invoke.f90", api=TEST_API,
+                             dist_mem=False, idx=0)
     schedule = invoke.schedule
     container_table = schedule.parent.symbol_table
-    call = schedule[0].loop_body[0]
+    call = schedule.walk(LFRicLoop)[0].loop_body[0]
     arg = call.arguments.args[0]
     # Real, scalar argument.
     dtype = arg.infer_datatype(proxy)
@@ -1189,14 +1182,11 @@ def test_lfrickernelargument_infer_field_datatype(monkeypatch, proxy):
     '''
     proxy_str = "_proxy" if proxy else ""
 
-    _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
+    psy, invoke = get_invoke("8_vector_field.f90", api=TEST_API,
+                             dist_mem=False, idx=0)
     schedule = invoke.schedule
     container_table = schedule.parent.symbol_table
-    call = schedule[0].loop_body[0]
+    call = schedule.walk(LFRicLoop)[0].loop_body[0]
     # Field vector argument.
     arg = call.arguments.args[1]
     dtype = arg.infer_datatype(proxy)
@@ -1653,13 +1643,10 @@ def test_lfrickernelargument_idtp_reduction():
     '''
     # Use one of the examples to create an instance of
     # LFRicKernelArgument that describes a scalar.
-    _, invoke_info = parse(
-        os.path.join(
-            BASE_PATH, "15.17.1_one_reduction_one_standard_builtin.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    builtin = schedule[0].loop_body[0]
+    psy, invoke = get_invoke("15.17.1_one_reduction_one_standard_builtin.f90",
+                             api=TEST_API, dist_mem=False, idx=0)
+    schedule = invoke.schedule
+    builtin = schedule.walk(LFRicLoop)[0].loop_body[0]
     reduction = builtin.args[0]
     assert reduction.is_scalar
 
@@ -2644,25 +2631,24 @@ def test_halo_exchange_view():
     '''Test that the halo exchange view method returns what we expect.
 
     '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    schedule = psy.invokes.get('invoke_0_testkern_stencil_type').schedule
-    result = schedule.view()
+    _, invoke = get_invoke("14.2_halo_readers.f90", api=TEST_API,
+                           dist_mem=True, idx=0)
+    result = invoke.schedule.view()
 
     # Ensure we test for text containing the correct (colour) control codes
     sched = colored("InvokeSchedule", InvokeSchedule._colour)
     exch = colored("HaloExchange", HaloExchange._colour)
 
+    assert (sched + "[invoke='invoke_0_testkern_stencil_type', dm=True]\n"
+            in result)
     expected = (
-        sched + "[invoke='invoke_0_testkern_stencil_type', dm=True]\n"
-        "    0: " + exch + "[field='f1', type='region', depth=1, "
+        "    25: " + exch + "[field='f1', type='region', depth=1, "
         "check_dirty=True]\n"
-        "    1: " + exch + "[field='f2', type='region', depth=f2_extent + 1, "
+        "    26: " + exch + "[field='f2', type='region', depth=f2_extent + 1, "
         "check_dirty=True]\n"
-        "    2: " + exch + "[field='f3', type='region', depth=1, "
+        "    27: " + exch + "[field='f3', type='region', depth=1, "
         "check_dirty=True]\n"
-        "    3: " + exch + "[field='f4', type='region', depth=1, "
+        "    28: " + exch + "[field='f4', type='region', depth=1, "
         "check_dirty=True]\n")
     assert expected in result
 
@@ -2822,17 +2808,15 @@ def test_haloexchange_unknown_halo_depth():
 
     '''
     # load an example with an argument that has stencil metadata
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    _, invoke = get_invoke("19.1_single_stencil.f90", api=TEST_API,
+                           dist_mem=True, idx=0)
     # access the argument with stencil metadata
-    schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule.children[4].loop_body[0]
+    schedule = invoke.schedule
+    kernel = schedule.walk(LFRicKern)[0]
     stencil_arg = kernel.arguments.args[1]
     # artificially add an extent to the stencil metadata info
     stencil_arg.descriptor.stencil['extent'] = 10
-    halo_exchange = schedule.children[1]
+    halo_exchange = schedule.walk(HaloExchange)[1]
     assert halo_exchange._compute_halo_depth().value == '11'
 
 
@@ -2970,11 +2954,8 @@ def test_multi_anyw2(dist_mem, tmpdir):
     fields. Particularly check that we only generate a single lookup.
 
     '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "21.1_single_invoke_multi_anyw2.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
+    psy, invoke = get_invoke("21.1_single_invoke_multi_anyw2.f90",
+                             api=TEST_API, dist_mem=dist_mem, idx=0)
     generated_code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -3110,12 +3091,10 @@ def test_halo_stencil_redundant_computation():
     to a full halo) and there is no support for mixing accesses at
     different levels. In this example the kernel stencil is cross.'''
 
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "19.1_single_stencil.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    stencil_halo_exchange = schedule.children[0]
+    _, invoke = get_invoke("19.1_single_stencil.f90", api=TEST_API,
+                           dist_mem=True, idx=0)
+    schedule = invoke.schedule
+    stencil_halo_exchange = schedule.walk(HaloExchange)[0]
     assert stencil_halo_exchange._compute_stencil_type() == "region"
 
 
@@ -3127,12 +3106,10 @@ def test_halo_same_stencils_no_red_comp(tmpdir):
     case both are cross.
 
     '''
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "14.8_halo_same_stencils.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    stencil_halo_exchange = schedule.children[1]
+    psy, invoke = get_invoke("14.8_halo_same_stencils.f90", api=TEST_API,
+                             dist_mem=True, idx=0)
+    schedule = invoke.schedule
+    stencil_halo_exchange = schedule.walk(HaloExchange)[0]
     assert stencil_halo_exchange._compute_stencil_type() == "cross"
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -3147,12 +3124,10 @@ def test_halo_different_stencils_no_red_comp(tmpdir):
     cross!
 
     '''
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "14.9_halo_different_stencils.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    stencil_halo_exchange = schedule.children[1]
+    psy, invoke = get_invoke("14.9_halo_different_stencils.f90", api=TEST_API,
+                             dist_mem=True, idx=0)
+    schedule = invoke.schedule
+    stencil_halo_exchange = schedule.walk(HaloExchange)[0]
     assert stencil_halo_exchange._compute_stencil_type() == "region"
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -3163,11 +3138,10 @@ def test_comp_halo_intern_err(monkeypatch):
     LFRicHaloExchange does not find any read dependencies. This should
     never be the case. We use monkeypatch to force the exception to be
     raised'''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    halo_exchange = schedule.children[0]
+    psy, invoke = get_invoke("1_single_invoke.f90", api=TEST_API,
+                             dist_mem=True, idx=0)
+    schedule = invoke.schedule
+    halo_exchange = schedule.walk(HaloExchange)[0]
     field = halo_exchange.field
     monkeypatch.setattr(field, "forward_read_dependencies", lambda: [])
     with pytest.raises(InternalError) as excinfo:
@@ -3183,7 +3157,7 @@ def test_halo_exch_1_back_dep(monkeypatch):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    halo_exchange = schedule.children[0]
+    halo_exchange = schedule.walk(HaloExchange)[0]
     field = halo_exchange.field
 
     monkeypatch.setattr(field, "backward_write_dependencies",
@@ -3207,7 +3181,7 @@ def test_halo_ex_back_dep_no_call(monkeypatch):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    halo_exchange = schedule.children[1]
+    halo_exchange = schedule.walk(HaloExchange)[0]
     field = halo_exchange.field
     write_dependencies = field.backward_write_dependencies()
     write_dependency = write_dependencies[0]
@@ -3244,7 +3218,7 @@ def test_HaloReadAccess_field_in_call():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    halo_exchange = schedule.children[0]
+    halo_exchange = schedule.walk(HaloExchange)[0]
     field = halo_exchange.field
     with pytest.raises(GenerationError) as excinfo:
         _ = HaloReadAccess(field, Schedule())
@@ -3265,8 +3239,7 @@ def test_HaloReadAccess_field_not_reader():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[0]
-    kernel = loop.loop_body[0]
+    kernel = schedule.walk(LFRicKern)[0]
     argument = kernel.arguments.args[0]
     with pytest.raises(GenerationError) as excinfo:
         _ = HaloReadAccess(argument, Schedule())
@@ -3287,7 +3260,7 @@ def test_HaloRead_inv_loop_upper(monkeypatch):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    halo_exchange = schedule.children[0]
+    halo_exchange = schedule.walk(HaloExchange)[0]
     field = halo_exchange.field
     read_dependencies = field.forward_read_dependencies()
     read_dependency = read_dependencies[0]
@@ -3309,8 +3282,7 @@ def test_HaloReadAccess_discontinuous_field(tmpdir):
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[0]
-    kernel = loop.loop_body[0]
+    kernel = schedule.walk(LFRicKern)[0]
     arg = kernel.arguments.args[1]
     halo_access = HaloReadAccess(arg, schedule)
     assert not halo_access.max_depth
@@ -3340,7 +3312,7 @@ def test_new_halo_exch_vect_field(monkeypatch):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    loop = schedule.children[7]
+    loop = schedule.walk(LFRicLoop)[0]
     kernel = loop.loop_body[0]
     f1_field = kernel.arguments.args[0]
     # by changing vector size we change
@@ -3377,7 +3349,7 @@ def test_new_halo_exch_vect_deps(monkeypatch):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    loop = schedule.children[7]
+    loop = schedule.walk(LFRicLoop)[0]
     kernel = loop.loop_body[0]
     f1_field = kernel.arguments.args[0]
     # by changing vector size we change
@@ -3415,7 +3387,7 @@ def test_new_halo_exch_vect_deps2(monkeypatch):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    loop = schedule.children[7]
+    loop = schedule.walk(LFRicLoop)[0]
     kernel = loop.loop_body[0]
     f1_field = kernel.arguments.args[0]
     dependencies = f1_field.backward_write_dependencies()
@@ -3442,7 +3414,7 @@ def test_halo_req_no_read_deps(monkeypatch):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    halo_exchange = schedule.children[0]
+    halo_exchange = schedule.walk(HaloExchange)[0]
     field = halo_exchange.field
 
     monkeypatch.setattr(field, "_name", "unique")
@@ -3515,12 +3487,10 @@ def test_haloex_not_required(monkeypatch):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    for index in range(3):
-        haloex = schedule.children[index]
+    for haloex in schedule.walk(HaloExchange):
         assert haloex.required() == (True, False)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", True)
-    for index in range(3):
-        haloex = schedule.children[index]
+    for index in schedule.walk(HaloExchange):
         assert haloex.required() == (False, True)
 
 
@@ -3533,7 +3503,7 @@ def test_haloex_required_max_depth_clean_outer(monkeypatch):
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
-    haloex = invoke.schedule.children[0]
+    haloex = invoke.schedule.walk(HaloExchange)[0]
 
     class DummyReadInfo:  # pylint: disable=too-few-public-methods
         '''Minimal read-info object for required().'''
@@ -3576,10 +3546,7 @@ def test_kerncallarglist_positions_noquad(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    index = 0
-    if dist_mem:
-        index = 4
-    loop = schedule.children[index]
+    loop = schedule.walk(LFRicLoop)[0]
     kernel = loop.loop_body[0]
     create_arg_list = KernCallArgList(kernel)
     create_arg_list.generate()
@@ -3606,10 +3573,7 @@ def test_kerncallarglist_positions_quad(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    index = 0
-    if dist_mem:
-        index = 4
-    loop = schedule.children[index]
+    loop = schedule.walk(LFRicLoop)[0]
     kernel = loop.loop_body[0]
     create_arg_list = KernCallArgList(kernel)
     create_arg_list.generate()

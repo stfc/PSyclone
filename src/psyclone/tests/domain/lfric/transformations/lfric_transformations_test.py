@@ -64,9 +64,11 @@ def test_colour_trans_create_colours_loop(dist_mem):
     schedule = invoke.schedule
     ctrans = LFRicColourTrans()
     loop = schedule.walk(Loop)[0]
+    orig_posn = loop.position
     kernel = loop.loop_body[0]
 
-    new_loop = ctrans._create_colours_loop(loop)
+    ctrans.apply(loop)
+    new_loop = schedule[orig_posn]
     assert isinstance(new_loop, LFRicLoop)
     assert new_loop.loop_type == "colours"
     colour_loop = new_loop.loop_body[0]
@@ -75,24 +77,27 @@ def test_colour_trans_create_colours_loop(dist_mem):
     assert new_loop.field_space == loop.field_space
     assert colour_loop.field_space == loop.field_space
     assert colour_loop.field_name == loop.field_name
-    assert new_loop._lower_bound_name == "start"
-    assert new_loop._upper_bound_name == "ncolours"
-    assert colour_loop._lower_bound_name == "start"
+    assert new_loop.start_expr.value == "1"
+    assert isinstance(new_loop.stop_expr, Reference)
+    assert new_loop.stop_expr.symbol.name == "ncolour"
+    assert colour_loop.start_expr.value == "1"
     if dist_mem:
-        # Since the kernel has a GH_INC access we need to loop into the
-        # halo.
-        assert colour_loop._upper_bound_name == "colour_halo"
+        # Since the kernel has a GH_INC access we need to loop into the halo.
+        assert (colour_loop.stop_expr.debug_string() ==
+                "last_halo_cell_all_colours(colour,1)")
     else:
-        assert colour_loop._upper_bound_name == "ncolour"
+        assert (colour_loop.stop_expr.debug_string() ==
+                "last_edge_cell_all_colours(colour)")
 
     # Modify one GH_INC to be GH_WRITE. Since there is still a GH_INC this
     # should have no effect - we still need to loop into the halo if DM
     # is enabled.
     kernel.args[2]._access = AccessType.WRITE
     new_loop1 = LFRicLoop(parent=schedule)
+    schedule.addchild(new_loop1)
     new_loop1.load(kernel)
-    new_cloop = ctrans._create_colours_loop(new_loop1)
-    colour_loop = new_cloop.loop_body[0]
+    ctrans.apply(new_loop1)
+    colour_loop = kernel.ancestor(Loop)
     if dist_mem:
         assert colour_loop._upper_bound_name == "colour_halo"
     else:
@@ -120,14 +125,10 @@ def test_colour_trans_declarations(tmpdir, dist_mem):
                              dist_mem=dist_mem)
     schedule = invoke.schedule
     ctrans = LFRicColourTrans()
-
-    if dist_mem:
-        index = 4
-    else:
-        index = 0
+    loop = schedule.walk(LFRicLoop)[0]
 
     # Colour the loop
-    ctrans.apply(schedule.children[index])
+    ctrans.apply(loop)
 
     # Store the results of applying this code transformation as
     # a string (Fortran is not case sensitive)
@@ -150,14 +151,10 @@ def test_colour_trans(tmpdir, dist_mem):
                              dist_mem=dist_mem)
     schedule = invoke.schedule
     ctrans = LFRicColourTrans()
-
-    if dist_mem:
-        index = 4
-    else:
-        index = 0
+    loop = schedule.walk(LFRicLoop)[0]
 
     # Colour the loop
-    ctrans.apply(schedule.children[index])
+    ctrans.apply(loop)
 
     # Store the results of applying this code transformation as
     # a string (Fortran is not case sensitive)
@@ -230,13 +227,10 @@ def test_colour_trans_operator(tmpdir, dist_mem):
     schedule = invoke.schedule
     ctrans = LFRicColourTrans()
 
-    if dist_mem:
-        index = 3
-    else:
-        index = 0
+    loop = schedule.walk(LFRicLoop, stop_type=LFRicLoop)[0]
 
     # Colour the loop
-    ctrans.apply(schedule.children[index])
+    ctrans.apply(loop)
 
     # Store the results of applying this code transformation as a
     # string
@@ -339,13 +333,10 @@ def test_colour_trans_adjacent_face(dist_mem, tmpdir):
     schedule = invoke.schedule
     ctrans = LFRicColourTrans()
 
-    if dist_mem:
-        index = 1
-    else:
-        index = 0
+    loop = schedule.walk(LFRicLoop, stop_type=LFRicLoop)[0]
 
     # Colour the loop
-    ctrans.apply(schedule.children[index])
+    ctrans.apply(loop)
 
     # Store the results of applying this code transformation as
     # a string
