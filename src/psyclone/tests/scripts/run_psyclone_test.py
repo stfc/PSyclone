@@ -1,7 +1,16 @@
 """Tests for the PSyclone control-file discovery script."""
 
+import pytest
+
 from psyclone.scripts import run_psyclone
+from psyclone.scripts.psyclone_control import PsyclonePhase
 from psyclone.scripts.run_psyclone import RunPsyclone
+
+
+def test_init_rejects_invalid_nprocs(tmp_path):
+    """Check the runner requires at least one worker process."""
+    with pytest.raises(ValueError, match="nprocs must be at least 1"):
+        RunPsyclone(tmp_path, [], nprocs=0)
 
 
 def test_main_passes_psyclone_options(tmp_path, monkeypatch):
@@ -17,7 +26,7 @@ def test_main_passes_psyclone_options(tmp_path, monkeypatch):
 phases:
   - dsl
 dsl:
-  file_list: "*.x90"
+  file_pattern: "*.x90"
   no_script:
     files: "*"
 """,
@@ -40,6 +49,89 @@ dsl:
     assert psyclone_args[-4:] == [
         "--verbose", "-l", "all", str(source_file),
     ]
+
+
+def test_main_rejects_invalid_nprocs(tmp_path, capsys):
+    """Check the command-line parser rejects a non-positive worker count."""
+    with pytest.raises(SystemExit) as err:
+        run_psyclone.main([
+            "--input", str(tmp_path),
+            "--output", str(tmp_path / "output"),
+            "--nprocs", "0",
+            str(tmp_path / "control.yaml"),
+        ])
+
+    assert err.value.code == 2
+    assert "--nprocs must be at least 1" in capsys.readouterr().err
+
+
+def test_main_uses_nprocs_for_phase_workers(tmp_path, monkeypatch):
+    """Check --nprocs sets the process limit for each phase."""
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    source_files = [source_dir / f"input{index}.x90" for index in range(3)]
+    for source_file in source_files:
+        source_file.touch()
+    control_file = tmp_path / "control.yaml"
+    control_file.write_text(
+        """
+phases:
+  - dsl
+dsl:
+  file_pattern: "*.x90"
+  no_script:
+    files: "*"
+""",
+        encoding="utf-8",
+    )
+    process_limits = []
+    processed_files = []
+
+    # The runner calls result() on each returned future.
+    class CompletedFuture:
+        """
+        Represent a completed submission, required for ImmediateExecutor.
+        """
+
+        @staticmethod
+        def result():
+            """Pretend the submitted work has completed."""
+            return None
+
+    class RecordSubmissions:
+        """Run submitted work inline while recording executor usage."""
+
+        def __init__(self, max_workers):
+            process_limits.append(max_workers)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def submit(self, function, *args):
+            """
+            Simple submit implementation that just records the submitted jobs.
+            """
+            function(*args)
+            processed_files.append(args[0])
+            return CompletedFuture()
+
+    monkeypatch.setattr(
+        run_psyclone, "ProcessPoolExecutor", RecordSubmissions,
+    )
+    monkeypatch.setattr(run_psyclone, "psyclone_main", lambda args: None)
+
+    run_psyclone.main([
+        "--input", str(source_dir),
+        "--output", str(tmp_path / "output"),
+        "--nprocs", "2",
+        str(control_file),
+    ])
+
+    assert process_limits == [2]
+    assert set(processed_files) == set(source_files)
 
 
 def test_execute_psyclone_uses_psykal_output_suffixes(
@@ -71,8 +163,8 @@ def test_execute_psyclone_uses_psykal_output_suffixes(
     )
 
 
-def test_run_skips_phase_without_file_list(tmp_path, caplog, monkeypatch):
-    """Check phases without a file_list are skipped with a warning."""
+def test_run_skips_phase_without_file_pattern(tmp_path, caplog, monkeypatch):
+    """Check phases without a file_pattern are skipped with a warning."""
     control_file = tmp_path / "control.yaml"
     control_file.write_text(
         """
@@ -95,10 +187,21 @@ dsl:
     runner.run()
 
     assert (
-        "Skipping phase dsl: no file_list pattern is configured"
+        "Skipping phase dsl: no file_pattern is configured"
         in caplog.text
     )
     assert not psyclone_calls
+
+
+def test_get_phase_files_rejects_missing_pattern(tmp_path):
+    """Check file discovery requires a configured phase pattern."""
+    phase = PsyclonePhase("dsl", [], tmp_path)
+    runner = RunPsyclone(tmp_path, [])
+
+    with pytest.raises(
+            ValueError,
+            match="Cannot find phase files without a file_pattern"):
+        runner.get_phase_files(phase)
 
 
 def test_run_merges_configs_and_reports_selected_script(
@@ -124,7 +227,7 @@ phases:
   - dsl
 dsl:
   comment: First
-  file_list: "*x90"
+  file_pattern: "*x90"
   script_dir: "${target}/psykal"
   global.py:
     params:
@@ -166,7 +269,7 @@ dsl:
 
     stdout = capsys.readouterr().out
     assert "comment: Merged" in stdout
-    assert "file_list: '*x90'" in stdout
+    assert "file_pattern: '*x90'" in stdout
     assert f"Reading control file {first_config}" in caplog.text
     assert "Phase dsl: found 3 files matching '*x90'" in caplog.text
     assert f"file.x90 uses script {script_path}" in caplog.text
