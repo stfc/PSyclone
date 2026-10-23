@@ -163,6 +163,22 @@ Each script can also have its own keyword arguments using ``--script-kwargs``. E
 
     psyclone input.f90 -s script1.py --script-kwargs "opt1: 1" -s script2.py --script-kwargs "opt2: 2"
 
+If any ``--script-kwargs`` are supplied then there must be exactly one for each
+``-s`` script, i.e. the number of ``--script-kwargs`` must either be zero or
+match the number of ``-s`` scripts. Otherwise PSyclone reports an error and
+exits.
+
+When several scripts are supplied, the ``RESOLVE_IMPORTS`` requests of all of
+them are combined (see :ref:`sec_script_globals`): the union of the requested
+module names is resolved and a value of ``True`` in any script takes precedence
+over any list of module names.
+
+Each script is loaded and executed with its own directory temporarily added to
+``sys.path``, so a script may import helper modules that sit alongside it. Any
+such helper module is removed from ``sys.modules`` once the script has finished,
+which means that two scripts in different directories may each have their own
+module of the same name (e.g. ``utils.py``) and each will import its own copy.
+
 
 Fortran INCLUDE Files and Modules
 ---------------------------------

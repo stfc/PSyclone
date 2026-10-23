@@ -30,7 +30,8 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.errors import GenerationError
 from psyclone.generator import (
-    generate, main, check_psyir, add_builtins_use, code_transformation_mode)
+    generate, main, check_psyir, add_builtins_use, code_transformation_mode,
+    merge_resolve_imports)
 from psyclone.parse import ModuleManager
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -547,6 +548,32 @@ def trans(psyir):
                                    distributed_memory=False)
     # third - check that the results are the same ...
     assert str(generated_code_1) == str(generated_code_2)
+
+
+def test_script_trans_lfric_same_named_helper(tmp_path, capsys):
+    '''Checks that when several transformation scripts are supplied to the
+    PSyKAl path (via generate()) and each lives in a different directory with
+    its own same-named helper module, each script imports its own helper.
+
+    '''
+    for folder, name in (("folder1", "one"), ("folder2", "two")):
+        directory = tmp_path / folder
+        directory.mkdir()
+        (directory / "utils.py").write_text(f"NAME = '{name}'\n",
+                                            encoding="utf8")
+        (directory / "script.py").write_text(
+            "import utils\n"
+            "def trans(psyir):\n"
+            "    print(f'Script {utils.NAME}')\n", encoding="utf8")
+
+    generate(str(LFRIC_BASE_PATH / "1_single_invoke.f90"), api="lfric",
+             script_kwargs_pairs=[
+                 (str(tmp_path / "folder1" / "script.py"), None),
+                 (str(tmp_path / "folder2" / "script.py"), None)])
+
+    output = capsys.readouterr().out
+    assert "Script one" in output
+    assert "Script two" in output
 
 
 def test_alg_lines_too_long_tested():
@@ -1133,6 +1160,197 @@ def trans(psyir):
 
     # Compare the generated output to the parametrised expected output
     assert output in str(captured), str(captured)
+
+
+def test_merge_resolve_imports():
+    '''Test that merge_resolve_imports combines RESOLVE_IMPORTS
+    specifications as expected.'''
+    cases = [
+        (False, False, []),
+        (False, ["module1"], ["module1"]),
+        (["module1"], False, ["module1"]),
+        (["module1"], ["module2"], ["module1", "module2"]),
+        # Duplicates are removed (case-insensitively)
+        (["module1"], ["MODULE1", "module2"], ["module1", "module2"]),
+        (["module1", "module2"], ["module2"], ["module1", "module2"]),
+        # True takes precedence over everything else
+        (True, False, True),
+        (False, True, True),
+        (True, ["module1"], True),
+        (["module1"], True, True),
+        (True, True, True),
+    ]
+    for current, new, expected in cases:
+        assert merge_resolve_imports(current, new) == expected, \
+            f"Failed for current={current}, new={new}"
+
+
+def test_load_script_merges_module_manager(tmp_path, monkeypatch):
+    '''Test that loading several recipes that specify RESOLVE_IMPORTS
+    accumulates the requested modules in the ModuleManager (rather than
+    the last one overwriting the previous ones).'''
+    recipe1 = tmp_path / "recipe1.py"
+    recipe1.write_text('RESOLVE_IMPORTS = ["module1"]\n'
+                       'def trans(psyir):\n    pass\n', encoding="utf8")
+    recipe2 = tmp_path / "recipe2.py"
+    recipe2.write_text('RESOLVE_IMPORTS = ["module2"]\n'
+                       'def trans(psyir):\n    pass\n', encoding="utf8")
+
+    monkeypatch.chdir(tmp_path)
+    ModuleManager._instance = None
+    generator.load_script(str(recipe1))
+    generator.load_script(str(recipe2))
+    assert ModuleManager.get().resolve_indirect_imports == ["module1",
+                                                            "module2"]
+    ModuleManager._instance = None
+
+
+def test_code_transformation_multiple_resolve_imports(tmp_path, capsys,
+                                                      monkeypatch):
+    '''Test that when multiple recipes specify different RESOLVE_IMPORTS
+    lists, the union of the requested modules is resolved (so that each
+    recipe gets the symbols it asked for).'''
+    module1 = '''
+        module module1
+            use module3
+            integer :: a
+        end module module1
+    '''
+    module2 = '''
+        module module2
+            integer :: b
+        end module module2
+    '''
+    module3 = '''
+        module module3
+            integer :: c
+        end module module3
+    '''
+    code = '''
+        module test
+            use module1
+            use module2
+            real :: result
+        contains
+            subroutine mytest()
+                result = a + b + c
+            end subroutine mytest
+        end module test
+    '''
+    # The first recipe only requests module1, the second only requests
+    # module2.
+    recipe1 = '''
+from psyclone.psyir.nodes import Reference, Literal
+from psyclone.psyir.symbols import ScalarType
+
+RESOLVE_IMPORTS = ["module1"]
+
+def trans(psyir):
+    for ref in psyir.walk(Reference):
+        if ref.datatype == ScalarType.integer_type():
+            ref.replace_with(Literal("1", ScalarType.integer_type()))
+    '''
+    recipe2 = '''
+from psyclone.psyir.nodes import Reference, Literal
+from psyclone.psyir.symbols import ScalarType
+
+RESOLVE_IMPORTS = ["module2"]
+
+def trans(psyir):
+    for ref in psyir.walk(Reference):
+        if ref.datatype == ScalarType.integer_type():
+            ref.replace_with(Literal("2", ScalarType.integer_type()))
+    '''
+    for filename, content in [("module1.f90", module1),
+                              ("module2.f90", module2),
+                              ("module3.f90", module3),
+                              ("code.f90", code),
+                              ("recipe1.py", recipe1),
+                              ("recipe2.py", recipe2)]:
+        with open(tmp_path / filename, "w", encoding='utf-8') as my_file:
+            my_file.write(content)
+
+    monkeypatch.chdir(tmp_path)
+    ModuleManager._instance = None
+    main(["code.f90", "-s", "recipe1.py", "-s", "recipe2.py"])
+    captured = capsys.readouterr()
+
+    # Both module1 and module2 must have been resolved (the union of the two
+    # requests), so 'a' and 'b' are known to be integers and are replaced by
+    # the first recipe. 'c' comes from the indirect import module3, which is
+    # not resolved (see TODO #1540).
+    assert "result = 1 + 1 + c" in str(captured), str(captured)
+
+
+def test_code_transformation_multiple_resolve_imports_true(tmp_path, capsys,
+                                                           monkeypatch):
+    '''Test that when one of several recipes requests RESOLVE_IMPORTS = True,
+    all imports are resolved (True takes precedence over any list).'''
+    module1 = '''
+        module module1
+            use module3
+            integer :: a
+        end module module1
+    '''
+    module2 = '''
+        module module2
+            integer :: b
+        end module module2
+    '''
+    module3 = '''
+        module module3
+            integer :: c
+        end module module3
+    '''
+    code = '''
+        module test
+            use module1
+            use module2
+            real :: result
+        contains
+            subroutine mytest()
+                result = a + b + c
+            end subroutine mytest
+        end module test
+    '''
+    # The first recipe requests everything, the second only module1. The
+    # True must take precedence even though it is not the last request.
+    recipe1 = '''
+RESOLVE_IMPORTS = True
+
+def trans(psyir):
+    pass
+    '''
+    recipe2 = '''
+from psyclone.psyir.nodes import Reference, Literal
+from psyclone.psyir.symbols import ScalarType
+
+RESOLVE_IMPORTS = ["module1"]
+
+def trans(psyir):
+    for ref in psyir.walk(Reference):
+        if ref.datatype == ScalarType.integer_type():
+            ref.replace_with(Literal("2", ScalarType.integer_type()))
+    '''
+    for filename, content in [("module1.f90", module1),
+                              ("module2.f90", module2),
+                              ("module3.f90", module3),
+                              ("code.f90", code),
+                              ("recipe1.py", recipe1),
+                              ("recipe2.py", recipe2)]:
+        with open(tmp_path / filename, "w", encoding='utf-8') as my_file:
+            my_file.write(content)
+
+    monkeypatch.chdir(tmp_path)
+    ModuleManager._instance = None
+    main(["code.f90", "-s", "recipe1.py", "-s", "recipe2.py"])
+    captured = capsys.readouterr()
+
+    # RESOLVE_IMPORTS = True in the first recipe takes precedence over the
+    # list in the second, so module2 is resolved as well and both 'a' and 'b'
+    # are replaced. 'c' comes from the indirect import module3, which is not
+    # resolved (see TODO #1540).
+    assert "result = 2 + 2 + c" in str(captured), str(captured)
 
 
 def test_code_transformation_trans(tmp_path):
@@ -2209,6 +2427,50 @@ def test_multiple_scripts_with_kwargs(tmp_path):
     assert "Script 2: msg2" in output
 
 
+@pytest.mark.parametrize("import_at_runtime", [False, True])
+def test_multiple_scripts_same_named_helper(tmp_path, import_at_runtime):
+    '''Test that two transformation scripts living in different directories
+    each import their own helper module, even when the helper modules have
+    the same name. The import is either performed at module level or inside
+    the trans() function (a runtime import).
+
+    '''
+    for folder, name in (("folder1", "one"), ("folder2", "two")):
+        directory = tmp_path / folder
+        directory.mkdir()
+        with open(directory / "utils.py", 'w', encoding="utf8") as f:
+            f.write(f"NAME = '{name}'\n")
+        if import_at_runtime:
+            body = ("def trans(psyir):\n"
+                    "    import utils\n"
+                    "    print(f'Script {utils.NAME}')\n")
+        else:
+            body = ("import utils\n"
+                    "def trans(psyir):\n"
+                    "    print(f'Script {utils.NAME}')\n")
+        with open(directory / "script.py", 'w', encoding="utf8") as f:
+            f.write(body)
+
+    fortran_file = tmp_path / "test.f90"
+    with open(fortran_file, 'w', encoding='utf-8') as f:
+        f.write("program test\n  print *, 'Hello'\nend program test\n")
+
+    import io
+    from contextlib import redirect_stdout
+
+    f = io.StringIO()
+    with redirect_stdout(f):
+        code_transformation_mode(
+            str(fortran_file),
+            [(str(tmp_path / "folder1" / "script.py"), None),
+             (str(tmp_path / "folder2" / "script.py"), None)],
+            None, False, False, False, True, "off")
+
+    output = f.getvalue()
+    assert "Script one" in output
+    assert "Script two" in output
+
+
 def test_more_kwargs_than_scripts_error(tmp_path, capsys):
     '''Test that providing more --script-kwargs than -s scripts results
     in an error.'''
@@ -2225,7 +2487,29 @@ def test_more_kwargs_than_scripts_error(tmp_path, capsys):
         main([str(fortran_file), '-s', str(script),
               '--script-kwargs', 'a:1', '--script-kwargs', 'b:2'])
     _, err = capsys.readouterr()
-    assert "More --script-kwargs specified than -s scripts" in err
+    assert ("The number of '--script-kwargs' arguments (2) must match the "
+            "number of '--script' arguments (1)" in err)
+
+
+def test_fewer_kwargs_than_scripts_error(tmp_path, capsys):
+    '''Test that providing fewer --script-kwargs than -s scripts results
+    in an error.'''
+    # Create a simple Fortran file
+    fortran_file = tmp_path / "test.f90"
+    with open(fortran_file, 'w', encoding='utf-8') as f:
+        f.write("program test\nend program test\n")
+
+    # Create two scripts
+    script1 = script_factory(tmp_path, "def trans(psyir): return psyir")
+    script2 = script_factory(tmp_path, "def trans(psyir): return psyir")
+
+    # Try to run with fewer kwargs than scripts
+    with pytest.raises(SystemExit):
+        main([str(fortran_file), '-s', str(script1), '-s', str(script2),
+              '--script-kwargs', 'a:1'])
+    _, err = capsys.readouterr()
+    assert ("The number of '--script-kwargs' arguments (1) must match the "
+            "number of '--script' arguments (2)" in err)
 
 
 def test_backward_compatibility_single_script(tmp_path):
