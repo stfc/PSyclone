@@ -136,7 +136,7 @@ class PsyclonePhase:
         self._name: str = name
         self._comment: str = ""
         self._api: str = ""
-        self._file_list: Optional[str] = None
+        self._file_pattern: Optional[str] = None
         self._rules: list[PsycloneRule] = []
         self._template_data = template_data if template_data else {}
         self._default_parameter = {}
@@ -163,11 +163,11 @@ class PsyclonePhase:
         return self._api
 
     @property
-    def file_list(self) -> Optional[str]:
+    def file_pattern(self) -> Optional[str]:
         """
         :returns: the file pattern to which this phase applies, if specified.
         """
-        return self._file_list
+        return self._file_pattern
 
     @property
     def opt_path(self) -> Path:
@@ -192,8 +192,8 @@ class PsyclonePhase:
                 self._comment = info["comment"]
             elif phase == "api":
                 self._api = info["api"]
-            elif phase == "file_list":
-                self._file_list = info["file_list"]
+            elif phase == "file_pattern":
+                self._file_pattern = info["file_pattern"]
             elif phase == "script_dir":
                 script_template = Template(info["script_dir"])
                 self._relative_script_dir = (
@@ -218,8 +218,8 @@ class PsyclonePhase:
         yaml_dict: dict[str, Any] = {"comment": self.comment,
                                      "api": self.api,
                                      "script_dir": self._relative_script_dir}
-        if self.file_list is not None:
-            yaml_dict["file_list"] = self.file_list
+        if self.file_pattern is not None:
+            yaml_dict["file_pattern"] = self.file_pattern
 
         for rule in self._rules:
             yaml_dict.update(rule.get_yaml_dict())
