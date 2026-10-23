@@ -1,46 +1,16 @@
 .. -----------------------------------------------------------------------------
-.. BSD 3-Clause License
-..
-.. Copyright (c) 2019-2026, Science and Technology Facilities Council.
-.. All rights reserved.
-..
-.. Redistribution and use in source and binary forms, with or without
-.. modification, are permitted provided that the following conditions are met:
-..
-.. * Redistributions of source code must retain the above copyright notice, this
-..   list of conditions and the following disclaimer.
-..
-.. * Redistributions in binary form must reproduce the above copyright notice,
-..   this list of conditions and the following disclaimer in the documentation
-..   and/or other materials provided with the distribution.
-..
-.. * Neither the name of the copyright holder nor the names of its
-..   contributors may be used to endorse or promote products derived from
-..   this software without specific prior written permission.
-..
-.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-.. POSSIBILITY OF SUCH DAMAGE.
+.. SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+..                         Facilities Council
+.. SPDX-License-Identifier: BSD-3-Clause
+.. See the full LICENSE file in the project root for details.
 .. -----------------------------------------------------------------------------
-.. Written by A. R. Porter, STFC Daresbury Lab
-.. Modified by R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
-.. Modified by J. G. Wallwork, Met Office
 
 .. The following section imports those Python modules that are needed in
    subsequent doctest snippets.
 .. testsetup::
 
     from psyclone.psyir.symbols import DataSymbol, ScalarType, ArrayType
-	from psyclone.psyir.nodes import Reference
+    from psyclone.psyir.nodes import Reference
 
 .. _psyir-ug:
 
@@ -268,7 +238,7 @@ example:
     ...                       ScalarType.Precision.SINGLE)
     >>> bool_type = ScalarType(ScalarType.Intrinsic.BOOLEAN, 4)
     >>> symbol = DataSymbol("rdef", int_type, initial_value=4)
-    >>> scalar_type = ScalarType(ScalarType.Intrinsic.REAL, symbol)
+    >>> scalar_type = ScalarType(ScalarType.Intrinsic.REAL, Reference(symbol))
 
 For convenience ScalarType has static methods to create a number of
 common scalar datatypes:
@@ -352,8 +322,7 @@ Structure Datatype
 
 A Structure datatype consists of a dictionary of components where the
 name of each component is used as the corresponding key. Each component
-is stored as a named tuple with ``name``, ``datatype`` and ``visibility``
-members.
+is represented by a ``StructureType.ComponentType`` object.
 
 For example:
 
@@ -364,18 +333,24 @@ For example:
 
   # Structure-type definition
   GRID_TYPE = StructureType.create([
-      ("dx", SCALAR_TYPE, Symbol.Visibility.PUBLIC),
-      ("dy", SCALAR_TYPE, Symbol.Visibility.PUBLIC)])
+      StructureType.ComponentType(
+          "dx", SCALAR_TYPE, Symbol.Visibility.PUBLIC),
+      StructureType.ComponentType(
+          "dy", SCALAR_TYPE, Symbol.Visibility.PUBLIC)])
 
   GRID_TYPE_SYMBOL = DataTypeSymbol("grid_type", GRID_TYPE)
 
   # A structure-type containing other structure types
   FIELD_TYPE_DEF = StructureType.create(
-      [("data", ArrayType(SCALAR_TYPE, [10]), Symbol.Visibility.PUBLIC),
-       ("grid", GRID_TYPE_SYMBOL, Symbol.Visibility.PUBLIC),
-       ("sub_meshes", ArrayType(GRID_TYPE_SYMBOL, [3]),
-        Symbol.Visibility.PUBLIC),
-       ("flag", ScalarType.integer4_type(), Symbol.Visibility.PUBLIC)])
+      [StructureType.ComponentType(
+           "data", ArrayType(SCALAR_TYPE, [10]), Symbol.Visibility.PUBLIC),
+       StructureType.ComponentType(
+           "grid", GRID_TYPE_SYMBOL, Symbol.Visibility.PUBLIC),
+       StructureType.ComponentType(
+           "sub_meshes", ArrayType(GRID_TYPE_SYMBOL, [3]),
+           Symbol.Visibility.PUBLIC),
+       StructureType.ComponentType(
+           "flag", ScalarType.integer4_type(), Symbol.Visibility.PUBLIC)])
 
 Unknown DataType
 ----------------

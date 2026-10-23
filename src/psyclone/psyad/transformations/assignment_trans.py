@@ -1,42 +1,15 @@
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
+# -----------------------------------------------------------------------------
 
 '''This module contains a transformation that replaces a PSyIR
 assignment node with its adjoint form.
 
 '''
+from typing import Any, Optional
 
 from psyclone.core import SymbolicMaths
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
@@ -44,6 +17,7 @@ from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.transformations import TransformationError
+from psyclone.utils import transformation_documentation_wrapper
 
 from psyclone.psyad.transformations import TangentLinearError
 from psyclone.psyad.transformations.adjoint_trans import AdjointTransformation
@@ -52,23 +26,24 @@ from psyclone.psyad.transformations.adjoint_trans import AdjointTransformation
 # pylint: disable=too-many-branches
 
 
+@transformation_documentation_wrapper
 class AssignmentTrans(AdjointTransformation):
     '''Implements a transformation to translate a Tangent-Linear
     assignment to its Adjoint form.
 
     '''
-    def apply(self, node, options=None):
+    def apply(self, node: Assignment,
+              options: Optional[dict[str, Any]] = None,
+              **kwargs: Any) -> None:
         '''Apply the Assignment transformation to the specified node. The node
         must be a valid tangent-linear assignment. The assignment is
         replaced with its adjoint version.
 
         :param node: an Assignment node.
-        :type node: :py:class:`psyclone.psyir.nodes.Assignment`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node, options)
+        self.validate(node, options, **kwargs)
 
         # Split the RHS of the assignment into [-]<term> +- <term> +- ...
         rhs_terms = self._split_nodes(
@@ -93,18 +68,8 @@ class AssignmentTrans(AdjointTransformation):
                 active_var = ref
                 # Identify whether this reference on the RHS matches the
                 # one on the LHS - if so we have an increment.
-                if node.is_array_assignment and isinstance(ref, ArrayMixin):
-                    # TODO #1537 - we can't just do `sym_maths.equal` if we
-                    # have an array range because the SymbolicMaths class does
-                    # not currently support them.
-                    # Since we have already checked (in validate) that any
-                    # references to the same symbol on the RHS have the same
-                    # range, this is an increment if the symbols match.
-                    if node.lhs.symbol is ref.symbol:
-                        increment = True
-                else:
-                    if sym_maths.equal(ref, node.lhs):
-                        increment = True
+                if sym_maths.equal(ref, node.lhs):
+                    increment = True
                 if ref.parent:
                     ref.replace_with(node.lhs.copy())
                 else:
@@ -216,14 +181,14 @@ class AssignmentTrans(AdjointTransformation):
                     f"accessed on the LHS and RHS of an assignment: "
                     f"'{assign.debug_string()}'. This is not supported.")
 
-    def validate(self, node, options=None):
+    def validate(self, node: Assignment,
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         '''Perform various checks to ensure that it is valid to apply the
         AssignmentTrans transformation to the supplied PSyIR Node.
 
         :param node: the node that is being checked.
-        :type node: :py:class:`psyclone.psyir.nodes.Assignment`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the node argument is not an \
             Assignment.
@@ -231,6 +196,11 @@ class AssignmentTrans(AdjointTransformation):
             to the required tangent-linear structure.
 
         '''
+
+        super().validate(node, options=options, **kwargs)
+        if not options:
+            self.validate_options(**kwargs)
+
         # Check node argument is an assignment node
         if not isinstance(node, Assignment):
             raise TransformationError(

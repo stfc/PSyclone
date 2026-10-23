@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''Module that uses the Fortran parser fparser2 to parse
 PSyclone-conformant Algorithm code.
@@ -39,18 +11,20 @@ PSyclone-conformant Algorithm code.
 '''
 from __future__ import annotations
 from collections import OrderedDict
+from typing import Union
 
 from fparser.two.utils import walk
 # pylint: disable=no-name-in-module
-from fparser.two.Fortran2003 import Main_Program, Module, \
-    Subroutine_Subprogram, Function_Subprogram, Use_Stmt, Call_Stmt, \
-    Actual_Arg_Spec, Data_Ref, Part_Ref, Char_Literal_Constant, \
-    Section_Subscript_List, Name, Real_Literal_Constant, \
-    Int_Literal_Constant, Function_Reference, Level_2_Unary_Expr, \
-    Add_Operand, Parenthesis, Structure_Constructor, Component_Spec_List, \
-    Proc_Component_Ref, Kind_Selector, Type_Declaration_Stmt, \
-    Declaration_Type_Spec, Entity_Decl, Intrinsic_Type_Spec, \
-    Data_Component_Def_Stmt, Component_Decl
+from fparser.two.Fortran2003 import (
+    Main_Program, Module,
+    Subroutine_Subprogram, Function_Subprogram, Use_Stmt, Call_Stmt,
+    Actual_Arg_Spec, Data_Ref, Part_Ref, Char_Literal_Constant,
+    Section_Subscript_List, Name, Real_Literal_Constant,
+    Int_Literal_Constant, Function_Reference, Level_2_Unary_Expr,
+    Add_Operand, Parenthesis, Structure_Constructor, Component_Spec_List,
+    Proc_Component_Ref, Kind_Selector, Type_Declaration_Stmt,
+    Declaration_Type_Spec, Entity_Decl, Intrinsic_Type_Spec,
+    Data_Component_Def_Stmt, Component_Decl)
 # pylint: enable=no-name-in-module
 
 from psyclone.configuration import Config, LFRIC_API_NAMES
@@ -96,11 +70,6 @@ def parse(alg_filename, api="", invoke_name="invoke", kernel_paths=None,
     :rtype: (:py:class:`fparser.two.Fortran2003.Program`, \
              :py:class:`psyclone.parse.FileInfo`)
 
-    For example:
-
-    >>> from psyclone.parse.algorithm import parse
-    >>> ast, info = parse(SOURCE_FILE)
-
     '''
     if kernel_paths is None:
         kernel_paths = []
@@ -128,12 +97,6 @@ class Parser():
         the input (algorithm and kernel) code is checked to make sure \
         that it conforms and an error raised if not. The default is \
         False.
-
-    For example:
-
-    >>> from psyclone.parse.algorithm import Parser
-    >>> parser = Parser(api="gocean")
-    >>> ast, info = parser.parse(SOURCE_FILE)
 
     '''
 
@@ -610,35 +573,34 @@ def get_invoke_label(parse_tree, alg_filename, identifier="name"):
     return invoke_label
 
 
-def get_kernel(parse_tree, alg_filename, arg_type_defns):
+def get_kernel(parse_tree: Union[Part_Ref, Structure_Constructor],
+               alg_filename: str,
+               arg_type_defns: dict[str, tuple[str, Union[str, None]]]
+               ) -> tuple[str, list[Arg]]:
     '''Takes the parse tree of an invoke kernel argument and returns the
     name of the kernel and a list of Arg instances which capture the
     relevant information about the arguments associated with the
     kernel.
 
-    :param parse_tree: parse tree of an invoke argument. This \
+    :param parse_tree: parse tree of an invoke argument. This
         should contain a kernel name and associated arguments.
-    :type parse_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` or \
-        :py:class:`fparser.two.Fortran2003.Structure_Constructor`
-    :param str alg_filename: The file containing the algorithm code.
-
-    :param arg_type_defns: dictionary holding a 2-tuple consisting of \
-        type and precision information for each variable declared in \
+    :param alg_filename: The file containing the algorithm code.
+    :param arg_type_defns: dictionary holding a 2-tuple consisting of
+        type and precision information for each variable declared in
         the algorithm layer, indexed by variable name.
-    :type arg_type_defns: dict[str] = (str, str or NoneType)
 
-    :returns: a 2-tuple with the name of the kernel being called and a \
-        list of 'Arg' instances containing the required information for \
-        the arguments being passed from the algorithm layer. The list \
+    :returns: a 2-tuple with the name of the kernel being called and a
+        list of 'Arg' instances containing the required information for
+        the arguments being passed from the algorithm layer. The list
         order is the same as the argument order.
-    :rtype: (str, list of :py:class:`psyclone.parse.algorithm.Arg`)
 
     :raises InternalError: if the parse tree is of the wrong type.
-    :raises InternalError: if Part_Ref or Structure_Constructor do not \
+    :raises InternalError: if Part_Ref or Structure_Constructor do not
         have two children.
-    :raises InternalError: if Proc_Component_Ref has a child with an \
+    :raises ParseError: if the kernel is called without any arguments.
+    :raises InternalError: if Proc_Component_Ref has a child with an
         unexpected type.
-    :raises InternalError: if Data_Ref has a child with an unexpected \
+    :raises InternalError: if Data_Ref has a child with an unexpected
         type.
     :raises NotImplementedError: if an expression contains a variable.
     :raises InternalError: if an unsupported argument format is found.
@@ -661,8 +623,12 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
 
     # Extract argument list. This can be removed when fparser#211 is fixed.
     argument_list = []
-    if isinstance(parse_tree.items[1],
-                  (Section_Subscript_List, Component_Spec_List)):
+    if parse_tree.items[1] is None:
+        raise ParseError(
+            f"Kernel '{kernel_name}' is invoked without arguments in Algorithm"
+            f" file '{alg_filename}'. This is not valid.")
+    elif isinstance(parse_tree.items[1],
+                    (Section_Subscript_List, Component_Spec_List)):
         argument_list = parse_tree.items[1].items
     else:
         # Expecting a single entry rather than a list

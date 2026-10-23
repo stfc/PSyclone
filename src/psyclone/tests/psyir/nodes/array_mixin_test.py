@@ -1,39 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author S. Siso, STFC Daresbury Lab
-# Modified: R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified: A. B. G. Chalk, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests of the ArrayMixin PSyIR nodes trait. '''
@@ -495,7 +464,12 @@ def test_aref_to_aos_bound_expression():
 
     '''
     sgrid_type = StructureType.create(
-        [("ID", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None)])
+        [
+            StructureType.ComponentType(
+                "ID", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            )
+        ]
+    )
     sgrid_type_sym = DataTypeSymbol("subgrid_type", sgrid_type)
     sym = DataSymbol("subgrids", ArrayType(sgrid_type_sym, [(3, 10)]))
     lbound = IntrinsicCall.create(IntrinsicCall.Intrinsic.LBOUND,
@@ -548,14 +522,28 @@ def test_member_get_bound_expression(fortran_writer):
     a2d = ArrayType(ScalarType.real_type(), [2, (2, 8)])
     # Structure that contains "map" which is a 2D array.
     stypedef = StructureType.create(
-        [("map", a2d, Symbol.Visibility.PUBLIC, None)])
+        [
+            StructureType.ComponentType(
+                "map", a2d, Symbol.Visibility.PUBLIC, None
+            )
+        ]
+    )
     stypedefsym = DataTypeSymbol("map_type", stypedef)
     # Structure containing a structure of stypedef and an array of such
     # structures.
     stypedef2 = StructureType.create(
-        [("grid", stypedef, Symbol.Visibility.PUBLIC, None),
-         ("subgrids", ArrayType(stypedefsym, [3, (2, 6)]),
-          Symbol.Visibility.PUBLIC, None)])
+        [
+            StructureType.ComponentType(
+                "grid", stypedef, Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
+                "subgrids",
+                ArrayType(stypedefsym, [3, (2, 6)]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
     ssym = DataSymbol("var", stypedef2)
     sref = StructureReference.create(ssym,
                                      ["grid",

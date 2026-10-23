@@ -1,44 +1,12 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
-# Modified J. Henrichs, Bureau of Meteorology
-# Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
-# Modified A. Pirrie, Met Office
 
 ''' This module implements the PSyclone LFRic API by capturing the Kernel
-subroutine code and metadata describing the subroutine for the LFRic API.'''
+subroutine code and its associated metadata.'''
 
 from collections import OrderedDict
 import fparser
@@ -414,17 +382,15 @@ class LFRicKernMetadata(KernelType):
         # Finally, record that this is a valid inter-grid kernel
         self._is_intergrid = True
 
-    def _identify_cma_op(self, cwise_ops):
+    def _identify_cma_op(self, cwise_ops: list[str]) -> str:
         '''
         Identify and return the type of CMA-operator-related operation
         this kernel performs (one of "assemble", "apply" or "matrix-matrix")
 
         :param cwise_ops: all column-wise operator arguments in a kernel.
-        :type cwise_ops: list of str
 
         :returns: the type of CMA-operator-related operation that this
                   kernel performs.
-        :rtype: str
 
         :raises ParseError: if the kernel metadata does not conform to the
                             LFRic rules for a kernel with a CMA operator.
@@ -453,6 +419,18 @@ class LFRicKernMetadata(KernelType):
                     f"argument must only have field arguments with 'gh_real' "
                     f"data type but kernel '{self.name}' has a field argument "
                     f"with '{arg.data_type}' data type.")
+            # No arguments with non-default values for nlevels or ndata are
+            # permitted.
+            if arg.ndata != "1":
+                raise ParseError(
+                    f"Kernel '{self.name}' takes a CMA operator but has an "
+                    f"argument with a non-default value ('{arg.ndata}') of "
+                    f"NDATA. This is forbidden.")
+            if arg.nlevels:
+                raise ParseError(
+                    f"Kernel '{self.name}' takes a CMA operator but has an "
+                    f"argument with a non-default value ('{arg.nlevels}') of "
+                    f"NLEVELS. This is forbidden.")
 
         # Count the number of CMA operators that are written to
         write_count = 0

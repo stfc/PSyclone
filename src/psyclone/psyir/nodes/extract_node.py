@@ -1,39 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author I. Kavcic, Met Office
-# Modified A. R. Porter, S. Siso, R. W. Ford and N. Nobre, STFC Daresbury Lab
-# Modified J. Henrichs, Bureau of Meteorology
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 '''
@@ -43,13 +12,9 @@ kernel in an invoke, nodes in an invoke or the entire invoke (extraction
 applied to all Nodes).
 
 There is currently only one class in this module: ExtractNode (see below).
-
-Another class which contains helper functions for code extraction, such as
-wrapping up settings for generating driver for the extracted code, will
-be added in Issue #298.
 '''
 
-from typing import cast, List, Tuple, TYPE_CHECKING
+from typing import cast, List, Tuple, TYPE_CHECKING, Optional
 
 from psyclone.configuration import Config
 from psyclone.core import AccessSequence, Signature
@@ -86,21 +51,18 @@ class ExtractNode(PSyDataNode):
     :type children: list of :py:class:`psyclone.psyir.nodes.Node`
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param options: a dictionary with options provided via transformations.
-    :type options: Optional[Dict[str, Any]]
-    :param str options["prefix"]: a prefix to use for the PSyData module name
+    :param prefix: a prefix to use for the PSyData module name
         (``prefix_psy_data_mod``) and the PSyDataType
         (``prefix_PSyDataType``) - a "_" will be added automatically.
         It defaults to "extract", which means the module name used will be
         ``extract_psy_data_mode``, and the data type ``extract_PSyDataType``.
-    :param str options["post_var_postfix"]: a postfix to be used when
+    :param region_name: optional module and local region names.
+    :param post_var_postfix: a postfix to be used when
         creating names to store values of output variable. A variable 'a'
         would store its value as 'a', and its output values as 'a_post' with
         the default post_var_postfix of '_post'.
-    :param options["read_write_info"]: information about variables that are
+    :param read_write_info: information about variables that are
         read and/or written in the instrumented code.
-    :type options["read_write_info"]:
-        py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
     '''
     # Textual description of the node.
@@ -115,9 +77,13 @@ class ExtractNode(PSyDataNode):
     # then be added as an index to create unique region identifiers.
     _used_kernel_names: dict[str, int] = {}
 
-    def __init__(self, ast=None, children=None, parent=None, options=None):
+    def __init__(self, ast=None, children=None, parent=None, *,
+                 prefix: Optional[str] = None,
+                 region_name: Optional[tuple[str, str]] = None,
+                 post_var_postfix: str = "_post",
+                 read_write_info: Optional["ReadWriteInfo"] = None):
         super().__init__(ast=ast, children=children,
-                         parent=parent, options=options)
+                         parent=parent, prefix=prefix, region_name=region_name)
 
         # Define a postfix that will be added to variable that are
         # modified to make sure the names can be distinguished between pre-
@@ -131,13 +97,10 @@ class ExtractNode(PSyDataNode):
         # variable 'a' exists, which creates 'a_out' for the output variable,
         # which would clash with a variable 'a_out' used in the program unit).
 
-        if options is None:
-            options = {}
-
-        self._post_name = options.get("post_var_postfix", "_post")
+        self._post_name = post_var_postfix
 
         # Keep a copy of the argument list:
-        self._read_write_info = options.get("read_write_info")
+        self._read_write_info = read_write_info
         self._driver_creator = None
 
     def __eq__(self, other):
@@ -296,11 +259,10 @@ class ExtractNode(PSyDataNode):
             read_write_info.remove(signature=var_info[1],
                                    container_name=var_info[0])
 
-        options = {'pre_var_list': read_write_info.all_used_vars_list,
-                   'post_var_list': read_write_info.write_list,
-                   'post_var_postfix': self._post_name}
-
-        return super().lower_to_language_level(options)
+        return super().lower_to_language_level(
+            pre_var_list=read_write_info.all_used_vars_list,
+            post_var_list=read_write_info.write_list,
+            post_var_postfix=self._post_name)
 
     # -------------------------------------------------------------------------
     @staticmethod

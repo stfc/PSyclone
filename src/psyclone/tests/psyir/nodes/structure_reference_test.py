@@ -1,39 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
-# Modified by A. B. G. Chalk, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Module containing pytest tests for the StructureReference class. '''
@@ -63,20 +32,45 @@ def test_struct_ref_init():
 
 def test_struct_ref_create():
     ''' Tests for the create method. '''
-    region_type = symbols.StructureType.create([
-        ("startx", symbols.ScalarType.integer_type(),
-         symbols.Symbol.Visibility.PUBLIC,
-         None)])
+    region_type = symbols.StructureType.create(
+        [
+            symbols.StructureType.ComponentType(
+                "startx",
+                symbols.ScalarType.integer_type(),
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            )
+        ]
+    )
     region_type_symbol = symbols.DataTypeSymbol("region_type", region_type)
-    grid_type = symbols.StructureType.create([
-        ("nx", symbols.ScalarType.integer_type(),
-         symbols.Symbol.Visibility.PUBLIC, None),
-        ("region", region_type_symbol, symbols.Symbol.Visibility.PRIVATE,
-         None),
-        ("sub_grids", symbols.ArrayType(region_type_symbol, [3]),
-         symbols.Symbol.Visibility.PUBLIC, None),
-        ("data", symbols.ArrayType(symbols.ScalarType.real_type(), [10, 10]),
-         symbols.Symbol.Visibility.PUBLIC, None)])
+    grid_type = symbols.StructureType.create(
+        [
+            symbols.StructureType.ComponentType(
+                "nx",
+                symbols.ScalarType.integer_type(),
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            symbols.StructureType.ComponentType(
+                "region",
+                region_type_symbol,
+                symbols.Symbol.Visibility.PRIVATE,
+                None,
+            ),
+            symbols.StructureType.ComponentType(
+                "sub_grids",
+                symbols.ArrayType(region_type_symbol, [3]),
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            symbols.StructureType.ComponentType(
+                "data",
+                symbols.ArrayType(symbols.ScalarType.real_type(), [10, 10]),
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     ssym = symbols.DataSymbol("grid", grid_type_symbol)
     # Reference to scalar member of structure
@@ -160,10 +154,16 @@ def test_struct_ref_create_errors():
             symbols.DataSymbol("grid", symbols.UnresolvedType()), [])
     assert ("one or more structure 'members' that are being accessed but "
             "got an empty list for symbol 'grid'" in str(err.value))
-    grid_type = symbols.StructureType.create([
-        ("nx", symbols.ScalarType.integer_type(),
-         symbols.Symbol.Visibility.PUBLIC,
-         None)])
+    grid_type = symbols.StructureType.create(
+        [
+            symbols.StructureType.ComponentType(
+                "nx",
+                symbols.ScalarType.integer_type(),
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            )
+        ]
+    )
     tsymbol_known = symbols.DataTypeSymbol("grid_type", grid_type)
     with pytest.raises(TypeError) as err:
         _ = nodes.StructureReference.create(
@@ -183,10 +183,16 @@ def test_struct_ref_create_errors():
 
 def test_struct_ref_validate_child():
     ''' Tests for the _validate_child method. '''
-    grid_type = symbols.StructureType.create([
-        ("nx", symbols.ScalarType.integer_type(),
-         symbols.Symbol.Visibility.PUBLIC,
-         None)])
+    grid_type = symbols.StructureType.create(
+        [
+            symbols.StructureType.ComponentType(
+                "nx",
+                symbols.ScalarType.integer_type(),
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            )
+        ]
+    )
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     ssym = symbols.DataSymbol("grid", grid_type_symbol)
     # Reference to scalar member of structure
@@ -205,9 +211,16 @@ def test_struct_ref_validate_child():
 
 def test_struct_ref_str():
     ''' Test the __str__ method of StructureReference. '''
-    grid_type = symbols.StructureType.create([
-        ("nx", symbols.ScalarType.integer_type(),
-         symbols.Symbol.Visibility.PUBLIC, None)])
+    grid_type = symbols.StructureType.create(
+        [
+            symbols.StructureType.ComponentType(
+                "nx",
+                symbols.ScalarType.integer_type(),
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            )
+        ]
+    )
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     ssym = symbols.DataSymbol("grid", grid_type_symbol)
     # Reference to scalar member of structure
@@ -233,9 +246,16 @@ def test_reference_accesses():
 
 def test_struct_ref_semantic_nav():
     ''' Test the 'member' property of the StructureReference. '''
-    grid_type = symbols.StructureType.create([
-        ("nx", symbols.ScalarType.integer_type(),
-         symbols.Symbol.Visibility.PUBLIC, None)])
+    grid_type = symbols.StructureType.create(
+        [
+            symbols.StructureType.ComponentType(
+                "nx",
+                symbols.ScalarType.integer_type(),
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            )
+        ]
+    )
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     ssym = symbols.DataSymbol("grid", grid_type_symbol)
     # Reference to scalar member of structure
@@ -253,27 +273,51 @@ def test_struct_ref_semantic_nav():
 def test_struct_ref_datatype(fortran_reader):
     '''Test the datatype() method of StructureReference.'''
     atype = symbols.ArrayType(symbols.ScalarType.real_type(), [10, 8])
-    rtype = symbols.StructureType.create([
-        ("Gibber", symbols.ScalarType.boolean_type(),
-         symbols.Symbol.Visibility.PUBLIC,
-         None)])
+    rtype = symbols.StructureType.create(
+        [
+            symbols.StructureType.ComponentType(
+                "Gibber",
+                symbols.ScalarType.boolean_type(),
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            )
+        ]
+    )
     # TODO #1031. Currently cannot create an array of StructureTypes
     # directly - have to have a DataTypeSymbol.
     rtype_sym = symbols.DataTypeSymbol("gibber_type", rtype)
     artype = symbols.ArrayType(rtype_sym, [10, 3])
-    grid_type = symbols.StructureType.create([
-        ("nx", symbols.ScalarType.integer_type(),
-         symbols.Symbol.Visibility.PUBLIC, None),
-        ("data", atype, symbols.Symbol.Visibility.PRIVATE, None),
-        # A single member of structure type with a mixed-case name.
-        ("roGEr", rtype, symbols.Symbol.Visibility.PUBLIC, None),
-        # An array of structure type.
-        ("lucy", artype, symbols.Symbol.Visibility.PUBLIC, None)])
+    grid_type = symbols.StructureType.create(
+        [
+            symbols.StructureType.ComponentType(
+                "nx",
+                symbols.ScalarType.integer_type(),
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            symbols.StructureType.ComponentType(
+                "data", atype, symbols.Symbol.Visibility.PRIVATE, None
+            ),
+            # A single member of structure type with a mixed-case name.
+            symbols.StructureType.ComponentType(
+                "roGEr", rtype, symbols.Symbol.Visibility.PUBLIC, None
+            ),
+            # An array of structure type.
+            symbols.StructureType.ComponentType(
+                "lucy", artype, symbols.Symbol.Visibility.PUBLIC, None
+            ),
+        ]
+    )
     # Symbol with type defined by StructureType
     ssym0 = symbols.DataSymbol("grid", grid_type)
     # Reference to scalar member of structure
     sref0 = nodes.StructureReference.create(ssym0, ["nx"])
     assert sref0.datatype == symbols.ScalarType.integer_type()
+
+    # If the type component is not found (e.g. it is inherited, which psyclone
+    # does not support), return UnresolvedType
+    sref = nodes.StructureReference.create(ssym0, ["not_specified"])
+    assert sref.datatype == symbols.UnresolvedType()
 
     # Symbol with type defined by DataTypeSymbol
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
@@ -370,10 +414,19 @@ def test_structure_reference_unresolved_type():
     atype = symbols.ArrayType(
         symbols.UnsupportedFortranType(
             "type(atype), dimension(10,8), pointer :: aptr"), [10, 8])
-    grid_type = symbols.StructureType.create([
-        ("mesh", symbols.UnresolvedType(), symbols.Symbol.Visibility.PUBLIC,
-         None),
-        ("aptr", atype, symbols.Symbol.Visibility.PUBLIC, None)])
+    grid_type = symbols.StructureType.create(
+        [
+            symbols.StructureType.ComponentType(
+                "mesh",
+                symbols.UnresolvedType(),
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            symbols.StructureType.ComponentType(
+                "aptr", atype, symbols.Symbol.Visibility.PUBLIC, None
+            ),
+        ]
+    )
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     ssym = symbols.DataSymbol("grid", grid_type_symbol)
     # Structure of UnresolvedType

@@ -1,40 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-#         I. Kavcic, Met Office
-#         J. Henrichs, Bureau of Meteorology
-#         J. Remy, Université Grenoble Alpes, Inria
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Perform py.test tests on the psyclone.psyir.symbols.symbol_table file '''
@@ -664,6 +632,43 @@ def test_remove_case_insensitive(sym_name):
     assert "var1" not in sym_table
 
 
+@pytest.mark.parametrize("block_name", ["some_block", ""])
+def test_remove_commonblock_symbols_from_tail(block_name):
+    '''Check that common-block members may only be removed from the end of
+    their storage sequence. This applies to named and blank common blocks.
+
+    '''
+    sym_table = symbols.SymbolTable()
+    symbol1 = symbols.DataSymbol(
+        "var1", symbols.ScalarType.integer_type(),
+        interface=symbols.CommonBlockInterface(block_name, 0))
+    symbol2 = symbols.DataSymbol(
+        "var2", symbols.ScalarType.integer_type(),
+        interface=symbols.CommonBlockInterface(block_name.upper(), 1))
+    symbol3 = symbols.DataSymbol(
+        "var3", symbols.ScalarType.integer_type(),
+        interface=symbols.CommonBlockInterface(block_name, 3))
+    sym_table.add(symbol1)
+    sym_table.add(symbol2)
+    sym_table.add(symbol3)
+
+    with pytest.raises(ValueError) as err:
+        sym_table.remove(symbol2)
+
+    assert (f"Cannot remove Symbol 'var2' from common block "
+            f"'{symbol2.interface.name}' because it has a subsequent member. "
+            f"Only the final member of a common block may be removed." in
+            str(err.value))
+    assert symbol2 in sym_table.symbols
+
+    # Removing members from the tail inwards is permitted. Gaps in the
+    # positions do not affect which member is last.
+    sym_table.remove(symbol3)
+    sym_table.remove(symbol2)
+    sym_table.remove(symbol1)
+    assert not sym_table.symbols
+
+
 def test_swap_symbol():
     ''' Test the SymbolTable.swap() method. '''
     symbol1 = symbols.Symbol("var1")
@@ -692,6 +697,22 @@ def test_swap_symbol():
     sym_table.swap(symbol1, symbol3)
     assert sym_table.lookup("var1") is symbol3
     assert symbol1 not in sym_table._symbols
+
+
+def test_swap_symbol_preserves_tag():
+    ''' Test that SymbolTable.swap() preserves any tag associated with the
+    old symbol by re-associating it with the new symbol. '''
+    sym_table = symbols.SymbolTable()
+    symbol1 = symbols.Symbol("var1")
+    sym_table.add(symbol1, tag="var1_tag")
+    symbol2 = symbols.Symbol("Var1")
+
+    sym_table.swap(symbol1, symbol2)
+
+    assert sym_table.lookup("var1") is symbol2
+    # Searching for the tag must find the new symbol rather than being
+    # dropped.
+    assert sym_table.lookup_with_tag("var1_tag") is symbol2
 
 
 def test_check_for_clashes_imports():
@@ -2181,9 +2202,16 @@ def test_datatypesymbols():
     correct symbols. '''
     sym_table = symbols.SymbolTable()
     assert sym_table.datatypesymbols == []
-    region_type = symbols.StructureType.create([
-        ("startx", symbols.ScalarType.integer_type(),
-         symbols.Symbol.Visibility.PUBLIC, None)])
+    region_type = symbols.StructureType.create(
+        [
+            symbols.StructureType.ComponentType(
+                "startx",
+                symbols.ScalarType.integer_type(),
+                symbols.Symbol.Visibility.PUBLIC,
+                None,
+            )
+        ]
+    )
     region_sym = symbols.DataTypeSymbol("region_type", region_type)
     sym_table.add(region_sym)
     # Add other symbol types
@@ -3007,7 +3035,7 @@ def test_rename_symbol_errors():
 
     # Cannot rename a common block symbol
     asym = symbols.DataSymbol("a", symbols.ScalarType.integer_type(),
-                              interface=symbols.CommonBlockInterface())
+                              interface=symbols.CommonBlockInterface("", 0))
     table.add(asym)
     with pytest.raises(symbols.SymbolError) as err:
         table.rename_symbol(asym, "b")

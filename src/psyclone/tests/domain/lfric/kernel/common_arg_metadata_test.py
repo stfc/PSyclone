@@ -1,37 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
 
 '''Module containing tests for the CommonArgMetadata class.
 
@@ -98,12 +70,13 @@ def test_check_fparser2_arg():
     '''
     with pytest.raises(TypeError) as info:
         _ = CommonArgMetadata.check_fparser2_arg(None, None)
-    assert ("Expected kernel metadata to be encoded as an fparser2 Part_Ref "
-            "object but found type 'NoneType' with value 'None'."
-            in str(info.value))
+    assert ("Expected kernel metadata to be encoded as an fparser2 "
+            "Structure_Constructor object but found type 'NoneType' with "
+            "value 'None'." in str(info.value))
 
     fparser_tree = CommonArgMetadata.create_fparser2(
-        "braz_type(GH_FIELD, GH_REAL, GH_READ)", Fortran2003.Part_Ref)
+        "braz_type(GH_FIELD, GH_REAL, GH_READ)",
+        Fortran2003.Structure_Constructor)
     with pytest.raises(ValueError) as info:
         _ = CommonArgMetadata.check_fparser2_arg(fparser_tree, "arg_type")
     assert ("Expected kernel metadata to have the name 'arg_type' and be in "
@@ -129,3 +102,41 @@ def test_get_arg():
     assert CommonArgMetadata.get_arg(fparser_tree, 1) == "GH_REAL"
     assert CommonArgMetadata.get_arg(fparser_tree, 2) == "GH_READ"
     assert CommonArgMetadata.get_arg(fparser_tree, 3) is None
+
+
+def test_get_named_arg():
+    '''Tests for the get_named_arg() method.'''
+    test_cls = CommonArgMetadata
+    fparser_tree = CommonArgMetadata.create_fparser2(
+        "arg_type(GH_FIELD, GH_REAL, GH_READ)", Fortran2003.Part_Ref)
+    # No named arguments so should return None
+    assert test_cls.get_named_arg(fparser_tree, "red") is None
+    # Named argument with a string value
+    fparser_tree2 = CommonArgMetadata.create_fparser2(
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, nlevels='crazy')",
+        Fortran2003.Component_Spec)
+    assert test_cls.get_named_arg(fparser_tree2, "red") is None
+    assert test_cls.get_named_arg(fparser_tree2, "nlevels") == "crazy"
+    # Named argument with a parameter value
+    fparser_tree3 = test_cls.create_fparser2(
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, mesh=GH_FINE)",
+        Fortran2003.Component_Spec)
+    assert test_cls.get_named_arg(fparser_tree3, "mesh") == "GH_FINE"
+
+
+def test_validate_named_args():
+    '''Test that the _validate_named_args() method behaves as expected.'''
+    fparser_tree = CommonArgMetadata.create_fparser2(
+        "arg_type(GH_FIELD, GH_REAL, GH_READ)", Fortran2003.Part_Ref)
+    # No named arguments and no valid names should be fine.
+    CommonArgMetadata._validate_named_args(fparser_tree, [])
+    # No named arguments but with list of valid names should be fine.
+    CommonArgMetadata._validate_named_args(fparser_tree, ["blue"])
+    fparser_tree2 = CommonArgMetadata.create_fparser2(
+        "arg_type(GH_FIELD, GH_REAL, GH_READ, MESH_arg=GH_FINE)",
+        Fortran2003.Structure_Constructor)
+    CommonArgMetadata._validate_named_args(fparser_tree2, ["mesh_arg"])
+    with pytest.raises(ValueError) as err:
+        CommonArgMetadata._validate_named_args(fparser_tree2, ["mesh"])
+    assert ("metadata contains keyword argument 'mesh_arg' which is not one "
+            "of the valid options: ['mesh']" in str(err.value))

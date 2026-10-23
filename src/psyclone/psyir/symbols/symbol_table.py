@@ -1,41 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-#         I. Kavcic, Met Office
-#         J. Henrichs, Bureau of Meteorology
-# Modified A. B. G. Chalk, STFC Daresbury Lab
-#          J. Remy, Université Grenoble Alpes, Inria
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module contains the SymbolTable implementation. '''
@@ -1359,16 +1326,15 @@ class SymbolTable():
         return [symbol for symbol in self.imported_symbols if
                 symbol.interface.container_symbol is csymbol]
 
-    def swap(self, old_symbol, new_symbol):
+    def swap(self, old_symbol: Symbol, new_symbol: Symbol) -> None:
         '''
         Remove the `old_symbol` from the table and replace it with the
         `new_symbol`. Any references to `old_symbol` in the PSyIR tree
-        associated with this table (if any) will also be updated.
+        associated with this table (if any) will also be updated. Any tag
+        associated with `old_symbol` is moved to `new_symbol`.
 
         :param old_symbol: the symbol to remove from the table.
-        :type old_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
         :param new_symbol: the symbol to add to the table.
-        :type new_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
 
         :raises TypeError: if either old/new_symbol are not Symbols.
         :raises SymbolError: if `old_symbol` and `new_symbol` don't have
@@ -1384,13 +1350,20 @@ class SymbolTable():
             raise SymbolError(
                 f"Cannot swap symbols that have different names, got: "
                 f"'{old_symbol.name}' and '{new_symbol.name}'")
+        # Preserve any tag associated with old_symbol so that it is carried
+        # over to new_symbol rather than being silently dropped.
+        old_tag = None
+        for tag, symbol in self._tags.items():
+            if symbol is old_symbol:
+                old_tag = tag
+                break
         for sym in self.symbols:
             sym.replace_symbols_using(new_symbol)
         if self.node:
             # Update the PSyIR tree associated with this table.
             self.node.replace_symbols_using(new_symbol)
         self.remove(old_symbol)
-        self.add(new_symbol)
+        self.add(new_symbol, tag=old_tag)
 
     def _validate_remove_routinesymbol(self, symbol):
         '''
@@ -1453,6 +1426,8 @@ class SymbolTable():
         :raises KeyError: if the supplied symbol is not in the symbol table.
         :raises ValueError: if the supplied container symbol is referenced
                             by one or more DataSymbols.
+        :raises ValueError: if the supplied symbol belongs to a common block
+                            and is not its final member.
         :raises InternalError: if the supplied symbol is not the same as the
                                entry with that name in this SymbolTable.
         '''
@@ -1474,6 +1449,22 @@ class SymbolTable():
                 f"The Symbol with name '{symbol.name}' in this symbol table "
                 f"is not the same Symbol object as the one that has been "
                 f"supplied to the remove() method.")
+
+        # Removing a member from within a common block would shift every
+        # subsequent member to a different storage position. Only removal
+        # from the end preserves the existing storage sequence.
+        if symbol.is_commonblock:
+            block_name = symbol.interface.name.lower()
+            for other_symbol in self.symbols:
+                if (other_symbol.is_commonblock and
+                        other_symbol.interface.name.lower() == block_name and
+                        other_symbol.interface.position >
+                        symbol.interface.position):
+                    raise ValueError(
+                        f"Cannot remove Symbol '{symbol.name}' from common "
+                        f"block '{symbol.interface.name}' because it has a "
+                        f"subsequent member. Only the final member of a "
+                        f"common block may be removed.")
 
         # We can only remove a ContainerSymbol if no DataSymbols are
         # being imported from it
@@ -1895,6 +1886,14 @@ class SymbolTable():
         for imported_sym in container.symbol_table.symbols:
             if imported_sym.visibility == Symbol.Visibility.PRIVATE:
                 continue  # We must ignore this symbol
+
+            # An unresolved interface means that the PSyIR does not know
+            # where this symbol originates. Such a symbol cannot safely be
+            # re-exported by this container, so treat it as private. This
+            # prevents a symbol created while processing an unsupported
+            # CodeBlock from leaking across a module boundary.
+            if isinstance(imported_sym.interface, UnresolvedInterface):
+                continue
 
             if isinstance(imported_sym, ContainerSymbol):
                 # TODO #1540: We also skip other ContainerSymbols but in

@@ -1,43 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-#         A. B. G. Chalk STFC Daresbury Lab
-#         J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic, J. G. Wallwork, O. Brunt and L. Turner, Met Office
-#          S. Valat, Inria / Laboratoire Jean Kuntzmann
-#          M. Schreiber, Univ. Grenoble Alpes / Inria / Lab. Jean Kuntzmann
-#          J. Dendy, Met Office
 
 ''' This module provides the various transformations that can be applied to
     PSyIR nodes. There are both general and API-specific transformation
@@ -46,9 +12,10 @@
 
 # pylint: disable=too-many-lines
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 import warnings
 
+import psyclone
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessMap
@@ -63,10 +30,10 @@ from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule)
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
-    ACCParallelDirective, ACCRoutineDirective,
-    Call, CodeBlock, Container, Directive, Literal, Loop,
-    OMPMasterDirective, OMPParallelDirective, OMPSerialDirective,
-    OMPSingleDirective, Return, Schedule, PSyDataNode, IntrinsicCall)
+    ACCParallelDirective, ACCRoutineDirective, Call, CodeBlock, Container,
+    Literal, Loop, Node, OMPMasterDirective, OMPParallelDirective,
+    OMPSerialDirective, OMPSingleDirective, Reference, Return, Schedule,
+    PSyDataNode, IntrinsicCall)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.omp_directives import OMPDirective
@@ -78,6 +45,7 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.transformations.callee_transformation_mixin import (
     CalleeTransformationMixin)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
+from psyclone.psyir.transformations.omp_parallel_trans import OMPParallelTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
@@ -117,6 +85,91 @@ def check_intergrid(node):
                 f" is such a kernel.")
 
 
+@transformation_documentation_wrapper
+class LFRicOMPLoopTrans(OMPLoopTrans):
+
+    ''' LFRic specific orphan OpenMP loop transformation. Adds
+    LFRic-specific validity checks.
+
+    :param str omp_schedule: the OpenMP schedule to use. Must be one of \
+        'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to \
+        'static'.
+
+    '''
+    def __init__(self, omp_schedule="static"):
+        super().__init__(omp_directive="do", omp_schedule=omp_schedule)
+
+    def __str__(self):
+        return "Add an OpenMP DO directive to an LFRic loop"
+
+    def validate(self, node, options=None, **kwargs):
+        ''' Perform LFRic specific loop validity checks for the
+        OMPLoopTrans.
+
+        :param node: the Node in the Schedule to check
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+        :param options: a dictionary with options for transformations
+                        and validation.
+        :type options: Optional[Dict[str, Any]]
+
+        :raises TransformationError: if an OMP loop transform would create
+            incorrect code.
+
+        '''
+        # Since this function potentially modifies the user's option
+        # dictionary, create a copy:
+        options = options.copy() if options else {}
+
+        # Make sure the default is set:
+        options["reprod"] = options.get("reprod",
+                                        Config.get().reproducible_reductions)
+
+        # This transformation allows to parallelise loops with potential
+        # dependencies because we use cell colouring to guarantee that
+        # neighbours are not updated at the same time.
+        options["force"] = True
+        super().validate(node, options=options)
+
+        # If the loop is not already coloured then check whether or not
+        # it should be
+        if (node.loop_type not in ('cells_in_colour', 'tiles_in_colour',
+                                   'cells_in_tile')
+                and node.has_inc_arg()):
+            raise TransformationError(
+                f"Error in {self.name} transformation. The kernel has an "
+                f"argument with INC access. Colouring is required.")
+
+    def apply(self, node: Loop, options: Optional[dict[str, Any]] = None,
+              **kwargs: Any) -> None:
+        ''' Apply LFRic specific OMPLoopTrans.
+
+        :param node: the Node in the Schedule to check.
+        :param options: a dictionary with options for transformations
+                        and validation.
+
+        '''
+        # TODO #2668: Deprecate options dict. Since this Transformation
+        # overrides the input options we will need to do the same with
+        # the input **kwargs, preferable with a warning or logging message
+        # explaining that the input is overridden (unless the behaviour of
+        # this Transformation is updated.
+
+        # Since this function potentially modifies the user's option
+        # dictionary, create a copy:
+        options = options.copy() if options else {}
+        # Make sure the default is set:
+        options["reprod"] = options.get("reprod",
+                                        Config.get().reproducible_reductions)
+
+        # This transformation allows to parallelise loops with potential
+        # dependencies because we use cell colouring to guarantee that
+        # neighbours are not updated at the same time.
+        options["force"] = True
+
+        super().apply(node, options)
+
+
+@transformation_documentation_wrapper(add_subtransformations=False)
 class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
 
     ''' LFRic-specific OpenMP loop transformation. Adds LFRic specific
@@ -130,6 +183,9 @@ class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
             'static'.
 
     '''
+
+    _SUB_TRANSFORMATIONS = [LFRicOMPLoopTrans, OMPParallelTrans]
+
     def __init__(self, omp_directive="do", omp_schedule="static"):
         super().__init__(omp_directive=omp_directive,
                          omp_schedule=omp_schedule)
@@ -137,13 +193,12 @@ class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
     def __str__(self):
         return "Add an OpenMP Parallel Do directive to an LFRic loop"
 
-    def validate(self, node, options=None):
+    def validate(self, node: LFRicLoop, options=None, **kwargs):
         '''
         Perform LFRic-specific loop validity checks then call the `validate`
         method of the base class.
 
         :param node: the Node in the Schedule to check
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
@@ -175,9 +230,40 @@ class LFRicOMPParallelLoopTrans(OMPParallelLoopTrans):
         # correct sharing attributes).
         local_options = options.copy() if options else {}
         local_options["force"] = True
-        super().validate(node, options=local_options)
+        super().validate(node, options=local_options, **kwargs)
+
+    def apply(self, node: LFRicLoop,
+              options: Optional[dict[str, Any]] = None,
+              **kwargs: Any) -> None:
+        '''
+        Applies the LFRicOMPParallelLoopTrans to the supplied Loop.
+
+        If reproducible reductions are enabled, and the specified
+        omp_directive is 'do' then this will instead apply
+        LFRicOMPLoopTrans and LFricOMPParallelTrans to the input
+        node instead.
+
+        :param node: the Node in the Schedule to transform.
+        :param options: a dictionary with options for transformations.
+        '''
+        if (Config.get().reproducible_reductions
+                and self.omp_directive == "do"):
+            kerns = node.walk(Kern)
+            if any([kern.is_reduction for kern in kerns]):
+                # TODO #2668: LFRicOMPLoopTrans doesn't yet use keyword
+                # arguments, so we don't pull them out with split_kwargs.
+                # TODO #3257: Is the option behaviour consistent?
+                _, _, par_kwargs = self.split_kwargs(**kwargs)
+                ltrans = LFRicOMPLoopTrans(omp_schedule=self.omp_schedule)
+                ltrans.apply(node, options=options)
+                ptrans = OMPParallelTrans()
+                ptrans.apply(node.parent.parent, options=options,
+                             **par_kwargs)
+                return
+        super().apply(node, options=options, **kwargs)
 
 
+@transformation_documentation_wrapper
 class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
 
     '''GOcean specific OpenMP Do loop transformation. Adds GOcean
@@ -199,21 +285,21 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
     def __str__(self):
         return "Add an OpenMP Parallel Do directive to a GOcean loop"
 
-    def apply(self, node, options=None):
+    def apply(self, node: Loop,
+              options: Optional[dict[str, Any]] = None,
+              **kwargs: Any) -> None:
         ''' Perform GOcean-specific loop validity checks then call
         :py:meth:`OMPParallelLoopTrans.apply`.
 
         :param node: a Loop node from an AST.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param options: a dictionary with options for transformations\
-                        and validation.
-        :type options: Optional[Dict[str, Any]]
+        :param options: a dictionary with options for transformations
+            and validation.
 
-        :raises TransformationError: if the supplied node is not an inner or\
+        :raises TransformationError: if the supplied node is not an inner or
             outer loop.
 
         '''
-        self.validate(node, options=options)
+        self.validate(node, options=options, **kwargs)
 
         # Check we are either an inner or outer loop
         if node.loop_type not in ["inner", "outer"]:
@@ -221,103 +307,20 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
                 "Error in "+self.name+" transformation.  The requested loop"
                 " is not of type inner or outer.")
 
-        OMPParallelLoopTrans.apply(self, node)
+        super().apply(node, options=options, **kwargs)
 
 
-class LFRicOMPLoopTrans(OMPLoopTrans):
-
-    ''' LFRic specific orphan OpenMP loop transformation. Adds
-    LFRic-specific validity checks.
-
-    :param str omp_schedule: the OpenMP schedule to use. Must be one of \
-        'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to \
-        'static'.
-
-    '''
-    def __init__(self, omp_schedule="static"):
-        super().__init__(omp_directive="do", omp_schedule=omp_schedule)
-
-    def __str__(self):
-        return "Add an OpenMP DO directive to an LFRic loop"
-
-    def validate(self, node, options=None, **kwargs):
-        ''' Perform LFRic specific loop validity checks for the
-        OMPLoopTrans.
-
-        :param node: the Node in the Schedule to check
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations \
-                        and validation.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["reprod"]: \
-            indicating whether reproducible reductions should be used. \
-            By default the value from the config file will be used.
-
-        :raises TransformationError: if an OMP loop transform would create \
-            incorrect code.
-
-        '''
-        # Since this function potentially modifies the user's option
-        # dictionary, create a copy:
-        options = options.copy() if options else {}
-
-        # Make sure the default is set:
-        options["reprod"] = options.get("reprod",
-                                        Config.get().reproducible_reductions)
-
-        # This transformation allows to parallelise loops with potential
-        # dependencies because we use cell colouring to guarantee that
-        # neighbours are not updated at the same time.
-        options["force"] = True
-        super().validate(node, options=options)
-
-        # If the loop is not already coloured then check whether or not
-        # it should be
-        if (node.loop_type not in ('cells_in_colour', 'tiles_in_colour',
-                                   'cells_in_tile')
-                and node.has_inc_arg()):
-            raise TransformationError(
-                f"Error in {self.name} transformation. The kernel has an "
-                f"argument with INC access. Colouring is required.")
-
-    def apply(self, node, options=None, **kwargs):
-        ''' Apply LFRic specific OMPLoopTrans.
-
-        :param node: the Node in the Schedule to check.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations
-                        and validation.
-        :type options: Optional[dict[str, Any]]
-        :param bool options["reprod"]:
-                indicating whether reproducible reductions should be used.
-                By default the value from the config file will be used.
-
-        '''
-        # Since this function potentially modifies the user's option
-        # dictionary, create a copy:
-        options = options.copy() if options else {}
-        # Make sure the default is set:
-        options["reprod"] = options.get("reprod",
-                                        Config.get().reproducible_reductions)
-
-        # This transformation allows to parallelise loops with potential
-        # dependencies because we use cell colouring to guarantee that
-        # neighbours are not updated at the same time.
-        options["force"] = True
-
-        super().apply(node, options)
-
-
+@transformation_documentation_wrapper
 class GOceanOMPLoopTrans(OMPLoopTrans):
 
     ''' GOcean-specific orphan OpenMP loop transformation. Adds GOcean
         specific validity checks (that the node is either an inner or outer
         Loop).
 
-        :param str omp_directive: choose which OpenMP loop directive to use. \
+        :param omp_directive: choose which OpenMP loop directive to use.
             Defaults to "do".
-        :param str omp_schedule: the OpenMP schedule to use. Must be one of \
-            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to \
+        :param omp_schedule: the OpenMP schedule to use. Must be one of
+            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to
             'static'.
 
         '''
@@ -328,21 +331,21 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
     def __str__(self):
         return "Add the selected OpenMP loop directive to a GOcean loop"
 
-    def validate(self, node, options=None, **kwargs):
+    def validate(self, node: Loop,
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         '''
         Checks that the supplied node is a valid target for parallelisation
         using OMP directives.
 
         :param node: the candidate loop for parallelising using OMP Do.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the loop_type of the supplied Loop is \
+        :raises TransformationError: if the loop_type of the supplied Loop is
                                      not "inner" or "outer".
 
         '''
-        super().validate(node, options=options)
+        super().validate(node, options=options, **kwargs)
 
         # Check we are either an inner or outer loop
         if node.loop_type not in ["inner", "outer"]:
@@ -350,23 +353,31 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
                                       " The requested loop is not of type "
                                       "inner or outer.")
 
+    def apply(self, node: Loop, options: Optional[dict[str, Any]] = None,
+              **kwargs: Any) -> None:
+        '''Apply this transformation to a GOcean loop.
 
+        :param node: the loop to transform.
+        :param options: a dictionary with options for transformations.
+
+        '''
+        super().apply(node, options=options, **kwargs)
+
+
+@transformation_documentation_wrapper
 class ColourTrans(LoopTrans):
     '''
     Apply a colouring transformation to a loop (in order to permit a
     subsequent parallelisation over colours). For example:
 
-    >>> invoke = ...
-    >>> schedule = invoke.schedule
-    >>>
-    >>> ctrans = ColourTrans()
-    >>>
-    >>> # Colour all of the loops
-    >>> for child in schedule.children:
-    >>>     ctrans.apply(child)
-    >>>
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
+    .. code-block:: python
+
+        invoke = ...
+        schedule = invoke.schedule
+        ctrans = ColourTrans()
+        # Colour all of the loops
+        for child in schedule.children:
+            ctrans.apply(child)
 
     '''
     def __str__(self):
@@ -445,34 +456,24 @@ class LFRicColourTrans(ColourTrans):
     '''Split an LFRic loop over cells into colours so that it can be
     parallelised. For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> import transformations
-    >>> import os
-    >>> import pytest
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "4.6_multikernel_invokes.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="lfric")
     >>>
-    >>> TEST_API = "lfric"
-    >>> _,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-    >>>              "tests", "test_files", "lfric",
-    >>>              "4.6_multikernel_invokes.f90"),
-    >>>              api=TEST_API)
-    >>> psy = PSyFactory(TEST_API).create(info)
-    >>> invoke = psy.invokes.get('invoke_0')
-    >>> schedule = invoke.schedule
+    >>> from psyclone.psyir.nodes import Loop
+    >>> from psyclone.transformations import (
+    ...     LFRicColourTrans, LFRicOMPParallelLoopTrans)
     >>>
     >>> ctrans = LFRicColourTrans()
     >>> otrans = LFRicOMPParallelLoopTrans()
     >>>
     >>> # Colour all of the loops
-    >>> for child in schedule.children:
-    >>>     ctrans.apply(child)
+    >>> for child in schedule.walk(Loop, stop_type=Loop):
+    ...     ctrans.apply(child)
     >>>
     >>> # Then apply OpenMP to each of the colour loops
-    >>> for child in schedule.children:
-    >>>     otrans.apply(child.children[0])
-    >>>
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
+    >>> for child in schedule.walk(Loop, stop_type=Loop):
+    ...     otrans.apply(child.loop_body[0])
 
     Colouring in the LFRic API is subject to the following rules:
 
@@ -674,6 +675,7 @@ class LFRicColourTrans(ColourTrans):
         return colours_loop
 
 
+@transformation_documentation_wrapper
 class OMPSingleTrans(ParallelRegionTrans):
     '''
     Create an OpenMP SINGLE region by inserting directives. The most
@@ -686,20 +688,14 @@ class OMPSingleTrans(ParallelRegionTrans):
 
     For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "test11_different_iterates_over_one_invoke.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>>
     >>> from psyclone.transformations import OMPSingleTrans
     >>> from psyclone.psyir.transformations import OMPParallelTrans
     >>> singletrans = OMPSingleTrans()
     >>> paralleltrans = OMPParallelTrans()
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
     >>>
     >>> # Enclose all of these loops within a single OpenMP
     >>> # SINGLE region
@@ -776,7 +772,9 @@ class OMPSingleTrans(ParallelRegionTrans):
                                         nowait=self.omp_nowait)
         return _directive
 
-    def apply(self, node_list, options=None):
+    def apply(self, node_list: Union[Node, list[Node]],
+              options: Optional[dict[str, Any]] = None,
+              nowait: Optional[bool] = None, **kwargs: Any) -> None:
         # pylint: disable=arguments-renamed
         '''Apply the OMPSingleTrans transformation to the specified node in a
         Schedule.
@@ -788,25 +786,26 @@ class OMPSingleTrans(ParallelRegionTrans):
         nowait clause to be added if it is set to True, otherwise no clause
         will be added.
 
-        :param node_list: the supplied node or node list to which we will \
-                          apply the OMPSingleTrans transformation
-        :type node_list: (a list of) :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a list with options for transformations \
-                        and validation.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["nowait"]:
-                indicating whether or not to use a nowait clause on this \
-                single region.
+        :param node_list: the supplied node or node list to which we will
+            apply the OMPSingleTrans transformation.
+        :param options: a list with options for transformations
+            and validation.
+        :param nowait: indicating whether or not to use a nowait clause on this
+            single region.
 
         '''
-        if not options:
-            options = {}
-        if options.get("nowait") is not None:
-            self.omp_nowait = options.get("nowait")
+        self.validate(node_list, options=options, **kwargs)
+        # TODO #2668: Deprecate options dictionary
+        if options:
+            nowait = options.get("nowait", self.omp_nowait)
+        elif nowait is None:
+            nowait = self.omp_nowait
+        self.omp_nowait = nowait
 
-        super().apply(node_list, options)
+        super().apply(node_list, options=options, **kwargs)
 
 
+@transformation_documentation_wrapper
 class OMPMasterTrans(ParallelRegionTrans):
     '''
     Create an OpenMP MASTER region by inserting directives. The most
@@ -817,20 +816,14 @@ class OMPMasterTrans(ParallelRegionTrans):
 
     For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "test11_different_iterates_over_one_invoke.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>>
     >>> from psyclone.transformations import OMPMasterTrans
     >>> from psyclone.psyir.transformations import OMPParallelTrans
     >>> mastertrans = OMPMasterTrans()
     >>> paralleltrans = OMPParallelTrans()
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
     >>>
     >>> # Enclose all of these loops within a single OpenMP
     >>> # MASTER region
@@ -838,8 +831,6 @@ class OMPMasterTrans(ParallelRegionTrans):
     >>> # Enclose all of these loops within a single OpenMP
     >>> # PARALLEL region
     >>> paralleltrans.apply(schedule.children)
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
 
     '''
     # The types of node that this transformation cannot enclose
@@ -855,6 +846,17 @@ class OMPMasterTrans(ParallelRegionTrans):
     def __str__(self):
         return "Insert an OpenMP Master region"
 
+    def apply(self, nodes: Union[Node, list[Node]],
+              options: Optional[dict[str, Any]] = None,
+              **kwargs: Any) -> None:
+        '''Apply this transformation to the supplied nodes.
+
+        :param nodes: the nodes to enclose in the master region.
+        :param options: a dictionary with options for transformations.
+
+        '''
+        super().apply(nodes, options=options, **kwargs)
+
     @property
     def name(self):
         '''
@@ -864,6 +866,7 @@ class OMPMasterTrans(ParallelRegionTrans):
         return "OMPMasterTrans"
 
 
+@transformation_documentation_wrapper
 class ACCParallelTrans(ParallelRegionTrans):
     '''
     Create an OpenACC parallel region by inserting an 'acc parallel'
@@ -917,32 +920,58 @@ class ACCParallelTrans(ParallelRegionTrans):
     def __str__(self):
         return "Insert an OpenACC Parallel region"
 
-    def validate(self, node_list, options=None):
+    def validate(self, node_list: Union[Node, list[Node]],
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         '''
         Validate this transformation.
 
         :param node_list: a single Node or a list of Nodes.
-        :type node_list: :py:class:`psyclone.psyir.nodes.Node` |
-            List[:py:class:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["node-type-check"]: this flag controls if the
-            type of the nodes enclosed in the region should be tested to
-            avoid using unsupported nodes inside a region.
-        :param bool options["default_present"]: this flag controls if the
+        :param default_present: this flag controls if the
             inserted directive should include the default_present clause.
+        :param allow_strings: whether to allow the
+            transformation on assignments involving character types. Defaults
+            to False.
+        :param verbose: whether to provide explanatory comments in the output.
 
         '''
         node_list = self.get_node_list(node_list)
-        super().validate(node_list, options)
-        if options is not None and "default_present" in options:
-            if not isinstance(options["default_present"], bool):
+        # TODO #2668: Deprecate options dictionary
+        if not options:
+            self.validate_options(**kwargs)
+        else:
+            kwargs = options
+        verbose = self.get_option("verbose", **kwargs)
+        device_string = self.get_option("device_string", **kwargs)
+        allow_strings = self.get_option("allow_strings", **kwargs)
+        super().validate(node_list, options, **kwargs)
+        if "default_present" in kwargs:
+            if not isinstance(kwargs["default_present"], bool):
                 raise TransformationError(
                     f"The provided 'default_present' option must be a "
-                    f"boolean, but found '{options['default_present']}'."
+                    f"boolean, but found '{kwargs['default_present']}'."
                 )
-        device_string = options.get("device_string", "") if options else ""
         for node in node_list:
+            if not allow_strings:
+                # Check there are no character assignments in the region
+                for datanode in node.walk((Reference, Literal),
+                                          stop_type=Reference):
+                    dtype = datanode.datatype
+                    # Don't allow CHARACTERS on GPU
+                    if hasattr(dtype, "intrinsic"):
+                        if dtype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                            message = (
+                                f"ACCParallelTrans doesn't enclose regions "
+                                f"that use characters, but found: "
+                                f"'{datanode.debug_string()}', use the "
+                                f"'allow_strings' transformation option to "
+                                f"offload this region."
+                            )
+                            if verbose:
+                                node.preceding_comment = message
+                            raise TransformationError(message)
+
             for call in node.walk(Call):
                 if not call.is_available_on_device(device_string):
                     if isinstance(call, IntrinsicCall):
@@ -961,29 +990,37 @@ class ACCParallelTrans(ParallelRegionTrans):
                         f"accelerator device, and therefore it cannot "
                         f"be called from within an ACC parallel region.")
 
-    def apply(self, target_nodes, options=None):
+    def apply(self, target_nodes: Union[Node, list[Node]],
+              options: Optional[dict[str, Any]] = None,
+              default_present: Optional[bool] = None,
+              allow_strings: bool = False,
+              device_string: str = "",
+              verbose: bool = False,
+              **kwargs: Any) -> None:
         '''
         Encapsulate given nodes with the ACCParallelDirective.
 
         :param target_nodes: a single Node or a list of Nodes.
-        :type target_nodes: :py:class:`psyclone.psyir.nodes.Node` |
-            List[:py:class:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["node-type-check"]: this flag controls if the
-            type of the nodes enclosed in the region should be tested to
-            avoid using unsupported nodes inside a region.
-        :param bool options["default_present"]: this flag controls if the
+        :param default_present: this flag controls if the
             inserted directive should include the default_present clause.
+        :param allow_strings: whether to allow the
+            transformation on assignments involving character types. Defaults
+            to False.
+        :param device_string: a string identifier for the acceleration device.
+        :param verbose: whether to provide explanatory comments in th output.
 
         '''
-        if not options:
-            options = {}
+        if options:
+            default_present = options.get("default_present",
+                                          self._default_present)
+        if default_present is None:
+            default_present = self._default_present
         # Check whether we've been passed a list of nodes or just a
         # single node. If the latter then we create ourselves a
         # list containing just that node.
         node_list = self.get_node_list(target_nodes)
-        self.validate(node_list, options)
+        self.validate(node_list, options, **kwargs)
 
         # Keep a reference to the parent of the nodes that are to be
         # enclosed within a parallel region. Also keep the index of
@@ -995,8 +1032,7 @@ class ACCParallelTrans(ParallelRegionTrans):
         # Create the parallel directive
         directive = ACCParallelDirective(
             children=[node.detach() for node in node_list])
-        directive.default_present = options.get("default_present",
-                                                self._default_present)
+        directive.default_present = default_present
 
         # Add the region directive as a child of the parent
         # of the nodes being enclosed and at the original location
@@ -1004,264 +1040,10 @@ class ACCParallelTrans(ParallelRegionTrans):
         node_parent.addchild(directive, index=node_position)
 
 
-class LFRicRedundantComputationTrans(LoopTrans):
-    '''This transformation allows the user to modify a loop's bounds so
-    that redundant computation will be performed. Redundant
-    computation can result in halo exchanges being modified, new halo
-    exchanges being added or existing halo exchanges being removed.
-
-    * This transformation should be performed before any
-      parallelisation transformations (e.g. for OpenMP) to the loop in
-      question and will raise an exception if this is not the case.
-
-    * This transformation can not be applied to a loop containing a
-      reduction and will again raise an exception if this is the case.
-
-    * This transformation can only be used to add redundant
-      computation to a loop, not to remove it.
-
-    * This transformation allows a loop that is already performing
-      redundant computation to be modified, but only if the depth is
-      increased.
-
-    '''
-    def __str__(self):
-        return "Change iteration space to perform redundant computation"
-
-    def validate(self, node, options=None):
-        '''Perform various checks to ensure that it is valid to apply the
-        RedundantComputation transformation to the supplied node
-
-        :param node: the supplied node on which we are performing\
-                     validity checks
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param int options["depth"]: the depth of the stencil if the value
-                                     is provided and None if not.
-
-        :raises TransformationError: if the parent of the loop is a
-            :py:class:`psyclone.psyir.nodes.Directive`.
-        :raises TransformationError: if the parent of the loop is not a
-            :py:class:`psyclone.psyir.nodes.Loop` or a
-            :py:class:`psyclone.psyGen.LFRicInvokeSchedule`.
-        :raises TransformationError: if the parent of the loop is
-            :py:class:`psyclone.psyir.nodes.Loop` but the original loop does
-            not iterate over 'cells_in_colour'.
-        :raises TransformationError: if the parent of the loop is a
-            :py:class:`psyclone.psyir.nodes.Loop` but the parent does not
-            iterate over 'colours'.
-        :raises TransformationError: if the parent of the loop is a
-            :py:class:`psyclone.psyir.nodes.Loop` but the parent's parent is
-            not a :py:class:`psyclone.psyGen.LFRicInvokeSchedule`.
-        :raises TransformationError: if this transformation is applied
-            when distributed memory is not switched on.
-        :raises TransformationError: if the loop does not iterate over
-            cells, dofs or colour.
-        :raises TransformationError: if the loop contains a kernel that
-            operates on halo cells or only on owned cells/dofs.
-        :raises TransformationError: if the transformation is setting the
-            loop to the maximum halo depth but the loop already computes
-            to the maximum halo depth.
-        :raises TransformationError: if the transformation is setting the
-            loop to the maximum halo depth but the loop contains a stencil
-            access (as this would result in the field being accessed
-            beyond the halo depth).
-        :raises TransformationError: if the supplied depth value is not an
-            integer.
-        :raises TransformationError: if the supplied depth value is less
-            than 1.
-        :raises TransformationError: if the supplied depth value is not
-            greater than 1 when a continuous loop is modified as this is
-            the minimum valid value.
-        :raises TransformationError: if the supplied depth value is not
-            greater than the existing depth value, as we should not need
-            to undo existing transformations.
-        :raises TransformationError: if a depth value has been supplied
-            but the loop has already been set to the maximum halo depth.
-
-        '''
-        # pylint: disable=too-many-branches
-        # check node is a loop
-        super().validate(node, options=options)
-
-        # Check loop's parent is the InvokeSchedule, or that it is nested
-        # in a colours loop and perform other colour(s) loop checks,
-        # otherwise halo exchange placement might fail. The only
-        # current example where the placement would fail is when
-        # directives have already been added. This could be fixed but
-        # it actually makes sense to require redundant computation
-        # transformations to be applied before adding directives so it
-        # is not particularly important.
-        dir_node = node.ancestor(Directive)
-        if dir_node:
-            raise TransformationError(
-                f"In the LFRicRedundantComputation transformation apply "
-                f"method the supplied loop is sits beneath a directive of "
-                f"type {type(dir_node)}. Redundant computation must be applied"
-                f" before directives are added.")
-        if not (isinstance(node.parent, LFRicInvokeSchedule) or
-                isinstance(node.parent.parent, Loop)):
-            raise TransformationError(
-                f"In the LFRicRedundantComputation transformation "
-                f"apply method the parent of the supplied loop must be the "
-                f"LFRicInvokeSchedule, or a Loop, but found "
-                f"{type(node.parent)}")
-        if isinstance(node.parent.parent, Loop):
-            if node.loop_type != "cells_in_colour":
-                raise TransformationError(
-                    f"In the LFRicRedundantComputation transformation "
-                    f"apply method, if the parent of the supplied Loop is "
-                    f"also a Loop then the supplied Loop must iterate over "
-                    f"'cells_in_colour', but found '{node.loop_type}'")
-            if node.parent.parent.loop_type != "colours":
-                raise TransformationError(
-                    f"In the LFRicRedundantComputation transformation "
-                    f"apply method, if the parent of the supplied Loop is "
-                    f"also a Loop then the parent must iterate over "
-                    f"'colours', but found '{node.parent.parent.loop_type}'")
-            if not isinstance(node.parent.parent.parent, LFRicInvokeSchedule):
-                raise TransformationError(
-                    f"In the LFRicRedundantComputation transformation "
-                    f"apply method, if the parent of the supplied Loop is "
-                    f"also a Loop then the parent's parent must be the "
-                    f"LFRicInvokeSchedule, but found {type(node.parent)}")
-        if not Config.get().distributed_memory:
-            raise TransformationError(
-                "In the LFRicRedundantComputation transformation apply "
-                "method distributed memory must be switched on")
-
-        # loop must iterate over cell-column, dof or cell-in-colour. Note, an
-        # empty loop_type iterates over cell-columns.
-        if node.loop_type not in ["", "dof", "cells_in_colour"]:
-            raise TransformationError(
-                f"In the LFRicRedundantComputation transformation apply "
-                f"method the loop type must be one of '' (cell-columns), 'dof'"
-                f" or 'cells_in_colour', but found '{node.loop_type}'")
-
-        const = LFRicConstants()
-
-        for kern in node.kernels():
-            if "halo" in kern.iterates_over:
-                raise TransformationError(
-                    f"Cannot apply the {self.name} transformation to kernels "
-                    f"that operate on halo cells but kernel '{kern.name}' "
-                    f"operates on '{kern.iterates_over}'.")
-            if kern.iterates_over in const.NO_RC_ITERATION_SPACES:
-                raise TransformationError(
-                    f"Cannot apply the {self.name} transformation to kernel "
-                    f"'{kern.name}' because it does not support redundant "
-                    f"computation (it operates on '{kern.iterates_over}').")
-
-        # We don't currently support the application of transformations to
-        # loops containing inter-grid kernels
-        check_intergrid(node)
-
-        if not options:
-            options = {}
-        depth = options.get("depth")
-        if depth is None:
-            if node.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
-                if not node.upper_bound_halo_depth:
-                    raise TransformationError(
-                        "In the LFRicRedundantComputation transformation "
-                        "apply method the loop is already set to the maximum "
-                        "halo depth so this transformation does nothing")
-                for call in node.kernels():
-                    for arg in call.arguments.args:
-                        if arg.stencil:
-                            raise TransformationError(
-                                f"In the LFRicRedundantComputation "
-                                f"transformation apply method the loop "
-                                f"contains field '{arg.name}' with a stencil "
-                                f"access in kernel '{call.name}', so it is "
-                                f"invalid to set redundant computation to "
-                                f"maximum depth")
-        else:
-            if not isinstance(depth, int):
-                raise TransformationError(
-                    f"In the LFRicRedundantComputation transformation "
-                    f"apply method the supplied depth should be an integer but"
-                    f" found type '{type(depth)}'")
-            if depth < 1:
-                raise TransformationError(
-                    "In the LFRicRedundantComputation transformation "
-                    "apply method the supplied depth is less than 1")
-
-            if node.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
-                if node.upper_bound_halo_depth:
-                    if isinstance(node.upper_bound_halo_depth, Literal):
-                        upper_bound = int(node.upper_bound_halo_depth.value)
-                        if upper_bound >= depth:
-                            raise TransformationError(
-                                f"In the LFRicRedundantComputation "
-                                f"transformation apply method the supplied "
-                                f"depth ({depth}) must be greater than the "
-                                f"existing halo depth ({upper_bound})")
-                else:
-                    raise TransformationError(
-                        "In the LFRicRedundantComputation transformation "
-                        "apply method the loop is already set to the maximum "
-                        "halo depth so can't be set to a fixed value")
-
-    def apply(self, loop, options=None):
-        # pylint:disable=arguments-renamed
-        '''Apply the redundant computation transformation to the loop
-        :py:obj:`loop`. This transformation can be applied to loops iterating
-        over 'cells or 'dofs'. if :py:obj:`depth` is set to a value then the
-        value will be the depth of the field's halo over which redundant
-        computation will be performed. If :py:obj:`depth` is not set to a
-        value then redundant computation will be performed to the full depth
-        of the field's halo.
-
-        :param loop: the loop that we are transforming.
-        :type loop: :py:class:`psyclone.psyGen.LFRicLoop`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param int options["depth"]: the depth of the stencil. Defaults \
-                to None.
-
-        '''
-        self.validate(loop, options=options)
-        if not options:
-            options = {}
-        depth = options.get("depth")
-
-        if loop.loop_type == "":
-            # Loop is over cells
-            loop.set_upper_bound("cell_halo", depth)
-        elif loop.loop_type == "cells_in_colour":
-            # Loop is over cells of a single colour
-            loop.set_upper_bound("colour_halo", depth)
-        elif loop.loop_type == "dof":
-            loop.set_upper_bound("dof_halo", depth)
-        else:
-            raise TransformationError(
-                f"Unsupported loop_type '{loop.loop_type}' found in "
-                f"LFRicRedundant ComputationTrans.apply()")
-        # Add/remove halo exchanges as required due to the redundant
-        # computation
-        loop.update_halo_exchanges()
-
-
+@transformation_documentation_wrapper
 class LFRicAsyncHaloExchangeTrans(Transformation):
     '''Splits a synchronous halo exchange into a halo exchange start and
-    halo exchange end. For example:
-
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "lfric"
-    >>> ast, invokeInfo = parse("file.f90", api=api)
-    >>> psy=PSyFactory(api).create(invokeInfo)
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>>
-    >>> from psyclone.transformations import LFRicAsyncHaloExchangeTrans
-    >>> trans = LFRicAsyncHaloExchangeTrans()
-    >>> trans.apply(schedule.children[0])
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
+    halo exchange end.
 
     '''
 
@@ -1276,18 +1058,18 @@ class LFRicAsyncHaloExchangeTrans(Transformation):
         '''
         return "LFRicAsyncHaloExchangeTrans"
 
-    def apply(self, node, options=None):
+    def apply(self, node: psyGen.HaloExchange,
+              options: Optional[dict[str, Any]] = None,
+              **kwargs: Any) -> None:
         '''Transforms a synchronous halo exchange, represented by a
         HaloExchange node, into an asynchronous halo exchange,
         represented by HaloExchangeStart and HaloExchangeEnd nodes.
 
         :param node: a synchronous haloexchange node.
-        :type node: :py:obj:`psyclone.psygen.HaloExchange`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node, options)
+        self.validate(node, options, **kwargs)
 
         # add asynchronous start and end halo exchanges and initialise
         # them using information from the existing synchronous halo
@@ -1307,20 +1089,22 @@ class LFRicAsyncHaloExchangeTrans(Transformation):
         # remove the existing synchronous halo exchange
         node.detach()
 
-    def validate(self, node, options):
+    def validate(self, node: psyGen.HaloExchange,
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         # pylint: disable=signature-differs
         '''Internal method to check whether the node is valid for this
         transformation.
 
         :param node: a synchronous Halo Exchange node
-        :type node: :py:obj:`psyclone.psygen.HaloExchange`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the node argument is not a
                          HaloExchange (or subclass thereof)
 
         '''
+        if not options:
+            self.validate_options(**kwargs)
         if not isinstance(node, psyGen.HaloExchange) or \
            isinstance(node, (LFRicHaloExchangeStart, LFRicHaloExchangeEnd)):
             raise TransformationError(
@@ -1328,37 +1112,28 @@ class LFRicAsyncHaloExchangeTrans(Transformation):
                 f" node must be a synchronous halo exchange but found "
                 f"'{type(node)}'.")
 
+        super().validate(node, options=options, **kwargs)
 
+
+@transformation_documentation_wrapper
 class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
     '''Modifies a kernel so that the number of dofs, number of layers and
     number of quadrature points are fixed in the kernel rather than
     being passed in by argument.
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "lfric"
-    >>> ast, invokeInfo = parse("file.f90", api=api)
-    >>> psy=PSyFactory(api).create(invokeInfo)
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>>
-    >>> from psyclone.transformations import LFRicKernelConstTrans
-    >>> trans = LFRicKernelConstTrans()
-    >>> for kernel in schedule.coded_kernels():
-    >>>     trans.apply(kernel, number_of_layers=150)
-    >>>     kernel_schedule = kernel.get_callees()[0]
-    >>>     # Uncomment the following line to see a text view of the
-    >>>     # symbol table
-    >>>     # print(kernel_schedule.symbol_table.view())
+    .. code-block:: python
+
+        from psyclone.transformations import LFRicKernelConstTrans
+        trans = LFRicKernelConstTrans()
+        for kernel in schedule.coded_kernels():
+            trans.apply(kernel, number_of_layers=150)
+            kernel_schedule = kernel.get_callees()[0]
 
     '''
 
     # ndofs per 3D cell for different function spaces on a quadrilateral
     # element for different orders. Formulas kindly provided by Tom Melvin and
     # Thomas Gibson (modified in 2024 to reflect splitting of element orders).
-    # See the Qr table at http://femtable.org/background.html,
-    # for computed values of w0, w1, w2 and w3 up to order 7.
     # Note: w2*trace spaces have dofs only on cell faces and no volume dofs.
     # As there is currently no dedicated structure for face dofs in kernel
     # constants, w2*trace dofs are included here. w2*trace ndofs formulas
@@ -1396,7 +1171,13 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
         '''
         return "LFRicKernelConstTrans"
 
-    def apply(self, node, options=None):
+    def apply(self, node: LFRicKern,
+              options: Optional[dict[str, Any]] = None,
+              cellshape: str = "quadrilateral",
+              element_order_h: Optional[int] = None,
+              element_order_v: Optional[int] = None,
+              number_of_layers: Optional[int] = None,
+              quadrature: bool = False, **kwargs: Any) -> None:
         # pylint: disable=too-many-statements, too-many-locals
         '''Transforms a kernel so that the values for the number of degrees of
         freedom (if valid values for the element_order_h and element_order_v
@@ -1416,30 +1197,28 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
         infrastructure, so their value is derived.
 
         :param node: a kernel node.
-        :type node: :py:obj:`psyclone.domain.lfric.LFRicKern`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param str options["cellshape"]: the shape of the cells. This is
+        :param cellshape: the shape of the cells. This is
             provided as it helps determine the number of dofs a field has
             for a particular function space. Currently only "quadrilateral"
             is supported which is also the default value.
-        :param int options["element_order_h"]: the polynomial order of the
+        :param element_order_h: the polynomial order of the
             cell in the horizontal. In combination with cellshape and
             element_order_v, this determines the number of dofs a field has
             for a particular function space. If it is set to None (the
             default), then the dofs values are not set as constants in the
             kernel, otherwise they are.
-        :param int options["element_order_v"]: the polynomial order of the
+        :param element_order_v: the polynomial order of the
             cell in the vertical. In combination with cellshape and
             element_order_h, this determines the number of dofs a field has
             for a particular function space. If it is set to None (the
             default), then the dofs values are not set as constants in the
             kernel, otherwise they are.
-        :param int options["number_of_layers"]: the number of vertical
+        :param number_of_layers: the number of vertical
             layers in the LFRic model mesh used for this particular run. If
             this is set to None (the default) then the nlayers value is not
             set as a constant in the kernel, otherwise it is.
-        :param bool options["quadrature"]: whether the number of quadrature
+        :param quadrature: whether the number of quadrature
             points values are set as constants in the kernel (True) or not
             (False). The default is False.
 
@@ -1505,14 +1284,14 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
                       f" value {value}.")
         # --------------------------------------------------------------------
 
-        self.validate(node, options)
+        self.validate(node, options, **kwargs)
 
-        if not options:
-            options = {}
-        number_of_layers = options.get("number_of_layers", None)
-        quadrature = options.get("quadrature", False)
-        element_order_h = options.get("element_order_h", None)
-        element_order_v = options.get("element_order_v", None)
+        if options:
+            kwargs = options
+        number_of_layers = self.get_option("number_of_layers", **kwargs)
+        quadrature = self.get_option("quadrature", **kwargs)
+        element_order_h = self.get_option("element_order_h", **kwargs)
+        element_order_v = self.get_option("element_order_v", **kwargs)
         kernel = node
 
         arg_list_info = KernCallArgList(kernel)
@@ -1568,21 +1347,21 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
                     make_constant(symbol_table, info.position, ndofs,
                                   function_space=info.function_space)
 
-    def validate(self, node, options=None):
+    def validate(self, node: LFRicKern,
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         '''This method checks whether the input arguments are valid for
         this transformation.
 
         :param node: an LFRic kernel node.
-        :type node: :py:obj:`psyclone.domain.lfric.LFRicKern`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
-        :param str options["cellshape"]: the shape of the elements/cells.
-        :param int options["element_order_h"]: the horizontal order of the\
+        :param cellshape: the shape of the elements/cells.
+        :param element_order_h: the horizontal order of the\
                elements/cells.
-        :param int options["element_order_v"]: the vertical order of the\
+        :param element_order_v: the vertical order of the\
                elements/cells.
-        :param int options["number_of_layers"]: the number of layers to use.
-        :param bool options["quadrature"]: whether quadrature dimension sizes \
+        :param number_of_layers: the number of layers to use.
+        :param quadrature: whether quadrature dimension sizes \
             should or shouldn't be set as constants in a kernel.
 
         :raises TransformationError: if the node argument is not a \
@@ -1603,13 +1382,13 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
 
         self._check_callee_implementation_is_local(node)
 
-        if not options:
-            options = {}
-        cellshape = options.get("cellshape", "quadrilateral")
-        element_order_h = options.get("element_order_h", None)
-        element_order_v = options.get("element_order_v", None)
-        number_of_layers = options.get("number_of_layers", None)
-        quadrature = options.get("quadrature", False)
+        if options:
+            kwargs = options
+        cellshape = self.get_option("cellshape", **kwargs)
+        element_order_h = self.get_option("element_order_h", **kwargs)
+        element_order_v = self.get_option("element_order_v", **kwargs)
+        number_of_layers = self.get_option("number_of_layers", **kwargs)
+        quadrature = self.get_option("quadrature", **kwargs)
         if cellshape.lower() != "quadrilateral":
             # Only quadrilaterals are currently supported
             raise TransformationError(
@@ -1661,28 +1440,26 @@ class LFRicKernelConstTrans(Transformation, CalleeTransformationMixin):
                 "quadrature is set then both element_order_h and "
                 "element_order_v must also be set (as the values of the "
                 "former are derived from the latter.")
+        super().validate(node, options=options, **kwargs)
 
 
+@transformation_documentation_wrapper
 class ACCEnterDataTrans(Transformation):
     '''
-    Adds an OpenACC "enter data" directive to a Schedule.
+    Adds an OpenACC "enter data" directive to a
+    :py:class:`~psyclone.psyir.nodes.Schedule`.
     For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "test11_different_iterates_over_one_invoke.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>>
-    >>> from psyclone.transformations import \
-        ACCEnterDataTrans, ACCLoopTrans, ACCParallelTrans
+    >>> from psyclone.transformations import (
+    ...     ACCEnterDataTrans, ACCParallelTrans)
+    >>> from psyclone.psyir.transformations import ACCLoopTrans
     >>> dtrans = ACCEnterDataTrans()
     >>> ltrans = ACCLoopTrans()
     >>> ptrans = ACCParallelTrans()
-    >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
     >>>
     >>> # Apply the OpenACC Loop transformation to *every* loop in the schedule
     >>> for child in schedule.children[:]:
@@ -1693,9 +1470,6 @@ class ACCEnterDataTrans(Transformation):
     >>>
     >>> # Add an enter data directive
     >>> dtrans.apply(schedule)
-    >>>
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
 
     '''
     def __str__(self):
@@ -1709,7 +1483,10 @@ class ACCEnterDataTrans(Transformation):
         '''
         return "ACCEnterDataTrans"
 
-    def apply(self, node: Schedule, options: Optional[Dict[str, Any]] = {}):
+    def apply(self, node: "psyclone.psyir.nodes.Schedule",
+              options: Optional[dict[str, Any]] = None,
+              async_queue: Union[bool, int] = False,
+              **kwargs: Any) -> None:
         '''Adds an OpenACC "enter data" directive to the invoke associated
         with the supplied Schedule. Any fields accessed by OpenACC kernels
         within this schedule will be added to this data region in
@@ -1717,14 +1494,15 @@ class ACCEnterDataTrans(Transformation):
 
         :param node: schedule to which to add an "enter data" directive.
         :param options: a dictionary with options for transformations.
-        :param options["async_queue"]: force the transformation to use the
+        :param async_queue: force the transformation to use the
             specified async stream if not False.
-        :type options["async_queue"]: Union[bool, int]
 
         '''
         sched = node
         # Ensure that the proposed transformation is valid
-        self.validate(sched, options)
+        self.validate(sched, options, **kwargs)
+        if options:
+            kwargs = options
 
         # pylint: disable=import-outside-toplevel
         if isinstance(sched, LFRicInvokeSchedule):
@@ -1748,8 +1526,8 @@ class ACCEnterDataTrans(Transformation):
                 current = current.parent
             posn = sched.children.index(current)
 
-        # extract async. Default to False.
-        async_queue = options.get('async_queue', False)
+        # Get async_queue value
+        async_queue = self.get_option('async_queue', **kwargs)
 
         # check
         self.check_child_async(sched, async_queue)
@@ -1780,22 +1558,25 @@ class ACCEnterDataTrans(Transformation):
                     'Try to make an ACCEnterDataTrans with async_queue '
                     'different than the one in child kernels !')
 
-    def validate(self, sched, options={}):
+    def validate(self, sched: Schedule,
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         # pylint: disable=arguments-differ, arguments-renamed
         '''
         Check that we can safely apply the OpenACC enter-data transformation
         to the supplied Schedule.
 
         :param sched: Schedule to which to add an "enter data" directive.
-        :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if passed something that is not a \
             (subclass of) :py:class:`psyclone.psyir.nodes.Schedule`.
 
         '''
-        super().validate(sched, options)
+        super().validate(sched, options, **kwargs)
+        # TODO #2668: Remove options
+        if options:
+            kwargs = options
 
         if not isinstance(sched, Schedule):
             raise TransformationError("Cannot apply an OpenACC enter data "
@@ -1808,7 +1589,7 @@ class ACCEnterDataTrans(Transformation):
             raise TransformationError("Schedule already has an OpenACC data "
                                       "region - cannot add an enter data.")
 
-        async_queue = options.get('async_queue', False)
+        async_queue = self.get_option('async_queue', **kwargs)
 
         # check consistency with children about async_queue
         self.check_child_async(sched, async_queue)
@@ -1822,19 +1603,20 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin,
     (causing it to be compiled for the OpenACC accelerator device).
     For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> from psyclone.tests.utilities import get_psylayer_schedule
+    >>> filename = "test11_different_iterates_over_one_invoke.f90"
+    >>> schedule = get_psylayer_schedule(filename, api="gocean")
     >>>
+    >>> from psyclone.psyGen import CodedKern
     >>> from psyclone.transformations import ACCRoutineTrans
     >>> rtrans = ACCRoutineTrans()
+    >>> from psyclone.domain.common.transformations import (
+    ...     KernelModuleInlineTrans)
+    >>> itrans = KernelModuleInlineTrans()
     >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>> kern = schedule.children[0].children[0].children[0]
+    >>> kern = schedule.walk(CodedKern)[0]
+    >>> # Bring the kernel into the same module
+    >>> itrans.apply(kern)
     >>> # Transform the kernel
     >>> rtrans.apply(kern)
 
@@ -1876,6 +1658,7 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin,
         else:
             routines = [node]
 
+        # TODO #2668: Deprecate options dictionary
         para = options.get("parallelism", "seq") if options else parallelism
         for routine in routines:
             # Insert the directive to the routine if it doesn't already exist
@@ -1896,10 +1679,6 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin,
                     :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param bool options["force"]: whether to allow routines with
-            CodeBlocks to run on the GPU.
-        :param str options["device_string"]: provide a compiler-platform
-            identifier.
 
         :raises TransformationError: if the node is not a kernel or a routine.
         :raises TransformationError: if the target is a built-in kernel.
@@ -1934,6 +1713,7 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin,
                 f"{ACCRoutineDirective.SUPPORTED_PARALLELISM}")
 
 
+@transformation_documentation_wrapper
 class ACCDataTrans(RegionTrans):
     '''
     Add an OpenACC data region around a list of nodes in the PSyIR.
@@ -1941,25 +1721,48 @@ class ACCDataTrans(RegionTrans):
 
     For example:
 
-    >>> from psyclone.psyir.frontend import FortranReader
-    >>> psyir = FortranReader().psyir_from_source(NEMO_SOURCE_FILE)
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.tests.utilities import get_examples_path
+    >>> filename = get_examples_path("nemo/code/tra_adv.F90")
+    >>> psyir = FortranReader().psyir_from_file(filename)
     >>>
     >>> from psyclone.transformations import ACCDataTrans
     >>> from psyclone.psyir.transformations import ACCKernelsTrans
+    >>> from psyclone.psyir.nodes import Loop
     >>> ktrans = ACCKernelsTrans()
     >>> dtrans = ACCDataTrans()
     >>>
-    >>> schedule = psyir.children[0]
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
+    >>> # Get the first outer-loop
+    >>> loop = psyir.children[0].walk(Loop)[0]
     >>>
     >>> # Add a kernels construct for execution on the device
-    >>> kernels = schedule.children[9]
-    >>> ktrans.apply(kernels)
+    >>> ktrans.apply(loop)
     >>>
     >>> # Enclose the kernels in a data construct
-    >>> kernels = schedule.children[9]
-    >>> dtrans.apply(kernels)
+    >>> kernel = loop.parent.parent
+    >>> dtrans.apply(kernel)
+    >>>
+    >>> # Print the resulting code
+    >>> print(kernel.parent.parent.debug_string())
+    !$acc data copyout(mydomain,pun,pvn,pwn,tmask,tsn,umask,vmask)
+    !$acc kernels
+    do jk = 1, jpk, 1
+      do jj = 1, jpj, 1
+        do ji = 1, jpi, 1
+          umask(ji,jj,jk) = ji * jj * jk / r
+          mydomain(ji,jj,jk) = ji * jj * jk / r
+          pun(ji,jj,jk) = ji * jj * jk / r
+          pvn(ji,jj,jk) = ji * jj * jk / r
+          pwn(ji,jj,jk) = ji * jj * jk / r
+          vmask(ji,jj,jk) = ji * jj * jk / r
+          tsn(ji,jj,jk) = ji * jj * jk / r
+          tmask(ji,jj,jk) = ji * jj * jk / r
+        enddo
+      enddo
+    enddo
+    !$acc end kernels
+    !$acc end data
+    <BLANKLINE>
 
     '''
     excluded_node_types = (CodeBlock, Return, PSyDataNode)
@@ -1973,21 +1776,21 @@ class ACCDataTrans(RegionTrans):
         '''
         return "ACCDataTrans"
 
-    def apply(self, node, options=None):
+    def apply(self, node: Union[Node, list[Node]],
+              options: Optional[dict[str, Any]] = None,
+              **kwargs: Any) -> None:
         '''
         Put the supplied node or list of nodes within an OpenACC data region.
 
         :param node: the PSyIR node(s) to enclose in the data region.
-        :type node: (list of) :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         '''
         # Ensure we are always working with a list of nodes, even if only
         # one was supplied via the `node` argument.
         node_list = self.get_node_list(node)
 
-        self.validate(node_list, options)
+        self.validate(node_list, options, **kwargs)
 
         parent = node_list[0].parent
         start_index = node_list[0].position
@@ -1998,17 +1801,16 @@ class ACCDataTrans(RegionTrans):
 
         parent.children.insert(start_index, directive)
 
-    def validate(self, nodes, options):
+    def validate(self, nodes: Union[Node, list[Node]],
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         # pylint: disable=signature-differs
         '''
         Check that we can safely add a data region around the supplied list
         of nodes.
 
         :param nodes: the proposed node(s) to enclose in a data region.
-        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`] |
-            :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the Schedule to which the nodes
             belong already has an 'enter data' directive.
@@ -2022,7 +1824,7 @@ class ACCDataTrans(RegionTrans):
         # one was supplied via the `nodes` argument.
         node_list = self.get_node_list(nodes)
 
-        super().validate(node_list, options)
+        super().validate(node_list, options, **kwargs)
 
         # Check that the Schedule to which the nodes belong does not already
         # have an 'enter data' directive.
@@ -2074,6 +1876,7 @@ class ACCDataTrans(RegionTrans):
                             f"component is the one being iterated over.")
 
 
+@transformation_documentation_wrapper
 class KernelImportsToArguments(Transformation, CalleeTransformationMixin):
     '''
     Transformation that removes any accesses of imported data from the supplied
@@ -2093,14 +1896,14 @@ class KernelImportsToArguments(Transformation, CalleeTransformationMixin):
                 "into arguments and modify the InvokeSchedule to pass them"
                 " in the kernel call.")
 
-    def validate(self, node, options=None):
+    def validate(self, node: CodedKern,
+                 options: Optional[dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         '''
         Check that the supplied node is a valid target for this transformation.
 
         :param node: the PSyIR node to validate.
-        :type node: :py:class:`psyclone.psyGen.CodedKern`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not a CodedKern.
         :raises TransformationError: if this transformation is not applied to
@@ -2111,6 +1914,8 @@ class KernelImportsToArguments(Transformation, CalleeTransformationMixin):
             imports of symbols from one or more containers (e.g. a USE without
             an ONLY clause in Fortran).
         '''
+        if not options:
+            self.validate_options(**kwargs)
         if not isinstance(node, CodedKern):
             raise TransformationError(
                 f"The {self.name} transformation can only be applied to "
@@ -2140,8 +1945,11 @@ class KernelImportsToArguments(Transformation, CalleeTransformationMixin):
                     f"Cannot apply {self.name} to Kernel '{node.name}' "
                     f"because it accesses data from its outer scope: "
                     f"{err.value}") from err
+        super().validate(node, options=options, **kwargs)
 
-    def apply(self, node, options=None):
+    def apply(self, node: CodedKern,
+              options: Optional[dict[str, Any]] = None,
+              **kwargs: Any) -> None:
         '''
         Convert the imported variables used inside the kernel into arguments
         and modify the InvokeSchedule to pass the same imported variables to
@@ -2150,12 +1958,10 @@ class KernelImportsToArguments(Transformation, CalleeTransformationMixin):
         calls to the same module-inlined routine.
 
         :param node: a kernel call.
-        :type node: :py:class:`psyclone.psyGen.CodedKern`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node, options)
+        self.validate(node, options, **kwargs)
 
         kernels = node.get_callees()
         # validate() has ensured that there is only one kernel routine.
@@ -2249,28 +2055,6 @@ class KernelImportsToArguments(Transformation, CalleeTransformationMixin):
                     kern.arguments.append(arg[0], arg[1])
 
 
-# Create a compatibility layer for all existing Dynamo0p3 transformation
-# names. These are just derived classes from the new name which print
-# a deprecation message when creating an instance
-for name in ["OMPParallelLoopTrans",
-             "OMPLoopTrans",
-             "ColourTrans",
-             "RedundantComputationTrans",
-             "AsyncHaloExchangeTrans",
-             "KernelConstTrans"]:
-    class_string = f"""
-class Dynamo0p3{name}(LFRic{name}):
-
-    def __new__(cls):
-        print("Deprecation warning: the script uses the legacy name "
-              "'Dynamo0p3{name}', please use new name "
-              "'LFRic{name}' instead.")
-        return super().__new__(cls)
-        """
-    # pylint: disable=exec-used
-    exec(class_string)
-
-
 # For Sphinx AutoAPI documentation generation
 __all__ = [
    "ACCEnterDataTrans",
@@ -2282,7 +2066,6 @@ __all__ = [
    "LFRicColourTrans",
    "LFRicKernelConstTrans",
    "LFRicOMPLoopTrans",
-   "LFRicRedundantComputationTrans",
    "LFRicOMPParallelLoopTrans",
    "GOceanOMPLoopTrans",
    "GOceanOMPParallelLoopTrans",

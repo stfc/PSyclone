@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modifications: A. R. Porter, R. W. Ford and S.Siso, STFC Daresbury Lab
 
 ''' Module containing tests for the dependency tools.'''
 
@@ -74,6 +45,7 @@ def test_messages():
     assert str(msg) == "Warning: warning-test. Variable: 'a'."
     assert msg.code == DTCode.WARN_SCALAR_REDUCTION
     assert msg.var_names == ["a"]
+    assert msg.var_infos is None
 
     dep_tools._add_message("error-test", DTCode.ERROR_DEPENDENCY, [])
     msg = dep_tools.get_all_messages()[2]
@@ -101,7 +73,6 @@ def test_messages():
             "be a list of Signature/AccessSequence pairs") in str(err.value)
 
 
-# -----------------------------------------------------------------------------
 def test_dep_tool_constructor_errors():
     '''Test that invalid loop types raise an error in the constructor.
     '''
@@ -116,7 +87,28 @@ def test_dep_tool_constructor_errors():
             "values for API 'lfric' are [" in str(err.value))
 
 
-# -----------------------------------------------------------------------------
+def test_loop_parallelise_lfric_kern():
+    '''
+    Test that the can_loop_be_parallelised method can be called successfully
+    when a loop contains an LFRicKern since this currently does not have an
+    associated Symbol.
+
+    TODO #3219 - although the method can be called, it will always return
+    False currently because it has to assume the worst for any arguments
+    passed to an LFRicKern. This test will need updating once LFRicKern has
+    'virtual' children containing accesses to its arguments.
+
+    '''
+    _, invoke = get_invoke("15.1.1_builtin_and_normal_kernel_invoke_2.f90",
+                           api="lfric", idx=0, dist_mem=False)
+    dep_tools = DependencyTools()
+    for loop in invoke.schedule.walk(Loop):
+        # Since we are currently forced to assume the worst case for
+        # arguments passed to LFRicKern nodes, the DependencyTools cannot
+        # ascertain that the loops can be parallelised.
+        assert not dep_tools.can_loop_be_parallelised(loop)
+
+
 def test_loop_parallelise_errors():
     '''Tests errors that should be raised from the can_loop_be_parallelised
     function.'''
@@ -172,6 +164,7 @@ def test_arrays_parallelise(fortran_reader):
             "causes a write-write race condition" in str(msg))
     assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
     assert msg.var_names == ["mask"]
+    assert msg.var_infos is None
 
     # Write to array that does not depend on the parallel loop variable
     parallel = dep_tools.can_loop_be_parallelised(loops[1])
@@ -192,9 +185,9 @@ def test_arrays_parallelise(fortran_reader):
             "Variable: 'mask'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
     assert msg.var_names == ["mask"]
+    assert msg.var_infos is None
 
 
-# -----------------------------------------------------------------------------
 # This list contains the test cases and expected partition information.
 # The first two entries of each 3-tuple are the LHS and RHS. The third
 # element is the partition information, which is a list of partitions. Each

@@ -1,41 +1,10 @@
 .. -----------------------------------------------------------------------------
-.. BSD 3-Clause License
-..
-.. Copyright (c) 2017-2026, Science and Technology Facilities Council
-.. All rights reserved.
-..
-.. Redistribution and use in source and binary forms, with or without
-.. modification, are permitted provided that the following conditions are met:
-..
-.. * Redistributions of source code must retain the above copyright notice, this
-..   list of conditions and the following disclaimer.
-..
-.. * Redistributions in binary form must reproduce the above copyright notice,
-..   this list of conditions and the following disclaimer in the documentation
-..   and/or other materials provided with the distribution.
-..
-.. * Neither the name of the copyright holder nor the names of its
-..   contributors may be used to endorse or promote products derived from
-..   this software without specific prior written permission.
-..
-.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-.. POSSIBILITY OF SUCH DAMAGE.
+.. SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+..                         Facilities Council
+.. SPDX-License-Identifier: BSD-3-Clause
+.. See the full LICENSE file in the project root for details.
 .. -----------------------------------------------------------------------------
-.. Written by: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-..             A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
-..             I. Kavcic, Met Office
-..             J. Dendy, Met Office
-.. 
+
 .. _sec_transformations_script:
 
 PSyclone User Scripts
@@ -44,22 +13,21 @@ PSyclone User Scripts
 The standard way to transform a codebase using psyclone is through the
 :ref:`psyclone_command` tool, which has an optional ``-s <SCRIPT_NAME>``
 flag that allows users to specify a transformation user script to
-programmatically modify the input code::
+programmatically modify the input code using a relative or absolute
+path::
 
     > psyclone -s optimise.py input_source.f90
-
-In this case, the current directory is prepended to the Python search path
-``PYTHONPATH`` which will then be used to try to find the script file. Thus,
-the search begins in the current directory and continues over any pre-existing
-directories in the search path, failing if the file cannot be found.
-
-Alternatively, script files may be specified with a path. In this case
-the file must exist in the specified location. This location is then added to
-the Python search path ``PYTHONPATH`` as before. For example::
-
     > psyclone -s ./optimise.py input_source.f90
     > psyclone -s ../scripts/optimise.py input_source.f90
     > psyclone -s /home/me/PSyclone/scripts/optimise.py input_source.f90
+
+PSyclone will not take ``PYTHONPATH`` into account when importing the script,
+so the user must ensure that the script is found: for this, it must either be
+in the current working directory (if no path is specified at all), or be
+specified with a valid (relative or absolute) path. PSyclone will add the
+directory of the script to Python's ``sys.path``, meaning the transformation
+script can import any helper script in the same directory without additional
+setup.
 
 A valid PSyclone user script file must contain a ``trans`` function which accepts
 a :ref:`PSyIR node<psyir-ug>` representing the root of the psy-layer
@@ -88,6 +56,46 @@ optimisation, and may also apply transformations to all the routines (i.e. invok
 and/or kernels) contained within the provided tree.
 The :ref:`examples section<examples>` provides a list of psyclone user scripts
 and associated usage instructions for multiple applications.
+
+.. _script_kwargs:
+
+Arguments for Scripts
+---------------------
+Scripts can take optional keyword arguments specified on the command line
+using the option `--script-kwargs`. The keyword arguments are specified
+in a string containing comma-delimited keyword:value pairs. For example:
+
+
+.. code-block:: shell
+
+    psyclone -s ./optimise.py input_source.f90 \
+             --script-kwargs "omp: True, tiling: [4,4]"
+
+This will result in the additional keyword arguments for any transformation call:
+
+.. code-block:: python
+
+    def trans(psyir, omp: bool, tiling: list[int]):
+        # Modify psyir tree
+
+The arguments specified will be converted into a Python-style dictionary, e.g.
+``omp: True, tiling: [4,4]`` will be parsed as ``{omp: True, tiling: [4,4]}``.
+Therefore, the specified keyword arguments must make a valid dictionary.
+For example, ``[1,2]`` is not a valid keyword argument, because ``{[1,2]}``
+is not valid Python (a list is not hashable), and ``1:2`` would not be valid,
+because the keys of keyword arguments must be strings.
+
+Obviously, the called transformation functions (``trans``, but also
+``trans_alg``, see below) must accept the specified keyword arguments. If
+an undeclared keyword argument is specified on the command line, the following
+error will be raised:
+
+.. code-block:: shell
+
+    psyclone -s ./omp_gpu_profile_trans.py --script-kwargs "undeclared: True" ...
+    Traceback (most recent call last):
+    ...
+    TypeError: trans() got an unexpected keyword argument 'undeclared'
 
 
 .. _sec_script_globals:
@@ -142,3 +150,8 @@ associated with the merged invoke.
 
 An example of the use of a script making use of the ``trans_alg``
 function can be found in ``examples/gocean/eg7``.
+
+Note that the ``trans_alg`` function will receive the same keyword arguments
+as the ``trans`` function if the PSyclone command line option
+``--script-kwargs`` is used (see :ref:`script_kwargs`). It is therefore
+important that both functions accept the same keyword arguments.

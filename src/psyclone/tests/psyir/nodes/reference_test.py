@@ -1,40 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic, Met Office
-#         J. Henrichs, Bureau of Meteorology
-# Modified A. B. G. Chalk, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Reference PSyIR node. '''
@@ -42,15 +10,17 @@
 import itertools
 import pytest
 
+from psyclone.errors import PSycloneError
 from psyclone.psyGen import GenerationError
 from psyclone.psyir.nodes import (
-    ArrayReference, Assignment, CodeBlock, colored,
-    KernelSchedule, Literal, Reference, Loop)
+    ArrayReference, Assignment, CodeBlock,
+    KernelSchedule, Literal, Reference, Loop, Call, IntrinsicCall)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
                                     UnresolvedType, ImportInterface,
                                     ScalarType, Symbol, SymbolTable)
 from psyclone.psyir.transformations import ProfileTrans
+from psyclone.utils import colored
 
 
 def test_reference_bad_init():
@@ -226,9 +196,14 @@ def test_reference_next_accesses(fortran_reader):
     loop = routine.children[1]
     b = loop.loop_body.children[0].lhs
     assert len(a_before_loop.next_accesses()) == 1
+    # TODO #3486: next_accesses should not return loops
     assert a_before_loop.next_accesses()[0] is loop
     assert len(b.next_accesses()) == 1
     assert b.next_accesses()[0] == b
+
+    # Check the next_access of the loop variable
+    assert (loop.variable_reference.next_accesses() ==
+            [loop.loop_body.children[0].rhs])
 
     # Check that a loop accessing a variable before
     # the reference doesn't result in a false positive.
@@ -246,6 +221,19 @@ def test_reference_next_accesses(fortran_reader):
     loop = routine.children[0]
     b = loop.loop_body.children[0].lhs
     assert len(a_after_loop.next_accesses()) == 0
+
+    # Check that a loop with an usused loop variable
+    code = '''subroutine my_sub()
+    integer, dimension(4) :: a
+    integer :: i
+    do i = 1, 100
+       a(1) = a(1) + 1
+    end do
+    end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    i_var = routine.children[0].children[0]
+    assert len(i_var.next_accesses()) == 0
 
     # Check the function for basic structures
     code = '''subroutine my_sub()
@@ -347,7 +335,7 @@ def test_reference_next_accesses_with_codeblock(fortran_reader):
     a = routine.children[0].lhs
     codeblock = routine.children[1]
     assert len(a.next_accesses()) == 1
-    assert a.next_accesses()[0] is codeblock
+    assert a.next_accesses()[0] is codeblock.children[0]
 
 
 def test_reference_previous_accesses(fortran_reader):
@@ -388,7 +376,24 @@ def test_reference_previous_accesses(fortran_reader):
     assert len(b_a.previous_accesses()) == 1
     assert b_a.previous_accesses()[0] is b_a
     assert len(a_2.previous_accesses()) == 1
+    # TODO #3486: previous_accesses should not return loops
     assert a_2.previous_accesses()[0] is loop
+
+    # Check that a loop with an usused loop variable
+    code = '''subroutine my_sub()
+    integer, dimension(4) :: a
+    integer :: i
+    a(1) = i
+    do i = 1, 100
+       a(1) = a(1) + 1
+    end do
+    end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    i_var = routine.children[1].children[0]
+    # TODO #3486: previous_accesses should consider the loop
+    # variable as WRITE-only and act as a DUC barrier
+    assert len(i_var.previous_accesses()) == 1
 
     # Check the function for basic structures
     code = '''subroutine my_sub()
@@ -520,7 +525,7 @@ def test_reference_previous_accesses_with_codeblock(fortran_reader):
     routine = psyir.children[0]
     a = routine.children[1].lhs
     codeblock = routine.walk(CodeBlock)[0]
-    assert a.previous_accesses()[0] is codeblock
+    assert a.previous_accesses()[0].is_descendant_of(codeblock)
 
 
 def test_reference_replace_symbols_using():
@@ -565,6 +570,10 @@ def test_reference_is_read(fortran_reader):
     assert references[1].is_read
     assert references[3].symbol.name == "c"
     assert references[3].is_read
+
+    # Routine or Intrinsic Symbols are not read.
+    assert references[5].symbol.name == "LBOUND"
+    assert not references[5].is_read
     # For the lbound, d should be an inquiry (so not a read) but
     # x should be a read
     assert references[6].symbol.name == "d"
@@ -581,6 +590,8 @@ def test_reference_is_write(fortran_reader):
        a = SIN(c)
        call somecall(a)
        a = b
+       do i=1,2
+       enddo
        end subroutine"""
     psyir = fortran_reader.psyir_from_source(code)
     references = psyir.walk(Reference)
@@ -601,6 +612,82 @@ def test_reference_is_write(fortran_reader):
     # a = b has a as write and b as not
     assert references[10].is_write
     assert not references[11].is_write
+    # Loop control variable
+    assert references[12].is_write
+
+
+def test_reference_is_write_for_impure_intrinsic():
+    """Test that an impure intrinsic is assumed to write its argument."""
+    value = DataSymbol("value", ScalarType.real_type())
+    call = IntrinsicCall.create(IntrinsicCall.Intrinsic.RANDOM_NUMBER,
+                                [Reference(value)])
+
+    assert call.arguments[0].is_write
+
+
+def test_reference_is_read_write_with_intents(fortran_reader):
+    '''Test the reference is_read and is_write property when they are
+    part of a Call where intents can be found.'''
+    code = """
+    module tests
+    contains
+    subroutine my_subroutine()
+       integer :: a,b,c,d,e
+       call somecall(a,b,c)
+       call somenamedcall(name2=d, name1=e)
+    end subroutine
+    subroutine somecall(a,b,c)
+        integer, intent(in) :: a
+        integer, intent(out) :: b
+        integer, intent(inout) :: c
+    end subroutine
+    subroutine somenamedcall(name1, name2)
+        integer, intent(in), optional :: name1
+        integer, intent(out), optional :: name2
+    end subroutine
+    end module
+   """
+    psyir = fortran_reader.psyir_from_source(code)
+    calls = psyir.walk(Call)
+    assert calls[0].arguments[0].symbol.name == "a"
+    assert calls[0].arguments[0].is_read
+    assert not calls[0].arguments[0].is_write
+    assert calls[0].arguments[1].symbol.name == "b"
+    assert not calls[0].arguments[1].is_read
+    assert calls[0].arguments[1].is_write
+    assert calls[0].arguments[2].symbol.name == "c"
+    assert calls[0].arguments[2].is_read
+    assert calls[0].arguments[2].is_write
+
+    # The named arguments are out of order, but we currently can't match
+    # the caller-callee, so we assume worst-case: readwrite
+    # TODO #759: Adding support for 'optional' will need to consider this
+    assert calls[1].arguments[0].symbol.name == "d"
+    assert calls[1].arguments[0].is_read
+    assert calls[1].arguments[0].is_write
+    assert calls[1].arguments[1].symbol.name == "e"
+    assert calls[1].arguments[1].is_read
+    assert calls[1].arguments[1].is_write
+
+
+def test_reference_is_read_when_call_resolution_fails(
+        fortran_reader, monkeypatch):
+    """Test that a reference is conservatively treated as read if a call
+    cannot be resolved."""
+    psyir = fortran_reader.psyir_from_source("""
+        subroutine caller()
+          integer :: value
+          call callee(value)
+        end subroutine caller
+        """)
+    call = psyir.walk(Call)[0]
+
+    def raise_resolution_error():
+        """Emulate a failure while resolving the target of ``call``."""
+        raise PSycloneError("resolution failed")
+
+    monkeypatch.setattr(call, "get_callee", raise_resolution_error)
+    assert call.arguments[0].is_read
 
 
 def test_reference_component_indices(fortran_reader):

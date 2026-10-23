@@ -1,63 +1,15 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2025-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: A. B. G. Chalk, STFC Daresbury Lab
-# -----------------------------------------------------------------------------
-#
-# This code is influenced by the docstring_parser package created by Marcin
-# Kurczewski. Their licence is:
-#
-# The MIT License (MIT)
-# Copyright (c) 2018 Marcin Kurczewski
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to
-# deal in the Software without restriction, including without limitation
-# the rights to use, copy, modify, merge, publish, distribute, sublicense,
-# and/or sell copies of the Software, and to permit persons to whom the
-# Software is furnished to do so, subject to the following conditions:
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-# DEALINGS IN THE SOFTWARE.
 '''This module contains the PSyclone docstring parsing code. This
 implementation influenced by the docstring_parser package created by
 Marcin Kurczewski - https://github.com/rr-/docstring_parser.
 '''
+
+from __future__ import annotations
 
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -85,16 +37,21 @@ class ArgumentData():
     desc: str
     inline_type: bool
 
-    def gen_docstring(self, function: Union[None, Callable[..., Any]] = None)\
-            -> str:
+    def gen_docstring(self, function: Union[None, Callable[..., Any]] = None,
+                      cls_name: str = "") -> str:
         '''
         :param function: The function who the generated docstring will be for.
                     Default option is None. If no function is supplied, there
                     can be no type annotation and so the type information is
                     included inline in the :param or in a separate :type
                     entry.
+        :param cls_name: The cls_name to use for saying which argument is this
+            from. Used for documenting sub transformation options.
+
         :returns: The docstring represented by this ArgumentData.
         '''
+        if cls_name:
+            cls_name = f"(Option provided for {cls_name}) "
         rstr = ":param "
         if function:
             # If the argument is in function's parameter list and has a type
@@ -103,13 +60,13 @@ class ArgumentData():
             val = signature.parameters.get(self.name)
             if (val is not None and val.annotation is not
                     inspect.Parameter.empty):
-                rstr += f"{self.name}: {self.desc}"
+                rstr += f"{self.name}: {cls_name}{self.desc}"
                 return rstr
 
         if self.inline_type:
-            rstr += f"{self.datatype} {self.name}: {self.desc}"
+            rstr += f"{self.datatype} {self.name}: {cls_name}{self.desc}"
         else:
-            rstr += f"{self.name}: {self.desc}{os.linesep}"
+            rstr += f"{self.name}: {cls_name}{self.desc}{os.linesep}"
             rstr += f":type {self.name}: {self.datatype}"
 
         return rstr
@@ -171,6 +128,7 @@ class DocstringData():
     arguments: OrderedDict
     raises: list
     returns: ReturnsData
+    sub_arguments: OrderedDict[str, OrderedDict]
 
     def add_data(self, docstring_element:
                  Union[ArgumentData, RaisesData, ReturnsData, str]) -> None:
@@ -200,7 +158,32 @@ class DocstringData():
                 f"'{docstring_element}'."
             )
 
-    def merge(self, other_data, replace_desc: bool = False,
+    def add_subarguments(self, cls_name: str, other_data: "DocstringData",
+                         replace_args: bool = False):
+        '''Add the other DocstringData's arguments as sub arguments to be
+        referenced via cls_name.
+
+        :param cls_name: The class name to use for the sub arguments.
+        :param other_data: The DocstringData object whose arguments to add
+            as sub arguments for this object.
+        :param replace_args: whether to replace duplicate sub arguments if
+            found.
+        '''
+        # If the class isn't already in the sub arguments list, we just
+        # add a copy of the other data's argument dicts to the sub_arguments.
+        if cls_name not in self.sub_arguments:
+            self.sub_arguments[cls_name] = other_data.arguments.copy()
+            return
+        # Otherwise we need to add them manually.
+        for arg in other_data.arguments:
+            # If the arg is already present and we're not overwriting then
+            # skip.
+            if (arg in self.sub_arguments[cls_name].keys() and
+                    not replace_args):
+                continue
+            self.sub_arguments[cls_name][arg] = other_data.arguments[arg]
+
+    def merge(self, other_data: "DocstringData", replace_desc: bool = False,
               replace_args: bool = False, replace_returns: bool = False):
         '''
         Merges the other_data DocstringData object into this one.
@@ -211,7 +194,6 @@ class DocstringData():
         always.
 
         :param other_data: the DocstringData object to merge into this object.
-        :type other_data: :py:class:`psyclone.docstring_parser.DocstringData`
         :param replace_desc: whether to replace the desc with that of
                              other_data.
         :param replace_args: whether to replace duplicate arguments with that
@@ -238,6 +220,23 @@ class DocstringData():
         if ((self.returns is None or replace_returns)
                 and other_data.returns is not None):
             self.returns = other_data.returns
+
+        # Merge the sub_arguments.
+        for subarg in other_data.sub_arguments:
+            # If the sub argument isn't in our own sub arguments, make a copy
+            # of the sub argument.
+            if subarg not in self.sub_arguments.keys():
+                self.sub_arguments[subarg] = \
+                    other_data.sub_arguments[subarg].copy()
+            else:
+                # Otherwise we merge the sub arguments in the same fashion we
+                # merge the arguments.
+                for arg in other_data.sub_arguments[subarg]:
+                    if (arg in self.sub_arguments[subarg].keys()
+                            and not replace_args):
+                        continue
+                    self.sub_arguments[subarg][arg] = \
+                        other_data.sub_arguments[subarg][arg]
 
     def gen_docstring(
             self, indentation: str = "    ",
@@ -285,6 +284,24 @@ class DocstringData():
             else:
                 argstring = indentation + argstring
             argstrings.append(argstring)
+        for cls in self.sub_arguments:
+            for arg in self.sub_arguments[cls]:
+                argstring = self.sub_arguments[cls][arg].gen_docstring(
+                    cls_name=cls
+                )
+                if os.linesep in argstring:
+                    lines = argstring.split(os.linesep)
+                    argstring = indentation + lines[0] + os.linesep
+                    for line in lines[1:]:
+                        if ":type" not in line:
+                            argstring += indentation*2 + line + os.linesep
+                        else:
+                            argstring += indentation + line + os.linesep
+                    # Remove the last newline character
+                    argstring = argstring[:-1]
+                else:
+                    argstring = indentation + argstring
+                argstrings.append(argstring)
 
         raisestrings = []
         for element in self.raises:
@@ -375,7 +392,7 @@ class DocstringData():
         rtype = None
         docstring_data = DocstringData(
             desc="", arguments=OrderedDict(), raises=[],
-            returns=None
+            returns=None, sub_arguments=OrderedDict()
         )
 
         docstring_data.add_data(desc_chunk)
@@ -467,13 +484,8 @@ def create_docstring_data(args: List[str], desc: str,
 
     :returns: An object representing the input arg and desc.
     '''
-    # Import here to disable circular dependency if Sphinx isn't available.
-    try:
-        # pylint: disable=import-outside-toplevel
-        from sphinx.util.typing import stringify_annotation
-    except ImportError:
-        # pylint: disable=import-outside-toplevel
-        from psyclone.utils import stringify_annotation
+    # pylint: disable=import-outside-toplevel
+    from psyclone.utils import stringify_annotation
     # If its a param then we can create an ArgumentData for this.
     if args[0] == "param":
         if len(args) == 2:

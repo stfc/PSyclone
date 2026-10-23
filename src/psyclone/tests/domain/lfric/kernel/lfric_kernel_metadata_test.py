@@ -1,44 +1,15 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2022-2026, Science and Technology Facilities Council
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Module containing tests for the LFRicKernelMetadata class.
 
 '''
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 
 from psyclone.domain.lfric import LFRicConstants
@@ -1009,7 +980,7 @@ def test_create_from_psyir_error():
         _ = LFRicKernelMetadata.create_from_psyir(
             DataTypeSymbol("x", ScalarType.real_type()))
     assert ("Expected kernel metadata to be stored in the PSyIR as an "
-            "UnsupportedFortranType, but found ScalarType." in str(info.value))
+            "StructureType, but found ScalarType." in str(info.value))
 
 
 @pytest.mark.parametrize("procedure_format", ["", "code =>"])
@@ -1137,28 +1108,22 @@ def test_lower_to_psyir():
     assert symbol.datatype.declaration == metadata.fortran_string()
 
 
-def test_get_procedure_name_error(fortran_reader):
+def test_get_procedure_name_error():
     '''Test that all the exceptions are raised as expected in the
     _get_procedure_name method.
 
     '''
-    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM.replace(
-        "procedure, nopass :: code => testkern_code", ""))
-    datatype = kernel_psyir.children[0].symbol_table.lookup(
-        "testkern_type").datatype
     metadata = LFRicKernelMetadata()
-    reader = FortranStringReader(datatype.declaration)
-    spec_part = Fortran2003.Derived_Type_Def(reader)
+    spec_part = LFRicKernelMetadata.create_fparser2(
+        METADATA.replace("procedure, nopass :: code => testkern_code", ""),
+        Fortran2003.Derived_Type_Def)
     with pytest.raises(ParseError) as info:
         metadata._get_procedure_name(spec_part)
     assert "Expecting a type-bound procedure, but found" in str(info.value)
 
-    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
-    datatype = kernel_psyir.children[0].symbol_table.lookup(
-        "testkern_type").datatype
     metadata = LFRicKernelMetadata()
-    reader = FortranStringReader(datatype.declaration)
-    spec_part = Fortran2003.Derived_Type_Def(reader)
+    spec_part = LFRicKernelMetadata.create_fparser2(
+        METADATA, Fortran2003.Derived_Type_Def)
     binding = spec_part.children[2]
     binding.children[1] = binding.children[0]
     with pytest.raises(ParseError) as info:
@@ -1166,13 +1131,10 @@ def test_get_procedure_name_error(fortran_reader):
     assert ("Expecting a specific binding for the type-bound procedure, "
             "but found" in str(info.value))
 
-    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM.replace(
-        "code", "node"))
-    datatype = kernel_psyir.children[0].symbol_table.lookup(
-        "testkern_type").datatype
     metadata = LFRicKernelMetadata()
-    reader = FortranStringReader(datatype.declaration)
-    spec_part = Fortran2003.Derived_Type_Def(reader)
+    spec_part = LFRicKernelMetadata.create_fparser2(
+        METADATA.replace("code", "node"),
+        Fortran2003.Derived_Type_Def)
     with pytest.raises(ParseError) as info:
         metadata._get_procedure_name(spec_part)
     assert ("Expecting the type-bound procedure binding-name to be 'code' "
@@ -1180,18 +1142,15 @@ def test_get_procedure_name_error(fortran_reader):
             in str(info.value))
 
 
-def test_get_procedure_name(fortran_reader):
+def test_get_procedure_name():
     '''Test utility function that takes metadata in an fparser2 tree and
     returns the procedure metadata name, or None is there is no
     procedure name.
 
     '''
-    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
-    datatype = kernel_psyir.children[0].symbol_table.lookup(
-        "testkern_type").datatype
     metadata = LFRicKernelMetadata()
-    reader = FortranStringReader(datatype.declaration)
-    spec_part = Fortran2003.Derived_Type_Def(reader)
+    spec_part = LFRicKernelMetadata.create_fparser2(
+        METADATA, Fortran2003.Derived_Type_Def)
     assert metadata._get_procedure_name(spec_part) == \
         "testkern_code"
 

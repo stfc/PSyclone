@@ -1,63 +1,35 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic, Met Office
-#         J. Henrichs, Bureau of Meteorology
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' This module contains the CodeBlock node implementation.'''
 
 from __future__ import annotations
+import abc
 import re
 from enum import Enum
-from typing import Optional, Any, Union
+from typing import Optional, Any, Union, Iterable
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature, VariablesAccessMap
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.symbols import (
+    SymbolTable, SymbolError, UnresolvedInterface)
 
 
 class CodeBlock(Statement, DataNode):
     '''Node representing any generic Fortran code that PSyclone does not
-    attempt to manipulate. As such it is a leaf in the PSyIR. A CodeBlock
-    can still answer limited questions about the enclosed code. For
-    this reason it keeps reference to the underlying parse_tree, and each
-    frontend parser needs to subclass CodeBlock with the concrete
-    implementation.
+    attempt to manipulate. A CodeBlock can still answer limited questions
+    about the enclosed code. For this reason it keeps reference to the
+    underlying parse_tree, and each frontend parser needs to subclass
+    CodeBlock with the concrete implementation.
 
     :param parse_tree: the parse-tree nodes representing the
         Fortran code constituting the code block.
@@ -73,7 +45,7 @@ class CodeBlock(Statement, DataNode):
 
     '''
     #: Textual description of the node.
-    _children_valid_format = "<LeafNode>"
+    _children_valid_format = "[Reference]*"
     _text_name = "CodeBlock"
     _colour = "red"
     #: The annotations that are supported by this node.
@@ -111,6 +83,35 @@ class CodeBlock(Statement, DataNode):
             self._parse_tree_nodes = [parse_tree]
         # Store the structure of the code block.
         self._structure = structure
+        # Capture all symbols used inside the Codeblock as children References
+        self._insert_representative_references()
+
+    @staticmethod
+    def _validate_child(position: int, child: Node) -> bool:
+        '''
+        :param position: the position to be validated.
+        :param child: a child to be validated.
+
+        :return: whether the given child and position are valid for this node.
+
+        '''
+        return isinstance(child, Reference)
+
+    def _insert_representative_references(self):
+        ''' Insert Reference children under this codeblock that
+        represent each of the symbols used inside the CodeBlock.
+        '''
+        for symbol_name in self.get_symbol_names():
+            try:
+                symtab = self.scope.symbol_table
+            except SymbolError:
+                # Needed for detached CodeBlocks, mainly used in testing
+                symtab = SymbolTable()
+            symbol = symtab.find_or_create(
+                symbol_name, interface=UnresolvedInterface())
+            ref = Reference(symbol)
+            if ref not in self.children:
+                self.addchild(Reference(symbol))
 
     @staticmethod
     def create(*args, **kwargs) -> CodeBlock:
@@ -184,10 +185,6 @@ class CodeBlock(Statement, DataNode):
         TODO #2863 - it would be better to use AccessType.UNKNOWN here but
         currently VariablesAccessMap does not consider that type of access.
 
-        This method makes use of
-        :py:meth:`~psyclone.psyir.nodes.CodeBlock.get_symbol_names` and is
-        therefore subject to the same limitations as that method.
-
         :returns: a map of all the symbol accessed inside this node, the
             keys are Signatures (unique identifiers to a symbol and its
             structure accessors) and the values are AccessSequence
@@ -195,9 +192,13 @@ class CodeBlock(Statement, DataNode):
 
         '''
         var_accesses = VariablesAccessMap()
-        for name in self.get_symbol_names():
-            var_accesses.add_access(Signature(name), AccessType.READWRITE,
-                                    self)
+        # All symbols accessed within the CodeBlock are captured as Reference
+        # nodes and stored as children of the CodeBlock node
+        for child in self.children:
+            var_accesses.add_access(
+                Signature(child.name),
+                AccessType.READWRITE,
+                child)
         return var_accesses
 
     def __str__(self) -> str:
@@ -227,6 +228,42 @@ class CodeBlock(Statement, DataNode):
             return []
         raise NotImplementedError("Use appropriate CodeBlock subclass")
 
+    @abc.abstractmethod
+    def contains_goto_stmt(self, only: bool = False) -> bool:
+        '''
+        :param only: whether to check if the only statement contained
+            in this CodeBlock is a GOTO statement.
+
+        :returns: whether the Codeblock contains a GOTO statement.
+        '''
+
+    @abc.abstractmethod
+    def contains_exit_stmt(self, only: bool = False) -> bool:
+        '''
+        :param only: whether to check if the only statement contained
+            in this CodeBlock is a EXIT statement.
+
+        :returns: whether the Codeblock contains an EXIT statement.
+        '''
+
+    @abc.abstractmethod
+    def contains_cycle_stmt(self, only: bool = False) -> bool:
+        '''
+        :param only: whether to check if the only statement contained
+            in this CodeBlock is a CYCLE statement.
+
+        :returns: whether the Codeblock contains a CYCLE statement.
+        '''
+
+    @abc.abstractmethod
+    def contains_stop_stmt(self, only: bool = False) -> bool:
+        '''
+        :param only: whether to check if the only statement contained
+            in this CodeBlock is a STOP statement.
+
+        :returns: whether the Codeblock contains a STOP statement.
+        '''
+
 
 class Fparser2CodeBlock(CodeBlock):
     ''' The fparser2 implementation of CodeBlock. '''
@@ -250,7 +287,7 @@ class Fparser2CodeBlock(CodeBlock):
         else:
             structure = CodeBlock.Structure.STATEMENT
 
-        # Purposely inlined to lazily load this modules only when needed
+        # Purposely inlined to lazily load this module only when needed
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.frontend.fparser2 import Fparser2Reader
         reader = Fparser2Reader()
@@ -278,7 +315,7 @@ class Fparser2CodeBlock(CodeBlock):
 
         :returns: the symbol names used inside the CodeBock.
         '''
-        # Purposely inlined to lazily load this modules only when needed
+        # Purposely inlined to lazily load this module only when needed
         # pylint: disable=import-outside-toplevel
         from fparser.two import Fortran2003, pattern_tools
         from fparser.two.utils import walk
@@ -289,17 +326,32 @@ class Fparser2CodeBlock(CodeBlock):
                 # Need to make sure we include any Symbol in the conditional
                 # part but not a label (which would be the second child in the
                 # parse tree). We cannot simply do
-                # `node.parent.children.index(node)` because of fparser #174.
+                # `node.parent.children.index(node)` because of fparser issue
+                # https://github.com/stfc/fparser/issues/174
                 if (len(node.parent.children) == 1 or
                         node is node.parent.children[0]):
                     result.append(node.string)
             elif not isinstance(node.parent,
+                                # We don't want labels associated with loop or
+                                # branch control.
                                 (Fortran2003.Cycle_Stmt,
                                  Fortran2003.End_Do_Stmt,
                                  Fortran2003.Exit_Stmt,
                                  Fortran2003.Else_Stmt,
                                  Fortran2003.End_If_Stmt)):
-                # We don't want labels associated with loop or branch control.
+
+                # Check if this name is a structure accessor instead of a
+                # symbol
+                if isinstance(node.parent, Fortran2003.Part_Ref):
+                    # Also account for array fields name%array(i)
+                    check = node.parent
+                else:
+                    check = node
+                if isinstance(check.parent, Fortran2003.Data_Ref):
+                    # The first child is the base reference, the others are
+                    # accessor names, which are not symbols
+                    if check.parent.children[0] is not check:
+                        continue
                 result.append(node.string)
         # Precision on literals requires special attention since they are just
         # stored in the tree as str (fparser/#456).
@@ -312,10 +364,14 @@ class Fparser2CodeBlock(CodeBlock):
         # Complex literals require even more special attention.
         for node in walk(parse_tree, Fortran2003.Complex_Literal_Constant):
             # A complex literal constant has a real part and an imaginary part.
-            # Each of these can have a kind.
+            # Each of these can have a kind. Each of these can also be an
+            # indirect name rather than a direct literal.
             for part in node.items:
-                if part.items[1]:
-                    result.append(part.items[1])
+                if isinstance(part, Fortran2003.Name):
+                    result.append(str(part))
+                else:
+                    if part.items[1]:
+                        result.append(part.items[1])
         # For directives, we need to analyse all alphanumeric* parts of the
         # comment string and return any names that match a symbol in the
         # symbol table.
@@ -337,7 +393,7 @@ class Fparser2CodeBlock(CodeBlock):
         :returns: whether this CodeBlock contains a potential control flow
                   jump, e.g. GOTO, EXIT or a labeled statement.
         '''
-        # Purposely inlined to lazily load this modules only when needed
+        # Purposely inlined to lazily load this module only when needed
         # pylint: disable=import-outside-toplevel
         from fparser.two import Fortran2003
         from fparser.two.utils import walk
@@ -368,6 +424,82 @@ class Fparser2CodeBlock(CodeBlock):
             output.extend(node.tofortran().split("\n"))
         return output
 
+    def _contains_stmt(self, stmt_cls: Union[type, Iterable[type]],
+                       only: bool = False) -> bool:
+        '''
+        :param stmt_cls: the class or classes to check for in this
+            CodeBlock's _parse_tree_nodes.
+        :param only: whether to check if the only statement contained
+            in this CodeBlock is a statement of the input stmt_cls.
+
+        :returns: whether the Codeblock contains a statement of (any of) the
+            stmt_cls type.
+        '''
+        # Purposely inlined to lazily load this module only when needed
+        # pylint: disable=import-outside-toplevel
+        from fparser.two.utils import walk
+        # If we want to match exactly the stmt_cls, then we
+        # need to have only one element in the _parse_tree_nodes
+        # and it needs to be a stmt_cls.
+        if only:
+            return (len(self._parse_tree_nodes) == 1 and
+                    isinstance(self._parse_tree_nodes[0],
+                               stmt_cls))
+        # Otherwise we check for the presence of any stmt_cls.
+        for node in self._parse_tree_nodes:
+            if walk(node, stmt_cls):
+                return True
+        return False
+
+    def contains_goto_stmt(self, only: bool = False) -> bool:
+        '''
+        :param only: whether to check if the only statement contained
+            in this CodeBlock is a GOTO statement.
+
+        :returns: whether the Codeblock contains a GOTO statement.
+        '''
+        # Purposely inlined to lazily load this module only when needed
+        # pylint: disable=import-outside-toplevel
+        from fparser.two import Fortran2003
+        return self._contains_stmt(Fortran2003.Goto_Stmt, only=only)
+
+    def contains_exit_stmt(self, only: bool = False) -> bool:
+        '''
+        :param only: whether to check if the only statement contained
+            in this CodeBlock is an EXIT statement.
+
+        :returns: whether the Codeblock contains an EXIT statement.
+        '''
+        # Purposely inlined to lazily load this module only when needed
+        # pylint: disable=import-outside-toplevel
+        from fparser.two import Fortran2003
+        return self._contains_stmt(Fortran2003.Exit_Stmt, only=only)
+
+    def contains_cycle_stmt(self, only: bool = False) -> bool:
+        '''
+        :param only: whether to check if the only statement contained
+            in this CodeBlock is a CYCLE statement.
+
+        :returns: whether the Codeblock contains a CYCLE statement.
+        '''
+        # Purposely inlined to lazily load this module only when needed
+        # pylint: disable=import-outside-toplevel
+        from fparser.two import Fortran2003
+        return self._contains_stmt(Fortran2003.Cycle_Stmt, only=only)
+
+    def contains_stop_stmt(self, only: bool = False) -> bool:
+        '''
+        :param only: whether to check if the only statement contained
+            in this CodeBlock is a STOP statement.
+
+        :returns: whether the Codeblock contains a STOP statement.
+        '''
+        # Purposely inlined to lazily load this module only when needed
+        # pylint: disable=import-outside-toplevel
+        from fparser.two import Fortran2003, Fortran2008
+        return self._contains_stmt((Fortran2003.Stop_Stmt,
+                                    Fortran2008.Error_Stop_Stmt), only=only)
+
 
 class TreeSitterCodeBlock(CodeBlock):
     ''' The treesitter implementation of CodeBlock. '''
@@ -390,7 +522,7 @@ class TreeSitterCodeBlock(CodeBlock):
         else:
             structure = CodeBlock.Structure.STATEMENT
 
-        # Purposely inlined to lazily load this modules only when needed
+        # Purposely inlined to lazily load this module only when needed
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.frontend.fortran_treesitter_reader import \
             FortranTreeSitterReader
@@ -407,3 +539,50 @@ class TreeSitterCodeBlock(CodeBlock):
         for node in self._parse_tree_nodes:
             output.extend(str(node.text, encoding="utf8").split("\n"))
         return output
+
+    def get_symbol_names(self) -> list[str]:
+        '''
+        :returns: the name of all symbols accessed in the CodeBlock.
+        '''
+        # TODO #3083: Treesitter support is incomplete
+        return []
+
+    def contains_goto_stmt(self) -> bool:
+        '''
+        :returns: whether the Codeblock contains a GOTO statement.
+
+        :raises NotImplementedError: when called.
+        '''
+        # TODO #3083: Treesitter support is incomplete
+        raise NotImplementedError("Treesitter support is incomplete.")
+
+    def contains_exit_stmt(self) -> bool:
+        '''
+        :returns: whether the Codeblock contains an EXIT statement.
+
+        :raises NotImplementedError: when called.
+        '''
+        # TODO #3083: Treesitter support is incomplete
+        raise NotImplementedError("Treesitter support is incomplete.")
+
+    def contains_cycle_stmt(self) -> bool:
+        '''
+        :returns: whether the Codeblock contains a CYCLE statement.
+
+        :raises NotImplementedError: when called.
+        '''
+        # TODO #3083: Treesitter support is incomplete
+        raise NotImplementedError("Treesitter support is incomplete.")
+
+    def contains_stop_stmt(self) -> bool:
+        '''
+        :returns: whether the Codeblock contains a STOP statement.
+
+        :raises NotImplementedError: when called.
+        '''
+        # TODO #3083: Treesitter support is incomplete
+        raise NotImplementedError("Treesitter support is incomplete.")
+
+
+# For AutoAPI documentation generation.
+__all__ = ["CodeBlock", "Fparser2CodeBlock", "TreeSitterCodeBlock"]

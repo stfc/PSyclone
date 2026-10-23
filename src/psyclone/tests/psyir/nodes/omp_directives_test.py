@@ -1,41 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2021-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         A. B. G. Chalk, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
-#          J. Remy, Université Grenoble Alpes, Inria
-#          M. Naylor, University of Cambridge, UK
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the OpenMP PSyIR Directive nodes. '''
@@ -231,15 +198,54 @@ def test_omp_parallel_do_lowering(fortran_reader, monkeypatch, caplog):
     assert len(pdir.children[3].children) == 1
     assert pdir.children[3].children[0].name == 'b'
 
-    # Monkeypatch a case with shared variables that need synchronisation
+
+def test_ompparallel_lowering_in_depend_continue(fortran_reader, monkeypatch):
+    '''Exercise the branch that ignores IN dependence clauses when checking
+    synchronisation requirements.
+
+    '''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10) :: a
+        integer :: i
+        do i = 1, 10
+            a(i) = i
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    ptrans.apply(tree.walk(Loop)[0])
+    pdir = tree.walk(OMPParallelDirective)[0]
+
+    shared_sym = Symbol("a")
     monkeypatch.setattr(pdir, "infer_sharing_attributes",
-                        lambda: ({}, {}, {Symbol("a")}))
-    with caplog.at_level(logging.WARNING, logger=TEST_LOGGER_OMP):
-        pdir.lower_to_language_level()
-    assert ("Lowering 'OMPParallelDoDirective' detected a possible race "
-            "condition for symbol 'a'. Make sure this is a false WaW "
-            "dependency or the code includes the necessary synchronisations."
-            "\n" in caplog.text)
+                        lambda: (set(), set(), {shared_sym}))
+
+    task_dir = OMPTaskDirective()
+    task_dir.addchild(OMPPrivateClause())
+    task_dir.addchild(OMPFirstprivateClause())
+    task_dir.addchild(OMPSharedClause())
+    in_clause = OMPDependClause(
+        depend_type=OMPDependClause.DependClauseTypes.IN)
+    in_clause.addchild(Reference(shared_sym))
+    task_dir.addchild(in_clause)
+    pdir.children[0].addchild(task_dir)
+
+    monkeypatch.setattr(OMPDependClause, "operator",
+                        property(lambda self: "in"))
+    pdir.lower_to_language_level()
+    assert isinstance(pdir.children[2], OMPPrivateClause)
+
+
+def test_ompparallel_encloses_no_directive_pass_branch(monkeypatch):
+    '''Exercise the code path where no enclosed OpenMP region directives are
+    found.
+
+    '''
+    pdir = OMPParallelDirective()
+    monkeypatch.setattr(pdir, "walk", lambda *args, **kwargs: [])
+    assert pdir._encloses_omp_directive() is None
 
 
 def test_omp_teams_distribute_parallel_do_strings(
@@ -495,8 +501,8 @@ def test_ompdo_equality():
     sched1.addchild(child_node)
     loop1 = Loop.create(loop_sym,
                         start, stop, step, [])
-    loop1.children[3].detach()
-    loop1.addchild(sched1, 3)
+    loop1.loop_body.detach()
+    loop1.addchild(sched1)
     start2 = start.copy()
     stop2 = stop.copy()
     step2 = step.copy()
@@ -510,8 +516,8 @@ def test_ompdo_equality():
     sched2.addchild(child_node2)
     loop2 = Loop.create(loop_sym,
                         start2, stop2, step2, [])
-    loop2.children[3].detach()
-    loop2.addchild(sched2, 3)
+    loop2.loop_body.detach()
+    loop2.addchild(sched2)
 
     ompdo1 = OMPDoDirective(children=[loop1])
     ompdo2 = OMPDoDirective(children=[loop2])
@@ -664,34 +670,41 @@ def test_infer_sharing_attributes_with_explicitly_private_symbols(
     assert "scalar2" in [x.name for x in fpvars]
 
 
-def test_infer_sharing_attributes_with_codeblocks(
-        fortran_reader, fortran_writer):
+@pytest.mark.parametrize("code, loop_idx", [
+   (lambda x, y: f"write(*,*) {x}, {y}\n", 0),
+   (lambda x, y: f"do {x} = 1,2\nenddo\ndo {y} = 1,2\nenddo\n", 2)
+])
+def test_infer_sharing_attributes_with_hidden_references(
+        code, loop_idx, fortran_reader, fortran_writer):
     ''' Tests the infer_sharing_attributes() method when some of the loops have
-    Codeblocks inside it. We check that the infer_sharing attribute analysis
-    succeed by assuming worst case.
+    potentially hidden references (e.g. inside codeblocks or loop variables).
+    We check that the infer_sharing attribute analysis succeed by assuming
+    worst case.
     '''
-    psyir = fortran_reader.psyir_from_source('''
+    psyir = fortran_reader.psyir_from_source(f'''
         subroutine my_subroutine()
             use other, only: mystruct
             integer :: i, j, scalar1 = 1, scalar2 = 2
             real, dimension(10) :: array, array2
-            write(*,*) scalar1, scalar2
+            {code("scalar2", "scalar2")}
             do j = 1, 10
                do i = 1, size(array, 1)
-                   write(*,*) scalar2, mystruct(i)%field2
+                   {code("scalar2", "scalar2")}
+                   write(*,*) mystruct(i)%field2
                    if (.true.) then
                        scalar1 = 1
-                       write(*,*) scalar1, mystruct(i)%field1
+                       {code("scalar1", "scalar1")}
+                       write(*,*) mystruct(i)%field1
                    end if
                    scalar2 = scalar1 + 1
-                   write(*,*) scalar1, scalar2
+                   {code("scalar1", "scalar2")}
                enddo
             enddo
-            write(*,*) scalar1, scalar2
+            {code("scalar1", "scalar2")}
         end subroutine''')
     omplooptrans = OMPLoopTrans()
     omplooptrans.omp_directive = "paralleldo"
-    loop = psyir.walk(Loop)[0]
+    loop = psyir.walk(Loop)[loop_idx]
     # Make sure that the write statements inside the loop are CodeBlocks,
     # otherwise we need a new test example
     assert loop.has_descendant(nodes.CodeBlock)
@@ -702,7 +715,7 @@ def test_infer_sharing_attributes_with_codeblocks(
     # over with CodeBlocks. This will often still be defensively firstprivate
     # as we condiser all codeblock accesses as READWRITE.
     output = fortran_writer(psyir)
-    assert "firstprivate(scalar1,scalar2)" in output
+    assert "firstprivate(scalar1,scalar2)" in output, output
 
     # Add many more Codeblocks. For performance reasons this will skip the
     # analysis, but still return them all as firstprivate
@@ -1652,8 +1665,8 @@ def test_omploop_equality():
     sched1.addchild(child_node)
     loop1 = Loop.create(loop_sym,
                         start, stop, step, [])
-    loop1.children[3].detach()
-    loop1.addchild(sched1, 3)
+    loop1.loop_body.detach()
+    loop1.addchild(sched1)
     start2 = start.copy()
     stop2 = stop.copy()
     step2 = step.copy()
@@ -1667,8 +1680,8 @@ def test_omploop_equality():
     sched2.addchild(child_node2)
     loop2 = Loop.create(loop_sym,
                         start2, stop2, step2, [])
-    loop2.children[3].detach()
-    loop2.addchild(sched2, 3)
+    loop2.loop_body.detach()
+    loop2.addchild(sched2)
 
     omploop1 = OMPLoopDirective(children=[loop1])
     omploop2 = OMPLoopDirective(children=[loop2])
@@ -2562,7 +2575,7 @@ def test_omp_serial_valid_dependence_ref_binop_fails():
         Literal("32", ScalarType.integer_single_type()),
         [task3],
     )
-    loop.children[3].pop_all_children()
+    loop.loop_body.pop_all_children()
     Loop.create(
         tmp,
         Reference(tmp4),
@@ -2878,14 +2891,16 @@ def test_omp_serial_validate_task_dependencies_outout():
     # StructureType for Structure tests
     grid_type = StructureType.create(
         [
-            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-            (
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
                 "sub_grids",
                 ArrayType(ScalarType.integer_type(), [3]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
-            (
+            StructureType.ComponentType(
                 "data",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
@@ -3037,14 +3052,24 @@ def test_omp_serial_validate_task_dependencies_outout():
 
     # Check outout accesses to different structure member lengths
     sub_grid_type = StructureType.create(
-        [("array", ArrayType(ScalarType.real_type(), [128, 128]),
-          Symbol.Visibility.PUBLIC, None)]
+        [
+            StructureType.ComponentType(
+                "array",
+                ArrayType(ScalarType.real_type(), [128, 128]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            )
+        ]
     )
     grid_type = StructureType.create(
         [
-            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-            ("sub_grids", sub_grid_type, Symbol.Visibility.PUBLIC, None),
-            (
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
+                "sub_grids", sub_grid_type, Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
                 "data",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
@@ -3123,14 +3148,16 @@ def test_omp_serial_validate_task_dependencies_outout():
     # Check outout accesses to different structure members
     grid_type = StructureType.create(
         [
-            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-            (
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
                 "data2",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
-            (
+            StructureType.ComponentType(
                 "data",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
@@ -3423,14 +3450,16 @@ def test_omp_serial_validate_task_dependencies_inout():
     # StructureType for Structure tests
     grid_type = StructureType.create(
         [
-            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-            (
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
                 "sub_grids",
                 ArrayType(ScalarType.integer_type(), [3]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
-            (
+            StructureType.ComponentType(
                 "data",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
@@ -3586,15 +3615,24 @@ def test_omp_serial_validate_task_dependencies_inout():
 
     # Check inout accesses to different structure member lengths
     sub_grid_type = StructureType.create(
-        [("array", ArrayType(ScalarType.real_type(), [128, 128]),
-          Symbol.Visibility.PUBLIC,
-          None)]
+        [
+            StructureType.ComponentType(
+                "array",
+                ArrayType(ScalarType.real_type(), [128, 128]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            )
+        ]
     )
     grid_type = StructureType.create(
         [
-            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-            ("sub_grids", sub_grid_type, Symbol.Visibility.PUBLIC, None),
-            (
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
+                "sub_grids", sub_grid_type, Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
                 "data",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
@@ -3673,14 +3711,16 @@ def test_omp_serial_validate_task_dependencies_inout():
     # Check inout accesses to different structure members
     grid_type = StructureType.create(
         [
-            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-            (
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
                 "data2",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
-            (
+            StructureType.ComponentType(
                 "data",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
@@ -3976,14 +4016,16 @@ def test_omp_serial_validate_task_dependencies_outin():
     # StructureType for Structure tests
     grid_type = StructureType.create(
         [
-            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-            (
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
                 "sub_grids",
                 ArrayType(ScalarType.integer_type(), [3]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
-            (
+            StructureType.ComponentType(
                 "data",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
@@ -4139,15 +4181,24 @@ def test_omp_serial_validate_task_dependencies_outin():
 
     # Check outin accesses to different structure member lengths
     sub_grid_type = StructureType.create(
-        [("array", ArrayType(ScalarType.real_type(), [128, 128]),
-          Symbol.Visibility.PUBLIC,
-          None)]
+        [
+            StructureType.ComponentType(
+                "array",
+                ArrayType(ScalarType.real_type(), [128, 128]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            )
+        ]
     )
     grid_type = StructureType.create(
         [
-            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-            ("sub_grids", sub_grid_type, Symbol.Visibility.PUBLIC, None),
-            (
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
+                "sub_grids", sub_grid_type, Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
                 "data",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
@@ -4226,14 +4277,16 @@ def test_omp_serial_validate_task_dependencies_outin():
     # Check outin accesses to different structure members
     grid_type = StructureType.create(
         [
-            ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-            (
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
                 "data2",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
                 None,
             ),
-            (
+            StructureType.ComponentType(
                 "data",
                 ArrayType(ScalarType.real_type(), [128, 128]),
                 Symbol.Visibility.PUBLIC,
@@ -4425,7 +4478,7 @@ def test_omp_serial_validate_task_dependencies_add_taskwait(fortran_reader):
     for child in schedule.children[:]:
         if isinstance(child, Loop):
             loop_trans.apply(child)
-            assert isinstance(child.children[3].children[0], Loop)
+            assert isinstance(child.loop_body.children[0], Loop)
             task_trans.apply(child, {"force": True})
 
     single_trans = OMPSingleTrans()
@@ -4474,7 +4527,7 @@ def test_omp_serial_validate_task_dependencies_add_taskwait(fortran_reader):
     for child in schedule.children[:]:
         if isinstance(child, Loop):
             loop_trans.apply(child)
-            assert isinstance(child.children[3].children[0], Loop)
+            assert isinstance(child.loop_body.children[0], Loop)
             task_trans.apply(child, {"force": True})
         if isinstance(child, IfBlock):
             loop = child.if_body.children[0]
@@ -4528,7 +4581,7 @@ def test_omp_serial_validate_task_dependencies_add_taskwait(fortran_reader):
     for child in schedule.children[:]:
         if isinstance(child, Loop):
             loop_trans.apply(child)
-            assert isinstance(child.children[3].children[0], Loop)
+            assert isinstance(child.loop_body.children[0], Loop)
             task_trans.apply(child, {"force": True})
         if isinstance(child, IfBlock):
             loop = child.if_body.children[0]
@@ -4584,7 +4637,7 @@ def test_omp_serial_validate_task_dependencies_add_taskwait(fortran_reader):
     for child in schedule.children[:]:
         if isinstance(child, Loop):
             loop_trans.apply(child)
-            assert isinstance(child.children[3].children[0], Loop)
+            assert isinstance(child.loop_body.children[0], Loop)
             task_trans.apply(child, {"force": True})
 
     single_trans = OMPSingleTrans()
@@ -4634,7 +4687,7 @@ def test_omp_serial_validate_task_dependencies_add_taskwait(fortran_reader):
     for child in schedule.children[:]:
         if isinstance(child, Loop):
             loop_trans.apply(child)
-            assert isinstance(child.children[3].children[0], Loop)
+            assert isinstance(child.loop_body.children[0], Loop)
             task_trans.apply(child, {"force": True})
 
     single_trans = OMPSingleTrans()
@@ -4674,18 +4727,39 @@ def test_omp_serial_check_dependency_valid_multiple_arraymixin():
     Tests the case where a StructureReference contains two ArrayMixin
     children.
     '''
-    region_type = StructureType.create([
-        ("startx", ArrayType(ScalarType.real_type(), [10]),
-         Symbol.Visibility.PUBLIC, None)
-    ])
+    region_type = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "startx",
+                ArrayType(ScalarType.real_type(), [10]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            )
+        ]
+    )
     region_type_symbol = DataTypeSymbol("region_type", region_type)
-    grid_type = StructureType.create([
-        ("nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None),
-        ("region", region_type_symbol, Symbol.Visibility.PRIVATE, None),
-        ("sub_grids", ArrayType(region_type_symbol, [3]),
-         Symbol.Visibility.PUBLIC, None),
-        ("data", ArrayType(ScalarType.real_type(), [10, 10]),
-         Symbol.Visibility.PUBLIC, None)])
+    grid_type = StructureType.create(
+        [
+            StructureType.ComponentType(
+                "nx", ScalarType.integer_type(), Symbol.Visibility.PUBLIC, None
+            ),
+            StructureType.ComponentType(
+                "region", region_type_symbol, Symbol.Visibility.PRIVATE, None
+            ),
+            StructureType.ComponentType(
+                "sub_grids",
+                ArrayType(region_type_symbol, [3]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            StructureType.ComponentType(
+                "data",
+                ArrayType(ScalarType.real_type(), [10, 10]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
     grid_type_symbol = DataTypeSymbol("grid_type", grid_type)
     ssym = DataSymbol("grid", grid_type_symbol)
     # Reference to scalar member of structure

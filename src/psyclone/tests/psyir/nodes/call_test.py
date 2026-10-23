@@ -1,37 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Call PSyIR node. '''
@@ -44,10 +15,10 @@ from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import (
     ArrayReference, BinaryOperation, Call, Literal,
     Node, Reference, Routine, Schedule, CallMatchingArgumentsNotFound)
-from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
     ArrayType, ScalarType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     NoType, RoutineSymbol, SymbolError, UnresolvedInterface, UnresolvedType)
+from psyclone.utils import colored
 
 
 class SpecialCall(Call):
@@ -465,7 +436,7 @@ def test_type_bound_call_reference_accesses(fortran_reader):
     '''Test the reference_accesses() method for a call to a type-bound
     procedure.
 
-    TODO #2823 - we currently make dangerous assumptions about accesses
+    We currently make dangerous assumptions about accesses
     to variables if whether or not they are being used as function
     arguments is ambiguous.
 
@@ -501,12 +472,6 @@ def test_type_bound_call_reference_accesses(fortran_reader):
     assert vam.has_read_write(Signature("j"))
     assert not vam.has_read_write(Signature("k"))
     assert not vam.has_read_write(Signature("f"))
-    # We can't tell whether 'domain%get_start(i)' is an array access
-    # or a function call. We currently, dangerously, assume it is the former.
-    if not vam.has_read_write(Signature("i")):
-        pytest.xfail(reason="TODO #2823 - potential array accesses/function "
-                     "calls are always assumed to be array accesses. This is "
-                     "unsafe.")
 
 
 def test_call_argumentnames_after_removearg():
@@ -1435,6 +1400,62 @@ end module some_mod'''
     assert "No matching routine found for 'call foo(e, f)" in str(err.value)
 
 
+def test_call_get_callee_9_implicit_reshaping(fortran_reader):
+    '''
+    Check that implicit reshaping of array arguments is permitted
+    when the dummy argument is an explicit-shape array, provided
+    that the call is not a call to an interface.
+    '''
+    code = '''
+module implicit_reshaping_test
+  implicit none
+
+  interface ifc
+    module procedure sub1
+  end interface
+contains
+  subroutine top(n)
+    integer, intent(in) :: n
+    real :: mat(n, n)
+    call ifc(mat)
+    call sub1(mat)
+    call sub2(mat)
+  end subroutine
+
+  subroutine sub1(arr)
+    real, intent(in) :: arr(100)
+    print *, "Called sub1"
+  end subroutine
+
+  subroutine sub2(arr)
+    real, intent(in) :: arr(1:)
+    print *, "Called sub2"
+  end subroutine
+end module
+'''
+    psyir: Node = fortran_reader.psyir_from_source(code)
+    routine_top: Routine = psyir.walk(Routine)[0]
+    assert routine_top.name == "top"
+
+    # Call to 'ifc' should not permit implicit reshaping
+    call_ifc: Call = routine_top.walk(Call)[0]
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call_ifc.get_callee()
+    assert "No matching routine found for" in str(err.value)
+
+    # Call to 'sub1' should permit implicit reshaping
+    call_sub1: Call = routine_top.walk(Call)[1]
+    (result, _) = call_sub1.get_callee()
+    sub1_match: Routine = psyir.walk(Routine)[1]
+    assert result is sub1_match
+
+    # Call to 'sub2' should not permit implicit reshaping
+    call_sub2: Call = routine_top.walk(Call)[2]
+    with pytest.raises(CallMatchingArgumentsNotFound) as err:
+        call_sub2.get_callee()
+    assert "No matching routine found for" in str(err.value)
+
+
 @pytest.mark.usefixtures("clear_module_manager_instance")
 def test_call_get_callees_unresolved(fortran_reader, tmpdir, monkeypatch,
                                      config_instance):
@@ -1479,7 +1500,7 @@ module my_mod
 subroutine top()
   call bottom()
 end subroutine top
-complex function possibly()
+byte function possibly()
     possibly = 1
 end function possibly
 end module my_mod
@@ -1723,9 +1744,9 @@ contains
     luggage = luggage + real(my_func(1))
   end subroutine top
 
-  complex function my_func(val)
+  byte function my_func(val)
     integer, intent(in) :: val
-    my_func = CMPLX(1 + val, 1.0)
+    my_func = 1
   end function my_func
 end module some_mod'''
     psyir = fortran_reader.psyir_from_source(code)
@@ -1915,12 +1936,15 @@ def test_check_argument_type_matches(fortran_reader):
     call2._check_argument_type_matches(
         call2.arguments[0],
         DataSymbol("dummy1", ArrayType(ScalarType.real_type(), shape=[10])))
-    # Array of wrong rank.
+    # Array of wrong rank. Implicit reshaping is not permitted because
+    # the dummy argument is not an explicit-shape array.
     with pytest.raises(CallMatchingArgumentsNotFound) as err:
         call2._check_argument_type_matches(
             call2.arguments[0],
-            DataSymbol("dummy1", ArrayType(ScalarType.real_type(),
-                                           shape=[10, 10])))
+            DataSymbol("dummy1",
+                       ArrayType(ScalarType.real_type(),
+                                 shape=[ArrayType.Extent.ATTRIBUTE,
+                                        ArrayType.Extent.ATTRIBUTE])))
     assert ("Rank mismatch of call argument 'var2' (rank 1) and routine "
             "argument 'dummy1' (rank 2)" in str(err.value))
     # Array of wrong intrinsic type.
@@ -1961,13 +1985,16 @@ def test_check_argument_type_matches(fortran_reader):
     assert ("Argument type mismatch of call argument 'athing' (Array<my_type: "
             "DataTypeSymbol, shape=[5]>) and routine argument 'dummy1' "
             "(MY_type: DataTypeSymbol)" in str(err.value))
-    # Doesn't match with array of derived type with wrong rank.
+    # Doesn't match with array of derived type with wrong rank. Implicit
+    # reshaping is not permitted because the dummy argument is not an
+    # explicit-shape array.
     with pytest.raises(CallMatchingArgumentsNotFound) as err:
         call4._check_argument_type_matches(
             call4.arguments[0],
             DataSymbol("dummy1",
                        ArrayType(DataTypeSymbol("MY_type", UnresolvedType()),
-                                 shape=[3, 4])))
+                                 shape=[ArrayType.Extent.ATTRIBUTE,
+                                        ArrayType.Extent.ATTRIBUTE])))
     assert ("Rank mismatch of call argument 'athing' (rank 1) and routine "
             "argument 'dummy1' (rank 2)" in str(err.value))
     # Doesn't match with array of a different derived type.

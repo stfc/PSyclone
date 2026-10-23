@@ -1,39 +1,8 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2019-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic and J. G. Wallwork, Met Office
-#         J. Henrichs, Bureau of Meteorology
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Node PSyIR node. '''
@@ -56,7 +25,7 @@ from psyclone.psyir.nodes.node import ChildrenList, Node
 from psyclone.psyir.symbols import DataSymbol, SymbolError, \
     ScalarType, SymbolTable, ArrayType, RoutineSymbol, NoType
 from psyclone.tests.utilities import get_invoke
-from psyclone.psyir.nodes.node import colored
+from psyclone.utils import colored
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "lfric")
@@ -423,7 +392,7 @@ def test_node_args():
     '''Test that the Node class args method returns the correct arguments
     for Nodes that do not have arguments themselves'''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "4_multikernel_invokes.f90"),
+        os.path.join(BASE_PATH, "4_multikernel_invokes_fusable.f90"),
         api="lfric")
     psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -433,7 +402,7 @@ def test_node_args():
     loop2 = schedule.children[1]
     kern2 = loop2.loop_body[0]
     # 1) Schedule (not that this is useful)
-    all_args = kern1.arguments.args
+    all_args = kern1.arguments.args[:]
     all_args.extend(kern2.arguments.args)
     schedule_args = schedule.args
     for idx, arg in enumerate(all_args):
@@ -448,7 +417,7 @@ def test_node_args():
         assert arg == loop2_args[idx]
     # 4) Loop fuse
     ftrans = LFRicLoopFuseTrans()
-    ftrans.apply(schedule.children[0], schedule.children[1])
+    ftrans.apply((schedule.children[0], schedule.children[1]))
     loop = schedule.children[0]
     kern1 = loop.loop_body[0]
     kern2 = loop.loop_body[1]
@@ -646,6 +615,48 @@ def test_node_is_valid_location():
     assert not anode.is_valid_location(schedule.children[3], position="after")
 
 
+def test_node_forward_dependence_selects_closest():
+    '''Check that ``forward_dependence`` keeps the closest dependence when
+    several dependencies are found.
+
+    '''
+    class MyNode(Node):
+        '''Simple Node subclass with configurable arguments.'''
+        _colour = "green"
+
+        @staticmethod
+        def _validate_child(position, child):
+            return True
+
+        @property
+        def args(self):
+            return self._args
+
+    class FakeDepArg:
+        '''Argument object that returns a predefined dependence.'''
+        def __init__(self, dep_node):
+            self._dep_node = dep_node
+
+        def forward_dependence(self):
+            class DepInfo:  # pylint: disable=too-few-public-methods
+                '''Mimic a dependence container with a ``call`` node.'''
+            dep = DepInfo()
+            dep.call = self._dep_node
+            return dep
+
+    parent = MyNode()
+    target = MyNode()
+    dep_near = MyNode()
+    dep_far = MyNode()
+    parent.addchild(target)
+    parent.addchild(dep_near)
+    parent.addchild(dep_far)
+    target._args = [FakeDepArg(dep_far), FakeDepArg(dep_near)]
+
+    assert dep_far.position > dep_near.position
+    assert target.forward_dependence() is dep_near
+
+
 def test_node_ancestor():
     ''' Test the Node.ancestor() method. '''
     _, invoke = get_invoke("single_invoke.f90", "gocean", idx=0,
@@ -759,7 +770,7 @@ def test_dag_names():
     assert schedule.children[4].dag_name == "loop_[cells_in_colour]_5"
     schedule.children[4].loop_type = ""
     assert (schedule.children[4].loop_body[0].dag_name ==
-            "kernel_testkern_code_10")
+            "kernel_testkern_code_11")
 
     # If there is no ancestor routine, the index is the absolute position
     idx = aref.children[0].detach()
@@ -773,7 +784,7 @@ def test_dag_names():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     builtin = schedule.children[1].loop_body[0]
-    assert builtin.dag_name == "builtin_sum_x_12"
+    assert builtin.dag_name == "builtin_sum_x_14"
 
 
 def test_node_dag_no_graphviz(tmpdir, monkeypatch):
@@ -862,26 +873,26 @@ EXPECTED2 = re.compile(
     r"\s*routine_invoke_0_0_end\n"
     r"\s*loop_1_start\n"
     r"\s*loop_1_end\n"
-    r"\s*loop_1_end -> loop_7_start \[color=green\]\n"
+    r"\s*loop_1_end -> loop_8_start \[color=green\]\n"
     r"\s*routine_invoke_0_0_start -> loop_1_start \[color=blue\]\n"
-    r"\s*Schedule_5_start\n"
-    r"\s*Schedule_5_end\n"
-    r"\s*Schedule_5_end -> loop_1_end \[color=blue\]\n"
-    r"\s*loop_1_start -> Schedule_5_start \[color=blue\]\n"
-    r"\s*kernel_testkern_qr_code_6\n"
-    r"\s*kernel_testkern_qr_code_6 -> Schedule_5_end \[color=blue\]\n"
-    r"\s*Schedule_5_start -> kernel_testkern_qr_code_6 \[color=blue\]\n"
-    r"\s*loop_7_start\n"
-    r"\s*loop_7_end\n"
-    r"\s*loop_7_end -> routine_invoke_0_0_end \[color=blue\]\n"
-    r"\s*loop_1_end -> loop_7_start \[color=red\]\n"
-    r"\s*Schedule_11_start\n"
-    r"\s*Schedule_11_end\n"
-    r"\s*Schedule_11_end -> loop_7_end \[color=blue\]\n"
-    r"\s*loop_7_start -> Schedule_11_start \[color=blue\]\n"
-    r"\s*kernel_testkern_qr_code_12\n"
-    r"\s*kernel_testkern_qr_code_12 -> Schedule_11_end \[color=blue\]\n"
-    r"\s*Schedule_11_start -> kernel_testkern_qr_code_12 \[color=blue\]\n"
+    r"\s*Schedule_6_start\n"
+    r"\s*Schedule_6_end\n"
+    r"\s*Schedule_6_end -> loop_1_end \[color=blue\]\n"
+    r"\s*loop_1_start -> Schedule_6_start \[color=blue\]\n"
+    r"\s*kernel_testkern_qr_code_7\n"
+    r"\s*kernel_testkern_qr_code_7 -> Schedule_6_end \[color=blue\]\n"
+    r"\s*Schedule_6_start -> kernel_testkern_qr_code_7 \[color=blue\]\n"
+    r"\s*loop_8_start\n"
+    r"\s*loop_8_end\n"
+    r"\s*loop_8_end -> routine_invoke_0_0_end \[color=blue\]\n"
+    r"\s*loop_1_end -> loop_8_start \[color=red\]\n"
+    r"\s*Schedule_13_start\n"
+    r"\s*Schedule_13_end\n"
+    r"\s*Schedule_13_end -> loop_8_end \[color=blue\]\n"
+    r"\s*loop_8_start -> Schedule_13_start \[color=blue\]\n"
+    r"\s*kernel_testkern_qr_code_14\n"
+    r"\s*kernel_testkern_qr_code_14 -> Schedule_13_end \[color=blue\]\n"
+    r"\s*Schedule_13_start -> kernel_testkern_qr_code_14 \[color=blue\]\n"
     r"}")
 # pylint: enable=anomalous-backslash-in-string
 
@@ -910,8 +921,8 @@ def test_node_dag(tmpdir, have_graphviz):
                  "<title>routine_invoke_0_0_end</title>",
                  "<title>loop_1_start</title>",
                  "<title>loop_1_end</title>",
-                 "<title>kernel_testkern_qr_code_6</title>",
-                 "<title>kernel_testkern_qr_code_12</title>",
+                 "<title>kernel_testkern_qr_code_7</title>",
+                 "<title>kernel_testkern_qr_code_14</title>",
                  "<svg", "</svg>", ]:
         assert name in result
     for colour_name, colour_code in [("blue", "#0000ff"),
@@ -1024,11 +1035,6 @@ def test_children_validation():
 
     with pytest.raises(GenerationError):
         loop.children.reverse()
-
-    # But in the right circumstances they work fine
-    assert isinstance(loop.children.pop(), Schedule)
-    loop.children.reverse()
-    assert loop.children[0].value == "2"
 
 
 def test_children_is_orphan_validation():
@@ -1305,9 +1311,9 @@ def test_replace_with_error1():
     # The first child of a loop is the loop start value which should
     # be a DataNode.
     with pytest.raises(GenerationError) as info:
-        loop.children[0].replace_with(new_node)
+        loop.variable_reference.replace_with(new_node)
     assert ("Item 'Assignment' can't be child 0 of 'Loop'. The valid "
-            "format is: 'DataNode, DataNode, DataNode, Schedule'"
+            "format is: 'Reference, DataNode, DataNode, DataNode, Schedule'"
             in str(info.value))
 
 
@@ -1622,7 +1628,7 @@ def test_origin_string(fortran_reader):
     # If its a Statement from a file, it can return the PSyIR node type, the
     # line number span, the filename and the original source line.
     string = psyir.walk(Statement)[0].origin_string()
-    assert "Assignment from line (76, 76) of file" in string
+    assert "Assignment from line (50, 50) of file" in string
     assert "continuity_mod.f90" in string
     assert "ssha(ji,jj) = 0.0_go_wp" in string
 
@@ -2031,3 +2037,45 @@ def test_get_all_accessed_symbols(fortran_reader):
     assert "j" in symbol_names
     assert "k" in symbol_names
     assert "l" in symbol_names
+
+
+def test_get_last_descendant_node(fortran_reader):
+    '''Test the get_last_descendant_node functionality of the Node class.'''
+    code = """subroutine test_sub()
+    integer :: i, j, k
+
+    k = 12
+    i = j + k
+    end subroutine test_sub
+    """
+    psyir = fortran_reader.psyir_from_source(code)
+
+    # The get_last_descendant_node of the psyir statement is the k in i = j + k
+    assigns = psyir.walk(Assignment)
+    assert psyir.get_last_descendant_node() is assigns[1].rhs.children[1]
+    # Last node in the first assignment is the rhs.
+    assert assigns[0].get_last_descendant_node() is assigns[0].rhs
+    # Last node in the second assignment is the k in i = j + k
+    assert assigns[1].get_last_descendant_node() is assigns[1].rhs.children[1]
+    # Last node on k is itself
+    assert (assigns[1].rhs.children[1].get_last_descendant_node() is
+            assigns[1].rhs.children[1])
+
+    # Test we get the right node for a more complex example.
+    code = """subroutine test_sub()
+    integer :: i, j, k
+
+    if (i > 4) then
+        i = 4
+    elseif (j < 5) then
+        k = 2
+    else
+        j = k + i
+    end if
+    end subroutine test_sub"""
+    psyir = fortran_reader.psyir_from_source(code)
+
+    # The get_last_descendant_node of the ifblock is the i in j = k + i
+    ifblock = psyir.children[0].children[0]
+    assigns = psyir.walk(Assignment)
+    assert ifblock.get_last_descendant_node() is assigns[2].rhs.children[1]

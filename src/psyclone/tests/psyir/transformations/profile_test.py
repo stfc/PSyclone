@@ -1,42 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2018-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2018-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, STFC Daresbury Lab
-# Modified by A. R. Porter, STFC Daresbury Lab
-# Modified by I. Kavcic, Met Office
-# Modified by S. Siso, STFC Daresbury Lab
-# Modified by A. B. G. Chalk, STFC Daresbury Lab
 
 ''' Module containing tests for generating monitoring hooks'''
 
@@ -49,7 +16,7 @@ from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.profiler import Profiler
 from psyclone.psyir.nodes import (
-    colored, ProfileNode, Loop, Literal, Assignment, Return, Reference,
+    ProfileNode, Loop, Literal, Assignment, Return, Reference,
     OMPDoDirective, KernelSchedule, Routine, Schedule)
 from psyclone.psyir.symbols import (
     SymbolTable, DataSymbol, ScalarType)
@@ -59,6 +26,7 @@ from psyclone.psyir.transformations import (
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (
     GOceanOMPLoopTrans, LFRicOMPLoopTrans)
+from psyclone.utils import colored
 
 
 # -----------------------------------------------------------------------------
@@ -74,7 +42,7 @@ def teardown_function():
 def test_profile_basic():
     '''Check basic functionality: node names, schedule view.
     '''
-    Profiler.set_options([Profiler.INVOKES], api="gocean")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean", idx=0, dist_mem=False)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
@@ -132,7 +100,7 @@ def test_profile_errors2():
 def test_profile_invokes_gocean1p0(fortran_writer):
     '''Check that an invoke is instrumented correctly
     '''
-    Profiler.set_options([Profiler.INVOKES], "gocean")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
@@ -199,7 +167,7 @@ def test_unique_region_names(fortran_writer):
     '''Test that unique region names are created even when the kernel
     names are identical.'''
 
-    Profiler.set_options([Profiler.KERNELS], "gocean")
+    Profiler.set_options([Profiler.KERNELS], is_psykal=True)
     _, invoke = get_invoke("single_invoke_two_identical_kernels.f90",
                            "gocean", 0, dist_mem=False)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
@@ -242,7 +210,7 @@ def test_unique_region_names(fortran_writer):
 def test_profile_kernels_gocean1p0(fortran_writer):
     '''Check that all kernels are instrumented correctly
     '''
-    Profiler.set_options([Profiler.KERNELS], "gocean")
+    Profiler.set_options([Profiler.KERNELS], is_psykal=True)
     _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean",
                            idx=0, dist_mem=False)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
@@ -309,7 +277,7 @@ def test_profile_named_gocean1p0(fortran_writer):
 def test_profile_invokes_lfric(fortran_writer):
     '''Check that an LFRic invoke is instrumented correctly
     '''
-    Profiler.set_options([Profiler.INVOKES], "lfric")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
 
     # First test for a single invoke with a single kernel work as expected:
     _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
@@ -367,7 +335,7 @@ def test_profile_invokes_lfric(fortran_writer):
     invoke.setup_psy_layer_symbols()
     code = fortran_writer(invoke.schedule)
     assert "use profile_psy_data_mod, only : profile_PSyDataType" in code
-    assert "type(profile_PSyDataType), save, target :: profile_psy_data" \
+    assert "type(profile_psydatatype), save, target :: profile_psy_data" \
         in code
     assert "CALL profile_psy_data % PreStart(\"single_invoke_psy\", "\
            "\"invoke_0-x_plus_y-r0\", 0, 0)" in code
@@ -410,7 +378,7 @@ def test_profile_kernels_lfric(fortran_writer):
     '''Check that all kernels are instrumented correctly in a
     LFRic invoke.
     '''
-    Profiler.set_options([Profiler.KERNELS], "lfric")
+    Profiler.set_options([Profiler.KERNELS], is_psykal=True)
     _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
@@ -443,9 +411,9 @@ def test_profile_kernels_lfric(fortran_writer):
     code = fortran_writer(invoke.schedule)
 
     # Check that the variables are different
-    assert ("type(profile_PSyDataType), save, target :: profile_psy_data\n"
+    assert ("type(profile_psydatatype), save, target :: profile_psy_data\n"
             in code)
-    assert ("type(profile_PSyDataType), save, target :: profile_psy_data_1\n"
+    assert ("type(profile_psydatatype), save, target :: profile_psy_data_1\n"
             in code)
     assert ("CALL profile_psy_data % PreStart(\"multi_invoke_psy\", "
             "\"invoke_0-testkern_code-r0\", 0, 0)" in code)
@@ -461,22 +429,23 @@ def test_profile_fused_kernels_lfric():
     invoke which has had them fused (i.e. there is more than
     one Kernel inside a loop).
     '''
-    Profiler.set_options([Profiler.KERNELS], "lfric")
+    Profiler.set_options([Profiler.KERNELS], is_psykal=True)
     psy, invoke = get_invoke("1.2_multi_invoke.f90", "lfric", idx=0,
                              dist_mem=False)
 
     fuse_trans = LFRicLoopFuseTrans()
     loops = invoke.schedule.walk(Loop)
-    fuse_trans.apply(loops[0], loops[1])
+    fuse_trans.apply((loops[0], loops[1]))
     Profiler.add_profile_nodes(invoke.schedule, Loop)
     code = psy.gen
+    print(code)
     expected = '''\
     CALL profile_psy_data % PreStart("multi_invoke_psy", "invoke_0-r0", 0, 0)
     do cell = loop0_start, loop0_stop, 1
       call testkern_code(nlayers_f1, a, f1_data, f2_data, m1_data, m2_data, \
 ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, \
 undf_w3, map_w3(:,cell))
-      call testkern_code(nlayers_f1, a, f1_data, f3_data, m2_data, m1_data, \
+      call testkern_code(nlayers_f3, a, f3_data, f2_data, m2_data, m1_data, \
 ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, \
 undf_w3, map_w3(:,cell))
     enddo
@@ -492,7 +461,7 @@ def test_profile_kernels_without_loop_lfric():
     impossible so we construct an artificial Schedule to test.
 
     '''
-    Profiler.set_options([Profiler.KERNELS], "lfric")
+    Profiler.set_options([Profiler.KERNELS], is_psykal=True)
     _, invoke = get_invoke("1.2_multi_invoke.f90", "lfric", idx=0,
                            dist_mem=False)
 
@@ -512,7 +481,7 @@ def test_profile_kernels_in_directive_lfric():
     '''
     Check that a kernel is instrumented correctly if it is within a directive.
     '''
-    Profiler.set_options([Profiler.KERNELS], "lfric")
+    Profiler.set_options([Profiler.KERNELS], is_psykal=True)
     psy, invoke = get_invoke("1_single_invoke_w3.f90", "lfric", idx=0,
                              dist_mem=False)
     ktrans = ACCKernelsTrans()
@@ -708,9 +677,9 @@ def test_multi_prefix_profile(monkeypatch):
     assert ("  use profile_psy_data_mod, only : profile_PSyDataType\n" in
             result)
     assert "  use tool1_psy_data_mod, only : tool1_PSyDataType" in result
-    assert ("  type(profile_PSyDataType), save, target :: "
+    assert ("  type(profile_psydatatype), save, target :: "
             "profile_psy_data\n" in result)
-    assert ("  type(tool1_PSyDataType), save, target :: tool1_psy_data"
+    assert ("  type(tool1_psydatatype), save, target :: tool1_psy_data"
             in result)
     assert (
             "    CALL tool1_psy_data % PreStart(\"multi_functions_multi_"
@@ -801,7 +770,7 @@ def test_auto_invoke_return_last_stmt():
     # Double-check that the tree is as we expect
     assert isinstance(kschedule[-1], Return)
 
-    Profiler.set_options([Profiler.INVOKES], "nemo")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
     Profiler.add_profile_nodes(kschedule, Loop)
     # The Return should be a sibling of the ProfileNode rather than a child
     assert isinstance(kschedule[0], ProfileNode)
@@ -813,7 +782,7 @@ def test_auto_invoke_no_return(capsys):
     ''' Check that using the auto-invoke profiling option does not add any
     profiling if the invoke contains a Return anywhere other than as the
     last statement. '''
-    Profiler.set_options([Profiler.INVOKES], "nemo")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
         symbol_type=DataSymbol, datatype=ScalarType.real_type())
@@ -857,7 +826,7 @@ def test_auto_invoke_no_return(capsys):
 def test_auto_invoke_empty_schedule(capsys):
     ''' Check the auto-invoke profiling option rejects an empty Schedule, i.e
     the routine has no statements. '''
-    Profiler.set_options([Profiler.INVOKES], "nemo")
+    Profiler.set_options([Profiler.INVOKES], is_psykal=True)
     symbol_table = SymbolTable()
     # Create Schedule with Return at the start.
     kschedule = KernelSchedule.create(
@@ -948,7 +917,7 @@ def test_profiling_cycle_statement(fortran_reader):
 
 def test_profiling_labelled_statement(fortran_reader):
     ''' Check the profiling transformation validation fails if there is an
-    labelled statement in the region.'''
+    labelled block in the region.'''
 
     code = """subroutine a()
         integer :: i
@@ -988,7 +957,7 @@ def test_profiling_labelled_statement(fortran_reader):
             "region containing a potential control flow jump, as these could "
             "skip the end of profiling caliper. Found:\n"
             "'! PSyclone CodeBlock (unsupported code) reason:\n!  - "
-            "Unsupported labelled statement\n123 DO a = 1, 100\nEND DO\n"
+            "Unsupported labelled block\n123 DO a = 1, 100\nEND DO\n"
             in str(excinfo.value))
 
 

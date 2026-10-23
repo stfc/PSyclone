@@ -1,39 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2017-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-# ----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic, Met Office
+# SPDX-FileCopyrightText: Copyright (c) 2017-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
+# -----------------------------------------------------------------------------
 
 ''' Module containing tests of Transformations when using the GOcean API '''
 
@@ -81,18 +51,18 @@ def test_loop_fuse_error():
 
     # Apply loop fuse, but the first node is not a loop:
     with pytest.raises(TransformationError) as err:
-        lftrans.apply(schedule.children[0].children[0], schedule.children[1])
+        lftrans.apply((schedule.children[0].children[0], schedule.children[1]))
     assert "Both nodes must be of the same GOLoop class." in str(err.value)
 
     # Also check that we catch this for the second argument:
     with pytest.raises(TransformationError) as err:
-        lftrans.apply(schedule.children[0], schedule.children[1].children[0])
+        lftrans.apply((schedule.children[0], schedule.children[1].children[0]))
     assert "Both nodes must be of the same GOLoop class." in str(err.value)
 
     # Also check if they have different field_spaces
     schedule.children[1].field_space = "go_cv"
     with pytest.raises(TransformationError) as err:
-        lftrans.apply(schedule.children[0], schedule.children[1])
+        lftrans.apply((schedule.children[0], schedule.children[1]))
     assert ("Cannot fuse loops that are over different grid-point types: "
             "go_cu and go_cv" in str(err.value))
 
@@ -100,7 +70,7 @@ def test_loop_fuse_error():
     loop = schedule.children[1]
     loop.replace_with(Loop())
     with pytest.raises(TransformationError) as err:
-        lftrans.apply(schedule.children[0], schedule.children[1])
+        lftrans.apply((schedule.children[0], schedule.children[1]))
     assert "Both nodes must be of the same GOLoop class." in str(err.value)
 
 
@@ -497,7 +467,6 @@ def test_omp_region_before_loops_trans(tmpdir):
             omp_do_idx = idx
         if 'do j =' in line:
             break
-
     assert omp_region_idx != -1
     assert omp_do_idx != -1
     assert omp_do_idx - omp_region_idx == 1
@@ -1345,7 +1314,7 @@ def test_acc_enter_directive_infrastructure_setup():
     use iso_c_binding, only : c_ptr
     use kind_params_mod, only : go_wp
     type(c_ptr), intent(in) :: from
-    REAL(KIND = go_wp), DIMENSION(:, :), INTENT(INOUT), TARGET :: to
+    real(kind = go_wp), dimension(:, :), intent(inout), target :: to
     integer, intent(in) :: startx
     integer, intent(in) :: starty
     integer, intent(in) :: nx
@@ -1488,9 +1457,9 @@ def test_accroutinetrans_module_use():
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         rtrans.apply(kernels[0])
-    assert ("accesses the symbol 'magic: Symbol<Import(container='model_mod'"
-            ")>' which is imported. If this symbol "
-            "represents data then it must first" in str(err.value))
+    assert ("accesses the imported symbol 'magic: Symbol<Import(container="
+            "'model_mod')>'. If this symbol represents data then it must first"
+            in str(err.value))
     # Tell the ModuleManager where to find the module that is being USED by
     # the kernel.
     mod_man = ModuleManager.get()
@@ -1500,9 +1469,9 @@ def test_accroutinetrans_module_use():
     with pytest.raises(TransformationError) as err:
         rtrans.apply(kernels[0])
     assert ("Transformation Error: Kernel 'kernel_with_use_code' accesses "
-            "the symbol 'magic: DataSymbol<Scalar<REAL, Reference"
-            "[name:'go_wp']>, Import(container='model_mod')>' which is "
-            "imported. If this symbol represents data then it must first be "
+            "the imported symbol 'magic: DataSymbol<Scalar<REAL, Reference"
+            "[name:'go_wp']>, Import(container='model_mod')>'. "
+            "If this symbol represents data then it must first be "
             "converted to a Kernel argument using the "
             "KernelImportsToArguments transformation." in str(err.value))
 
@@ -1530,8 +1499,8 @@ def test_accroutinetrans_with_kern(fortran_writer, monkeypatch):
     monkeypatch.setattr(kern, "get_callees", raise_gen_error)
     with pytest.raises(TransformationError) as err:
         rtrans.apply(kern)
-    assert ("Failed to create PSyIR for kernel 'continuity_code'. Cannot "
-            "transform such a kernel." in str(err.value))
+    assert ("Failed to create PSyIR for kernel 'continuity_code_inlined_'. "
+            "Cannot transform such a kernel." in str(err.value))
 
 
 def test_accroutinetrans_with_routine(fortran_writer):
@@ -1596,7 +1565,7 @@ def test_all_go_loop_trans_base_validate(monkeypatch):
         if isinstance(trans, LoopTrans):
             with pytest.raises(NotImplementedError) as err:
                 if isinstance(trans, LoopFuseTrans):
-                    trans.validate(loop, loop)
+                    trans.validate((loop, loop))
                 else:
                     trans.validate(loop)
             assert "validate test exception" in str(err.value), \

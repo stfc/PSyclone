@@ -1,37 +1,9 @@
 .. -----------------------------------------------------------------------------
-.. BSD 3-Clause License
-..
-.. Copyright (c) 2019-2026, Science and Technology Facilities Council.
-.. All rights reserved.
-..
-.. Redistribution and use in source and binary forms, with or without
-.. modification, are permitted provided that the following conditions are met:
-..
-.. * Redistributions of source code must retain the above copyright notice, this
-..   list of conditions and the following disclaimer.
-..
-.. * Redistributions in binary form must reproduce the above copyright notice,
-..   this list of conditions and the following disclaimer in the documentation
-..   and/or other materials provided with the distribution.
-..
-.. * Neither the name of the copyright holder nor the names of its
-..   contributors may be used to endorse or promote products derived from
-..   this software without specific prior written permission.
-..
-.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-.. POSSIBILITY OF SUCH DAMAGE.
+.. SPDX-FileCopyrightText: Copyright (c) 2019-2026 Science and Technology
+..                         Facilities Council
+.. SPDX-License-Identifier: BSD-3-Clause
+.. See the full LICENSE file in the project root for details.
 .. -----------------------------------------------------------------------------
-.. Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 Working With PSyclone from GitHub
 #################################
@@ -45,9 +17,6 @@ practises of the PSyclone project.
 
 .. _repository: https://github.com/stfc/PSyclone
 
-More detailed instructions for the Ubuntu and OpenSUSE Linux
-distributions may be found in the :ref:`system_specific_dev_setup`
-Section.
 
 .. _dev-installation:
 
@@ -94,12 +63,23 @@ install PSyclone itself. Again, the simplest way of doing this is to use
 ``pip``::
 
   > cd <PSYCLONEHOME>
-  > pip install --user -e .
+  > pip install --user -e[doc,test] .
 
 where ``-e`` requests an 'editable' installation so that changes to
 the PSyclone source are immediately reflected in the installed
-package.  (For alternatives to using pip please see the
-:ref:`getting-going` section.)
+package.
+
+The ``doc`` extra is necessary to build the html documentation:
+
+  > cd doc
+  > make html
+
+The ``test`` extra is needed to run the project linters:
+
+ > flake8 .
+ > pylint .
+
+as well as running the test suite (see below).
 
 .. _test_suite:
 
@@ -275,8 +255,6 @@ with "_test.py", e.g. ``constants_test.py``. A name using "tests"
 Note that pytest will not complain if two tests (within a module) have
 the same name - it will just silently ignore one of them! The best way
 of checking for this is to run pylint on any modified test modules.
-(This needs to be done anyway as one of the requirements of the
-:ref:`code-review` is that all new code be pylint-clean.)
 
 .. note::
     You can use ``pytest --collect-only``
@@ -418,11 +396,14 @@ and --f90 and --f90flags), e.g.::
   > pytest --compileopencl --f90=<opencl-compiler> --f90flags="<opencl-specific flags>"
 
 If you want to test OpenMP code created by PSyclone, you must add the relevant
-openmp flag to --f90flags (`-qopenmp` for intel, `-fopenmp` for gfortran). In addition
-the OpenMP tasking tests currently only support compilation testing with intel
-compilers, e.g.::
+openmp flag to --f90flags (`-qopenmp` for intel, `-fopenmp` for gfortran or ifx)::
 
   > pytest --compile --f90=ifort --f90flags="-qopenmp"
+
+.. warning:: The OpenMP tasking tests currently only support compilation
+   testing with intel compilers. gfortran will fail due to not supporting
+   structure elements in depend clauses.
+
 
 
 Infrastructure libraries
@@ -516,13 +497,13 @@ computational cost (so that we 'fail fast'):
  3. All links within the Sphinx documentation (rst files) are checked (see
     note below);
 
- 4. All of the examples are tested (for Python versions 3.9 and 3.14)
+ 4. All of the examples are tested (for Python versions 3.9 and 3.15)
     using the ``Makefile`` in the ``examples`` directory. No compilation is
     performed; only the ``transform`` (performs the PSyclone transformations)
     and ``notebook`` (runs the various Jupyter notebooks) targets are used.
     The ``transform`` target is run 2-way parallel (``-j 2``).
 
- 5. The full test suite is run for Python versions 3.9 and 3.14 but
+ 5. The full test suite is run for Python versions 3.9 and 3.15 but
     without the compilation checks. ``pytest`` is passed the ``-n auto`` flag
     so that it will run the tests in parallel on as many cores as are
     available (currently 2 on GHA instances).
@@ -734,12 +715,5 @@ use this approach but so far this problem has only been found in one
 use case so it has been decided to modify the code as and when
 required.
 
-.. _code-review:
-
-Code Review
-===========
-
-Before a branch can be merged to master it must pass code review. The
-guidelines for performing a review (i.e. what is expected from the
-developer) are available on the GitHub PSyclone wiki pages:
-https://github.com/stfc/PSyclone/wiki.
+.. include:: ../README.md
+   :parser: myst_parser.sphinx_

@@ -1,38 +1,9 @@
 # -----------------------------------------------------------------------------
-# BSD 3-Clause License
-#
-# Copyright (c) 2020-2026, Science and Technology Facilities Council.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# * Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright notice,
-#   this list of conditions and the following disclaimer in the documentation
-#   and/or other materials provided with the distribution.
-#
-# * Neither the name of the copyright holder nor the names of its
-#   contributors may be used to endorse or promote products derived from
-#   this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026 Science and Technology
+#                         Facilities Council
+# SPDX-License-Identifier: BSD-3-Clause
+# See the full LICENSE file in the project root for details.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
-# Modified by A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module containing tests for the ArrayAssignment2LoopsTrans
 transformation.'''
@@ -939,13 +910,15 @@ def test_validate_indirect_indexing(fortran_reader):
       INTEGER, DIMENSION(8,kfld)  :: ishtSi2
       INTEGER :: jf
       ! Assignment with CodeBlock on RHS.
-      iwewe(:) = (/ jpwe,jpea,jpwe,jpea /)
+      iwewe(:) = (/integer :: jpwe,jpea,jpwe,jpea /)
       ! Assignment with CodeBlock in array-index expression.
-      iwewe(:) = ishtSi((/ jpwe,jpea,jpwe,jpea /), 1)
+      iwewe(:) = ishtSi((/integer :: jpwe,jpea,jpwe,jpea /), 1)
       ! Index expression that evaluate to an array is a valid range
       ishtSi(5:8,jf) = ishtSi2(iwewe+1, jf)
       ! Index expression contains a call to an unknown function.
       ishtSi(5:8,jf) = ishtSi2(my_func(1), jf)
+      ! Assignment with ArrayConstructor on RHS.
+      iwewe(:) = (/jpwe,jpea,jpwe,jpea /)
     end program test
     ''')
     assignments = psyir.walk(Assignment)
@@ -966,6 +939,13 @@ def test_validate_indirect_indexing(fortran_reader):
     assert ("ArrayAssignment2LoopsTrans does not accept calls which are not "
             "guaranteed to return a scalar or be elemental, but found "
             "'my_func'" in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignments[4], verbose=True)
+    assert ("ArrayAssignment2LoopsTrans does not support array assignments "
+            "that contain an ArrayConstructor anywhere in the expression"
+            in str(err.value))
+    assert ("that contain an ArrayConstructor"
+            in assignments[4].preceding_comment)
 
 
 def test_validate_structure(fortran_reader):
