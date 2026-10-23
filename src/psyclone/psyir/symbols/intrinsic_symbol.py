@@ -54,6 +54,8 @@ class IntrinsicSymbol(RoutineSymbol):
                           datatype=self.datatype.copy(),
                           visibility=self.visibility,
                           interface=self.interface.copy(),
+                          directive=(self.directive.copy()
+                                     if self.directive is not None else None),
                           is_pure=self.is_pure,
                           is_elemental=self.is_elemental)
 

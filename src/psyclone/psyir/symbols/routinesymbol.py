@@ -138,6 +138,8 @@ class RoutineSymbol(TypedSymbol):
         copy = type(self)(self.name, self.datatype.copy(),
                           visibility=self.visibility,
                           interface=self.interface.copy(),
+                          directive=(self.directive.copy()
+                                     if self.directive is not None else None),
                           is_pure=self.is_pure,
                           is_elemental=self.is_elemental)
         copy.preceding_comment = self.preceding_comment
