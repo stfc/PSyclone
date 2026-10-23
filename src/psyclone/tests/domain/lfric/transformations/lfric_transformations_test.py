@@ -227,13 +227,10 @@ def test_colour_trans_operator(tmpdir, dist_mem):
     schedule = invoke.schedule
     ctrans = LFRicColourTrans()
 
-    if dist_mem:
-        index = 3
-    else:
-        index = 0
+    loop = schedule.walk(LFRicLoop, stop_type=LFRicLoop)[0]
 
     # Colour the loop
-    ctrans.apply(schedule.children[index])
+    ctrans.apply(loop)
 
     # Store the results of applying this code transformation as a
     # string
@@ -336,13 +333,10 @@ def test_colour_trans_adjacent_face(dist_mem, tmpdir):
     schedule = invoke.schedule
     ctrans = LFRicColourTrans()
 
-    if dist_mem:
-        index = 1
-    else:
-        index = 0
+    loop = schedule.walk(LFRicLoop, stop_type=LFRicLoop)[0]
 
     # Colour the loop
-    ctrans.apply(schedule.children[index])
+    ctrans.apply(loop)
 
     # Store the results of applying this code transformation as
     # a string

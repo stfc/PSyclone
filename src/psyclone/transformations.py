@@ -30,8 +30,8 @@ from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule)
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
-    ACCParallelDirective, ACCRoutineDirective, Call, CodeBlock, Container,
-    Literal, Loop, Node, OMPMasterDirective, OMPParallelDirective,
+    ACCParallelDirective, ACCRoutineDirective, Assignment, Call, CodeBlock,
+    Container, Literal, Loop, Node, OMPMasterDirective, OMPParallelDirective,
     OMPSerialDirective, OMPSingleDirective, Reference, Return, Schedule,
     PSyDataNode, IntrinsicCall)
 from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
@@ -413,8 +413,18 @@ class ColourTrans(LoopTrans):
         colours_loop.walk(Schedule)[-1].children.extend(
             node.loop_body.pop_all_children())
 
+        inv_sched = node.ancestor(InvokeSchedule)
+        if inv_sched:
+            assigns = inv_sched.walk(Assignment)
+            assign_map = {assign.lhs.symbol: assign for assign in assigns}
+            for expr in [node.start_expr, node.stop_expr]:
+                if isinstance(expr, Reference) and expr.symbol in assign_map:
+                    assign_map[expr.symbol].detach()
+                    inv_sched.symbol_table.remove(expr.symbol)
+
         # remove original loop
         node.detach()
+       
 
     def _create_colours_loop(self, node):
         '''
@@ -547,31 +557,16 @@ class LFRicColourTrans(ColourTrans):
         # Get the ancestor InvokeSchedule before applying the super() because
         # node will be detached
         sched = node.ancestor(LFRicInvokeSchedule)
-        posn = node.position
 
         super().apply(node, options=options, **kwargs)
-
-        new_loop = sched[posn]
 
         # Update the information on the colourmaps required for the mesh(es) in
         # this invoke.
         if sched and sched.invoke:
             sched.invoke.meshes.colourmap_init()
-
-        # Now we can set the loops' upper bounds
-        new_loop.start_expr = Literal("1", ScalarType.integer_type())
-        # TODO if this is around an inter-grid kernel then we should use a
-        # different tag.
-        new_loop.stop_expr = Reference(
-            sched.symbol_table.lookup_with_tag("ncolour"))
-        # Loop over cells of a given colour
-        new_loop.loop_body[0].start_expr = Literal(
-            "1", ScalarType.integer_type())
-        new_loop.loop_body[0].stop_expr = (
-            new_loop.loop_body[0].upper_bound_psyir())
-
-        if sched and sched.invoke:
-            cursor = 0  # TODO
+            cursor = 0  # TODO - not sure what value to use here.
+            cursor = sched.invoke.meshes.initialise(cursor)
+            cursor = sched.invoke.mesh_properties.initialise(cursor)
             sched.invoke.loop_bounds.initialise(cursor)
 
     def _create_colours_loop(self, node: Loop) -> Loop:

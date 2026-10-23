@@ -574,6 +574,10 @@ class LFRicMeshProperties(LFRicCollection):
 
         '''
         const = LFRicConstants()
+
+        assigns = self._invoke.schedule.walk(Assignment)
+        assign_map = {assign.lhs.symbol: assign for assign in assigns}
+
         # Since colouring is applied via transformations, we have to check for
         # it now, rather than when this class was first constructed.
         need_colour_limits = False
@@ -618,13 +622,14 @@ class LFRicMeshProperties(LFRicCollection):
             if prop == MeshProperty.ADJACENT_FACE:
                 adj_face = self.symtab.find_or_create_tag(
                     "adjacent_face")
-                assignment = Assignment.create(
+                if adj_face not in assign_map:
+                    assignment = Assignment.create(
                         lhs=Reference(adj_face),
                         rhs=Call.create(StructureReference.create(
                             mesh, ["get_adjacent_face"])),
                         is_pointer=True)
-                self._invoke.schedule.addchild(assignment, cursor)
-                cursor += 1
+                    self._invoke.schedule.addchild(assignment, cursor)
+                    cursor += 1
 
             elif prop == MeshProperty.NCELL_2D_NO_HALOS:
                 symbol = self.symtab.find_or_create(
@@ -632,12 +637,13 @@ class LFRicMeshProperties(LFRicCollection):
                     symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")()
                 )
-                assignment = Assignment.create(
+                if symbol not in assign_map:
+                    assignment = Assignment.create(
                         lhs=Reference(symbol),
                         rhs=Call.create(StructureReference.create(
                             mesh, ["get_last_edge_cell"])),)
-                self._invoke.schedule.addchild(assignment, cursor)
-                cursor += 1
+                    self._invoke.schedule.addchild(assignment, cursor)
+                    cursor += 1
 
             elif prop == MeshProperty.NCELL_2D:
                 symbol = self.symtab.find_or_create(
@@ -645,12 +651,13 @@ class LFRicMeshProperties(LFRicCollection):
                     symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")()
                 )
-                assignment = Assignment.create(
+                if symbol not in assign_map:
+                    assignment = Assignment.create(
                         lhs=Reference(symbol),
                         rhs=Call.create(StructureReference.create(
                             mesh, ["get_ncells_2d"])),)
-                self._invoke.schedule.addchild(assignment, cursor)
-                cursor += 1
+                    self._invoke.schedule.addchild(assignment, cursor)
+                    cursor += 1
             else:
                 raise InternalError(
                     f"Found unsupported mesh property '{str(prop)}' when "
@@ -662,57 +669,63 @@ class LFRicMeshProperties(LFRicCollection):
         if need_colour_halo_limits:
             lhs = self.symtab.find_or_create_tag(
                 "last_halo_cell_all_colours")
-            assignment = Assignment.create(
+            if lhs not in assign_map:
+                assignment = Assignment.create(
                     lhs=Reference(lhs),
                     rhs=Call.create(StructureReference.create(
                         mesh, ["get_last_halo_cell_all_colours"])))
-            self._invoke.schedule.addchild(assignment, cursor)
-            cursor += 1
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
         if need_colour_limits:
             lhs = self.symtab.find_or_create_tag(
                 "last_edge_cell_all_colours",
                 symbol_type=DataSymbol,
                 datatype=ScalarType.integer_type())
-            assignment = Assignment.create(
+            if lhs not in assign_map:
+                assignment = Assignment.create(
                     lhs=Reference(lhs),
                     rhs=Call.create(StructureReference.create(
                         mesh, ["get_last_edge_cell_all_colours"])))
-            self._invoke.schedule.addchild(assignment, cursor)
-            cursor += 1
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
         if need_tilecolour_halo_limits:
             lhs = self.symtab.find_or_create_tag(
                 "last_halo_tile_per_colour")
-            assignment = Assignment.create(
+            if lhs not in assign_map:
+                assignment = Assignment.create(
                     lhs=Reference(lhs),
                     rhs=Call.create(StructureReference.create(
                         mesh, ["get_last_halo_tile_all_colours"])))
-            self._invoke.schedule.addchild(assignment, cursor)
-            cursor += 1
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
             lhs = self.symtab.find_or_create_tag(
                 "last_halo_cell_per_colour_and_tile")
-            assignment = Assignment.create(
+            if lhs not in assign_map:
+                assignment = Assignment.create(
                     lhs=Reference(lhs),
                     rhs=Call.create(StructureReference.create(
                         mesh, ["get_last_halo_cell_all_colours_all_tiles"])))
-            self._invoke.schedule.addchild(assignment, cursor)
-            cursor += 1
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
         if need_tilecolour_limits:
             lhs = self.symtab.find_or_create_tag(
                 "last_edge_tile_per_colour")
-            assignment = Assignment.create(
+            if lhs not in assign_map:
+                assignment = Assignment.create(
                     lhs=Reference(lhs),
                     rhs=Call.create(StructureReference.create(
                         mesh, ["get_last_edge_tile_all_colours"])))
-            self._invoke.schedule.addchild(assignment, cursor)
-            cursor += 1
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
             lhs = self.symtab.find_or_create_tag(
                 "last_edge_cell_per_colour_and_tile")
-            assignment = Assignment.create(
+            if lhs not in assign_map:
+                assignment = Assignment.create(
                     lhs=Reference(lhs),
                     rhs=Call.create(StructureReference.create(
                         mesh, ["get_last_edge_cell_all_colours_all_tiles"])))
-            self._invoke.schedule.addchild(assignment, cursor)
-            cursor += 1
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
         return cursor
 
 
@@ -2470,17 +2483,20 @@ class LFRicMeshes():
                 cursor += 1
 
             # Colour map for the coarse mesh (if required)
-            if (dig.colourmap_symbol and dig.colourmap_symbol not
+            if (dig.ncolours_var_symbol and dig.ncolours_var_symbol not
                     in assigned_symbols):
                 # Number of colours
-                assigned_symbols.add(dig.colourmap_symbol)
+                assigned_symbols.add(dig.ncolours_var_symbol)
                 assignment = Assignment.create(
                         lhs=Reference(dig.ncolours_var_symbol),
                         rhs=Call.create(StructureReference.create(
                             coarse_mesh, ["get_ncolours"])))
                 root_sched.addchild(assignment, cursor)
                 cursor += 1
+            if (dig.colourmap_symbol and dig.colourmap_symbol not
+                    in assigned_symbols):
                 # Colour map itself
+                assigned_symbols.add(dig.colourmap_symbol)
                 assignment = Assignment.create(
                         lhs=Reference(dig.colourmap_symbol),
                         rhs=Call.create(StructureReference.create(
@@ -2490,6 +2506,7 @@ class LFRicMeshes():
                 cursor += 1
                 # Last halo/edge cell per colour.
                 sym = dig.last_cell_var_symbol
+                assigned_symbols.add(sym)
                 if len(sym.datatype.shape) == 2:
                     # Array is 2D so is a halo access.
                     name = "get_last_halo_cell_all_colours"
