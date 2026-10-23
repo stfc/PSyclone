@@ -11,6 +11,7 @@ processes.
 """
 
 import argparse
+from collections import defaultdict
 import logging
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
@@ -151,10 +152,18 @@ class RunPsyclone:
         """
         if not phase.file_pattern:
             raise ValueError("Cannot find phase files without a file_pattern")
+
         matched_files = sorted(
             path for path in self._input_path.rglob(phase.file_pattern)
             if path.is_file()
         )
+        if phase.file_pattern == ".calling.yaml":
+            # Special case to handling *.calling.yaml files. These files
+            # contain list of external modules that are being used. In order
+            # to find the list of files, you need to read all these yaml files
+            # and combine their module information.
+            return self._get_files_from_calling_yaml(matched_files)
+
         LOGGER.info(
             "Phase %s: found %d files matching %r",
             phase.name,
@@ -162,6 +171,26 @@ class RunPsyclone:
             phase.file_pattern,
         )
         return matched_files
+
+    def _get_files_from_calling_yaml(self, matched_files):
+        self._module_routine_info = defaultdict(set)
+        self._module_symbol_info = defaultdict(set)
+
+        for path in self._input_path.rglob(f"*{suffix}"):
+
+            with path.open("r", encoding="utf8") as stream:
+                info = yaml.safe_load(stream)
+            print("INFO", path, info)
+
+            for module_name, module_info in info.items():
+                self._module_routine_info[module_name].update(module_info["routines"])
+                self._module_symbol_info[module_name].update(module_info["symbols"])
+
+        mod_man = ModuleManager()
+        for module in self._module_routine_info:
+            mod_info = mod_man.get_module_info(module)
+            file_path = Path(mod_info.filename)
+
 
     def _execute_psyclone(
             self,
