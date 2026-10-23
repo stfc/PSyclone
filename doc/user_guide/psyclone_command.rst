@@ -86,9 +86,12 @@ by the command:
 
     Transformation scripts:
       -s SCRIPT, --script SCRIPT
-                            filename of a PSyclone optimisation recipe
+                            filename of a PSyclone optimisation recipe (can be
+                            specified multiple times to apply multiple scripts)
       --script-kwargs SCRIPT_KWARGS
-                            Keyword arguments for the transformation script.
+                            Keyword arguments for the transformation script (can be
+                            specified multiple times, each applies to the most recent
+                            -s script).
 
     Directory management:
       -I INCLUDE, --include INCLUDE
@@ -145,6 +148,36 @@ section. With a transformation recipe the command looks like:
 .. code-block:: console
 
     psyclone input.f90 -s transformation_recipe.py
+
+Multiple transformation scripts can be applied in sequence by specifying multiple ``-s``
+flags. Each script will be applied to the PSyIR in the order specified:
+
+.. code-block:: console
+
+    psyclone input.f90 -s script1.py -s script2.py
+
+Each script can also have its own keyword arguments using ``--script-kwargs``. Each
+``--script-kwargs`` applies to the most recent ``-s`` script that preceded it:
+
+.. code-block:: console
+
+    psyclone input.f90 -s script1.py --script-kwargs "opt1: 1" -s script2.py --script-kwargs "opt2: 2"
+
+If any ``--script-kwargs`` are supplied then there must be exactly one for each
+``-s`` script, i.e. the number of ``--script-kwargs`` must either be zero or
+match the number of ``-s`` scripts. Otherwise PSyclone reports an error and
+exits.
+
+When several scripts are supplied, the ``RESOLVE_IMPORTS`` requests of all of
+them are combined (see :ref:`sec_script_globals`): the union of the requested
+module names is resolved and a value of ``True`` in any script takes precedence
+over any list of module names.
+
+Each script is loaded and executed with its own directory temporarily added to
+``sys.path``, so a script may import helper modules that sit alongside it. Any
+such helper module is removed from ``sys.modules`` once the script has finished,
+which means that two scripts in different directories may each have their own
+module of the same name (e.g. ``utils.py``) and each will import its own copy.
 
 
 Fortran INCLUDE Files and Modules
