@@ -41,6 +41,10 @@ count_uniq "Module-inline successful"
 count_uniq "Module-inline failed"
 echo -n "   -> "
 count_uniq "because it accesses data from its outer scope"
+echo -n "   -> "
+count_uniq "because it contains static data symbol"
+echo -n "   -> "
+count_uniq "shadows the name of a module in the outer scope"
 echo
 echo " --- Then we need to inline them, or fallback to GPU routine annotations ---"
 count_uniq "Annotation successful"
@@ -49,7 +53,7 @@ count_uniq "Deferred-Inline successful"
 echo -n "   "
 count_uniq "Deferred-Inline failed"
 echo -n "   -> "
-count_uniq "Inlining polymorphic kernels is not supported"
+count_uniq "'allow_no_args_check_if_only_one_callee' option requires exactly one callee"
 echo -n "   -> "
 count_uniq "contains one or more Return statements"
 echo -n "   -> "
@@ -65,6 +69,10 @@ echo -n "   -> "
 count_uniq "only supports the transformation of a MATMUL operation when"
 
 echo
+echo " --- Attempt to fuse all loops ---"
+count_uniq "Fusion successful"
+
+echo
 echo " --- Then offload each loop with kernels inside ---"
 count_uniq "Offload independent loop"
 count_uniq "Offload with dof loop"
@@ -75,7 +83,7 @@ count_uniq "Failed to offload"
 count_uniq "Added inner loop nested parallelism"
 count_uniq "Added OMP threading"
 
-check_above "Module-inline successful" 283
-check_above "Deferred-Inline successful" 73
+check_above "Module-inline successful" 289
+check_above "Deferred-Inline successful" 85
 check_above "Offload independent loop" 83
 check_above "Offload with cell colouring" 40

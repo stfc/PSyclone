@@ -148,6 +148,7 @@ contains
     ! Locals
     type(nvtxEventAttributes) :: event
 
+!$omp critical
     if (.not. this%initialised) then
        ! This is the first time we've seen this region. Construct and
        ! save its name to save on future string operations.
@@ -164,6 +165,7 @@ contains
        this%name = trim(module_name)//":"//trim(region_name) &
                            &   //C_NULL_CHAR
     end if
+!$omp end critical
 
     event%color = col(this%colour_index)
 

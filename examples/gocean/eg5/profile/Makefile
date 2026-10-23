@@ -44,7 +44,7 @@ template:
 	        WRAPPER_NAME="dummy"                  \
 	        template_lib $(NAME).template
 
-simple_timing: 
+simple_timing:
 	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/simple_timing" \
 	        WRAPPER_NAME="simple_timing"               \
 	        simple_timing_lib $(NAME).simple_timing
@@ -119,32 +119,29 @@ alg.f90 psy.f90: test.x90
 		     -opsy psy.f90 -oalg alg.f90 test.x90
 
 # Make sure the infrastructure library is compiled, so the mods are found
-$(KERNELS): $(INF_LIB) $(DEP_LIB)
+$(KERNELS): $(INF_LIB)
 
 # The dl_esm_inf library
 $(INF_LIB):
-	$(MAKE) -C $(INF_DIR)
+	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)
 
 drhook_lib :
-	$(MAKE) DRHOOK_ROOT=$(DRHOOK_DIR) -C $(WRAPPER_DIR)
+	$(MAKE) F90FLAGS="$(F90FLAGS)" DRHOOK_ROOT=$(DRHOOK_DIR) -C $(WRAPPER_DIR)
 
 vernier_lib :
-	$(MAKE) VERNIER_ROOT=$(VERNIER_DIR) -C $(WRAPPER_DIR)
+	$(MAKE) F90FLAGS="$(F90FLAGS)" VERNIER_ROOT=$(VERNIER_DIR) -C $(WRAPPER_DIR)
 
 tau_lib :
-	$(MAKE) F90=tau_f90.sh TAU_ROOT=$(TAU_DIR) -C $(WRAPPER_DIR)
+	$(MAKE) F90FLAGS="$(F90FLAGS)" F90=tau_f90.sh TAU_ROOT=$(TAU_DIR) -C $(WRAPPER_DIR)
 
 dl_timer_lib:
-	$(MAKE) DL_TIMER_ROOT=$(DL_TIMER_ROOT) -C $(WRAPPER_DIR)
+	$(MAKE) F90FLAGS="$(F90FLAGS)" DL_TIMER_ROOT=$(DL_TIMER_ROOT) -C $(WRAPPER_DIR)
 
 lfric_lib:
-	$(MAKE) DL_TIMER_ROOT=$(DL_TIMER_ROOT) -C $(WRAPPER_DIR)
+	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(WRAPPER_DIR)
 
 template_lib simple_timing_lib:
-	$(MAKE) -C $(WRAPPER_DIR)
-
-$(DEP_LIB):
-	$(MAKE) -C $(PROFILE_DIR)/simple_timing
+	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(WRAPPER_DIR)
 
 # Special rule to create psy_LIBNAME.o for each wrapper library (required
 # since PSyDataType will differ from one wrapper library to the next)
