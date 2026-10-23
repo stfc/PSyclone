@@ -11,7 +11,7 @@ This module contains the InlineTrans transformation.
 '''
 from psyclone.domain.lfric.lfric_loop import LFRicLoop
 
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from psyclone.core import SymbolicMaths
 from psyclone.errors import LazyString, InternalError
