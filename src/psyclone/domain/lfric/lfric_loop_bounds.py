@@ -38,6 +38,10 @@ class LFRicLoopBounds(LFRicCollection):
                 # Generic or 'null' loops don't need any variables to be set
                 continue
 
+            if (isinstance(loop.start_expr, Reference) and
+                    loop.start_expr.symbol.name.startswith(f"loop{idx}_start")):
+                continue
+
             # Set the lower bound
             root_name = f"loop{idx}_start"
             lbound = self.symtab.new_symbol(

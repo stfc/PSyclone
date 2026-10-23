@@ -551,31 +551,37 @@ class LFRicColourTrans(ColourTrans):
 
         super().apply(node, options=options, **kwargs)
 
+        new_loop = sched[posn]
+
         # Update the information on the colourmaps required for the mesh(es) in
         # this invoke.
         if sched and sched.invoke:
             sched.invoke.meshes.colourmap_init()
 
         # Now we can set the loops' upper bounds
-        new_loop = sched[posn]
+        new_loop.start_expr = Literal("1", ScalarType.integer_type())
         # TODO if this is around an inter-grid kernel then we should use a
         # different tag.
         new_loop.stop_expr = Reference(
             sched.symbol_table.lookup_with_tag("ncolour"))
         # Loop over cells of a given colour
+        new_loop.loop_body[0].start_expr = Literal(
+            "1", ScalarType.integer_type())
         new_loop.loop_body[0].stop_expr = (
             new_loop.loop_body[0].upper_bound_psyir())
 
-    def _create_colours_loop(self, node):
+        if sched and sched.invoke:
+            cursor = 0  # TODO
+            sched.invoke.loop_bounds.initialise(cursor)
+
+    def _create_colours_loop(self, node: Loop) -> Loop:
         '''
         Creates a nested loop (colours, and cells of a given colour) which
         can be used to replace the supplied loop over cells.
 
         :param node: the loop for which to create a coloured version.
-        :type node: :py:class:`psyclone.psyir.nodes.Loop`
 
         :returns: doubly-nested loop over colours and cells of a given colour.
-        :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
         '''
         # Create a colours loop. This loops over colours and must be run
@@ -583,10 +589,10 @@ class LFRicColourTrans(ColourTrans):
         colours_loop = node.__class__(parent=node.parent, loop_type="colours")
         colours_loop.field_space = node.field_space
         colours_loop.iteration_space = node.iteration_space
+        colours_loop.set_lower_bound("start")
+        colours_loop.set_upper_bound("ncolours")
         colours_loop.start_expr = Literal("1", ScalarType.integer_type())
 
-        #colours_loop.set_lower_bound("start")
-        #colours_loop.set_upper_bound("ncolours")
 
         # Create a colour loop. This loops over cells of a particular colour
         # and can be run in parallel.
@@ -596,7 +602,7 @@ class LFRicColourTrans(ColourTrans):
         colour_loop.field_name = node.field_name
         colour_loop.iteration_space = node.iteration_space
         colour_loop.start_expr = Literal("1", ScalarType.integer_type())
-        #colour_loop.set_lower_bound("start")
+        colour_loop.set_lower_bound("start")
         colour_loop.kernel = node.kernel
 
         if node.upper_bound_name in LFRicConstants().HALO_ACCESS_LOOP_BOUNDS:
@@ -607,7 +613,8 @@ class LFRicColourTrans(ColourTrans):
         else:
             # No halo access.
             colour_loop.set_upper_bound("ncolour")
-        colour_loop.stop_expr = colour_loop.upper_bound_psyir()
+
+        #colour_loop.stop_expr = colour_loop.upper_bound_psyir()
 
         # Add this loop as a child of our loop over colours
         colours_loop.loop_body.addchild(colour_loop)
