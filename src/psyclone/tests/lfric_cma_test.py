@@ -1592,32 +1592,32 @@ cma_op_3_bandwidth, cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m, \
 cma_op_3_gamma_p)
     use constants_mod
     integer(kind=i_def), intent(in) :: cell
-    integer(kind=i_def), intent(in) :: ncell_2d
-    integer(kind=i_def), intent(in) :: cma_op_1_nrow
-    integer(kind=i_def), intent(in) :: cma_op_1_ncol
-    integer(kind=i_def), intent(in) :: cma_op_1_bandwidth
     integer(kind=i_def), intent(in) :: cma_op_1_alpha
+    integer(kind=i_def), intent(in) :: cma_op_1_bandwidth
     integer(kind=i_def), intent(in) :: cma_op_1_beta
     integer(kind=i_def), intent(in) :: cma_op_1_gamma_m
     integer(kind=i_def), intent(in) :: cma_op_1_gamma_p
-    real(kind=r_def), dimension(cma_op_1_bandwidth,cma_op_1_nrow,ncell_2d)\
-, intent(in) :: cma_op_1
-    integer(kind=i_def), intent(in) :: cma_op_2_nrow
-    integer(kind=i_def), intent(in) :: cma_op_2_ncol
-    integer(kind=i_def), intent(in) :: cma_op_2_bandwidth
+    integer(kind=i_def), intent(in) :: cma_op_1_ncol
+    integer(kind=i_def), intent(in) :: cma_op_1_nrow
     integer(kind=i_def), intent(in) :: cma_op_2_alpha
+    integer(kind=i_def), intent(in) :: cma_op_2_bandwidth
     integer(kind=i_def), intent(in) :: cma_op_2_beta
     integer(kind=i_def), intent(in) :: cma_op_2_gamma_m
     integer(kind=i_def), intent(in) :: cma_op_2_gamma_p
-    real(kind=r_def), dimension(cma_op_2_bandwidth,cma_op_2_nrow,ncell_2d)\
-, intent(in) :: cma_op_2
-    integer(kind=i_def), intent(in) :: cma_op_3_nrow
-    integer(kind=i_def), intent(in) :: cma_op_3_ncol
-    integer(kind=i_def), intent(in) :: cma_op_3_bandwidth
+    integer(kind=i_def), intent(in) :: cma_op_2_ncol
+    integer(kind=i_def), intent(in) :: cma_op_2_nrow
     integer(kind=i_def), intent(in) :: cma_op_3_alpha
+    integer(kind=i_def), intent(in) :: cma_op_3_bandwidth
     integer(kind=i_def), intent(in) :: cma_op_3_beta
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_m
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_p
+    integer(kind=i_def), intent(in) :: cma_op_3_ncol
+    integer(kind=i_def), intent(in) :: cma_op_3_nrow
+    integer(kind=i_def), intent(in) :: ncell_2d
+    real(kind=r_def), dimension(cma_op_1_bandwidth,cma_op_1_nrow,ncell_2d)\
+, intent(in) :: cma_op_1
+    real(kind=r_def), dimension(cma_op_2_bandwidth,cma_op_2_nrow,ncell_2d)\
+, intent(in) :: cma_op_2
     real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d)\
 , intent(in) :: cma_op_3
 
@@ -1651,36 +1651,36 @@ cma_op_5_nrow, cma_op_5_ncol, cma_op_5_bandwidth, cma_op_5_alpha, \
 cma_op_5_beta, cma_op_5_gamma_m, cma_op_5_gamma_p)
     use constants_mod
     integer(kind=i_def), intent(in) :: cell
-    integer(kind=i_def), intent(in) :: ncell_2d
-    integer(kind=i_def), intent(in) :: cma_op_1_nrow
-    integer(kind=i_def), intent(in) :: cma_op_1_ncol
-    integer(kind=i_def), intent(in) :: cma_op_1_bandwidth
     integer(kind=i_def), intent(in) :: cma_op_1_alpha
+    integer(kind=i_def), intent(in) :: cma_op_1_bandwidth
     integer(kind=i_def), intent(in) :: cma_op_1_beta
     integer(kind=i_def), intent(in) :: cma_op_1_gamma_m
     integer(kind=i_def), intent(in) :: cma_op_1_gamma_p
-    real(kind=r_def), dimension(cma_op_1_bandwidth,cma_op_1_nrow,ncell_2d)\
-, intent(in) :: cma_op_1
-    integer(kind=i_def), intent(in) :: cma_op_3_nrow
-    integer(kind=i_def), intent(in) :: cma_op_3_ncol
-    integer(kind=i_def), intent(in) :: cma_op_3_bandwidth
+    integer(kind=i_def), intent(in) :: cma_op_1_ncol
+    integer(kind=i_def), intent(in) :: cma_op_1_nrow
     integer(kind=i_def), intent(in) :: cma_op_3_alpha
+    integer(kind=i_def), intent(in) :: cma_op_3_bandwidth
     integer(kind=i_def), intent(in) :: cma_op_3_beta
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_m
     integer(kind=i_def), intent(in) :: cma_op_3_gamma_p
-    real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d)\
-, intent(in) :: cma_op_3
-    integer(kind=i_def), intent(in) :: cma_op_5_nrow
-    integer(kind=i_def), intent(in) :: cma_op_5_ncol
-    integer(kind=i_def), intent(in) :: cma_op_5_bandwidth
+    integer(kind=i_def), intent(in) :: cma_op_3_ncol
+    integer(kind=i_def), intent(in) :: cma_op_3_nrow
     integer(kind=i_def), intent(in) :: cma_op_5_alpha
+    integer(kind=i_def), intent(in) :: cma_op_5_bandwidth
     integer(kind=i_def), intent(in) :: cma_op_5_beta
     integer(kind=i_def), intent(in) :: cma_op_5_gamma_m
     integer(kind=i_def), intent(in) :: cma_op_5_gamma_p
-    real(kind=r_def), dimension(cma_op_5_bandwidth,cma_op_5_nrow,ncell_2d)\
-, intent(in) :: cma_op_5
+    integer(kind=i_def), intent(in) :: cma_op_5_ncol
+    integer(kind=i_def), intent(in) :: cma_op_5_nrow
+    integer(kind=i_def), intent(in) :: ncell_2d
     real(kind=r_def), intent(in) :: rscalar_2
     real(kind=r_def), intent(in) :: rscalar_4
+    real(kind=r_def), dimension(cma_op_1_bandwidth,cma_op_1_nrow,ncell_2d)\
+, intent(in) :: cma_op_1
+    real(kind=r_def), dimension(cma_op_3_bandwidth,cma_op_3_nrow,ncell_2d)\
+, intent(in) :: cma_op_3
+    real(kind=r_def), dimension(cma_op_5_bandwidth,cma_op_5_nrow,ncell_2d)\
+, intent(in) :: cma_op_5
 
 
   end subroutine columnwise_op_mul_2scalars_kernel_code

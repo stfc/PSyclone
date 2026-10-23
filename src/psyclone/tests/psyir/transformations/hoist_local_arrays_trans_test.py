@@ -18,6 +18,7 @@ from psyclone.psyir.transformations import (HoistLocalArraysTrans,
 from psyclone.tests.utilities import Compile
 from psyclone.transformations import ACCRoutineTrans
 
+
 # init
 
 
@@ -46,8 +47,8 @@ def test_apply_program(fortran_reader, fortran_writer, tmpdir):
     hoist_trans = HoistLocalArraysTrans()
     hoist_trans.apply(routine)
     output = fortran_writer(psyir)
-    assert ("  real, dimension(10) :: a\n\n"
-            "  do i = 1, 10, 1\n" in output)
+    assert "  real, dimension(10) :: a" in output
+    assert "  do i = 1, 10, 1\n" in output
     assert Compile(tmpdir).string_compiles(output)
 
 
@@ -346,8 +347,8 @@ def test_apply_array_valued_function(fortran_reader, fortran_writer, tmpdir):
     hoist_trans = HoistLocalArraysTrans()
     hoist_trans.apply(routine)
     output = fortran_writer(psyir)
-    assert ("    real, dimension(10) :: a\n\n"
-            "    do i = 1, 10, 1\n" in output)
+    assert "    real, dimension(10) :: a" in output
+    assert "    do i = 1, 10, 1\n" in output
     assert Compile(tmpdir).string_compiles(output)
 
 
@@ -696,14 +697,13 @@ def test_apply_with_allocatables(fortran_reader, fortran_writer, tmpdir):
     hoist_trans = HoistLocalArraysTrans()
     hoist_trans.apply(routine)
     output = fortran_writer(psyir)
-
     # Check that:
     # - Local allocatable declarations are hoisted unless it is a non-
     # supported case, which has a warning message added.
     # - Their ALLOCATEs have been guarded with a "if (.NOT.ALLOCATED"
     # - Their DEALLOCATEs have been removed, respecting other symbols in the
     # same deallocate statements and deleting parent single-line conditions
-    assert output == """\
+    expected = """\
 module my_mod
   implicit none
   real, allocatable, dimension(:), private :: a
@@ -713,12 +713,12 @@ module my_mod
 
   contains
   subroutine test(arg, var)
-    real, allocatable, dimension(:), intent(in) :: arg
-    integer, intent(in) :: var
     integer :: i
+    integer, intent(in) :: var
     real, allocatable, dimension(:) :: d
     real, allocatable, dimension(:) :: e
     real, allocatable, dimension(:) :: unused
+    real, allocatable, dimension(:), intent(in) :: arg
 
     if (var == 3) then
       if (.NOT.ALLOCATED(a)) then
@@ -758,6 +758,7 @@ for this variable, but currently it just supports cases with single allocations
 
 end module my_mod
 """
+    assert output == expected
     assert Compile(tmpdir).string_compiles(output)
 
 

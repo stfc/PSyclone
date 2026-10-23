@@ -90,13 +90,13 @@ def test_apply(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n")
     expected = (
         "subroutine maxval_test(array, n, m)\n"
-        "  integer :: n\n"
-        "  integer :: m\n"
-        "  real, dimension(10,20) :: array\n"
-        "  real :: result\n"
         "  integer :: idx\n"
         "  integer :: idx_1\n"
-        "  real :: reduction_var\n\n"
+        "  integer :: m\n"
+        "  integer :: n\n"
+        "  real :: reduction_var\n"
+        "  real :: result\n"
+        "  real, dimension(10,20) :: array\n\n"
         "  reduction_var = -HUGE(reduction_var)\n"
         "  do idx = 1, 20, 1\n"
         "    do idx_1 = 1, 10, 1\n"

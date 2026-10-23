@@ -36,8 +36,8 @@ class OMPParallelLoopTrans(OMPLoopTrans):
     >>> trans.apply(psyir.walk(Loop)[0])
     >>> print(FortranWriter()(psyir))
     program do_loop
-      real, dimension(10) :: a
       integer :: i
+      real, dimension(10) :: a
     <BLANKLINE>
       !$omp parallel do default(shared) private(i) schedule(auto)
       do i = 1, 10, 1

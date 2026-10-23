@@ -153,11 +153,11 @@ def test_generate_adjoint_str_trans(tmpdir):
         "end program test\n")
     expected = (
         "program adj_test\n"
-        "  real :: a\n"
-        "  real, dimension(10) :: b\n"
-        "  real, dimension(10) :: c\n"
         "  integer :: i\n"
-        "  real :: res_dot_product\n\n"
+        "  real :: a\n"
+        "  real :: res_dot_product\n"
+        "  real, dimension(10) :: b\n"
+        "  real, dimension(10) :: c\n\n"
         "  a = 0.0\n  b = 0.0\n  res_dot_product = 0.0\n"
         "  res_dot_product = res_dot_product + a\n"
         "  a = 0.0\n"
@@ -1002,8 +1002,8 @@ def test_generate_harness_constant_kind(fortran_reader, fortran_writer):
     ad_psyir = generate_adjoint(tl_psyir, ["field"])
     test_psyir = generate_adjoint_test(tl_psyir, ad_psyir, ["field"])
     harness = fortran_writer(test_psyir)
-    assert ("  use adj_my_mod, only : adj_kern\n"
-            "  integer, parameter :: r_def = 8\n" in harness)
+    assert "  use adj_my_mod, only : adj_kern\n" in harness
+    assert "  integer, parameter :: r_def = 8\n" in harness
     assert ("  real(kind=r_def), dimension(npts) :: field\n"
             "  real(kind=r_def), dimension(npts) :: field_input" in harness)
     assert "real(kind=r_def) :: inner1\n" in harness

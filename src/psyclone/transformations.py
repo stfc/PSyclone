@@ -891,8 +891,8 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> ptrans.apply(psyir.walk(Loop))
     >>> print(FortranWriter()(psyir))
     program do_loop
-      real, dimension(10) :: a
       integer :: i
+      real, dimension(10) :: a
     <BLANKLINE>
       !$acc parallel default(present)
       do i = 1, 10, 1

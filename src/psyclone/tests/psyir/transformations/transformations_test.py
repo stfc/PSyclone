@@ -370,9 +370,9 @@ def test_ompdeclaretargettrans(sample_psyir, fortran_writer):
     ompdeclaretargettrans.apply(routine)
     expected = '''\
 subroutine my_subroutine()
-  integer, dimension(10,10) :: a
   integer :: i
   integer :: j
+  integer, dimension(10,10) :: a
 
   !$omp declare target
   do i = 1, 10, 1

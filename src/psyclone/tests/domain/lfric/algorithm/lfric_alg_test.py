@@ -374,8 +374,8 @@ def test_create_from_kernel_with_vector(fortran_writer):
     assert "use constants_mod, only : i_def, r_def" in code
     assert '''\
     type(field_type) :: field_1
-    type(field_type), dimension(3) :: field_2
     type(field_type) :: field_3
+    type(field_type), dimension(3) :: field_2
 ''' in code
 
     assert ("    call field_1%initialise(vector_space=vector_space_w0_ptr, "

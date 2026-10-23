@@ -22,8 +22,8 @@ from psyclone.tests.utilities import Compile
 
 CODE = (
     "program test\n"
-    "  real, dimension(10) :: a\n"
-    "  real :: b\n\n"
+    "  real :: b\n"
+    "  real, dimension(10) :: a\n\n"
     "  a = b\n"
     "end program test\n")
 
@@ -103,7 +103,7 @@ def test_rhs(fortran_reader, fortran_writer):
     '''Test that an array notation on the rhs also gets modified.'''
     code = CODE.replace("a = b", "a = b * c\n")
     code = code.replace(":: a", ":: a, b, c")
-    code = code.replace("  real :: b\n\n", "")
+    code = code.replace("  real :: b\n", "")
     result = apply_trans(fortran_reader, fortran_writer, code)
     assert "a(:) = b(:) * c(:)\n" in result
 
@@ -114,7 +114,7 @@ def test_multid(fortran_reader, fortran_writer):
         "  real, dimension(10) :: a\n", "  integer :: n,m\n  real, "
         "dimension(n,m,10) :: a, b, c\n")
     code = code.replace("a = b", "a = b * c\n")
-    code = code.replace("  real :: b\n\n", "")
+    code = code.replace("  real :: b\n", "")
     result = apply_trans(fortran_reader, fortran_writer, code)
     assert "a(:,:,:) = b(:,:,:) * c(:,:,:)\n" in result
 

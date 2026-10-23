@@ -526,13 +526,13 @@ def test_where_with_scalar_assignment(fortran_reader, fortran_writer):
     assert isinstance(loops[1].loop_body[0], IfBlock)
     out = fortran_writer(fake_parent)
     correct = '''subroutine sub()
-  integer, dimension(100,100,100) :: dry
-  integer, dimension(100,100,100) :: z1_st
-  integer, dimension(100,100,100) :: ptsu
-  integer :: var1
   integer :: depth
-  integer :: widx2
+  integer :: var1
   integer :: widx1
+  integer :: widx2
+  integer, dimension(100,100,100) :: dry
+  integer, dimension(100,100,100) :: ptsu
+  integer, dimension(100,100,100) :: z1_st
 
   do widx2 = 1, 100, 1
     do widx1 = 1, 100, 1
@@ -955,10 +955,10 @@ def test_non_array_reduction_intrinsic(fortran_reader, fortran_writer):
     assert isinstance(psyir.children[0].children[0], Loop)
     out = fortran_writer(psyir)
     correct = '''program where_test
+  integer :: widx1
   integer, dimension(100) :: a
   integer, dimension(100) :: b
   integer, dimension(100) :: c
-  integer :: widx1
 
   do widx1 = 1, 100, 1
     if (a(widx1) < b(widx1)) then
@@ -1036,9 +1036,9 @@ def test_elemental_intrinsic_to_loop(fortran_reader, fortran_writer):
     '''
     psyir = fortran_reader.psyir_from_source(code)
     correct = '''program where_test
+  integer :: widx1
   real, dimension(100) :: a
   real, dimension(100) :: b
-  integer :: widx1
 
   do widx1 = 1, 100, 1
     if (ABS(a(widx1)) < 2) then
@@ -1095,9 +1095,9 @@ def test_elemental_function_to_loop(fortran_reader, fortran_writer):
     end module'''
     psyir = fortran_reader.psyir_from_source(code)
     correct = '''  subroutine where_test()
+    integer :: widx1
     real, dimension(100) :: a
     real, dimension(100) :: b
-    integer :: widx1
 
     do widx1 = 1, 100, 1
       if (x(a(widx1)) < 2) then
@@ -1354,9 +1354,9 @@ def test_multiline_where_with_preceding_comment(fortran_writer, tmp_path):
     # The end where comment is classed as the inline comment.
     assert loop.inline_comment == "Here is a comment on end where"
     correct = """subroutine test()
+  integer :: widx1
   real, dimension(100) :: arr1
   real, dimension(100) :: arr2
-  integer :: widx1
 
   arr1 = 0.0
   do widx1 = 1, 100, 1
@@ -1419,9 +1419,9 @@ def test_where_with_empty_line_before(fortran_writer):
     assert len(psyir.walk(CodeBlock)) == 0
     out = fortran_writer(psyir)
     correct = """subroutine x(arr2)
-  integer, dimension(:) :: arr2
-  integer, dimension(:) :: arr1
   integer :: widx1
+  integer, dimension(:) :: arr1
+  integer, dimension(:) :: arr2
 
   arr1(:) = arr2(:)
   do widx1 = 1, SIZE(arr1, dim=1), 1

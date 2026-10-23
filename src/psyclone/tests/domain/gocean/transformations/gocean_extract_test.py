@@ -530,8 +530,8 @@ def test_driver_scalars(fortran_writer):
         driver_code = driver_file.read()
 
     expected_lines = ["use read_kernel_data_mod, only : ReadKernelDataType",
-                      "type(ReadKernelDataType) :: extract_psy_data",
                       "real*8 :: a_scalar",
+                      "type(ReadKernelDataType) :: extract_psy_data",
                       ("call extract_psy_data%OpenReadModuleRegion"
                        "('psy_single_invoke_scalar_float_test', "
                        "'invoke_0_bc_ssh-bc_ssh_code-r0')"),

@@ -56,10 +56,10 @@ class IncreaseRankLoopArraysTrans(Transformation):
     >>> irla.apply(psyir.walk(Loop)[0], arrays=['ztmp'])
     >>> print(FortranWriter()(psyir))
     program test
-      integer, save :: n = 10
-      integer, save :: m = 10
       integer :: i
       integer :: j
+      integer, save :: m = 10
+      integer, save :: n = 10
       real, dimension(n,-5:m + 3) :: ztmp
     <BLANKLINE>
       ztmp = 0
