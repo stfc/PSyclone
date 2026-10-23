@@ -1,3 +1,5 @@
+   77) PR #3652 for #3117. Improve and consolidate contributing guidelines.
+ 
    76) PR #3627 for #3626. Ensure that elemental routines are also marked
    as pure and forbid HoistLocalArraysTrans on pure routines.
  
