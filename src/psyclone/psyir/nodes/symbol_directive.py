@@ -60,11 +60,11 @@ class SymbolDirective:
         '''
         # Import locally to avoid a circular dependency.
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols import Symbol
-        if symbol and not isinstance(symbol, Symbol):
+        from psyclone.psyir.symbols import DataSymbol
+        if symbol and not isinstance(symbol, DataSymbol):
             raise TypeError(
                 f"The {type(self).__name__} parent_symbol setter expects a "
-                f"PSyIR Symbol but found '{type(symbol).__name__}'.")
+                f"PSyIR DataSymbol but found '{type(symbol).__name__}'.")
         self._parent_symbol = symbol
 
 
