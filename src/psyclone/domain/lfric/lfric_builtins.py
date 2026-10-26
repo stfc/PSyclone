@@ -567,12 +567,10 @@ class LFRicXPlusYKern(LFRicBuiltIn):
 
         '''
         gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
-        metadata = cls._builtin_metadata([
+        return cls._builtin_metadata([
             FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
-        metadata.validate()
-        return metadata
 
     def __str__(self):
         return (f"Built-in: {self._case_name} (add "

@@ -37,6 +37,7 @@ from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from psyclone.domain.lfric.kernel import LFRicKernelMetadata
+    from psyclone.domain.lfric.kernel.metadata import KernelArgumentMetadata
     from psyclone.psyir.symbols import DataSymbol
 
 
@@ -151,13 +152,17 @@ def generate_lfric_adjoint(
         # pylint: enable=protected-access
         return ad_psyir
 
-    # Change the meta_args access metadata
+    # Accumulate all access changes before constructing new kernel metadata.
+    # Individual changes can temporarily violate a whole-kernel constraint
+    # even though the complete set of changes is valid.
+    meta_args = metadata.meta_args
     for var_name in active_variables:
-        access, metadata = _update_access_metadata(
-            var_name, arg_symbols, metadata)
+        access, meta_args = _update_access_metadata(
+            var_name, arg_symbols, metadata, meta_args)
         if access:
             # Add in any new access symbols.
             _check_or_add_access_symbol(ad_container, access)
+    metadata = replace(metadata, meta_args=meta_args)
     # LFRic metadata is immutable, so publish the accumulated replacement.
     # pylint: disable=protected-access
     ad_container._metadata = metadata
@@ -170,7 +175,8 @@ def _update_access_metadata(
         var_name: str,
         arg_symbols: list[DataSymbol],
         metadata: LFRicKernelMetadata,
-) -> tuple[Optional[str], LFRicKernelMetadata]:
+        meta_args: Optional[tuple[KernelArgumentMetadata, ...]] = None,
+) -> tuple[Optional[str], tuple[KernelArgumentMetadata, ...]]:
     '''If the access metadata for the variable var_name is incorrect then
     update it.
 
@@ -182,11 +188,11 @@ def _update_access_metadata(
     :param metadata: the LFRic metadata.
     :type metadata:
         :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+    :param meta_args: argument metadata containing any preceding updates, or
+        ``None`` to use the arguments from ``metadata``.
 
     :returns: the access metadata (or None if the active variable is not
-        passed by argument) and the immutable metadata value containing any
-        update.
-    :rtype: Tuple[Optional[str], LFRicKernelMetadata]
+        passed by argument) and the argument metadata containing any update.
 
     :raises GenerationError: if the argument position does not match
         the metadata.
@@ -194,6 +200,8 @@ def _update_access_metadata(
     :raises InternalError: if an unexpected access type is found.
 
     '''
+    arguments = metadata.meta_args if meta_args is None else meta_args
+
     # Determine the order of the kernel arguments from the
     # metadata. This is needed to find the metadata associated with
     # the specified active variable.
@@ -207,7 +215,7 @@ def _update_access_metadata(
             break
     else:
         # No, the active variable is not passed by argument.
-        return None, metadata
+        return None, arguments
 
     arg_index = arg_symbols.index(found_symbol)
     try:
@@ -223,7 +231,7 @@ def _update_access_metadata(
             f"The most likely reason for this is that the kernel subroutine "
             f"argument list does not conform to the LFRic rules - perhaps "
             f"it is a PSyKAl-lite kernel?") from exc
-    meta_arg = metadata.meta_args[meta_arg_index]
+    meta_arg = arguments[meta_arg_index]
 
     # Determine the intent of this variable from its declaration
     # and update the metadata appropriately.
@@ -261,11 +269,11 @@ def _update_access_metadata(
             f"'{found_symbol.name}'.")
     replacement = replace(meta_arg, access=access)
     arguments = (
-        metadata.meta_args[:meta_arg_index]
+        arguments[:meta_arg_index]
         + (replacement,)
-        + metadata.meta_args[meta_arg_index + 1:]
+        + arguments[meta_arg_index + 1:]
     )
-    return access, replace(metadata, meta_args=arguments)
+    return access, arguments
 
 
 def _check_or_add_access_symbol(container, access):

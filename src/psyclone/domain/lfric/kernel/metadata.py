@@ -257,7 +257,6 @@ class ScalarArgMetadata(LFRicArgMetadata):
     datatype: str
     access: str
     form: ClassVar[str] = "gh_scalar"
-    check_name: ClassVar[str] = "scalar"
 
     def __post_init__(self) -> None:
         """Validate and normalise the scalar metadata.
@@ -304,7 +303,6 @@ class ScalarArrayArgMetadata(LFRicArgMetadata):
     access: str
     array_ndims: int
     form: ClassVar[str] = "gh_scalar_array"
-    check_name: ClassVar[str] = "array"
 
     def __post_init__(self) -> None:
         """Validate and normalise the scalar-array metadata.
@@ -351,15 +349,12 @@ class ScalarArrayArgMetadata(LFRicArgMetadata):
 class FieldArgMetadata(_FieldArgMetadataBase):
     """Metadata for a field kernel argument."""
 
-    check_name: ClassVar[str] = "field"
-
 
 @dataclass(frozen=True)
 class FieldVectorArgMetadata(_FieldArgMetadataBase):
     """Metadata for a field-vector kernel argument."""
 
     vector_length: str
-    check_name: ClassVar[str] = "field-vector"
 
     def __post_init__(self) -> None:
         """Validate and normalise the field-vector metadata.
@@ -385,7 +380,6 @@ class InterGridArgMetadata(_FieldArgMetadataBase):
     """Metadata for an inter-grid field argument."""
 
     mesh_arg: str
-    check_name: ClassVar[str] = "inter-grid"
 
     def __post_init__(self) -> None:
         """Validate and normalise the inter-grid field metadata.
@@ -411,7 +405,6 @@ class InterGridVectorArgMetadata(_FieldArgMetadataBase):
 
     mesh_arg: str
     vector_length: str
-    check_name: ClassVar[str] = "inter-grid-vector"
 
     def __post_init__(self) -> None:
         """Validate and normalise the inter-grid vector metadata.
@@ -450,7 +443,6 @@ class OperatorArgMetadata(LFRicArgMetadata):
     function_space_to: str
     function_space_from: str
     form: ClassVar[str] = "gh_operator"
-    check_name: ClassVar[str] = "operator"
 
     def __post_init__(self) -> None:
         """Validate and normalise the operator metadata.
@@ -503,7 +495,6 @@ class ColumnwiseOperatorArgMetadata(OperatorArgMetadata):
     """Metadata for a columnwise operator argument."""
 
     form: ClassVar[str] = "gh_columnwise_operator"
-    check_name: ClassVar[str] = "columnwise-operator"
 
 
 @dataclass(frozen=True)
@@ -643,6 +634,7 @@ class LFRicKernelMetadata(KernelMetadata):
     meta_mesh: tuple[MetaMeshArgMetadata, ...] = ()
     procedure_name: Optional[str] = None
     name: Optional[str] = None
+    _kernel_type: str = field(init=False, repr=False, compare=False)
 
     @property
     def nargs(self) -> int:
@@ -674,14 +666,14 @@ class LFRicKernelMetadata(KernelMetadata):
     @property
     def cma_operation(self) -> Optional[str]:
         """:returns: the CMA operation, if this is a CMA kernel."""
-        category = self.kernel_type
+        category = self._kernel_type
         return (category.removeprefix("cma-")
                 if category.startswith("cma-") else None)
 
     @property
     def is_intergrid(self) -> bool:
         """:returns: whether this is an inter-grid kernel."""
-        return self.kernel_type == "inter-grid"
+        return self._kernel_type == "inter-grid"
 
     def __post_init__(self) -> None:
         """Validate and normalise the complete kernel metadata.
@@ -752,6 +744,15 @@ class LFRicKernelMetadata(KernelMetadata):
         if self.name is not None:
             FortranReader.validate_name(self.name)
             object.__setattr__(self, "name", self.name.lower())
+        if self.operates_on is None:
+            raise ValueError("operates_on is required.")
+
+        kernel_type = self._validate_and_get_kernel_type()
+        self._validate_field_accesses()
+        self._validate_writes()
+        needs_evaluator = self._validate_evaluators()
+        self._validate_domain_dof(needs_evaluator)
+        object.__setattr__(self, "_kernel_type", kernel_type)
 
     @classmethod
     def create_from_psyir(
@@ -894,6 +895,11 @@ class LFRicKernelMetadata(KernelMetadata):
 
     @property
     def kernel_type(self) -> str:
+        """:returns: the validated LFRic kernel category."""
+
+        return self._kernel_type
+
+    def _validate_and_get_kernel_type(self) -> str:
         """Validate and return the inferred LFRic kernel category.
 
         :returns: the kernel category.
@@ -1174,18 +1180,6 @@ class LFRicKernelMetadata(KernelMetadata):
             )
         ]
 
-    def validate(self) -> None:
-        """Validate all kernel-category constraints.
-
-        :raises ParseError: if a kernel-category constraint is violated.
-        """
-        _ = self.kernel_type
-        self._validate_field_accesses()
-        self._validate_writes()
-        needs_evaluator = self._validate_evaluators()
-        self._validate_consumer_cma()
-        self._validate_domain_dof(needs_evaluator)
-
     def _validate_field_accesses(self) -> None:
         """Validate field access modes for the iteration space.
 
@@ -1317,13 +1311,6 @@ class LFRicKernelMetadata(KernelMetadata):
                     f"{sorted(missing)}."
                 )
         return need
-
-    def _validate_consumer_cma(self) -> None:
-        """Validate restrictions needed by CMA code generation."""
-        # Accessing this property performs all of the language-level CMA
-        # validation. This method remains as the consumer-facing hook used by
-        # validate().
-        _ = self.cma_operation
 
     def _validate_domain_dof(self, need: bool) -> None:
         """Validate domain and degree-of-freedom kernel restrictions.

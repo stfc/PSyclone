@@ -219,8 +219,6 @@ def test_language_metadata_validation_and_queries():
     assert metadata.operator_meta_args_on_fs(OperatorArgMetadata, "w1") == [
         operator]
     assert metadata.operator_meta_args_on_fs([OperatorArgMetadata], "w2") == []
-    metadata.validate()
-
     for name in ("shapes", "evaluator_targets", "meta_args", "meta_funcs",
                  "meta_ref_element", "meta_mesh"):
         with pytest.raises(TypeError, match=f"Expected {name}"):
@@ -229,6 +227,8 @@ def test_language_metadata_validation_and_queries():
         _kernel_metadata([object()])
     with pytest.raises(TypeError, match="meta_funcs entries"):
         _kernel_metadata([field], meta_funcs=[object()])
+    with pytest.raises(ValueError, match="operates_on is required"):
+        LFRicKernelMetadata(meta_args=[field])
 
 
 def test_language_metadata_kernel_categories():
@@ -236,26 +236,26 @@ def test_language_metadata_kernel_categories():
     scalar = ScalarArgMetadata("gh_real", "gh_read")
     field = FieldArgMetadata("gh_real", "gh_write", "w3")
     with pytest.raises(ParseError, match="at least one field or operator"):
-        _kernel_metadata([scalar]).validate()
+        _kernel_metadata([scalar])
     with pytest.raises(ParseError, match="real-valued field"):
         _kernel_metadata([
             OperatorArgMetadata("gh_real", "gh_read", "w0", "w1"),
-            FieldArgMetadata("gh_integer", "gh_write", "w0")]).validate()
+            FieldArgMetadata("gh_integer", "gh_write", "w0")])
 
     assert _kernel_metadata([field], operates_on="domain").kernel_type == (
         "domain")
     with pytest.raises(ParseError, match="only contain scalar or field"):
         _kernel_metadata([
             OperatorArgMetadata("gh_real", "gh_read", "w0", "w1")],
-            operates_on="domain").validate()
+            operates_on="domain")
     with pytest.raises(ParseError, match="basis functions or mesh"):
         _kernel_metadata(
             [field], operates_on="domain",
-            meta_funcs=[MetaFuncsArgMetadata("w3", True)]).validate()
+            meta_funcs=[MetaFuncsArgMetadata("w3", True)])
     with pytest.raises(ParseError, match="basis functions or mesh"):
         _kernel_metadata(
             [field], operates_on="domain",
-            meta_mesh=[MetaMeshArgMetadata("adjacent_face")]).validate()
+            meta_mesh=[MetaMeshArgMetadata("adjacent_face")])
 
     coarse = InterGridArgMetadata(
         "gh_real", "gh_read", "w0", "gh_coarse")
@@ -263,15 +263,15 @@ def test_language_metadata_kernel_categories():
         "gh_real", "gh_write", "w1", "gh_fine", "2")
     assert _kernel_metadata([coarse, fine]).kernel_type == "inter-grid"
     with pytest.raises(ParseError, match="operate on cell_column"):
-        _kernel_metadata([coarse, fine], operates_on="domain").validate()
+        _kernel_metadata([coarse, fine], operates_on="domain")
     with pytest.raises(ParseError, match="only contain inter-grid"):
-        _kernel_metadata([coarse, fine, scalar]).validate()
+        _kernel_metadata([coarse, fine, scalar])
     with pytest.raises(ParseError, match="both mesh types"):
-        _kernel_metadata([coarse]).validate()
+        _kernel_metadata([coarse])
     same_space = InterGridArgMetadata(
         "gh_real", "gh_write", "w0", "gh_fine")
     with pytest.raises(ParseError, match="different function spaces"):
-        _kernel_metadata([coarse, same_space]).validate()
+        _kernel_metadata([coarse, same_space])
 
 
 def test_language_metadata_cma_categories():
@@ -291,25 +291,25 @@ def test_language_metadata_cma_categories():
     assert _kernel_metadata(
         [cma_write, cma_read, scalar]).kernel_type == "cma-matrix-matrix"
     with pytest.raises(ParseError, match="operate on cell_column"):
-        _kernel_metadata([cma_write], operates_on="domain").validate()
+        _kernel_metadata([cma_write], operates_on="domain")
     with pytest.raises(ParseError, match="assembly kernel"):
-        _kernel_metadata([cma_read, lma]).validate()
+        _kernel_metadata([cma_read, lma])
     with pytest.raises(ParseError, match="apply kernel requires"):
-        _kernel_metadata([cma_read, read_field]).validate()
+        _kernel_metadata([cma_read, read_field])
     with pytest.raises(ParseError, match="one read and one written"):
         _kernel_metadata([
             cma_read, read_field,
-            FieldArgMetadata("gh_real", "gh_read", "w0")]).validate()
+            FieldArgMetadata("gh_real", "gh_read", "w0")])
     with pytest.raises(ParseError, match="field spaces must match"):
         _kernel_metadata([
             cma_read, read_field,
-            FieldArgMetadata("gh_real", "gh_write", "w2")]).validate()
+            FieldArgMetadata("gh_real", "gh_write", "w2")])
     with pytest.raises(ParseError, match="matrix-matrix"):
-        _kernel_metadata([cma_read, scalar]).validate()
+        _kernel_metadata([cma_read, scalar])
     with pytest.raises(ParseError, match="matrix-matrix"):
         _kernel_metadata([
             cma_write, ScalarArrayArgMetadata(
-                "gh_real", "gh_read", 1)]).validate()
+                "gh_real", "gh_read", 1)])
 
 
 def test_language_metadata_fortran_output():
@@ -333,11 +333,16 @@ def test_language_metadata_fortran_output():
 
     single_shape = _kernel_metadata(
         [FieldArgMetadata("gh_real", "gh_write", "w0")],
-        shapes=["gh_evaluator"], procedure_name=None)
+        shapes=["gh_evaluator"],
+        meta_funcs=[MetaFuncsArgMetadata("w0", True)],
+        procedure_name=None)
     assert "INTEGER :: gh_shape = gh_evaluator" in (
         single_shape.fortran_string())
     with pytest.raises(ValueError, match="are required"):
-        LFRicKernelMetadata().fortran_string()
+        LFRicKernelMetadata(
+            operates_on="cell_column",
+            meta_args=[FieldArgMetadata("gh_real", "gh_write", "w0")],
+        ).fortran_string()
 
 
 @pytest.mark.parametrize("expression, message", [

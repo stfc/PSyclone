@@ -356,10 +356,10 @@ def test_update_access_metadata_none():
     assert metadata.meta_args[4].access.lower() == "gh_read"
     arguments = [
         dummy, dummy, field_1, field_2, field_3, scalar, dummy, operator]
-    access, updated = _update_access_metadata(
+    access, updated_args = _update_access_metadata(
         "internal", arguments, metadata)
     assert access is None
-    assert updated is metadata
+    assert updated_args is metadata.meta_args
     assert metadata.meta_args[0].access.lower() == "gh_write"
     assert metadata.meta_args[1].access.lower() == "gh_read"
     assert metadata.meta_args[2].access.lower() == "gh_read"
@@ -401,9 +401,10 @@ def test_update_access_metadata_scalar_reduction():
     assert metadata.meta_args[3].access.lower() == "gh_read"
     arguments = [
         dummy, dummy, field_1, field_2, field_3, scalar, dummy, operator]
-    access, updated = _update_access_metadata("scalar", arguments, metadata)
+    access, updated_args = _update_access_metadata(
+        "scalar", arguments, metadata)
     assert access.lower() == "gh_reduction"
-    assert updated.meta_args[3].access.lower() == access.lower()
+    assert updated_args[3].access.lower() == access.lower()
 
 
 def test_update_access_metadata_operator_readwrite():
@@ -416,10 +417,10 @@ def test_update_access_metadata_operator_readwrite():
     assert metadata.meta_args[4].access.lower() == "gh_read"
     arguments = [
         dummy, dummy, field_1, field_2, field_3, scalar, dummy, operator]
-    access, updated = _update_access_metadata(
+    access, updated_args = _update_access_metadata(
         "operator", arguments, metadata)
     assert access.lower() == "gh_readwrite"
-    assert updated.meta_args[4].access.lower() == access.lower()
+    assert updated_args[4].access.lower() == access.lower()
 
 
 def test_update_access_metadata_inc():
@@ -432,10 +433,10 @@ def test_update_access_metadata_inc():
     assert metadata.meta_args[1].access.lower() == "gh_read"
     arguments = [
         dummy, dummy, field_1, field_2, field_3, scalar, dummy, operator]
-    access, updated = _update_access_metadata(
+    access, updated_args = _update_access_metadata(
         "field_2", arguments, metadata)
     assert access.lower() == "gh_readwrite"
-    assert updated.meta_args[1].access.lower() == access.lower()
+    assert updated_args[1].access.lower() == access.lower()
 
 
 def test_update_access_metadata_field_inc():
@@ -448,10 +449,10 @@ def test_update_access_metadata_field_inc():
     assert metadata.meta_args[2].access.lower() == "gh_read"
     arguments = [
         dummy, dummy, field_1, field_2, field_3, scalar, dummy, operator]
-    access, updated = _update_access_metadata(
+    access, updated_args = _update_access_metadata(
         "field_3", arguments, metadata)
     assert access.lower() == "gh_inc"
-    assert updated.meta_args[2].access.lower() == access.lower()
+    assert updated_args[2].access.lower() == access.lower()
 
 
 def test_update_access_metadata_write(monkeypatch):
@@ -466,10 +467,10 @@ def test_update_access_metadata_write(monkeypatch):
         field_2.interface, "_access", ArgumentInterface.Access.WRITE)
     arguments = [
         dummy, dummy, field_1, field_2, field_3, scalar, dummy, operator]
-    access, updated = _update_access_metadata(
+    access, updated_args = _update_access_metadata(
         "field_2", arguments, metadata)
     assert access.lower() == "gh_write"
-    assert updated.meta_args[1].access.lower() == access.lower()
+    assert updated_args[1].access.lower() == access.lower()
 
 
 def test_update_access_metadata_read(monkeypatch):
@@ -486,10 +487,10 @@ def test_update_access_metadata_read(monkeypatch):
         field_1.interface, "_access", ArgumentInterface.Access.READ)
     arguments = [
         dummy, dummy, field_1, field_2, field_3, scalar, dummy, operator]
-    access, updated = _update_access_metadata(
+    access, updated_args = _update_access_metadata(
         "field_1", arguments, metadata)
     assert access.lower() == "gh_read"
-    assert updated.meta_args[0].access.lower() == access.lower()
+    assert updated_args[0].access.lower() == access.lower()
 
 
 def test_update_access_metadata_unexpected(monkeypatch):
