@@ -1,3 +1,6 @@
+   79) PR #3510 towards #868. Implement support for custom function spaces
+   with user-defined multi-data fields and number of layers.
+
    78) PR #3656. Bump ITs to use oneAPI 2026.2.
  
    77) PR #3652 for #3117. Improve and consolidate contributing guidelines.
