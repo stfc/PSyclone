@@ -16,10 +16,10 @@ from psyclone.configuration import Config
 from psyclone.domain.gocean.kernel import (
     GOceanKernelContainer, GOceanFieldArgMetadata,
     GOceanGridPropertyArgMetadata, GOceanKernelMetadata,
-    GOceanScalarArgMetadata, GOceanStencilMetadata)
+    GOceanPointwiseMetadata, GOceanScalarArgMetadata,
+    GOceanStencilMetadata)
 from psyclone.domain.gocean.kernel import metadata as metadata_mod
 from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
-from psyclone.errors import GenerationError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container
@@ -68,6 +68,8 @@ def test_metadata_from_psyir(fortran_reader):
     assert metadata.iterates_over == "go_all_pts"
     assert metadata.index_offset == "go_offset_sw"
     assert isinstance(metadata.meta_args[0], GOceanFieldArgMetadata)
+    assert isinstance(
+        metadata.meta_args[0].stencil, GOceanPointwiseMetadata)
     assert metadata.meta_args[1].stencil.rows == ("000", "011", "000")
     assert isinstance(metadata.meta_args[2], GOceanGridPropertyArgMetadata)
     assert isinstance(metadata.meta_args[3], GOceanScalarArgMetadata)
@@ -134,19 +136,13 @@ def test_kernel_path():
 
 def test_stencil_metadata():
     """Test pointwise and explicit stencils, including invalid inputs."""
-    pointwise = GOceanStencilMetadata()
-    assert not pointwise.has_stencil
-    assert pointwise.name == "go_pointwise"
-    assert pointwise.depth(0, 0) == 1
-    assert pointwise.depth(1, 0) == 0
+    pointwise = GOceanPointwiseMetadata()
+    assert pointwise.form == "go_pointwise"
+    assert pointwise.fortran_string() == "go_pointwise"
 
     stencil = GOceanStencilMetadata(("012", "345", "678"))
-    assert stencil.has_stencil
-    assert stencil.name is None
-    assert stencil.depth(-1, 1) == 0
-    assert stencil.depth(1, -1) == 8
-    with pytest.raises(GenerationError, match="between -1 and 1"):
-        stencil.depth(2, 0)
+    assert stencil.form == "go_stencil"
+    assert stencil.fortran_string() == "go_stencil(012, 345, 678)"
     for rows, error, message in (
             (("000",), ValueError, "exactly three"),
             (("000", 10, "001"), TypeError, "must be strings"),
@@ -160,6 +156,7 @@ def test_stencil_metadata():
 def test_argument_metadata_validation():
     """Test GOcean argument metadata construction and serialisation."""
     field = GOceanFieldArgMetadata("GO_READ", "GO_CU")
+    assert isinstance(field.stencil, GOceanPointwiseMetadata)
     assert field.form == "go_pointwise"
     assert field.fortran_string() == (
         "go_arg(go_read, go_cu, go_pointwise)")

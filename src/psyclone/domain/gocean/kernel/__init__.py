@@ -14,6 +14,7 @@ from psyclone.domain.gocean.kernel.metadata import (
     GOceanFieldArgMetadata,
     GOceanGridPropertyArgMetadata,
     GOceanKernelMetadata,
+    GOceanPointwiseMetadata,
     GOceanScalarArgMetadata,
     GOceanStencilMetadata,
 )
@@ -24,6 +25,7 @@ __all__ = [
     "GOceanFieldArgMetadata",
     "GOceanGridPropertyArgMetadata",
     "GOceanKernelMetadata",
+    "GOceanPointwiseMetadata",
     "GOceanScalarArgMetadata",
     "GOceanStencilMetadata",
 ]

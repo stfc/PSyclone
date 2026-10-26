@@ -42,7 +42,8 @@ from psyclone.utils import stringify_annotation
 if TYPE_CHECKING:
     from fparser.two.Fortran2003 import Program
     from psyclone.domain.gocean.kernel.metadata import (
-        GOceanArgumentMetadata, GOceanStencilMetadata)
+        GOceanArgumentMetadata, GOceanPointwiseMetadata,
+        GOceanStencilMetadata)
     from psyclone.domain.lfric.kernel.metadata import KernelArgumentMetadata
     from psyclone.parse.algorithm import Arg, InvokeCall, ParsedCall
 
@@ -2321,9 +2322,13 @@ class KernelArgument(Argument):
         return self._arg.datatype
 
     @property
-    def stencil(self) -> Optional[Union[str, GOceanStencilMetadata]]:
+    def stencil(
+            self,
+    ) -> Optional[Union[
+        str, GOceanPointwiseMetadata, GOceanStencilMetadata
+    ]]:
         """
-        :returns: the stencil metadata, or None if the argument has no stencil.
+        :returns: the field-access metadata, or ``None`` for a non-field.
         """
         return getattr(self._arg, "stencil", None)
 

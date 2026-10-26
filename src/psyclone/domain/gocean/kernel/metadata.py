@@ -17,9 +17,11 @@ dataclasses:
             GOceanFieldArgMetadata:
                 access: str
                 grid_point_type: str
-                stencil: GOceanStencilMetadata
-                    rows: Optional[tuple[str, str, str]]
-                    pointwise_name: ClassVar[str]
+                stencil: Union[
+                    GOceanPointwiseMetadata,
+                    GOceanStencilMetadata:
+                        rows: tuple[str, str, str]
+                ]
             GOceanScalarArgMetadata:
                 access: str
                 datatype: str
@@ -43,7 +45,6 @@ from psyclone.configuration import Config
 from psyclone.domain.common.kernel.metadata import (
     KernelMetadata, normalise)
 from psyclone.domain.gocean.gocean_constants import GOceanConstants
-from psyclone.errors import GenerationError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
@@ -56,11 +57,49 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True)
-class GOceanStencilMetadata:
-    """GOcean stencil metadata"""
+class GOceanPointwiseMetadata:
+    """Metadata for a pointwise GOcean field access."""
 
-    rows: Optional[tuple[str, str, str]] = None
-    pointwise_name: ClassVar[str] = "go_pointwise"
+    form: ClassVar[str] = "go_pointwise"
+
+    def fortran_string(self) -> str:
+        """:returns: this access form as Fortran metadata."""
+        return self.form
+
+
+@dataclass(frozen=True)
+class GOceanStencilMetadata:
+    """Metadata for an explicit GOcean stencil access.
+
+    ``rows`` describes the stencil relative to the field element at
+    ``(i, j)``. The three strings are ordered from north to south and
+    therefore represent offsets in the second array dimension of ``j+1``,
+    ``j`` and ``j-1``, respectively. Within each string, the three digits
+    are ordered from west to east and represent offsets in the first array
+    dimension of ``i-1``, ``i`` and ``i+1``, respectively. For example::
+
+        ("010",
+         "212",
+         "010")
+
+    specifies stencil accesses of depth one to the north and south and
+    depth two to the west and east. For an off-centre position, a digit
+    gives the maximum access depth in that direction: ``0`` means no
+    access, ``1`` means an access at depth one, and so on up to depth nine.
+    A depth of two therefore represents accesses at both depths one and
+    two in that direction.
+
+    The central digit represents the local field element at ``(i, j)``.
+    It may be either ``0`` or ``1`` but is currently ignored by PSyclone.
+    A field with no stencil access is represented by
+    :class:`GOceanPointwiseMetadata` instead of by zero-valued stencil
+    rows.
+
+    :param rows: the north, centre and south rows of the stencil.
+    """
+
+    rows: tuple[str, str, str]
+    form: ClassVar[str] = "go_stencil"
 
     def __post_init__(self) -> None:
         """Validate the stencil rows.
@@ -68,8 +107,6 @@ class GOceanStencilMetadata:
         :raises TypeError: if any stencil row is not a string.
         :raises ValueError: if the stencil has an invalid shape or value.
         """
-        if self.rows is None:
-            return
         if not isinstance(self.rows, tuple) or len(self.rows) != 3:
             raise ValueError(
                 "A GOcean stencil must contain exactly three rows."
@@ -91,38 +128,9 @@ class GOceanStencilMetadata:
                 "A zero-sized stencil must use go_pointwise."
             )
 
-    @property
-    def has_stencil(self) -> bool:
-        """
-        :returns: whether this represents a non-pointwise access.
-        """
-        return self.rows is not None
-
-    @property
-    def name(self) -> Optional[str]:
-        """
-        :returns: the pointwise name, or ``None`` for an explicit stencil.
-        """
-        return None if self.has_stencil else self.pointwise_name
-
-    def depth(self, index0: int, index1: int) -> int:
-        """
-        :param index0: the first index.
-        :param index1: the second index.
-
-        :returns: the access depth at the supplied relative indices.
-
-        :raises GenerationError: if either index is out of range.
-        """
-        if index0 not in (-1, 0, 1) or index1 not in (-1, 0, 1):
-            raise GenerationError(
-                "The indices arguments to the depth method in the "
-                "GOStencil object must be between -1 and 1 but found "
-                f"({index0},{index1})"
-            )
-        if self.rows is None:
-            return int(index0 == 0 and index1 == 0)
-        return int(self.rows[1 - index1][index0 + 1])
+    def fortran_string(self) -> str:
+        """:returns: this stencil as Fortran metadata."""
+        return f"{self.form}({', '.join(self.rows)})"
 
 
 @dataclass(frozen=True)
@@ -131,8 +139,8 @@ class GOceanFieldArgMetadata:
 
     access: str
     grid_point_type: str
-    stencil: GOceanStencilMetadata = field(
-        default_factory=GOceanStencilMetadata
+    stencil: GOceanPointwiseMetadata | GOceanStencilMetadata = field(
+        default_factory=GOceanPointwiseMetadata
     )
 
     def __post_init__(self) -> None:
@@ -150,19 +158,19 @@ class GOceanFieldArgMetadata:
             normalise(
                 self.grid_point_type, "field grid-point type",
                 const.VALID_FIELD_GRID_TYPES))
-        if not isinstance(self.stencil, GOceanStencilMetadata):
-            raise TypeError("Field stencil must be a GOceanStencilMetadata.")
+        if not isinstance(
+                self.stencil,
+                (GOceanPointwiseMetadata, GOceanStencilMetadata)):
+            raise TypeError(
+                "Field stencil must be a GOceanPointwiseMetadata or "
+                "GOceanStencilMetadata object.")
 
     @property
     def form(self) -> str:
         """
         :returns: the 'form' metadata field.
         """
-        return (
-            GOceanConstants().VALID_STENCIL_NAME
-            if self.stencil.has_stencil
-            else "go_pointwise"
-        )
+        return self.stencil.form
 
     @property
     def access_type(self) -> AccessType:
@@ -173,15 +181,9 @@ class GOceanFieldArgMetadata:
         """
         :returns: this argument as a Fortran metadata string.
         """
-        if self.stencil.has_stencil:
-            form = (
-                f"{GOceanConstants().VALID_STENCIL_NAME}"
-                f"({', '.join(self.stencil.rows)})"
-            )
-        else:
-            form = "go_pointwise"
         return (
-            f"go_arg({self.access}, {self.grid_point_type}, {form})"
+            f"go_arg({self.access}, {self.grid_point_type}, "
+            f"{self.stencil.fortran_string()})"
         )
 
 
@@ -539,7 +541,7 @@ def _parse_meta_arg(
                     f"{const.VALID_STENCIL_NAMES} or "
                     f"{const.VALID_STENCIL_NAME} but found '{value}'."
                 )
-            stencil = GOceanStencilMetadata()
+            stencil = GOceanPointwiseMetadata()
         return GOceanFieldArgMetadata(access, second, stencil)
     if second in const.VALID_SCALAR_TYPES:
         return GOceanScalarArgMetadata(

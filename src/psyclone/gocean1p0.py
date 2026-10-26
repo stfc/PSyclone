@@ -32,9 +32,9 @@ from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.gocean import GOceanConstants, GOSymbolTable
 from psyclone.domain.gocean.kernel import (
     GOceanFieldArgMetadata, GOceanGridPropertyArgMetadata,
-    GOceanScalarArgMetadata)
+    GOceanPointwiseMetadata, GOceanScalarArgMetadata,
+    GOceanStencilMetadata)
 from psyclone.errors import GenerationError, InternalError
-import psyclone.expression as expr
 from psyclone.parse.algorithm import Arg, KernelCall
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (
@@ -407,7 +407,8 @@ class GOLoop(PSyLoop):
         :rtype: bool
 
         '''
-        return arg.argument_type == 'field' and arg.stencil.has_stencil and \
+        return arg.argument_type == 'field' and \
+            isinstance(arg.stencil, GOceanStencilMetadata) and \
             arg.access in [AccessType.READ, AccessType.READWRITE,
                            AccessType.INC]
 
@@ -1037,8 +1038,13 @@ class GOKern(CodedKern):
                 for j in [-1, 0, 1]:
                     for i in [-1, 0, 1]:
                         # Create an access for each position in that direction
-                        # until reaching the depth value
-                        depth = arg.stencil.depth(i, j)
+                        # until reaching the depth value. A pointwise access
+                        # only touches the central point.
+                        if isinstance(
+                                arg.stencil, GOceanPointwiseMetadata):
+                            depth = int(i == 0 and j == 0)
+                        else:
+                            depth = int(arg.stencil.rows[1 - j][i + 1])
                         for offset in range(1, depth+1):
 
                             # Generate data accessor accounting for offsets
@@ -1608,246 +1614,6 @@ class GOKernelGridArgument(Argument):
         return None
 
 
-class GOStencil():
-    '''GOcean 1.0 stencil information for a kernel argument as obtained by
-    parsing the kernel meta-data. The expected structure of the
-    metadata and its meaning is provided in the description of the
-    load method
-
-    '''
-
-    def __init__(self):
-        ''' Set up any internal variables. '''
-        self._has_stencil = None
-        self._stencil = [[0 for _ in range(3)] for _ in range(3)]
-        self._name = None
-        self._initialised = False
-
-    # pylint: disable=too-many-branches
-    def load(self, stencil_info, kernel_name):
-        '''Take parsed stencil metadata information, check it is valid and
-        store it in a convenient form. The kernel_name argument is
-        only used to provide the location if there is an error.
-
-        The stencil information should either be a name which
-        indicates a particular type of stencil or in the form
-        stencil(xxx,yyy,zzz) which explicitly specifies a stencil
-        shape where xxx, yyy and zzz are triplets of integers
-        indicating whether there is a stencil access in a particular
-        direction and the depth of that access. For example:
-
-        go_stencil(010,  !   N
-                   212,  !  W E
-                   010)  !   S
-
-        indicates that there is a stencil access of depth 1 in the
-        "North" and "South" directions and stencil access of depth 2
-        in the "East" and "West" directions. The value at the centre
-        of the stencil will not be used by PSyclone but can be 0 or 1
-        and indicates whether the local field value is accessed.
-
-        The convention is for the associated arrays to be
-        2-dimensional. If we denote the first dimension as "i" and the
-        second dimension as "j" then the following directions are
-        assumed:
-
-
-        > j
-        > ^
-        > |
-        > |
-        > ---->i
-
-        For example a stencil access like:
-
-        a(i,j) + a(i+1,j) + a(i,j-1)
-
-        would be stored as:
-
-        go_stencil(000,
-                   011,
-                   010)
-
-        :param stencil_info: contains the appropriate part of the parser AST
-        :type stencil_info: :py:class:`psyclone.expression.FunctionVar`
-        :param string kernel_name: the name of the kernel from where this \
-                                   stencil information came from.
-
-        :raises ParseError: if the supplied stencil information is invalid.
-
-        '''
-        self._initialised = True
-
-        if not isinstance(stencil_info, expr.FunctionVar):
-            # the stencil information is not in the expected format
-            raise ParseError(
-                f"Meta-data error in kernel '{kernel_name}': 3rd descriptor "
-                f"(stencil) of field argument is '{stencil_info}' but "
-                f"expected either a name or the format 'go_stencil(...)'")
-
-        # Get the name
-        name = stencil_info.name.lower()
-        const = GOceanConstants()
-
-        if stencil_info.args:
-            # The stencil info is of the form 'name(a,b,...), so the
-            # name should be 'stencil' and there should be 3
-            # arguments'
-            self._has_stencil = True
-            args = stencil_info.args
-            if name != "go_stencil":
-                raise ParseError(
-                    f"Meta-data error in kernel '{kernel_name}': 3rd "
-                    f"descriptor (stencil) of field argument is '{name}' but "
-                    f"must be 'go_stencil(...)")
-            if len(args) != 3:
-                raise ParseError(
-                    f"Meta-data error in kernel '{kernel_name}': 3rd "
-                    f"descriptor (stencil) of field argument with format "
-                    f"'go_stencil(...)', has {len(args)} arguments but should "
-                    f"have 3")
-            # Each of the 3 args should be of length 3 and each
-            # character should be a digit from 0-9. Whilst we are
-            # expecting numbers, the parser represents these numbers
-            # as strings so we have to perform string manipulation to
-            # check and that extract them
-            for arg_idx in range(3):
-                arg = args[arg_idx]
-                if not isinstance(arg, str):
-                    raise ParseError(
-                        f"Meta-data error in kernel '{kernel_name}': 3rd "
-                        f"descriptor (stencil) of field argument with format "
-                        f"'go_stencil(...)'. Argument index {arg_idx} should "
-                        f"be a number but found '{arg}'.")
-                if len(arg) != 3:
-                    raise ParseError(
-                        f"Meta-data error in kernel '{kernel_name}': 3rd "
-                        f"descriptor (stencil) of field argument with format "
-                        f"'go_stencil(...)'. Argument index {arg_idx} should "
-                        f"consist of 3 digits but found {len(arg)}.")
-            # The central value is constrained to be 0 or 1
-            if args[1][1] not in ["0", "1"]:
-                raise ParseError(
-                    f"Meta-data error in kernel '{kernel_name}': 3rd "
-                    f"descriptor (stencil) of field argument with format "
-                    f"'go_stencil(...)'. Argument index 1 position 1 "
-                    f"should be a number from 0-1 but found {args[1][1]}.")
-            # It is not valid to specify a zero stencil. This is
-            # indicated by the 'pointwise' name
-            if args[0] == "000" and \
-               (args[1] == "000" or args[1] == "010") and \
-               args[2] == "000":
-                raise ParseError(
-                    f"Meta-data error in kernel '{kernel_name}': 3rd "
-                    f"descriptor (stencil) of field argument with format "
-                    f"'go_stencil(...)'. A zero sized stencil has been "
-                    f"specified. This should be specified with the "
-                    f"'go_pointwise' keyword.")
-            # store the values in an internal array as integers in i,j
-            # order
-            for idx0 in range(3):
-                for idx1 in range(3):
-                    # The j coordinate needs to be 'reversed': the first
-                    # row (index 0 in args) is 'top', which should be
-                    # accessed using '+1', and the last row (index 2 in args)
-                    # needs to be accessed using '-1' (see depth()). Using
-                    # 2-idx1 mirrors the rows appropriately.
-                    self._stencil[idx0][2-idx1] = int(args[idx1][idx0])
-        else:
-            # stencil info is of the form 'name' so should be one of
-            # our valid names
-            if name not in const.VALID_STENCIL_NAMES:
-                raise ParseError(
-                    f"Meta-data error in kernel '{kernel_name}': 3rd "
-                    f"descriptor (stencil) of field argument is '{name}' "
-                    f"but must be one of {const.VALID_STENCIL_NAMES} or "
-                    f"go_stencil(...)")
-            self._name = name
-            # We currently only support one valid name ('pointwise')
-            # which indicates that there is no stencil
-            self._has_stencil = False
-            # Define a 'stencil' for pointwise so that depth() can be used for
-            # pointwise kernels without handling pointwise as special case
-            self._stencil = [[0, 0, 0], [0, 1, 0], [0, 0, 0]]
-
-    def _check_init(self):
-        '''Internal method which checks that the stencil information has been
-        loaded.
-
-        :raises GenerationError: if the GOStencil object has not been
-        initialised i.e. the load() method has not been called
-
-        '''
-        if not self._initialised:
-            raise GenerationError(
-                "Error in class GOStencil: the object has not yet been "
-                "initialised. Please ensure the load() method is called.")
-
-    @property
-    def has_stencil(self):
-        '''Specifies whether this argument has stencil information or not. The
-        only case when this is False is when the stencil information
-        specifies 'pointwise' as this indicates that there is no
-        stencil access.
-
-        :returns: True if this argument has stencil information and False \
-                  if not.
-        :rtype: bool
-
-        '''
-        self._check_init()
-        return self._has_stencil
-
-    @property
-    def name(self):
-        '''Provides the stencil name if one is provided
-
-        :returns: the name of the type of stencil if this is provided \
-                  and 'None' if not.
-        :rtype: str
-
-        '''
-        self._check_init()
-        return self._name
-
-    def depth(self, index0, index1):
-        '''Provides the depth of the stencil in the 8 possible stencil
-        directions in a 2d regular grid (see the description in the
-        load class for more information). Values must be between -1
-        and 1 as they are considered to be relative to the centre of
-        the stencil For example:
-
-        stencil(234,
-                915,
-                876)
-
-        returns
-
-        depth(-1,0) = 9
-        depth(1,1) = 4
-
-        :param int index0: the relative stencil offset for the first \
-                           index of the associated array. This value \
-                           must be between -1 and 1.
-        :param int index1: the relative stencil offset for the second \
-                           index of the associated array. This value \
-                           must be between -1 and 1
-
-        :returns: the depth of the stencil in the specified direction.
-        :rtype: int
-
-        :raises GenerationError: if the indices are out-of-bounds.
-
-        '''
-        self._check_init()
-        if index0 < -1 or index0 > 1 or index1 < -1 or index1 > 1:
-            raise GenerationError(
-                f"The indices arguments to the depth method in the GOStencil "
-                f"object must be between -1 and 1 but found "
-                f"({index0},{index1})")
-        return self._stencil[index0+1][index1+1]
-
-
 class GOACCEnterDataDirective(ACCEnterDataDirective):
     '''
     Sub-classes ACCEnterDataDirective to provide the dl_esm_inf infrastructure-
@@ -2010,5 +1776,5 @@ class GOHaloExchange(HaloExchange):
 __all__ = ['GOPSy', 'GOInvokes', 'GOInvoke', 'GOInvokeSchedule', 'GOLoop',
            'GOBuiltInCallFactory', 'GOKernCallFactory', 'GOKern',
            'GOKernelArguments', 'GOKernelArgument',
-           'GOKernelGridArgument', 'GOStencil', 'GOACCEnterDataDirective',
+           'GOKernelGridArgument', 'GOACCEnterDataDirective',
            'GOKernelSchedule', 'GOHaloExchange']
